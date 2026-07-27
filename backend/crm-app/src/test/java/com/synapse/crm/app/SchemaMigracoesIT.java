@@ -90,6 +90,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "outbox_evento",
                     "preferencia_usuario",
                     "regra_fidelizacao",
+                    "refresh_token",
                     "regra_follow_up",
                     "rotina_disponibilidade",
                     "rotina_disponibilidade_atendente",

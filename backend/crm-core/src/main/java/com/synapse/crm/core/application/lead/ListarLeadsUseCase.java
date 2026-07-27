@@ -1,0 +1,29 @@
+package com.synapse.crm.core.application.lead;
+
+import java.util.List;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+
+import com.synapse.crm.core.domain.lead.Lead;
+
+/**
+ * Lista os leads visiveis a quem pediu.
+ *
+ * <p>Qualquer usuario autenticado pode chamar; o que muda entre papeis nao e a permissao de listar,
+ * e o conjunto devolvido. Esse recorte e do {@link LeadRepositorio}, que nao sabe listar sem ele.
+ */
+@Service
+public class ListarLeadsUseCase {
+
+    private final LeadRepositorio leads;
+
+    public ListarLeadsUseCase(LeadRepositorio leads) {
+        this.leads = leads;
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    public List<Lead> executar(FiltroLead filtro) {
+        return leads.listar(filtro == null ? FiltroLead.nenhum() : filtro);
+    }
+}

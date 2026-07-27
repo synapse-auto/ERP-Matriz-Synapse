@@ -17,13 +17,17 @@ import com.tngtech.archunit.lang.ArchRule;
  * <p>A suite vive em crm-app porque este e o unico modulo cujo classpath contem todos os outros —
  * uma suite so cobre o monorepo inteiro, em vez de uma copia por modulo que sairia de sincronia.
  *
- * <p>Na etapa E00 os pacotes de dominio ainda estao vazios, entao as regras nao tem o que reprovar
- * (ver {@code archunit.properties}). Elas passam a valer sozinhas assim que a primeira classe de
- * dominio entrar, na E01 — que e exatamente o momento em que precisam existir.
+ * <p>A E02 trouxe as primeiras classes de dominio e {@code archunit.properties} voltou a
+ * {@code failOnEmptyShould=true}: daqui em diante, uma regra que deixe de casar com qualquer classe
+ * e falha de build. Isso protege contra o modo de falha mais traicoeiro deste arquivo — a regra
+ * continuar verde porque parou de enxergar as classes que deveria vigiar.
  */
+// Sem DoNotIncludeJars: os modulos chegam ate crm-app empacotados como JAR, entao
+// exclui-los deixava a suite analisando so as classes da propria aplicacao. O
+// filtro por pacote ja mantem dependencia de terceiro fora da analise.
 @AnalyzeClasses(
         packages = "com.synapse.crm",
-        importOptions = {ImportOption.DoNotIncludeTests.class, ImportOption.DoNotIncludeJars.class})
+        importOptions = {ImportOption.DoNotIncludeTests.class})
 class ArquiteturaTest {
 
     /**
@@ -93,4 +97,36 @@ class ArquiteturaTest {
             .dependOnClassesThat()
             .resideInAPackage("com.synapse.crm.app..")
             .because("crm-app conhece os modulos; nenhum modulo conhece crm-app");
+
+    /**
+     * O repositorio Spring Data de lead consegue ler sem filtro de visibilidade. Essa capacidade
+     * existe, entao precisa ficar trancada num lugar so: o adaptador que sempre aplica a
+     * VisibilidadeLeadSpecification antes de delegar.
+     *
+     * <p>Com 60+ casos de uso e prazo curto, "lembrar de aplicar a Specification" nao e um plano.
+     * Esta regra transforma o esquecimento em build vermelho.
+     */
+    @ArchTest
+    static final ArchRule so_o_adaptador_conversa_com_o_jpa_de_lead = noClasses()
+            .that()
+            .resideOutsideOfPackage("com.synapse.crm.core.infrastructure.persistencia.lead..")
+            .should()
+            .dependOnClassesThat()
+            .haveSimpleName("LeadJpaRepository")
+            .because("toda leitura de lead passa pelo adaptador que aplica a RN-CRM-01");
+
+    /**
+     * O contexto de seguranca do Spring so pode ser lido pelo adaptador que o traduz em
+     * UsuarioAutenticado. Caso de uso que consulte SecurityContextHolder direto vira codigo
+     * impossivel de testar sem subir Spring — e o primeiro passo para a regra de visibilidade
+     * escapar da Specification.
+     */
+    @ArchTest
+    static final ArchRule contexto_de_seguranca_so_no_adaptador = noClasses()
+            .that()
+            .resideOutsideOfPackage("com.synapse.crm.equipe.infrastructure.seguranca..")
+            .should()
+            .dependOnClassesThat()
+            .haveFullyQualifiedName("org.springframework.security.core.context.SecurityContextHolder")
+            .because("os casos de uso recebem UsuarioContext, nao o SecurityContextHolder");
 }

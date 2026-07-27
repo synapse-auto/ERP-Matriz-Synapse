@@ -42,5 +42,12 @@ public abstract class PostgresIT {
             registro.add("synapse.datasource." + pool + ".username", POSTGRES::getUsername);
             registro.add("synapse.datasource." + pool + ".password", POSTGRES::getPassword);
         }
+        // synapse.seguranca.jwt-segredo nao tem default em application.yml de
+        // proposito: a aplicacao nao sobe sem ele. Os testes fornecem o seu.
+        registro.add("synapse.seguranca.jwt-segredo", () -> SEGREDO_JWT_DE_TESTE);
     }
+
+    /** Segredo exclusivo dos testes. Longo o bastante para HMAC-SHA256. */
+    protected static final String SEGREDO_JWT_DE_TESTE =
+            "segredo-de-teste-do-synapse-crm-com-mais-de-32-caracteres";
 }

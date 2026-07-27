@@ -33,6 +33,7 @@ class BootSemParticaoIT extends PostgresIT {
         // perderiam para os defaults de desenvolvimento do application.yml.
         String[] argumentos = {
             "--server.port=0",
+            "--synapse.seguranca.jwt-segredo=" + SEGREDO_JWT_DE_TESTE,
             "--synapse.datasource.general.url=" + POSTGRES.getJdbcUrl(),
             "--synapse.datasource.general.username=" + POSTGRES.getUsername(),
             "--synapse.datasource.general.password=" + POSTGRES.getPassword(),

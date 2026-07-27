@@ -68,6 +68,21 @@ synapse:
     fidelizacao: ${FEATURE_FIDELIZACAO:true}
 
   # -------------------------------------------------------------------------
+  # Seguranca.
+  #
+  # O segredo do JWT NAO tem default. Sem SYNAPSE_JWT_SEGREDO a aplicacao nao
+  # sobe — de proposito. Um default de desenvolvimento aqui e um cadeado que vem
+  # com a chave: se escapar para producao, qualquer um assina um token de
+  # administrador. Gere com: openssl rand -base64 48
+  # -------------------------------------------------------------------------
+  seguranca:
+    jwt-segredo: ${SYNAPSE_JWT_SEGREDO}
+    # Curto: um token vazado tem pouca janela de uso.
+    validade-access-token: ${SYNAPSE_ACCESS_TOKEN_VALIDADE:15m}
+    # Longo, mas revogavel e rotativo a cada uso (ver RenovarSessaoUseCase).
+    validade-refresh-token: ${SYNAPSE_REFRESH_TOKEN_VALIDADE:7d}
+
+  # -------------------------------------------------------------------------
   # Particoes mensais de `mensagem`.
   #
   # Um INSERT numa faixa sem particao falha, e falhar ali significa derrubar o
