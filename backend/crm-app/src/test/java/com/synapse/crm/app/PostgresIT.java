@@ -45,6 +45,13 @@ public abstract class PostgresIT {
         // synapse.seguranca.jwt-segredo nao tem default em application.yml de
         // proposito: a aplicacao nao sobe sem ele. Os testes fornecem o seu.
         registro.add("synapse.seguranca.jwt-segredo", () -> SEGREDO_JWT_DE_TESTE);
+
+        // O container e compartilhado por todas as suites, e as que rodam com o perfil
+        // dev aplicam R__seed_dev nele. Para uma suite sem esse perfil, essa migration
+        // repetivel aparece como "aplicada, mas ausente das locations" e o Flyway
+        // reprova a validacao. O sintoma depende da ORDEM em que as suites rodam, que e
+        // o pior tipo de teste intermitente. Aqui — e so aqui — ignoramos ausentes.
+        registro.add("spring.flyway.ignore-migration-patterns", () -> "*:missing");
     }
 
     /** Segredo exclusivo dos testes. Longo o bastante para HMAC-SHA256. */

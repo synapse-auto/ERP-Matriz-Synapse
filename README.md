@@ -211,6 +211,82 @@ SELECT mensagens_na_particao_default();
 SELECT DISTINCT date_trunc('month', enviado_em) FROM mensagem_default;
 ```
 
+## Isolamento de agenda (RN-CRM-01)
+
+Atendentes trabalham por comissão e disputam leads. Um atendente enxergar o lead de outro não é bug
+de tela, é problema comercial. O isolamento tem **duas camadas independentes**.
+
+### Camada 1 — aplicação (E02)
+
+Quatro barreiras, três delas de tempo de compilação:
+
+1. `LeadRepositorio` **não tem `findAll()` nem `findById()` cru** — o vocabulário da porta não
+   consegue expressar "todos os leads". A visibilidade também não é parâmetro: é derivada do
+   `UsuarioContext` dentro do adaptador, então quem chama não escolhe o próprio nível de acesso.
+2. `LeadJpaRepository`, o único capaz de ler sem filtro, é **pacote-privado**. Injetá-lo de outro
+   pacote não compila.
+3. `VisibilidadeLead` é um tipo **selado**; a tradução para SQL usa `switch` exaustivo. Um modo de
+   visibilidade novo quebra o build até a tradução existir.
+4. `ArquiteturaTest` reprova qualquer classe fora de `...persistencia.lead` que dependa do
+   repositório JPA. **Validada por mutação** — introduzir a violação de propósito reprova o build.
+
+### Camada 2 — RLS no banco (E02b)
+
+Cobre o que a camada 1 não alcança: **SQL cru dos read models** (dashboard e relatórios usam
+consulta direta, ver `docs/01` §2.2) e **acesso manual pelo `psql`**. Políticas em `lead`,
+`atendimento`, `lembrete` e `mensagem_programada`.
+
+A cada transação, nos dois pools, a aplicação executa `SET LOCAL ROLE synapse_app` e publica o
+contexto com `set_config(..., is_local => true)` — o equivalente parametrizável de `SET LOCAL`.
+Nunca `SET` de sessão: com PgBouncer em modo *transaction*, previsto para produção, o contexto
+sobreviveria à transação e o próximo atendente herdaria a visão do anterior.
+
+> **Por que trocar de role.** O usuário da aplicação é dono das tabelas (foi ele quem rodou as
+> migrations), e dono ignora RLS a menos que a tabela use `FORCE`. Pior: **superusuário ignora
+> sempre, mesmo com `FORCE`**. Enquanto a transação rodasse como dono, as políticas seriam
+> decoração. Assumir uma role sem privilégio de dono faz a proteção parar de depender de como a
+> string de conexão foi provisionada.
+
+### Os três contextos
+
+Quem chegar depois precisa saber por que uma consulta no `psql` não retorna nada:
+
+| Contexto | Quem | O que acontece |
+|---|---|---|
+| **Requisição autenticada** | Atendente ou gestor via HTTP | `app.usuario_id` e `app.papel` preenchidos; a política filtra pelo papel |
+| **Serviço** | Jobs `@Scheduled`, consumidor de fila, publisher da outbox | `app.papel = 'SERVICO'`; enxerga tudo. Marque o trecho com `ContextoDeServico.executarComo(...)` |
+| **Sem contexto** | Bug, ou uma sessão `psql` comum | **Zero linhas.** Falha fechado |
+
+Falhar fechado é deliberado: um bug deixa a tela vazia — visível, diagnosticável em segundos — em
+vez de mostrar o lead de outro atendente, que ninguém percebe.
+
+Para investigar no `psql`, assuma um contexto explicitamente:
+
+```sql
+BEGIN;
+SET LOCAL ROLE synapse_app;
+SELECT set_config('app.papel', 'SERVICO', true);
+SELECT * FROM lead;
+COMMIT;
+```
+
+Migrations continuam rodando como o dono das tabelas, fora do RLS — de propósito.
+
+### Padrão obrigatório dos repositórios protegidos
+
+`lead` já segue. `atendimento`, `lembrete` e `mensagem_programada` têm política de banco, mas
+**ainda não têm repositório**; quando a E03 os criar, repita a estrutura:
+
+1. Porta em `application` **sem** `findAll()`/`findById()` cru e **sem** a visibilidade como
+   parâmetro.
+2. Interface Spring Data em `infrastructure/persistencia/<agregado>/`, **pacote-privada**.
+3. Adaptador `@Repository` no mesmo pacote, aplicando a Specification em **todos** os métodos —
+   inclusive a consulta por id, que precisa filtrar no banco e não em memória.
+4. Regra nova no `ArquiteturaTest`, no mesmo formato de `so_o_adaptador_conversa_com_o_jpa_de_lead`.
+5. Teste de paridade entre a política SQL e a regra de domínio.
+
+Sem os cinco, o agregado fica protegido só pela camada 2.
+
 ## Deploy
 
 ### Extensões do PostgreSQL

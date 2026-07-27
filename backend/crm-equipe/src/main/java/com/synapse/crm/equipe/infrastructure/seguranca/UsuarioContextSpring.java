@@ -1,5 +1,6 @@
 package com.synapse.crm.equipe.infrastructure.seguranca;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.core.Authentication;
@@ -23,21 +24,27 @@ class UsuarioContextSpring implements UsuarioContext {
 
     @Override
     public UsuarioAutenticado atual() {
+        // Falha alto de proposito. Se "sem usuario" virasse um Optional vazio aqui,
+        // a tentacao seria tratar como "sem filtro" — que e exatamente o vazamento
+        // que a RN-CRM-01 existe para impedir.
+        return atualSeHouver()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Nao ha usuario autenticado na requisicao. Consulta que depende de "
+                                + "visibilidade nao pode rodar fora de um contexto autenticado."));
+    }
+
+    @Override
+    public Optional<UsuarioAutenticado> atualSeHouver() {
         Authentication autenticacao = SecurityContextHolder.getContext().getAuthentication();
 
-        // Falha alto de proposito. Se "sem usuario" virasse um Optional vazio, a
-        // tentacao seria tratar como "sem filtro" — que e exatamente o vazamento
-        // que a RN-CRM-01 existe para impedir.
         if (autenticacao == null
                 || !autenticacao.isAuthenticated()
                 || !(autenticacao.getPrincipal() instanceof Jwt jwt)) {
-            throw new IllegalStateException(
-                    "Nao ha usuario autenticado na requisicao. Consulta que depende de visibilidade "
-                            + "nao pode rodar fora de um contexto autenticado.");
+            return Optional.empty();
         }
 
-        return new UsuarioAutenticado(
+        return Optional.of(new UsuarioAutenticado(
                 UUID.fromString(jwt.getSubject()),
-                PapelUsuario.valueOf(jwt.getClaimAsString(JwtGeradorDeAccessToken.CLAIM_PAPEL)));
+                PapelUsuario.valueOf(jwt.getClaimAsString(JwtGeradorDeAccessToken.CLAIM_PAPEL))));
     }
 }
