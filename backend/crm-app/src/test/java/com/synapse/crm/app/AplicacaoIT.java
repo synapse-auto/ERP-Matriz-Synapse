@@ -12,11 +12,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.synapse.crm.app.config.DataSourceConfig;
 import com.synapse.crm.app.config.SynapseProperties;
@@ -24,31 +19,12 @@ import com.synapse.crm.app.config.SynapseProperties;
 /**
  * Fumaca da fundacao: a instancia sobe contra um Postgres de verdade e responde ao liveness.
  *
- * <p>Postgres real via Testcontainers, na mesma versao do docker-compose. H2 mentiria justamente
- * sobre o que importa aqui (tipos, JSONB, indices parciais), e o CLAUDE.md pede banco real.
+ * <p>Postgres real via Testcontainers (ver {@link PostgresIT}), na mesma versao do docker-compose.
+ * H2 mentiria justamente sobre o que importa aqui (tipos, JSONB, indices parciais), e o CLAUDE.md
+ * pede banco real.
  */
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class AplicacaoIT {
-
-    private static final String IMAGEM_POSTGRES = "postgres:15-alpine";
-
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(IMAGEM_POSTGRES);
-
-    /**
-     * Os dois pools sao apontados para o container explicitamente. {@code @ServiceConnection} nao
-     * serve aqui porque ele preenche {@code spring.datasource.*}, e esta aplicacao nao usa esse
-     * prefixo — as conexoes vem de {@code synapse.datasource.*}, um bloco por pool.
-     */
-    @DynamicPropertySource
-    static void apontarPoolsParaOContainer(DynamicPropertyRegistry registro) {
-        for (String pool : new String[] {"general", "chat"}) {
-            registro.add("synapse.datasource." + pool + ".url", POSTGRES::getJdbcUrl);
-            registro.add("synapse.datasource." + pool + ".username", POSTGRES::getUsername);
-            registro.add("synapse.datasource." + pool + ".password", POSTGRES::getPassword);
-        }
-    }
+class AplicacaoIT extends PostgresIT {
 
     @Autowired
     private TestRestTemplate http;

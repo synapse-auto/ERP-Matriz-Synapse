@@ -1,0 +1,299 @@
+package com.synapse.crm.app;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import javax.sql.DataSource;
+
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import com.synapse.crm.app.config.DataSourceConfig;
+import com.synapse.crm.atendimento.infrastructure.particao.ManutencaoParticaoMensagem;
+import com.synapse.crm.atendimento.infrastructure.particao.ParticaoMensagemAusenteException;
+
+/**
+ * Prova que as migrations sobem um schema correto a partir de um banco limpo.
+ *
+ * <p>O container do Testcontainers nasce vazio, entao o contexto subir ja prova que o Flyway rodou
+ * V1..V10 do zero. O resto verifica o que uma migration errada quebraria em silencio: um ENUM
+ * faltando, um indice que ninguem percebeu que sumiu, ou a regra de credencial ativa deixando de
+ * ser garantida pelo banco.
+ */
+@SpringBootTest
+class SchemaMigracoesIT extends PostgresIT {
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private Flyway flyway;
+
+    @Autowired
+    private ManutencaoParticaoMensagem particoes;
+
+    @Autowired
+    @Qualifier(DataSourceConfig.GENERAL_DATA_SOURCE) private DataSource poolGeral;
+
+    @Nested
+    @DisplayName("estrutura criada pelas migrations")
+    class Estrutura {
+
+        /**
+         * Lista explicita, e nao COUNT(*): contar so avisa que o numero mudou, enquanto a lista diz
+         * qual tabela sumiu — e falha quando alguem remove uma e acrescenta outra.
+         */
+        @Test
+        @DisplayName("todas as tabelas do modelo existem")
+        void tabelas_bancoMigrado_existemTodas() {
+            List<String> esperadas = List.of(
+                    "arquivo_banco",
+                    "atendimento",
+                    "audit_log",
+                    "avaliacao",
+                    "campanha",
+                    "campanha_mensagem",
+                    "campanha_mensagem_metrica",
+                    "canal",
+                    "canal_credencial",
+                    "chat_interno_conversa",
+                    "chat_interno_mensagem",
+                    "chat_interno_participante",
+                    "configuracao_automacao",
+                    "configuracao_resumo_ia",
+                    "disponibilidade_atendente_ia",
+                    "etapa_atendimento",
+                    "evento_timeline",
+                    "feature_flag",
+                    "filtro_modular",
+                    "horario_trabalho",
+                    "lead",
+                    "lead_tag",
+                    "lembrete",
+                    "mensagem",
+                    "mensagem_festiva",
+                    "mensagem_programada",
+                    "mensagem_rapida",
+                    "outbox_evento",
+                    "preferencia_usuario",
+                    "regra_fidelizacao",
+                    "regra_follow_up",
+                    "rotina_disponibilidade",
+                    "rotina_disponibilidade_atendente",
+                    "status_automacao_telemetria",
+                    "tag",
+                    "usuario");
+
+            List<String> existentes = jdbc.queryForList(
+                    """
+                    SELECT c.relname
+                      FROM pg_class c
+                      JOIN pg_namespace n ON n.oid = c.relnamespace
+                     WHERE n.nspname = 'public'
+                       AND c.relkind IN ('r', 'p')
+                       AND c.relname <> 'flyway_schema_history'
+                       AND c.relname NOT LIKE 'mensagem\\_2%'
+                    """,
+                    String.class);
+
+            assertThat(existentes).containsExactlyInAnyOrderElementsOf(esperadas);
+        }
+
+        @Test
+        @DisplayName("todos os tipos enumerados existem")
+        void enums_bancoMigrado_existemTodos() {
+            List<String> esperados = List.of(
+                    "contexto_filtro",
+                    "dia_semana",
+                    "gatilho_resumo",
+                    "origem_evento",
+                    "papel_usuario",
+                    "remetente_tipo",
+                    "status_atendimento",
+                    "status_basico_lead",
+                    "status_campanha",
+                    "status_entrega",
+                    "status_lembrete",
+                    "status_msg_prog",
+                    "status_presenca",
+                    "tipo_conversa_chat",
+                    "tipo_mensagem",
+                    "tipo_rotina");
+
+            List<String> existentes = jdbc.queryForList(
+                    """
+                    SELECT t.typname
+                      FROM pg_type t
+                      JOIN pg_namespace n ON n.oid = t.typnamespace
+                     WHERE n.nspname = 'public' AND t.typtype = 'e'
+                    """,
+                    String.class);
+
+            assertThat(existentes).containsExactlyInAnyOrderElementsOf(esperados);
+        }
+
+        @Test
+        @DisplayName("os indices criticos existem, inclusive parciais, GIN e BRIN")
+        void indices_bancoMigrado_existemOsCriticos() {
+            List<String> existentes = jdbc.queryForList(
+                    "SELECT indexname FROM pg_indexes WHERE schemaname = 'public'", String.class);
+
+            assertThat(existentes)
+                    .contains(
+                            "idx_lead_atendente", // isolamento de agenda (RN-CRM-01)
+                            "idx_canal_credencial_ativa", // unico parcial: regra de negocio
+                            "idx_outbox_pendente", // parcial: publisher da outbox
+                            "idx_lead_nome_trgm", // GIN trigram: busca por nome
+                            "idx_filtro_criterios", // GIN jsonb: filtros modulares
+                            "idx_audit_criado_em", // BRIN: auditoria append-only
+                            "idx_lead_status_basico",
+                            "idx_msg_prog_envio",
+                            "idx_etapa_ordem",
+                            "idx_msg_rapida_atendente_chave",
+                            "idx_mensagem_atendimento");
+        }
+
+        @Test
+        @DisplayName("o Flyway migra pelo pool geral, nao pela reserva do chat")
+        void flyway_contextoIniciado_usaOPoolGeral() {
+            assertThat(flyway.getConfiguration().getDataSource()).isSameAs(poolGeral);
+        }
+
+        @Test
+        @DisplayName("o seed de desenvolvimento fica fora das locations no perfil padrao")
+        void flyway_perfilPadrao_naoEnxergaOSeed() {
+            assertThat(flyway.getConfiguration().getLocations())
+                    .noneMatch(local -> local.getDescriptor().contains("db/seed"));
+        }
+    }
+
+    @Nested
+    @DisplayName("regras de negocio garantidas pelo banco")
+    class RegrasNoBanco {
+
+        /**
+         * O indice unico parcial existe para que a regra valha mesmo se o codigo errar. Se este
+         * teste passar a falhar, alguem trocou o indice por uma validacao na aplicacao — que nao
+         * protege contra dois processos concorrentes.
+         */
+        @Test
+        @DisplayName("duas credenciais ativas no mesmo canal sao rejeitadas")
+        void canalCredencial_segundaAtivaNoMesmoCanal_ehRejeitada() {
+            UUID canalId = criarCanal();
+            jdbc.update(
+                    "INSERT INTO canal_credencial (canal_id, numero, ativo) VALUES (?, '+5561900000001', TRUE)",
+                    canalId);
+
+            assertThatThrownBy(() -> jdbc.update(
+                            "INSERT INTO canal_credencial (canal_id, numero, ativo)"
+                                    + " VALUES (?, '+5561900000002', TRUE)",
+                            canalId))
+                    .isInstanceOf(DuplicateKeyException.class);
+        }
+
+        @Test
+        @DisplayName("a credencial anterior convive com a nova quando desativada")
+        void canalCredencial_anteriorDesativada_permiteNovaAtiva() {
+            UUID canalId = criarCanal();
+            jdbc.update(
+                    "INSERT INTO canal_credencial (canal_id, numero, ativo, vigente_ate)"
+                            + " VALUES (?, '+5561900000003', FALSE, now())",
+                    canalId);
+            jdbc.update(
+                    "INSERT INTO canal_credencial (canal_id, numero, ativo) VALUES (?, '+5561900000004', TRUE)",
+                    canalId);
+
+            Integer total = jdbc.queryForObject(
+                    "SELECT count(*) FROM canal_credencial WHERE canal_id = ?", Integer.class, canalId);
+
+            // A antiga continua no banco: e ela que o historico referencia.
+            assertThat(total).isEqualTo(2);
+        }
+
+        private UUID criarCanal() {
+            UUID canalId = UUID.randomUUID();
+            jdbc.update(
+                    "INSERT INTO canal (id, nome, tipo) VALUES (?, ?, 'WHATSAPP')",
+                    canalId,
+                    "Canal " + canalId);
+            return canalId;
+        }
+    }
+
+    @Nested
+    @DisplayName("particionamento de mensagem")
+    class Particionamento {
+
+        @Test
+        @DisplayName("inserir mensagem numa data coberta pela janela funciona")
+        void mensagem_dataCoberta_ehInserida() {
+            UUID atendimentoId = criarAtendimento();
+
+            jdbc.update(
+                    """
+                    INSERT INTO mensagem (atendimento_id, remetente_tipo, tipo, conteudo, enviado_em)
+                    VALUES (?, 'ATENDENTE', 'TEXTO', 'ola', ?)
+                    """,
+                    atendimentoId,
+                    OffsetDateTime.now());
+
+            Integer total = jdbc.queryForObject(
+                    "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Integer.class, atendimentoId);
+            assertThat(total).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("a janela minima esta completa depois das migrations")
+        void particoes_aposMigrations_janelaMinimaCompleta() {
+            assertThat(particoes.particoesFaltantes(1)).isEmpty();
+            assertThat(particoes.particoesFaltantes(3)).isEmpty();
+        }
+
+        /**
+         * A V5 cria mes corrente + 3. Pedir uma janela muito maior tem, necessariamente, meses sem
+         * particao — e o jeito de exercitar a deteccao sem depender da data em que o teste roda.
+         */
+        @Test
+        @DisplayName("a verificacao acusa os meses sem particao")
+        void verificacao_janelaAlemDoCriado_acusaFaltantes() {
+            int janelaLonga = 60;
+
+            assertThat(particoes.particoesFaltantes(janelaLonga)).isNotEmpty();
+
+            assertThatThrownBy(() -> particoes.verificarJanelaMinima(janelaLonga))
+                    .isInstanceOf(ParticaoMensagemAusenteException.class)
+                    .hasMessageContaining("garantir_particoes_mensagem")
+                    .hasMessageContaining("sem particao para");
+        }
+
+        @Test
+        @DisplayName("garantir a janela cria o que falta e e idempotente")
+        void garantirJanela_chamadaDuasVezes_naoQuebra() {
+            int janela = 6;
+            particoes.garantirJanela(janela);
+            assertThat(particoes.particoesFaltantes(janela)).isEmpty();
+
+            particoes.garantirJanela(janela);
+            assertThat(particoes.particoesFaltantes(janela)).isEmpty();
+        }
+
+        private UUID criarAtendimento() {
+            UUID leadId = UUID.randomUUID();
+            UUID atendimentoId = UUID.randomUUID();
+            jdbc.update("INSERT INTO lead (id, nome) VALUES (?, 'Lead de teste')", leadId);
+            jdbc.update("INSERT INTO atendimento (id, lead_id) VALUES (?, ?)", atendimentoId, leadId);
+            return atendimentoId;
+        }
+    }
+}

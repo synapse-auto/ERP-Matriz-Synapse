@@ -1,2 +1,0 @@
-# As migrations Flyway (V{n}__{descricao}.sql) entram na etapa E01.
-# Este arquivo existe para que classpath:db/migration resolva com o diretorio vazio.

@@ -22,6 +22,13 @@ spring:
           time_zone: UTC
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    # Nao vem do ambiente de proposito. O seed de desenvolvimento mora em
+    # classpath:db/seed e so entra nesta lista no perfil "dev" (documento no
+    # fim do arquivo). Se a lista viesse de variavel de ambiente, bastaria uma
+    # variavel errada para semear um banco de producao.
+    #
+    # O Flyway migra pelo DataSource @Primary, que e o generalDataSource: o
+    # pool do chat e reserva do caminho critico e nao e gasto com migration.
     locations: classpath:db/migration
     baseline-on-migrate: true
 
@@ -59,6 +66,23 @@ synapse:
     campanhas: ${FEATURE_CAMPANHAS:true}
     chat-interno: ${FEATURE_CHAT_INTERNO:true}
     fidelizacao: ${FEATURE_FIDELIZACAO:true}
+
+  # -------------------------------------------------------------------------
+  # Particoes mensais de `mensagem`.
+  #
+  # Um INSERT numa faixa sem particao falha, e falhar ali significa derrubar o
+  # envio de mensagens. Por isso a janela e criada com meses de antecedencia e
+  # conferida na inicializacao: falhar no start e muito melhor do que falhar
+  # no primeiro envio das 9h.
+  # -------------------------------------------------------------------------
+  atendimento:
+    particao:
+      meses-a-frente: ${MENSAGEM_PARTICAO_MESES_A_FRENTE:3}
+      # Quantos meses alem do corrente precisam existir para o boot passar.
+      meses-minimos: ${MENSAGEM_PARTICAO_MESES_MINIMOS:1}
+      verificar-na-inicializacao: ${MENSAGEM_PARTICAO_VERIFICAR_BOOT:true}
+      # Dia 1 de cada mes, 03:00 — fora do horario protegido (08:00-18:30).
+      cron: ${MENSAGEM_PARTICAO_CRON:0 0 3 1 * *}
 
   # -------------------------------------------------------------------------
   # Bulkhead: dois pools sobre o MESMO banco. O pool do chat existe para que um
@@ -121,3 +145,20 @@ management:
   info:
     env:
       enabled: false
+
+---
+# ===========================================================================
+# Perfil dev — a UNICA forma de o seed entrar no jogo.
+#
+# O seed acrescenta a pasta classpath:db/seed as locations do Flyway. Sem
+# `--spring.profiles.active=dev` (ou SPRING_PROFILES_ACTIVE=dev), o Flyway
+# nao enxerga R__seed_dev.sql e nao tem como executa-lo. Um ambiente de
+# producao nao roda com este perfil, entao a protecao nao depende de
+# ninguem lembrar de nada.
+# ===========================================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

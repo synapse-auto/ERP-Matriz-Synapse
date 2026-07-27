@@ -80,6 +80,15 @@ curl http://localhost:8080/health/liveness
 
 Resposta esperada: `{"status":"UP"}`.
 
+Para subir **com o banco populado** (etapas do funil, canal, usuários, tags, feature flags e
+parâmetros da automação), use o perfil `dev`:
+
+```bash
+SPRING_PROFILES_ACTIVE=dev java -jar backend/crm-app/target/crm-app-0.1.0-SNAPSHOT-exec.jar
+```
+
+Ver [Migrations e seed](#migrations-e-seed) para o que entra e por que só no `dev`.
+
 ### 4. Frontend
 
 ```bash
@@ -150,6 +159,48 @@ Duas coisas fazem valer essa regra no build, e não no code review:
 Nada de configurável é constante no código. A configuração da instância vive no bloco `synapse:` de
 `backend/crm-app/src/main/resources/application.yml`, e todo valor vem de variável de ambiente com
 um default de desenvolvimento.
+
+### Migrations e seed
+
+As migrations Flyway vivem em `backend/crm-app/src/main/resources/db/migration`, quebradas por
+assunto (`V1` extensões e ENUMs, `V2` equipe, … `V10` índices). **Nunca edite uma migration já
+aplicada** — se estiver errada, crie a próxima.
+
+O seed de desenvolvimento é uma migration repetível em uma pasta separada, `db/seed`, que só entra
+em `spring.flyway.locations` no perfil `dev`. Sem o perfil, o Flyway nem enxerga o arquivo; a
+proteção não depende de ninguém lembrar de nada. A lista de locations também não vem de variável de
+ambiente, justamente para que nenhuma variável errada consiga semear um banco de produção.
+
+Usuários criados pelo seed (todos com domínio `@dev.local`):
+
+| E-mail | Senha | Papel |
+|---|---|---|
+| `admin@dev.local` | `admin123` | ADMINISTRADOR |
+| `gestor@dev.local` | `gestor123` | GESTOR |
+| `subgestor@dev.local` | `subgestor123` | SUBGESTOR |
+| `ana@dev.local`, `bruno@dev.local` | `atendente123` | ATENDENTE |
+
+### Partições de `mensagem`
+
+`mensagem` é particionada por mês em `enviado_em`. Um `INSERT` numa faixa sem partição **falha**, e
+falhar ali significa parar de enviar e receber mensagem — o que a regra de precedência proíbe. Três
+mecanismos cuidam disso:
+
+- A migration `V5` cria o mês corrente **mais 3 meses**, através de funções idempotentes.
+- Um job mensal (`ManutencaoParticaoMensagem`, dia 1 às 03:00) recompõe a **janela inteira**, não só
+  o próximo mês — assim o job pode falhar algumas vezes seguidas sem parar a operação.
+- Na inicialização, a aplicação **se recusa a subir** se faltar partição para o mês corrente ou o
+  próximo, com uma mensagem dizendo como corrigir.
+
+Para inspecionar ou corrigir manualmente:
+
+```sql
+SELECT * FROM particoes_mensagem_faltantes(3);
+SELECT garantir_particoes_mensagem(3);
+```
+
+Não existe partição `DEFAULT` de propósito: ela aceitaria as linhas silenciosamente e depois
+impediria anexar a partição correta daquele mês sem mover dados.
 
 ### Bulkhead: dois pools de conexão
 
