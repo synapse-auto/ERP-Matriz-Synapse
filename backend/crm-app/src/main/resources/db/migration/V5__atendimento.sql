@@ -49,16 +49,50 @@ CREATE TABLE mensagem (
 ) PARTITION BY RANGE (enviado_em);
 
 -- ---------------------------------------------------------
+-- Rede de seguranca: particao DEFAULT.
+--
+-- Um INSERT numa faixa sem particao falha, e falhar ali significa parar de
+-- enviar e receber mensagem. Comparando os modos de falha no cenario em que
+-- todas as salvaguardas falham juntas:
+--
+--   sem DEFAULT  -> o INSERT falha e a mensagem do cliente se perde. Irrecuperavel.
+--   com DEFAULT  -> a linha cai aqui e o atendimento segue. Divida recuperavel.
+--
+-- A regra de precedencia do produto decide entre os dois. O cenario nao e
+-- hipotetico: basta o job mensal falhar em silencio por alguns meses sem que a
+-- aplicacao reinicie, porque a verificacao de boot so protege quem reinicia.
+--
+-- O custo e real e conhecido: enquanto houver linha aqui na faixa de um mes,
+-- criar a particao daquele mes falha (o Postgres teria de mover as linhas).
+-- Por isso ela nunca pode ser silenciosa — um job diario alerta se houver
+-- qualquer linha. Rede de seguranca sem alarme some do radar ate a limpeza
+-- ficar cara.
+-- ---------------------------------------------------------
+CREATE TABLE mensagem_default PARTITION OF mensagem DEFAULT;
+
+COMMENT ON TABLE mensagem_default IS
+    'ANOMALIA, nao estado normal. Toda linha aqui chegou numa faixa sem particao mensal: '
+    'o job de particionamento falhou ou a janela fechou. Linhas aqui impedem criar a particao '
+    'do mes correspondente, entao devem ser drenadas (criar a particao do mes e mover as linhas) '
+    'assim que o alerta disparar. Contagem esperada em operacao normal: zero.';
+
+CREATE OR REPLACE FUNCTION mensagens_na_particao_default()
+RETURNS BIGINT
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT count(*) FROM mensagem_default;
+$$;
+
+COMMENT ON FUNCTION mensagens_na_particao_default() IS
+    'Quantas linhas cairam na rede de seguranca. Qualquer valor acima de zero e alerta.';
+
+-- ---------------------------------------------------------
 -- Criacao de particoes.
 --
--- Um INSERT numa faixa sem particao falha, e isso derruba o envio de
--- mensagens — exatamente o que a regra de precedencia proibe. Por isso a
--- criacao e antecipada (varios meses a frente), idempotente, e conferida
--- na inicializacao da aplicacao.
---
--- Nao usamos particao DEFAULT de proposito: ela esconderia o problema
--- aceitando as linhas, e depois impediria anexar a particao correta
--- daquele mes sem mover dados.
+-- A DEFAULT acima e ultimo recurso, nao substituto: a criacao continua
+-- antecipada (varios meses a frente), idempotente, e conferida na
+-- inicializacao da aplicacao.
 -- ---------------------------------------------------------
 CREATE OR REPLACE FUNCTION criar_particao_mensagem(p_mes DATE)
 RETURNS TEXT
@@ -81,6 +115,16 @@ EXCEPTION
     -- Duas instancias podem rodar o job na mesma janela; a perdedora apenas segue.
     WHEN duplicate_table THEN
         RETURN v_nome;
+    -- A particao DEFAULT ja tem linhas dessa faixa. O Postgres se recusa a criar
+    -- a particao porque teria de mover linhas. Traduzimos o erro cru para algo
+    -- que diga o que fazer: drenar a DEFAULT primeiro.
+    WHEN check_violation THEN
+        RAISE EXCEPTION
+            'Nao foi possivel criar a particao % porque mensagem_default ja contem linhas '
+            'dessa faixa. Drene a DEFAULT antes: mova as linhas do mes para uma tabela '
+            'temporaria, crie a particao e devolva as linhas. Detalhe do banco: %',
+            v_nome, SQLERRM
+            USING ERRCODE = 'check_violation';
 END;
 $$;
 

@@ -4,7 +4,12 @@
 -- praticamente todas as tabelas das migrations seguintes.
 -- =========================================================
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid()
+-- pg_trgm e a unica extensao necessaria.
+--
+-- pgcrypto foi removida de proposito: `gen_random_uuid()`, usada como DEFAULT
+-- em quase toda tabela, e nativa desde o PostgreSQL 13, e o projeto exige 15+.
+-- Uma extensao a menos e um obstaculo a menos no deploy em Postgres gerenciado,
+-- onde habilitar extensao costuma exigir privilegio que a aplicacao nao tem.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- busca fuzzy por nome (RF-CRM-07)
 
 CREATE TYPE papel_usuario      AS ENUM ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR');

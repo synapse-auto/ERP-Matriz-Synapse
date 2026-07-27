@@ -83,6 +83,10 @@ synapse:
       verificar-na-inicializacao: ${MENSAGEM_PARTICAO_VERIFICAR_BOOT:true}
       # Dia 1 de cada mes, 03:00 — fora do horario protegido (08:00-18:30).
       cron: ${MENSAGEM_PARTICAO_CRON:0 0 3 1 * *}
+      # Diario as 07:15, pouco antes do horario protegido: se a rede de
+      # seguranca (particao DEFAULT) pegou alguma linha, alguem descobre antes
+      # de o expediente comecar, nao depois.
+      cron-alerta-default: ${MENSAGEM_PARTICAO_CRON_ALERTA:0 15 7 * * *}
 
   # -------------------------------------------------------------------------
   # Bulkhead: dois pools sobre o MESMO banco. O pool do chat existe para que um

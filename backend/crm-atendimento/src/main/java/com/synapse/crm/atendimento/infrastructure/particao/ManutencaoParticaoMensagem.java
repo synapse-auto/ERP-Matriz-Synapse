@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,9 +32,18 @@ public class ManutencaoParticaoMensagem implements InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(ManutencaoParticaoMensagem.class);
 
+    /**
+     * Marcador do alerta da particao DEFAULT.
+     *
+     * <p>Fixo e greppavel de proposito: e por ele que a regra de alerta da E09 vai casar, e e o que
+     * alguem digita no agregador de log as 8h de uma segunda-feira ruim.
+     */
+    public static final String MARCADOR_ALERTA_DEFAULT = "[ALERTA_PARTICAO_DEFAULT]";
+
     private static final String SQL_GARANTIR = "SELECT garantir_particoes_mensagem(?)";
     private static final String SQL_FALTANTES =
             "SELECT nome_esperado FROM particoes_mensagem_faltantes(?)";
+    private static final String SQL_CONTAR_DEFAULT = "SELECT mensagens_na_particao_default()";
 
     private final JdbcTemplate jdbc;
     private final ParticaoMensagemProperties propriedades;
@@ -63,7 +73,22 @@ public class ManutencaoParticaoMensagem implements InitializingBean {
     public void garantirJanelaAgendada() {
         int meses = propriedades.mesesAFrente();
         List<String> antes = particoesFaltantes(meses);
-        garantirJanela(meses);
+
+        try {
+            garantirJanela(meses);
+        } catch (DataAccessException e) {
+            // Caso tipico: a particao DEFAULT ja tem linhas da faixa que estamos
+            // tentando criar, e o Postgres se recusa a criar a particao. Alertar
+            // com o motivo e mais util que deixar o stack trace cru subir, e a
+            // proxima execucao tenta de novo depois que alguem drenar a DEFAULT.
+            log.error(
+                    "{} Falha ao criar particoes de mensagem. Faltavam: {}. Motivo: {}",
+                    MARCADOR_ALERTA_DEFAULT,
+                    antes.isEmpty() ? "nenhuma" : String.join(", ", antes),
+                    e.getMostSpecificCause().getMessage());
+            return;
+        }
+
         List<String> depois = particoesFaltantes(meses);
 
         if (depois.isEmpty()) {
@@ -79,6 +104,38 @@ public class ManutencaoParticaoMensagem implements InitializingBean {
                             + "Escritas em mensagem vao falhar quando alcancarem esses meses.",
                     String.join(", ", depois));
         }
+    }
+
+    /**
+     * Job diario: a rede de seguranca pegou alguma coisa?
+     *
+     * <p>A particao DEFAULT existe para que uma faixa sem particao nao derrube o envio de mensagem.
+     * O preco e que ela e silenciosa: o sistema segue funcionando enquanto a divida cresce, e cada
+     * linha acumulada torna mais caro criar a particao daquele mes depois. Este alerta e o que
+     * impede a rede de seguranca de virar um problema descoberto tarde.
+     */
+    @Scheduled(cron = "${synapse.atendimento.particao.cron-alerta-default}")
+    public void alertarSobreParticaoDefault() {
+        long linhas = mensagensNaParticaoDefault();
+
+        if (linhas == 0) {
+            log.debug("Particao DEFAULT de mensagem vazia, como esperado.");
+            return;
+        }
+
+        log.error(
+                "{} {} linha(s) em mensagem_default. Alguma mensagem chegou numa faixa sem particao "
+                        + "mensal, entao o particionamento falhou em algum momento. Enquanto essas linhas "
+                        + "estiverem ali, criar a particao do mes correspondente vai falhar. Confira com "
+                        + "SELECT DISTINCT date_trunc('month', enviado_em) FROM mensagem_default; e drene.",
+                MARCADOR_ALERTA_DEFAULT,
+                linhas);
+    }
+
+    /** Quantas linhas cairam na rede de seguranca. Zero e o unico valor normal. */
+    public long mensagensNaParticaoDefault() {
+        Long total = jdbc.queryForObject(SQL_CONTAR_DEFAULT, Long.class);
+        return total == null ? 0L : total;
     }
 
     /**

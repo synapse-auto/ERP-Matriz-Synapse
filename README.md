@@ -199,8 +199,29 @@ SELECT * FROM particoes_mensagem_faltantes(3);
 SELECT garantir_particoes_mensagem(3);
 ```
 
-Não existe partição `DEFAULT` de propósito: ela aceitaria as linhas silenciosamente e depois
-impediria anexar a partição correta daquele mês sem mover dados.
+Além disso existe uma partição `DEFAULT` (`mensagem_default`) como **último recurso**. Se todas as
+salvaguardas falharem juntas, é melhor a linha cair nela — dívida recuperável — do que o `INSERT`
+falhar e a mensagem do cliente se perder. O custo é conhecido: enquanto houver linha ali na faixa de
+um mês, criar a partição daquele mês falha. Por isso ela **não é silenciosa**: um job diário (07:15,
+antes do horário protegido) registra um `ERROR` com o marcador `[ALERTA_PARTICAO_DEFAULT]` se houver
+qualquer linha. Rede de segurança sem alarme some do radar até a limpeza ficar cara.
+
+```sql
+SELECT mensagens_na_particao_default();
+SELECT DISTINCT date_trunc('month', enviado_em) FROM mensagem_default;
+```
+
+## Deploy
+
+### Extensões do PostgreSQL
+
+O schema usa **`pg_trgm`** (busca por nome). Em Postgres gerenciado (RDS, Cloud SQL, Azure Database
+etc.) habilitar extensão costuma exigir privilégio que o usuário da aplicação não tem, e nesse caso
+a `V1` falha. **Verifique isso antes do primeiro deploy de homologação** — se for necessário,
+habilite a extensão fora da migration.
+
+`pgcrypto` **não** é mais necessária: `gen_random_uuid()` é nativa desde o PostgreSQL 13 e o projeto
+exige 15+. Uma extensão a menos é um obstáculo a menos no deploy gerenciado.
 
 ### Bulkhead: dois pools de conexão
 

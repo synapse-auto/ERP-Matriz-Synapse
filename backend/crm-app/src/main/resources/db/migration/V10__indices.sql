@@ -5,19 +5,17 @@
 -- docs/03-modelo-dados-postgres.md secao 3. Os parciais existem porque a
 -- consulta comum filtra um subconjunto pequeno: indexar so esse subconjunto
 -- deixa o indice menor e mais quente em cache.
+--
+-- Aqui moram apenas indices de PERFORMANCE. Os indices unicos que expressam
+-- regra de negocio (idx_canal_credencial_ativa, idx_etapa_ordem,
+-- idx_msg_rapida_atendente_chave) ficam na migration da tabela que protegem
+-- (V3 e V4): sao constraints escritas com sintaxe de indice, e uma constraint
+-- separada da sua tabela deixa uma janela em que a tabela existe sem garantia.
 -- =========================================================
 
 -- --- Equipe ----------------------------------------------------------------
 CREATE INDEX idx_usuario_papel ON usuario (papel) WHERE ativo;
 CREATE INDEX idx_avaliacao_atendente ON avaliacao (atendente_id);
-
--- --- Configuracao base -----------------------------------------------------
-CREATE UNIQUE INDEX idx_etapa_ordem ON etapa_atendimento (ordem);
-
--- Regra de negocio garantida pelo banco, nao otimizacao: nunca pode haver
--- duas credenciais ativas para o mesmo canal. Protege mesmo se o codigo errar.
-CREATE UNIQUE INDEX idx_canal_credencial_ativa
-    ON canal_credencial (canal_id) WHERE ativo;
 
 -- --- CRM core --------------------------------------------------------------
 -- Isolamento de agenda (RN-CRM-01): toda listagem de atendente passa por aqui.
@@ -39,8 +37,6 @@ CREATE INDEX idx_lembrete_atendente ON lembrete (atendente_id, status);
 CREATE INDEX idx_msg_prog_atendente ON mensagem_programada (atendente_id, status);
 CREATE INDEX idx_msg_prog_envio
     ON mensagem_programada (data_envio) WHERE status = 'AGENDADA';
-CREATE UNIQUE INDEX idx_msg_rapida_atendente_chave
-    ON mensagem_rapida (atendente_id, palavra_chave);
 CREATE INDEX idx_evento_timeline_lead ON evento_timeline (lead_id, criado_em DESC);
 
 -- --- Atendimento -----------------------------------------------------------

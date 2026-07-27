@@ -97,3 +97,12 @@ CREATE TABLE arquivo_banco (
     criado_em           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 COMMENT ON COLUMN arquivo_banco.url IS 'Referencia ao objeto no S3/MinIO, nunca o binario.';
+
+-- ---------------------------------------------------------
+-- Constraint de unicidade (regra de negocio, nao performance) — ver V3.
+-- ---------------------------------------------------------
+
+-- A palavra-chave e o atalho que o atendente digita no chat. Duas iguais para
+-- o mesmo atendente tornariam a expansao ambigua.
+CREATE UNIQUE INDEX idx_msg_rapida_atendente_chave
+    ON mensagem_rapida (atendente_id, palavra_chave);

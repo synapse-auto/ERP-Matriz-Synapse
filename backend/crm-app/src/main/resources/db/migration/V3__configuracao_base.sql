@@ -30,3 +30,21 @@ CREATE TABLE etapa_atendimento (
     ordem      SMALLINT NOT NULL,
     cor_visual VARCHAR(20)
 );
+
+-- ---------------------------------------------------------
+-- Constraints de unicidade.
+--
+-- Escritas com sintaxe de indice, mas sao regra de negocio, nao performance.
+-- Por isso ficam aqui, junto das tabelas que protegem, e nao na V10: separar
+-- a constraint da tabela abre uma janela em que a tabela existe sem a garantia.
+-- ---------------------------------------------------------
+
+-- Nunca pode haver duas credenciais ativas no mesmo canal. Garantido pelo
+-- banco para valer mesmo com dois processos concorrentes, onde uma validacao
+-- na aplicacao nao protegeria.
+CREATE UNIQUE INDEX idx_canal_credencial_ativa
+    ON canal_credencial (canal_id) WHERE ativo;
+
+-- A ordem das etapas do funil e posicao no Kanban: duas etapas na mesma
+-- posicao deixariam a tela nao-determinista.
+CREATE UNIQUE INDEX idx_etapa_ordem ON etapa_atendimento (ordem);

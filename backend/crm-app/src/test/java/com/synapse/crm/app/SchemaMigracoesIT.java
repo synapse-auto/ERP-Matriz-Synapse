@@ -82,6 +82,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lead_tag",
                     "lembrete",
                     "mensagem",
+                    // Rede de seguranca: recebe o que chegar fora da janela de particoes.
+                    "mensagem_default",
                     "mensagem_festiva",
                     "mensagem_programada",
                     "mensagem_rapida",
@@ -286,6 +288,63 @@ class SchemaMigracoesIT extends PostgresIT {
 
             particoes.garantirJanela(janela);
             assertThat(particoes.particoesFaltantes(janela)).isEmpty();
+        }
+
+        /**
+         * O caso que a rede de seguranca existe para cobrir: chegou mensagem numa faixa sem
+         * particao mensal. Sem a DEFAULT o INSERT falharia e a mensagem do cliente se perderia;
+         * com ela, a linha e aceita e vira divida de manutencao.
+         *
+         * <p>A data e no passado de proposito. Nenhum outro teste cria particao para tras, entao
+         * essa linha nao briga com a criacao de janelas futuras — que e justamente o efeito
+         * colateral que a DEFAULT provoca quando ha linhas na faixa de um mes a criar.
+         */
+        @Test
+        @DisplayName("mensagem fora da janela cai na particao DEFAULT em vez de falhar")
+        void mensagem_dataForaDaJanela_caiNaParticaoDefault() {
+            UUID atendimentoId = criarAtendimento();
+            OffsetDateTime foraDaJanela = OffsetDateTime.now().minusYears(3);
+
+            jdbc.update(
+                    """
+                    INSERT INTO mensagem (atendimento_id, remetente_tipo, tipo, conteudo, enviado_em)
+                    VALUES (?, 'LEAD', 'TEXTO', 'mensagem fora da janela', ?)
+                    """,
+                    atendimentoId,
+                    foraDaJanela);
+
+            Integer naDefault = jdbc.queryForObject(
+                    "SELECT count(*) FROM mensagem_default WHERE atendimento_id = ?",
+                    Integer.class,
+                    atendimentoId);
+            assertThat(naDefault).isEqualTo(1);
+
+            // E continua visivel pela tabela particionada: o atendimento nao perdeu a mensagem.
+            Integer pelaTabelaPai = jdbc.queryForObject(
+                    "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Integer.class, atendimentoId);
+            assertThat(pelaTabelaPai).isEqualTo(1);
+        }
+
+        /**
+         * Rede de seguranca sem alarme some do radar ate a limpeza ficar cara. O job diario existe
+         * para que a divida seja descoberta no dia seguinte, nao no mes seguinte.
+         */
+        @Test
+        @DisplayName("o alerta enxerga as linhas presas na DEFAULT")
+        void alerta_comLinhaNaDefault_contabilizaAAnomalia() {
+            UUID atendimentoId = criarAtendimento();
+            jdbc.update(
+                    """
+                    INSERT INTO mensagem (atendimento_id, remetente_tipo, tipo, conteudo, enviado_em)
+                    VALUES (?, 'LEAD', 'TEXTO', 'anomalia', ?)
+                    """,
+                    atendimentoId,
+                    OffsetDateTime.now().minusYears(4));
+
+            assertThat(particoes.mensagensNaParticaoDefault()).isPositive();
+
+            // Nao lanca: o job alerta e segue, porque derrubar o agendador nao drena nada.
+            particoes.alertarSobreParticaoDefault();
         }
 
         private UUID criarAtendimento() {
