@@ -1,0 +1,75 @@
+# ---------------------------------------------------------------------------
+# Infra local do Synapse CRM.
+#
+#   cd docker && docker compose up -d
+#
+# Os defaults abaixo servem so para desenvolvimento. Em qualquer outro ambiente
+# as variaveis vem do ambiente (ou de --env-file ../.env) — ver .env.example.
+# ---------------------------------------------------------------------------
+name: synapse-crm
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: synapse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-synapse_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-synapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-synapse}
+      # Ordenacao e acentuacao previsiveis para dados em portugues.
+      LANG: pt_BR.utf8
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # A variavel e lida DENTRO do container, por isso o escape do cifrao.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: synapse-redis
+    restart: unless-stopped
+    # appendonly: presenca e backplane do WebSocket sobrevivem a um restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: synapse-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-synapse}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-synapse}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+# Volumes nomeados: `docker compose down` nao apaga os dados.
+# Para zerar o ambiente: `docker compose down -v`.
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:

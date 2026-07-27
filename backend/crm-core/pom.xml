@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.synapse.crm</groupId>
+    <artifactId>synapse-crm-base</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>crm-core</artifactId>
+  <name>Synapse CRM :: CRM Core</name>
+  <description>Lead, Tag, Etapa, Lembrete e MensagemProgramada.</description>
+
+  <!--
+    Spring e JPA entram aqui porque as camadas infrastructure e interfaces
+    precisam deles. O pacote domain continua proibido de importa-los — isso
+    nao da para expressar no POM, entao e verificado pelo teste de arquitetura
+    ArquiteturaTest (crm-app), que falha o build em caso de violacao.
+  -->
+  <dependencies>
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-shared-kernel</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

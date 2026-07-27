@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.synapse.crm</groupId>
+  <artifactId>synapse-crm-base</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>Synapse CRM :: Base PAI</name>
+  <description>Monorepo Maven multi-modulo da Base PAI do Synapse CRM.</description>
+
+  <!--
+    NAO herdamos de spring-boot-starter-parent de proposito.
+    Herdar traria o dependencyManagement do Spring Boot para TODOS os modulos,
+    inclusive crm-shared-kernel e os pacotes domain, que devem permanecer livres
+    de framework. Importamos o BOM em <dependencyManagement> abaixo: mesma
+    gestao de versoes, sem impor plugins nem dependencias a quem nao pediu.
+  -->
+
+  <modules>
+    <module>crm-shared-kernel</module>
+    <module>crm-core</module>
+    <module>crm-atendimento</module>
+    <module>crm-automacao-config</module>
+    <module>crm-campanhas</module>
+    <module>crm-equipe</module>
+    <module>crm-relatorios</module>
+    <module>crm-app</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <maven.compiler.release>${java.version}</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <spring-boot.version>3.5.16</spring-boot.version>
+    <testcontainers.version>1.20.6</testcontainers.version>
+    <resilience4j.version>2.3.0</resilience4j.version>
+    <archunit.version>1.3.0</archunit.version>
+
+    <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+    <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>3.5.2</maven-failsafe-plugin.version>
+    <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+    <spotless-maven-plugin.version>2.44.3</spotless-maven-plugin.version>
+
+    <!-- Versao minima do Maven/JDK exigida do desenvolvedor (ver enforcer). -->
+    <minimum.maven.version>3.9.0</minimum.maven.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-bom</artifactId>
+        <version>${resilience4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Modulos internos: versao gerenciada em um lugar so. -->
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-shared-kernel</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-atendimento</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-automacao-config</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-campanhas</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-equipe</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.synapse.crm</groupId>
+        <artifactId>crm-relatorios</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!--
+      Unico dependency global. JUnit e teste: nao acopla o dominio a framework
+      de producao e evita repetir o bloco em oito POMs.
+    -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <version>${spring-boot.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler-plugin.version}</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+          <parameters>true</parameters>
+          <compilerArgs>
+            <arg>-Xlint:all,-processing</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
+      </plugin>
+
+      <!-- Testes de integracao (*IT) rodam em verify, com Testcontainers. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${maven-failsafe-plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce-ambiente</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>[${minimum.maven.version},)</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <!-- JDK 21+ para compilar; o bytecode e sempre release 21. -->
+                  <version>[21,)</version>
+                </requireJavaVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        Formatador. `mvn spotless:apply` corrige; o build falha se houver desvio.
+        Usamos o formatador do Eclipse (Java puro) em vez do google-java-format
+        porque este ultimo depende de internals do javac e quebra em JDKs novos.
+      -->
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless-maven-plugin.version}</version>
+        <configuration>
+          <!--
+            LF fixo. O time desenvolve em Windows e o CI roda em Linux; deixar o
+            padrao da plataforma decidir faz o build passar na maquina e falhar no
+            CI. Combina com o .gitattributes na raiz do repositorio.
+          -->
+          <lineEndings>UNIX</lineEndings>
+          <java>
+            <includes>
+              <include>src/main/java/**/*.java</include>
+              <include>src/test/java/**/*.java</include>
+            </includes>
+            <importOrder>
+              <!-- Estaticos primeiro, depois JDK, depois terceiros, depois o proprio projeto. -->
+              <order>\#,java,javax,jakarta,,com.synapse.crm</order>
+            </importOrder>
+            <removeUnusedImports>
+              <engine>cleanthat-javaparser-unnecessaryimport</engine>
+            </removeUnusedImports>
+            <trimTrailingWhitespace/>
+            <endWithNewline/>
+            <indent>
+              <spaces>true</spaces>
+              <spacesPerTab>4</spacesPerTab>
+            </indent>
+            <formatAnnotations/>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

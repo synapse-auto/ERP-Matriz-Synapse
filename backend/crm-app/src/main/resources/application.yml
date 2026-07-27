@@ -1,0 +1,123 @@
+# ---------------------------------------------------------------------------
+# Configuracao da instancia.
+#
+# Nenhum valor de negocio mora aqui como constante: tudo vem de variavel de
+# ambiente, com um default de desenvolvimento depois dos dois-pontos. A mesma
+# imagem de container roda em qualquer filho — o que muda e o que se injeta.
+#
+# Segredos NUNCA tem default preenchido. Se a variavel nao vier, o valor fica
+# vazio e o adaptador que depende dela falha na etapa em que for construido,
+# em vez de rodar silenciosamente com credencial de outro ambiente.
+# ---------------------------------------------------------------------------
+spring:
+  application:
+    name: ${SYNAPSE_APP_NAME:synapse-crm}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+# ---------------------------------------------------------------------------
+# Bloco da instancia — docs/07-base-pai-multitenancy.md, secao 4.
+# ---------------------------------------------------------------------------
+synapse:
+  tenant:
+    codigo: ${SYNAPSE_TENANT_CODIGO:estrutural-vidros}
+    nome-exibicao: ${SYNAPSE_TENANT_NOME:Estrutural Vidros}
+    timezone: ${SYNAPSE_TIMEZONE:America/Sao_Paulo}
+
+  canal:
+    whatsapp:
+      provedor: ${WHATSAPP_PROVEDOR:}
+      numero-principal: ${WHATSAPP_NUMERO:}
+      token: ${WHATSAPP_TOKEN:}
+      webhook-secret: ${WHATSAPP_WEBHOOK_SECRET:}
+
+  automacao:
+    url-base: ${AUTOMACAO_URL:}
+    token-permanente: ${AUTOMACAO_TOKEN:}
+
+  alertas:
+    webhook-grupo: ${ALERTA_WEBHOOK:}
+
+  # Flags de nivel 3 (arquivo da instancia). O mapa e aberto: ligar um modulo
+  # para um filho e uma linha aqui. As flags editaveis sem deploy chegam na E08
+  # e tem precedencia sobre estas.
+  features:
+    campanhas: ${FEATURE_CAMPANHAS:true}
+    chat-interno: ${FEATURE_CHAT_INTERNO:true}
+    fidelizacao: ${FEATURE_FIDELIZACAO:true}
+
+  # -------------------------------------------------------------------------
+  # Bulkhead: dois pools sobre o MESMO banco. O pool do chat existe para que um
+  # relatorio pesado nunca consiga segurar as conexoes do caminho de mensagens.
+  # O timeout do chat e curto de proposito: falhar rapido e melhor que enfileirar
+  # o atendente. Ver DataSourceConfig.
+  # -------------------------------------------------------------------------
+  datasource:
+    general:
+      url: ${SYNAPSE_DB_URL:jdbc:postgresql://localhost:5432/synapse_crm}
+      username: ${SYNAPSE_DB_USER:synapse}
+      password: ${SYNAPSE_DB_PASSWORD:synapse}
+      hikari:
+        pool-name: synapse-geral
+        maximum-pool-size: ${SYNAPSE_DB_POOL_GERAL_MAX:12}
+        minimum-idle: ${SYNAPSE_DB_POOL_GERAL_MIN:2}
+        connection-timeout: ${SYNAPSE_DB_POOL_GERAL_TIMEOUT_MS:30000}
+    chat:
+      url: ${SYNAPSE_DB_URL:jdbc:postgresql://localhost:5432/synapse_crm}
+      username: ${SYNAPSE_DB_USER:synapse}
+      password: ${SYNAPSE_DB_PASSWORD:synapse}
+      hikari:
+        pool-name: synapse-chat
+        maximum-pool-size: ${SYNAPSE_DB_POOL_CHAT_MAX:8}
+        minimum-idle: ${SYNAPSE_DB_POOL_CHAT_MIN:4}
+        connection-timeout: ${SYNAPSE_DB_POOL_CHAT_TIMEOUT_MS:3000}
+
+# ---------------------------------------------------------------------------
+# Health checks.
+#
+# base-path "/" + path-mapping expoe o health em /health, e os grupos em
+# /health/liveness e /health/readiness (formato documentado pelo Spring Boot).
+#
+# liveness NAO inclui o banco: liveness responde "o processo esta vivo". Incluir
+# o banco faria uma oscilacao do Postgres reiniciar o container, que e
+# exatamente o oposto do que a regra de estabilidade pede. Quem olha o banco e
+# readiness, que so tira a instancia do balanceador.
+#
+# /health/critical (doc 07, secao 7) e o watchdog externo entram na etapa E09.
+# ---------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      base-path: /
+      path-mapping:
+        health: health
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+      show-components: when-authorized
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+  info:
+    env:
+      enabled: false

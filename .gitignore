@@ -20,13 +20,17 @@
 # Java / Maven
 # ==========================================================
 target/
-!.mvn/wrapper/maven-wrapper.jar
 *.class
 *.jar
 *.war
 *.log
 hs_err_pid*
 replay_pid*
+
+# O wrapper e versionado de proposito: e o que faz `./mvnw` funcionar em uma
+# maquina sem Maven instalado. A negacao precisa vir DEPOIS de `*.jar` — o git
+# aplica a ultima regra que casa, entao inverter a ordem a torna inofensiva.
+!.mvn/wrapper/maven-wrapper.jar
 
 # ==========================================================
 # Node / Next.js

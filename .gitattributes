@@ -1,0 +1,28 @@
+# Normaliza para LF na arvore de trabalho em qualquer sistema operacional.
+# Sem isso, o mesmo commit falha no Spotless do CI (Linux) e passa no Windows,
+# e os scripts mvnw/entrypoint quebram dentro dos containers.
+* text=auto eol=lf
+
+*.bat        text eol=crlf
+*.cmd        text eol=crlf
+
+*.java       text diff=java
+*.xml        text
+*.yml        text
+*.yaml       text
+*.sql        text
+*.md         text
+*.ts         text
+*.tsx        text
+*.json       text
+
+*.png        binary
+*.jpg        binary
+*.jpeg       binary
+*.gif        binary
+*.ico        binary
+*.svg        text
+*.pdf        binary
+*.jar        binary
+*.woff       binary
+*.woff2      binary
