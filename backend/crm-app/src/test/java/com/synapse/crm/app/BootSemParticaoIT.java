@@ -41,6 +41,12 @@ class BootSemParticaoIT extends PostgresIT {
             "--synapse.datasource.chat.username=" + POSTGRES.getUsername(),
             "--synapse.datasource.chat.password=" + POSTGRES.getPassword(),
             "--synapse.atendimento.particao.meses-minimos=" + JANELA_MAIOR_QUE_A_CRIADA,
+            // Mesmo motivo do PostgresIT, que esta aplicacao nao herda por subir pelo
+            // builder em vez do TestContext: o container e compartilhado e as suites com
+            // perfil dev aplicam R__seed_dev nele. Sem esta linha, o Flyway reprova a
+            // validacao antes de a verificacao de particao rodar — e o teste passa ou
+            // falha conforme a ORDEM das suites, que e o pior tipo de teste intermitente.
+            "--spring.flyway.ignore-migration-patterns=*:missing",
         };
 
         assertThatThrownBy(() -> aplicacao.run(argumentos))

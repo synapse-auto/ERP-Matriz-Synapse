@@ -11,8 +11,13 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
-/** Simula o contexto de seguranca de uma requisicao, sem subir HTTP. */
-final class ApoioRls {
+/**
+ * Simula o contexto de seguranca de uma requisicao, sem subir HTTP.
+ *
+ * <p>Publica desde a E04: os testes de atendimento exercitam casos de uso direto, sem controller, e
+ * precisam do mesmo principal que o filtro JWT produziria.
+ */
+public final class ApoioRls {
 
     private ApoioRls() {}
 
@@ -22,7 +27,7 @@ final class ApoioRls {
      * <p>E dai que {@code UsuarioContextSpring} le, e portanto e dai que o aplicador de contexto RLS
      * tira o que grava em {@code app.usuario_id} e {@code app.papel}.
      */
-    static void entrarComo(UUID usuarioId, PapelUsuario papel) {
+    public static void entrarComo(UUID usuarioId, PapelUsuario papel) {
         Jwt jwt = Jwt.withTokenValue("token-de-teste")
                 .header("alg", "HS256")
                 .subject(usuarioId.toString())
@@ -40,7 +45,7 @@ final class ApoioRls {
                 .setAuthentication(new UsernamePasswordAuthenticationToken("alguem", "n/a", List.of()));
     }
 
-    static void sair() {
+    public static void sair() {
         SecurityContextHolder.clearContext();
     }
 }

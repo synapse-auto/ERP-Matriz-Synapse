@@ -26,6 +26,17 @@
       <artifactId>crm-shared-kernel</artifactId>
     </dependency>
 
+    <!--
+      Atendimento e sempre atendimento DE UM LEAD: o agregado referencia lead_id, e
+      o caminho critico atualiza contadores e ultima_interacao_em pela porta
+      LeadNoCaminhoDeMensagem. A dependencia e de mao unica — crm-core nao conhece
+      crm-atendimento — entao nao ha ciclo entre os modulos.
+    -->
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-core</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

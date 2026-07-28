@@ -14,6 +14,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 
 import com.synapse.crm.app.config.DataSourceConfig;
+import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
  * Gerentes de transacao que publicam o contexto RLS antes de qualquer consulta.
@@ -36,7 +37,7 @@ import com.synapse.crm.app.config.DataSourceConfig;
 public class TransacaoComRlsConfig {
 
     /** Qualificador do gerente de transacao do pool reservado ao caminho critico. */
-    public static final String CHAT_TRANSACTION_MANAGER = "chatTransactionManager";
+    public static final String CHAT_TRANSACTION_MANAGER = Pools.CHAT_TRANSACTION_MANAGER;
 
     @Bean
     @Primary

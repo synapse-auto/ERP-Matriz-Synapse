@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import com.synapse.crm.sharedkernel.persistencia.Pools;
+
 /**
  * Bulkhead de conexoes: dois pools sobre o mesmo banco.
  *
@@ -30,10 +32,10 @@ import org.springframework.context.annotation.Primary;
 public class DataSourceConfig {
 
     /** Qualificador do pool reservado ao caminho critico de mensagens. */
-    public static final String CHAT_DATA_SOURCE = "chatDataSource";
+    public static final String CHAT_DATA_SOURCE = Pools.CHAT_DATA_SOURCE;
 
     /** Qualificador do pool usado por todo o resto da aplicacao. */
-    public static final String GENERAL_DATA_SOURCE = "generalDataSource";
+    public static final String GENERAL_DATA_SOURCE = Pools.GENERAL_DATA_SOURCE;
 
     @Bean
     @Primary
