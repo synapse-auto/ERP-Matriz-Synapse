@@ -27,7 +27,7 @@ class VisibilidadeLeadTest {
     private static final UUID BRUNO = UUID.randomUUID();
 
     private static Lead leadDe(UUID dono, StatusBasicoLead status) {
-        return new Lead(UUID.randomUUID(), "Lead", status, dono);
+        return Lead.apenasParaVisibilidade(UUID.randomUUID(), "Lead", status, dono);
     }
 
     @Test

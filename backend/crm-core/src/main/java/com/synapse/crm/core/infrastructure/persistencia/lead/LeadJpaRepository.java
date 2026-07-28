@@ -4,6 +4,9 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Repositorio Spring Data da tabela {@code lead}.
@@ -14,6 +17,23 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
  *
  * <p>A restricao nao depende de ninguem lembrar: o modificador de acesso ja impede injecao a partir
  * de outro pacote, e {@code ArquiteturaTest} reprova o build se qualquer classe fora deste pacote
- * passar a depender dela.
+ * passar a depender de um {@code *JpaRepository}.
  */
-interface LeadJpaRepository extends JpaRepository<LeadEntity, UUID>, JpaSpecificationExecutor<LeadEntity> {}
+interface LeadJpaRepository extends JpaRepository<LeadEntity, UUID>, JpaSpecificationExecutor<LeadEntity> {
+
+    /**
+     * Incremento relativo, feito pelo banco.
+     *
+     * <p>Ler o contador, somar em memoria e gravar de volta perderia atualizacoes sob concorrencia:
+     * duas mensagens chegando juntas somariam uma. Aqui o proprio Postgres resolve.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE LeadEntity l SET l.numAtendimentos = l.numAtendimentos + :quantidade"
+            + " WHERE l.id = :leadId")
+    void somarAtendimentos(@Param("leadId") UUID leadId, @Param("quantidade") int quantidade);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE LeadEntity l SET l.numMensagens = l.numMensagens + :quantidade"
+            + " WHERE l.id = :leadId")
+    void somarMensagens(@Param("leadId") UUID leadId, @Param("quantidade") int quantidade);
+}

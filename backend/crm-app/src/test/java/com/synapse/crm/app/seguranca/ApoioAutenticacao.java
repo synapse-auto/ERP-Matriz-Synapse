@@ -10,27 +10,27 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /** Utilitarios de login e chamada autenticada, compartilhados pelos testes de seguranca. */
-final class ApoioAutenticacao {
+public final class ApoioAutenticacao {
 
     /** Senhas do seed de desenvolvimento (R__seed_dev.sql). Publicas e descartaveis. */
-    static final String SENHA_ATENDENTE = "atendente123";
+    public static final String SENHA_ATENDENTE = "atendente123";
 
-    static final String SENHA_GESTOR = "gestor123";
-    static final String EMAIL_ANA = "ana@dev.local";
-    static final String EMAIL_BRUNO = "bruno@dev.local";
-    static final String EMAIL_GESTOR = "gestor@dev.local";
+    public static final String SENHA_GESTOR = "gestor123";
+    public static final String EMAIL_ANA = "ana@dev.local";
+    public static final String EMAIL_BRUNO = "bruno@dev.local";
+    public static final String EMAIL_GESTOR = "gestor@dev.local";
 
     private ApoioAutenticacao() {}
 
-    record Tokens(String accessToken, String refreshToken) {}
+    public record Tokens(String accessToken, String refreshToken) {}
 
-    static ResponseEntity<Map> tentarLogin(TestRestTemplate http, String email, String senha) {
+    public static ResponseEntity<Map> tentarLogin(TestRestTemplate http, String email, String senha) {
         return http.postForEntity(
                 "/api/v1/auth/login", Map.of("email", email, "senha", senha), Map.class);
     }
 
     @SuppressWarnings("unchecked")
-    static Tokens login(TestRestTemplate http, String email, String senha) {
+    public static Tokens login(TestRestTemplate http, String email, String senha) {
         ResponseEntity<Map> resposta = tentarLogin(http, email, senha);
         if (!resposta.getStatusCode().is2xxSuccessful()) {
             ResponseEntity<String> cru = http.postForEntity(
@@ -43,7 +43,7 @@ final class ApoioAutenticacao {
                 (String) corpo.get("accessToken"), (String) corpo.get("refreshToken"));
     }
 
-    static <T> ResponseEntity<T> comToken(
+    public static <T> ResponseEntity<T> comToken(
             TestRestTemplate http, String token, HttpMethod metodo, String url, Class<T> tipo) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
@@ -51,7 +51,7 @@ final class ApoioAutenticacao {
         return http.exchange(url, metodo, new HttpEntity<>(cabecalhos), tipo);
     }
 
-    static ResponseEntity<Map> refresh(TestRestTemplate http, String refreshToken) {
+    public static ResponseEntity<Map> refresh(TestRestTemplate http, String refreshToken) {
         return http.postForEntity(
                 "/api/v1/auth/refresh", Map.of("refreshToken", refreshToken), Map.class);
     }

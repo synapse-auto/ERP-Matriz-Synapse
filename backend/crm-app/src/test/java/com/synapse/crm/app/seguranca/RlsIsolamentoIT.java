@@ -276,6 +276,6 @@ class RlsIsolamentoIT extends PostgresIT {
                 nome,
                 dono,
                 status.name());
-        return new Lead(id, nome, status, dono);
+        return Lead.apenasParaVisibilidade(id, nome, status, dono);
     }
 }

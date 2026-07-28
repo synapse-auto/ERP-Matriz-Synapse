@@ -1,5 +1,6 @@
 package com.synapse.crm.core.infrastructure.persistencia.lead;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -19,8 +20,7 @@ import com.synapse.crm.core.domain.lead.StatusBasicoLead;
  * Mapeamento JPA da tabela {@code lead}.
  *
  * <p>Deliberadamente fora do dominio: o dominio nao conhece {@code jakarta.persistence}, e o teste
- * de arquitetura reprova se conhecer. Esta classe e pacote-privada em intencao — so o adaptador
- * deste pacote deveria toca-la.
+ * de arquitetura reprova se conhecer. Pacote-privada — so o adaptador deste pacote a toca.
  */
 @Entity
 @Table(name = "lead")
@@ -33,27 +33,99 @@ class LeadEntity {
     @Column(name = "nome", nullable = false)
     private String nome;
 
+    @Column(name = "foto_url")
+    private String fotoUrl;
+
+    @Column(name = "telefone")
+    private String telefone;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "cpf")
+    private String cpf;
+
+    @Column(name = "empresa")
+    private String empresa;
+
+    @Column(name = "localizacao")
+    private String localizacao;
+
+    @Column(name = "canal_origem_id")
+    private UUID canalOrigemId;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status_basico", nullable = false)
     private StatusBasicoLead statusBasico;
 
+    @Column(name = "etapa_atendimento_id")
+    private UUID etapaAtendimentoId;
+
     @Column(name = "atendente_responsavel_id")
     private UUID atendenteResponsavelId;
+
+    @Column(name = "notas")
+    private String notas;
+
+    @Column(name = "resumo_ia")
+    private String resumoIa;
+
+    @Column(name = "num_atendimentos", nullable = false)
+    private int numAtendimentos;
+
+    @Column(name = "num_mensagens", nullable = false)
+    private int numMensagens;
+
+    @Column(name = "criado_em", nullable = false, insertable = false, updatable = false)
+    private Instant criadoEm;
 
     protected LeadEntity() {
         // exigido pelo JPA
     }
 
     Lead paraDominio() {
-        return new Lead(id, nome, statusBasico, atendenteResponsavelId);
+        return new Lead(
+                id, nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId,
+                statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
+                numAtendimentos, numMensagens, criadoEm);
     }
 
-    /** Nomes de coluna usados pela Specification. Centralizados para nao virarem string solta. */
+    /**
+     * Copia os campos editaveis do dominio.
+     *
+     * <p>Contadores ficam de fora de proposito: eles so mudam por incremento relativo, na transacao
+     * que cria o atendimento ou a mensagem. Deixa-los aqui abriria caminho para uma edicao de ficha
+     * sobrescrever, com um valor velho lido da tela, o que outra transacao acabou de somar.
+     */
+    void aplicar(Lead lead) {
+        this.nome = lead.nome();
+        this.fotoUrl = lead.fotoUrl();
+        this.telefone = lead.telefone();
+        this.email = lead.email();
+        this.cpf = lead.cpf();
+        this.empresa = lead.empresa();
+        this.localizacao = lead.localizacao();
+        this.canalOrigemId = lead.canalOrigemId();
+        this.statusBasico = lead.statusBasico();
+        this.etapaAtendimentoId = lead.etapaAtendimentoId();
+        this.atendenteResponsavelId = lead.atendenteResponsavelId();
+        this.notas = lead.notas();
+        this.resumoIa = lead.resumoIa();
+    }
+
+    /** Nomes de atributo usados pela Specification e pela projecao de listagem. */
     static final class Campos {
-        static final String STATUS_BASICO = "statusBasico";
-        static final String ATENDENTE_RESPONSAVEL_ID = "atendenteResponsavelId";
+        static final String ID = "id";
         static final String NOME = "nome";
+        static final String TELEFONE = "telefone";
+        static final String EMPRESA = "empresa";
+        static final String STATUS_BASICO = "statusBasico";
+        static final String ETAPA = "etapaAtendimentoId";
+        static final String ATENDENTE_RESPONSAVEL_ID = "atendenteResponsavelId";
+        static final String NUM_ATENDIMENTOS = "numAtendimentos";
+        static final String NUM_MENSAGENS = "numMensagens";
+        static final String CRIADO_EM = "criadoEm";
 
         private Campos() {}
     }

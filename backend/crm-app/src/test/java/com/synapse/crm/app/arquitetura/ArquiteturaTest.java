@@ -99,21 +99,24 @@ class ArquiteturaTest {
             .because("crm-app conhece os modulos; nenhum modulo conhece crm-app");
 
     /**
-     * O repositorio Spring Data de lead consegue ler sem filtro de visibilidade. Essa capacidade
-     * existe, entao precisa ficar trancada num lugar so: o adaptador que sempre aplica a
-     * VisibilidadeLeadSpecification antes de delegar.
+     * Um repositorio Spring Data consegue ler sem nenhum filtro. Essa capacidade existe, entao fica
+     * trancada num lugar so: o adaptador do proprio pacote, que aplica a regra antes de delegar.
      *
-     * <p>Com 60+ casos de uso e prazo curto, "lembrar de aplicar a Specification" nao e um plano.
-     * Esta regra transforma o esquecimento em build vermelho.
+     * <p>A regra e <b>generica</b> de proposito — vale para qualquer {@code *JpaRepository}, e nao
+     * so para o de lead. Uma regra por agregado exigiria que alguem lembrasse de escreve-la ao
+     * criar o proximo repositorio, e "lembrar" nao e plano com 60+ casos de uso e prazo curto.
+     * Assim o agregado da E04 ja nasce coberto, sem ninguem fazer nada.
+     *
+     * <p>Cobre hoje: lead (visibilidade RN-CRM-01), tag, etapa, usuario e refresh token.
      */
     @ArchTest
-    static final ArchRule so_o_adaptador_conversa_com_o_jpa_de_lead = noClasses()
+    static final ArchRule so_o_adaptador_conversa_com_o_jpa_do_seu_agregado = noClasses()
             .that()
-            .resideOutsideOfPackage("com.synapse.crm.core.infrastructure.persistencia.lead..")
+            .resideOutsideOfPackage("com.synapse.crm..infrastructure.persistencia..")
             .should()
             .dependOnClassesThat()
-            .haveSimpleName("LeadJpaRepository")
-            .because("toda leitura de lead passa pelo adaptador que aplica a RN-CRM-01");
+            .haveSimpleNameEndingWith("JpaRepository")
+            .because("todo acesso a dados passa pelo adaptador que aplica a regra do agregado");
 
     /**
      * O contexto de seguranca do Spring so pode ser lido pelo adaptador que o traduz em
