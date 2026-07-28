@@ -30,6 +30,7 @@ public interface Outbox {
     void enfileirarEnvio(
             UUID mensagemId,
             Instant enviadoEm,
+            UUID atendimentoId,
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
@@ -70,6 +71,7 @@ public interface Outbox {
             UUID outboxId,
             UUID mensagemId,
             Instant enviadoEm,
+            UUID atendimentoId,
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,

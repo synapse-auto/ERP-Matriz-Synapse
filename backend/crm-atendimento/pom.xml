@@ -37,6 +37,18 @@
       <artifactId>crm-core</artifactId>
     </dependency>
 
+    <!--
+      O WebSocket (E06) precisa de SecurityContextPropagationInterceptor, que
+      toca SecurityContextHolder — e a regra de arquitetura reserva esse toque
+      ao pacote seguranca de crm-equipe (ArquiteturaTest,
+      contexto_de_seguranca_so_no_adaptador). crm-equipe nao depende de
+      crm-atendimento, entao a aresta e de mao unica e nao cria ciclo.
+    -->
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-equipe</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
@@ -62,6 +74,26 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
+
+    <!--
+      STOMP sobre WebSocket para o chat em tempo real (E06). O caminho HTTP
+      continua sendo o de escrita (RN-CRM-06, outbox); o WebSocket so entrega
+      o que ja foi persistido — nunca a unica copia de um fato.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+
+    <!--
+      Backplane pub/sub entre instancias (E06). Sem ele, dois atendentes em
+      instancias diferentes da mesma aplicacao nao se enxergam — o WebSocket
+      sozinho so alcanca quem esta conectado NAQUELA instancia.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
 
     <dependency>

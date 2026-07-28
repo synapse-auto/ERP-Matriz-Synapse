@@ -14,6 +14,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
@@ -146,6 +147,7 @@ public class EnviarMensagemUseCase {
         outbox.enfileirarEnvio(
                 gravada.id(),
                 agora,
+                aberto.id(),
                 leadId,
                 contato.telefone(),
                 aberto.canalCredencialId(),
@@ -160,6 +162,18 @@ public class EnviarMensagemUseCase {
                 remetenteId,
                 transferencia.donoAnterior(),
                 trocouDeDono,
+                agora));
+
+        // Evento a parte, so para a tela: o WebSocket (E06) entrega isto sem
+        // uma segunda consulta ao banco.
+        eventos.publishEvent(new MensagemParaTempoReal(
+                aberto.id(),
+                leadId,
+                gravada.id(),
+                gravada.remetente().tipo().name(),
+                gravada.remetente().id(),
+                gravada.conteudo(),
+                gravada.statusEntrega().name(),
                 agora));
 
         return new Resultado(aberto, gravada, trocouDeDono);

@@ -26,6 +26,13 @@ public interface MensagemRepositorio {
     List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite);
 
     /**
+     * Tudo que chegou <b>depois</b> de {@code desde}, mais antiga primeiro — a reconciliacao que o
+     * cliente pede ao reconectar o WebSocket (E06). Sem limite de proposito: a janela e curta (o
+     * tempo que o socket ficou fora), nunca a conversa inteira.
+     */
+    List<Mensagem> desde(UUID atendimentoId, Instant desde);
+
+    /**
      * Move a mensagem no ciclo de entrega.
      *
      * <p>Quem chama e o publisher da outbox, depois de o provedor responder: {@code PENDENTE} vira

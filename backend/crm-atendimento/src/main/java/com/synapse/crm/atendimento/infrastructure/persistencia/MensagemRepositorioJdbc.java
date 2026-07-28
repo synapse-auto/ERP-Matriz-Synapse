@@ -53,6 +53,11 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + " FROM mensagem"
             + " WHERE atendimento_id = ? ORDER BY enviado_em DESC LIMIT ?";
 
+    // enviado_em > ? no WHERE: alem de filtro, e a chave de particao — o
+    // planejador poda as particoes fora da janela em vez de varrer todas.
+    private static final String SQL_DESDE = "SELECT " + COLUNAS + " FROM mensagem"
+            + " WHERE atendimento_id = ? AND enviado_em > ? ORDER BY enviado_em ASC";
+
     // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
     // varreria todas as particoes para achar uma unica linha.
     private static final String SQL_STATUS_ENTREGA =
@@ -88,6 +93,12 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     public List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite) {
         TransacaoObrigatoria.exigir("ultimasDoAtendimento");
         return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
+    }
+
+    @Override
+    public List<Mensagem> desde(UUID atendimentoId, Instant desde) {
+        TransacaoObrigatoria.exigir("desde");
+        return chat.query(SQL_DESDE, MAPEADOR, atendimentoId, Timestamp.from(desde));
     }
 
     /**

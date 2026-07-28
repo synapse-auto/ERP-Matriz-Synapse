@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
@@ -87,6 +88,18 @@ public class RegistrarMensagemRecebidaUseCase {
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemRecebida(
                 entrada.leadId(), aberto.id(), gravada.id(), abriu, agora));
+
+        // Evento a parte, so para a tela: carrega o que o WebSocket precisa
+        // entregar (E06) sem uma segunda consulta ao banco.
+        eventos.publishEvent(new MensagemParaTempoReal(
+                aberto.id(),
+                entrada.leadId(),
+                gravada.id(),
+                gravada.remetente().tipo().name(),
+                gravada.remetente().id(),
+                gravada.conteudo(),
+                gravada.statusEntrega().name(),
+                agora));
 
         return new Resultado(aberto, gravada, abriu);
     }

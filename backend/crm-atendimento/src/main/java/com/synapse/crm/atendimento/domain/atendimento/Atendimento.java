@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+
 /**
  * Uma conversa com um lead, do primeiro contato ate o encerramento.
  *
@@ -88,6 +90,22 @@ public record Atendimento(
 
     public boolean pertenceA(UUID candidato) {
         return atendenteId != null && atendenteId.equals(candidato);
+    }
+
+    /**
+     * Mesma politica da RLS de {@code atendimento} (V12), em Java: quem enxerga tudo enxerga este
+     * tambem; quem so enxerga a propria carteira precisa ser o dono, ou o atendimento precisa estar
+     * sem dono ({@code EM_IA}, o equivalente de "Potenciais" para atendimento).
+     *
+     * <p>Existe para a revogacao de assinatura do WebSocket (E06): apos uma transferencia, o servidor
+     * precisa decidir se o dono anterior ainda enxerga o atendimento <em>sem</em> abrir uma transacao
+     * de banco em nome dele — nao ha requisicao dele em andamento para carregar aquele contexto. O
+     * calculo usa os dois mesmos ingredientes que constroem a politica SQL:
+     * {@link PapelUsuario#enxergaTodosOsLeads()} (a fonte unica do que "papel amplo" significa) e o
+     * proprio dono/status deste agregado — nao reinventa a regra, so a aplica sem round-trip.
+     */
+    public boolean visivelPara(UUID usuarioId, PapelUsuario papel) {
+        return papel.enxergaTodosOsLeads() || pertenceA(usuarioId) || status == StatusAtendimento.EM_IA;
     }
 
     private void exigirAberto(String tentativa) {

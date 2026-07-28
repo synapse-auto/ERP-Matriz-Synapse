@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -45,6 +46,6 @@ class UsuarioContextSpring implements UsuarioContext {
 
         return Optional.of(new UsuarioAutenticado(
                 UUID.fromString(jwt.getSubject()),
-                PapelUsuario.valueOf(jwt.getClaimAsString(JwtGeradorDeAccessToken.CLAIM_PAPEL))));
+                PapelUsuario.valueOf(jwt.getClaimAsString(ClaimsJwt.PAPEL))));
     }
 }

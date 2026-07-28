@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -47,18 +49,21 @@ public class PublicadorDaOutbox {
     private final CanalGateway canal;
     private final OutboxProperties propriedades;
     private final Clock relogio;
+    private final ApplicationEventPublisher eventos;
 
     public PublicadorDaOutbox(
             Outbox outbox,
             MensagemRepositorio mensagens,
             CanalGateway canal,
             OutboxProperties propriedades,
-            Clock relogio) {
+            Clock relogio,
+            ApplicationEventPublisher eventos) {
         this.outbox = outbox;
         this.mensagens = mensagens;
         this.canal = canal;
         this.propriedades = propriedades;
         this.relogio = relogio;
+        this.eventos = eventos;
     }
 
     /** Agendamento curto: e o que define a latencia percebida entre o clique e a saida. */
@@ -94,6 +99,12 @@ public class PublicadorDaOutbox {
                 outbox.marcarPublicado(pendente.outboxId(), agora);
                 mensagens.atualizarStatusEntrega(
                         pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.ENVIADO);
+                eventos.publishEvent(new MudancaDeStatusDeEntrega(
+                        pendente.mensagemId(),
+                        pendente.atendimentoId(),
+                        pendente.leadId(),
+                        StatusEntrega.ENVIADO.name(),
+                        agora));
                 log.debug(
                         "Mensagem {} aceita pelo provedor {} como {}.",
                         pendente.mensagemId(),
@@ -128,6 +139,14 @@ public class PublicadorDaOutbox {
         outbox.esgotar(pendente.outboxId(), agora, recusado.motivo());
         mensagens.atualizarStatusEntrega(
                 pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.FALHOU);
+        // A transicao que mais importa chegar na tela: um tique de "enviado" que
+        // nunca devia ter aparecido e pior que um alerta.
+        eventos.publishEvent(new MudancaDeStatusDeEntrega(
+                pendente.mensagemId(),
+                pendente.atendimentoId(),
+                pendente.leadId(),
+                StatusEntrega.FALHOU.name(),
+                agora));
 
         log.error(
                 "{} mensagem {} do lead {} nao foi entregue ao provedor {} apos {} tentativa(s). "

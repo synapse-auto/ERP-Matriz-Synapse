@@ -31,9 +31,11 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
      * reentregas simultaneas: as duas leem "nao existe" e as duas inserem. Aqui quem decide e a chave
      * primaria, dentro do banco, sem corrida possivel.
      */
+    // payload e TEXT desde a V17: sem cast, para o que fica salvo ser byte a
+    // byte o que o provedor mandou, e a assinatura HMAC continuar reconferivel.
     private static final String SQL_REGISTRAR =
             "INSERT INTO webhook_entrada (id_externo, provedor, payload, recebido_em)"
-                    + " VALUES (?, ?, ?::jsonb, ?) ON CONFLICT (id_externo) DO NOTHING";
+                    + " VALUES (?, ?, ?, ?) ON CONFLICT (id_externo) DO NOTHING";
 
     private static final String SQL_RESERVAR =
             """

@@ -12,14 +12,12 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.equipe.application.autenticacao.GeradorDeAccessToken;
+import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 
 /** Emite o access token como JWT assinado em HMAC-SHA256. */
 @Component
 class JwtGeradorDeAccessToken implements GeradorDeAccessToken {
-
-    /** Nome do claim que carrega o papel. Lido de volta em {@link SecurityConfig}. */
-    static final String CLAIM_PAPEL = "papel";
 
     private final JwtEncoder encoder;
     private final SegurancaProperties propriedades;
@@ -36,7 +34,7 @@ class JwtGeradorDeAccessToken implements GeradorDeAccessToken {
         Instant agora = relogio.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(usuario.id().toString())
-                .claim(CLAIM_PAPEL, usuario.papel().name())
+                .claim(ClaimsJwt.PAPEL, usuario.papel().name())
                 .issuedAt(agora)
                 .expiresAt(agora.plus(validade()))
                 .build();

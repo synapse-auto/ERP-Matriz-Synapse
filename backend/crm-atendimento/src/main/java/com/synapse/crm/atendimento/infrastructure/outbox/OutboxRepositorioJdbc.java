@@ -91,6 +91,7 @@ class OutboxRepositorioJdbc implements Outbox {
     public void enfileirarEnvio(
             UUID mensagemId,
             Instant enviadoEm,
+            UUID atendimentoId,
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
@@ -102,7 +103,9 @@ class OutboxRepositorioJdbc implements Outbox {
                 SQL_ENFILEIRAR,
                 UUID.randomUUID(),
                 TIPO_ENVIO,
-                serializar(mensagemId, enviadoEm, leadId, telefoneDestino, credencialId, conteudo),
+                serializar(
+                        mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId,
+                        conteudo),
                 Timestamp.from(agora),
                 Timestamp.from(agora));
     }
@@ -143,6 +146,7 @@ class OutboxRepositorioJdbc implements Outbox {
     private String serializar(
             UUID mensagemId,
             Instant enviadoEm,
+            UUID atendimentoId,
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
@@ -151,6 +155,7 @@ class OutboxRepositorioJdbc implements Outbox {
         ObjectNode raiz = json.createObjectNode();
         raiz.put("mensagemId", mensagemId.toString());
         raiz.put("enviadoEm", enviadoEm.toString());
+        raiz.put("atendimentoId", atendimentoId.toString());
         raiz.put("leadId", leadId.toString());
         raiz.put("telefoneDestino", telefoneDestino);
         raiz.put("credencialId", credencialId == null ? null : credencialId.toString());
@@ -180,6 +185,7 @@ class OutboxRepositorioJdbc implements Outbox {
                 linha.getObject("id", UUID.class),
                 UUID.fromString(payload.get("mensagemId").asText()),
                 Instant.parse(payload.get("enviadoEm").asText()),
+                UUID.fromString(payload.get("atendimentoId").asText()),
                 UUID.fromString(payload.get("leadId").asText()),
                 payload.get("telefoneDestino").asText(),
                 payload.get("credencialId").isNull()

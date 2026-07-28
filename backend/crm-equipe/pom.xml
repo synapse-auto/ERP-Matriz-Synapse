@@ -49,6 +49,17 @@
       <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
 
+    <!--
+      Traz spring-messaging: SecurityContextPropagationInterceptor (E06) e um
+      ChannelInterceptor do canal STOMP do WebSocket de crm-atendimento. Mora
+      aqui porque toca SecurityContextHolder, e a regra de arquitetura reserva
+      esse toque a este pacote.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

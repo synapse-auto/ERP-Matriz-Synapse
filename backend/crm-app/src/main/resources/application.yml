@@ -12,6 +12,12 @@
 spring:
   application:
     name: ${SYNAPSE_APP_NAME:synapse-crm}
+  # Backplane do WebSocket (E06): pub/sub entre instancias, para o chat se
+  # comportar igual com uma instancia ou com dez atras do balanceador.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   jpa:
     open-in-view: false
     hibernate:
@@ -93,6 +99,18 @@ synapse:
       intervalo-ms: ${WEBHOOK_INTERVALO_MS:1000}
       lote: ${WEBHOOK_LOTE:50}
       maximo-de-tentativas: ${WEBHOOK_MAX_TENTATIVAS:5}
+
+  # Bulkhead do WebSocket (E06): executores proprios, nunca o pool HTTP nem o
+  # do publisher da outbox. Ver DataSourceConfig para a mesma logica aplicada
+  # a conexao de banco em vez de thread.
+  tempo-real:
+    threads-entrada: ${WS_THREADS_ENTRADA:4}
+    threads-saida: ${WS_THREADS_SAIDA:4}
+    threads-redis: ${WS_THREADS_REDIS:2}
+    fila-maxima: ${WS_FILA_MAXIMA:500}
+    # "*" em desenvolvimento; um filho em producao fecha para o(s) dominio(s)
+    # do proprio frontend.
+    origens-permitidas: ${WS_ORIGENS_PERMITIDAS:*}
 
   automacao:
     url-base: ${AUTOMACAO_URL:}
@@ -223,3 +241,11 @@ spring:
       on-profile: dev
   flyway:
     locations: classpath:db/migration,classpath:db/seed
+
+# Janela do relogio na tela: em desenvolvimento vale mais ver PENDENTE virar
+# ENVIADO rapido do que economizar consultas vazias ao banco. Em producao a
+# decisao e com dados reais de carga, nao um numero fixo aqui.
+synapse:
+  canal:
+    outbox:
+      intervalo-ms: 200

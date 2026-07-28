@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.synapse.crm.equipe.application.autenticacao.CodificadorDeSenha;
+import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
 
 /**
  * Cadeia de filtros e emissao/validacao de JWT.
@@ -60,6 +61,16 @@ public class SecurityConfig {
                         // nao autentica", nao "qualquer um passa".
                         .requestMatchers("/webhook/**")
                         .permitAll()
+                        // O handshake do WebSocket e uma requisicao HTTP comum antes de
+                        // virar upgrade, e chega aqui sem o cabecalho Authorization — a
+                        // API nativa de WebSocket do navegador nao consegue defini-lo. A
+                        // autenticacao desta rota e o proprio JWT, lido da query string
+                        // pelo interceptador de handshake ANTES de aceitar a conexao; se
+                        // o token faltar ou for invalido, o handshake e recusado ali, nao
+                        // aqui. "permitAll" e "esta cadeia nao autentica esta rota", igual
+                        // ao webhook.
+                        .requestMatchers("/ws/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/health/**", "/info")
                         .permitAll()
                         .anyRequest()
@@ -74,7 +85,7 @@ public class SecurityConfig {
      */
     private JwtAuthenticationConverter conversor() {
         JwtGrantedAuthoritiesConverter autoridades = new JwtGrantedAuthoritiesConverter();
-        autoridades.setAuthoritiesClaimName(JwtGeradorDeAccessToken.CLAIM_PAPEL);
+        autoridades.setAuthoritiesClaimName(ClaimsJwt.PAPEL);
         autoridades.setAuthorityPrefix("ROLE_");
 
         JwtAuthenticationConverter conversor = new JwtAuthenticationConverter();
