@@ -165,6 +165,11 @@ class AtendimentoIT extends PostgresIT {
         @Test
         @DisplayName("rollback nao deixa mensagem, contador nem evento")
         void rollback_naoDeixaRastro() {
+            // O valor semeado: depois do rollback ele tem de estar exatamente igual. Nao da
+            // para exigir nulo aqui — o lead nasce com a janela de 24h aberta desde a E05 —,
+            // e "inalterado" e a assercao que realmente prova que nada vazou.
+            Instant antesDoRollback = ultimaInteracao(leadDaAna);
+
             assertThatThrownBy(() -> comoServico(() -> transacaoDeChat.execute(status -> {
                         registrarRecebida.executar(entrada(leadDaAna));
                         throw new IllegalStateException("falha proposital depois de registrar");
@@ -173,7 +178,7 @@ class AtendimentoIT extends PostgresIT {
 
             assertThat(contador(leadDaAna, "num_mensagens")).isZero();
             assertThat(contador(leadDaAna, "num_atendimentos")).isZero();
-            assertThat(ultimaInteracao(leadDaAna)).isNull();
+            assertThat(ultimaInteracao(leadDaAna)).isEqualTo(antesDoRollback);
             assertThat(contarAtendimentos(leadDaAna)).isZero();
             assertThat(contarTimeline(leadDaAna)).isZero();
         }
@@ -389,11 +394,16 @@ class AtendimentoIT extends PostgresIT {
         return jdbc.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, email);
     }
 
+    /**
+     * {@code ultima_interacao_em} preenchida de proposito: desde a E05, mandar texto livre exige a
+     * janela de 24h aberta. Esta suite testa a RN-CRM-06, nao a janela — e um lead que acabou de
+     * falar com a empresa e justamente o cenario em que o atendente responde.
+     */
     private UUID criarLead(String nome, UUID dono, String status) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico)"
-                        + " VALUES (?, ?, ?, ?::status_basico_lead)",
+                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico,"
+                        + " ultima_interacao_em) VALUES (?, ?, ?, ?::status_basico_lead, now())",
                 id,
                 PREFIXO + nome,
                 dono,

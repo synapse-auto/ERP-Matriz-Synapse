@@ -55,6 +55,39 @@ public interface LeadNoCaminhoDeMensagem {
     boolean alcancavel(UUID leadId);
 
     /**
+     * O que o canal precisa saber para mandar mensagem a este lead.
+     *
+     * <p>Um metodo so, e nao um por campo, porque o caminho critico paga uma ida ao banco por
+     * chamada: telefone e janela sao lidos juntos porque sao usados juntos.
+     *
+     * <p>Vazio significa "nao existe ou nao e seu" — a mesma resposta de sempre.
+     */
+    Optional<ContatoParaEnvio> contatoParaEnvio(UUID leadId);
+
+    /**
+     * Acha o lead deste telefone, ou cria um novo sem dono.
+     *
+     * <p>O provedor so conhece o numero — o id do CRM e nosso. Sem esta resolucao, uma mensagem de
+     * quem nunca falou com a empresa nao teria onde pousar.
+     *
+     * <p>O lead novo nasce em {@code IA}, sem responsavel: cai no grupo "Potenciais" e fica visivel a
+     * todos os atendentes ate alguem responder e assumi-lo pela RN-CRM-06. Nascer atribuido a alguem
+     * seria distribuir comissao por ordem de chegada de webhook.
+     *
+     * <p>So faz sentido em contexto de servico (o webhook nao tem usuario): com um usuario atendente,
+     * a RLS esconderia o lead de um colega e o metodo criaria um duplicado.
+     */
+    UUID resolverPorTelefone(String telefone, String nomeSugerido);
+
+    /**
+     * @param telefone destino no canal; sem ele nao ha para onde enviar
+     * @param ultimaInteracao base da janela de 24h da Meta. Vazio quando o lead nunca interagiu, o
+     *     que para a janela equivale a fechada. Quem decide se a janela esta aberta e o adaptador de
+     *     canal — aqui so se le o instante.
+     */
+    record ContatoParaEnvio(String telefone, Optional<Instant> ultimaInteracao) {}
+
+    /**
      * Resultado de uma transferencia.
      *
      * @param aconteceu falso quando o lead nao e alcancavel por quem pediu

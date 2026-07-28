@@ -3,6 +3,7 @@ package com.synapse.crm.core.infrastructure.persistencia.lead;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
+import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -69,6 +71,17 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
 
     private static final String SQL_ALCANCAVEL = "SELECT 1 FROM lead WHERE id = ?";
 
+    private static final String SQL_CONTATO =
+            "SELECT telefone, ultima_interacao_em FROM lead WHERE id = ?";
+
+    private static final String SQL_POR_TELEFONE =
+            "SELECT id FROM lead WHERE telefone = ? ORDER BY criado_em LIMIT 1";
+
+    // Nasce sem responsavel e em IA: grupo "Potenciais", visivel a todos ate alguem
+    // responder e assumir pela RN-CRM-06.
+    private static final String SQL_CRIAR_POR_TELEFONE =
+            "INSERT INTO lead (id, nome, telefone, status_basico) VALUES (?, ?, ?, 'IA')";
+
     private final JdbcTemplate chat;
 
     LeadNoCaminhoDeMensagemJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
@@ -78,12 +91,14 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     @Override
     public void registrarInteracao(
             UUID leadId, Instant quando, int atendimentosASomar, int mensagensASomar) {
+        TransacaoObrigatoria.exigir("registrarInteracao");
         Timestamp instante = Timestamp.from(quando);
         chat.update(SQL_INTERACAO, atendimentosASomar, mensagensASomar, instante, instante, leadId);
     }
 
     @Override
     public Transferencia transferirPara(UUID leadId, UUID novoAtendenteId) {
+        TransacaoObrigatoria.exigir("transferirPara");
         List<UUID> donos =
                 chat.query(SQL_DONO_ATUAL, (linha, indice) -> linha.getObject(1, UUID.class), leadId);
 
@@ -106,11 +121,51 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
 
     @Override
     public void marcarStatus(UUID leadId, StatusBasicoLead status) {
+        TransacaoObrigatoria.exigir("marcarStatus");
         chat.update(SQL_STATUS, status.name(), leadId);
     }
 
     @Override
     public boolean alcancavel(UUID leadId) {
+        TransacaoObrigatoria.exigir("alcancavel");
         return !chat.queryForList(SQL_ALCANCAVEL, Integer.class, leadId).isEmpty();
+    }
+
+    @Override
+    public UUID resolverPorTelefone(String telefone, String nomeSugerido) {
+        TransacaoObrigatoria.exigir("resolverPorTelefone");
+
+        List<UUID> existentes = chat.query(
+                SQL_POR_TELEFONE, (linha, indice) -> linha.getObject(1, UUID.class), telefone);
+        if (!existentes.isEmpty()) {
+            return existentes.get(0);
+        }
+
+        UUID novo = UUID.randomUUID();
+        String nome = (nomeSugerido == null || nomeSugerido.isBlank()) ? telefone : nomeSugerido;
+        chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefone);
+        return novo;
+    }
+
+    /**
+     * Telefone e janela, numa consulta so.
+     *
+     * <p>{@code ultima_interacao_em} e a coluna que a E04 passou a manter. Antes dela, a pergunta
+     * "a janela de 24h esta aberta?" nao tinha resposta honesta: {@code criado_em} responderia "o
+     * lead foi criado ha 2 dias", que nao e a mesma coisa.
+     */
+    @Override
+    public Optional<ContatoParaEnvio> contatoParaEnvio(UUID leadId) {
+        TransacaoObrigatoria.exigir("contatoParaEnvio");
+        return chat
+                .query(
+                        SQL_CONTATO,
+                        (linha, indice) -> new ContatoParaEnvio(
+                                linha.getString("telefone"),
+                                Optional.ofNullable(linha.getTimestamp("ultima_interacao_em"))
+                                        .map(Timestamp::toInstant)),
+                        leadId)
+                .stream()
+                .findFirst();
     }
 }

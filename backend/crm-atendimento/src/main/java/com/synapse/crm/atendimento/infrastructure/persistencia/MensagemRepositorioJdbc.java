@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.persistencia;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -51,6 +53,11 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + " FROM mensagem"
             + " WHERE atendimento_id = ? ORDER BY enviado_em DESC LIMIT ?";
 
+    // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
+    // varreria todas as particoes para achar uma unica linha.
+    private static final String SQL_STATUS_ENTREGA =
+            "UPDATE mensagem SET status_entrega = ?::status_entrega WHERE id = ? AND enviado_em = ?";
+
     private static final RowMapper<Mensagem> MAPEADOR = MensagemRepositorioJdbc::paraDominio;
 
     private final JdbcTemplate chat;
@@ -61,6 +68,7 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
 
     @Override
     public Mensagem registrar(Mensagem mensagem) {
+        TransacaoObrigatoria.exigir("registrar");
         chat.update(
                 SQL_REGISTRAR,
                 mensagem.id(),
@@ -78,7 +86,21 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
 
     @Override
     public List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite) {
+        TransacaoObrigatoria.exigir("ultimasDoAtendimento");
         return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
+    }
+
+    /**
+     * Move a mensagem no ciclo de entrega. Chamado pelo publisher da outbox depois de o provedor
+     * responder — {@code PENDENTE} vira {@code ENVIADO} ou {@code FALHOU}.
+     *
+     * <p>{@code enviado_em} entra no {@code WHERE} porque e a chave de particao: sem ela o PostgreSQL
+     * varreria todas as particoes para achar uma linha.
+     */
+    @Override
+    public void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status) {
+        TransacaoObrigatoria.exigir("atualizarStatusEntrega");
+        chat.update(SQL_STATUS_ENTREGA, status.name(), mensagemId, Timestamp.from(enviadoEm));
     }
 
     private static Mensagem paraDominio(ResultSet linha, int indice) throws SQLException {

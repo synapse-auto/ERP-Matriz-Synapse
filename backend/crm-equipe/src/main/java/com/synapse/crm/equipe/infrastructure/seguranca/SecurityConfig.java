@@ -53,6 +53,13 @@ public class SecurityConfig {
                         // payload invalido ou rota inexistente.
                         .requestMatchers("/error")
                         .permitAll()
+                        // O provedor de canal nao tem como apresentar JWT. A autenticacao
+                        // desta rota e a assinatura HMAC do corpo, conferida no controller
+                        // ANTES de qualquer processamento — e sem segredo configurado o
+                        // verificador recusa tudo. "permitAll" aqui e "a cadeia de filtros
+                        // nao autentica", nao "qualquer um passa".
+                        .requestMatchers("/webhook/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/health/**", "/info")
                         .permitAll()
                         .anyRequest()

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Repository;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -70,16 +71,19 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     @Override
     public Optional<Atendimento> abertoDoLead(UUID leadId) {
+        TransacaoObrigatoria.exigir("abertoDoLead");
         return primeiro(chat.query(SQL_ABERTO_DO_LEAD, MAPEADOR, leadId));
     }
 
     @Override
     public Optional<Atendimento> porId(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("porId");
         return primeiro(chat.query(SQL_POR_ID, MAPEADOR, atendimentoId));
     }
 
     @Override
     public Atendimento salvar(Atendimento atendimento) {
+        TransacaoObrigatoria.exigir("salvar");
         chat.update(
                 SQL_SALVAR,
                 atendimento.id(),

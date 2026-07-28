@@ -37,6 +37,25 @@ server:
   shutdown: graceful
 
 # ---------------------------------------------------------------------------
+# Circuit breaker de toda chamada de saida (CLAUDE.md).
+#
+# Ao abrir, o adaptador devolve recusa TEMPORARIA: a mensagem fica na outbox e
+# sai quando o provedor voltar. O atendente nunca ve excecao — degradacao
+# explicita, nao erro de tela.
+# ---------------------------------------------------------------------------
+resilience4j:
+  circuitbreaker:
+    instances:
+      canal-meta-cloud:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+# ---------------------------------------------------------------------------
 # Bloco da instancia — docs/07-base-pai-multitenancy.md, secao 4.
 # ---------------------------------------------------------------------------
 synapse:
@@ -47,10 +66,33 @@ synapse:
 
   canal:
     whatsapp:
-      provedor: ${WHATSAPP_PROVEDOR:}
+      # A UNICA chave que decide qual adaptador de canal roda. Trocar de provedor
+      # para um filho e mudar esta variavel — nao ha `if` em lugar nenhum do codigo.
+      provedor: ${WHATSAPP_PROVEDOR:meta-cloud}
+      url-base: ${WHATSAPP_URL_BASE:https://graph.facebook.com/v21.0}
       numero-principal: ${WHATSAPP_NUMERO:}
       token: ${WHATSAPP_TOKEN:}
+      # Sem default: sem segredo, o verificador de assinatura recusa TODO webhook.
+      # Uma variavel esquecida deixa a rota inutil, e nao aberta para a internet.
       webhook-secret: ${WHATSAPP_WEBHOOK_SECRET:}
+      # Regra da Meta oficial, nao lei da natureza: fora da janela so passa
+      # template. Configuravel porque a Meta ja mudou regra de janela antes.
+      janela-texto-livre: ${WHATSAPP_JANELA:24h}
+      timeout: ${WHATSAPP_TIMEOUT:10s}
+
+    # Publisher da outbox. O intervalo e o que define a latencia percebida entre
+    # o clique do atendente e a mensagem sair.
+    outbox:
+      intervalo-ms: ${OUTBOX_INTERVALO_MS:1000}
+      lote: ${OUTBOX_LOTE:50}
+      maximo-de-tentativas: ${OUTBOX_MAX_TENTATIVAS:8}
+      backoff-inicial: ${OUTBOX_BACKOFF_INICIAL:5s}
+      backoff-maximo: ${OUTBOX_BACKOFF_MAXIMO:30m}
+
+    webhook:
+      intervalo-ms: ${WEBHOOK_INTERVALO_MS:1000}
+      lote: ${WEBHOOK_LOTE:50}
+      maximo-de-tentativas: ${WEBHOOK_MAX_TENTATIVAS:5}
 
   automacao:
     url-base: ${AUTOMACAO_URL:}

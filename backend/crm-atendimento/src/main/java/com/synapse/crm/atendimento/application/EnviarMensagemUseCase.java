@@ -10,9 +10,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
+import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -37,6 +42,8 @@ public class EnviarMensagemUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final MensagemRepositorio mensagens;
     private final LeadNoCaminhoDeMensagem leads;
+    private final Outbox outbox;
+    private final CanalGateway canal;
     private final UsuarioContext usuarioContext;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
@@ -45,25 +52,59 @@ public class EnviarMensagemUseCase {
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
             LeadNoCaminhoDeMensagem leads,
+            Outbox outbox,
+            CanalGateway canal,
             UsuarioContext usuarioContext,
             ApplicationEventPublisher eventos,
             Clock relogio) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
+        this.outbox = outbox;
+        // O gateway do provedor ativo, escolhido por configuracao. Este caso de uso nao
+        // sabe qual e — so pergunta se pode mandar texto livre.
+        this.canal = canal;
         this.usuarioContext = usuarioContext;
         this.eventos = eventos;
         this.relogio = relogio;
     }
 
+    /**
+     * Atalho para o caso comum: o atendente digitou um texto.
+     *
+     * <p>Anotado como a sobrecarga principal, e nao apenas delegando. A chamada interna abaixo e
+     * auto-invocacao: ela nao passa pelo proxy do Spring, entao as anotacoes do outro metodo <b>nao
+     * valem</b> por este caminho. Sem estas duas linhas, o envio por texto rodaria sem transacao e
+     * sem autorizacao — e a trava de {@code TransacaoObrigatoria} foi exatamente o que expos isso.
+     */
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, String conteudo) {
+        return executar(leadId, new ConteudoDeEnvio.MensagemLivre(conteudo));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
         UUID remetenteId = usuarioContext.atual().id();
         Instant agora = Instant.now(relogio);
 
-        // RN-CRM-06 primeiro: se o lead nao e alcancavel por quem esta enviando, nada
-        // mais acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o
+        // Alcanca o lead? Telefone e janela vem juntos, numa consulta so.
+        LeadNoCaminhoDeMensagem.ContatoParaEnvio contato = leads.contatoParaEnvio(leadId)
+                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead", leadId));
+
+        // A janela de 24h e verificada AQUI, antes de gravar e antes de enfileirar.
+        // Deixar a Meta recusar custaria uma chamada de rede, um 400 cru para traduzir,
+        // uma linha de outbox que vai esgotar, e um atendente vendo "erro de envio" sem
+        // entender que precisava de um template. Quem responde e o adaptador do provedor
+        // ativo: um filho com provedor nao oficial responde sempre sim.
+        if (conteudo instanceof ConteudoDeEnvio.MensagemLivre
+                && !canal.aceitaTextoLivre(contato.ultimaInteracao(), agora)) {
+            throw new ForaDaJanelaException(leadId);
+        }
+
+        // RN-CRM-06: se o lead nao e alcancavel por quem esta enviando, nada mais
+        // acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o
         // remetente nao pode tocar.
         LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, remetenteId);
         if (!transferencia.aconteceu()) {
@@ -85,8 +126,30 @@ public class EnviarMensagemUseCase {
             aberto = atendimentos.salvar(aberto.transferirPara(remetenteId));
         }
 
-        Mensagem gravada = mensagens.registrar(Mensagem.texto(
-                UUID.randomUUID(), aberto.id(), Remetente.atendente(remetenteId), conteudo, agora));
+        // PENDENTE, nao ENVIADO: nenhum provedor viu esta mensagem ainda. Gravar ENVIADO
+        // aqui — como a E04 fazia — poe um tique de enviado numa mensagem que talvez
+        // nunca saia. O publisher da outbox move para ENVIADO ou FALHOU.
+        Mensagem gravada = mensagens.registrar(new Mensagem(
+                UUID.randomUUID(),
+                aberto.id(),
+                Remetente.atendente(remetenteId),
+                TipoMensagem.TEXTO,
+                conteudo.paraHistorico(),
+                null,
+                null,
+                StatusEntrega.PENDENTE,
+                agora));
+
+        // A intencao de enviar entra na MESMA transacao que a mensagem. Ou as duas
+        // gravam, ou nenhuma: nao existe conversa mostrando mensagem que ninguem tentou
+        // enviar, nem envio de mensagem que nao esta na conversa.
+        outbox.enfileirarEnvio(
+                gravada.id(),
+                agora,
+                leadId,
+                contato.telefone(),
+                aberto.canalCredencialId(),
+                conteudo);
 
         leads.registrarInteracao(leadId, agora, 0, 1);
 

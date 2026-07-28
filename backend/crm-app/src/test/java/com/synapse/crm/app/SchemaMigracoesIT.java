@@ -96,7 +96,10 @@ class SchemaMigracoesIT extends PostgresIT {
                     "rotina_disponibilidade_atendente",
                     "status_automacao_telemetria",
                     "tag",
-                    "usuario");
+                    "usuario",
+                    // Fila duravel de entrada (E05): o payload cru do provedor, com a
+                    // chave de idempotencia que impede reentrega virar mensagem duplicada.
+                    "webhook_entrada");
 
             List<String> existentes = jdbc.queryForList(
                     """

@@ -1,9 +1,11 @@
 package com.synapse.crm.atendimento.application;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 
 /**
  * Porta de escrita e leitura de mensagem.
@@ -22,4 +24,15 @@ public interface MensagemRepositorio {
 
     /** As mais recentes primeiro, no maximo {@code limite}. */
     List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite);
+
+    /**
+     * Move a mensagem no ciclo de entrega.
+     *
+     * <p>Quem chama e o publisher da outbox, depois de o provedor responder: {@code PENDENTE} vira
+     * {@code ENVIADO} quando aceita, {@code FALHOU} quando esgota. O atendente nunca ve tique de
+     * enviado numa mensagem que nao saiu.
+     *
+     * @param enviadoEm chave de particao da mensagem; sem ela o banco varre todas as particoes
+     */
+    void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status);
 }
