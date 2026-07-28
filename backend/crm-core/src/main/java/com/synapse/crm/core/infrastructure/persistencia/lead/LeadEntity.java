@@ -80,6 +80,16 @@ class LeadEntity {
     @Column(name = "criado_em", nullable = false, insertable = false, updatable = false)
     private Instant criadoEm;
 
+    /**
+     * Denormalizado, como os contadores: quem registra a interacao escreve aqui na mesma transacao.
+     *
+     * <p>Nao aparece em {@link #paraDominio()} nem em {@link #aplicar(Lead)} justamente por isso —
+     * edicao de ficha nao pode sobrescrever, com um valor lido da tela, o instante que outra
+     * transacao acabou de gravar. So o filtro {@code semRetornoDias} o le, pela Specification.
+     */
+    @Column(name = "ultima_interacao_em")
+    private Instant ultimaInteracaoEm;
+
     protected LeadEntity() {
         // exigido pelo JPA
     }
@@ -119,13 +129,18 @@ class LeadEntity {
         static final String ID = "id";
         static final String NOME = "nome";
         static final String TELEFONE = "telefone";
+        static final String EMAIL = "email";
+        static final String CPF = "cpf";
         static final String EMPRESA = "empresa";
+        static final String LOCALIZACAO = "localizacao";
+        static final String CANAL_ORIGEM_ID = "canalOrigemId";
         static final String STATUS_BASICO = "statusBasico";
         static final String ETAPA = "etapaAtendimentoId";
         static final String ATENDENTE_RESPONSAVEL_ID = "atendenteResponsavelId";
         static final String NUM_ATENDIMENTOS = "numAtendimentos";
         static final String NUM_MENSAGENS = "numMensagens";
         static final String CRIADO_EM = "criadoEm";
+        static final String ULTIMA_INTERACAO_EM = "ultimaInteracaoEm";
 
         private Campos() {}
     }

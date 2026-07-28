@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 
@@ -28,6 +29,15 @@ public interface LeadRepositorio {
     List<LeadResumo> listar(FiltroLead filtro);
 
     /**
+     * Idem, com a arvore de criterios do filtro modular (E03b).
+     *
+     * <p>Sobrecarga em vez de metodo de nome proprio: as duas consultas tem a mesma garantia — o
+     * resultado ja vem recortado pela RN-CRM-01 — e o vocabulario da porta continua sem conseguir
+     * expressar "me da todos os leads".
+     */
+    List<LeadResumo> listar(FiltroDeLeads filtro);
+
+    /**
      * Ficha completa do lead, <em>se</em> visivel ao usuario da requisicao.
      *
      * <p>Vazio significa "nao existe ou nao e seu", e os dois casos viram 404. Distinguir os dois
@@ -37,6 +47,15 @@ public interface LeadRepositorio {
     Optional<Lead> porId(UUID id);
 
     long contar(FiltroLead filtro);
+
+    /**
+     * Quantos leads o usuario veria sob este filtro.
+     *
+     * <p>A tela chama isto a cada mudanca de criterio, entao e {@code COUNT} sobre a mesma condicao —
+     * nunca "lista e mede o tamanho". Contar no banco evita transferir milhares de linhas para
+     * mostrar um numero.
+     */
+    long contar(FiltroDeLeads filtro);
 
     /**
      * Grava alteracoes de um lead ja existente.

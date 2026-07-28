@@ -1,5 +1,7 @@
 package com.synapse.crm.core.infrastructure.persistencia.lead;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.core.application.lead.FiltroLead;
 import com.synapse.crm.core.application.lead.LeadRepositorio;
+import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 import com.synapse.crm.core.domain.lead.VisibilidadeLead;
@@ -36,11 +39,16 @@ class LeadRepositorioJpa implements LeadRepositorio {
     private final LeadJpaRepository jpa;
     private final EntityManager em;
     private final UsuarioContext usuarioContext;
+    private final Clock relogio;
 
-    LeadRepositorioJpa(LeadJpaRepository jpa, EntityManager em, UsuarioContext usuarioContext) {
+    LeadRepositorioJpa(
+            LeadJpaRepository jpa, EntityManager em, UsuarioContext usuarioContext, Clock relogio) {
         this.jpa = jpa;
         this.em = em;
         this.usuarioContext = usuarioContext;
+        // O filtro "sem retorno ha N dias" precisa saber que horas sao. Vem do relogio
+        // injetado, e nao de Instant.now() espalhado, para o teste conseguir fixar a data.
+        this.relogio = relogio;
     }
 
     /**
@@ -51,6 +59,23 @@ class LeadRepositorioJpa implements LeadRepositorio {
      */
     @Override
     public List<LeadResumo> listar(FiltroLead filtro) {
+        return projetarResumos(visivel(filtro));
+    }
+
+    /** Filtro modular (E03b). Mesma projecao e mesma visibilidade da listagem comum. */
+    @Override
+    public List<LeadResumo> listar(FiltroDeLeads filtro) {
+        return projetarResumos(visivel(filtro));
+    }
+
+    @Override
+    public long contar(FiltroDeLeads filtro) {
+        // COUNT no banco, nunca listar().size(): a tela chama isto a cada mudanca de
+        // criterio, e trazer as linhas so para medi-las e o caminho para a lentidao.
+        return jpa.count(visivel(filtro));
+    }
+
+    private List<LeadResumo> projetarResumos(Specification<LeadEntity> especificacao) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<LeadResumo> consulta = cb.createQuery(LeadResumo.class);
         Root<LeadEntity> raiz = consulta.from(LeadEntity.class);
@@ -68,7 +93,7 @@ class LeadRepositorioJpa implements LeadRepositorio {
                 raiz.get(LeadEntity.Campos.NUM_MENSAGENS),
                 raiz.get(LeadEntity.Campos.CRIADO_EM)));
 
-        consulta.where(visivel(filtro).toPredicate(raiz, consulta, cb));
+        consulta.where(especificacao.toPredicate(raiz, consulta, cb));
         consulta.orderBy(cb.asc(raiz.get(LeadEntity.Campos.NOME)));
 
         return em.createQuery(consulta).getResultList();
@@ -114,6 +139,22 @@ class LeadRepositorioJpa implements LeadRepositorio {
 
     private Specification<LeadEntity> visibilidade() {
         return VisibilidadeLeadSpecification.de(VisibilidadeLead.de(usuarioContext.atual()));
+    }
+
+    /**
+     * Visibilidade E a arvore de criterios do usuario.
+     *
+     * <p>Este metodo e o ponto onde o isolamento de agenda poderia ter vazado depois de toda a
+     * blindagem da E02, e por isso ele e de uma linha so. A {@code VisibilidadeLeadSpecification} vem
+     * primeiro e o filtro entra com {@code .and(...)}: um {@code AND} so consegue <b>tirar</b> linhas
+     * do conjunto. Nao existe criterio que um atendente possa montar que devolva o lead de um colega —
+     * no maximo ele pede um conjunto que resulta vazio.
+     *
+     * <p>Trocar este {@code and} por um {@code or}, ou inverter a ordem para o filtro decidir sozinho,
+     * seria vazamento de lead entre atendentes. Ha teste de integracao que prova o contrario.
+     */
+    private Specification<LeadEntity> visivel(FiltroDeLeads filtro) {
+        return visibilidade().and(InterpretadorDeCriterio.interpretar(filtro, Instant.now(relogio)));
     }
 
     /** Visibilidade E o filtro pedido — nessa ordem, e nunca so o filtro. */

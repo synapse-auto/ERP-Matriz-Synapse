@@ -23,7 +23,6 @@ import com.synapse.crm.core.application.lead.FiltroLead;
 import com.synapse.crm.core.application.lead.ListarLeadsUseCase;
 import com.synapse.crm.core.application.lead.ObterLeadUseCase;
 import com.synapse.crm.core.domain.lead.Lead;
-import com.synapse.crm.core.domain.lead.LeadResumo;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 
 /**
@@ -71,27 +70,6 @@ class LeadController {
 
     private static ResponseStatusException naoEncontrado() {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Lead nao encontrado");
-    }
-
-    /** O que a lista devolve. Sem `notas` e sem `resumoIa`: nao existem neste tipo. */
-    record LeadDaLista(
-            UUID id,
-            String nome,
-            String telefone,
-            String empresa,
-            StatusBasicoLead status,
-            UUID etapaAtendimentoId,
-            UUID atendenteResponsavelId,
-            int numAtendimentos,
-            int numMensagens,
-            Instant criadoEm) {
-
-        static LeadDaLista de(LeadResumo lead) {
-            return new LeadDaLista(
-                    lead.id(), lead.nome(), lead.telefone(), lead.empresa(), lead.statusBasico(),
-                    lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.numAtendimentos(),
-                    lead.numMensagens(), lead.criadoEm());
-        }
     }
 
     /** Ficha completa, so na consulta por id. */
