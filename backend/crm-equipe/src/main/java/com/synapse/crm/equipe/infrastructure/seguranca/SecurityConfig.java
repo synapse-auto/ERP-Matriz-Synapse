@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.synapse.crm.equipe.application.autenticacao.CodificadorDeSenha;
 import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
@@ -41,12 +42,22 @@ import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http) throws Exception {
+    SecurityFilterChain filtros(HttpSecurity http, SynapseTokenAuthenticationFilter filtroSynapseToken)
+            throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(filtroSynapseToken, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
                         .requestMatchers("/api/v1/auth/**")
                         .permitAll()
+                        // O contrato da Automacao (E07): sem JWT de usuario, autenticado por
+                        // X-Synapse-Token no filtro registrado acima. "hasRole" aqui e
+                        // cinto-e-suspensorio — o filtro ja recusa com 401 antes de chegar
+                        // aqui quando o token nao bate; isto so garante que, mesmo que o
+                        // filtro um dia deixasse passar sem autenticar, a rota continuaria
+                        // fechada por padrao.
+                        .requestMatchers("/internal/v1/**")
+                        .hasRole("SERVICO")
                         // Sem isto, todo 400/404/500 vira 401 vazio: o container
                         // encaminha o erro para /error, esse encaminhamento passa
                         // pela cadeia de novo e cai em anyRequest().authenticated().
@@ -72,6 +83,11 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/health/**", "/info")
+                        .permitAll()
+                        // Documentacao gerada, nao segredo (E07 §2): a forma das rotas,
+                        // nao dado de cliente. Publica para poder virar artefato do
+                        // release sem autenticar o pipeline de CI contra a API.
+                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

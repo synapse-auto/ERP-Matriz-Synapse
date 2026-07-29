@@ -25,6 +25,17 @@
       <groupId>com.synapse.crm</groupId>
       <artifactId>crm-shared-kernel</artifactId>
     </dependency>
+    <!--
+      So para CanalGateway.exigeTemplateForaDaJanela() (E07 §5): o contrato da
+      Automacao expoe a capacidade do canal ativo, e quem sabe disso e o
+      adaptador de canal, em crm-atendimento. Precedente: crm-atendimento ja
+      depende de crm-equipe (E06) pelo mesmo motivo — modulos-irmao podem
+      depender um do outro quando a necessidade e real, desde que sem ciclo.
+    -->
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-atendimento</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -37,6 +48,14 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
 
     <dependency>

@@ -87,6 +87,11 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     @Override
+    public boolean exigeTemplateForaDaJanela() {
+        return true;
+    }
+
+    @Override
     public ResultadoDeEnvio enviar(Envio envio) {
         try {
             return breaker.executeSupplier(() -> chamar(envio));

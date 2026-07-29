@@ -83,6 +83,12 @@ public class CanalFake implements CanalGateway {
         return janelaAberta.get();
     }
 
+    /** Provedor nao oficial: nunca exigiu template, nao tem janela para comecar (E07 §5). */
+    @Override
+    public boolean exigeTemplateForaDaJanela() {
+        return false;
+    }
+
     @Override
     public ResultadoDeEnvio enviar(Envio envio) {
         ResultadoDeEnvio resposta = proximaResposta.get();

@@ -72,7 +72,10 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
             "synapse.canal.outbox.intervalo-ms=3600000",
             // Sem credencial real da Meta configurada neste teste; o provedor
             // falso (ja usado pela E05) aceita o envio e devolve ENVIADO.
-            "synapse.canal.whatsapp.provedor=fake"
+            "synapse.canal.whatsapp.provedor=fake",
+            // TTL curto (producao usa 60s, ver TempoRealProperties) para o teste
+            // de E07 §0 nao precisar dormir um minuto inteiro.
+            "synapse.tempo-real.ttl-assinatura-segundos=2"
         })
 class TempoRealIT extends PostgresIT {
 
@@ -259,6 +262,48 @@ class TempoRealIT extends PostgresIT {
             enviarComoBruno("agora e comigo");
 
             assertThat(capturaBruno.aguardar(ESPERA_CURTA)).contains("agora e comigo");
+            assertThat(capturaAna.aguardarNada(ESPERA_NEGATIVA)).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("TTL do registro de assinaturas (E07 §0)")
+    class TtlDoRegistro {
+
+        /**
+         * O cenario que {@link Revogacao} nao cobre: a mensagem de revogacao no Redis se perde (aqui,
+         * simulada trocando o dono direto no banco, sem publicar nada — exatamente o efeito de um
+         * publish que nunca chegou). Sem o TTL, Ana receberia mensagens do lead do Bruno para sempre.
+         * Com ele, a proxima entrega apos o TTL vencer revalida, descobre que ela nao enxerga mais o
+         * atendimento, revoga e avisa — o mesmo destino de revogacao que a transferencia usa.
+         */
+        @Test
+        @DisplayName("com a revogacao perdida no Redis, o dono anterior para de receber apos o TTL")
+        void revogacaoPerdidaNoRedis_paraDeVazarAposOTtl() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+
+            StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
+            Captura capturaAna = assinar(sessaoAna, atendimentoId);
+            Captura revogacaoAna = new Captura();
+            sessaoAna.subscribe("/user/queue/revogacoes", revogacaoAna);
+            aguardarAssinatura();
+
+            // A transferencia de verdade (TransferirAtendimentoUseCase) publicaria o
+            // evento TRANSFERENCIA no Redis e revogaria Ana na hora. Aqui pulamos o
+            // caso de uso e mexemos direto no banco: e o mesmo estado final de uma
+            // transferencia cujo publish se perdeu.
+            jdbc.update("UPDATE atendimento SET atendente_id = ? WHERE id = ?", idBruno, atendimentoId);
+
+            publicarMensagemDireta(atendimentoId, "antes do ttl vencer, ainda vaza");
+            assertThat(capturaAna.aguardar(ESPERA_CURTA)).contains("antes do ttl vencer");
+
+            // TTL de teste = 2s (TestPropertySource da classe). Depois disto, a
+            // proxima entrega precisa revalidar antes de confiar na assinatura.
+            Thread.sleep(2500);
+
+            publicarMensagemDireta(atendimentoId, "depois do ttl vencido, nao deveria vazar");
+
+            assertThat(revogacaoAna.aguardar(ESPERA_CURTA)).contains(atendimentoId.toString());
             assertThat(capturaAna.aguardarNada(ESPERA_NEGATIVA)).isTrue();
         }
     }
@@ -463,6 +508,16 @@ class TempoRealIT extends PostgresIT {
                 ? ApoioAutenticacao.SENHA_GESTOR
                 : ApoioAutenticacao.SENHA_ATENDENTE;
         return ApoioAutenticacao.login(http, email, senha).accessToken();
+    }
+
+    /** Publica direto no canal do Redis, sem passar pela outbox nem pelo relay — ver {@link Backplane}. */
+    private void publicarMensagemDireta(UUID atendimentoId, String texto) {
+        String envelope = "{\"tipo\":\"MENSAGEM\",\"dados\":{\"atendimentoId\":\"" + atendimentoId
+                + "\",\"leadId\":\"" + leadDaAna + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                + "\",\"remetenteTipo\":\"SISTEMA\",\"remetenteId\":null,"
+                + "\"conteudo\":\"" + texto + "\",\"statusEntrega\":\"ENVIADO\","
+                + "\"enviadoEm\":\"2026-01-01T00:00:00Z\"}}";
+        redis.convertAndSend("synapse:atendimento:" + atendimentoId, envelope);
     }
 
     private static int contarOcorrencias(String texto, String trecho) {

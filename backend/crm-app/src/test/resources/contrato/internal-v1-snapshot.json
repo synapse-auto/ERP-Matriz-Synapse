@@ -1,0 +1,227 @@
+{
+  "paths" : {
+    "/internal/v1/atendentes/disponiveis" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AtendenteResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/internal/v1/automation-config" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AutomationConfigResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/internal/v1/automation-config/{chave}" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "chave",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ParametroResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/internal/v1/eventos" : {
+      "post" : {
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EventoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        }
+      }
+    },
+    "/internal/v1/regras/fidelizacao" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RegraFidelizacaoResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/internal/v1/regras/follow-up" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RegraFollowUpResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        }
+      }
+    }
+  },
+  "schemas" : {
+    "AtendenteResposta" : {
+      "properties" : {
+        "email" : {
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
+        },
+        "usuarioId" : {
+          "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "AutomationConfigResposta" : {
+      "properties" : {
+        "exigeTemplateForaDaJanela" : {
+          "type" : "boolean"
+        },
+        "parametros" : {
+          "items" : {
+            "$ref" : "#/components/schemas/ParametroResposta"
+          },
+          "type" : "array"
+        }
+      },
+      "type" : "object"
+    },
+    "EventoRequisicao" : {
+      "properties" : {
+        "tipo" : {
+          "enum" : [ "MENSAGEM_ENVIADA", "CLIENTE_TRANSFERIDO" ],
+          "type" : "string"
+        }
+      },
+      "required" : [ "tipo" ],
+      "type" : "object"
+    },
+    "ParametroResposta" : {
+      "properties" : {
+        "atualizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "chave" : {
+          "type" : "string"
+        },
+        "descricao" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "enum" : [ "INT", "DECIMAL", "BOOLEAN", "TEXT" ],
+          "type" : "string"
+        },
+        "unidade" : {
+          "type" : "string"
+        },
+        "valor" : {
+          "type" : "string"
+        },
+        "valorMax" : {
+          "type" : "number"
+        },
+        "valorMin" : {
+          "type" : "number"
+        }
+      },
+      "type" : "object"
+    },
+    "RegraFidelizacaoResposta" : {
+      "properties" : {
+        "diasSemContato" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "mensagem" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "RegraFollowUpResposta" : {
+      "properties" : {
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
+        },
+        "tempoMinutos" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "texto" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    }
+  }
+}

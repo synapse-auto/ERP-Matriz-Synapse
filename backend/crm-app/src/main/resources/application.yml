@@ -111,6 +111,9 @@ synapse:
     # "*" em desenvolvimento; um filho em producao fecha para o(s) dominio(s)
     # do proprio frontend.
     origens-permitidas: ${WS_ORIGENS_PERMITIDAS:*}
+    # E07 §0: janela maxima do vazamento se uma revogacao se perder no Redis
+    # pub/sub (at-most-once). Decisao de risco explicita — ver TempoRealProperties.
+    ttl-assinatura-segundos: ${WS_TTL_ASSINATURA_SEGUNDOS:60}
 
   automacao:
     url-base: ${AUTOMACAO_URL:}
@@ -141,6 +144,10 @@ synapse:
     validade-access-token: ${SYNAPSE_ACCESS_TOKEN_VALIDADE:15m}
     # Longo, mas revogavel e rotativo a cada uso (ver RenovarSessaoUseCase).
     validade-refresh-token: ${SYNAPSE_REFRESH_TOKEN_VALIDADE:7d}
+    # E07 §1: segredo de X-Synapse-Token, o contrato que a Automacao de todo
+    # filho consome. Sem default, mesma razao do webhook-secret: esquecer a
+    # variavel deixa /internal/v1 inutil, nunca aberta.
+    token-interno: ${SYNAPSE_TOKEN_INTERNO:}
 
   # -------------------------------------------------------------------------
   # Particoes mensais de `mensagem`.

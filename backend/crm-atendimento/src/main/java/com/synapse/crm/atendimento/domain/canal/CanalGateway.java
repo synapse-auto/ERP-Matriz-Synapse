@@ -33,6 +33,16 @@ public interface CanalGateway {
     boolean aceitaTextoLivre(Optional<Instant> ultimaInteracaoDoLead, Instant agora);
 
     /**
+     * O canal ativo exige template pre-aprovado fora da janela de texto livre?
+     *
+     * <p>A Automacao (E07 §5) precisa saber disto <b>antes</b> de tentar enviar — senao descobre por
+     * um 400 traduzido da Meta, que e diagnostico ruim, na primeira execucao de uma campanha de
+     * reativacao de 90 dias sem contato. Um provedor nao oficial responde que nao exige, porque nunca
+     * teve janela para comecar.
+     */
+    boolean exigeTemplateForaDaJanela();
+
+    /**
      * Entrega a mensagem ao provedor.
      *
      * <p>Nao lanca por falha do provedor: devolve {@link ResultadoDeEnvio.Recusado}. Excecao aqui

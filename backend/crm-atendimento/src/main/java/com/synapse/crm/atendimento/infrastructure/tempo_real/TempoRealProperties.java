@@ -12,6 +12,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param filaMaxima quantas tarefas esperam antes de o executor comecar a rejeitar
  * @param origensPermitidas origens aceitas no handshake; {@code *} em desenvolvimento, lista fechada
  *     em producao
+ * @param ttlAssinaturaSegundos janela maxima do vazamento descrito na E07 §0: Redis pub/sub e
+ *     at-most-once, e uma revogacao perdida (reconexao do cliente Redis, instancia ocupada no
+ *     publish, particao breve) deixaria o dono anterior recebendo mensagens indefinidamente sem
+ *     isto. 60s e o ponto de partida — nao e lei da natureza, e uma decisao de risco explicita que
+ *     alguem pode e deve revisar depois, trocando so este numero.
  */
 @ConfigurationProperties("synapse.tempo-real")
 public record TempoRealProperties(
@@ -19,7 +24,8 @@ public record TempoRealProperties(
         int threadsSaida,
         int threadsRedis,
         int filaMaxima,
-        String origensPermitidas) {
+        String origensPermitidas,
+        int ttlAssinaturaSegundos) {
 
     public TempoRealProperties {
         threadsEntrada = threadsEntrada <= 0 ? 4 : threadsEntrada;
@@ -29,5 +35,6 @@ public record TempoRealProperties(
         origensPermitidas = (origensPermitidas == null || origensPermitidas.isBlank())
                 ? "*"
                 : origensPermitidas;
+        ttlAssinaturaSegundos = ttlAssinaturaSegundos <= 0 ? 60 : ttlAssinaturaSegundos;
     }
 }

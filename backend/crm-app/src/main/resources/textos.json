@@ -1,0 +1,13 @@
+{
+  "nomeDoSistema": "Synapse CRM",
+  "abas": {
+    "atendimentos": "Atendimentos",
+    "leads": "Leads",
+    "equipe": "Equipe"
+  },
+  "cardsDeStatus": {
+    "ativos": "Ativos",
+    "pendentes": "Pendentes",
+    "potenciais": "Potenciais"
+  }
+}

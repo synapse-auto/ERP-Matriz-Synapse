@@ -25,11 +25,21 @@ import com.synapse.crm.equipe.application.autenticacao.PoliticaDeSessao;
 public record SegurancaProperties(
         @NotBlank @Size(min = 32, message = "o segredo do JWT precisa de ao menos 32 caracteres") String jwtSegredo,
         Duration validadeAccessToken,
-        Duration validadeRefreshToken)
+        Duration validadeRefreshToken,
+        String tokenInterno)
         implements PoliticaDeSessao {
 
     @Override
     public Duration validadeDoRefreshToken() {
         return validadeRefreshToken;
+    }
+
+    /**
+     * O segredo de {@code X-Synapse-Token} (E07 §1), que autentica a Automacao em
+     * {@code /internal/v1}. Sem default, como {@code jwtSegredo}: um valor de conveniencia aqui
+     * seria uma porta destrancada em todo filho que esquecesse de configurar o proprio.
+     */
+    public boolean temTokenInterno() {
+        return tokenInterno != null && !tokenInterno.isBlank();
     }
 }

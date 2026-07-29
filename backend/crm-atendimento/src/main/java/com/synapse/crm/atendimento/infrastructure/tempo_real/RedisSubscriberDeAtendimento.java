@@ -13,6 +13,8 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
@@ -43,12 +45,17 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     private final RegistroDeAssinaturas registro;
     private final SimpMessagingTemplate template;
     private final ObjectMapper json;
+    private final RevalidarAssinaturaTempoRealUseCase revalidar;
 
     RedisSubscriberDeAtendimento(
-            RegistroDeAssinaturas registro, SimpMessagingTemplate template, ObjectMapper json) {
+            RegistroDeAssinaturas registro,
+            SimpMessagingTemplate template,
+            ObjectMapper json,
+            RevalidarAssinaturaTempoRealUseCase revalidar) {
         this.registro = registro;
         this.template = template;
         this.json = json;
+        this.revalidar = revalidar;
     }
 
     @Override
@@ -80,10 +87,45 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         // usuario de uma vez, entao um usuario so pode receber uma vez por rodada.
         Set<UUID> usuariosEntregues = new java.util.HashSet<>();
         for (AssinaturaAutorizada assinatura : registro.doAtendimento(atendimentoId)) {
+            if (registro.expirou(assinatura) && !revalidarERenovar(assinatura)) {
+                continue;
+            }
             if (usuariosEntregues.add(assinatura.usuarioId())) {
                 enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpo);
             }
         }
+    }
+
+    /**
+     * TTL vencido (E07 §0): a revogacao por transferencia e o caminho rapido, mas Redis pub/sub e
+     * at-most-once — se aquele evento se perdeu, esta e a rede de seguranca. So consulta o banco
+     * quando o TTL da propria assinatura venceu, nunca por mensagem.
+     *
+     * <p>{@code ContextoDeServico} e publicado aqui — do lado de fora de {@link
+     * RevalidarAssinaturaTempoRealUseCase} — porque este listener nunca autenticou ninguem. Ver a
+     * nota de classe daquele use case sobre por que o contexto nao pode ser aplicado por
+     * auto-invocacao de dentro dele mesmo.
+     */
+    private boolean revalidarERenovar(AssinaturaAutorizada assinatura) {
+        boolean valida = ContextoDeServico.buscarComo(
+                "tempo-real.revalidacao-ttl",
+                () -> revalidar.aindaValida(
+                        assinatura.atendimentoId(), assinatura.usuarioId(), assinatura.papel()));
+        if (valida) {
+            registro.renovar(assinatura);
+            return true;
+        }
+
+        registro.remover(assinatura);
+        enviarParaUsuario(
+                assinatura.usuarioId(),
+                DESTINO_REVOGACAO,
+                "{\"atendimentoId\":\"" + assinatura.atendimentoId() + "\"}");
+        log.debug(
+                "Assinatura de {} revogada na revalidacao de TTL para o usuario {}.",
+                assinatura.atendimentoId(),
+                assinatura.usuarioId());
+        return false;
     }
 
     /**
