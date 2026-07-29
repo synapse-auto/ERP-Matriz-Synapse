@@ -10,5 +10,6 @@ package com.synapse.crm.core.domain.filtro;
  *
  * @see CriterioSimples
  * @see CriterioComposto
+ * @see CriterioCustomizado
  */
-public sealed interface Criterio permits CriterioSimples, CriterioComposto {}
+public sealed interface Criterio permits CriterioSimples, CriterioComposto, CriterioCustomizado {}

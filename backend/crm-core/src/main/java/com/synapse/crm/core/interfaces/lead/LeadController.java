@@ -2,12 +2,15 @@ package com.synapse.crm.core.interfaces.lead;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,6 +25,7 @@ import com.synapse.crm.core.application.lead.DadosDeAtualizacaoLead;
 import com.synapse.crm.core.application.lead.FiltroLead;
 import com.synapse.crm.core.application.lead.ListarLeadsUseCase;
 import com.synapse.crm.core.application.lead.ObterLeadUseCase;
+import com.synapse.crm.core.domain.campocustomizado.DadosCustomizadosInvalidosException;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 
@@ -72,6 +76,15 @@ class LeadController {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Lead nao encontrado");
     }
 
+    /** Chave de campo customizado nao cadastrada, tipo incompativel, ou obrigatorio ausente. */
+    @ExceptionHandler(DadosCustomizadosInvalidosException.class)
+    ProblemDetail aoReceberDadosCustomizadosInvalidos(DadosCustomizadosInvalidosException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Dados customizados invalidos");
+        return problema;
+    }
+
     /** Ficha completa, so na consulta por id. */
     record FichaDoLead(
             UUID id,
@@ -90,14 +103,16 @@ class LeadController {
             String resumoIa,
             int numAtendimentos,
             int numMensagens,
-            Instant criadoEm) {
+            Instant criadoEm,
+            Map<String, Object> dadosCustomizados) {
 
         static FichaDoLead de(Lead lead) {
             return new FichaDoLead(
                     lead.id(), lead.nome(), lead.fotoUrl(), lead.telefone(), lead.email(), lead.cpf(),
                     lead.empresa(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
                     lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.notas(),
-                    lead.resumoIa(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm());
+                    lead.resumoIa(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
+                    lead.dadosCustomizados());
         }
     }
 
@@ -119,12 +134,13 @@ class LeadController {
             UUID canalOrigemId,
             StatusBasicoLead status,
             UUID etapaAtendimentoId,
-            String notas) {
+            String notas,
+            Map<String, Object> dadosCustomizados) {
 
         DadosDeAtualizacaoLead paraDados() {
             return new DadosDeAtualizacaoLead(
                     nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId, status,
-                    etapaAtendimentoId, notas);
+                    etapaAtendimentoId, notas, dadosCustomizados);
         }
     }
 }

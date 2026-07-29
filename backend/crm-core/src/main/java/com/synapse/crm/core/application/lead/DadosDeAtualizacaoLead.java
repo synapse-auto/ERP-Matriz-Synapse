@@ -1,5 +1,6 @@
 package com.synapse.crm.core.application.lead;
 
+import java.util.Map;
 import java.util.UUID;
 
 import com.synapse.crm.core.domain.lead.Lead;
@@ -34,9 +35,17 @@ public record DadosDeAtualizacaoLead(
         UUID canalOrigemId,
         StatusBasicoLead statusBasico,
         UUID etapaAtendimentoId,
-        String notas) {
+        String notas,
+        Map<String, Object> dadosCustomizados) {
 
-    /** Aplica sobre o lead atual, preservando tudo que veio nulo e tudo que nao e editavel. */
+    /**
+     * Aplica sobre o lead atual, preservando tudo que veio nulo e tudo que nao e editavel.
+     *
+     * <p>{@code dadosCustomizados} nao e mesclado aqui: ao contrario dos demais campos, ele precisa
+     * ser validado contra {@code campo_customizado} (consulta ao banco), o que esta fora do alcance
+     * de um metodo puro de dominio. {@link AtualizarLeadUseCase} faz essa validacao e aplica o
+     * resultado com {@link Lead#comDadosCustomizados}. Aqui o valor atual so e preservado.
+     */
     Lead aplicarEm(Lead atual) {
         return new Lead(
                 atual.id(),
@@ -56,7 +65,8 @@ public record DadosDeAtualizacaoLead(
                 atual.resumoIa(),
                 atual.numAtendimentos(),
                 atual.numMensagens(),
-                atual.criadoEm());
+                atual.criadoEm(),
+                atual.dadosCustomizados());
     }
 
     private static <T> T ouAtual(T novo, T atual) {

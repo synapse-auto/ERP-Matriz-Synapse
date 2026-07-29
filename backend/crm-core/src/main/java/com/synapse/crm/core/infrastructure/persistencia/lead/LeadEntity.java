@@ -1,6 +1,8 @@
 package com.synapse.crm.core.infrastructure.persistencia.lead;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -90,6 +92,11 @@ class LeadEntity {
     @Column(name = "ultima_interacao_em")
     private Instant ultimaInteracaoEm;
 
+    /** Mapeado via {@code FormatMapper} do Hibernate 6 (Jackson no classpath) — sem JSON manual aqui. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "dados_customizados", nullable = false)
+    private Map<String, Object> dadosCustomizados = new LinkedHashMap<>();
+
     protected LeadEntity() {
         // exigido pelo JPA
     }
@@ -98,7 +105,7 @@ class LeadEntity {
         return new Lead(
                 id, nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId,
                 statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
-                numAtendimentos, numMensagens, criadoEm);
+                numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
     }
 
     /**
@@ -122,6 +129,7 @@ class LeadEntity {
         this.atendenteResponsavelId = lead.atendenteResponsavelId();
         this.notas = lead.notas();
         this.resumoIa = lead.resumoIa();
+        this.dadosCustomizados = new LinkedHashMap<>(lead.dadosCustomizados());
     }
 
     /** Nomes de atributo usados pela Specification e pela projecao de listagem. */
@@ -141,6 +149,7 @@ class LeadEntity {
         static final String NUM_MENSAGENS = "numMensagens";
         static final String CRIADO_EM = "criadoEm";
         static final String ULTIMA_INTERACAO_EM = "ultimaInteracaoEm";
+        static final String DADOS_CUSTOMIZADOS = "dadosCustomizados";
 
         private Campos() {}
     }

@@ -65,6 +65,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "campanha",
                     "campanha_mensagem",
                     "campanha_mensagem_metrica",
+                    "campo_customizado",
                     "canal",
                     "canal_credencial",
                     "chat_interno_conversa",

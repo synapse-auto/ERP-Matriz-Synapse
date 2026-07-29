@@ -27,4 +27,7 @@ public sealed interface ValorDeFiltro {
     record Status(StatusBasicoLead valor) implements ValorDeFiltro {}
 
     record Referencia(UUID valor) implements ValorDeFiltro {}
+
+    /** So para campo customizado do tipo BOOLEANO (E06b) — nenhum campo fixo do lead e booleano. */
+    record Booleano(boolean valor) implements ValorDeFiltro {}
 }

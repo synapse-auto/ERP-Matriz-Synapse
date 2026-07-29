@@ -112,6 +112,17 @@ public enum CampoFiltravel {
         return POR_APELIDO.keySet().stream().sorted().toList();
     }
 
+    /**
+     * Como {@link #de(String)}, mas sem lancar — para o controller decidir, sem excecao como controle
+     * de fluxo, se {@code recebido} e um campo estatico ou se deve tentar a allowlist dinamica de
+     * campo customizado (E06b).
+     */
+    public static java.util.Optional<CampoFiltravel> tentar(String recebido) {
+        return recebido == null
+                ? java.util.Optional.empty()
+                : java.util.Optional.ofNullable(POR_APELIDO.get(recebido.trim().toLowerCase()));
+    }
+
     void exigirOperadorCompativel(Operador operador) {
         if (!operadores.contains(operador)) {
             throw new FiltroInvalidoException("o operador " + operador + " nao se aplica ao campo "

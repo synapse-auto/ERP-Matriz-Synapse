@@ -1,5 +1,6 @@
 package com.synapse.crm.core.application.lead;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -7,6 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.core.application.campocustomizado.CampoCustomizadoRepositorio;
+import com.synapse.crm.core.domain.campocustomizado.ValidadorDeDadosCustomizados;
 import com.synapse.crm.core.domain.lead.Lead;
 
 /**
@@ -23,14 +26,26 @@ import com.synapse.crm.core.domain.lead.Lead;
 public class AtualizarLeadUseCase {
 
     private final LeadRepositorio leads;
+    private final CampoCustomizadoRepositorio camposCustomizados;
 
-    public AtualizarLeadUseCase(LeadRepositorio leads) {
+    public AtualizarLeadUseCase(LeadRepositorio leads, CampoCustomizadoRepositorio camposCustomizados) {
         this.leads = leads;
+        this.camposCustomizados = camposCustomizados;
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional
     public Optional<Lead> executar(UUID id, DadosDeAtualizacaoLead dados) {
-        return leads.porId(id).flatMap(atual -> leads.salvar(dados.aplicarEm(atual)));
+        return leads.porId(id).flatMap(atual -> {
+            Lead atualizado = dados.aplicarEm(atual);
+            // dadosCustomizados so e tocado quando o cliente efetivamente mandou algo: ausencia no
+            // corpo do PUT significa "nao mexa", igual a qualquer outro campo desta ficha.
+            if (dados.dadosCustomizados() != null) {
+                Map<String, Object> validado = ValidadorDeDadosCustomizados.validar(
+                        dados.dadosCustomizados(), camposCustomizados.listarTodos());
+                atualizado = atualizado.comDadosCustomizados(validado);
+            }
+            return leads.salvar(atualizado);
+        });
     }
 }

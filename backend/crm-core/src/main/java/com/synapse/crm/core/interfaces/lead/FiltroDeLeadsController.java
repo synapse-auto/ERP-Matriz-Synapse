@@ -13,11 +13,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.synapse.crm.core.application.campocustomizado.CampoCustomizadoRepositorio;
 import com.synapse.crm.core.application.lead.ContarLeadsFiltradosUseCase;
 import com.synapse.crm.core.application.lead.FiltrarLeadsUseCase;
+import com.synapse.crm.core.domain.campocustomizado.CampoCustomizado;
 import com.synapse.crm.core.domain.filtro.CampoFiltravel;
 import com.synapse.crm.core.domain.filtro.Criterio;
 import com.synapse.crm.core.domain.filtro.CriterioComposto;
+import com.synapse.crm.core.domain.filtro.CriterioCustomizado;
 import com.synapse.crm.core.domain.filtro.CriterioSimples;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.filtro.FiltroInvalidoException;
@@ -38,15 +41,20 @@ class FiltroDeLeadsController {
 
     private final FiltrarLeadsUseCase filtrar;
     private final ContarLeadsFiltradosUseCase contar;
+    private final CampoCustomizadoRepositorio camposCustomizados;
 
-    FiltroDeLeadsController(FiltrarLeadsUseCase filtrar, ContarLeadsFiltradosUseCase contar) {
+    FiltroDeLeadsController(
+            FiltrarLeadsUseCase filtrar,
+            ContarLeadsFiltradosUseCase contar,
+            CampoCustomizadoRepositorio camposCustomizados) {
         this.filtrar = filtrar;
         this.contar = contar;
+        this.camposCustomizados = camposCustomizados;
     }
 
     @PostMapping
     List<LeadDaLista> filtrar(@Valid @RequestBody FiltroRequisicao requisicao) {
-        return filtrar.executar(requisicao.paraDominio()).stream()
+        return filtrar.executar(requisicao.paraDominio(camposCustomizados)).stream()
                 .map(LeadDaLista::de)
                 .toList();
     }
@@ -54,7 +62,7 @@ class FiltroDeLeadsController {
     /** Total sob o filtro montado, antes de salvar. A tela chama a cada mudanca de criterio. */
     @PostMapping("/contagem")
     Contagem contar(@Valid @RequestBody FiltroRequisicao requisicao) {
-        return new Contagem(contar.executar(requisicao.paraDominio()));
+        return new Contagem(contar.executar(requisicao.paraDominio(camposCustomizados)));
     }
 
     /**
@@ -82,8 +90,8 @@ class FiltroDeLeadsController {
      */
     record FiltroRequisicao(@NotNull CriterioRequisicao criterio) {
 
-        FiltroDeLeads paraDominio() {
-            return new FiltroDeLeads(criterio.paraDominio(1));
+        FiltroDeLeads paraDominio(CampoCustomizadoRepositorio camposCustomizados) {
+            return new FiltroDeLeads(criterio.paraDominio(1, camposCustomizados));
         }
     }
 
@@ -111,22 +119,43 @@ class FiltroDeLeadsController {
         private static final String SIMPLES = "SIMPLES";
         private static final String COMPOSTO = "COMPOSTO";
 
-        Criterio paraDominio(int profundidade) {
+        Criterio paraDominio(int profundidade, CampoCustomizadoRepositorio camposCustomizados) {
             if (profundidade > FiltroDeLeads.PROFUNDIDADE_MAXIMA) {
                 throw new FiltroInvalidoException(
                         "filtro aninhado alem de " + FiltroDeLeads.PROFUNDIDADE_MAXIMA + " niveis");
             }
             String rotulo = tipo == null ? "" : tipo.trim().toUpperCase();
             return switch (rotulo) {
-                case SIMPLES -> CriterioSimples.deTextos(campo, operador, valoresUnificados());
+                case SIMPLES -> criterioSimplesOuCustomizado(camposCustomizados);
                 case COMPOSTO -> new CriterioComposto(
-                        CriterioComposto.Conector.de(conector), filhos(profundidade));
+                        CriterioComposto.Conector.de(conector), filhos(profundidade, camposCustomizados));
                 default -> throw new FiltroInvalidoException("tipo de criterio nao permitido: "
                         + FiltroInvalidoException.eco(tipo) + ". Permitidos: [SIMPLES, COMPOSTO]");
             };
         }
 
-        private List<Criterio> filhos(int profundidade) {
+        /**
+         * {@code campo} tenta primeiro a allowlist estatica ({@link CampoFiltravel}); so quando nao
+         * casa la e que consulta {@code campo_customizado} (E06b) — nesta ordem, para que um filho que
+         * um dia cadastre um campo customizado com o mesmo apelido de um campo fixo nunca sobreponha o
+         * fixo. A chave so vira {@link CriterioCustomizado} depois de resolvida contra o banco e
+         * confirmada {@code filtravel}; nunca a partir do texto cru desta requisicao.
+         */
+        private Criterio criterioSimplesOuCustomizado(CampoCustomizadoRepositorio camposCustomizados) {
+            if (CampoFiltravel.tentar(campo).isPresent()) {
+                return CriterioSimples.deTextos(campo, operador, valoresUnificados());
+            }
+            CampoCustomizado resolvido = campo == null
+                    ? null
+                    : camposCustomizados.porChave(campo.trim()).filter(CampoCustomizado::filtravel).orElse(null);
+            if (resolvido == null) {
+                throw new FiltroInvalidoException("campo nao permitido: "
+                        + FiltroInvalidoException.eco(campo) + ". Permitidos: " + CampoFiltravel.apelidos());
+            }
+            return CriterioCustomizado.deTextos(resolvido, operador, valoresUnificados());
+        }
+
+        private List<Criterio> filhos(int profundidade, CampoCustomizadoRepositorio camposCustomizados) {
             if (criterios == null) {
                 throw new FiltroInvalidoException("criterio COMPOSTO sem a lista 'criterios'");
             }
@@ -135,7 +164,7 @@ class FiltroDeLeadsController {
                         if (filho == null) {
                             throw new FiltroInvalidoException("criterio nulo dentro de 'criterios'");
                         }
-                        return filho.paraDominio(profundidade + 1);
+                        return filho.paraDominio(profundidade + 1, camposCustomizados);
                     })
                     .toList();
         }

@@ -14,9 +14,11 @@ import jakarta.persistence.criteria.Subquery;
 
 import org.springframework.data.jpa.domain.Specification;
 
+import com.synapse.crm.core.domain.campocustomizado.TipoCampoCustomizado;
 import com.synapse.crm.core.domain.filtro.CampoFiltravel;
 import com.synapse.crm.core.domain.filtro.Criterio;
 import com.synapse.crm.core.domain.filtro.CriterioComposto;
+import com.synapse.crm.core.domain.filtro.CriterioCustomizado;
 import com.synapse.crm.core.domain.filtro.CriterioSimples;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.filtro.Operador;
@@ -65,6 +67,7 @@ final class InterpretadorDeCriterio {
 
         return switch (criterio) {
             case CriterioSimples simples -> folha(simples, raiz, consulta, cb, agora);
+            case CriterioCustomizado customizado -> folhaCustomizada(customizado, raiz, cb);
             case CriterioComposto composto -> {
                 Predicate[] partes = composto.criterios().stream()
                         .map(filho -> traduzir(filho, raiz, consulta, cb, agora))
@@ -229,6 +232,87 @@ final class InterpretadorDeCriterio {
         return agora.minus(dias, ChronoUnit.DAYS);
     }
 
+    /**
+     * Folha de campo customizado (E06b) — o irmao dinamico de {@link #folha}.
+     *
+     * <p>A chave que chega em {@link CriterioCustomizado#chave()} ja foi validada contra
+     * {@code campo_customizado} pelo controller, muito antes deste metodo existir; aqui ela so entra
+     * como {@code cb.literal(...)}, nunca concatenada em texto de consulta. O valor de comparacao
+     * segue a mesma regra de sempre: vira parametro, nunca literal de SQL montado a mao.
+     *
+     * <p>{@code NUMERO} usa {@code float8(...)} para comparar como numero — texto puro ordenaria "9"
+     * depois de "10". Os demais tipos comparam como texto: {@code DATA} porque o valor foi
+     * canonicalizado para ISO-8601 de largura fixa na escrita ({@link
+     * com.synapse.crm.core.domain.campocustomizado.ValidadorDeDadosCustomizados}), o que torna a
+     * comparacao lexicografica cronologicamente correta sem CAST de data no banco.
+     */
+    private static Predicate folhaCustomizada(
+            CriterioCustomizado criterio, Root<LeadEntity> raiz, CriteriaBuilder cb) {
+
+        Expression<String> texto = extrairTextoCustomizado(raiz, cb, criterio.chave());
+        boolean numerico = criterio.tipo() == TipoCampoCustomizado.NUMERO;
+
+        return switch (criterio.operador()) {
+            case IGUAL -> numerico
+                    ? cb.equal(numeroExtraido(cb, texto), valorNumerico(criterio, 0))
+                    : cb.equal(texto, valorTextoCustomizado(criterio, 0));
+            case DIFERENTE -> numerico
+                    ? cb.or(cb.isNull(texto), cb.notEqual(numeroExtraido(cb, texto), valorNumerico(criterio, 0)))
+                    : cb.or(cb.isNull(texto), cb.notEqual(texto, valorTextoCustomizado(criterio, 0)));
+            case CONTEM -> like(cb, texto, "%" + escapar(valorTextoCustomizado(criterio, 0)) + "%");
+            case COMECA_COM -> like(cb, texto, escapar(valorTextoCustomizado(criterio, 0)) + "%");
+            case EM -> texto.in(valoresTextoCustomizados(criterio));
+            case MAIOR_QUE -> numerico
+                    ? cb.greaterThan(numeroExtraido(cb, texto), valorNumerico(criterio, 0))
+                    : cb.greaterThan(texto, valorTextoCustomizado(criterio, 0));
+            case MENOR_QUE -> numerico
+                    ? cb.lessThan(numeroExtraido(cb, texto), valorNumerico(criterio, 0))
+                    : cb.lessThan(texto, valorTextoCustomizado(criterio, 0));
+            case ENTRE -> numerico
+                    ? cb.between(numeroExtraido(cb, texto), valorNumerico(criterio, 0), valorNumerico(criterio, 1))
+                    : cb.between(texto, valorTextoCustomizado(criterio, 0), valorTextoCustomizado(criterio, 1));
+            case PREENCHIDO -> cb.and(cb.isNotNull(texto), cb.notEqual(texto, ""));
+            case VAZIO -> cb.or(cb.isNull(texto), cb.equal(texto, ""));
+        };
+    }
+
+    private static Expression<String> extrairTextoCustomizado(
+            Root<LeadEntity> raiz, CriteriaBuilder cb, String chave) {
+        return cb.function(
+                "jsonb_extract_path_text",
+                String.class,
+                raiz.get(LeadEntity.Campos.DADOS_CUSTOMIZADOS),
+                cb.literal(chave));
+    }
+
+    private static Expression<Double> numeroExtraido(CriteriaBuilder cb, Expression<String> texto) {
+        return cb.function("float8", Double.class, texto);
+    }
+
+    private static double valorNumerico(CriterioCustomizado criterio, int indice) {
+        return ((ValorDeFiltro.Numero) criterio.valores().get(indice)).valor();
+    }
+
+    private static List<String> valoresTextoCustomizados(CriterioCustomizado criterio) {
+        return criterio.valores().stream()
+                .map(valor -> valorTextoCustomizado(criterio.tipo(), valor))
+                .toList();
+    }
+
+    private static String valorTextoCustomizado(CriterioCustomizado criterio, int indice) {
+        return valorTextoCustomizado(criterio.tipo(), criterio.valores().get(indice));
+    }
+
+    /** Texto de comparacao no mesmo formato em que {@code dados_customizados} guarda o valor. */
+    private static String valorTextoCustomizado(TipoCampoCustomizado tipo, ValorDeFiltro valor) {
+        return switch (tipo) {
+            case TEXTO, LISTA -> ((ValorDeFiltro.Texto) valor).valor();
+            case NUMERO -> String.valueOf(((ValorDeFiltro.Numero) valor).valor());
+            case DATA -> ((ValorDeFiltro.Data) valor).valor().toString();
+            case BOOLEANO -> String.valueOf(((ValorDeFiltro.Booleano) valor).valor());
+        };
+    }
+
     // --- apoio ----------------------------------------------------------------
 
     /**
@@ -243,6 +327,7 @@ final class InterpretadorDeCriterio {
             case ValorDeFiltro.Data data -> data.valor();
             case ValorDeFiltro.Status status -> status.valor();
             case ValorDeFiltro.Referencia referencia -> referencia.valor();
+            case ValorDeFiltro.Booleano booleano -> booleano.valor();
         };
     }
 
@@ -266,8 +351,8 @@ final class InterpretadorDeCriterio {
     }
 
     @SuppressWarnings("unchecked")
-    private static Predicate like(CriteriaBuilder cb, Path<?> coluna, String padrao) {
-        return cb.like(cb.lower((Path<String>) coluna), padrao.toLowerCase(), ESCAPE);
+    private static Predicate like(CriteriaBuilder cb, Expression<?> coluna, String padrao) {
+        return cb.like(cb.lower((Expression<String>) coluna), padrao.toLowerCase(), ESCAPE);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
