@@ -52,7 +52,6 @@ import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
-import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
@@ -324,7 +323,9 @@ class TempoRealIT extends PostgresIT {
             // apos o publisher rodar, e o STATUS (ENVIADO).
             captura.aguardar(ESPERA_CURTA);
 
-            ContextoDeServico.executarComo("teste", publicador::rodada);
+            // Ponto de entrada real (@Scheduled), nao o metodo interno — ver o comentario
+            // equivalente em CanalWhatsAppIT.rodarPublisher() sobre a E07b.
+            publicador.publicarPendentes();
 
             String segunda = captura.aguardar(ESPERA_CURTA);
             assertThat(segunda).contains("\"tipo\":\"STATUS\"").contains("ENVIADO");

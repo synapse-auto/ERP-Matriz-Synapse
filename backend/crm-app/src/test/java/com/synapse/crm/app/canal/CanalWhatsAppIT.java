@@ -34,7 +34,6 @@ import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
-import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -216,6 +215,23 @@ class CanalWhatsAppIT extends PostgresIT {
 
             assertThat(esgotadasNaOutbox()).isEqualTo(1);
         }
+
+        /**
+         * Ponto de entrada do alarme (E07b): antes da correcao, {@code alertarSobreEsgotadas()}
+         * tambem se auto-invocava e {@code contarEsgotadas()} lancava {@code AcessoSemTransacaoException}
+         * a cada tick — o alarme que deveria avisar sobre mensagens perdidas nunca rodava de verdade.
+         */
+        @Test
+        @DisplayName("alarme de esgotadas roda pelo ponto de entrada agendado sem lancar")
+        void alertaDeEsgotadas_pontoDeEntradaAgendado_naoLanca() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "alguem ai?");
+            canal.recusarDeVez("131026 numero invalido");
+            rodarPublisher();
+            assertThat(esgotadasNaOutbox()).isEqualTo(1);
+
+            publicador.alertarSobreEsgotadas();
+        }
     }
 
     @Nested
@@ -314,6 +330,21 @@ class CanalWhatsAppIT extends PostgresIT {
                     .isEqualTo(HttpStatus.FORBIDDEN);
             assertThat(linhasNoWebhookEntrada()).isZero();
         }
+
+        /**
+         * Ponto de entrada do alarme (E07b): mesma auto-invocacao de {@link
+         * com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox#alertarSobreEsgotadas()},
+         * do lado do webhook. Antes da correcao, {@code contarEsgotados()} lancava fora de transacao a
+         * cada tick.
+         */
+        @Test
+        @DisplayName("alarme de esgotados roda pelo ponto de entrada agendado sem lancar")
+        void alertaDeEsgotados_pontoDeEntradaAgendado_naoLanca() {
+            postarWebhook(payload("ext-alarme", "oi"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            processador.alertarSobreEsgotados();
+        }
     }
 
     @Nested
@@ -379,12 +410,20 @@ class CanalWhatsAppIT extends PostgresIT {
 
     // --- apoio ----------------------------------------------------------------
 
+    /**
+     * Chama o metodo anotado com {@code @Scheduled}, nao {@code publicador.rodada()} direto.
+     *
+     * <p>E a diferenca entre um teste que prova que a logica funciona e um que prova que ela e
+     * executada de verdade pelo runtime (E07b). Antes da correcao, chamar {@code rodada()} direto
+     * pelo bean injetado escondia a auto-invocacao dentro de {@code publicarPendentes()} — o teste
+     * passava e a outbox em producao nunca drenava.
+     */
     private void rodarPublisher() {
-        ContextoDeServico.executarComo("teste", publicador::rodada);
+        publicador.publicarPendentes();
     }
 
     private void rodarProcessador() {
-        ContextoDeServico.executarComo("teste", processador::rodada);
+        processador.processarPendentes();
     }
 
     private static String payload(String id, String texto) {
