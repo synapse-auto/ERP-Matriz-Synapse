@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.core.domain.tag.Tag;
+import com.synapse.crm.sharedkernel.auditoria.Auditable;
 
 /**
  * Casos de uso de tag (RN-CRM-03).
@@ -43,6 +44,7 @@ public class GestaoDeTagsUseCases {
 
     @PreAuthorize(SO_GESTAO)
     @Transactional
+    @Auditable(acao = "CRIAR_TAG", entidadeTipo = "TAG")
     public Tag criar(String nome, String cor, String icone) {
         garantirNomeLivre(nome, null);
         return tags.salvar(Tag.nova(nome, cor, icone));
@@ -50,6 +52,7 @@ public class GestaoDeTagsUseCases {
 
     @PreAuthorize(SO_GESTAO)
     @Transactional
+    @Auditable(acao = "ATUALIZAR_TAG", entidadeTipo = "TAG")
     public Optional<Tag> atualizar(UUID id, String nome, String cor, String icone) {
         return tags.porId(id).map(existente -> {
             garantirNomeLivre(nome, id);
@@ -59,6 +62,7 @@ public class GestaoDeTagsUseCases {
 
     @PreAuthorize(SO_GESTAO)
     @Transactional
+    @Auditable(acao = "REMOVER_TAG", entidadeTipo = "TAG")
     public boolean remover(UUID id) {
         if (tags.porId(id).isEmpty()) {
             return false;

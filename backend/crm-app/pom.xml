@@ -61,6 +61,12 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
+    <!-- E09a: AuditoriaAspect. Ja chegava transitivo via crm-atendimento; explicito para nao
+         depender de um modulo continuar trazendo isso no futuro. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
     <!-- E07 §2: OpenAPI gerado a partir dos @RestController — documentacao vira saida de build. -->
     <dependency>
       <groupId>org.springdoc</groupId>

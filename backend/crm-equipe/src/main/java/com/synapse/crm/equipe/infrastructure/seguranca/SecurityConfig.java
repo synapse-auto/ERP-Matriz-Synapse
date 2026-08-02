@@ -42,10 +42,20 @@ import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http, SynapseTokenAuthenticationFilter filtroSynapseToken)
+    SecurityFilterChain filtros(
+            HttpSecurity http,
+            SynapseTokenAuthenticationFilter filtroSynapseToken,
+            RequisicaoContextSpring filtroRequisicaoContext)
             throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // addFilterBefore so aceita uma classe de filtro PADRAO do Spring Security como
+                // referencia — nao da para posicionar um filtro custom relativo a outro filtro
+                // custom (SynapseTokenAuthenticationFilter nao tem ordem registrada). Por isso os
+                // dois apontam para a mesma classe padrao, e a ordem de chamada abaixo e que decide
+                // a posicao relativa entre eles: o IP precisa estar disponivel antes da
+                // autenticacao, entao o filtro de contexto e adicionado primeiro.
+                .addFilterBefore(filtroRequisicaoContext, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroSynapseToken, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
                         .requestMatchers("/api/v1/auth/**")
