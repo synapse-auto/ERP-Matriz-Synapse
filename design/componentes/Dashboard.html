@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#0C2A43">
+  <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="120" fill="#0C2A43"/>
+    <g transform="translate(30,30) rotate(45)">
+      <rect width="24" height="24" rx="4" fill="#fff"/>
+    </g>
+    <rect x="66" y="30" width="24" height="60" rx="4" fill="#1F74E0"/>
+    <rect x="66" y="60" width="24" height="30" rx="4" fill="#4C8DE8" opacity="0.7"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#1F74E0;text-decoration:none}a:hover{color:#1560C4}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#AEC0D4;background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<!-- ===================== NAV ===================== -->
+<dc-import name="Sidebar" active="dashboard" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<!-- ===================== CONTEÚDO ===================== -->
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden;position:relative">
+
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:20px 36px 0">
+    <div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Dashboard</div>
+      <div style="font-size:13px;color:#8A9BAD;margin-top:4px">{{ subtitle }}</div>
+    </div>
+    <div style="display:flex;gap:2px;margin-top:18px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:26px 36px 48px">
+
+    <!-- FILTROS -->
+    <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:16px 20px;margin-bottom:20px;position:relative;z-index:30">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px;flex:none">
+          <div style="position:relative">
+            <select value="{{ year }}" onChange="{{ onYearChange }}" style="appearance:none;-webkit-appearance:none;height:36px;border:1px solid #E1E8F0;border-radius:10px;padding:0 30px 0 12px;font-size:13px;font-weight:800;color:#1B3248;background:#fff;outline:none;cursor:pointer">
+              <sc-for list="{{ yearOptions }}" as="y" hint-placeholder-count="4"><option value="{{ y }}">{{ y }}</option></sc-for>
+            </select>
+            <i class="ri-arrow-down-s-line" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:15px;color:#8A9BAD;pointer-events:none"></i>
+          </div>
+          <span style="font-size:13px;color:#8A9BAD;font-weight:600;white-space:nowrap">{{ modeLabel }}</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:none">
+          <sc-for list="{{ monthPills }}" as="mp" hint-placeholder-count="12">
+            <div onClick="{{ mp.onClick }}" style="{{ mp.style }}">{{ mp.label }}</div>
+          </sc-for>
+        </div>
+        <div style="flex:1;min-width:12px"></div>
+        <div style="position:relative;flex:none">
+          <button onClick="{{ togglePeriod }}" style="{{ periodBtnStyle }}"><i class="ri-calendar-line" style="font-size:15px"></i>{{ periodLabel }}</button>
+          <sc-if value="{{ periodOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ stop }}" style="position:absolute;top:calc(100% + 10px);right:0;width:620px;background:#fff;border:1px solid #E7EDF4;border-radius:18px;box-shadow:0 30px 70px -24px rgba(12,42,67,.32);z-index:50;padding:18px 20px 16px">
+              <div style="display:flex;align-items:center;margin-bottom:16px">
+                <button onClick="{{ calPrev }}" style="width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:#8A9BAD;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-arrow-left-s-line"></i></button>
+                <span style="flex:1;text-align:center;font-size:14px;font-weight:800;color:#1B3248">{{ calLeftLabel }}</span>
+                <span style="flex:1;text-align:center;font-size:14px;font-weight:800;color:#1B3248">{{ calRightLabel }}</span>
+                <button onClick="{{ calNext }}" style="width:28px;height:28px;border-radius:8px;border:0;background:transparent;color:#8A9BAD;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-arrow-right-s-line"></i></button>
+              </div>
+              <div style="display:flex;gap:20px">
+                <sc-for list="{{ calMonths }}" as="cm" hint-placeholder-count="2">
+                  <div style="flex:1;min-width:0">
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px">
+                      <sc-for list="{{ cm.weekdays }}" as="wd" hint-placeholder-count="7"><div style="text-align:center;font-size:10.5px;font-weight:700;color:#9AA9B8">{{ wd }}</div></sc-for>
+                    </div>
+                    <sc-for list="{{ cm.weeks }}" as="wk" hint-placeholder-count="6">
+                      <div style="{{ wk.bandStyle }}">
+                        <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                          <sc-for list="{{ wk.days }}" as="d" hint-placeholder-count="7">
+                            <div onClick="{{ d.onClick }}" style="{{ d.style }}">{{ d.label }}</div>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="height:1px;background:#EEF3F8;margin:14px 0 12px"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span onClick="{{ calClear }}" style="font-size:13px;font-weight:700;color:#5A6B7B;cursor:pointer">Limpar</span>
+                <button onClick="{{ calApply }}" style="height:34px;padding:0 22px;border-radius:20px;border:0;background:#1F74E0;color:#fff;font-size:13px;font-weight:700;cursor:pointer">Aplicar</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ showSelectAll }}" hint-placeholder-val="{{ false }}">
+          <span onClick="{{ selectAllMonths }}" style="font-size:12.5px;font-weight:700;color:#1F74E0;cursor:pointer;flex:none;white-space:nowrap">Selecionar todos</span>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- ============================================================ VISÃO GERAL ============================================================ -->
+    <sc-if value="{{ isGeral }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;gap:24px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:20px">
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+            <sc-for list="{{ kpisGeral }}" as="k" hint-placeholder-count="6">
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div>
+                  <span style="{{ k.labelStyle }}">{{ k.label }}</span>
+                  <sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}">
+                    <span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span>
+                  </sc-if>
+                </div>
+                <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;color:#0F2438">{{ k.value }}</div>
+                <div style="font-size:11.5px;color:#9AA9B8;font-weight:500">{{ k.totalLabel }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Painel Funil condensado -->
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <i class="ri-filter-3-fill" style="font-size:18px;color:#1F74E0"></i>
+                <span style="font-size:16px;font-weight:700">Funil de conversão</span>
+              </div>
+              <a href="#comercial" onClick="{{ goComercial }}" style="font-size:12.5px;font-weight:700;color:#1F74E0;cursor:pointer">Ver pipeline completo →</a>
+            </div>
+            <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:14px">Novo contato → Pós-venda · quantidade e tempo parado em cada etapa</div>
+            <sc-for list="{{ funilStages }}" as="s" hint-placeholder-count="6">
+              <div style="display:flex;align-items:center;gap:14px;padding:8px 0">
+                <div style="width:118px;flex:none;font-size:12.5px;font-weight:700;color:#33475B">{{ s.name }}</div>
+                <div style="flex:1;height:30px;background:#EEF3F8;border-radius:8px;position:relative;overflow:hidden">
+                  <div style="{{ s.barStyle }}"></div>
+                  <div style="{{ s.overlayStyle }}">{{ s.count }}<sc-if value="{{ s.hasValue }}" hint-placeholder-val="{{ false }}"> · {{ s.value }}</sc-if></div>
+                </div>
+                <sc-if value="{{ s.hasConv }}" hint-placeholder-val="{{ true }}">
+                  <div style="width:56px;flex:none;text-align:right;font-size:11.5px;font-weight:700;color:#1F74E0">{{ s.convLabel }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Horário de pico -->
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <i class="ri-time-line" style="font-size:18px;color:#1F74E0"></i>
+              <span style="font-size:16px;font-weight:700">Horário de pico · mensagens por hora</span>
+            </div>
+            <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:18px">Picos às 8h e 15h · vale ao meio-dia</div>
+            <div style="display:flex;align-items:flex-end;gap:6px;height:140px">
+              <sc-for list="{{ peakBars }}" as="b" hint-placeholder-count="13">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%">
+                  <div style="{{ b.barStyle }}"></div>
+                  <div style="font-size:10px;color:#9AA9B8;font-weight:600">{{ b.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SIDEBAR -->
+        <div style="width:390px;flex:none;display:flex;flex-direction:column;gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+              <i class="ri-trophy-fill" style="font-size:18px;color:#E0A61C"></i>
+              <span style="font-size:15px;font-weight:700">Top atendentes · vendas fechadas</span>
+            </div>
+            <sc-for list="{{ rankConversaoMini }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                <div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============================================================ OPERACIONAL ============================================================ -->
+    <sc-if value="{{ isOperacional }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+          <sc-for list="{{ kpisOperacional }}" as="k" hint-placeholder-count="8">
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div>
+                <span style="{{ k.labelStyle }}">{{ k.label }}</span>
+                <sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}">
+                  <span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span>
+                </sc-if>
+              </div>
+              <div style="font-size:23px;font-weight:800;letter-spacing:-.02em;color:#0F2438">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:#9AA9B8;font-weight:500">{{ k.totalLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px;min-width:0">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <i class="ri-line-chart-line" style="font-size:18px;color:#1F74E0"></i>
+              <span style="font-size:16px;font-weight:700">Atendimentos no tempo</span>
+            </div>
+            <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:14px">Últimos 14 dias</div>
+            <svg width="100%" viewBox="0 0 {{ atendLine.W }} {{ atendLine.H }}" preserveAspectRatio="none" style="display:block">
+              <path d="{{ atendLine.area }}" fill="#1F74E0" opacity="0.09"></path>
+              <polyline points="{{ atendLine.points }}" fill="none" stroke="#1F74E0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></polyline>
+            </svg>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;color:#9AA9B8;font-weight:600">
+              <span>{{ atendLine.firstLabel }}</span><span>{{ atendLine.lastLabel }}</span>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px;min-width:0">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <i class="ri-time-line" style="font-size:18px;color:#1F74E0"></i>
+              <span style="font-size:15px;font-weight:700">Horário de pico</span>
+            </div>
+            <div style="font-size:12px;color:#8A9BAD;margin-bottom:14px">Msgs por hora</div>
+            <div style="display:flex;align-items:flex-end;gap:4px;height:130px">
+              <sc-for list="{{ peakBars }}" as="b" hint-placeholder-count="13">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:100%">
+                  <div style="{{ b.barStyle }}"></div>
+                  <div style="font-size:9px;color:#9AA9B8;font-weight:600">{{ b.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <i class="ri-grid-fill" style="font-size:17px;color:#1F74E0"></i>
+              <span style="font-size:15px;font-weight:700">Volume por dia da semana</span>
+            </div>
+            <div style="font-size:12px;color:#8A9BAD;margin-bottom:16px">Sábado em plantão · domingo fechado</div>
+            <div style="display:grid;grid-template-columns:56px repeat(7,1fr);gap:5px;align-items:center">
+              <div></div>
+              <sc-for list="{{ heatDays }}" as="d" hint-placeholder-count="7">
+                <div style="text-align:center;font-size:10.5px;font-weight:700;color:#9AA9B8">{{ d }}</div>
+              </sc-for>
+              <sc-for list="{{ heatRows }}" as="row" hint-placeholder-count="3">
+                <div style="font-size:10.5px;font-weight:700;color:#8A9BAD">{{ row.label }}</div>
+                <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="7">
+                  <div style="{{ c.style }}">{{ c.value }}</div>
+                </sc-for>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <i class="ri-star-smile-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:15px;font-weight:700">Distribuição de notas</span>
+            </div>
+            <div style="font-size:12px;color:#8A9BAD;margin-bottom:16px">CSAT 0–10 · 312 avaliações</div>
+            <div style="display:flex;align-items:flex-end;gap:5px;height:120px">
+              <sc-for list="{{ notesBars }}" as="b" hint-placeholder-count="11">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:100%">
+                  <div style="{{ b.barStyle }}"></div>
+                  <div style="font-size:10px;color:#9AA9B8;font-weight:600">{{ b.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:14.5px;font-weight:700">Top 5 · atendimentos</span>
+            </div>
+            <sc-for list="{{ rankAtendimentos }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                <div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:14.5px;font-weight:700">Top 5 · avaliação</span>
+            </div>
+            <sc-for list="{{ rankAvaliacao }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                <div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:14.5px;font-weight:700">Top 5 · tempo de resposta</span>
+            </div>
+            <sc-for list="{{ rankTempo }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                <div style="flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12.5px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </sc-if>
+
+    <!-- ============================================================ COMERCIAL ============================================================ -->
+    <sc-if value="{{ isComercial }}" hint-placeholder-val="{{ false }}">
+      <div id="comercial" style="display:flex;flex-direction:column;gap:20px">
+
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <sc-for list="{{ kpisComercial }}" as="k" hint-placeholder-count="6">
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div>
+                <span style="{{ k.labelStyle }}">{{ k.label }}</span>
+                <sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}">
+                  <span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span>
+                </sc-if>
+              </div>
+              <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;color:#0F2438">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:#9AA9B8;font-weight:500">{{ k.totalLabel }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- Painel Funil / Pipeline detalhado -->
+        <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <i class="ri-filter-3-fill" style="font-size:18px;color:#1F74E0"></i>
+            <span style="font-size:16px;font-weight:700">Painel Funil · Pipeline</span>
+          </div>
+          <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:16px">Contagem em cada etapa e taxa de passagem</div>
+          <sc-for list="{{ funilStages }}" as="s" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:16px;padding:10px 0">
+              <div style="width:130px;flex:none;font-size:13px;font-weight:700;color:#33475B">{{ s.name }}</div>
+              <div style="flex:1;height:34px;background:#EEF3F8;border-radius:9px;position:relative;overflow:hidden">
+                <div style="{{ s.barStyleLg }}"></div>
+                <div style="{{ s.overlayStyleLg }}">{{ s.count }}<sc-if value="{{ s.hasValue }}" hint-placeholder-val="{{ false }}"> · {{ s.value }}</sc-if></div>
+              </div>
+              <div style="width:64px;flex:none;text-align:right">
+                <sc-if value="{{ s.hasConv }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size:12px;font-weight:700;color:#1F74E0">{{ s.convLabel }}</span>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <i class="ri-bar-chart-2-fill" style="font-size:18px;color:#1F74E0"></i>
+            <span style="font-size:16px;font-weight:700">Orçamentos enviados por período</span>
+          </div>
+          <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:18px">Últimos 6 meses · Jul parcial</div>
+          <div style="display:flex;align-items:flex-end;gap:16px;height:150px">
+            <sc-for list="{{ revenueBars }}" as="b" hint-placeholder-count="6">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%">
+                <div style="font-size:11px;font-weight:700;color:#5A6B7B">{{ b.value }}</div>
+                <div style="{{ b.barStyle }}"></div>
+                <div style="font-size:11px;color:#9AA9B8;font-weight:600">{{ b.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="font-size:14.5px;font-weight:700;margin-bottom:16px">Mix de produto</div>
+            <div style="display:flex;align-items:center;gap:16px">
+              <svg width="{{ mixDonut.size }}" height="{{ mixDonut.size }}" viewBox="0 0 {{ mixDonut.size }} {{ mixDonut.size }}">
+                <g transform="rotate(-90 {{ mixDonut.cx }} {{ mixDonut.cy }})">
+                  <sc-for list="{{ mixDonut.arcs }}" as="a" hint-placeholder-count="5">
+                    <circle cx="{{ mixDonut.cx }}" cy="{{ mixDonut.cy }}" r="{{ mixDonut.r }}" fill="none" stroke="{{ a.color }}" strokeWidth="{{ mixDonut.thickness }}" strokeDasharray="{{ a.dasharray }}" strokeDashoffset="{{ a.dashoffset }}"></circle>
+                  </sc-for>
+                </g>
+              </svg>
+              <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                <sc-for list="{{ mixDonut.arcs }}" as="a" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5A6B7B">
+                    <span style="{{ a.dotStyle }}"></span><span style="flex:1;white-space:nowrap">{{ a.label }}</span><span style="font-weight:700;color:#33475B">{{ a.pctLabel }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="font-size:14.5px;font-weight:700;margin-bottom:16px">Tipo de cliente</div>
+            <div style="display:flex;align-items:center;gap:16px">
+              <svg width="{{ tipoDonut.size }}" height="{{ tipoDonut.size }}" viewBox="0 0 {{ tipoDonut.size }} {{ tipoDonut.size }}">
+                <g transform="rotate(-90 {{ tipoDonut.cx }} {{ tipoDonut.cy }})">
+                  <sc-for list="{{ tipoDonut.arcs }}" as="a" hint-placeholder-count="4">
+                    <circle cx="{{ tipoDonut.cx }}" cy="{{ tipoDonut.cy }}" r="{{ tipoDonut.r }}" fill="none" stroke="{{ a.color }}" strokeWidth="{{ tipoDonut.thickness }}" strokeDasharray="{{ a.dasharray }}" strokeDashoffset="{{ a.dashoffset }}"></circle>
+                  </sc-for>
+                </g>
+              </svg>
+              <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                <sc-for list="{{ tipoDonut.arcs }}" as="a" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#5A6B7B">
+                    <span style="{{ a.dotStyle }}"></span><span style="flex:1;white-space:nowrap">{{ a.label }}</span><span style="font-weight:700;color:#33475B">{{ a.pctLabel }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="font-size:14.5px;font-weight:700;margin-bottom:14px">Motivo de perda</div>
+            <sc-for list="{{ lossBars }}" as="l" hint-placeholder-count="5">
+              <div style="margin-bottom:11px">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#5A6B7B;margin-bottom:4px"><span>{{ l.label }}</span><span style="font-weight:700;color:#33475B">{{ l.pct }}</span></div>
+                <div style="height:8px;background:#EEF3F8;border-radius:6px;overflow:hidden"><div style="{{ l.barStyle }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:13.5px;font-weight:700">Top 5 · vendas fechadas</span>
+            </div>
+            <sc-for list="{{ rankConversao }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="{{ it.avatarStyle }}">{{ it.initials }}</div>
+                <div style="flex:1;min-width:0;font-size:12px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:13.5px;font-weight:700">Produtos mais pedidos</span>
+            </div>
+            <sc-for list="{{ rankProdutos }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="flex:1;min-width:0;font-size:12px;font-weight:600;color:#33475B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:13.5px;font-weight:700">Clientes · recorrência</span>
+            </div>
+            <sc-for list="{{ rankClientes }}" as="it" hint-placeholder-count="5">
+              <div style="padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                  <div style="flex:1;min-width:0;font-size:12px;font-weight:600;color:#33475B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                </div>
+                <div style="font-size:11px;color:#9AA9B8;margin-left:33px;margin-top:2px">{{ it.detail }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <i class="ri-medal-fill" style="font-size:17px;color:#E0A61C"></i>
+              <span style="font-size:13.5px;font-weight:700">Cidades / regiões</span>
+            </div>
+            <sc-for list="{{ rankCidades }}" as="it" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid #F4F7FB">
+                <span style="{{ it.rankStyle }}">{{ it.rank }}</span>
+                <div style="flex:1;min-width:0;font-size:12px;font-weight:600;color:#33475B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                <div style="font-size:12px;font-weight:800;color:#0F2438">{{ it.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+    </sc-if>
+
+    <!-- ============================================================ IA & AUTOMAÇÃO ============================================================ -->
+    <sc-if value="{{ isIA }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          <sc-for list="{{ kpisIA }}" as="k" hint-placeholder-count="4">
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="{{ k.iconWrapStyle }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div>
+                <span style="{{ k.labelStyle }}">{{ k.label }}</span>
+                <sc-if value="{{ k.hasTrend }}" hint-placeholder-val="{{ true }}">
+                  <span style="{{ k.trendStyle }}"><i class="{{ k.trendIcon }}"></i>{{ k.trendLabel }}</span>
+                </sc-if>
+              </div>
+              <div style="font-size:25px;font-weight:800;letter-spacing:-.02em;color:#0F2438">{{ k.value }}</div>
+              <div style="font-size:11.5px;color:#9AA9B8;font-weight:500">{{ k.totalLabel }}</div>
+            </div>
+          </sc-for>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#E2F4EC;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-link" style="font-size:20px;color:#17835A"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Conexão Automação</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:8px;height:8px;border-radius:50%;background:#25B24F;flex:none"></span><span style="font-size:14px;font-weight:700;color:#17835A">Conectado</span></div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#E2F4EC;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-database-2-fill" style="font-size:20px;color:#17835A"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Status do CRM</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:8px;height:8px;border-radius:50%;background:#25B24F;flex:none"></span><span style="font-size:14px;font-weight:700;color:#17835A">Online</span></div></div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <i class="ri-robot-2-fill" style="font-size:18px;color:#1F74E0"></i>
+            <span style="font-size:16px;font-weight:700">Mensagens respondidas pela IA · últimos 14 dias</span>
+          </div>
+          <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:14px">Volume diário de atendimento automatizado</div>
+          <svg width="100%" viewBox="0 0 {{ iaLine.W }} {{ iaLine.H }}" preserveAspectRatio="none" style="display:block">
+            <path d="{{ iaLine.area }}" fill="#4C55B8" opacity="0.09"></path>
+            <polyline points="{{ iaLine.points }}" fill="none" stroke="#4C55B8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></polyline>
+          </svg>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;color:#9AA9B8;font-weight:600">
+            <span>{{ iaLine.firstLabel }}</span><span>{{ iaLine.lastLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ periodOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePeriod }}" style="position:absolute;inset:0;z-index:29"></div>
+  </sc-if>
+
+</section>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = {
+    tab:'geral', actionOpen:'orc',
+    year:2026, yearMode:'ano', selMonths:[true,true,true,true,true,true,true,true,true,true,true,true],
+    periodOpen:false, rangeFrom:null, rangeTo:null, draftFrom:null, draftTo:null,
+    calBaseYear:2026, calBaseMonth:6
+  };
+
+  MULT_BY_MONTH = [0.68,0.72,0.79,0.83,0.82,0.91,1,0.97,0.88,0.93,0.85,0.74];
+  MONTH_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  MONTH_FULL = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  WEEKDAYS = ['dom','seg','ter','qua','qui','sex','sab'];
+
+  effectiveMult(){
+    const s=this.state;
+    const idxs = s.yearMode==='ano' ? [0,1,2,3,4,5,6,7,8,9,10,11] : s.selMonths.map((v,i)=>v?i:-1).filter(i=>i>=0);
+    if(!idxs.length) return 1;
+    return idxs.reduce((a,i)=>a+this.MULT_BY_MONTH[i],0)/idxs.length;
+  }
+
+  toggleMonth(i){
+    const s=this.state;
+    let sel = s.yearMode==='ano' ? this.MONTH_ABBR.map(()=>true) : s.selMonths.slice();
+    sel[i] = s.yearMode==='ano' ? false : !sel[i];
+    if(!sel.some(Boolean)) sel[i]=true;
+    this.setState({ yearMode: sel.every(Boolean)?'ano':'mes', selMonths: sel });
+  }
+  selectAllMonths(){ this.setState({ yearMode:'ano', selMonths:this.MONTH_ABBR.map(()=>true) }); }
+
+  togglePeriod(){
+    if(this.state.periodOpen){ this.setState({periodOpen:false}); return; }
+    const s=this.state;
+    let by=s.year, bm=6;
+    if(s.rangeFrom){ const p=s.rangeFrom.split('-'); by=+p[0]; bm=+p[1]-1; }
+    this.setState({ periodOpen:true, draftFrom:s.rangeFrom, draftTo:s.rangeTo, calBaseYear:by, calBaseMonth:bm });
+  }
+  closePeriod(){ this.setState({ periodOpen:false }); }
+  calPrev(){ let y=this.state.calBaseYear, m=this.state.calBaseMonth-1; if(m<0){m=11;y--;} this.setState({calBaseYear:y, calBaseMonth:m}); }
+  calNext(){ let y=this.state.calBaseYear, m=this.state.calBaseMonth+1; if(m>11){m=0;y++;} this.setState({calBaseYear:y, calBaseMonth:m}); }
+  calSelectDay(dateStr){
+    const s=this.state;
+    if(!s.draftFrom || s.draftTo){ this.setState({draftFrom:dateStr, draftTo:null}); return; }
+    if(dateStr < s.draftFrom){ this.setState({draftFrom:dateStr, draftTo:null}); return; }
+    this.setState({draftTo:dateStr});
+  }
+  calClear(){ this.setState({draftFrom:null, draftTo:null, rangeFrom:null, rangeTo:null, periodOpen:false}); }
+  calApply(){ const s=this.state; this.setState({rangeFrom:s.draftFrom, rangeTo:s.draftTo, periodOpen:false}); }
+
+  buildMonthGrid(year,month){
+    const startDow=new Date(year,month,1).getDay();
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const cells=[];
+    for(let i=startDow;i>0;i--) cells.push(new Date(year,month,1-i));
+    for(let d=1; d<=daysInMonth; d++) cells.push(new Date(year,month,d));
+    while(cells.length%7!==0){ const last=cells[cells.length-1]; cells.push(new Date(last.getFullYear(),last.getMonth(),last.getDate()+1)); }
+    const weeks=[];
+    for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
+    return weeks;
+  }
+  fmtDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  fmtInt(n){ return Math.round(n).toLocaleString('pt-BR'); }
+
+  kpi(o){
+    const mult = o.mult===false ? 1 : this.effectiveMult();
+    let value;
+    if(o.type==='int') value=this.fmtInt(o.raw*mult);
+    else if(o.type==='cur') value=this.fmtCur(o.raw*mult);
+    else if(o.type==='pct') value=(o.raw*mult).toFixed(1).replace('.',',')+'%';
+    else value=o.raw;
+    let totalLabel=o.totalLabelOverride;
+    if(!totalLabel){
+      if(o.totalRaw!=null) totalLabel = 'Acumulado: '+(o.totalType==='cur'?this.fmtCur(o.totalRaw):this.fmtInt(o.totalRaw));
+      else totalLabel='';
+    }
+    return {
+      icon:o.icon, label:o.label, value,
+      iconWrapStyle:`width:40px;height:40px;border-radius:11px;background:${o.tintBg};display:flex;align-items:center;justify-content:center;flex:none`,
+      iconStyle:`font-size:19px;color:${o.tint}`,
+      labelStyle:'font-size:12px;font-weight:600;color:#8A9BAD;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis',
+      hasTrend: !!o.deltaStr,
+      trendStyle:`display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:${o.good?'#17835A':'#C0392B'};background:${o.good?'#E2F4EC':'#FBEBEA'};padding:3px 7px;border-radius:7px;flex:none;white-space:nowrap`,
+      trendIcon: o.dirUp?'ri-arrow-up-line':'ri-arrow-down-line',
+      trendLabel:o.deltaStr,
+      totalLabel
+    };
+  }
+
+  rankStyle(i){
+    const palette=['#E0A61C','#94A3B8','#B87333'];
+    const bg = i<3?palette[i]:'#EEF3F8'; const fg = i<3?'#fff':'#8A9BAD';
+    return `width:23px;height:23px;border-radius:7px;background:${bg};color:${fg};font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none`;
+  }
+  avatarStyle(tint){ return `width:28px;height:28px;border-radius:9px;background:${tint};color:#fff;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;flex:none`; }
+
+  bars(data, opts){
+    const max = (opts&&opts.max) || Math.max(...data.map(d=>d.v));
+    return data.map(d=>({
+      label:d.l,
+      barStyle:`width:100%;height:${Math.max(4,Math.round(d.v/max*100))}%;border-radius:5px 5px 0 0;background:${d.color||'#1F74E0'}`
+    }));
+  }
+
+  lineChart(data, color){
+    const W=560,H=140,pad=6;
+    const max=Math.max(...data.map(d=>d.v)); const min=0;
+    const stepX=(W-2*pad)/(data.length-1);
+    const pts=data.map((d,i)=>{ const x=pad+i*stepX; const y=H-pad-((d.v-min)/((max-min)||1))*(H-2*pad); return {x,y}; });
+    const points=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const area=`M${pts[0].x.toFixed(1)},${(H-pad).toFixed(1)} L`+pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')+` L${pts[pts.length-1].x.toFixed(1)},${(H-pad).toFixed(1)} Z`;
+    return { W,H,points,area, firstLabel:data[0].l, lastLabel:data[data.length-1].l };
+  }
+
+  donut(segments, size){
+    size=size||130; const thickness=18; const r=(size-thickness)/2; const c=2*Math.PI*r; let acc=0;
+    const arcs=segments.map(s=>{
+      const len=c*(s.pct/100);
+      const arc={ color:s.color, dasharray:`${len.toFixed(1)} ${(c-len).toFixed(1)}`, dashoffset:(-acc).toFixed(1), label:s.label, pctLabel:s.pct+'%', dotStyle:`width:9px;height:9px;border-radius:3px;background:${s.color};flex:none` };
+      acc+=len; return arc;
+    });
+    return { size, r, cx:size/2, cy:size/2, thickness, arcs };
+  }
+
+  renderVals(){
+    const tab=this.state.tab;
+    const subtitleMap={ geral:'Panorama executivo do atendimento, comercial e automação.', operacional:'Volume, tempos de resposta e satisfação do atendimento.', comercial:'Pipeline, orçamentos e conversão de vendas.', ia:'Desempenho do assistente de IA e status da automação.' };
+
+    const yearOptions=[2024,2025,2026,2027];
+    const onYearChange=(e)=>this.setState({year:parseInt(e.target.value,10)});
+
+    const selCount=this.state.selMonths.filter(Boolean).length;
+    const modeLabel = this.state.yearMode==='ano' ? 'Ano inteiro' : ('Por mês · '+selCount+(selCount===1?' mês':' meses'));
+    const showSelectAll = this.state.yearMode==='mes';
+    const monthPills=this.MONTH_ABBR.map((label,i)=>{
+      const active = this.state.yearMode==='ano' ? true : this.state.selMonths[i];
+      return { label, onClick:()=>this.toggleMonth(i),
+        style:`padding:0 13px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:${active?'#EAF2FD':'#EEF3F8'};color:${active?'#1F74E0':'#8A9BAD'}`
+      };
+    });
+
+    const fmtShort=(ds)=>{ const p=ds.split('-'); return parseInt(p[2],10)+' '+this.MONTH_ABBR[parseInt(p[1],10)-1].toLowerCase(); };
+    const periodLabel = (this.state.rangeFrom && this.state.rangeTo) ? (fmtShort(this.state.rangeFrom)+' – '+fmtShort(this.state.rangeTo)) : 'Período de originação';
+    const periodBaseStyle='display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap';
+    let periodBtnStyle;
+    if(this.state.periodOpen || (this.state.rangeFrom && this.state.rangeTo)) periodBtnStyle=`${periodBaseStyle};border:1px solid #CFE1FA;background:#EAF2FD;color:#1F74E0`;
+    else periodBtnStyle=`${periodBaseStyle};border:1px solid #E1E8F0;background:#fff;color:#5A6B7B`;
+
+    const calLeftLabel=this.MONTH_FULL[this.state.calBaseMonth]+' '+this.state.calBaseYear;
+    let calNy=this.state.calBaseYear, calNm=this.state.calBaseMonth+1; if(calNm>11){calNm=0;calNy++;}
+    const calRightLabel=this.MONTH_FULL[calNm]+' '+calNy;
+    const buildCalMonth=(year,month)=>{
+      const weeks=this.buildMonthGrid(year,month);
+      const from=this.state.draftFrom, to=this.state.draftTo;
+      return { weekdays:this.WEEKDAYS, weeks:weeks.map(week=>{
+        const strs=week.map(d=>this.fmtDateStr(d));
+        const anyInRange = !!(from && to && strs.some(ds=>ds>=from && ds<=to));
+        return { bandStyle:`background:${anyInRange?'#EAF2FD':'transparent'};border-radius:18px;padding:2px 0`,
+          days: week.map((d,i)=>{
+            const ds=strs[i]; const inMonth=d.getMonth()===month; const isEndpoint = ds===from || ds===to;
+            return { label:d.getDate(), onClick:()=>this.calSelectDay(ds),
+              style:`width:32px;height:32px;margin:0 auto;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:12.5px;font-weight:700;cursor:pointer;background:${isEndpoint?'#1F74E0':'transparent'};color:${isEndpoint?'#fff':(inMonth?'#1B3248':'#C3CCD6')}`
+            };
+          })
+        };
+      })};
+    };
+    const calMonths=[ buildCalMonth(this.state.calBaseYear,this.state.calBaseMonth), buildCalMonth(calNy,calNm) ];
+
+    const tabsDef=[['geral','Visão Geral'],['operacional','Operacional'],['comercial','Comercial'],['ia','IA & Automação']];
+    const tabs=tabsDef.map(([key,label])=>{ const active=tab===key; return { key,label,
+      onClick:()=>this.setState({tab:key}),
+      style:`position:relative;display:flex;align-items:center;padding:0 4px 12px;margin-right:24px;font-size:13.5px;font-weight:${active?700:600};color:${active?'#0F2438':'#8A9BAD'};cursor:pointer;border-bottom:2px solid ${active?'#1F74E0':'transparent'}`
+    };});
+
+    // ---------- KPIs ----------
+    const kpisGeral=[
+      this.kpi({icon:'ri-customer-service-2-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'Atendimentos',raw:482,type:'int',deltaStr:'+8%',dirUp:true,good:true,totalRaw:5230,totalType:'int'}),
+      this.kpi({icon:'ri-percent-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Taxa de conversão',raw:12.1,type:'pct',deltaStr:'+1,4pp',dirUp:true,good:true,totalLabelOverride:'Fechados / leads recebidos'}),
+      this.kpi({icon:'ri-timer-flash-line',tint:'#17835A',tintBg:'#E2F4EC',label:'Tempo médio de atendimento',raw:'18min',type:'text',mult:false,deltaStr:'-12%',dirUp:false,good:true,totalLabelOverride:'Abertura → finalização'}),
+      this.kpi({icon:'ri-shopping-bag-3-fill',tint:'#1F857E',tintBg:'#E0F2F1',label:'Vendas fechadas',raw:58,type:'int',deltaStr:'+9%',dirUp:true,good:true,totalRaw:620,totalType:'int'}),
+      this.kpi({icon:'ri-star-fill',tint:'#E0A61C',tintBg:'#FBF3DE',label:'Avaliação média (CSAT)',raw:'9,4 / 10',type:'text',mult:false,deltaStr:'+0,1',dirUp:true,good:true,totalLabelOverride:'312 avaliações no mês'}),
+      this.kpi({icon:'ri-robot-2-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Resolução por IA',raw:68,type:'pct',mult:false,deltaStr:'+5pp',dirUp:true,good:true,totalLabelOverride:'Sem transferência humana'})
+    ];
+
+    const kpisOperacional=[
+      this.kpi({icon:'ri-customer-service-2-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'Atendimentos',raw:482,type:'int',deltaStr:'+8%',dirUp:true,good:true,totalRaw:5230,totalType:'int'}),
+      this.kpi({icon:'ri-user-add-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Novos leads',raw:168,type:'int',deltaStr:'+12%',dirUp:true,good:true,totalRaw:1940,totalType:'int'}),
+      this.kpi({icon:'ri-time-line',tint:'#B07A15',tintBg:'#FBEFD6',label:'Pendentes / Ativos',raw:34,type:'int',deltaStr:'-6%',dirUp:false,good:true,totalLabelOverride:'34 em aberto agora'}),
+      this.kpi({icon:'ri-team-fill',tint:'#1F857E',tintBg:'#E0F2F1',label:'Atendentes online',raw:'5 / 8',type:'text',mult:false,totalLabelOverride:'Online agora de um total de 8'}),
+      this.kpi({icon:'ri-message-2-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'Mensagens (env. / receb.)',raw:'3.240 / 2.860',type:'text',mult:false,deltaStr:'+10%',dirUp:true,good:true,totalLabelOverride:'6.100 mensagens no mês'}),
+      this.kpi({icon:'ri-timer-flash-line',tint:'#4C55B8',tintBg:'#E9EAFA',label:'TMA · tempo médio',raw:'18min',type:'text',mult:false,deltaStr:'-12%',dirUp:false,good:true,totalLabelOverride:'Abertura → finalização'}),
+      this.kpi({icon:'ri-flashlight-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'TPR · 1ª resposta',raw:'2min 40s',type:'text',mult:false,deltaStr:'-18%',dirUp:false,good:true,totalLabelOverride:'SLA alvo: 5 minutos'}),
+      this.kpi({icon:'ri-star-fill',tint:'#E0A61C',tintBg:'#FBF3DE',label:'Avaliação média (CSAT)',raw:'9,4 / 10',type:'text',mult:false,deltaStr:'+0,1',dirUp:true,good:true,totalLabelOverride:'312 avaliações no mês'})
+    ];
+
+    const kpisComercial=[
+      this.kpi({icon:'ri-file-list-3-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'Orçamentos enviados',raw:96,type:'int',deltaStr:'+14%',dirUp:true,good:true,totalRaw:1120,totalType:'int'}),
+      this.kpi({icon:'ri-discuss-line',tint:'#B07A15',tintBg:'#FBEFD6',label:'Em negociação',raw:96,type:'int',deltaStr:'+5%',dirUp:true,good:true,totalLabelOverride:'Aguardando decisão do cliente'}),
+      this.kpi({icon:'ri-checkbox-circle-fill',tint:'#17835A',tintBg:'#E2F4EC',label:'Vendas fechadas',raw:58,type:'int',deltaStr:'+9%',dirUp:true,good:true,totalRaw:620,totalType:'int'}),
+      this.kpi({icon:'ri-percent-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Taxa de conversão',raw:12.1,type:'pct',deltaStr:'+1,4pp',dirUp:true,good:true,totalLabelOverride:'Fechados / leads recebidos'}),
+      this.kpi({icon:'ri-hourglass-fill',tint:'#1F857E',tintBg:'#E0F2F1',label:'Tempo médio de fechamento',raw:'9,4 dias',type:'text',mult:false,deltaStr:'-8%',dirUp:false,good:true,totalLabelOverride:'1º contato → venda fechada'}),
+      this.kpi({icon:'ri-ruler-2-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'m² vendidos',raw:612,type:'int',deltaStr:'+11%',dirUp:true,good:true,totalRaw:7040,totalType:'int'})
+    ];
+
+    const kpisIA=[
+      this.kpi({icon:'ri-robot-2-fill',tint:'#4C55B8',tintBg:'#E9EAFA',label:'Mensagens da IA',raw:1284,type:'int',deltaStr:'+22%',dirUp:true,good:true,totalRaw:14200,totalType:'int'}),
+      this.kpi({icon:'ri-check-double-line',tint:'#17835A',tintBg:'#E2F4EC',label:'Resolução por IA',raw:68,type:'pct',mult:false,deltaStr:'+5pp',dirUp:true,good:true,totalLabelOverride:'Sem transferência humana'}),
+      this.kpi({icon:'ri-arrow-left-right-line',tint:'#B07A15',tintBg:'#FBEFD6',label:'Transferências IA → humano',raw:342,type:'int',deltaStr:'-4%',dirUp:false,good:true,totalLabelOverride:'27% dos atendimentos'}),
+      this.kpi({icon:'ri-sparkling-2-fill',tint:'#1F74E0',tintBg:'#EAF2FD',label:'Resumos / preenchimentos',raw:418,type:'int',deltaStr:'+16%',dirUp:true,good:true,totalLabelOverride:'Gerados automaticamente'})
+    ];
+
+    // ---------- Funil ----------
+    const funilRaw=[
+      {name:'Novo Contato',count:480,value:null,stuck:'—',conv:null},
+      {name:'Aguardando Medidas',count:310,value:null,stuck:'1,2 dias parado',conv:65},
+      {name:'Orçamento',count:190,value:null,stuck:'2,8 dias parado',conv:61},
+      {name:'Negociação',count:96,value:null,stuck:'4,1 dias parado',conv:51},
+      {name:'Fechado',count:58,value:null,stuck:'—',conv:60},
+      {name:'Pós-venda',count:52,value:null,stuck:'—',conv:90}
+    ];
+    const funilMax=funilRaw[0].count;
+    const funilStages=funilRaw.map(s=>{
+      const pct=Math.round(s.count/funilMax*100);
+      return {
+        name:s.name, count:this.fmtInt(s.count), value:s.value, hasValue:!!s.value, stuck:s.stuck,
+        hasConv: s.conv!=null, convLabel: s.conv!=null ? s.conv+'%' : '',
+        barStyle:`position:absolute;inset:0;width:${pct}%;background:linear-gradient(90deg,#1F74E0,#4C8DE8);border-radius:8px`,
+        barStyleLg:`position:absolute;inset:0;width:${pct}%;background:linear-gradient(90deg,#1F74E0,#4C8DE8);border-radius:9px`,
+        overlayStyle:`position:relative;height:100%;display:flex;align-items:center;padding:0 12px;font-size:12px;font-weight:700;color:#fff;z-index:1`,
+        overlayStyleLg:`position:relative;height:100%;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:700;color:#fff;z-index:1`
+      };
+    });
+
+    // ---------- Horário de pico ----------
+    const peakData=[[8,42],[9,38],[10,30],[11,22],[12,14],[13,26],[14,35],[15,48],[16,40],[17,33],[18,25],[19,18],[20,10]].map(([h,v])=>({l:h+'h',v}));
+    const peakBars=this.bars(peakData);
+    peakBars.forEach((b,i)=>b.label=peakData[i].l);
+
+    // ---------- Atendimentos no tempo ----------
+    const atendData=[24,28,22,31,19,26,34,30,25,29,33,27,22,31].map((v,i)=>({l:(i+1)+'/07',v}));
+    const atendLine=this.lineChart(atendData);
+
+    // ---------- IA no tempo ----------
+    const iaData=[62,70,58,75,66,80,72,69,77,84,73,79,88,81].map((v,i)=>({l:(i+1)+'/07',v}));
+    const iaLine=this.lineChart(iaData,'#4C55B8');
+
+    // ---------- Heatmap semanal ----------
+    const heatDays=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const heatData=[
+      [58,62,60,64,66,20,0],
+      [72,78,74,80,76,12,0],
+      [34,38,36,40,44,8,0]
+    ];
+    const heatMax=Math.max(...heatData.flat());
+    const heatRows=[['Manhã',heatData[0]],['Tarde',heatData[1]],['Noite',heatData[2]]].map(([label,cells])=>({
+      label, cells:cells.map(v=>{
+        const t=v/heatMax; const bg = v===0?'#F4F7FB':`rgba(31,116,224,${(0.12+t*0.68).toFixed(2)})`;
+        return { value: v===0?'—':v, style:`height:34px;border-radius:7px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${t>0.55?'#fff':'#5A6B7B'}` };
+      })
+    }));
+
+    // ---------- Distribuição de notas ----------
+    const notesRaw=[0,0,1,1,2,3,5,10,22,38,54];
+    const notesBars=this.bars(notesRaw.map((v,i)=>({l:String(i),v,color:i>=8?'#17835A':(i>=6?'#4FA3F0':'#B9C6D3')})));
+
+    // ---------- Orçamentos enviados por período ----------
+    const revRaw=[['Fev',72],['Mar',78],['Abr',75],['Mai',88],['Jun',84],['Jul',96]];
+    const revMax=Math.max(...revRaw.map(r=>r[1]));
+    const revenueBars=revRaw.map(([l,v])=>({ label:l, value:this.fmtInt(v), barStyle:`width:56%;height:${Math.round(v/revMax*100)}%;border-radius:7px 7px 0 0;background:linear-gradient(180deg,#4C8DE8,#1F74E0)` }));
+
+    // ---------- Donuts ----------
+    const mixDonut=this.donut([
+      {label:'Box',pct:34,color:'#1F74E0'},
+      {label:'Temperado',pct:26,color:'#4C55B8'},
+      {label:'Espelho',pct:18,color:'#1F857E'},
+      {label:'Fachada',pct:14,color:'#E0A61C'},
+      {label:'Outros',pct:8,color:'#B9C6D3'}
+    ]);
+    const tipoDonut=this.donut([
+      {label:'B2C',pct:52,color:'#1F74E0'},
+      {label:'Revenda',pct:24,color:'#1F857E'},
+      {label:'Construtora',pct:16,color:'#4C55B8'},
+      {label:'Condomínio',pct:8,color:'#E0A61C'}
+    ]);
+
+    // ---------- Motivo de perda ----------
+    const lossRaw=[['Sem retorno',42],['Preço',28],['Prazo',16],['Concorrência',10],['Outros',4]];
+    const lossBars=lossRaw.map(([label,pct])=>({ label, pct:pct+'%', barStyle:`height:100%;width:${pct}%;border-radius:6px;background:#C0392B` }));
+
+    // ---------- Rankings ----------
+    const AT = { js:['JS','Jardel','#2C6BB8'], ab:['AB','Ana Beatriz','#2C6BB8'], da:['DA','Daiane','#2F8F86'], cl:['CL','Clayton','#5566A8'], ed:['ED','Eduarda','#3E8FD0'] };
+    const mkRank=(rows)=>rows.map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), initials:AT[r[0]][0], name:AT[r[0]][1], avatarStyle:this.avatarStyle(AT[r[0]][2]), value:r[1] }));
+
+    const rankAtendimentos=mkRank([['js','142'],['ab','128'],['da','96'],['ed','84'],['cl','61']]);
+    const rankAvaliacao=mkRank([['da','9,8'],['ab','9,6'],['js','9,4'],['ed','9,2'],['cl','8,6']]);
+    const rankTempo=mkRank([['ed','1min 40s'],['da','2min 05s'],['js','2min 40s'],['ab','3min 10s'],['cl','5min 20s']]);
+    const rankConversao=mkRank([['js','18'],['ab','14'],['da','9'],['ed','8'],['cl','5']]);
+    const rankConversaoMini=rankConversao;
+
+    const rankProdutos=[['Box de banheiro',96],['Vidro temperado (chapa)',74],['Espelho bisotê',58],['Guarda-corpo',31],['Porta pivotante',22]].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], value:this.fmtInt(r[1]) }));
+
+    const rankClientes=[
+      ['Construtora Horizonte','3 pedidos no período'],
+      ['Serralheria Dois Irmãos','27 pedidos no período'],
+      ['Cond. Parque Sul','5 pedidos no período'],
+      ['Vidraçaria Cristal Clara','12 pedidos no período'],
+      ['Loja Vidro & Cia','9 pedidos no período']
+    ].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], detail:r[1] }));
+
+    const rankCidades=[['Taguatinga',128],['Águas Claras',74],['Ceilândia',66],['Sobradinho',52],['Gama',38]].map((r,i)=>({ rank:i+1, rankStyle:this.rankStyle(i), name:r[0], value:this.fmtInt(r[1]) }));
+
+    // ---------- Ação agora ----------
+    const actionDef=[
+      { id:'orc', icon:'ri-file-list-3-line', title:'Orçamentos aguardando resposta', items:[
+        {initials:'MV',tint:'#2C6BB8',name:'Marcos Vinícius',detail:'Enviado há 2 dias · sem resposta'},
+        {initials:'CN',tint:'#4C55B8',name:'Construtora Horizonte',detail:'Enviado há 4 dias · sem resposta'}
+      ]},
+      { id:'sla', icon:'ri-alarm-warning-line', title:'Pendentes com SLA em risco', items:[
+        {initials:'AP',tint:'#3E8FD0',name:'Ana Paula Ferreira',detail:'Aguardando há 46min · SLA 30min'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Aguardando há 1h 10min'}
+      ]},
+      { id:'fu', icon:'ri-refresh-line', title:'Follow-ups vencidos', items:[
+        {initials:'LA',tint:'#5566A8',name:'Lucas Andrade',detail:'Follow-up de 2 dias vencido'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Tabela não enviada há 3 dias'}
+      ]},
+      { id:'inst', icon:'ri-tools-line', title:'Instalações agendadas', items:[
+        {initials:'MV',tint:'#2C6BB8',name:'Marcos Vinícius',detail:'Qui, 17/07 · 09:00 · box'},
+        {initials:'FL',tint:'#64748B',name:'Fernanda Lima',detail:'Sex, 10/07 · 14:00 · porta'}
+      ]},
+      { id:'lead', icon:'ri-user-unfollow-line', title:'Leads sem retorno', items:[
+        {initials:'AP',tint:'#3E8FD0',name:'Ana Paula Ferreira',detail:'1º contato sem resposta há 6h'},
+        {initials:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',detail:'Sem retorno há 2 dias'}
+      ]}
+    ];
+    const actionCats=actionDef.map(ac=>{ const open=this.state.actionOpen===ac.id; return {
+      id:ac.id, icon:ac.icon, title:ac.title, open,
+      onToggle:()=>this.setState({actionOpen: open?null:ac.id}),
+      chevron: open?'ri-arrow-down-s-line':'ri-arrow-right-s-line',
+      count:ac.items.length,
+      badgeStyle:'font-size:10.5px;font-weight:700;color:#5A6B7B;background:#EEF3F8;padding:1px 8px;border-radius:20px',
+      items:ac.items.map(it=>({ initials:it.initials, name:it.name, detail:it.detail,
+        avatarStyle:this.avatarStyle(it.tint),
+        detailStyle:'font-size:11px;color:#9AA9B8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }))
+    };});
+
+    return {
+      subtitle: subtitleMap[tab], tabs,
+      year:this.state.year, yearOptions, onYearChange, modeLabel, showSelectAll, monthPills,
+      selectAllMonths:()=>this.selectAllMonths(),
+      periodOpen:this.state.periodOpen, periodLabel, periodBtnStyle,
+      togglePeriod:()=>this.togglePeriod(), closePeriod:()=>this.closePeriod(),
+      calPrev:()=>this.calPrev(), calNext:()=>this.calNext(),
+      calClear:()=>this.calClear(), calApply:()=>this.calApply(),
+      calLeftLabel, calRightLabel, calMonths,
+      stop:(e)=>e.stopPropagation(),
+      isGeral: tab==='geral', isOperacional: tab==='operacional', isComercial: tab==='comercial', isIA: tab==='ia',
+      goComercial:(e)=>{ e.preventDefault(); this.setState({tab:'comercial'}); },
+      kpisGeral, kpisOperacional, kpisComercial, kpisIA,
+      funilStages, peakBars, atendLine, iaLine,
+      heatDays, heatRows, notesBars, revenueBars,
+      mixDonut, tipoDonut, lossBars,
+      rankAtendimentos, rankAvaliacao, rankTempo, rankConversao, rankConversaoMini,
+      rankProdutos, rankClientes, rankCidades,
+      actionCats
+    };
+  }
+}
+</script>
+</body>
+</html>

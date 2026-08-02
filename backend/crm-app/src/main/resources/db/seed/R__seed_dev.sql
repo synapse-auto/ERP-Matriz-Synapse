@@ -79,12 +79,16 @@ ON CONFLICT (id) DO UPDATE
     SET nome = EXCLUDED.nome, cor = EXCLUDED.cor, icone = EXCLUDED.icone;
 
 -- --- Feature flags ---------------------------------------------------------
+-- campanhas/relatorios/banco_arquivos: FALSE de proposito (docs/09, TOKENS.md §5) — fora
+-- da primeira entrega. A aba nao e construida; e o corte por flag, nao por remocao, que
+-- deixa a Base PAI ligar essas abas para um filho futuro sem deploy de codigo novo.
 INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
-    ('campanhas',    TRUE, 'Aba de campanhas e motor de envio.'),
-    ('chat_interno', TRUE, 'Chat entre atendentes e gestores.'),
-    ('fidelizacao',  TRUE, 'Regras de fidelizacao e reengajamento.'),
-    ('relatorios',   TRUE, 'Aba de relatorios.'),
-    ('dashboard',    TRUE, 'Dashboard de indicadores.')
+    ('campanhas',      FALSE, 'Aba de campanhas e motor de envio.'),
+    ('chat_interno',   TRUE, 'Chat entre atendentes e gestores.'),
+    ('fidelizacao',    TRUE, 'Regras de fidelizacao e reengajamento.'),
+    ('relatorios',     FALSE, 'Aba de relatorios.'),
+    ('banco_arquivos', FALSE, 'Aba de banco de arquivos.'),
+    ('dashboard',      TRUE, 'Dashboard de indicadores.')
 ON CONFLICT (chave) DO UPDATE
     SET habilitado = EXCLUDED.habilitado, descricao = EXCLUDED.descricao;
 

@@ -1,6 +1,7 @@
 package com.synapse.crm.equipe.infrastructure.seguranca;
 
 import java.time.Clock;
+import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -22,6 +23,9 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.synapse.crm.equipe.application.autenticacao.CodificadorDeSenha;
 import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
@@ -45,9 +49,11 @@ public class SecurityConfig {
     SecurityFilterChain filtros(
             HttpSecurity http,
             SynapseTokenAuthenticationFilter filtroSynapseToken,
-            RequisicaoContextSpring filtroRequisicaoContext)
+            RequisicaoContextSpring filtroRequisicaoContext,
+            CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         return http.csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // addFilterBefore so aceita uma classe de filtro PADRAO do Spring Security como
                 // referencia — nao da para posicionar um filtro custom relativo a outro filtro
@@ -59,6 +65,12 @@ public class SecurityConfig {
                 .addFilterBefore(filtroSynapseToken, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
                         .requestMatchers("/api/v1/auth/**")
+                        .permitAll()
+                        // E10: tema e textos precisam estar disponiveis ANTES do login — a
+                        // propria tela de login e themeable, e "zero cor/texto literal em
+                        // componente" nao tem excecao para telas pre-autenticacao. Nenhum dos
+                        // dois carrega dado sensivel: e paleta de cor e rotulo de UI.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/config/tema", "/api/v1/config/textos")
                         .permitAll()
                         // O contrato da Automacao (E07): sem JWT de usuario, autenticado por
                         // X-Synapse-Token no filtro registrado acima. "hasRole" aqui e
@@ -134,6 +146,23 @@ public class SecurityConfig {
 
     private SecretKeySpec chave(SegurancaProperties propriedades) {
         return new SecretKeySpec(propriedades.jwtSegredo().getBytes(), "HmacSHA256");
+    }
+
+    /**
+     * Libera a origem do frontend (porta diferente da API em dev) para chamadas diretas do
+     * browser com {@code Authorization: Bearer ...}. Sem credenciais de cookie aqui — o cookie
+     * httpOnly de refresh (E10) e trocado com o proprio Next.js, nunca chega ate aqui.
+     */
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(SegurancaProperties propriedades) {
+        CorsConfiguration configuracao = new CorsConfiguration();
+        configuracao.setAllowedOrigins(List.of(propriedades.frontendOrigem()));
+        configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        UrlBasedCorsConfigurationSource fonte = new UrlBasedCorsConfigurationSource();
+        fonte.registerCorsConfiguration("/**", configuracao);
+        return fonte;
     }
 
     @Bean

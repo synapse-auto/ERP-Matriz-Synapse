@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#1F74E0;text-decoration:none}a:hover{color:#1560C4}
+input,select{font-family:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<dc-import name="Sidebar" active="relatorios" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden;position:relative">
+
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:20px 32px 0">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px">
+      <div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Relatórios</div>
+        <div style="font-size:13px;color:#8A9BAD;margin-top:4px">Histórico completo de atendimentos, com jornada de funil por lead</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div style="display:inline-flex;border:1px solid #E1E8F0;border-radius:10px;overflow:hidden;background:#fff">
+          <sc-for list="{{ periods }}" as="p" hint-placeholder-count="7"><div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</div></sc-for>
+        </div>
+        <sc-if value="{{ isCustom }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="date" value="{{ customFrom }}" onChange="{{ onCustomFrom }}" style="height:34px;border:1px solid #E1E8F0;border-radius:9px;padding:0 10px;font-size:12.5px;color:#0F2438;outline:none">
+            <span style="font-size:12px;color:#9AA9B8;font-weight:600">até</span>
+            <input type="date" value="{{ customTo }}" onChange="{{ onCustomTo }}" style="height:34px;border:1px solid #E1E8F0;border-radius:9px;padding:0 10px;font-size:12.5px;color:#0F2438;outline:none">
+          </div>
+        </sc-if>
+      </div>
+    </div>
+    <div style="display:flex;gap:2px;margin-top:18px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="1"><div style="{{ t.style }}"><i class="{{ t.icon }}" style="font-size:16px"></i>{{ t.label }}</div></sc-for>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:24px 32px 48px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:17px;font-weight:800;letter-spacing:-.01em">Atendimentos</span>
+        <span style="font-size:11.5px;font-weight:700;color:#1F74E0;background:#EAF2FD;padding:3px 10px;border-radius:20px">{{ periodLabel }}</span>
+      </div>
+      <button onClick="{{ onExport }}" style="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-radius:10px;border:1px solid #CFE1FA;background:#EAF3FD;color:#1F74E0;font-size:13px;font-weight:700;cursor:pointer" style-hover="background:#DDEBFC"><i class="ri-file-download-line" style="font-size:16px"></i>Exportar CSV</button>
+    </div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+        <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="{{ k.iconWrap }}"><i class="{{ k.icon }}" style="{{ k.iconStyle }}"></i></div>
+            <span style="font-size:12px;font-weight:600;color:#8A9BAD;flex:1;min-width:0">{{ k.label }}</span>
+          </div>
+          <div style="font-size:23px;font-weight:800;letter-spacing:-.02em;color:#0F2438">{{ k.value }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- DISTRIBUIÇÃO -->
+    <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;margin-top:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:13px;font-weight:700;color:#33475B">Distribuição por status</span>
+        <span style="font-size:11.5px;color:#9AA9B8">{{ distTotal }} atendimento(s) no período</span>
+      </div>
+      <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:#EEF3F8">
+        <sc-for list="{{ distSegs }}" as="ds" hint-placeholder-count="4"><div style="{{ ds.style }}" title="{{ ds.title }}"></div></sc-for>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:11px;flex-wrap:wrap">
+        <sc-for list="{{ distLegend }}" as="dl" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:7px"><span style="{{ dl.dot }}"></span><span style="font-size:12px;color:#5A6B7B;font-weight:600">{{ dl.label }}</span><span style="font-size:12px;color:#9AA9B8">{{ dl.count }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 16px">
+      <div style="display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;background:#fff;border:1px solid #E1E8F0;border-radius:10px;min-width:230px">
+        <i class="ri-search-line" style="font-size:15px;color:#8A9BAD"></i>
+        <input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Buscar cliente, empresa ou protocolo…" style="border:0;outline:none;background:transparent;flex:1;font-size:12.5px;color:#0F2438">
+      </div>
+      <div style="display:inline-flex;border:1px solid #E1E8F0;border-radius:10px;overflow:hidden;background:#fff">
+        <sc-for list="{{ statusPills }}" as="sp" hint-placeholder-count="5"><div onClick="{{ sp.onClick }}" style="{{ sp.style }}">{{ sp.label }}<span style="{{ sp.countStyle }}">{{ sp.count }}</span></div></sc-for>
+      </div>
+      <select value="{{ stageFilter }}" onChange="{{ onStageFilter }}" style="height:38px;border:1px solid #E1E8F0;border-radius:10px;padding:0 10px;font-size:12.5px;color:#33475B;background:#fff;outline:none;cursor:pointer">
+        <option value="todas">Todas as etapas</option>
+        <sc-for list="{{ stageOptions }}" as="so" hint-placeholder-count="6"><option value="{{ so.value }}">{{ so.label }}</option></sc-for>
+      </select>
+      <select value="{{ attendantFilter }}" onChange="{{ onAttendantFilter }}" style="height:38px;border:1px solid #E1E8F0;border-radius:10px;padding:0 10px;font-size:12.5px;color:#33475B;background:#fff;outline:none;cursor:pointer">
+        <option value="todos">Todos os atendentes</option>
+        <sc-for list="{{ attendantOptions }}" as="ao" hint-placeholder-count="6"><option value="{{ ao.value }}">{{ ao.label }}</option></sc-for>
+      </select>
+    </div>
+
+    <!-- TABELA -->
+    <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 22px 14px;border-bottom:1px solid #EEF3F8;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14.5px;font-weight:700">Todos os atendimentos</span>
+        <span style="font-size:12px;color:#9AA9B8">{{ rowsCount }} resultado(s)</span>
+      </div>
+      <div style="{{ theadStyle }}">
+        <sc-for list="{{ headers }}" as="h" hint-placeholder-count="8"><div style="{{ h.style }}">{{ h.label }}</div></sc-for>
+      </div>
+      <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+        <div onClick="{{ r.onClick }}" style="{{ r.rowStyle }}" style-hover="background:#F9FBFD">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0">
+            <div style="{{ r.avatarStyle }}">{{ r.initials }}</div>
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+              <div style="font-size:11.5px;color:#9AA9B8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">#{{ r.id }} · {{ r.company }}</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;color:#3F5163;text-align:center">{{ r.attendant }}</div>
+          <div style="text-align:center"><span style="{{ r.stagePill }}">{{ r.stageLabel }}</span></div>
+          <div style="text-align:center"><span style="{{ r.statusPill }}">{{ r.status }}</span></div>
+          <div style="font-size:12.5px;color:#5A6B7B;font-weight:600;text-align:center">{{ r.inicio }}</div>
+          <div style="{{ r.durationStyle }}">{{ r.duration }}</div>
+          <div style="{{ r.gapStyle }}">{{ r.gap }}</div>
+          <div style="{{ r.csatStyle }}">{{ r.csat }}</div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ emptyState }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:40px 20px;text-align:center;color:#9AA9B8;font-size:13px">Nenhum atendimento encontrado para os filtros selecionados.</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- DRAWER -->
+  <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDrawer }}" style="position:absolute;inset:0;background:rgba(15,36,56,.35);z-index:25"></div>
+    <div onClick="{{ stop }}" style="position:absolute;top:0;right:0;bottom:0;width:520px;background:#fff;box-shadow:-16px 0 40px -24px rgba(12,42,67,.4);z-index:30;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:18px 22px;border-bottom:1px solid #EEF3F8;flex:none;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0">
+          <div style="{{ dd.avatarStyle }}">{{ dd.initials }}</div>
+          <div style="min-width:0">
+            <div style="font-size:16px;font-weight:800;letter-spacing:-.01em">{{ dd.name }}</div>
+            <div style="font-size:12px;color:#8A9BAD;margin-top:2px">{{ dd.company }} · #{{ dd.id }}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex:none">
+          <span style="{{ dd.statusPill }}">{{ dd.status }}</span>
+          <button onClick="{{ closeDrawer }}" style="width:30px;height:30px;border-radius:9px;border:0;background:#F4F7FB;color:#5A6B7B;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" style-hover="background:#EAF0F7;color:#1F74E0"><i class="ri-close-line"></i></button>
+        </div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:18px 22px 30px">
+
+        <a href="Atendimentos.dc.html" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#1F74E0;margin-bottom:16px">Abrir conversa completa<i class="ri-arrow-right-line"></i></a>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#33475B;background:#F4F7FB;padding:5px 10px;border-radius:8px"><i class="ri-user-star-line" style="color:#1F74E0"></i>{{ dd.attendant }}</span>
+          <sc-for list="{{ dd.tags }}" as="tg" hint-placeholder-count="3"><span style="{{ tg.style }}">{{ tg.label }}</span></sc-for>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px">
+          <div style="background:#F4F7FB;border-radius:12px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:600;color:#5B7FA8;display:flex;align-items:center;gap:6px"><i class="ri-play-circle-line"></i>Início</div>
+            <div style="font-size:16px;font-weight:800;color:#0F2438;margin-top:5px">{{ dd.inicio }}</div>
+          </div>
+          <div style="background:#F4F7FB;border-radius:12px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:600;color:#5B7FA8;display:flex;align-items:center;gap:6px"><i class="ri-flag-line"></i>Término</div>
+            <div style="{{ dd.terminoStyle }}">{{ dd.termino }}</div>
+          </div>
+          <div style="background:#F4F7FB;border-radius:12px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:600;color:#5B7FA8;display:flex;align-items:center;gap:6px"><i class="ri-hourglass-line"></i>Duração total</div>
+            <div style="font-size:16px;font-weight:800;color:#0F2438;margin-top:5px">{{ dd.duracao }}</div>
+          </div>
+          <div style="background:#F4F7FB;border-radius:12px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:600;color:#5B7FA8;display:flex;align-items:center;gap:6px"><i class="ri-time-line"></i>Maior espera do lead</div>
+            <div style="{{ dd.gapStyle }}">{{ dd.gap }}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(150deg,#3B86E6,#1657B8);display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-sparkling-2-fill" style="font-size:12px;color:#fff"></i></span>
+          <span style="font-size:13.5px;font-weight:800;color:#12335A">Jornada do funil</span>
+          <span style="font-size:10px;font-weight:700;color:#5B7FA8;background:#DEEBFB;padding:2px 6px;border-radius:5px">IA</span>
+        </div>
+        <div style="margin-bottom:6px">
+          <sc-for list="{{ dd.timeline }}" as="t" hint-placeholder-count="5">
+            <div style="display:flex;gap:12px">
+              <div style="display:flex;flex-direction:column;align-items:center;flex:none;width:11px">
+                <div style="{{ t.dotStyle }}"></div>
+                <sc-if value="{{ t.showLine }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;background:#E1E9F2;min-height:20px"></div></sc-if>
+              </div>
+              <div style="flex:1;min-width:0;padding-bottom:18px">
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <span style="{{ t.labelStyle }}">{{ t.label }}</span>
+                  <span style="font-size:11px;color:#9AA9B8;font-weight:600;margin-left:auto;flex:none;white-space:nowrap">{{ t.time }}</span>
+                </div>
+                <div style="font-size:12.5px;color:#5A6B7B;margin-top:3px;line-height:1.5">{{ t.note }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin:6px 0 9px">ORÇAMENTO</div>
+        <sc-if value="{{ dd.hasBudget }}" hint-placeholder-val="{{ true }}">
+          <div style="border:1px solid #EEF3F8;background:#FBFCFE;border-radius:13px;padding:14px 15px;margin-bottom:20px">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+              <sc-for list="{{ dd.budgetItems }}" as="bi" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:12px;color:#9AA9B8;font-weight:600;flex:none;min-width:38px">{{ bi.q }}</span>
+                  <span style="font-size:12.5px;color:#33475B;flex:1">{{ bi.label }}</span>
+                  <span style="font-size:12.5px;font-weight:700;color:#1B3248">{{ bi.price }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="height:1px;background:#EEF3F8;margin-bottom:10px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;font-weight:700;color:#1B3248">Total</span>
+              <span style="font-size:16px;font-weight:800;color:#0F2438">{{ dd.budgetTotal }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+              <span style="{{ dd.budgetStatusPill }}">{{ dd.budgetStatus }}</span>
+              <span style="font-size:11.5px;color:#9AA9B8">enviado às {{ dd.budgetSentAt }}</span>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ dd.noBudget }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px;text-align:center;color:#9AA9B8;font-size:12.5px;border:1px dashed #E1E8F0;border-radius:12px;margin-bottom:20px">Nenhum orçamento gerado neste atendimento</div>
+        </sc-if>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin:0 0 9px">COMUNICAÇÃO</div>
+        <div style="border:1px solid #EEF3F8;border-radius:13px;padding:14px 15px;margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+            <span style="font-size:12.5px;color:#5A6B7B">Tempo até 1ª resposta</span>
+            <span style="font-size:12.5px;font-weight:700;color:#1B3248">{{ dd.tpr }}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#5A6B7B;margin-bottom:4px"><span>Atendente</span><span>{{ dd.msgsOut }} msgs</span></div>
+          <div style="height:7px;border-radius:5px;background:#EEF3F8;overflow:hidden;margin-bottom:9px"><div style="{{ dd.barOutStyle }}"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#5A6B7B;margin-bottom:4px"><span>Cliente</span><span>{{ dd.msgsIn }} msgs</span></div>
+          <div style="height:7px;border-radius:5px;background:#EEF3F8;overflow:hidden"><div style="{{ dd.barInStyle }}"></div></div>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin:0 0 9px">SATISFAÇÃO</div>
+        <sc-if value="{{ dd.hasCsat }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div style="{{ dd.csatValStyle }}">{{ dd.csatVal }}</div>
+            <div style="flex:1;height:8px;border-radius:6px;background:#EEF3F8;overflow:hidden"><div style="{{ dd.csatBarStyle }}"></div></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ dd.noCsat }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:2px 0 20px;color:#9AA9B8;font-size:12.5px">Atendimento ainda em aberto — sem avaliação.</div>
+        </sc-if>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin:0 0 9px">NOTAS INTERNAS</div>
+        <div style="border:1px solid #EEF3F8;background:#FBFCFE;border-radius:12px;padding:12px 13px;font-size:13px;line-height:1.55;color:#3B4E62">
+          <i class="ri-sticky-note-line" style="color:#C98A1E;margin-right:6px"></i>{{ dd.notes }}
+        </div>
+
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;background:#0F2438;color:#fff;padding:12px 18px;border-radius:12px;box-shadow:0 20px 50px -18px rgba(0,0,0,.5);font-size:13.5px;font-weight:600"><i class="ri-checkbox-circle-fill" style="font-size:18px;color:#4FD08A"></i>{{ toast }}</div>
+  </sc-if>
+
+</section>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { period:'30d', customFrom:'2026-07-01', customTo:'2026-07-23', search:'', statusFilter:'todos', stageFilter:'todas', attendantFilter:'todos', selectedId:null, toast:null };
+
+  STAGES=['Novo Contato','Aguardando Medidas','Orçamento','Negociação','Fechado','Pós-venda'];
+  STAGE_TONE=['sky','warn','blue','indigo','ok','teal'];
+  STATUS_TONE={'Em andamento':'blue','Finalizado':'ok','Pendente':'warn','Reaberto':'danger'};
+  TONE_HEX={sky:'#2E77C2',blue:'#1F74E0',warn:'#B07A15',indigo:'#4C55B8',ok:'#17835A',teal:'#1F857E',danger:'#C0392B',gray:'#8A9BAD'};
+  PERIODS=[['hoje','Hoje'],['7d','7 dias'],['30d','30 dias'],['mes','Mês'],['tri','Trimestre'],['ano','Ano'],['custom','Personalizado']];
+  GRID='2.1fr 1fr 1.05fr 1fr 1.05fr 0.85fr 1.05fr 0.6fr';
+  ATTENDANTS=['Jardel Souza','Ana Beatriz','Daiane Rocha','Eduarda Nunes','Nayara Melo','Clayton Dias'];
+
+  fmtInt(n){ return Math.round(n).toLocaleString('pt-BR'); }
+  dateLabel(iso){ const p=iso.split('-'); return p[2]+'/'+p[1]; }
+  avg(arr){ const v=arr.filter(x=>x!=null && !isNaN(x)); if(!v.length) return null; return v.reduce((a,b)=>a+b,0)/v.length; }
+  fmtMin(m){ if(m==null) return '—'; m=Math.round(m); if(m>=1440){ const d=Math.floor(m/1440),h=Math.round((m%1440)/60); return d+'d'+(h?' '+h+'h':''); } if(m>=60){ const h=Math.floor(m/60),mm=Math.round(m%60); return h+'h'+(mm?' '+mm+'min':''); } return m+'min'; }
+  pct(n,total){ return (Math.round(n/(total||1)*1000)/10)+'%'; }
+
+  pill(tone,size){
+    const M={sky:['#E7F1FC','#2E77C2'],blue:['#E4EEFC','#1560C4'],warn:['#FBEFD6','#B07A15'],indigo:['#E9EAFA','#4C55B8'],ok:['#E2F4EC','#17835A'],teal:['#E0F2F1','#1F857E'],danger:['#FBE4E1','#C0392B'],gray:['#EEF2F7','#5A6B7B']};
+    const c=M[tone]||M.gray; const sm=size!=='md';
+    return { display:'inline-flex', alignItems:'center', padding:sm?'3px 8px':'4px 10px', borderRadius:'7px', fontSize:sm?'10.5px':'11.5px', fontWeight:700, background:c[0], color:c[1], whiteSpace:'nowrap' };
+  }
+
+  kpiCard(icon,tint,tintBg,label,value){ return { icon,label,value,
+    iconWrap:`width:38px;height:38px;border-radius:11px;background:${tintBg};display:flex;align-items:center;justify-content:center;flex:none`,
+    iconStyle:`font-size:18px;color:${tint}` };
+  }
+
+  inPeriod(d,key,cf,ct){
+    const T='2026-07-24';
+    if(key==='hoje') return d===T;
+    if(key==='7d') return d>='2026-07-18';
+    if(key==='30d') return d>='2026-06-25';
+    if(key==='mes') return d.slice(0,7)==='2026-07';
+    if(key==='tri') return d>='2026-04-24';
+    if(key==='ano') return d.slice(0,4)==='2026';
+    if(key==='custom') return d>=cf && d<=ct;
+    return true;
+  }
+
+  showToast(m){ this.setState({toast:m}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2600); }
+
+  records(){
+    if(this._recs) return this._recs;
+    this._recs=[
+      { id:'2340', date:'2026-07-24', status:'Em andamento', stage:3, lead:{name:'Marcos Vinícius',company:'Vidraçaria Cristal Clara',initials:'MV',tint:'#2C6BB8'}, attendant:'Jardel Souza',
+        startedAt:'08:02', endedAt:null, durationMin:52, durationLabel:'52min (em curso)', leadGapMin:14, leadGapLabel:'14min', firstResponseLabel:'3min 00s', msgsIn:5, msgsOut:6, csat:null,
+        tags:['Box de Banheiro','Vidro Temperado'], notes:'Cliente recorrente, prefere atendimento pela manhã.',
+        timeline:[
+          {stage:1,time:'08:02',note:'Mensagem recebida via WhatsApp pedindo orçamento de 2 boxes de banheiro.'},
+          {stage:2,time:'08:07',note:'Medidas confirmadas: Suíte 1,90×1,50 · Social 1,80×1,40.'},
+          {stage:3,time:'08:20',note:'Orçamento nº 2340 enviado — R$ 1.480,00.', budget:{items:[{q:'2x',label:'Box temperado 8mm incolor',price:'R$ 1.180,00'},{q:'1x',label:'Kit alumínio + instalação',price:'R$ 300,00'}],total:'R$ 1.480,00',status:'Enviado',sentAt:'08:20'}}
+        ] },
+      { id:'2339', date:'2026-07-24', status:'Pendente', stage:2, lead:{name:'Studio Bella Vidros',company:'Interiores · Ana Cláudia',initials:'BV',tint:'#5566A8'}, attendant:'Ana Beatriz',
+        startedAt:'09:40', endedAt:null, durationMin:210, durationLabel:'3h 30min (aguardando)', leadGapMin:165, leadGapLabel:'2h 45min', firstResponseLabel:'1min 35s', msgsIn:3, msgsOut:4, csat:null,
+        tags:['Espelho Decorativo','Sob medida'], notes:'Aguardando cliente enviar fotos do ambiente para medida precisa.',
+        timeline:[
+          {stage:1,time:'09:40',note:'Contato via WhatsApp buscando espelhos decorativos para hall de entrada.'},
+          {stage:2,time:'09:48',note:'Solicitado envio de fotos do ambiente e medidas aproximadas.'}
+        ] },
+      { id:'2338', date:'2026-07-23', status:'Finalizado', stage:5, lead:{name:'Camila Nunes',company:'Construtora Horizonte',initials:'CN',tint:'#4C55B8'}, attendant:'Ana Beatriz',
+        startedAt:'09:05', endedAt:'16:50', durationMin:465, durationLabel:'7h 45min', leadGapMin:220, leadGapLabel:'3h 40min', firstResponseLabel:'5min 00s', msgsIn:11, msgsOut:9, csat:9.6,
+        tags:['Fachada','Obra','B2B'], notes:'Compra por licitação. Emitir nota com ficha técnica ABNT.',
+        timeline:[
+          {stage:1,time:'09:05',note:'Solicitação de orçamento para pele de vidro (~120m²) via WhatsApp.'},
+          {stage:3,time:'09:30',note:'Orçamento nº 2338 enviado — R$ 114.000,00 (120m² + projeto e instalação).', budget:{items:[{q:'120m²',label:'Pele de vidro laminado',price:'R$ 96.000,00'},{q:'1x',label:'Projeto + instalação',price:'R$ 18.000,00'}],total:'R$ 114.000,00',status:'Revisado',sentAt:'09:30'}},
+          {stage:4,time:'13:10',note:'Negociação de desconto por volume — fechado 8% sobre o valor do vidro.'},
+          {stage:5,time:'16:50',note:'Proposta revisada aprovada e enviada para produção.'}
+        ] },
+      { id:'2337', date:'2026-07-23', status:'Finalizado', stage:5, lead:{name:'Fernanda Lima',company:'Cliente final',initials:'FL',tint:'#64748B'}, attendant:'Ana Beatriz',
+        startedAt:'14:10', endedAt:'14:22', durationMin:12, durationLabel:'12min', leadGapMin:6, leadGapLabel:'6min', firstResponseLabel:'1min 05s', msgsIn:3, msgsOut:3, csat:9.8,
+        tags:['Porta','Temperado','Fechado'], notes:'Indicação da arquiteta Júlia. Primeira compra.',
+        timeline:[
+          {stage:4,time:'14:10',note:'Cliente retomou negociação da porta pivotante já orçada anteriormente.'},
+          {stage:5,time:'14:15',note:'Orçamento aprovado. Pedido enviado para produção.', budget:{items:[{q:'1x',label:'Porta pivotante temperado 10mm',price:'R$ 2.350,00'}],total:'R$ 2.350,00',status:'Aprovado',sentAt:'14:15'}}
+        ] },
+      { id:'2336', date:'2026-07-21', status:'Reaberto', stage:2, lead:{name:'Lucas Andrade',company:'Cliente final',initials:'LA',tint:'#5566A8'}, attendant:'Ana Beatriz',
+        startedAt:'09:00', endedAt:null, durationMin:1080, durationLabel:'18h (reaberto)', leadGapMin:1440, leadGapLabel:'1d 0h', firstResponseLabel:'5min 00s', msgsIn:4, msgsOut:3, csat:null,
+        tags:['Box de Banheiro','Follow-up'], notes:'Sumiu após pedir medidas. Reaberto ao retornar contato.',
+        timeline:[
+          {stage:1,time:'09:00',note:'Pedido de box de canto para banheiro.'},
+          {stage:2,time:'09:05',note:'Solicitadas medidas das paredes e altura.'},
+          {kind:'reopen',time:'Ontem 08:40',note:'Cliente ficou 1 dia sem responder; atendimento reaberto ao retornar contato.'}
+        ] },
+      { id:'2335', date:'2026-07-19', status:'Finalizado', stage:6, lead:{name:'Cond. Parque Sul',company:'Síndico Paulo',initials:'PS',tint:'#1F5AA0'}, attendant:'Jardel Souza',
+        startedAt:'10:30', endedAt:'11:40', durationMin:70, durationLabel:'1h 10min', leadGapMin:35, leadGapLabel:'35min', firstResponseLabel:'3min 30s', msgsIn:7, msgsOut:8, csat:9.5,
+        tags:['Guarda-corpo','Laminado','Pós-venda'], notes:'Condomínio grande. Potencial para trocar janelas do hall.',
+        timeline:[
+          {stage:1,time:'10:30',note:'Síndico solicita orçamento de guarda-corpo de vidro para sacadas.'},
+          {kind:'transfer',time:'10:35',note:'Transferido de Ana Beatriz para Jardel Souza (especialista em obras).'},
+          {stage:3,time:'10:50',note:'Orçamento nº 2335 enviado — R$ 38.400,00 (48m linear).', budget:{items:[{q:'48m',label:'Guarda-corpo vidro laminado',price:'R$ 38.400,00'}],total:'R$ 38.400,00',status:'Aprovado',sentAt:'10:50'}},
+          {stage:5,time:'11:15',note:'Pedido aprovado pelo condomínio em assembleia.'},
+          {stage:6,time:'11:40',note:'Instalação concluída e vistoriada. Garantia de 5 anos ativada.'}
+        ] },
+      { id:'2334', date:'2026-07-15', status:'Finalizado', stage:5, lead:{name:'Residencial Alto da Serra',company:'Arq. Juliana Prado',initials:'JP',tint:'#2F8F86'}, attendant:'Eduarda Nunes',
+        startedAt:'13:00', endedAt:'15:20', durationMin:140, durationLabel:'2h 20min', leadGapMin:80, leadGapLabel:'1h 20min', firstResponseLabel:'2min 30s', msgsIn:9, msgsOut:10, csat:9.2,
+        tags:['Fachada','Projeto Arquitetônico'], notes:'Especificação técnica enviada pela arquiteta. Prazo de obra apertado.',
+        timeline:[
+          {stage:1,time:'13:00',note:'Arquiteta solicita cotação de esquadrias de vidro para projeto residencial.'},
+          {stage:2,time:'13:20',note:'Recebido projeto executivo com medidas de todos os vãos.'},
+          {stage:3,time:'14:10',note:'Orçamento nº 2334 enviado — R$ 42.600,00.', budget:{items:[{q:'14x',label:'Esquadria de vidro temperado',price:'R$ 36.400,00'},{q:'1x',label:'Instalação especializada',price:'R$ 6.200,00'}],total:'R$ 42.600,00',status:'Aprovado',sentAt:'14:10'}},
+          {stage:5,time:'15:20',note:'Aprovado pelo cliente final. Produção agendada.'}
+        ] },
+      { id:'2333', date:'2026-07-10', status:'Finalizado', stage:5, lead:{name:'Marcenaria Bom Corte',company:'Sr. Antônio',initials:'BC',tint:'#8A6D3B'}, attendant:'Daiane Rocha',
+        startedAt:'08:50', endedAt:'09:35', durationMin:45, durationLabel:'45min', leadGapMin:20, leadGapLabel:'20min', firstResponseLabel:'2min 00s', msgsIn:6, msgsOut:5, csat:9.0,
+        tags:['Espelho','Revenda'], notes:'Parceiro esporádico. Retira no balcão.',
+        timeline:[
+          {stage:1,time:'08:50',note:'Pedido de 4 espelhos lapidados para móveis planejados.'},
+          {stage:3,time:'09:10',note:'Orçamento nº 2333 enviado — R$ 980,00.', budget:{items:[{q:'4x',label:'Espelho lapidado 4mm',price:'R$ 980,00'}],total:'R$ 980,00',status:'Aprovado',sentAt:'09:10'}},
+          {stage:5,time:'09:35',note:'Pagamento confirmado. Retirada agendada para o dia seguinte.'}
+        ] },
+      { id:'2332', date:'2026-07-05', status:'Finalizado', stage:5, lead:{name:'Restaurante Sabor & Arte',company:'Gerência',initials:'SA',tint:'#B0654A'}, attendant:'Clayton Dias',
+        startedAt:'11:00', endedAt:'11:52', durationMin:52, durationLabel:'52min', leadGapMin:38, leadGapLabel:'38min', firstResponseLabel:'7min 00s', msgsIn:5, msgsOut:4, csat:8.6,
+        tags:['Divisória de Vidro','Comercial'], notes:'Reclamou da demora na 1ª resposta; atendimento seguiu bem depois.',
+        timeline:[
+          {stage:1,time:'11:00',note:'Solicita divisória de vidro para ambiente climatizado do salão.'},
+          {stage:3,time:'11:25',note:'Orçamento nº 2332 enviado — R$ 6.400,00.', budget:{items:[{q:'8m²',label:'Divisória vidro temperado 10mm',price:'R$ 6.400,00'}],total:'R$ 6.400,00',status:'Aprovado',sentAt:'11:25'}},
+          {stage:5,time:'11:52',note:'Aprovado. Instalação marcada para a semana seguinte.'}
+        ] },
+      { id:'2331', date:'2026-07-02', status:'Pendente', stage:1, lead:{name:'Diego · V. Reflexo',company:'Vidraçaria Reflexo',initials:'DR',tint:'#2E8C8C'}, attendant:'—',
+        startedAt:'15:40', endedAt:null, durationMin:2980, durationLabel:'2d 1h (aguardando)', leadGapMin:null, leadGapLabel:'—', firstResponseLabel:'Sem resposta ainda', msgsIn:3, msgsOut:0, csat:null,
+        tags:['Revenda','B2B','Lead novo'], notes:'Fora do DF — confirmar viabilidade de frete antes de cotar.',
+        timeline:[
+          {stage:1,time:'15:40',note:'Vidraçaria de Anápolis-GO pergunta sobre fornecimento para revenda e tabela de preços.'}
+        ] },
+      { id:'2330', date:'2026-06-18', status:'Finalizado', stage:5, lead:{name:'Loja Vidro & Cia',company:'Revenda',initials:'VC',tint:'#3E8FD0'}, attendant:'Jardel Souza',
+        startedAt:'10:00', endedAt:'10:40', durationMin:40, durationLabel:'40min', leadGapMin:15, leadGapLabel:'15min', firstResponseLabel:'1min 30s', msgsIn:8, msgsOut:7, csat:9.3,
+        tags:['Chapas','Revenda'], notes:'Compra mensal recorrente.',
+        timeline:[
+          {stage:1,time:'10:00',note:'Pedido recorrente de chapas de vidro temperado 8mm e 10mm.'},
+          {stage:3,time:'10:15',note:'Orçamento nº 2330 enviado — R$ 8.200,00.', budget:{items:[{q:'10x',label:'Chapa temperado 8mm',price:'R$ 5.200,00'},{q:'6x',label:'Chapa temperado 10mm',price:'R$ 3.000,00'}],total:'R$ 8.200,00',status:'Aprovado',sentAt:'10:15'}},
+          {stage:5,time:'10:40',note:'Pedido fechado. Faturado em 15 dias, como de costume.'}
+        ] },
+      { id:'2329', date:'2026-06-05', status:'Finalizado', stage:5, lead:{name:'Academia Corpo em Forma',company:'Recepção',initials:'CF',tint:'#4C55B8'}, attendant:'Nayara Melo',
+        startedAt:'09:15', endedAt:'10:05', durationMin:50, durationLabel:'50min', leadGapMin:25, leadGapLabel:'25min', firstResponseLabel:'3min 00s', msgsIn:6, msgsOut:6, csat:9.1,
+        tags:['Espelho','Comercial'], notes:'Espelhos para sala de musculação, parede inteira.',
+        timeline:[
+          {stage:1,time:'09:15',note:'Solicita espelhos grandes para sala de musculação.'},
+          {stage:3,time:'09:45',note:'Orçamento nº 2329 enviado — R$ 5.600,00.', budget:{items:[{q:'3x',label:'Espelho 2,00×2,50m',price:'R$ 5.600,00'}],total:'R$ 5.600,00',status:'Aprovado',sentAt:'09:45'}},
+          {stage:5,time:'10:05',note:'Aprovado. Instalação em 4 dias úteis.'}
+        ] },
+      { id:'2328', date:'2026-05-20', status:'Finalizado', stage:6, lead:{name:'Condomínio Jardins do Lago',company:'Síndica Renata',initials:'JL',tint:'#1F5AA0'}, attendant:'Ana Beatriz',
+        startedAt:'14:00', endedAt:'15:10', durationMin:70, durationLabel:'1h 10min', leadGapMin:45, leadGapLabel:'45min', firstResponseLabel:'4min 00s', msgsIn:9, msgsOut:8, csat:9.7,
+        tags:['Guarda-corpo','Pós-venda'], notes:'Segunda obra com o condomínio este ano.',
+        timeline:[
+          {stage:1,time:'14:00',note:'Síndica pede orçamento para trocar guarda-corpos das sacadas do bloco B.'},
+          {stage:3,time:'14:30',note:'Orçamento nº 2328 enviado — R$ 29.800,00.', budget:{items:[{q:'36m',label:'Guarda-corpo vidro temperado',price:'R$ 29.800,00'}],total:'R$ 29.800,00',status:'Aprovado',sentAt:'14:30'}},
+          {stage:5,time:'14:55',note:'Aprovado em assembleia extraordinária.'},
+          {stage:6,time:'15:10',note:'Obra concluída e vistoriada com a síndica.'}
+        ] },
+      { id:'2327', date:'2026-05-02', status:'Finalizado', stage:5, lead:{name:'Escritório Advocacia Mendes',company:'Dra. Patrícia Mendes',initials:'AM',tint:'#5A6B7B'}, attendant:'Daiane Rocha',
+        startedAt:'16:20', endedAt:'16:55', durationMin:35, durationLabel:'35min', leadGapMin:12, leadGapLabel:'12min', firstResponseLabel:'1min 40s', msgsIn:5, msgsOut:5, csat:9.4,
+        tags:['Divisória de Vidro','Escritório'], notes:'Reforma do escritório, urgência de entrega.',
+        timeline:[
+          {stage:1,time:'16:20',note:'Solicita divisórias de vidro para salas de reunião.'},
+          {stage:3,time:'16:35',note:'Orçamento nº 2327 enviado — R$ 12.400,00.', budget:{items:[{q:'6x',label:'Divisória vidro temperado 8mm',price:'R$ 12.400,00'}],total:'R$ 12.400,00',status:'Aprovado',sentAt:'16:35'}},
+          {stage:5,time:'16:55',note:'Aprovado com urgência. Produção priorizada.'}
+        ] },
+      { id:'2326', date:'2026-04-28', status:'Finalizado', stage:5, lead:{name:'Pizzaria Forno de Pedra',company:'Sr. Ricardo',initials:'FP',tint:'#B0654A'}, attendant:'Clayton Dias',
+        startedAt:'19:00', endedAt:'19:50', durationMin:50, durationLabel:'50min', leadGapMin:40, leadGapLabel:'40min', firstResponseLabel:'6min 00s', msgsIn:6, msgsOut:5, csat:8.8,
+        tags:['Fachada','Comercial'], notes:'Fachada de vidro para nova unidade.',
+        timeline:[
+          {stage:1,time:'19:00',note:'Pede orçamento de fachada de vidro para nova unidade.'},
+          {stage:3,time:'19:30',note:'Orçamento nº 2326 enviado — R$ 18.900,00.', budget:{items:[{q:'22m²',label:'Fachada de vidro temperado',price:'R$ 18.900,00'}],total:'R$ 18.900,00',status:'Aprovado',sentAt:'19:30'}},
+          {stage:5,time:'19:50',note:'Aprovado. Início de produção na semana seguinte.'}
+        ] },
+      { id:'2325', date:'2026-04-10', status:'Finalizado', stage:5, lead:{name:'Serralheria Dois Irmãos',company:'Roberto · Revenda',initials:'SI',tint:'#2F8F86'}, attendant:'Jardel Souza',
+        startedAt:'16:30', endedAt:'17:20', durationMin:50, durationLabel:'50min', leadGapMin:30, leadGapLabel:'30min', firstResponseLabel:'2min 30s', msgsIn:7, msgsOut:6, csat:9.0,
+        tags:['Temperado','Revenda','Parceiro'], notes:'Parceiro frequente. Fatura mensal (boleto 15 dias).',
+        timeline:[
+          {stage:1,time:'16:30',note:'Pedido de 6 chapas de vidro temperado 10mm para portas.'},
+          {stage:2,time:'16:40',note:'Recebidas as medidas dos 6 vãos.'},
+          {stage:3,time:'16:55',note:'Orçamento nº 2325 enviado — R$ 7.800,00.', budget:{items:[{q:'6x',label:'Chapa temperado 10mm',price:'R$ 7.800,00'}],total:'R$ 7.800,00',status:'Aprovado',sentAt:'16:55'}},
+          {stage:5,time:'17:20',note:'Pedido fechado. Faturamento mensal como de costume.'}
+        ] },
+      { id:'2324', date:'2026-03-15', status:'Finalizado', stage:5, lead:{name:'Ana Paula Ferreira',company:'Cliente final',initials:'AP',tint:'#3E8FD0'}, attendant:'Nayara Melo',
+        startedAt:'10:40', endedAt:'11:15', durationMin:35, durationLabel:'35min', leadGapMin:18, leadGapLabel:'18min', firstResponseLabel:'1min 50s', msgsIn:6, msgsOut:5, csat:9.5,
+        tags:['Espelho','Bisotê'], notes:'Chegou pelo anúncio do Instagram.',
+        timeline:[
+          {stage:1,time:'10:40',note:'Pede espelho bisotê sob medida (1,20×0,80m) para a sala.'},
+          {stage:3,time:'10:55',note:'Orçamento nº 2324 enviado — R$ 890,00.', budget:{items:[{q:'1x',label:'Espelho bisotê 1,20×0,80m',price:'R$ 890,00'}],total:'R$ 890,00',status:'Aprovado',sentAt:'10:55'}},
+          {stage:5,time:'11:15',note:'Aprovado e pago via Pix. Instalação em 3 dias.'}
+        ] },
+      { id:'2323', date:'2026-02-20', status:'Finalizado', stage:6, lead:{name:'Studio Bella Vidros',company:'Interiores · Ana Cláudia',initials:'BV',tint:'#5566A8'}, attendant:'Eduarda Nunes',
+        startedAt:'11:20', endedAt:'12:40', durationMin:80, durationLabel:'1h 20min', leadGapMin:50, leadGapLabel:'50min', firstResponseLabel:'3min 20s', msgsIn:10, msgsOut:9, csat:9.6,
+        tags:['Espelho Decorativo','Pós-venda'], notes:'Cliente satisfeita, indicou 2 outros projetos.',
+        timeline:[
+          {stage:1,time:'11:20',note:'Primeira compra: espelhos decorativos para showroom.'},
+          {stage:3,time:'11:45',note:'Orçamento nº 2323 enviado — R$ 4.200,00.', budget:{items:[{q:'2x',label:'Espelho decorativo moldura bronze',price:'R$ 4.200,00'}],total:'R$ 4.200,00',status:'Aprovado',sentAt:'11:45'}},
+          {stage:5,time:'12:15',note:'Aprovado e instalado no mesmo dia.'},
+          {stage:6,time:'12:40',note:'Follow-up de satisfação enviado. Cliente aprovou o resultado.'}
+        ] }
+    ];
+    return this._recs;
+  }
+
+  buildRow(r){
+    return {
+      id:r.id, initials:r.lead.initials, name:r.lead.name, company:r.lead.company, attendant:r.attendant,
+      onClick:()=>this.setState({selectedId:r.id}),
+      rowStyle:{ display:'grid', gridTemplateColumns:this.GRID, gap:'12px', padding:'13px 22px', borderBottom:'1px solid #F4F7FB', alignItems:'center', cursor:'pointer' },
+      avatarStyle:{ width:'34px', height:'34px', borderRadius:'10px', background:r.lead.tint, color:'#fff', fontWeight:700, fontSize:'12.5px', display:'flex', alignItems:'center', justifyContent:'center', flex:'none' },
+      stagePill:this.pill(this.STAGE_TONE[r.stage-1]), stageLabel:this.STAGES[r.stage-1],
+      statusPill:this.pill(this.STATUS_TONE[r.status]), status:r.status,
+      inicio:this.dateLabel(r.date)+' · '+r.startedAt,
+      duration:r.durationLabel,
+      durationStyle:{ fontSize:'12.5px', fontWeight:600, textAlign:'center', color: r.status==='Em andamento'?'#1F74E0':(r.status!=='Finalizado'?'#B07A15':'#5A6B7B') },
+      gap:r.leadGapLabel,
+      gapStyle:{ fontSize:'12.5px', fontWeight:700, textAlign:'center', color: (r.leadGapMin!=null && r.leadGapMin>120)?'#C0392B':'#5A6B7B' },
+      csat: r.csat==null?'—':String(r.csat).replace('.',','),
+      csatStyle:{ fontSize:'12.5px', fontWeight:700, textAlign:'center', color: r.csat==null?'#B7C2CD':(r.csat>=9?'#17835A':(r.csat>=7?'#B07A15':'#C0392B')) }
+    };
+  }
+
+  buildDrawer(rec){
+    if(!rec) return null;
+    const S=this.STAGES, ST=this.STAGE_TONE;
+    const timeline=rec.timeline.map((t,i)=>{
+      const isLast=i===rec.timeline.length-1;
+      const special=t.kind==='transfer'||t.kind==='reopen';
+      const tone= t.kind==='reopen'?'danger':(t.kind==='transfer'?'gray':ST[t.stage-1]);
+      const hex=this.TONE_HEX[tone];
+      const label= t.kind==='transfer'?'Transferência':(t.kind==='reopen'?'Reaberto':S[t.stage-1]);
+      return {
+        dotStyle:{ width:'11px', height:'11px', borderRadius:'50%', background:hex, flex:'none', marginTop:'4px', boxShadow:'0 0 0 3px '+hex+'22' },
+        showLine:!isLast, label, time:t.time, note:t.note,
+        labelStyle:{ fontSize:'13px', fontWeight:800, color: special?'#5A6B7B':'#1B3248' }
+      };
+    });
+    const budgetEntry=rec.timeline.find(t=>t.budget);
+    const hasBudget=!!budgetEntry;
+    const totalMsgs=(rec.msgsIn||0)+(rec.msgsOut||0);
+    const outPct= totalMsgs ? Math.round(rec.msgsOut/totalMsgs*100) : 0;
+    const csatColor= rec.csat==null?'#B7C2CD':(rec.csat>=9?'#17835A':(rec.csat>=7?'#B07A15':'#C0392B'));
+    return {
+      id:rec.id, name:rec.lead.name, company:rec.lead.company, initials:rec.lead.initials,
+      avatarStyle:{ width:'46px', height:'46px', borderRadius:'14px', background:rec.lead.tint, color:'#fff', fontWeight:700, fontSize:'17px', display:'flex', alignItems:'center', justifyContent:'center', flex:'none' },
+      status:rec.status, statusPill:this.pill(this.STATUS_TONE[rec.status],'md'),
+      attendant:rec.attendant,
+      tags:(rec.tags||[]).map((t,i)=>({ label:t, style:this.pill(['sky','teal','indigo'][i%3],'md') })),
+      inicio:this.dateLabel(rec.date)+' · '+rec.startedAt,
+      termino: rec.endedAt ? (this.dateLabel(rec.date)+' · '+rec.endedAt) : (rec.status==='Em andamento'?'Em andamento':(rec.status==='Pendente'?'Aguardando resposta':'Reaberto — em aberto')),
+      terminoStyle:{ fontSize:'16px', fontWeight:800, marginTop:'5px', color: rec.endedAt?'#0F2438':(rec.status==='Em andamento'?'#1F74E0':(rec.status==='Pendente'?'#B07A15':'#C0392B')) },
+      duracao:rec.durationLabel,
+      gap:rec.leadGapLabel,
+      gapStyle:{ fontSize:'16px', fontWeight:800, marginTop:'5px', color: (rec.leadGapMin!=null && rec.leadGapMin>120)?'#C0392B':'#0F2438' },
+      timeline, hasBudget, noBudget:!hasBudget,
+      budgetItems: hasBudget?budgetEntry.budget.items:[],
+      budgetTotal: hasBudget?budgetEntry.budget.total:'',
+      budgetStatus: hasBudget?budgetEntry.budget.status:'',
+      budgetStatusPill: hasBudget?this.pill(budgetEntry.budget.status==='Aprovado'?'ok':(budgetEntry.budget.status==='Revisado'?'warn':'blue'),'md'):null,
+      budgetSentAt: hasBudget?budgetEntry.budget.sentAt:'',
+      tpr:rec.firstResponseLabel, msgsIn:rec.msgsIn, msgsOut:rec.msgsOut,
+      barOutStyle:{ width:outPct+'%', height:'100%', background:'#1F74E0', borderRadius:'5px' },
+      barInStyle:{ width:(100-outPct)+'%', height:'100%', background:'#5A6B7B', borderRadius:'5px' },
+      hasCsat: rec.csat!=null, noCsat: rec.csat==null,
+      csatVal: rec.csat!=null ? (String(rec.csat).replace('.',',')+' / 10') : '',
+      csatValStyle:{ fontSize:'22px', fontWeight:800, color:csatColor },
+      csatBarStyle:{ width:(rec.csat!=null?(rec.csat*10):0)+'%', height:'100%', background:csatColor, borderRadius:'6px' },
+      notes:rec.notes||'Sem notas internas.'
+    };
+  }
+
+  renderVals(){
+    const st=this.state;
+    const all=this.records();
+    const base=all.filter(r=>this.inPeriod(r.date,st.period,st.customFrom,st.customTo))
+                  .filter(r=> !st.search || (r.lead.name+' '+r.lead.company+' '+r.id).toLowerCase().includes(st.search.toLowerCase()));
+
+    const statusKeys=['Em andamento','Pendente','Reaberto','Finalizado'];
+    const statusCounts={}; statusKeys.forEach(k=>statusCounts[k]=0);
+    base.forEach(r=>{ statusCounts[r.status]=(statusCounts[r.status]||0)+1; });
+
+    let finalRecords=base;
+    if(st.statusFilter!=='todos') finalRecords=finalRecords.filter(r=>r.status===st.statusFilter);
+    if(st.stageFilter!=='todas') finalRecords=finalRecords.filter(r=>String(r.stage)===st.stageFilter);
+    if(st.attendantFilter!=='todos') finalRecords=finalRecords.filter(r=>r.attendant===st.attendantFilter);
+    finalRecords=finalRecords.slice().sort((a,b)=> (b.date+b.startedAt).localeCompare(a.date+a.startedAt));
+
+    const finalizados=finalRecords.filter(r=>r.status==='Finalizado');
+    const kpis=[
+      this.kpiCard('ri-customer-service-2-fill','#1F74E0','#EAF2FD','Total de atendimentos',this.fmtInt(finalRecords.length)),
+      this.kpiCard('ri-loader-4-line','#4C55B8','#E9EAFA','Em aberto agora',this.fmtInt(finalRecords.filter(r=>r.status!=='Finalizado').length)),
+      this.kpiCard('ri-checkbox-circle-fill','#17835A','#E2F4EC','Finalizados',this.fmtInt(finalizados.length)),
+      this.kpiCard('ri-timer-flash-line','#1F857E','#E0F2F1','TMA (tempo médio)',this.fmtMin(this.avg(finalizados.map(r=>r.durationMin)))),
+      this.kpiCard('ri-time-line','#B07A15','#FBEFD6','Maior espera média',this.fmtMin(this.avg(finalRecords.map(r=>r.leadGapMin)))),
+      this.kpiCard('ri-star-fill','#E0A61C','#FBF3DE','CSAT médio',(()=>{ const a=this.avg(finalRecords.map(r=>r.csat)); return a==null?'—':(a.toFixed(1).replace('.',',')+' / 10'); })())
+    ];
+
+    const distTotal=base.length;
+    const distSegs=statusKeys.filter(s=>statusCounts[s]>0).map(s=>({ style:{ width:this.pct(statusCounts[s],distTotal), background:this.TONE_HEX[this.STATUS_TONE[s]], height:'100%' }, title:s+': '+statusCounts[s] }));
+    const distLegend=statusKeys.filter(s=>statusCounts[s]>0).map(s=>({ label:s, count:statusCounts[s], dot:{ width:'8px', height:'8px', borderRadius:'50%', background:this.TONE_HEX[this.STATUS_TONE[s]], flex:'none' } }));
+
+    const statusPillDefs=[['todos','Todos',base.length],['Em andamento','Em andamento',statusCounts['Em andamento']],['Finalizado','Finalizado',statusCounts['Finalizado']],['Pendente','Pendente',statusCounts['Pendente']],['Reaberto','Reaberto',statusCounts['Reaberto']]];
+    const statusPills=statusPillDefs.map(([key,label,count])=>{ const active=st.statusFilter===key; return {
+      label,count, onClick:()=>this.setState({statusFilter:key}),
+      style:{ padding:'0 13px', height:'34px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', fontSize:'12px', fontWeight:700, cursor:'pointer', background:active?'#1F74E0':'#fff', color:active?'#fff':'#5A6B7B', whiteSpace:'nowrap' },
+      countStyle:{ fontSize:'10.5px', fontWeight:700, color:active?'rgba(255,255,255,.85)':'#A9B6C4', background:active?'rgba(255,255,255,.18)':'#F1F4F8', padding:'1px 6px', borderRadius:'20px' }
+    };});
+
+    const stageOptions=this.STAGES.map((s,i)=>({ value:String(i+1), label:s }));
+    const attendantOptions=this.ATTENDANTS.map(a=>({ value:a, label:a }));
+
+    const headerDefs=[['Cliente','left'],['Atendente','center'],['Etapa','center'],['Status','center'],['Início','center'],['Duração','center'],['Maior espera','center'],['CSAT','center']];
+    const headers=headerDefs.map(([label,align])=>({ label, style:{ fontSize:'11px', fontWeight:700, letterSpacing:'.05em', color:'#8A9BAD', textAlign:align, textTransform:'uppercase' } }));
+    const theadStyle={ display:'grid', gridTemplateColumns:this.GRID, gap:'12px', padding:'11px 22px', background:'#F7FAFD', borderBottom:'1px solid #EEF3F8' };
+
+    const rows=finalRecords.map(r=>this.buildRow(r));
+    const pLabel=this.PERIODS.find(p=>p[0]===st.period)[1];
+    const sel = st.selectedId ? all.find(r=>r.id===st.selectedId) : null;
+
+    const periods=this.PERIODS.map(([key,label])=>{ const active=st.period===key; return { label,
+      onClick:()=>this.setState({period:key}),
+      style:{ padding:'0 13px', height:'34px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, cursor:'pointer', background:active?'#1F74E0':'#fff', color:active?'#fff':'#5A6B7B', whiteSpace:'nowrap' }
+    };});
+
+    return {
+      periods, isCustom:st.period==='custom',
+      customFrom:st.customFrom, onCustomFrom:(e)=>this.setState({customFrom:e.target.value}),
+      customTo:st.customTo, onCustomTo:(e)=>this.setState({customTo:e.target.value}),
+      tabs:[{ label:'Atendimentos', icon:'ri-customer-service-2-fill', style:{ display:'inline-flex', alignItems:'center', gap:'7px', padding:'0 4px 12px', marginRight:'24px', fontSize:'13.5px', fontWeight:700, color:'#0F2438', cursor:'default', borderBottom:'2px solid #1F74E0' } }],
+      periodLabel:pLabel,
+      onExport:()=>this.showToast('Relatório de atendimentos exportado (CSV)'),
+      kpis, distTotal, distSegs, distLegend,
+      search:st.search, onSearch:(e)=>this.setState({search:e.target.value}),
+      statusPills,
+      stageFilter:st.stageFilter, onStageFilter:(e)=>this.setState({stageFilter:e.target.value}), stageOptions,
+      attendantFilter:st.attendantFilter, onAttendantFilter:(e)=>this.setState({attendantFilter:e.target.value}), attendantOptions,
+      headers, theadStyle, rows, rowsCount:rows.length, emptyState:rows.length===0,
+      drawerOpen:!!sel, dd:this.buildDrawer(sel), closeDrawer:()=>this.setState({selectedId:null}), stop:(e)=>e.stopPropagation(),
+      toast:st.toast
+    };
+  }
+}
+
+</script>
+</body>
+</html>

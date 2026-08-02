@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#6D4FD6;text-decoration:none}a:hover{color:#5A3FC0}
+input,textarea{font-family:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<dc-import name="Sidebar" active="admin" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden;position:relative">
+
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:18px 32px;display:flex;align-items:center;gap:16px">
+    <div style="width:44px;height:44px;border-radius:13px;background:linear-gradient(150deg,#7E63E0,#5A3FC0);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 8px 18px -6px rgba(90,63,192,.55)"><i class="ri-shield-keyhole-fill" style="font-size:23px;color:#fff"></i></div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:10px"><div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Administração</div><span style="font-size:10px;font-weight:800;letter-spacing:.1em;color:#6D4FD6;background:#EEEBFB;padding:3px 9px;border-radius:6px">ACESSO RESTRITO</span></div>
+      <div style="font-size:13px;color:#8A9BAD;margin-top:3px">Painel dos administradores do CRM · gestão do cliente, acessos e conteúdo</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:11px;background:#F0FBF4;border:1px solid #CDEBD8"><span style="width:9px;height:9px;border-radius:50%;background:#25B24F"></span><span style="font-size:12.5px;font-weight:700;color:#177A3E">Sistema operacional</span></div>
+  </div>
+
+  <div style="flex:1;overflow:hidden;display:flex">
+
+    <div style="width:266px;flex:none;border-right:1px solid #E7EDF4;background:#fff;padding:18px 14px;display:flex;flex-direction:column">
+      <sc-for list="{{ menu }}" as="m" hint-placeholder-count="5">
+        <div onClick="{{ m.onClick }}" style="{{ m.style }}"><i class="{{ m.icon }}" style="font-size:20px"></i><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700">{{ m.label }}</div><div style="{{ m.descStyle }}">{{ m.desc }}</div></div><sc-if value="{{ m.hasCount }}" hint-placeholder-val="{{ false }}"><span style="{{ m.countStyle }}">{{ m.count }}</span></sc-if></div>
+      </sc-for>
+      <div style="margin-top:auto;padding:14px 12px 4px;font-size:11px;color:#9AA9B8;line-height:1.7">
+        <div style="font-weight:700;color:#5A6B7B">Estrutural Vidros CRM</div>
+        <div>v2.4.1 · commit <span style="font-family:'JetBrains Mono',monospace">a3f9c21</span></div>
+        <div>Ambiente: Produção</div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;overflow-y:auto;padding:28px 36px 52px">
+      <div style="max-width:1180px">
+
+        <!-- ===== VISÃO GERAL ===== -->
+        <sc-if value="{{ isVisao }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:18px 20px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><div style="{{ s.iconWrap }}"><i class="{{ s.icon }}" style="{{ s.iconStyle }}"></i></div><span style="{{ s.trendStyle }}">{{ s.trend }}</span></div>
+                <div style="font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:14px">{{ s.value }}</div>
+                <div style="font-size:12.5px;color:#8A9BAD;font-weight:600;margin-top:2px">{{ s.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:start">
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><i class="ri-building-2-line" style="font-size:19px;color:#6D4FD6"></i><div style="font-size:15.5px;font-weight:800">Dados do cliente</div></div>
+                <sc-for list="{{ dados }}" as="d" hint-placeholder-count="6">
+                  <div style="{{ d.rowStyle }}"><div style="font-size:13px;color:#8A9BAD;font-weight:600">{{ d.label }}</div>
+                    <sc-if value="{{ d.isBadge }}" hint-placeholder-val="{{ false }}"><span style="{{ d.badgeStyle }}"><i class="{{ d.badgeIcon }}" style="font-size:14px"></i>{{ d.value }}</span></sc-if>
+                    <sc-if value="{{ d.isText }}" hint-placeholder-val="{{ true }}"><div style="{{ d.valStyle }}">{{ d.value }}</div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px"><i class="ri-terminal-box-line" style="font-size:19px;color:#6D4FD6"></i><div style="font-size:15.5px;font-weight:800">Ambiente</div></div><a href="#" style="font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px"><i class="ri-github-fill" style="font-size:16px"></i>Ver no GitHub</a></div>
+                <sc-for list="{{ ambiente }}" as="a" hint-placeholder-count="5">
+                  <div style="{{ a.rowStyle }}"><div style="font-size:13px;color:#8A9BAD;font-weight:600">{{ a.label }}</div><div style="{{ a.valStyle }}">{{ a.value }}</div></div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div style="display:flex;align-items:center;gap:10px"><i class="ri-plug-line" style="font-size:19px;color:#6D4FD6"></i><div style="font-size:15.5px;font-weight:800">Integrações</div></div><span style="font-size:12px;font-weight:700;color:#8A9BAD">{{ integActiveLabel }}</span></div>
+              <div style="font-size:12.5px;color:#9AA9B8;margin-bottom:12px">Ative ou desative os serviços conectados</div>
+              <sc-for list="{{ integrations }}" as="i" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid #F1F5FA">
+                  <div style="{{ i.iconWrap }}"><i class="{{ i.icon }}" style="{{ i.iconStyle }}"></i></div>
+                  <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:700">{{ i.name }}</div><div style="font-size:11.5px;color:#9AA9B8;margin-top:1px">{{ i.desc }}</div></div>
+                  <span style="{{ i.statusStyle }}">{{ i.statusLabel }}</span>
+                  <div onClick="{{ i.onToggle }}" style="{{ i.track }}"><div style="{{ i.knob }}"></div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== ACESSOS ===== -->
+        <sc-if value="{{ isAcessos }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div><div style="font-size:18px;font-weight:800;letter-spacing:-.01em">Acessos (logins)</div><div style="font-size:13px;color:#8A9BAD;margin-top:3px">{{ acessosCountLabel }}</div></div>
+            <button onClick="{{ onCreateAccess }}" style="height:42px;padding:0 18px;border-radius:11px;border:0;background:#6D4FD6;color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px" style-hover="background:#5A3FC0"><i class="ri-add-line" style="font-size:18px"></i>Criar acesso</button>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:2.4fr 1.3fr 1.2fr 1fr 3.2fr;gap:12px;padding:14px 22px;background:#F7FAFD;border-bottom:1px solid #E7EDF4;font-size:11px;font-weight:800;letter-spacing:.05em;color:#8A9BAD">
+              <div>USUÁRIO</div><div>CARGO</div><div>ÚLTIMO ACESSO</div><div>STATUS</div><div style="text-align:right">AÇÕES</div>
+            </div>
+            <sc-for list="{{ acessos }}" as="a" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:2.4fr 1.3fr 1.2fr 1fr 3.2fr;gap:12px;padding:15px 22px;border-bottom:1px solid #F1F5FA;align-items:center">
+                <div style="display:flex;align-items:center;gap:12px;min-width:0"><div style="{{ a.avatarStyle }}">{{ a.initials }}</div><div style="min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }}</div><div style="font-size:11.5px;color:#9AA9B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.email }}</div></div></div>
+                <div><span style="{{ a.roleStyle }}">{{ a.role }}</span></div>
+                <div style="font-size:12.5px;color:#5A6B7B;font-weight:600">{{ a.last }}</div>
+                <div><span style="{{ a.statusStyle }}"><span style="{{ a.statusDot }}"></span>{{ a.statusLabel }}</span></div>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:7px">
+                  <button onClick="{{ a.onImpersonate }}" style="height:34px;padding:0 12px;border-radius:9px;border:1px solid #DDD5F7;background:#F4F1FD;color:#5A3FC0;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px" style-hover="background:#EAE4FB"><i class="ri-login-box-line" style="font-size:15px"></i>Entrar como</button>
+                  <button onClick="{{ a.onTempPass }}" title="Nova senha temporária" style="width:34px;height:34px;border-radius:9px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" style-hover="background:#F4F7FB;color:#0F2438"><i class="ri-key-2-line" style="font-size:16px"></i></button>
+                  <button onClick="{{ a.onEdit }}" title="Editar nome" style="width:34px;height:34px;border-radius:9px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" style-hover="background:#F4F7FB;color:#0F2438"><i class="ri-pencil-line" style="font-size:16px"></i></button>
+                  <button onClick="{{ a.onDelete }}" title="Excluir" style="width:34px;height:34px;border-radius:9px;border:1px solid #F3D8D3;background:#fff;color:#D0402A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" style-hover="background:#FDF0EE"><i class="ri-delete-bin-6-line" style="font-size:16px"></i></button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== FEEDBACKS ===== -->
+        <sc-if value="{{ isFeedbacks }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div><div style="font-size:18px;font-weight:800;letter-spacing:-.01em">Feedbacks</div><div style="font-size:13px;color:#8A9BAD;margin-top:3px">Sugestões e erros enviados pelos usuários do sistema</div></div>
+            <div style="display:inline-flex;background:#EAEEF3;border-radius:11px;padding:4px;gap:3px">
+              <sc-for list="{{ fbFilters }}" as="f" hint-placeholder-count="3"><div onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</div></sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <sc-for list="{{ feedbacks }}" as="f" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px;display:flex;gap:18px">
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:12px">
+                    <div style="{{ f.avatarStyle }}">{{ f.initials }}</div>
+                    <div><div style="font-size:13.5px;font-weight:700">{{ f.name }}</div><div style="font-size:11.5px;color:#9AA9B8">{{ f.role }}</div></div>
+                    <span style="{{ f.typeStyle }}"><i class="{{ f.typeIcon }}" style="font-size:14px"></i>{{ f.type }}</span>
+                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#5A6B7B;background:#F1F5FA;border:1px solid #E7EDF4;padding:4px 10px;border-radius:7px"><i class="ri-window-line" style="font-size:14px"></i>{{ f.aba }}</span>
+                    <div style="margin-left:auto;font-size:12px;color:#9AA9B8;font-weight:600;display:flex;align-items:center;gap:5px"><i class="ri-time-line" style="font-size:14px"></i>{{ f.date }}</div>
+                  </div>
+                  <div style="font-size:14px;color:#33475B;line-height:1.6">{{ f.text }}</div>
+                </div>
+                <sc-if value="{{ f.hasMedia }}" hint-placeholder-val="{{ false }}">
+                  <div style="width:150px;flex:none;border-radius:12px;overflow:hidden;border:1px solid #E7EDF4;background:repeating-linear-gradient(135deg,#EEF3F8,#EEF3F8 9px,#E4EBF3 9px,#E4EBF3 18px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#8A9BAD">
+                    <i class="ri-image-2-line" style="font-size:26px"></i><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px">{{ f.mediaName }}</div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== NOVIDADES & EM BREVE ===== -->
+        <sc-if value="{{ isNovidades }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div><div style="font-size:18px;font-weight:800;letter-spacing:-.01em">Novidades &amp; Em Breve</div><div style="font-size:13px;color:#8A9BAD;margin-top:3px">Gerencie o que os usuários veem no painel de novidades</div></div>
+            <div style="display:inline-flex;background:#EAEEF3;border-radius:999px;padding:4px;gap:3px">
+              <sc-for list="{{ newsModes }}" as="t" hint-placeholder-count="2"><div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div></sc-for>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start">
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <!-- FORM -->
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+                <div style="font-size:15px;font-weight:800;margin-bottom:16px">{{ formTitle }}</div>
+                <div style="display:grid;grid-template-columns:1fr 190px;gap:14px;margin-bottom:14px">
+                  <div><div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">TÍTULO</div><input value="{{ novTitle }}" onChange="{{ onNovTitle }}" placeholder="{{ titlePlaceholder }}" style="width:100%;height:42px;border:1px solid #E1E8F0;border-radius:11px;padding:0 14px;font-size:14px;outline:none" style-focus="border-color:#6D4FD6"></div>
+                  <div><div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">DATA</div><input type="date" value="{{ novDate }}" onChange="{{ onNovDate }}" style="width:100%;height:42px;border:1px solid #E1E8F0;border-radius:11px;padding:0 14px;font-size:14px;color:#0F2438;outline:none" style-focus="border-color:#6D4FD6"></div>
+                </div>
+                <sc-if value="{{ isEmBreveMode }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin-bottom:14px"><div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">STATUS</div>
+                    <div style="display:flex;gap:10px"><sc-for list="{{ statusOpts }}" as="s" hint-placeholder-count="2"><div onClick="{{ s.onClick }}" style="{{ s.style }}">{{ s.label }}</div></sc-for></div>
+                  </div>
+                </sc-if>
+                <div style="margin-bottom:16px"><div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">DESCRIÇÃO</div><textarea value="{{ novDesc }}" onChange="{{ onNovDesc }}" placeholder="Descreva a novidade para os usuários…" style="width:100%;height:96px;border:1px solid #E1E8F0;border-radius:11px;padding:12px 14px;font-size:14px;line-height:1.5;resize:none;outline:none" style-focus="border-color:#6D4FD6"></textarea></div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="font-size:12px;color:#9AA9B8;display:flex;align-items:center;gap:6px"><i class="ri-eye-line" style="font-size:15px"></i>Ao lançar, aparece para todos os usuários</div>
+                  <button onClick="{{ onLaunch }}" style="height:42px;padding:0 20px;border-radius:11px;border:0;background:#6D4FD6;color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px" style-hover="background:#5A3FC0"><i class="ri-rocket-2-line" style="font-size:17px"></i>{{ launchLabel }}</button>
+                </div>
+              </div>
+
+              <!-- PUBLISHED LIST -->
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:12px 22px 8px">
+                <div style="font-size:13px;font-weight:800;letter-spacing:.03em;color:#5A6B7B;padding:12px 0 6px">{{ publishedLabel }}</div>
+                <sc-for list="{{ published }}" as="p" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-top:1px solid #F1F5FA">
+                    <div style="flex:1;min-width:0">
+                      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><sc-if value="{{ p.badge }}" hint-placeholder-val="{{ false }}"><span style="{{ p.badgeStyle }}">{{ p.badgeLabel }}</span></sc-if><span style="font-size:14px;font-weight:700">{{ p.title }}</span></div>
+                      <div style="font-size:12.5px;color:#8A9BAD;line-height:1.5">{{ p.desc }}</div>
+                      <div style="font-size:11px;color:#AEBBC8;font-weight:600;margin-top:5px">{{ p.date }}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex:none">
+                      <button onClick="{{ p.onEdit }}" title="Editar" style="width:32px;height:32px;border-radius:8px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" style-hover="background:#F4F7FB;color:#0F2438"><i class="ri-pencil-line" style="font-size:15px"></i></button>
+                      <button onClick="{{ p.onDelete }}" title="Excluir" style="width:32px;height:32px;border-radius:8px;border:1px solid #F3D8D3;background:#fff;color:#D0402A;cursor:pointer;display:inline-flex;align-items:center;justify-content:center" style-hover="background:#FDF0EE"><i class="ri-delete-bin-6-line" style="font-size:15px"></i></button>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- PREVIEW -->
+            <div style="position:sticky;top:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:800;letter-spacing:.05em;color:#8A9BAD"><i class="ri-eye-line" style="font-size:16px"></i>PRÉVIA DO USUÁRIO</div>
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:18px;overflow:hidden;box-shadow:0 20px 50px -30px rgba(12,42,67,.4)">
+                <div style="background:#F4F6F8;padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px">
+                  <div style="display:inline-flex;background:#E4E7EC;border-radius:999px;padding:4px;gap:2px"><div style="padding:7px 20px;border-radius:999px;font-size:12px;font-weight:700;background:#0C2A43;color:#fff">{{ previewTab }}</div></div>
+                  <div style="background:#fff;border-radius:10px;padding:9px 18px;font-size:12px;font-weight:600;color:#33475B;text-align:center;box-shadow:0 2px 8px -3px rgba(12,42,67,.1)">{{ previewSubtitle }}</div>
+                </div>
+                <div style="padding:18px 20px;max-height:520px;overflow-y:auto">
+                  <sc-if value="{{ isNovidadesMode }}" hint-placeholder-val="{{ true }}">
+                    <sc-for list="{{ published }}" as="p" hint-placeholder-count="3">
+                      <div style="padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #EEF3F8">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><sc-if value="{{ p.badge }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-weight:800;color:#fff;background:#17835A;padding:2px 7px;border-radius:5px">NOVO</span></sc-if><span style="font-size:13.5px;font-weight:700;color:#0F2438">{{ p.title }}</span></div>
+                        <div style="font-size:12px;color:#5A6B7B;line-height:1.55">{{ p.desc }}</div>
+                      </div>
+                    </sc-for>
+                  </sc-if>
+                  <sc-if value="{{ isEmBreveMode }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                      <sc-for list="{{ published }}" as="p" hint-placeholder-count="3">
+                        <div style="padding:14px;border:1px solid #E7EDF4;border-radius:12px;background:#FBFCFE">
+                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="width:32px;height:32px;border-radius:9px;background:#EAF2FD;display:flex;align-items:center;justify-content:center"><i class="ri-flashlight-line" style="font-size:16px;color:#1F74E0"></i></div><span style="{{ p.embreveBadge }}">{{ p.status }}</span></div>
+                          <div style="font-size:13.5px;font-weight:800;color:#0F2438">{{ p.title }}</div>
+                          <div style="font-size:12px;color:#5A6B7B;line-height:1.5;margin-top:3px">{{ p.desc }}</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== TUTORIAIS & DOCUMENTAÇÃO ===== -->
+        <sc-if value="{{ isTutoriais }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-bottom:18px"><div style="font-size:18px;font-weight:800;letter-spacing:-.01em">Tutoriais &amp; Documentação</div><div style="font-size:13px;color:#8A9BAD;margin-top:3px">Envie uma imagem-tutorial para cada área do sistema</div></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+            <sc-for list="{{ tuts }}" as="t" hint-placeholder-count="8">
+              <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;overflow:hidden;display:flex;flex-direction:column">
+                <label style="cursor:pointer;display:block;position:relative">
+                  <input type="file" accept="image/*" onChange="{{ t.onPick }}" style="display:none">
+                  <sc-if value="{{ t.hasImg }}" hint-placeholder-val="{{ false }}">
+                    <div style="height:132px;background-size:cover;background-position:center;position:relative;background-image:{{ t.bgImage }}"><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(12,42,67,.35),transparent 55%)"></div><div style="position:absolute;bottom:8px;right:8px;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#fff;background:rgba(12,42,67,.6);padding:4px 9px;border-radius:7px"><i class="ri-refresh-line" style="font-size:13px"></i>Trocar</div></div>
+                  </sc-if>
+                  <sc-if value="{{ t.noImg }}" hint-placeholder-val="{{ true }}">
+                    <div style="height:132px;background:repeating-linear-gradient(135deg,#F5F8FC,#F5F8FC 10px,#EEF3F9 10px,#EEF3F9 20px);border-bottom:1px dashed #D4DEEA;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#9AA9B8" style-hover="background:#F0F5FB;color:#6D4FD6"><i class="ri-upload-cloud-2-line" style="font-size:26px"></i><div style="font-size:11.5px;font-weight:700">Enviar imagem</div></div>
+                  </sc-if>
+                </label>
+                <div style="padding:13px 15px;display:flex;align-items:center;gap:9px"><i class="{{ t.icon }}" style="font-size:18px;color:#6D4FD6"></i><div style="font-size:13.5px;font-weight:700">{{ t.name }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:linear-gradient(135deg,#6D4FD6,#5233B0);border-radius:18px;padding:26px 28px;color:#fff;box-shadow:0 24px 50px -26px rgba(90,63,192,.6)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-file-text-line" style="font-size:22px"></i></div><div><div style="font-size:17px;font-weight:800">Documentação Manual</div><div style="font-size:13px;color:#DAD2F4;margin-top:2px">Anexe o PDF do manual e escreva uma orientação para a equipe</div></div></div>
+            <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-top:18px">
+              <label style="cursor:pointer;display:block">
+                <input type="file" accept="application/pdf" onChange="{{ onPickDoc }}" style="display:none">
+                <sc-if value="{{ hasDoc }}" hint-placeholder-val="{{ false }}">
+                  <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:22px;display:flex;align-items:center;gap:13px"><div style="width:44px;height:44px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-file-pdf-2-fill" style="font-size:24px;color:#D0402A"></i></div><div style="min-width:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ docName }}</div><div style="font-size:11.5px;color:#DAD2F4;margin-top:2px">PDF anexado · toque para trocar</div></div></div>
+                </sc-if>
+                <sc-if value="{{ noDoc }}" hint-placeholder-val="{{ true }}">
+                  <div style="background:rgba(255,255,255,.08);border:1.5px dashed rgba(255,255,255,.4);border-radius:14px;padding:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:120px" style-hover="background:rgba(255,255,255,.14)"><i class="ri-upload-cloud-2-line" style="font-size:30px"></i><div style="font-size:13px;font-weight:700">Enviar PDF do manual</div><div style="font-size:11px;color:#DAD2F4">Arraste ou clique para selecionar</div></div>
+                </sc-if>
+              </label>
+              <textarea value="{{ docText }}" onChange="{{ onDocText }}" placeholder="Escreva uma orientação, changelog ou instruções complementares…" style="width:100%;min-height:120px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:16px;font-size:14px;line-height:1.55;color:#fff;resize:none;outline:none" style-focus="border-color:#fff"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px"><button onClick="{{ onSaveDoc }}" style="height:42px;padding:0 20px;border-radius:11px;border:0;background:#fff;color:#5A3FC0;font-size:13.5px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:8px" style-hover="background:#F0ECFB"><i class="ri-save-3-line" style="font-size:17px"></i>Salvar documentação</button></div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;background:#0F2438;color:#fff;padding:12px 18px;border-radius:12px;box-shadow:0 20px 50px -18px rgba(0,0,0,.5);font-size:13.5px;font-weight:600"><i class="ri-checkbox-circle-fill" style="font-size:18px;color:#9F86F0"></i>{{ toast }}</div>
+  </sc-if>
+
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = {
+    section:'visao', newsMode:'novidades', fbFilter:'todos', embreveStatus:'Em desenvolvimento',
+    integ:{ n8n:true, whatsapp:true, medware:true, meta:false, gcal:false, email:true },
+    tutImgs:{}, docName:null, docText:'', toast:null,
+    novTitle:'', novDesc:'', novDate:'2026-07-26'
+  };
+
+  showToast(m){ this.setState({toast:m}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2400); }
+  sw(on){ return {
+    track:`width:40px;height:23px;border-radius:20px;background:${on?'#6D4FD6':'#D8E1EA'};position:relative;cursor:pointer;flex:none;transition:background .15s`,
+    knob:`width:19px;height:19px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${on?'19px':'2px'};box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s`
+  };}
+
+  INTEG=[
+    ['n8n','N8N','Motor de automação e workflows','ri-flow-chart'],
+    ['whatsapp','WhatsApp Oficial','API oficial de mensagens','ri-whatsapp-line'],
+    ['medware','Medware','ERP · provider externo','ri-database-2-line'],
+    ['meta','Meta Cloud API','Envio direto via Meta','ri-cloud-line'],
+    ['gcal','Google Calendar','Sincronização de agenda','ri-calendar-line'],
+    ['email','SMTP / E-mail','E-mails transacionais','ri-mail-send-line']
+  ];
+
+  ACESSOS=[
+    ['JS','Jardel Souza','jardel@estruturalvidros.com.br','Gestor','há 5 min','ativo','#2C6BB8'],
+    ['AB','Ana Beatriz','ana@estruturalvidros.com.br','Subgestora','há 2 horas','ativo','#2C6BB8'],
+    ['DA','Daiane Alves','daiane@estruturalvidros.com.br','Atendente','ontem, 18:40','ativo','#2F8F86'],
+    ['RL','Rafael Lima','rafael@estruturalvidros.com.br','Atendente','há 3 dias','inativo','#8A6BB8']
+  ];
+
+  FEEDBACKS=[
+    ['AB','Ana Beatriz','Subgestora','#2C6BB8','sugestao','Atendimentos','25/07/2026 09:12','Seria ótimo poder fixar um atendimento no topo da fila enquanto aguardo o retorno do cliente. Hoje ele se perde no meio dos outros.',false,''],
+    ['DA','Daiane Alves','Atendente','#2F8F86','erro','Agenda de Contatos','22/07/2026 15:47','A busca por telefone não encontra o contato quando digito com o 9 na frente. Segue print do que aparece na tela.',true,'busca-agenda.png'],
+    ['RL','Rafael Lima','Atendente','#8A6BB8','sugestao','Nenhuma aba específica','20/07/2026 11:03','Poderiam adicionar um atalho de teclado para trocar rápido entre as conversas? Ajudaria muito no dia a dia.',false,'']
+  ];
+
+  TUTS=[
+    ['atend','Atendimentos','ri-customer-service-2-line'],
+    ['dash','Dashboard','ri-line-chart-line'],
+    ['agenda','Agenda de Contatos','ri-contacts-line'],
+    ['tags','Tags','ri-price-tag-3-line'],
+    ['rapidas','Mensagens Rápidas','ri-chat-1-line'],
+    ['arquivos','Banco de Arquivos','ri-archive-2-line'],
+    ['programadas','Mensagens Programadas','ri-calendar-schedule-line'],
+    ['lembretes','Lembretes','ri-notification-3-line'],
+    ['equipe','Equipe','ri-team-line'],
+    ['automacao','Automação','ri-robot-2-line'],
+    ['horarios','Horários','ri-alarm-line'],
+    ['relatorios','Relatórios','ri-bar-chart-box-line']
+  ];
+
+  NOVIDADES=[
+    ['Mensagens Programadas','Agende mensagens para envio automático em uma data e hora específicas, direto pelo chat de atendimento.','22/07/2026',true],
+    ['Múltiplos anexos no orçamento','Anexe várias fotos e arquivos de uma vez ao montar o orçamento do lead.','22/07/2026',true],
+    ['Banco de Arquivos reorganizado','Pastas, busca e envio direto de arquivos para o lead durante o atendimento.','13/07/2026',false],
+    ['Tags personalizadas','Crie e organize tags coloridas para classificar e filtrar seus leads.','30/06/2026',false]
+  ];
+
+  EMBREVE=[
+    ['Campanhas em Massa','Crie campanhas segmentadas e envie mensagens em massa via WhatsApp.','Em desenvolvimento','warn'],
+    ['Automação com IA Generativa','Respostas automáticas treinadas com o histórico de atendimentos.','Em desenvolvimento','warn'],
+    ['Relatórios Avançados','Metas por atendente, funis comparativos e exportação em PDF.','Planejado','sky'],
+    ['Aplicativo Mobile','Atenda leads e acompanhe métricas direto do celular.','Planejado','sky']
+  ];
+
+  onPickTut(id,e){ const f=e.target.files&&e.target.files[0]; if(!f)return; const url=URL.createObjectURL(f); this.setState(s=>({tutImgs:{...s.tutImgs,[id]:url}})); this.showToast('Imagem enviada'); }
+  onPickDoc(e){ const f=e.target.files&&e.target.files[0]; if(!f)return; this.setState({docName:f.name}); this.showToast('PDF anexado'); }
+
+  renderVals(){
+    const S=this.state;
+    const menuDef=[
+      ['visao','ri-dashboard-line','Visão geral','Status, integrações e cliente',null],
+      ['acessos','ri-key-2-line','Acessos','Gerenciar logins',String(this.ACESSOS.length)],
+      ['feedbacks','ri-feedback-line','Feedbacks','Sugestões e erros',String(this.FEEDBACKS.length)],
+      ['novidades','ri-sparkling-2-line','Novidades & Em Breve','Gerenciar lançamentos',null],
+      ['tutoriais','ri-book-open-line','Tutoriais & Documentação','Imagens e manual',null]
+    ];
+    const menu=menuDef.map(([key,icon,label,desc,count])=>{ const active=S.section===key; return { icon,label,desc,
+      hasCount:!!count, count,
+      countStyle:`min-width:22px;height:22px;padding:0 7px;border-radius:20px;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;background:${active?'#6D4FD6':'#EAEEF3'};color:${active?'#fff':'#8A9BAD'}`,
+      onClick:()=>this.setState({section:key}),
+      style:`display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:12px;cursor:pointer;margin-bottom:3px;color:${active?'#5A3FC0':'#5A6B7B'};background:${active?'#EEEBFB':'transparent'};border:1px solid ${active?'#DDD5F7':'transparent'}`,
+      descStyle:`font-size:11.5px;margin-top:1px;font-weight:500;color:${active?'#8A72DE':'#9AA9B8'}`
+    };});
+
+    // VISÃO GERAL
+    const stats=[
+      ['ri-group-line','Acessos ativos','3','#6D4FD6','#EEEBFB','de 4 logins','#6D4FD6','#EEEBFB'],
+      ['ri-login-circle-line','Acessos (30 dias)','128','#1F74E0','#EAF2FD','+12%','#177A3E','#E6F5EC'],
+      ['ri-pulse-line','Uptime','99,9%','#1F857E','#E0F2F1','30 dias','#177A3E','#E6F5EC'],
+      ['ri-feedback-line','Feedbacks abertos','3','#B07A15','#FBEFD6','2 erros','#B0521A','#FBEAD9']
+    ].map(([icon,label,value,tint,bg,trend,tc,tbg])=>({ icon,label,value,
+      iconWrap:`width:40px;height:40px;border-radius:11px;background:${bg};display:flex;align-items:center;justify-content:center`,
+      iconStyle:`font-size:21px;color:${tint}`, trend,
+      trendStyle:`font-size:11px;font-weight:800;color:${tc};background:${tbg};padding:3px 9px;border-radius:20px`
+    }));
+
+    const okBadge=`display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:#177A3E;background:#E6F5EC;padding:4px 11px;border-radius:8px`;
+    const dadosDef=[
+      ['Nome','Estrutural Vidros','text'],
+      ['Slug','estrutural-vidros','mono'],
+      ['Nicho','Vidraçaria · Esquadrias','text'],
+      ['Provider Externo','Medware','text'],
+      ['Automação configurada','Sim','badge'],
+      ['WhatsApp configurado','Sim','badge']
+    ];
+    const dados=dadosDef.map(([label,value,kind],i)=>({ label,value,
+      isBadge:kind==='badge', isText:kind!=='badge', badgeIcon:'ri-checkbox-circle-fill', badgeStyle:okBadge,
+      valStyle:`font-size:13.5px;font-weight:700;color:#0F2438;text-align:right${kind==='mono'?";font-family:'JetBrains Mono',monospace;font-size:12.5px":''}`,
+      rowStyle:`display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0${i<dadosDef.length-1?';border-bottom:1px solid #F1F5FA':''}`
+    }));
+
+    const ambDef=[
+      ['Ambiente','Produção','text'],['Inicializado em','12/03/2025','text'],
+      ['Última atualização','25/07/2026 · 14:32','text'],['Versão atual','v2.4.1','text'],['Commit (GitHub)','a3f9c21','mono']
+    ];
+    const ambiente=ambDef.map(([label,value,kind],i)=>({ label,value,
+      valStyle:`font-size:13.5px;font-weight:700;color:#0F2438;text-align:right${kind==='mono'?";font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6D4FD6":''}`,
+      rowStyle:`display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0${i<ambDef.length-1?';border-bottom:1px solid #F1F5FA':''}`
+    }));
+
+    const integrations=this.INTEG.map(([key,name,desc,icon])=>{ const on=S.integ[key]; const sw=this.sw(on); return {
+      name,desc,icon, track:sw.track, knob:sw.knob,
+      onToggle:()=>this.setState(st=>({integ:{...st.integ,[key]:!st.integ[key]}})),
+      iconWrap:`width:38px;height:38px;border-radius:11px;background:${on?'#EEEBFB':'#F1F5FA'};display:flex;align-items:center;justify-content:center;flex:none`,
+      iconStyle:`font-size:19px;color:${on?'#6D4FD6':'#AEBBC8'}`,
+      statusLabel:on?'Ativo':'Desativado',
+      statusStyle:`font-size:11px;font-weight:800;letter-spacing:.03em;color:${on?'#177A3E':'#98A6B4'};background:${on?'#E6F5EC':'#F1F5FA'};padding:3px 9px;border-radius:20px`
+    };});
+    const integActiveLabel=`${Object.values(S.integ).filter(Boolean).length}/${this.INTEG.length} ativas`;
+
+    // ACESSOS
+    const roleStyleMap={ 'Gestor':['#1560C4','#E4EEFC'], 'Subgestora':['#1F857E','#E0F2F1'], 'Atendente':['#5A6B7B','#EDF1F6'] };
+    const acessos=this.ACESSOS.map(([initials,name,email,role,last,status,tint])=>{ const [rc,rbg]=roleStyleMap[role]||roleStyleMap['Atendente']; const active=status==='ativo'; return {
+      initials,name,email,role,last,
+      avatarStyle:`width:38px;height:38px;border-radius:11px;background:${tint};color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none`,
+      roleStyle:`font-size:11.5px;font-weight:700;color:${rc};background:${rbg};padding:4px 11px;border-radius:8px`,
+      statusLabel:active?'Ativo':'Inativo',
+      statusStyle:`display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:${active?'#177A3E':'#98A6B4'}`,
+      statusDot:`width:8px;height:8px;border-radius:50%;background:${active?'#25B24F':'#B5C1CD'}`,
+      onImpersonate:()=>this.showToast('Entrando como '+name+'…'),
+      onTempPass:()=>this.showToast('Senha temporária gerada para '+name),
+      onEdit:()=>this.showToast('Editar nome de '+name),
+      onDelete:()=>this.showToast('Acesso de '+name+' removido')
+    };});
+
+    // FEEDBACKS
+    const fbFilterDef=[['todos','Todos'],['sugestao','Sugestões'],['erro','Erros']];
+    const fbFilters=fbFilterDef.map(([key,label])=>{ const active=S.fbFilter===key; return { label,
+      onClick:()=>this.setState({fbFilter:key}),
+      style:`padding:7px 16px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:${active?'#5A3FC0':'#7A8896'};background:${active?'#fff':'transparent'};box-shadow:${active?'0 1px 4px -1px rgba(12,42,67,.15)':'none'}`
+    };});
+    const feedbacks=this.FEEDBACKS.filter(f=>S.fbFilter==='todos'||f[4]===S.fbFilter).map(([initials,name,role,tint,type,aba,date,text,hasMedia,mediaName])=>{
+      const isErr=type==='erro';
+      return { initials,name,role,aba,date,text,hasMedia,mediaName,
+        avatarStyle:`width:36px;height:36px;border-radius:10px;background:${tint};color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex:none`,
+        type:isErr?'Erro':'Sugestão', typeIcon:isErr?'ri-error-warning-fill':'ri-lightbulb-flash-fill',
+        typeStyle:`display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800;color:${isErr?'#D0402A':'#1560C4'};background:${isErr?'#FDECE9':'#E4EEFC'};padding:4px 10px;border-radius:7px`
+      };
+    });
+
+    // NOVIDADES
+    const isNov=S.newsMode==='novidades';
+    const newsModes=[['novidades','Novidades'],['embreve','Em Breve']].map(([key,label])=>{ const active=S.newsMode===key; return { label,
+      onClick:()=>this.setState({newsMode:key}),
+      style:`padding:9px 24px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;color:${active?'#fff':'#7A8896'};background:${active?'#6D4FD6':'transparent'}`
+    };});
+    const statusDefOpts=[['Em desenvolvimento','warn'],['Planejado','sky']].map(([label])=>{ const sel=S.embreveStatus===label; return { label,
+      onClick:()=>this.setState({embreveStatus:label}),
+      style:`flex:1;display:inline-flex;align-items:center;justify-content:center;height:42px;border-radius:11px;cursor:pointer;font-size:13px;font-weight:700;border:1.5px solid ${sel?'#6D4FD6':'#E7EDF4'};background:${sel?'#EEEBFB':'#fff'};color:${sel?'#5A3FC0':'#5A6B7B'}`
+    };});
+    const TONE={ warn:['#FBEFD6','#B07A15'], sky:['#E7F1FC','#2E77C2'] };
+    let published;
+    if(isNov){
+      published=this.NOVIDADES.map(([title,desc,date,badge])=>({ title,desc,date:'Publicado em '+date, badge, badgeLabel:'NOVO',
+        badgeStyle:'font-size:9.5px;font-weight:800;letter-spacing:.03em;color:#fff;background:#17835A;padding:2px 8px;border-radius:5px',
+        onEdit:()=>this.showToast('Editando "'+title+'"'), onDelete:()=>this.showToast('"'+title+'" removida')
+      }));
+    } else {
+      published=this.EMBREVE.map(([title,desc,status,tone])=>{ const [bg,fg]=TONE[tone]; return { title,desc,status,badge:false,
+        embreveBadge:`font-size:10px;font-weight:800;color:${fg};background:${bg};padding:3px 9px;border-radius:20px`,
+        date:'Status: '+status, onEdit:()=>this.showToast('Editando "'+title+'"'), onDelete:()=>this.showToast('"'+title+'" removido')
+      }});
+    }
+
+    // TUTORIAIS
+    const tuts=this.TUTS.map(([id,name,icon])=>{ const url=S.tutImgs[id]; return { id,name,icon,
+      hasImg:!!url, noImg:!url, bgImage:url?`url("${url}")`:'none',
+      onPick:(e)=>this.onPickTut(id,e)
+    };});
+
+    return {
+      menu,
+      isVisao:S.section==='visao', isAcessos:S.section==='acessos', isFeedbacks:S.section==='feedbacks', isNovidades:S.section==='novidades', isTutoriais:S.section==='tutoriais',
+      stats, dados, ambiente, integrations, integActiveLabel,
+      acessos, acessosCountLabel:`${this.ACESSOS.length} logins · 3 ativos`, onCreateAccess:()=>this.showToast('Novo acesso criado'),
+      fbFilters, feedbacks,
+      newsModes, isNovidadesMode:isNov, isEmBreveMode:!isNov, statusOpts:statusDefOpts, published,
+      formTitle:isNov?'Lançar nova novidade':'Adicionar item "Em Breve"',
+      titlePlaceholder:isNov?'Ex.: Filtro por atendente':'Ex.: Campanhas em massa',
+      launchLabel:isNov?'Lançar novidade':'Adicionar',
+      publishedLabel:isNov?'NOVIDADES PUBLICADAS':'ITENS EM BREVE',
+      previewTab:isNov?'Novidades':'Em breve', previewSubtitle:isNov?'Conheça as principais novidades em nossa plataforma!':'Confira o que vem por aí na plataforma!',
+      novTitle:S.novTitle, onNovTitle:(e)=>this.setState({novTitle:e.target.value}),
+      novDesc:S.novDesc, onNovDesc:(e)=>this.setState({novDesc:e.target.value}),
+      novDate:S.novDate, onNovDate:(e)=>this.setState({novDate:e.target.value}),
+      onLaunch:()=>this.showToast(isNov?'Novidade lançada para todos os usuários':'Item "Em Breve" adicionado'),
+      tuts, hasDoc:!!S.docName, noDoc:!S.docName, docName:S.docName, onPickDoc:(e)=>this.onPickDoc(e),
+      docText:S.docText, onDocText:(e)=>this.setState({docText:e.target.value}), onSaveDoc:()=>this.showToast('Documentação salva'),
+      toast:S.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

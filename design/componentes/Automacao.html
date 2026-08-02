@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#0C2A43">
+  <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="120" fill="#0C2A43"/>
+    <g transform="translate(30,30) rotate(45)"><rect width="24" height="24" rx="4" fill="#fff"/></g>
+    <circle cx="78" cy="60" r="16" fill="#4C55B8"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#1F74E0;text-decoration:none}a:hover{color:#1560C4}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#AEC0D4;background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+textarea,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<!-- ===================== NAV ===================== -->
+<dc-import name="Sidebar" active="automacao" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<!-- ===================== CONTEÚDO ===================== -->
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden">
+
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:22px 36px 0">
+    <div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Automação</div>
+    <div style="font-size:13px;color:#8A9BAD;margin-top:4px">{{ subtitle }}</div>
+    <div style="display:flex;gap:2px;margin-top:18px">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:28px 36px 48px">
+    <div style="max-width:1320px">
+
+      <!-- ===================== FOLLOW-UP ===================== -->
+      <sc-if value="{{ isFollowup }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:28px;align-items:flex-start">
+          <div style="flex:1;min-width:0;max-width:720px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12.5px;font-weight:700;color:#5A6B7B">{{ fuCount }} follow-ups</span>
+              <button onClick="{{ onAddFu }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #CFE1FA;background:#EAF3FD;color:#1F74E0;font-size:12.5px;font-weight:700;cursor:pointer" style-hover="background:#DDEBFC"><i class="ri-add-line" style="font-size:15px"></i>Novo follow-up</button>
+            </div>
+            <sc-for list="{{ fuCards }}" as="c" hint-placeholder-count="3">
+              <div style="{{ c.cardStyle }}">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="{{ c.badgeStyle }}"><i class="ri-time-line"></i>{{ c.gatilhoLabel }}</span>
+                  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+                    <span style="{{ c.activeLabelStyle }}">{{ c.activeLabel }}</span>
+                    <div onClick="{{ c.onToggleActive }}" style="{{ c.trackCss }}"><div style="{{ c.knobCss }}"></div></div>
+                    <button onClick="{{ c.onDelete }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EEF3F8;background:#fff;color:#B9C6D3;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" style-hover="background:#FBEBEA;color:#D8493A;border-color:#F3D3CF"><i class="ri-delete-bin-line"></i></button>
+                  </div>
+                </div>
+                <div style="margin-top:18px">
+                  <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD">TEMPO SEM RESPOSTA PARA ENVIAR</div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                    <input type="number" min="1" value="{{ c.value }}" onChange="{{ c.onValueChange }}" onFocus="{{ c.onFocus }}" style="width:80px;height:36px;border:1px solid #E1E8F0;border-radius:9px;padding:0 10px;font-size:13.5px;font-weight:700;text-align:center;outline:none;color:#0F2438" style-focus="border-color:#1F74E0">
+                    <div style="display:inline-flex;border:1px solid #E1E8F0;border-radius:9px;overflow:hidden">
+                      <div onClick="{{ c.onUnitHoras }}" style="{{ c.unitHorasStyle }}">Horas</div>
+                      <div onClick="{{ c.onUnitDias }}" style="{{ c.unitDiasStyle }}">Dias</div>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:16px">
+                  <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">MENSAGEM</div>
+                  <textarea value="{{ c.texto }}" onChange="{{ c.onTextoChange }}" onFocus="{{ c.onFocus }}" rows="3" style="width:100%;border:1px solid #E1E8F0;border-radius:11px;padding:11px 13px;font-size:13.5px;line-height:1.55;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+                  <div style="font-size:11px;color:#9AA9B8;margin-top:6px">Use <b>{nome}</b> para inserir o nome do cliente automaticamente.</div>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ fuEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:24px 16px;text-align:center;color:#9AA9B8;font-size:12.5px;border:1px dashed #D3DEEA;border-radius:12px">Nenhum follow-up cadastrado.</div>
+            </sc-if>
+          </div>
+
+          <div style="width:380px;flex:none;position:sticky;top:0">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#8A9BAD;margin-bottom:12px;text-align:center">VISUALIZAÇÃO NO WHATSAPP</div>
+            <div style="display:flex;justify-content:center">
+              <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 360 }}" height="{{ 585 }}" dark="{{ true }}" hint-size="360px,585px">
+                <div style="display:flex;flex-direction:column;height:100%;background:#E9DFD3">
+                  <div style="background:#005C4B;padding:56px 14px 12px;display:flex;align-items:center;gap:10px;flex:none">
+                    <i class="ri-arrow-left-line" style="color:#fff;font-size:20px"></i>
+                    <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#3B86E6,#1657B8);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">EV</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="color:#fff;font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Estrutural Vidros</div>
+                      <div style="color:#CDEFE4;font-size:11.5px;margin-top:1px">online</div>
+                    </div>
+                    <i class="ri-phone-fill" style="color:#fff;font-size:15px"></i>
+                    <i class="ri-more-2-fill" style="color:#fff;font-size:18px"></i>
+                  </div>
+                  <div style="flex:1;overflow:hidden;padding:14px 10px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
+                    <div style="text-align:center"><span style="font-size:10.5px;font-weight:600;color:#6B7A6F;background:#E1F0EA;padding:3px 10px;border-radius:8px">HOJE</span></div>
+                    <div style="display:flex;justify-content:flex-start">
+                      <div style="max-width:82%;background:#fff;color:#111B21;padding:8px 9px 7px;border-radius:2px 9px 9px 9px;font-size:13px;box-shadow:0 1px 1px rgba(0,0,0,.08);display:inline-block"><span style="line-height:1.45;white-space:pre-wrap;word-break:break-word">{{ fuPreview.text }}</span><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin:4px 0 0 8px;color:#667781;float:right">09:14</span></div>
+                    </div>
+                  </div>
+                  <div style="flex:none;padding:8px 10px 16px;display:flex;align-items:center;gap:8px">
+                    <div style="flex:1;height:38px;background:#fff;border-radius:20px;display:flex;align-items:center;padding:0 12px;gap:8px;color:#9AA9B8;font-size:12px">
+                      <i class="ri-emotion-line" style="font-size:16px"></i><span style="flex:1">Mensagem</span><i class="ri-attachment-2" style="font-size:15px"></i><i class="ri-camera-line" style="font-size:15px"></i>
+                    </div>
+                    <div style="width:38px;height:38px;border-radius:50%;background:#005C4B;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-mic-fill" style="color:#fff;font-size:16px"></i></div>
+                  </div>
+                </div>
+              </x-import>
+            </div>
+            <div style="text-align:center;margin-top:12px;font-size:12px;color:#8A9BAD">{{ fuPreview.trigger }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== FIDELIZAÇÃO ===================== -->
+      <sc-if value="{{ isFidelizacao }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;gap:28px;align-items:flex-start">
+          <div style="flex:1;min-width:0;max-width:720px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12.5px;font-weight:700;color:#5A6B7B">{{ fidCount }} mensagens</span>
+              <button onClick="{{ onAddFid }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #CFE1FA;background:#EAF3FD;color:#1F74E0;font-size:12.5px;font-weight:700;cursor:pointer" style-hover="background:#DDEBFC"><i class="ri-add-line" style="font-size:15px"></i>Nova mensagem</button>
+            </div>
+            <sc-for list="{{ fidCards }}" as="c" hint-placeholder-count="3">
+              <div style="{{ c.cardStyle }}">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="{{ c.badgeStyle }}"><i class="ri-calendar-line"></i>{{ c.gatilhoLabel }}</span>
+                  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+                    <span style="{{ c.activeLabelStyle }}">{{ c.activeLabel }}</span>
+                    <div onClick="{{ c.onToggleActive }}" style="{{ c.trackCss }}"><div style="{{ c.knobCss }}"></div></div>
+                    <button onClick="{{ c.onDelete }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EEF3F8;background:#fff;color:#B9C6D3;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" style-hover="background:#FBEBEA;color:#D8493A;border-color:#F3D3CF"><i class="ri-delete-bin-line"></i></button>
+                  </div>
+                </div>
+                <div style="margin-top:18px">
+                  <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD">DIAS SEM ENTRAR EM CONTATO</div>
+                  <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                    <input type="number" min="1" value="{{ c.dias }}" onChange="{{ c.onDiasChange }}" onFocus="{{ c.onFocus }}" style="width:80px;height:36px;border:1px solid #E1E8F0;border-radius:9px;padding:0 10px;font-size:13.5px;font-weight:700;text-align:center;outline:none;color:#0F2438" style-focus="border-color:#1F74E0">
+                    <span style="font-size:13px;font-weight:600;color:#5A6B7B">dias sem contato</span>
+                  </div>
+                </div>
+                <div style="margin-top:16px">
+                  <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">MENSAGEM</div>
+                  <textarea value="{{ c.texto }}" onChange="{{ c.onTextoChange }}" onFocus="{{ c.onFocus }}" rows="3" style="width:100%;border:1px solid #E1E8F0;border-radius:11px;padding:11px 13px;font-size:13.5px;line-height:1.55;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+                  <div style="font-size:11px;color:#9AA9B8;margin-top:6px">Use <b>{nome}</b> para inserir o nome do cliente automaticamente.</div>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ fidEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:24px 16px;text-align:center;color:#9AA9B8;font-size:12.5px;border:1px dashed #D3DEEA;border-radius:12px">Nenhuma mensagem cadastrada.</div>
+            </sc-if>
+
+            <div style="font-size:12px;font-weight:700;letter-spacing:.08em;color:#8A9BAD;margin:16px 2px 2px">OUTRAS SEÇÕES</div>
+
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <i class="ri-cake-2-line" style="font-size:18px;color:#1F74E0"></i>
+                  <span style="font-size:14.5px;font-weight:700">Aniversário do cliente</span>
+                </div>
+                <div onClick="{{ onToggleAniv }}" style="{{ anivTrackCss }}"><div style="{{ anivKnobCss }}"></div></div>
+              </div>
+              <sc-if value="{{ anivOn }}" hint-placeholder-val="{{ true }}">
+                <div style="margin-top:16px">
+                  <textarea value="{{ anivTexto }}" onChange="{{ onAnivTexto }}" onFocus="{{ onAnivFocus }}" rows="3" style="width:100%;border:1px solid #E1E8F0;border-radius:11px;padding:11px 13px;font-size:13.5px;line-height:1.55;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+                  <div style="font-size:11px;color:#9AA9B8;margin-top:6px">Enviada automaticamente na data de aniversário. Use <b>{nome}</b> para o nome do cliente.</div>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:20px 22px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <i class="ri-gift-line" style="font-size:18px;color:#1F74E0"></i>
+                <span style="font-size:14.5px;font-weight:700">Datas festivas</span>
+              </div>
+              <sc-for list="{{ festivas }}" as="f" hint-placeholder-count="6">
+                <div style="border:1px solid #EEF3F8;border-radius:11px;margin-bottom:8px;overflow:hidden">
+                  <div onClick="{{ f.onToggleOpen }}" style="display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer">
+                    <i class="ri-calendar-event-line" style="font-size:15px;color:#1F74E0"></i>
+                    <span style="flex:1;font-size:13.5px;font-weight:600">{{ f.nome }}</span>
+                    <div onClick="{{ f.onToggleOn }}" style="{{ f.trackCss }}"><div style="{{ f.knobCss }}"></div></div>
+                    <i class="{{ f.chevron }}" style="font-size:18px;color:#98A7B6"></i>
+                  </div>
+                  <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:0 13px 13px">
+                      <textarea value="{{ f.texto }}" onChange="{{ f.onTextoChange }}" onFocus="{{ f.onFocus }}" rows="3" style="width:100%;border:1px solid #E1E8F0;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+                      <div style="font-size:11px;color:#9AA9B8;margin-top:6px">Use <b>{nome}</b> para inserir o nome do cliente.</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="width:380px;flex:none;position:sticky;top:0">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#8A9BAD;margin-bottom:12px;text-align:center">VISUALIZAÇÃO NO WHATSAPP</div>
+            <div style="display:flex;justify-content:center">
+              <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 360 }}" height="{{ 585 }}" dark="{{ true }}" hint-size="360px,585px">
+                <div style="display:flex;flex-direction:column;height:100%;background:#E9DFD3">
+                  <div style="background:#005C4B;padding:56px 14px 12px;display:flex;align-items:center;gap:10px;flex:none">
+                    <i class="ri-arrow-left-line" style="color:#fff;font-size:20px"></i>
+                    <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(150deg,#3B86E6,#1657B8);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none">EV</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="color:#fff;font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Estrutural Vidros</div>
+                      <div style="color:#CDEFE4;font-size:11.5px;margin-top:1px">online</div>
+                    </div>
+                    <i class="ri-phone-fill" style="color:#fff;font-size:15px"></i>
+                    <i class="ri-more-2-fill" style="color:#fff;font-size:18px"></i>
+                  </div>
+                  <div style="flex:1;overflow:hidden;padding:14px 10px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
+                    <div style="text-align:center"><span style="font-size:10.5px;font-weight:600;color:#6B7A6F;background:#E1F0EA;padding:3px 10px;border-radius:8px">HOJE</span></div>
+                    <div style="display:flex;justify-content:flex-start">
+                      <div style="max-width:82%;background:#fff;color:#111B21;padding:8px 9px 7px;border-radius:2px 9px 9px 9px;font-size:13px;box-shadow:0 1px 1px rgba(0,0,0,.08);display:inline-block"><span style="line-height:1.45;white-space:pre-wrap;word-break:break-word">{{ fidPreview.text }}</span><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin:4px 0 0 8px;color:#667781;float:right">09:14</span></div>
+                    </div>
+                  </div>
+                  <div style="flex:none;padding:8px 10px 16px;display:flex;align-items:center;gap:8px">
+                    <div style="flex:1;height:38px;background:#fff;border-radius:20px;display:flex;align-items:center;padding:0 12px;gap:8px;color:#9AA9B8;font-size:12px">
+                      <i class="ri-emotion-line" style="font-size:16px"></i><span style="flex:1">Mensagem</span><i class="ri-attachment-2" style="font-size:15px"></i><i class="ri-camera-line" style="font-size:15px"></i>
+                    </div>
+                    <div style="width:38px;height:38px;border-radius:50%;background:#005C4B;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-mic-fill" style="color:#fff;font-size:16px"></i></div>
+                  </div>
+                </div>
+              </x-import>
+            </div>
+            <div style="text-align:center;margin-top:12px;font-size:12px;color:#8A9BAD">{{ fidPreview.trigger }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ===================== GERAL IA ===================== -->
+      <sc-if value="{{ isGeral }}" hint-placeholder-val="{{ true }}">
+
+        <!-- Stats Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#EAF2FD;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-message-2-fill" style="font-size:20px;color:#1F74E0"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Mensagens Enviadas</div><div style="font-size:22px;font-weight:800;color:#0F2438;margin-top:2px;letter-spacing:-.02em">1.284</div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#E9EAFA;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-user-shared-fill" style="font-size:20px;color:#4C55B8"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Clientes Transferidos</div><div style="font-size:22px;font-weight:800;color:#0F2438;margin-top:2px;letter-spacing:-.02em">342</div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#E2F4EC;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-link" style="font-size:20px;color:#17835A"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Conexão Automação</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:8px;height:8px;border-radius:50%;background:#25B24F;flex:none"></span><span style="font-size:14px;font-weight:700;color:#17835A">Conectado</span></div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+            <div style="width:42px;height:42px;border-radius:12px;background:#E2F4EC;display:flex;align-items:center;justify-content:center;flex:none"><i class="ri-database-2-fill" style="font-size:20px;color:#17835A"></i></div>
+            <div><div style="font-size:11px;font-weight:600;color:#8A9BAD;letter-spacing:.03em">Status do CRM</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px"><span style="width:8px;height:8px;border-radius:50%;background:#25B24F;flex:none"></span><span style="font-size:14px;font-weight:700;color:#17835A">Online</span></div></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:20px;align-items:flex-start">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+            <!-- Atendentes Disponíveis -->
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <i class="ri-team-fill" style="font-size:20px;color:#1F74E0"></i>
+                <span style="font-size:16px;font-weight:700">Atendentes Disponíveis</span>
+                <span style="font-size:11px;font-weight:700;color:#17835A;background:#E2F4EC;padding:2px 9px;border-radius:20px;margin-left:4px">{{ geralAtendCountLabel }}</span>
+              </div>
+              <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:16px">Defina quais atendentes estão disponíveis agora para a IA direcionar clientes.</div>
+
+              <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:8px">DISPONIBILIDADE ATUAL</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px">
+                <sc-for list="{{ geralAtendentes }}" as="a" hint-placeholder-count="6">
+                  <div style="{{ a.cardStyle }}">
+                    <div style="{{ a.avatarStyle }}">{{ a.initials }}<span style="{{ a.dotStyle }}"></span></div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }}</div>
+                      <div style="font-size:11.5px;color:#8A9BAD;margin-top:1px">{{ a.role }}</div>
+                    </div>
+                    <div onClick="{{ a.onToggle }}" style="{{ a.trackCss }}"><div style="{{ a.knobCss }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <!-- Rotinas -->
+              <div style="border-top:1px solid #EEF3F8;padding-top:18px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <i class="ri-calendar-schedule-fill" style="font-size:17px;color:#1F74E0"></i>
+                    <span style="font-size:14.5px;font-weight:700">Rotinas pré-definidas</span>
+                  </div>
+                  <button onClick="{{ onAddRotina }}" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:8px;border:1px solid #CFE1FA;background:#EAF3FD;color:#1F74E0;font-size:12px;font-weight:700;cursor:pointer" style-hover="background:#DDEBFC"><i class="ri-add-line" style="font-size:14px"></i>Nova rotina</button>
+                </div>
+                <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:14px">Defina quais atendentes ficam disponíveis em dias específicos da semana.</div>
+
+                <sc-for list="{{ geralRotinas }}" as="r" hint-placeholder-count="2">
+                  <div style="border:1px solid #EEF3F8;border-radius:12px;padding:16px 18px;margin-bottom:10px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                      <input type="text" value="{{ r.nome }}" onChange="{{ r.onNomeChange }}" style="font-size:14px;font-weight:700;border:0;border-bottom:1px dashed transparent;outline:none;background:transparent;padding:0 0 2px;color:#0F2438;flex:1;min-width:0" style-focus="border-bottom-color:#1F74E0">
+                      <div onClick="{{ r.onToggle }}" style="{{ r.trackCss }}"><div style="{{ r.knobCss }}"></div></div>
+                      <button onClick="{{ r.onDelete }}" style="width:28px;height:28px;border-radius:7px;border:1px solid #EEF3F8;background:#fff;color:#B9C6D3;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center" style-hover="background:#FBEBEA;color:#D8493A;border-color:#F3D3CF"><i class="ri-delete-bin-line"></i></button>
+                    </div>
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:6px">DIAS ATIVOS</div>
+                    <div style="display:flex;gap:4px;margin-bottom:14px">
+                      <sc-for list="{{ r.dias }}" as="d" hint-placeholder-count="7">
+                        <span onClick="{{ d.onClick }}" style="{{ d.style }}">{{ d.label }}</span>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:6px">ATENDENTES NESTA ROTINA</div>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                      <sc-for list="{{ r.atendentes }}" as="ra" hint-placeholder-count="6">
+                        <span onClick="{{ ra.onClick }}" style="{{ ra.style }}">{{ ra.name }}</span>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ geralRotinasEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:16px;text-align:center;color:#9AA9B8;font-size:12.5px;border:1px dashed #D3DEEA;border-radius:10px">Nenhuma rotina cadastrada.</div>
+                </sc-if>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="width:420px;flex:none;display:flex;flex-direction:column;gap:16px">
+
+            <!-- Avaliação por atendimento -->
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <i class="ri-star-fill" style="font-size:20px;color:#E0A61C"></i>
+                  <span style="font-size:16px;font-weight:700">Avaliação por atendimento</span>
+                </div>
+                <div onClick="{{ onToggleAvaliacao }}" style="{{ avaliacaoTrackCss }}"><div style="{{ avaliacaoKnobCss }}"></div></div>
+              </div>
+              <div style="font-size:12.5px;color:#8A9BAD;margin-bottom:16px">Pesquisa de satisfação enviada ao cliente após cada atendimento.</div>
+              <sc-if value="{{ avaliacaoOn }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:16px">
+                  <div>
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:8px">ENVIAR APÓS FINALIZAR</div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <input type="number" min="1" value="{{ avaliacaoDelay }}" onChange="{{ onAvaliacaoDelay }}" style="width:72px;height:36px;border:1px solid #E1E8F0;border-radius:9px;padding:0 10px;font-size:13.5px;font-weight:700;text-align:center;outline:none;color:#0F2438" style-focus="border-color:#1F74E0">
+                      <div style="display:inline-flex;border:1px solid #E1E8F0;border-radius:9px;overflow:hidden">
+                        <div onClick="{{ onAvalUnitMin }}" style="{{ avalUnitMinStyle }}">Minutos</div>
+                        <div onClick="{{ onAvalUnitHrs }}" style="{{ avalUnitHrsStyle }}">Horas</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:8px">MENSAGEM DE AVALIAÇÃO</div>
+                    <textarea value="{{ avaliacaoMsg }}" onChange="{{ onAvaliacaoMsg }}" rows="4" style="width:100%;border:1px solid #E1E8F0;border-radius:11px;padding:11px 13px;font-size:13.5px;line-height:1.55;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+                    <div style="font-size:11px;color:#9AA9B8;margin-top:6px">Use <b>{nome}</b> para o nome do cliente e <b>{nota}</b> para o link de avaliação.</div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+
+            <!-- Outros -->
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;padding:22px 24px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+                <i class="ri-sparkling-2-fill" style="font-size:20px;color:#1F74E0"></i>
+                <span style="font-size:16px;font-weight:700">Recursos de IA</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #EEF3F8">
+                <div style="min-width:0;flex:1;margin-right:16px">
+                  <div style="font-size:14px;font-weight:600">Resumo automático por IA</div>
+                  <div style="font-size:12px;color:#8A9BAD;margin-top:3px">Gera um resumo do atendimento ao finalizar.</div>
+                </div>
+                <div onClick="{{ onToggleResumoAuto }}" style="{{ resumoAutoTrackCss }}"><div style="{{ resumoAutoKnobCss }}"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0">
+                <div style="min-width:0;flex:1;margin-right:16px">
+                  <div style="font-size:14px;font-weight:600">Preenchimento automático</div>
+                  <div style="font-size:12px;color:#8A9BAD;margin-top:3px">Preenche dados do cliente (nome, empresa, endereço) a partir da conversa.</div>
+                </div>
+                <div onClick="{{ onToggleAutoFill }}" style="{{ autoFillTrackCss }}"><div style="{{ autoFillKnobCss }}"></div></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </sc-if>
+
+    </div>
+  </div>
+</section>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+
+class Component extends DCLogic {
+  state = { tab:'geral', fuPreviewId:null, fidPreviewType:'fid', fidPreviewId:null, anivOn:true, anivTexto:'Feliz aniversário, {nome}! A equipe Estrutural Vidros deseja um ótimo dia. Como presente, você tem 10% de desconto em qualquer serviço este mês!', avalOn:true, avalDelay:30, avalUnit:'minutos', avalMsg:'Olá {nome}! Seu atendimento na Estrutural Vidros foi finalizado. Poderia nos avaliar? Acesse: {nota}', resumoAutoOn:true, autoFillOn:true };
+
+  componentDidMount(){
+    try{
+      const p = new URLSearchParams(location.search).get('tab');
+      if(p==='geral'||p==='followup'||p==='fidelizacao'){ this.setState({ tab:p }); }
+    }catch(e){}
+  }
+
+  uid(){ this._u=(this._u||100)+1; return 'x'+this._u; }
+
+  fu(){ if(!this._fu){ this._fu=[
+    { id:'f1', on:true, value:2, unit:'horas', texto:'Oi {nome}! Passando para saber se ficou alguma dúvida sobre o orçamento que te enviei. Fico à disposição!' },
+    { id:'f2', on:true, value:1, unit:'dias', texto:'Oi {nome}, tudo bem? Ainda tenho o orçamento reservado pra você. Posso te ajudar com mais alguma informação?' },
+    { id:'f3', on:false, value:3, unit:'dias', texto:'Oi {nome}! Notei que faz alguns dias que não conversamos. Se ainda tiver interesse no orçamento, é só me chamar por aqui.' }
+  ]; } return this._fu; }
+
+  fid(){ if(!this._fid){ this._fid=[
+    { id:'d1', on:true, dias:30, texto:'Oi {nome}! Faz um tempinho que não conversamos por aqui. Precisando de algum serviço em vidro, pode contar com a gente!' },
+    { id:'d2', on:true, dias:90, texto:'Olá {nome}! Já faz alguns meses desde o nosso último atendimento. Estamos com novidades em box e espelhos — quer que eu te envie?' },
+    { id:'d3', on:false, dias:180, texto:'Oi {nome}, tudo bem? Faz tempo que não aparece por aqui. Qualquer necessidade com vidros, estamos à disposição.' }
+  ]; } return this._fid; }
+
+  festivas(){ if(!this._fest){ this._fest=[
+    { id:'nat', nome:'Natal', on:true, texto:'Feliz Natal, {nome}! A equipe Estrutural Vidros deseja boas festas e um próspero ano novo.', open:false },
+    { id:'anonovo', nome:'Ano Novo', on:true, texto:'Feliz Ano Novo, {nome}! Que o novo ano traga muitas conquistas. Obrigado pela confiança!', open:false },
+    { id:'pascoa', nome:'Páscoa', on:false, texto:'Feliz Páscoa, {nome}! Desejamos um dia repleto de paz e alegria.', open:false },
+    { id:'maes', nome:'Dia das Mães', on:true, texto:'Feliz Dia das Mães, {nome}! Um grande abraço da equipe Estrutural Vidros.', open:false },
+    { id:'pais', nome:'Dia dos Pais', on:true, texto:'Feliz Dia dos Pais, {nome}! Um grande abraço da equipe Estrutural Vidros.', open:false },
+    { id:'blackfriday', nome:'Black Friday', on:false, texto:'{nome}, aproveite nossa Black Friday com condições especiais em vidros e espelhos!', open:false }
+  ]; } return this._fest; }
+
+  geralAtend(){ if(!this._ga){ this._ga=[
+    { id:'ga1', initials:'JS', name:'Jardel Souza', tint:'#2C6BB8', role:'Comercial', on:true },
+    { id:'ga2', initials:'AB', name:'Ana Beatriz', tint:'#2C6BB8', role:'Comercial', on:true },
+    { id:'ga3', initials:'DA', name:'Daiane', tint:'#2F8F86', role:'Comercial', on:true },
+    { id:'ga4', initials:'CL', name:'Clayton', tint:'#5566A8', role:'Comercial', on:false },
+    { id:'ga5', initials:'ED', name:'Eduarda', tint:'#3E8FD0', role:'Suporte', on:true },
+    { id:'ga6', initials:'RA', name:'Rafael', tint:'#64748B', role:'Instalação', on:false }
+  ]; } return this._ga; }
+
+  geralRotinas(){ if(!this._gr){ this._gr=[
+    { id:'gr1', nome:'Sábado — Plantão', on:true, dias:[5], atendIds:['ga1','ga3'] },
+    { id:'gr2', nome:'Domingo — Fechado', on:true, dias:[6], atendIds:[] }
+  ]; } return this._gr; }
+
+  addRotina(){ const it={ id:this.uid(), nome:'Nova rotina', on:true, dias:[], atendIds:[] }; this.geralRotinas().push(it); this.forceUpdate(); }
+  delRotina(id){ this._gr=this.geralRotinas().filter(x=>x.id!==id); this.forceUpdate(); }
+
+  sw(on){
+    return {
+      trackCss:`width:38px;height:22px;border-radius:20px;background:${on?'#1F74E0':'#D8E1EA'};position:relative;cursor:pointer;flex:none;transition:background .15s`,
+      knobCss:`width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${on?'18px':'2px'};box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s`
+    };
+  }
+
+  preview(texto){ return (texto||'').split('{nome}').join('Marcos'); }
+
+  addFu(){ const it={ id:this.uid(), on:true, value:2, unit:'horas', texto:'' }; this.fu().push(it); this.setState({ fuPreviewId:it.id }); }
+  delFu(id){ this._fu=this.fu().filter(x=>x.id!==id); if(this.state.fuPreviewId===id){ this.setState({ fuPreviewId:null }); } else { this.forceUpdate(); } }
+
+  addFid(){ const it={ id:this.uid(), on:true, dias:30, texto:'' }; this.fid().push(it); this.setState({ fidPreviewType:'fid', fidPreviewId:it.id }); }
+  delFid(id){ this._fid=this.fid().filter(x=>x.id!==id); if(this.state.fidPreviewType==='fid' && this.state.fidPreviewId===id){ this.setState({ fidPreviewId:null }); } else { this.forceUpdate(); } }
+
+  renderVals(){
+    const tab=this.state.tab;
+    const subtitleMap={ followup:'Mensagens automáticas enviadas quando o cliente demora para responder.', fidelizacao:'Mensagens automáticas para reativar clientes sem contato recente.', geral:'Configurações gerais do assistente de IA.' };
+
+    const tabsDef=[['geral','Geral · IA'],['followup','Follow-up'],['fidelizacao','Fidelização']];
+    const tabs=tabsDef.map(([key,label])=>{ const active=tab===key; return {
+      key,label,
+      onClick:()=>this.setState({tab:key}),
+      style:`position:relative;display:flex;align-items:center;padding:0 4px 12px;margin-right:22px;font-size:13.5px;font-weight:${active?700:600};color:${active?'#0F2438':'#8A9BAD'};cursor:pointer;border-bottom:2px solid ${active?'#1F74E0':'transparent'}`
+    };});
+
+    const subNavDef=[['geral','Geral · IA'],['followup','Follow-up'],['fidelizacao','Fidelização']];
+    const subNav=subNavDef.map(([key,label])=>{ const active=tab===key; return {
+      key,label,
+      onClick:()=>this.setState({tab:key}),
+      style:`display:flex;align-items:center;gap:13px;padding:8px 13px 8px 40px;border-radius:10px;color:${active?'#F0F6FC':'#C3D6E8'};background:${active?'rgba(255,255,255,.08)':'transparent'};font-weight:${active?700:500};cursor:pointer;margin-bottom:2px;font-size:14.5px`
+    };});
+
+    // ---- Follow-up ----
+    const fuList=this.fu();
+    const fuPreviewId = this.state.fuPreviewId ?? (fuList[0] && fuList[0].id);
+    const fuCards=fuList.map(it=>{
+      const sw=this.sw(it.on); const isPreview=it.id===fuPreviewId;
+      const unitLabel = it.unit==='horas' ? (it.value===1?'hora':'horas') : (it.value===1?'dia':'dias');
+      const onFocus=()=>this.setState({ fuPreviewId:it.id });
+      return {
+        id:it.id, gatilhoLabel:`${it.value} ${unitLabel} sem resposta`,
+        activeLabel: it.on?'Ativo':'Inativo', activeLabelStyle:`font-size:12.5px;font-weight:700;color:${it.on?'#17835A':'#9AA9B8'}`,
+        onToggleActive:()=>{ it.on=!it.on; this.forceUpdate(); }, trackCss:sw.trackCss, knobCss:sw.knobCss,
+        onDelete:()=>this.delFu(it.id),
+        value:it.value, onValueChange:(e)=>{ it.value=Math.max(1,parseInt(e.target.value)||1); this.forceUpdate(); },
+        unitHorasStyle:`padding:0 16px;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;background:${it.unit==='horas'?'#1F74E0':'#fff'};color:${it.unit==='horas'?'#fff':'#5A6B7B'}`,
+        unitDiasStyle:`padding:0 16px;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;background:${it.unit==='dias'?'#1F74E0':'#fff'};color:${it.unit==='dias'?'#fff':'#5A6B7B'}`,
+        onUnitHoras:()=>{ it.unit='horas'; this.forceUpdate(); }, onUnitDias:()=>{ it.unit='dias'; this.forceUpdate(); },
+        texto:it.texto, onTextoChange:(e)=>{ it.texto=e.target.value; this.forceUpdate(); }, onFocus,
+        badgeStyle:'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:7px;font-size:11.5px;font-weight:700;background:#EAF2FD;color:#1F74E0',
+        cardStyle:`background:#fff;border-radius:16px;padding:20px 22px;border:1px solid ${isPreview?'#CFE1FA':'#E7EDF4'};box-shadow:${isPreview?'inset 3px 0 0 #1F74E0':'none'}`
+      };
+    });
+    const fuPreviewItem = fuList.find(x=>x.id===fuPreviewId);
+    const fuPreview = fuPreviewItem
+      ? { text:this.preview(fuPreviewItem.texto)||'Sua mensagem aparecerá aqui…', trigger:`Enviado após ${fuPreviewItem.value} ${fuPreviewItem.unit==='horas'?(fuPreviewItem.value===1?'hora':'horas'):(fuPreviewItem.value===1?'dia':'dias')} sem resposta` }
+      : { text:'Nenhum follow-up para pré-visualizar.', trigger:'' };
+
+    // ---- Fidelização ----
+    const fidList=this.fid();
+    const fidPreviewId = this.state.fidPreviewId ?? (fidList[0] && fidList[0].id);
+    const fidCards=fidList.map(it=>{
+      const sw=this.sw(it.on); const isPreview=this.state.fidPreviewType==='fid' && it.id===fidPreviewId;
+      const onFocus=()=>this.setState({ fidPreviewType:'fid', fidPreviewId:it.id });
+      return {
+        id:it.id, gatilhoLabel:`${it.dias} ${it.dias===1?'dia':'dias'} sem contato`,
+        activeLabel: it.on?'Ativo':'Inativo', activeLabelStyle:`font-size:12.5px;font-weight:700;color:${it.on?'#17835A':'#9AA9B8'}`,
+        onToggleActive:()=>{ it.on=!it.on; this.forceUpdate(); }, trackCss:sw.trackCss, knobCss:sw.knobCss,
+        onDelete:()=>this.delFid(it.id),
+        dias:it.dias, onDiasChange:(e)=>{ it.dias=Math.max(1,parseInt(e.target.value)||1); this.forceUpdate(); },
+        texto:it.texto, onTextoChange:(e)=>{ it.texto=e.target.value; this.forceUpdate(); }, onFocus,
+        badgeStyle:'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:7px;font-size:11.5px;font-weight:700;background:#E9EAFA;color:#4C55B8',
+        cardStyle:`background:#fff;border-radius:16px;padding:20px 22px;border:1px solid ${isPreview?'#CFE1FA':'#E7EDF4'};box-shadow:${isPreview?'inset 3px 0 0 #1F74E0':'none'}`
+      };
+    });
+
+    // ---- Aniversário ----
+    const anivSw=this.sw(this.state.anivOn);
+
+    // ---- Festivas ----
+    const festivas=this.festivas().map(f=>{ const sw=this.sw(f.on); return {
+      id:f.id, nome:f.nome, open:f.open, texto:f.texto,
+      trackCss:sw.trackCss, knobCss:sw.knobCss,
+      chevron: f.open?'ri-arrow-down-s-line':'ri-arrow-right-s-line',
+      onToggleOpen:()=>{ f.open=!f.open; this.forceUpdate(); },
+      onToggleOn:(e)=>{ e.stopPropagation(); f.on=!f.on; this.forceUpdate(); },
+      onTextoChange:(e)=>{ f.texto=e.target.value; this.forceUpdate(); },
+      onFocus:()=>this.setState({ fidPreviewType:'fest', fidPreviewId:f.id })
+    };});
+
+    // ---- fidPreview resolution (fid item / aniversário / festiva) ----
+    let fidPreview;
+    if(this.state.fidPreviewType==='aniv'){
+      fidPreview = { text:this.preview(this.state.anivTexto)||'Sua mensagem aparecerá aqui…', trigger:'Enviado no aniversário do cliente' };
+    } else if(this.state.fidPreviewType==='fest'){
+      const f=this.festivas().find(x=>x.id===this.state.fidPreviewId);
+      fidPreview = f ? { text:this.preview(f.texto)||'Sua mensagem aparecerá aqui…', trigger:`Enviado em: ${f.nome}` } : { text:'Nenhuma mensagem para pré-visualizar.', trigger:'' };
+    } else {
+      const it=fidList.find(x=>x.id===fidPreviewId);
+      fidPreview = it ? { text:this.preview(it.texto)||'Sua mensagem aparecerá aqui…', trigger:`Enviado após ${it.dias} ${it.dias===1?'dia':'dias'} sem contato` } : { text:'Nenhuma mensagem para pré-visualizar.', trigger:'' };
+    }
+
+    // ---- Geral IA ----
+    const gaList=this.geralAtend();
+    const gaOnCount=gaList.filter(a=>a.on).length;
+    const DAY_LABELS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const geralAtendentes=gaList.map(a=>{ const sw=this.sw(a.on); return {
+      id:a.id, initials:a.initials, name:a.name, role:a.role,
+      onToggle:()=>{ a.on=!a.on; this.forceUpdate(); },
+      trackCss:sw.trackCss, knobCss:sw.knobCss,
+      cardStyle:`display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid ${a.on?'#D4E8D9':'#EEF3F8'};background:${a.on?'#F7FCF8':'#FBFCFE'}`,
+      avatarStyle:`width:38px;height:38px;border-radius:11px;background:${a.tint};color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;position:relative`,
+      dotStyle:`position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:${a.on?'#25B24F':'#B9C6D3'};border:2px solid #fff`
+    };});
+    const grList=this.geralRotinas();
+    const geralRotinas=grList.map(r=>{ const sw=this.sw(r.on); return {
+      id:r.id, nome:r.nome,
+      onNomeChange:(e)=>{ r.nome=e.target.value; this.forceUpdate(); },
+      trackCss:sw.trackCss, knobCss:sw.knobCss,
+      onToggle:()=>{ r.on=!r.on; this.forceUpdate(); },
+      onDelete:()=>this.delRotina(r.id),
+      dias:DAY_LABELS.map((label,i)=>{ const active=r.dias.includes(i); return {
+        label,
+        onClick:()=>{ if(active) r.dias=r.dias.filter(d=>d!==i); else r.dias.push(i); this.forceUpdate(); },
+        style:`width:36px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${active?'#1F74E0':'#E1E8F0'};background:${active?'#1F74E0':'#fff'};color:${active?'#fff':'#8A9BAD'}`
+      };}),
+      atendentes:gaList.map(a=>{ const sel=r.atendIds.includes(a.id); return {
+        name:a.name.split(' ')[0],
+        onClick:()=>{ if(sel) r.atendIds=r.atendIds.filter(id=>id!==a.id); else r.atendIds.push(a.id); this.forceUpdate(); },
+        style:`display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid ${sel?'#CFE1FA':'#E1E8F0'};background:${sel?'#EAF2FD':'#fff'};color:${sel?'#1F74E0':'#8A9BAD'}`
+      };})
+    };});
+    const avalSw=this.sw(this.state.avalOn);
+    const resumoAutoSw=this.sw(this.state.resumoAutoOn);
+    const autoFillSw=this.sw(this.state.autoFillOn);
+
+    return {
+      subtitle: subtitleMap[tab], tabs, subNav,
+      isFollowup: tab==='followup', isFidelizacao: tab==='fidelizacao', isGeral: tab==='geral',
+      fuCount: fuList.length, fuCards, fuEmpty: fuList.length===0, fuPreview,
+      onAddFu: ()=>this.addFu(),
+      fidCount: fidList.length, fidCards, fidEmpty: fidList.length===0, fidPreview,
+      onAddFid: ()=>this.addFid(),
+      anivOn:this.state.anivOn, anivTexto:this.state.anivTexto,
+      onToggleAniv:()=>this.setState(s=>({anivOn:!s.anivOn})),
+      onAnivTexto:(e)=>this.setState({anivTexto:e.target.value}),
+      onAnivFocus:()=>this.setState({ fidPreviewType:'aniv' }),
+      anivTrackCss:anivSw.trackCss, anivKnobCss:anivSw.knobCss,
+      festivas,
+      geralAtendentes, geralAtendCountLabel:gaOnCount+' de '+gaList.length+' online',
+      geralRotinas, geralRotinasEmpty:grList.length===0,
+      onAddRotina:()=>this.addRotina(),
+      avaliacaoOn:this.state.avalOn,
+      onToggleAvaliacao:()=>this.setState(s=>({avalOn:!s.avalOn})),
+      avaliacaoTrackCss:avalSw.trackCss, avaliacaoKnobCss:avalSw.knobCss,
+      avaliacaoDelay:this.state.avalDelay,
+      onAvaliacaoDelay:(e)=>this.setState({avalDelay:Math.max(1,parseInt(e.target.value)||1)}),
+      avalUnitMinStyle:`padding:0 16px;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;background:${this.state.avalUnit==='minutos'?'#1F74E0':'#fff'};color:${this.state.avalUnit==='minutos'?'#fff':'#5A6B7B'}`,
+      avalUnitHrsStyle:`padding:0 16px;height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;background:${this.state.avalUnit==='horas'?'#1F74E0':'#fff'};color:${this.state.avalUnit==='horas'?'#fff':'#5A6B7B'}`,
+      onAvalUnitMin:()=>this.setState({avalUnit:'minutos'}),
+      onAvalUnitHrs:()=>this.setState({avalUnit:'horas'}),
+      avaliacaoMsg:this.state.avalMsg,
+      onAvaliacaoMsg:(e)=>this.setState({avalMsg:e.target.value}),
+      onToggleResumoAuto:()=>this.setState(s=>({resumoAutoOn:!s.resumoAutoOn})),
+      resumoAutoTrackCss:resumoAutoSw.trackCss, resumoAutoKnobCss:resumoAutoSw.knobCss,
+      onToggleAutoFill:()=>this.setState(s=>({autoFillOn:!s.autoFillOn})),
+      autoFillTrackCss:autoFillSw.trackCss, autoFillKnobCss:autoFillSw.knobCss
+    };
+  }
+}
+
+</script>
+</body>
+</html>

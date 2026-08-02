@@ -1,13 +1,48 @@
 {
-  "nomeDoSistema": "Synapse CRM",
-  "abas": {
-    "atendimentos": "Atendimentos",
-    "leads": "Leads",
-    "equipe": "Equipe"
+  "app": {
+    "nome": "Synapse CRM",
+    "marca": "Estrutural Vidros",
+    "subtitulo": "CRM · Atendimento"
   },
-  "cardsDeStatus": {
-    "ativos": "Ativos",
-    "pendentes": "Pendentes",
-    "potenciais": "Potenciais"
+  "menu": {
+    "grupoMenu": "Menu",
+    "grupoGestao": "Gestão",
+    "itens": {
+      "atendimentos": "Atendimentos",
+      "dashboard": "Dashboard",
+      "agenda": "Agenda de Contatos",
+      "tags": "Tags",
+      "mensagensRapidas": "Mensagens Rápidas",
+      "bancoArquivos": "Banco de Arquivos",
+      "mensagensProgramadas": "Mensagens Programadas",
+      "lembretes": "Lembretes",
+      "equipe": "Equipe",
+      "campanhas": "Campanhas",
+      "automacao": "Automação",
+      "horarios": "Horários",
+      "relatorios": "Relatórios"
+    }
+  },
+  "rodape": {
+    "trocarConta": "Trocar conta",
+    "sair": "Sair"
+  },
+  "login": {
+    "titulo": "Entrar",
+    "subtitulo": "Acesse sua conta para continuar",
+    "campoEmail": "E-mail",
+    "campoSenha": "Senha",
+    "botaoEntrar": "Entrar",
+    "entrando": "Entrando...",
+    "erroCredenciais": "E-mail ou senha inválidos.",
+    "erroGenerico": "Não foi possível entrar. Tente novamente."
+  },
+  "estados": {
+    "carregando": "Carregando...",
+    "vazio": "Nada por aqui ainda.",
+    "erroGenerico": "Algo deu errado. Tente novamente.",
+    "tentarNovamente": "Tentar novamente",
+    "emConstrucao": "Esta área ainda não foi construída.",
+    "sessaoExpirada": "Sua sessão expirou. Entre novamente."
   }
 }

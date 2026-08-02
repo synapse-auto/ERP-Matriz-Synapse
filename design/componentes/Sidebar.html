@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif}
+.evnav::-webkit-scrollbar{width:8px}
+.evnav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:20px;border:2px solid transparent;background-clip:content-box}
+.evnav::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<nav style="width:260px;height:100%;flex:none;background:#0C2A43;display:flex;flex-direction:column;color:#fff;font-size:14px">
+  <div style="padding:20px 18px 14px;display:flex;align-items:center;gap:12px">
+    <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(150deg,#3B86E6,#1657B8);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -4px rgba(22,87,184,.6);flex:none">
+      <div style="width:17px;height:17px;background:#fff;transform:rotate(45deg);border-radius:3px;box-shadow:inset -4px -4px 0 rgba(31,116,224,.22)"></div>
+    </div>
+    <div style="min-width:0">
+      <div style="font-size:15px;font-weight:800;letter-spacing:-.01em;line-height:1.1">Estrutural Vidros</div>
+      <div style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#6E92B4;margin-top:2px">CRM · ATENDIMENTO</div>
+    </div>
+  </div>
+
+  <div class="evnav" style="flex:1;overflow-y:auto;padding:8px 14px 8px">
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.11em;color:#5E7E9C;padding:0 10px;margin:12px 0 7px">MENU</div>
+    <sc-for list="{{ menu }}" as="m" hint-placeholder-count="8">
+      <a href="{{ m.href }}" style="{{ m.style }}" style-hover="{{ m.hover }}">
+        <i class="{{ m.icon }}" style="{{ m.iconStyle }}"></i><span style="flex:1">{{ m.label }}</span>
+        <sc-if value="{{ m.hasBadge }}" hint-placeholder-val="{{ false }}">
+          <span style="min-width:20px;height:20px;padding:0 6px;border-radius:20px;background:#1F74E0;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ m.badge }}</span>
+        </sc-if>
+      </a>
+    </sc-for>
+
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.11em;color:#5E7E9C;padding:0 10px;margin:18px 0 7px">GESTÃO</div>
+    <sc-for list="{{ gestao }}" as="m" hint-placeholder-count="5">
+      <a href="{{ m.href }}" style="{{ m.style }}" style-hover="{{ m.hover }}">
+        <i class="{{ m.icon }}" style="{{ m.iconStyle }}"></i><span style="flex:1">{{ m.label }}</span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="padding:10px 14px">
+    <div onClick="{{ toggleNews }}" style="{{ newsRowStyle }}" style-hover="{{ newsRowHover }}">
+      <span style="position:relative;display:inline-flex;flex:none">
+        <i class="{{ newsIcon }}" style="{{ newsIconStyle }}"></i>
+        <sc-if value="{{ newsShowDot }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:-1px;right:-3px;width:8px;height:8px;border-radius:50%;background:#E4432E;border:2px solid #0C2A43"></span></sc-if>
+      </span>
+      <span style="flex:1">Novidades &amp; Em Breve</span>
+    </div>
+    <a href="Admin.dc.html" style="{{ adminRowStyle }}" style-hover="{{ adminRowHover }}">
+      <i class="{{ adminIcon }}" style="{{ adminIconStyle }}"></i>
+      <span style="flex:1">Administração</span>
+      <span style="font-size:9px;font-weight:800;letter-spacing:.1em;color:#B9A6F0;background:rgba(140,110,224,.2);padding:2px 7px;border-radius:5px">ADM</span>
+    </a>
+  </div>
+
+  <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.08);position:relative">
+    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:12px;right:12px;bottom:74px;background:#123A5C;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:7px;box-shadow:0 24px 60px -22px rgba(0,0,0,.7);z-index:40">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.12em;color:#6E92B4;padding:8px 10px 6px">STATUS DE PRESENÇA</div>
+        <sc-for list="{{ presenceOpts }}" as="p" hint-placeholder-count="3">
+          <div onClick="{{ p.onClick }}" style="{{ p.style }}" style-hover="background:rgba(255,255,255,.07)">
+            <span style="{{ p.dot }}"></span><span style="flex:1">{{ p.label }}</span>
+            <sc-if value="{{ p.sel }}" hint-placeholder-val="{{ false }}"><i class="ri-check-line" style="font-size:16px;color:#7FBBF2"></i></sc-if>
+          </div>
+        </sc-for>
+        <div style="height:1px;background:rgba(255,255,255,.1);margin:6px 6px"></div>
+        <div onClick="{{ toggleSwitch }}" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;color:#C3D6E8;font-size:13.5px;font-weight:600" style-hover="background:rgba(255,255,255,.07);color:#fff">
+          <i class="ri-user-shared-2-line" style="font-size:17px"></i><span style="flex:1">Trocar conta</span><i class="{{ switchChevron }}" style="font-size:16px;color:#6E8FAE"></i>
+        </div>
+        <sc-if value="{{ switchOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:2px;padding:2px 4px 4px">
+            <sc-for list="{{ otherAccounts }}" as="a" hint-placeholder-count="2">
+              <div onClick="{{ a.onClick }}" style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;cursor:pointer" style-hover="background:rgba(255,255,255,.07)">
+                <div style="{{ a.avatarStyle }}">{{ a.initials }}</div>
+                <div style="min-width:0"><div style="font-size:12.5px;font-weight:700;color:#EAF2FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }}</div><div style="font-size:11px;color:#7E9DBB">{{ a.role }}</div></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="height:1px;background:rgba(255,255,255,.1);margin:6px 6px"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;color:#E88B7D;font-size:13.5px;font-weight:600" style-hover="background:rgba(255,90,70,.12)">
+          <i class="ri-logout-box-r-line" style="font-size:17px"></i><span>Sair</span>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="display:flex;align-items:center;gap:0px;margin-right:20px">
+      <div onClick="{{ toggleMenu }}" style="flex:1;min-width:0;display:flex;align-items:center;gap:11px;padding:8px 9px;border-radius:12px;cursor:pointer" style-hover="background:rgba(255,255,255,.06)">
+        <div style="{{ account.avatarStyle }}">{{ account.initials }}<span style="{{ account.dotStyle }}"></span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ account.name }}</div>
+          <div style="font-size:11.5px;color:#7E9DBB;font-weight:500">{{ account.role }} · {{ presenceLabel }}</div>
+        </div>
+      </div>
+      <a href="{{ config.href }}" style="flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#8FADC9;text-decoration:none" style-hover="background:rgba(255,255,255,.08);color:#fff">
+        <i class="ri-settings-4-line" style="{{ gearIconStyle }}"></i>
+      </a>
+    </div>
+  </div>
+
+  <sc-if value="{{ newsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeNews }}" style="position:absolute;inset:0;background:rgba(12,42,67,.4);z-index:55;display:flex;align-items:center;justify-content:center">
+      <div onClick="{{ stop }}" style="width:740px;max-height:82%;background:#fff;border-radius:20px;box-shadow:0 40px 100px -30px rgba(12,42,67,.6);overflow:hidden;display:flex;flex-direction:column">
+        <div style="flex:none;background:#F4F6F8;padding:26px 26px 22px;display:flex;flex-direction:column;align-items:center;gap:16px">
+          <div style="display:inline-flex;background:#E4E7EC;border-radius:999px;padding:4px;gap:2px;flex:none">
+            <sc-for list="{{ newsTabs }}" as="t" hint-placeholder-count="2">
+              <div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div>
+            </sc-for>
+          </div>
+          <div style="background:#fff;border-radius:11px;padding:12px 24px;font-size:13.5px;font-weight:600;color:#33475B;text-align:center;box-shadow:0 2px 10px -3px rgba(12,42,67,.1)">{{ newsSubtitle }}</div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:20px 26px 26px">
+          <sc-if value="{{ isNovidadesTab }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ novidadesGroups }}" as="g" hint-placeholder-count="3">
+              <div style="margin-bottom:24px">
+                <div style="font-size:20px;font-weight:800;color:#0F2438;letter-spacing:-.01em;margin-bottom:14px">{{ g.dateLabel }}</div>
+                <sc-for list="{{ g.items }}" as="n" hint-placeholder-count="2">
+                  <div style="padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #EEF3F8">
+                    <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px">
+                      <sc-if value="{{ n.isNew }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size:10.5px;font-weight:800;letter-spacing:.03em;color:#fff;background:#17835A;padding:3px 9px;border-radius:5px;flex:none">NOVO</span>
+                      </sc-if>
+                      <span style="font-size:14.5px;font-weight:700;color:#0F2438">{{ n.title }}</span>
+                    </div>
+                    <div style="font-size:13px;color:#5A6B7B;line-height:1.6">{{ n.desc }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ isEmBreveTab }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <sc-for list="{{ emBreveItems }}" as="c" hint-placeholder-count="4">
+                <div style="padding:18px;border:1px solid #E7EDF4;border-radius:14px;background:#FBFCFE;display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <div style="width:38px;height:38px;border-radius:11px;background:#EAF2FD;display:flex;align-items:center;justify-content:center;flex:none">
+                      <i class="{{ c.icon }}" style="font-size:18px;color:#1F74E0"></i>
+                    </div>
+                    <span style="{{ c.statusStyle }}">{{ c.status }}</span>
+                  </div>
+                  <div style="font-size:14.5px;font-weight:800;color:#0F2438">{{ c.title }}</div>
+                  <div style="font-size:12.5px;color:#5A6B7B;line-height:1.55;flex:1">{{ c.desc }}</div>
+                  <sc-if value="{{ c.hasEta }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size:11px;color:#9AA9B8;font-weight:600;display:flex;align-items:center;gap:5px;padding-top:10px;border-top:1px solid #EEF3F8"><i class="ri-time-line"></i>{{ c.eta }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:none;padding:14px 26px;display:flex;justify-content:flex-end;border-top:1px solid #EEF3F8">
+          <span onClick="{{ closeNews }}" style="font-size:12px;font-weight:800;letter-spacing:.05em;color:#5A6B7B;cursor:pointer" style-hover="color:#0F2438">FECHAR</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:260,&quot;height&quot;:900},&quot;active&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;atendimentos&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;gearIconSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:22,&quot;min&quot;:18,&quot;max&quot;:32,&quot;step&quot;:1,&quot;unit&quot;:&quot;px&quot;,&quot;section&quot;:&quot;Perfil&quot;,&quot;tsType&quot;:&quot;number&quot;}}">
+class Component extends DCLogic {
+  state = { menuOpen:false, switchOpen:false, presence:'online', account:'js', newsOpen:false, newsTab:'novidades', newsSeen:false };
+
+  ACCOUNTS = {
+    js:{ initials:'JS', name:'Jardel Souza', role:'Gestor', tint:'#2C6BB8' },
+    ab:{ initials:'AB', name:'Ana Beatriz', role:'Subgestora', tint:'#2C6BB8' },
+    da:{ initials:'DA', name:'Daiane', role:'Atendente', tint:'#2F8F86' }
+  };
+  PRES = { online:['Online','#25B24F'], ausente:['Ausente','#E0A61C'], offline:['Offline','#8FA3B8'] };
+  NEWS_NOW = new Date(2026,6,25);
+
+  newsData(){
+    const MS_DAY=86400000;
+    const raw=[
+      ['Mensagens Programadas','Agende mensagens para envio automático em uma data e hora específicas para qualquer lead, direto pelo chat de atendimento.','2026-07-22'],
+      ['Múltiplos anexos no orçamento','Agora é possível anexar várias fotos e arquivos de uma vez ao montar o orçamento do lead, direto pelo chat.','2026-07-22'],
+      ['Busca por telefone na Agenda','Encontre qualquer lead rapidamente buscando pelo número de telefone, além do nome, na Agenda de Contatos.','2026-07-22'],
+      ['Banco de Arquivos reorganizado','Pastas, busca e envio direto de arquivos para o lead durante o atendimento.','2026-07-13'],
+      ['Tags personalizadas','Crie e organize tags coloridas para classificar e filtrar seus leads.','2026-06-30'],
+      ['Automação por IA','Regras de atendentes disponíveis e follow-ups automáticos configuráveis.','2026-06-18'],
+      ['Status de presença da equipe','Veja quem está online, ausente ou offline direto no menu do perfil.','2026-06-02'],
+      ['Central de Relatórios','Funil de conversão, tempos de atendimento e exportação de dados.','2026-05-20']
+    ];
+    return raw.map(([title,desc,iso])=>{
+      const d=new Date(iso+'T00:00:00');
+      const days=Math.round((this.NEWS_NOW-d)/MS_DAY);
+      const dd=String(d.getDate()).padStart(2,'0'), mm=String(d.getMonth()+1).padStart(2,'0');
+      return { title, desc, isNew:days<=14, dateLabel:dd+'/'+mm+'/'+d.getFullYear() };
+    });
+  }
+
+  emBreveData(){
+    return [
+      { icon:'ri-megaphone-line', title:'Campanhas em Massa', desc:'Crie campanhas segmentadas e envie mensagens em massa via WhatsApp para grupos de leads.', status:'Em desenvolvimento', tone:'warn', eta:'Previsão: agosto de 2026' },
+      { icon:'ri-brain-line', title:'Automação com IA Generativa', desc:'Respostas automáticas mais inteligentes, treinadas com o histórico de atendimentos.', status:'Em desenvolvimento', tone:'warn', eta:'Previsão: setembro de 2026' },
+      { icon:'ri-bar-chart-grouped-line', title:'Relatórios Avançados', desc:'Metas por atendente, funis comparativos e exportação avançada em PDF.', status:'Planejado', tone:'sky', eta:'' },
+      { icon:'ri-smartphone-line', title:'Aplicativo Mobile', desc:'Atenda leads e acompanhe métricas direto do celular, no iOS e Android.', status:'Planejado', tone:'sky', eta:'' }
+    ];
+  }
+
+  mkItem(row){
+    const [key,line,fill,label,href,badge]=row;
+    const active=(this.props.active||'')===key;
+    return {
+      href, label, badge, hasBadge:!!badge,
+      icon: active?fill:line,
+      iconStyle: active?'font-size:21px;color:#7FBBF2':'font-size:21px',
+      style:`display:flex;align-items:center;gap:13px;padding:10px 13px;border-radius:10px;font-weight:${active?600:500};cursor:pointer;margin-bottom:2px;font-size:16px;text-decoration:none;color:${active?'#fff':'#C3D6E8'};${active?'background:rgba(79,163,240,.17);box-shadow:inset 3px 0 0 #4FA3F0;':''}`,
+      hover: active?'background:rgba(79,163,240,.2);color:#fff':'background:rgba(255,255,255,.06);color:#F0F6FC'
+    };
+  }
+
+  renderVals(){
+    const menu=[
+      ['atendimentos','ri-customer-service-2-line','ri-customer-service-2-fill','Atendimentos','Atendimentos.dc.html','5'],
+      ['dashboard','ri-line-chart-line','ri-line-chart-fill','Dashboard','Dashboard.dc.html',null],
+      ['agenda','ri-contacts-line','ri-contacts-fill','Agenda de Contatos','Agenda.dc.html',null],
+      ['tags','ri-price-tag-3-line','ri-price-tag-3-fill','Tags','Tags.dc.html',null],
+      ['rapidas','ri-chat-1-line','ri-chat-1-fill','Mensagens Rápidas','MensagensRapidas.dc.html',null],
+      ['arquivos','ri-archive-2-line','ri-archive-2-fill','Banco de Arquivos','BancoArquivos.dc.html',null],
+      ['programadas','ri-calendar-schedule-line','ri-calendar-schedule-fill','Mensagens Programadas','MensagensProgramadas.dc.html',null],
+      ['lembretes','ri-notification-3-line','ri-notification-3-fill','Lembretes','Lembretes.dc.html',null]
+    ].map(r=>this.mkItem(r));
+
+    const gestao=[
+      ['equipe','ri-team-line','ri-team-fill','Equipe','Equipe.dc.html',null],
+      ['campanhas','ri-megaphone-line','ri-megaphone-fill','Campanhas',null,null],
+      ['automacao','ri-robot-2-line','ri-robot-2-fill','Automação','Automacao.dc.html?tab=geral',null],
+      ['horarios','ri-alarm-line','ri-alarm-fill','Horários','Horarios.dc.html',null],
+      ['relatorios','ri-bar-chart-box-line','ri-bar-chart-box-fill','Relatórios','Relatorios.dc.html',null]
+    ].map(r=>this.mkItem(r));
+
+    const config=this.mkItem(['config','ri-settings-4-line','ri-settings-4-fill','Configurações','Configuracoes.dc.html',null]);
+
+    const acc=this.ACCOUNTS[this.state.account];
+    const presColor=this.PRES[this.state.presence][1];
+    const account={
+      initials:acc.initials, name:acc.name, role:acc.role,
+      avatarStyle:`width:38px;height:38px;border-radius:11px;background:${acc.tint};color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none;position:relative`,
+      dotStyle:`position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:${presColor};border:2.5px solid #0C2A43`
+    };
+
+    const presenceOpts=Object.keys(this.PRES).map(k=>{ const [label,color]=this.PRES[k]; const sel=this.state.presence===k; return {
+      label, sel,
+      onClick:()=>this.setState({presence:k}),
+      dot:`width:9px;height:9px;border-radius:50%;background:${color};flex:none`,
+      style:`display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:${sel?700:600};color:${sel?'#fff':'#C3D6E8'};background:${sel?'rgba(79,163,240,.16)':'transparent'}`
+    };});
+
+    const otherAccounts=Object.keys(this.ACCOUNTS).filter(k=>k!==this.state.account).map(k=>{ const a=this.ACCOUNTS[k]; return {
+      initials:a.initials, name:a.name, role:a.role,
+      onClick:()=>this.setState({account:k, switchOpen:false}),
+      avatarStyle:`width:30px;height:30px;border-radius:9px;background:${a.tint};color:#fff;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;flex:none`
+    };});
+
+    const newsOpen=this.state.newsOpen;
+    const newsIcon=newsOpen?'ri-sparkling-2-fill':'ri-sparkling-2-line';
+    const newsIconStyle=newsOpen?'font-size:21px;color:#7FBBF2':'font-size:21px';
+    const newsRowStyle=`display:flex;align-items:center;gap:13px;padding:10px 13px;border-radius:10px;font-weight:${newsOpen?600:500};cursor:pointer;margin-bottom:2px;font-size:16px;color:${newsOpen?'#fff':'#C3D6E8'};${newsOpen?'background:rgba(79,163,240,.17);box-shadow:inset 3px 0 0 #4FA3F0;':''}`;
+    const newsRowHover=newsOpen?'background:rgba(79,163,240,.2);color:#fff':'background:rgba(255,255,255,.06);color:#F0F6FC';
+
+    const novidadesFlat=this.newsData();
+    const novidadesGroups=[];
+    novidadesFlat.forEach(item=>{
+      const last=novidadesGroups[novidadesGroups.length-1];
+      if(last && last.dateLabel===item.dateLabel) last.items.push(item);
+      else novidadesGroups.push({ dateLabel:item.dateLabel, items:[item] });
+    });
+
+    const TONE_NEWS={ warn:['#FBEFD6','#B07A15'], sky:['#E7F1FC','#2E77C2'] };
+    const emBreveItems=this.emBreveData().map(c=>{
+      const [bg,fg]=TONE_NEWS[c.tone];
+      return { ...c, hasEta:!!c.eta, statusStyle:`font-size:10.5px;font-weight:800;letter-spacing:.03em;color:${fg};background:${bg};padding:3px 9px;border-radius:20px` };
+    });
+    const newsTabDefs=[['novidades','Novidades'],['embreve','Em breve']];
+    const newsTabs=newsTabDefs.map(([key,label])=>{
+      const active=this.state.newsTab===key;
+      return { label,
+        onClick:()=>this.setState({newsTab:key}),
+        style:`padding:10px 28px;border-radius:999px;font-size:13.5px;font-weight:700;cursor:pointer;color:${active?'#fff':'#8A93A0'};background:${active?'#0C2A43':'transparent'}`
+      };
+    });
+    const newsSubtitle=this.state.newsTab==='novidades'?'Conheça as principais novidades em nossa plataforma!':'Confira o que vem por aí na plataforma!';
+
+    const adminActive=(this.props.active||'')==='admin';
+    const adminIcon=adminActive?'ri-shield-keyhole-fill':'ri-shield-keyhole-line';
+    const adminIconStyle=adminActive?'font-size:21px;color:#B9A6F0':'font-size:21px;color:#C3D6E8';
+    const adminRowStyle=`display:flex;align-items:center;gap:13px;padding:10px 13px;border-radius:10px;font-weight:${adminActive?600:500};cursor:pointer;font-size:16px;text-decoration:none;color:${adminActive?'#fff':'#C3D6E8'};${adminActive?'background:rgba(140,110,224,.2);box-shadow:inset 3px 0 0 #8C6EE0;':''}`;
+    const adminRowHover=adminActive?'background:rgba(140,110,224,.24);color:#fff':'background:rgba(255,255,255,.06);color:#F0F6FC';
+
+    const gearIconStyle=`font-size:${this.props.gearIconSize ?? 22}px`;
+    return {
+      menu, gestao, config, account, gearIconStyle,
+      presenceLabel:this.PRES[this.state.presence][0],
+      menuOpen:this.state.menuOpen, toggleMenu:()=>this.setState(s=>({menuOpen:!s.menuOpen, switchOpen:false, newsOpen:false})),
+      switchOpen:this.state.switchOpen, toggleSwitch:()=>this.setState(s=>({switchOpen:!s.switchOpen})),
+      switchChevron:this.state.switchOpen?'ri-arrow-up-s-line':'ri-arrow-down-s-line',
+      presenceOpts, otherAccounts,
+      newsOpen, newsIcon, newsIconStyle, newsRowStyle, newsRowHover, newsShowDot:!this.state.newsSeen,
+      toggleNews:()=>this.setState(s=>({newsOpen:!s.newsOpen, newsSeen:true, menuOpen:false, switchOpen:false})),
+      closeNews:()=>this.setState({newsOpen:false}), stop:(e)=>e.stopPropagation(),
+      newsTabs, isNovidadesTab:this.state.newsTab==='novidades', isEmBreveTab:this.state.newsTab==='embreve',
+      novidadesGroups, emBreveItems, newsSubtitle,
+      adminIcon, adminIconStyle, adminRowStyle, adminRowHover
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#1F74E0;text-decoration:none}a:hover{color:#1560C4}
+input,textarea{font-family:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<dc-import name="Sidebar" active="rapidas" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden;position:relative">
+
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:20px 32px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px">
+      <div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Mensagens Rápidas</div>
+        <div style="font-size:13px;color:#8A9BAD;margin-top:4px">Atalhos de resposta · visão do gestor sobre todas as listas</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="position:relative">
+          <div onClick="{{ onToggleFilter }}" style="{{ filterBtnStyle }}"><i class="ri-user-star-line" style="font-size:15px"></i>{{ filterLabel }}<i class="ri-arrow-down-s-line" style="font-size:16px;color:#9AA9B8"></i></div>
+          <sc-if value="{{ filterOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:46px;right:0;z-index:30;min-width:210px;background:#fff;border:1px solid #E7EDF4;border-radius:13px;box-shadow:0 24px 60px -22px rgba(12,42,67,.4);padding:7px">
+              <sc-for list="{{ filterOpts }}" as="o" hint-placeholder-count="6">
+                <div onClick="{{ o.onClick }}" style="{{ o.style }}"><i class="{{ o.check }}" style="font-size:16px;color:#1F74E0;width:18px"></i><span style="flex:1">{{ o.label }}</span><span style="font-size:11.5px;color:#9AA9B8;font-weight:600">{{ o.n }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <button onClick="{{ onNew }}" style="display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 16px;border-radius:11px;border:0;background:#1F74E0;color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 8px 18px -8px rgba(31,116,224,.7)" style-hover="background:#1560C4"><i class="ri-add-line" style="font-size:18px"></i>Nova mensagem</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:22px 32px 48px">
+    <div style="display:flex;align-items:center;gap:11px;background:#EAF2FD;border:1px solid #CFE1FA;border-radius:13px;padding:13px 18px;margin-bottom:24px">
+      <i class="ri-flashlight-fill" style="font-size:20px;color:#1F74E0"></i>
+      <div style="font-size:13px;color:#1B4A80;line-height:1.5">Digite a palavra-chave (ex.: <b style="font-family:'JetBrains Mono',monospace;background:#fff;padding:1px 6px;border-radius:5px;border:1px solid #CFE1FA">/orcamento</b>) no composer da aba <b>Atendimentos</b> para inserir a mensagem automaticamente.</div>
+    </div>
+
+    <sc-for list="{{ groups }}" as="g" hint-placeholder-count="4">
+      <div style="margin-bottom:26px">
+        <div style="display:flex;align-items:center;gap:11px;margin-bottom:13px">
+          <div style="{{ g.avatarStyle }}"><sc-if value="{{ g.isGeral }}" hint-placeholder-val="{{ false }}"><i class="ri-team-fill" style="font-size:18px"></i></sc-if><sc-if value="{{ g.isAgent }}" hint-placeholder-val="{{ true }}">{{ g.initials }}</sc-if></div>
+          <span style="font-size:15px;font-weight:800;letter-spacing:-.01em">{{ g.name }}</span>
+          <span style="font-size:11.5px;font-weight:700;color:#5A6B7B;background:#EEF3F8;padding:2px 9px;border-radius:20px">{{ g.count }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:13px">
+          <sc-for list="{{ g.items }}" as="m" hint-placeholder-count="2">
+            <div style="background:#fff;border:1px solid #E7EDF4;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:11px" style-hover="border-color:#CFE1FA;box-shadow:0 10px 26px -18px rgba(12,42,67,.4)">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:#1560C4;background:#EAF2FD;border:1px solid #D6E6FA;padding:4px 11px;border-radius:8px">{{ m.keyword }}</span>
+                <div style="margin-left:auto;display:flex;gap:5px">
+                  <button onClick="{{ m.onEdit }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EEF3F8;background:#fff;color:#8A9BAD;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" style-hover="background:#F4F7FB;color:#1F74E0"><i class="ri-pencil-line"></i></button>
+                  <button onClick="{{ m.onDelete }}" style="width:30px;height:30px;border-radius:8px;border:1px solid #EEF3F8;background:#fff;color:#B9C6D3;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center" style-hover="background:#FBEBEA;color:#D8493A;border-color:#F3D3CF"><i class="ri-delete-bin-line"></i></button>
+                </div>
+              </div>
+              <div style="font-size:13.5px;line-height:1.55;color:#3B4E62">{{ m.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:50px 20px;text-align:center;color:#9AA9B8"><i class="ri-chat-off-line" style="font-size:32px;color:#CBD8E6"></i><div style="margin-top:10px;font-size:14px;font-weight:600">Nenhuma mensagem para este atendente</div></div>
+    </sc-if>
+  </div>
+
+  <!-- MODAL -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:absolute;inset:0;background:rgba(12,42,67,.35);z-index:50;display:flex;align-items:center;justify-content:center">
+      <div onClick="{{ stop }}" style="width:600px;background:#fff;border-radius:18px;box-shadow:0 40px 100px -30px rgba(12,42,67,.6);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid #EEF3F8">
+          <div style="flex:1"><div style="font-size:16px;font-weight:800">{{ modalTitle }}</div><div style="font-size:12.5px;color:#8A9BAD;margin-top:2px">Atalho acionado no composer de Atendimentos</div></div>
+          <button onClick="{{ closeModal }}" style="width:30px;height:30px;border-radius:9px;border:0;background:#F4F7FB;color:#5A6B7B;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" style-hover="background:#EAF0F7"><i class="ri-close-line"></i></button>
+        </div>
+        <div style="padding:22px 24px">
+          <div style="display:flex;gap:16px;margin-bottom:18px">
+            <div style="flex:1">
+              <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">LISTA / ATENDENTE</div>
+              <div style="position:relative">
+                <select value="{{ formOwner }}" onChange="{{ onFormOwner }}" style="width:100%;height:42px;border:1px solid #E1E8F0;border-radius:11px;padding:0 12px;font-size:14px;color:#0F2438;outline:none;background:#fff;appearance:none;cursor:pointer" style-focus="border-color:#1F74E0">
+                  <sc-for list="{{ ownerOpts }}" as="o" hint-placeholder-count="6"><option value="{{ o.val }}">{{ o.label }}</option></sc-for>
+                </select>
+                <i class="ri-arrow-down-s-line" style="position:absolute;right:12px;top:12px;font-size:18px;color:#9AA9B8;pointer-events:none"></i>
+              </div>
+            </div>
+            <div style="width:220px;flex:none">
+              <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">PALAVRA-CHAVE</div>
+              <input value="{{ formKeyword }}" onChange="{{ onFormKeyword }}" placeholder="/atalho" style="width:100%;height:42px;border:1px solid #E1E8F0;border-radius:11px;padding:0 12px;font-size:14px;font-family:'JetBrains Mono',monospace;color:#1560C4;outline:none" style-focus="border-color:#1F74E0">
+            </div>
+          </div>
+          <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#8A9BAD;margin-bottom:8px">MENSAGEM</div>
+          <textarea value="{{ formText }}" onChange="{{ onFormText }}" rows="4" placeholder="Digite o texto da resposta rápida…" style="width:100%;border:1px solid #E1E8F0;border-radius:11px;padding:11px 13px;font-size:13.5px;line-height:1.55;color:#0F2438;outline:none;resize:vertical" style-focus="border-color:#1F74E0"></textarea>
+          <div style="margin-top:16px;background:#F7FAFD;border:1px solid #EEF3F8;border-radius:12px;padding:14px 16px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#8A9BAD;margin-bottom:8px">PRÉVIA</div>
+            <div style="display:inline-flex;max-width:100%;background:#1F74E0;color:#fff;border-radius:13px 13px 5px 13px;padding:9px 13px;font-size:13.5px;line-height:1.5">{{ previewText }}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;background:#F9FBFD;border-top:1px solid #EEF3F8">
+          <button onClick="{{ closeModal }}" style="height:40px;padding:0 16px;border-radius:10px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#F4F7FB">Cancelar</button>
+          <button onClick="{{ onSave }}" style="height:40px;padding:0 20px;border-radius:10px;border:0;background:#1F74E0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px" style-hover="background:#1560C4"><i class="ri-check-line" style="font-size:17px"></i>Salvar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;background:#0F2438;color:#fff;padding:12px 18px;border-radius:12px;box-shadow:0 20px 50px -18px rgba(0,0,0,.5);font-size:13.5px;font-weight:600"><i class="ri-checkbox-circle-fill" style="font-size:18px;color:#4FD08A"></i>{{ toast }}</div>
+  </sc-if>
+
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = { filterAgent:'all', filterOpen:false, modal:null, form:null, toast:null };
+
+  AG={ js:['Jardel Souza','JS','#2C6BB8'], ab:['Ana Beatriz','AB','#2C6BB8'], da:['Daiane','DA','#2F8F86'], cl:['Clayton','CL','#5566A8'], ed:['Eduarda','ED','#3E8FD0'] };
+
+  msgs(){ if(this._m) return this._m; this._m=[
+    { id:'m1', owner:'geral', keyword:'/horario', text:'Nosso horário de atendimento é de segunda a sexta, das 08h às 18h30, e sábado em plantão das 08h às 12h.' },
+    { id:'m2', owner:'geral', keyword:'/pix', text:'Segue nossa chave PIX (CNPJ): 12.345.678/0001-90 — Estrutural Vidros. Assim que enviar o comprovante já confirmo por aqui!' },
+    { id:'m3', owner:'geral', keyword:'/garantia', text:'Todos os nossos serviços têm garantia de 5 anos contra defeitos de fabricação e instalação.' },
+    { id:'m4', owner:'geral', keyword:'/endereco', text:'Estamos na QI 25, Guará II — Brasília/DF. Atendemos todo o DF e entorno.' },
+    { id:'m5', owner:'js', keyword:'/bomdia', text:'Bom dia! Aqui é o Jardel, da Estrutural Vidros. Como posso te ajudar hoje?' },
+    { id:'m6', owner:'js', keyword:'/orcamento', text:'Para montar seu orçamento, preciso das medidas (largura x altura) e do tipo de vidro. Pode me enviar por aqui!' },
+    { id:'m7', owner:'ab', keyword:'/medidas', text:'Para o box, me envie a largura e a altura de cada vão. Se puder mandar uma foto do local, ajuda bastante!' },
+    { id:'m8', owner:'ab', keyword:'/followup', text:'Oi! Passando para saber se ficou alguma dúvida sobre o orçamento que enviei. Fico à disposição!' },
+    { id:'m9', owner:'da', keyword:'/espelho', text:'Fazemos espelhos sob medida (comum, bisotê e lapidado). Me passa as medidas que já calculo o valor.' },
+    { id:'m10', owner:'cl', keyword:'/revenda', text:'Temos tabela especial para revenda e vidraçarias parceiras. Posso te enviar as condições agora.' },
+    { id:'m11', owner:'ed', keyword:'/agradecimento', text:'Obrigada pela preferência! Qualquer necessidade com vidros e espelhos, é só chamar a Estrutural Vidros.' }
+  ]; return this._m; }
+
+  uid(){ this._u=(this._u||0)+1; return 'nm'+this._u; }
+  showToast(m){ this.setState({toast:m}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2600); }
+  ownerName(o){ return o==='geral'?'Mensagens gerais':this.AG[o][0]; }
+
+  openNew(){ this.setState({ modal:'new', form:{ owner:this.state.filterAgent==='all'?'geral':this.state.filterAgent, keyword:'/', text:'' }, filterOpen:false }); }
+  openEdit(m){ this.setState({ modal:'edit', form:{ id:m.id, owner:m.owner, keyword:m.keyword, text:m.text } }); }
+  del(id){ this._m=this.msgs().filter(x=>x.id!==id); this.showToast('Mensagem excluída'); this.setState({modal:null}); }
+  save(){ const f=this.state.form; if(!f.text.trim()) return; let kw=f.keyword.trim(); if(kw && kw[0]!=='/') kw='/'+kw; if(!kw) kw='/atalho';
+    if(f.id){ const m=this.msgs().find(x=>x.id===f.id); m.owner=f.owner; m.keyword=kw; m.text=f.text.trim(); this.showToast('Mensagem atualizada'); }
+    else { this.msgs().push({ id:this.uid(), owner:f.owner, keyword:kw, text:f.text.trim() }); this.showToast('Mensagem criada'); }
+    this.setState({modal:null}); }
+
+  renderVals(){
+    const all=this.msgs();
+    const order=['geral','js','ab','da','cl','ed'];
+    const countFor=(o)=>all.filter(m=>m.owner===o).length;
+
+    const filterOpts=[{val:'all',label:'Todos os atendentes',n:all.length}, {val:'geral',label:'Mensagens gerais',n:countFor('geral')}, ...order.filter(o=>o!=='geral').map(o=>({val:o,label:this.AG[o][0],n:countFor(o)}))].map(o=>({
+      label:o.label, n:o.n, check:this.state.filterAgent===o.val?'ri-check-line':'',
+      onClick:()=>this.setState({filterAgent:o.val, filterOpen:false}),
+      style:`display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:${this.state.filterAgent===o.val?700:500};color:${this.state.filterAgent===o.val?'#0F2438':'#33475B'};background:${this.state.filterAgent===o.val?'#F4F7FB':'transparent'}`
+    }));
+
+    const visOwners=this.state.filterAgent==='all'?order:[this.state.filterAgent];
+    const groups=visOwners.map(o=>{ const items=all.filter(m=>m.owner===o); const isGeral=o==='geral'; const ag=isGeral?null:this.AG[o]; return {
+      name:isGeral?'Mensagens gerais':ag[0], count:items.length, isGeral, isAgent:!isGeral, initials:isGeral?'':ag[1],
+      avatarStyle:`width:40px;height:40px;border-radius:12px;background:${isGeral?'#1F74E0':ag[2]};color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none`,
+      items:items.map(m=>({ keyword:m.keyword, text:m.text, onEdit:()=>this.openEdit(m), onDelete:()=>this.del(m.id) }))
+    };}).filter(g=>g.count>0);
+
+    const f=this.state.form||{ owner:'geral', keyword:'/', text:'' };
+    const ownerOpts=[{val:'geral',label:'Mensagens gerais'}, ...order.filter(o=>o!=='geral').map(o=>({val:o,label:this.AG[o][0]}))];
+
+    return {
+      onToggleFilter:()=>this.setState(s=>({filterOpen:!s.filterOpen})), filterOpen:this.state.filterOpen,
+      filterLabel:this.state.filterAgent==='all'?'Todos os atendentes':(this.state.filterAgent==='geral'?'Mensagens gerais':this.AG[this.state.filterAgent][0]),
+      filterBtnStyle:`display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 13px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${this.state.filterAgent!=='all'?'#CFE1FA':'#E7EDF4'};background:${this.state.filterAgent!=='all'?'#EAF2FD':'#fff'};color:${this.state.filterAgent!=='all'?'#1560C4':'#3F5163'}`,
+      filterOpts,
+      onNew:()=>this.openNew(),
+      groups, isEmpty:groups.length===0,
+      modalOpen:!!this.state.modal, modalTitle:this.state.modal==='edit'?'Editar mensagem rápida':'Nova mensagem rápida',
+      formOwner:f.owner, onFormOwner:(e)=>this.setState({form:{...f,owner:e.target.value}}),
+      formKeyword:f.keyword, onFormKeyword:(e)=>this.setState({form:{...f,keyword:e.target.value}}),
+      formText:f.text, onFormText:(e)=>this.setState({form:{...f,text:e.target.value}}),
+      previewText:f.text.trim()||'Sua mensagem aparecerá aqui…', ownerOpts,
+      onSave:()=>this.save(), closeModal:()=>this.setState({modal:null}), stop:(e)=>e.stopPropagation(),
+      toast:this.state.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -26,7 +26,8 @@ public record SegurancaProperties(
         @NotBlank @Size(min = 32, message = "o segredo do JWT precisa de ao menos 32 caracteres") String jwtSegredo,
         Duration validadeAccessToken,
         Duration validadeRefreshToken,
-        String tokenInterno)
+        String tokenInterno,
+        String frontendOrigem)
         implements PoliticaDeSessao {
 
     @Override

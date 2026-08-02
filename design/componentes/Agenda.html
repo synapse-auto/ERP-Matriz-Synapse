@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-injected>html,body{background:transparent}</style><script data-omelette-injected>(()=>{{const W=new URLSearchParams(location.search).get("theme");if(W==="light"||W==="dark"){document.documentElement.dataset.theme=W}}{if(new URLSearchParams(location.search).get("_omthumb")==="1"){const W=(q)=>{const X=q.focus;if(!X)return;q.focus=function(H){X.call(this,{...H,preventScroll:true})}};W(HTMLElement.prototype);W(SVGElement.prototype);if(typeof MathMLElement!=="undefined"){W(MathMLElement.prototype)}const $=(q)=>{q.removeAttribute("autofocus");q.inert=true;if(!(q instanceof HTMLElement))q.removeAttribute("tabindex")};const z=(q)=>{if(q.hasAttribute("autofocus"))$(q);for(const X of q.querySelectorAll("[autofocus]")){$(X)}};z(document.documentElement);new MutationObserver((q)=>{for(const X of q){for(const H of X.addedNodes){if(H.nodeType===1)z(H)}}}).observe(document,{childList:true,subtree:true})}}{const W=()=>{try{if(document.querySelector('meta[name="color-scheme"]'))return;const $=getComputedStyle(document.documentElement).getPropertyValue("color-scheme").trim();if($&&$!=="normal")return;const z=(j)=>{if(!j)return null;const F=getComputedStyle(j).backgroundColor.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/);if(!F)return null;const G=F[4]==null?1:parseFloat(F[4])/(F[4].endsWith("%")?100:1);if(G<0.99)return null;return[+F[1],+F[2],+F[3]]};const q=z(document.body)||z(document.documentElement);if(!q)return;const X=(j)=>{const F=j/255;return F<=0.04045?F/12.92:((F+0.055)/1.055)**2.4};const H=0.2126*X(q[0])+0.7152*X(q[1])+0.0722*X(q[2]);document.documentElement.style.setProperty("color-scheme",H<0.4?"dark":"light")}catch{}};if(document.readyState==="complete")W();else window.addEventListener("load",W)}var b=["https://claude.ai","https://preview.claude.ai","https://61e9dad7-014a-4015-886a-57b60075bb13.claudeusercontent.com"];var p=true;var u=30000;var d=3000;document.addEventListener("DOMContentLoaded",()=>{const W=window.Babel;const $="om-src-id";if(W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[$])){W.registerPlugin($,({types:H})=>({visitor:{JSXOpeningElement(j,F){const G=j.node;if(G.name&&G.name.type==="JSXMemberExpression")return;for(let Q=0;Q<G.attributes.length;Q++){const V=G.attributes[Q];if(V.type==="JSXAttribute"&&V.name&&V.name.name==="data-om-id")return}const P=F.file&&F.file.opts&&F.file.opts.filename||"?";const R=G.loc&&G.loc.start;const J=`jsx:${P}:${G.start??0}:${R?R.line:0}:${R?R.column+1:0}`;G.attributes.push(H.jsxAttribute(H.jsxIdentifier("data-om-id"),H.stringLiteral(J)))}}}))}const z="om-text-extract";let q=false;if(p&&W&&W.registerPlugin&&!(W.availablePlugins&&W.availablePlugins[z])){const H=window.React;if(H&&H.useSyncExternalStore&&H.createElement){q=true;const j={};const F=new Set;let G=0;window.__omTextO=j;window.__omTextSet=(J)=>{for(const Q in J){const V=J[Q];if(V==null)delete j[Q];else j[Q]=V}G++;F.forEach((Q)=>Q())};const P=(J)=>{F.add(J);return()=>F.delete(J)};const R=()=>G;window.__OmT=function J(Q){H.useSyncExternalStore(P,R,R);return H.createElement("span",{"data-om-text":Q.i,className:"__om-t"},Q.i in j?j[Q.i]:Q.children)};W.registerPlugin(z,({types:J})=>{const Q={style:1,script:1,noscript:1,textarea:1,title:1,option:1,text:1,tspan:1,textPath:1};const V={placeholder:1,alt:1,title:1,label:1,"aria-label":1,"aria-description":1,"aria-placeholder":1};const Y=(K,M)=>J.logicalExpression("??",J.memberExpression(J.logicalExpression("||",J.memberExpression(J.identifier("window"),J.identifier("__omTextO")),J.objectExpression([])),J.stringLiteral(K),true),M);const Z=(K)=>K.file&&K.file.opts&&K.file.opts.filename||"?";const B=(K)=>K.file&&K.file.code||"";const U=(K,M)=>{const L=(D)=>D&&D.start!=null&&D.end!=null&&(D.type==="StringLiteral"||D.type==="TemplateLiteral"&&D.expressions.length===0)?[D.start,D.end]:null;const N=L(M);if(N)return N;if(M&&M.type==="Identifier"){const D=K.scope.getBinding(M.name);if(D&&D.constant&&D.path.node.type==="VariableDeclarator"){return L(D.path.node.init)}}return null};const x=(K,M,L)=>{const N=K.node;let D=false;const f=(w,A)=>{D=true;return J.jsxElement(J.jsxOpeningElement(J.jsxIdentifier("__OmT"),[J.jsxAttribute(J.jsxIdentifier("i"),J.stringLiteral(w))],false),J.jsxClosingElement(J.jsxIdentifier("__OmT")),[A],false)};const C=N.children.map((w)=>{if(w.type==="JSXText"){if(w.start==null||w.end==null)return w;const A=L.slice(w.start,w.end);const S=A.length-A.trimStart().length;const O=A.length-A.trimEnd().length;if(S+O>=A.length)return w;return f(`txt:${M}:${w.start+S}:${w.end-O}`,w)}if(w.type==="JSXExpressionContainer"){const A=U(K,w.expression);if(A)return f(`str:${M}:${A[0]}:${A[1]}`,w)}return w});if(D)N.children=C};return{visitor:{JSXOpeningElement(K,M){const L=K.node;const N=Z(M);const D={};for(let f=0;f<L.attributes.length;f++){const C=L.attributes[f];if(C.type!=="JSXAttribute"||!C.name)continue;const w=C.name.name;if(!V[w])continue;if(!C.value||C.value.type!=="StringLiteral")continue;if(C.value.start==null||C.value.end==null)continue;const A=`txt:${N}:${C.value.start}:${C.value.end}`;D[w]=A;C.value=J.jsxExpressionContainer(Y(A,J.stringLiteral(C.value.value)))}if(Object.keys(D).length){L.attributes.push(J.jsxAttribute(J.jsxIdentifier("data-om-text-attrs"),J.stringLiteral(JSON.stringify(D))))}},JSXElement(K,M){const L=K.node.openingElement;const N=L&&L.name&&L.name.name;if(N==="__OmT")return;if(typeof N==="string"&&Q[N])return;x(K,Z(M),B(M))},JSXFragment(K,M){x(K,Z(M),B(M))}}}})}}const X=q?["transform-react-jsx-source",$,z]:["transform-react-jsx-source",$];document.querySelectorAll('script[type="text/babel"],script[type="text/jsx"]').forEach((H,j)=>{const F=H.getAttribute("data-plugins")||"";const G=X.filter((P)=>F.indexOf(P)<0);if(G.length){H.setAttribute("data-plugins",F?`${F},${G.join(",")}`:G.join(","))}if(!H.hasAttribute("data-filename")){H.setAttribute("data-filename",H.getAttribute("src")||`inline-${j}`)}})});var I=window.parent;var g="not editable here — open the project in the Claude Design editor to save";var n=()=>Promise.resolve({persisted:false,noHost:true,reason:g});var k=n;var v="data/storage.json";var l=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.match(/\/projects\/([^/]+)\/serve\//);if($)return $[1];return W.hostname.split(".")[0]||""}catch{return location.hostname.split(".")[0]||""}};var o=()=>{try{const W=new URL(document.baseURI);const $=W.pathname.indexOf("/serve/");if($>=0)return W.origin+W.pathname.slice(0,$+"/serve/".length)+v}catch{}return"./"+v};var E=null;var _=()=>{if(!E){E=fetch(o(),{cache:"no-store"}).then((W)=>{if(W.ok)return W.text();return W.status===404?"":null}).catch(()=>null).then((W)=>{if(W===null){E=null;return null}const $=new Map;if(!W)return $;let z;try{z=JSON.parse(W)}catch{console.warn("[omelette.storage] "+v+" is not valid JSON; treating the store as unreadable so a save cannot overwrite the "+"hand-edited bytes. Fix the JSON (or delete the file) to re-enable persistence.");E=null;return null}if(z===null||typeof z!=="object"||Array.isArray(z)){console.warn("[omelette.storage] "+v+" doesn't hold a JSON object; treating the store as unreadable so a save cannot "+"overwrite the hand-edited bytes. Make the top level a JSON object to re-enable persistence.");E=null;return null}const q=z;if("data"in q){const X=q.data;if(X===null||typeof X!=="object"||Array.isArray(X)){console.warn("[omelette.storage] "+v+' has a "data" field that is not a JSON object; treating the store as unreadable so a '+'save cannot overwrite the hand-edited bytes. Make "data" a JSON object to re-enable persistence.');E=null;return null}const H=q._meta;const j=H!==null&&typeof H==="object"?H.project:undefined;if(typeof j==="string"&&j!==""&&j!==l())return $;for(const F of Object.keys(X))$.set(F,X[F]);return $}for(const X of Object.keys(q)){if(X!=="_meta")$.set(X,q[X])}return $})}return E};var y=(W)=>k(v,JSON.stringify({_meta:{project:l(),version:1},data:Object.fromEntries(W)},null,2));var m=Promise.resolve();var T=(W)=>{const $=m.then(W);m=$.then(()=>{return},()=>{return});return $};var s=/sk-(?:ant-)?[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[a-z]-[A-Za-z0-9][A-Za-z0-9-]{9,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----/;var a=/password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|credential/i;var r=(W,$,z)=>{if(s.test($)||a.test(W)&&typeof z==="string"&&z.length>=8){console.warn('[omelette.storage] the value for "'+W+'" looks like a credential. The storage file is a plaintext project file — visible to '+"everyone with project access and copied when the project is duplicated. Do not store secrets here.")}};var c={persisted:false,reason:"could not load the existing store — not overwriting it"};var i={persisted:false,reason:"stored value changed since a failed read — re-read this key before saving"};var h=new Set;var t={get:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.get: key must be a string"))}return T(_).then(($)=>{if($===null){h.add(W);return null}h.delete(W);if(!$.has(W))return null;const z=$.get(W);return z==null?null:JSON.parse(JSON.stringify(z))})},set:(W,$)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.set: key must be a string"))}let z;try{z=JSON.stringify($)}catch(X){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable ("+String(X)+")"))}if(z===undefined){return Promise.reject(new TypeError("storage.set: value must be JSON-serializable"))}r(W,z,$);const q=JSON.parse(z);return T(()=>_().then((X)=>{if(X===null)return c;if(h.has(W)){if(X.has(W))return i;h.delete(W)}X.set(W,q);return y(X)}))},delete:(W)=>{if(typeof W!=="string"){return Promise.reject(new TypeError("storage.delete: key must be a string"))}return T(()=>_().then(($)=>{if($===null)return c;if(h.has(W)){if($.has(W))return i;h.delete(W)}$.delete(W);return y($)}))},keys:()=>T(_).then((W)=>W===null?[]:Array.from(W.keys()))};window.omelette={writeFile:(W,$)=>k(W,$).then((z)=>{if(!z.persisted&&!z.noHost){throw new Error(z.reason||"write failed")}}),storage:t};if(I&&I!==window){const W=(J,Q)=>{try{I.postMessage({__omelette_log:true,type:J,data:Q},"*")}catch{}};["log","warn","error"].forEach((J)=>{const Q=console[J];console[J]=(...V)=>{const Y=V.map((Z)=>{try{return typeof Z==="object"?JSON.stringify(Z):String(Z)}catch{try{return String(Z)}catch{return"[unstringifiable]"}}}).join(" ");W(J,Y);Q.apply(console,V)}});window.addEventListener("error",(J)=>{const Q=J.target;if(Q&&Q!==window&&Q.tagName){const V=Q.src||Q.href||"";W("resource_error",`${Q.tagName} failed to load: ${V}`)}else{W("error",`${J.message||"Unknown error"} at ${J.filename||"?"}:${J.lineno||0}:${J.colno||0}`)}},true);window.addEventListener("unhandledrejection",(J)=>{const Q=J.reason;const V=Q instanceof Error?`${Q.message} ${Q.stack}`:String(Q);W("error",`Unhandled rejection: ${V}`)});window.addEventListener("click",(J)=>{if(J.defaultPrevented||J.button!==0)return;if(J.metaKey||J.ctrlKey||J.shiftKey||J.altKey)return;const Q=J.composedPath?J.composedPath():[];const V=["button","input","select","textarea","summary","label"];let Y=null;for(const x of Q){if(!(x instanceof Element))continue;if(x.localName==="a"){if(!(x instanceof HTMLAnchorElement))return;Y=x;break}if(V.indexOf(x.localName)!==-1)return}if(!Y)return;if(Y.isContentEditable)return;const Z=Y.closest("[contenteditable]");if(Z&&Z.getAttribute("contenteditable")!=="false")return;const B=(Y.getAttribute("target")||"_self").toLowerCase();if(B!=="_self"&&B!=="_top"&&B!=="_parent")return;let U;try{U=new URL(Y.href)}catch{return}if(U.protocol!=="http:"&&U.protocol!=="https:")return;if(location.origin==="null")return;if(U.origin===location.origin)return;J.preventDefault();window.open(U.href,"_blank","noopener,noreferrer")});const $=()=>{try{I.postMessage({type:"omelette:height",height:document.documentElement.scrollHeight},"*")}catch{}};if(window.ResizeObserver)new ResizeObserver($).observe(document.documentElement);const z=()=>{$();if(!document.querySelector('script[type="text/babel"],script[type="text/jsx"]'))return;const J=()=>document.getElementById("root")||document.querySelector("body > div[id]");const Q=J()?.firstElementChild??null;let V=0;const Y=()=>{const Z=J();if(Z&&Z.firstElementChild!==Q||++V>30){$();return}setTimeout(Y,100)};setTimeout(Y,100)};if(document.readyState==="complete")z();else window.addEventListener("load",z);const q={};let X=0;const H=(J)=>new Promise((Q,V)=>{if(!b.length){V(new Error("claude.complete: no parent origin"));return}const Y=`c${++X}`;const Z=()=>setTimeout(()=>{delete q[Y];V(new Error(`claude.complete: no data for ${u/1000}s`))},u);const B=Z();q[Y]={resolve:Q,reject:V,text:"",t:B,arm:Z};try{for(const U of b){I.postMessage({__om_api:true,id:Y,body:J},U)}}catch(U){clearTimeout(B);delete q[Y];V(U)}});const j=8;const F=async(J,Q)=>{if(!Array.isArray(J.messages)){throw new Error("claude.complete: tools require a messages array")}const V=J.messages.slice();const Y={...J,tools:J.tools.map((U)=>{if(U===null||typeof U!=="object")return U;const x={};for(const K of Object.keys(U)){if(typeof U[K]!=="function")x[K]=U[K]}return x})};const Z=Y.tool_choice;const B=Z!=null&&(Z.type==="any"||Z.type==="tool")?{...Y,tool_choice:Z.disable_parallel_tool_use!==undefined?{type:"auto",disable_parallel_tool_use:Z.disable_parallel_tool_use}:{type:"auto"}}:Y;for(let U=0;U<j;U++){const x=await H({...U===0?Y:B,messages:V});const K=x.message;const M=K&&Array.isArray(K.content)?K.content:null;const L=M?M.filter((D)=>D?.type==="tool_use"):[];if(K?.stop_reason!=="tool_use"||L.length===0){return x.text}const N=[];for(const D of L){const f=Q.get(D.name);if(!f){N.push({type:"tool_result",tool_use_id:D.id,content:`no handler for tool "${D.name}"`,is_error:true});continue}try{const C=await f(D.input);const w=typeof C==="string"?C:R(C)??"";N.push({type:"tool_result",tool_use_id:D.id,content:w})}catch(C){N.push({type:"tool_result",tool_use_id:D.id,content:String(C?.message??C??"tool handler failed"),is_error:true})}}V.push({role:"assistant",content:M},{role:"user",content:N})}throw new Error(`claude.complete: exceeded ${j} tool turns`)};window.claude={complete(J){const Q=J;if(Q!==null&&typeof Q==="object"&&Array.isArray(Q.tools)&&Q.tools.some((V)=>V!==null&&typeof V==="object"&&typeof V.run==="function")){const V=new Map;for(const Y of Q.tools){if(Y!==null&&typeof Y==="object"&&typeof Y.run==="function"){V.set(String(Y.name),Y.run)}}return F(Q,V)}return H(J).then((V)=>V.text)}};const G={};let P=0;k=(J,Q)=>new Promise((V)=>{if(!b.length){V({persisted:false,noHost:true,reason:g});return}const Y=`f${++P}`;const Z=setTimeout(()=>{delete G[Y];V({persisted:false,noHost:true,reason:g})},d);G[Y]={settle:V,t:Z};try{for(const B of b){I.postMessage({__om_file:true,id:Y,op:"write",path:J,content:Q},B)}}catch{clearTimeout(Z);delete G[Y];V({persisted:false,noHost:true,reason:g})}});const R=(J)=>{try{return JSON.stringify(J)}catch{return JSON.stringify(String(J))}};window.addEventListener("message",(J)=>{if(b.indexOf(J.origin)<0)return;if(J.source!==I)return;const Q=J.data;if(!Q)return;if(Q.type==="omelette-preview-refresh"){if(typeof Q.token!=="string"||!/^[0-9a-f.-]+(\.(rc|pr-[0-9]+))?(\.[0-9]+\.[0-9a-f]{16})?$/.test(Q.token))return;const Z=Math.max(1,Math.floor((Q.expiresAt||0)-Date.now()/1000));document.cookie="__Host-omelette-preview="+Q.token+"; Path=/; Secure; SameSite=None; Partitioned; Max-Age="+Z;return}if(Q.__om_file_r){const Z=G[Q.id];if(!Z)return;clearTimeout(Z.t);delete G[Q.id];Z.settle(Q.ok?{persisted:true}:{persisted:false,reason:Q.error||"write failed"});return}if(Q.__om_api_r){const Z=q[Q.id];if(!Z)return;if(Q.error!=null){clearTimeout(Z.t);delete q[Q.id];Z.reject(new Error(Q.error));return}if(Q.chunk!=null){clearTimeout(Z.t);Z.t=Z.arm();Z.text+=Q.chunk;return}if(Q.done){clearTimeout(Z.t);delete q[Q.id];Z.resolve({text:Q.text!=null?Q.text:Z.text,message:Q.message});return}return}if(!Q.__om_eval)return;const V=Q;const Y=(Z)=>{J.source.postMessage({...Z,__om_eval_r:1,id:V.id},J.origin)};try{const Z=(0,eval)(V.code);if(Z&&typeof Z.then==="function"){Z.then((B)=>Y({ok:1,v:R(B)}),(B)=>Y({ok:0,e:String(B)}))}else{Y({ok:1,v:R(Z)})}}catch(Z){Y({ok:0,e:String(Z)})}})}})();
+</script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#E6ECF4;font-family:'Hanken Grotesk',system-ui,sans-serif}
+a{color:#1F74E0;text-decoration:none}a:hover{color:#1560C4}
+input{font-family:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#CBD8E6;border-radius:20px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:#AEC0D4;background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="width:1920px;height:1080px;margin:0 auto;display:flex;background:#F4F7FB;color:#0F2438;overflow:hidden;border-radius:16px;box-shadow:0 40px 120px -34px rgba(12,42,67,.5);position:relative;font-size:14px">
+
+<dc-import name="Sidebar" active="agenda" hint-size="260px,100%" style="width:260px;flex:none;height:100%"></dc-import>
+
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;background:#F4F7FB;overflow:hidden;position:relative">
+
+  <!-- HEADER -->
+  <div style="flex:none;background:#fff;border-bottom:1px solid #E7EDF4;padding:20px 32px 16px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px">
+      <div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.01em">Agenda de Contatos</div>
+        <div style="font-size:13px;color:#8A9BAD;margin-top:4px">Base completa de leads · visão do gestor</div>
+      </div>
+      <div style="flex:none;display:flex;align-items:center;gap:10px">
+        <button onClick="{{ onImport }}" style="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:10px;border:1px solid #E1E8F0;background:#fff;color:#3F5163;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#F4F7FB;border-color:#D6E0EA"><i class="ri-upload-2-line" style="font-size:16px;color:#8A9BAD"></i>Importar CSV</button>
+        <button onClick="{{ onExport }}" style="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border-radius:10px;border:1px solid #E1E8F0;background:#fff;color:#3F5163;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#F4F7FB;border-color:#D6E0EA"><i class="ri-download-2-line" style="font-size:16px;color:#8A9BAD"></i>Exportar CSV</button>
+        <div style="width:1px;height:26px;background:#E7EDF4;margin:0 2px"></div>
+        <div style="display:inline-flex;border:1px solid #E1E8F0;border-radius:10px;overflow:hidden;background:#fff">
+          <div onClick="{{ onViewLista }}" style="{{ listaTabStyle }}"><i class="ri-list-check-2" style="font-size:16px"></i>Lista</div>
+          <div onClick="{{ onViewKanban }}" style="{{ kanbanTabStyle }}"><i class="ri-layout-column-line" style="font-size:16px"></i>Kanban</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div style="display:flex;align-items:center;gap:10px;margin-top:16px">
+      <div style="display:flex;align-items:center;gap:9px;height:40px;padding:0 13px;background:#F4F7FB;border:1px solid #E7EDF4;border-radius:11px;width:380px;flex:none">
+        <i class="ri-search-line" style="font-size:16px;color:#8A9BAD"></i>
+        <input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Buscar por nome, telefone, CNPJ/CPF ou tag…" style="border:0;background:transparent;outline:none;flex:1;font-size:13.5px;color:#0F2438">
+      </div>
+      <sc-for list="{{ filterGroups }}" as="g" hint-placeholder-count="4">
+        <div style="position:relative;flex:none">
+          <div onClick="{{ g.onToggle }}" style="{{ g.btnStyle }}"><i class="{{ g.icon }}" style="font-size:15px"></i>{{ g.label }}<sc-if value="{{ g.hasCount }}" hint-placeholder-val="{{ false }}"><span style="min-width:18px;height:18px;padding:0 5px;border-radius:20px;background:#1F74E0;color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ g.count }}</span></sc-if><i class="ri-arrow-down-s-line" style="font-size:16px;color:#9AA9B8"></i></div>
+          <sc-if value="{{ g.open }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:46px;left:0;z-index:30;min-width:220px;background:#fff;border:1px solid #E7EDF4;border-radius:13px;box-shadow:0 24px 60px -22px rgba(12,42,67,.4);padding:7px;max-height:340px;overflow-y:auto">
+              <sc-for list="{{ g.options }}" as="o" hint-placeholder-count="5">
+                <div onClick="{{ o.onToggle }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer" style-hover="background:#F4F7FB">
+                  <span style="{{ o.boxStyle }}"><sc-if value="{{ o.checked }}" hint-placeholder-val="{{ false }}"><i class="ri-check-line" style="font-size:13px;color:#fff"></i></sc-if></span>
+                  <span style="flex:1;font-size:13px;color:#33475B;font-weight:500">{{ o.label }}</span>
+                  <span style="font-size:11.5px;color:#9AA9B8;font-weight:600">{{ o.n }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex:none">
+        <span style="font-size:12.5px;color:#8A9BAD">Exibindo</span>
+        <span style="font-size:14px;font-weight:800;color:#1F74E0">{{ shownCount }}</span>
+        <span style="font-size:12.5px;color:#8A9BAD">de {{ totalCount }} leads</span>
+      </div>
+    </div>
+
+    <!-- ACTIVE CHIPS -->
+    <sc-if value="{{ hasActiveChips }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;margin-top:13px;flex-wrap:wrap">
+        <sc-for list="{{ activeChips }}" as="c" hint-placeholder-count="2">
+          <span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 6px 0 11px;border-radius:8px;background:#EAF2FD;border:1px solid #CFE1FA;color:#1560C4;font-size:12px;font-weight:600">{{ c.label }}<i onClick="{{ c.onRemove }}" class="ri-close-line" style="font-size:15px;cursor:pointer;color:#5B8FD0" style-hover="color:#1560C4"></i></span>
+        </sc-for>
+        <button onClick="{{ onClearFilters }}" style="height:28px;padding:0 10px;border-radius:8px;border:0;background:transparent;color:#8A9BAD;font-size:12px;font-weight:700;cursor:pointer" style-hover="color:#C0392B">Limpar tudo</button>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1;overflow:auto;min-height:0">
+
+    <!-- LISTA -->
+    <sc-if value="{{ isLista }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:18px 32px 40px">
+        <div style="background:#fff;border:1px solid #E7EDF4;border-radius:16px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:2.4fr 1.35fr 1.25fr 1.35fr 2fr 1.4fr 1fr;gap:12px;padding:13px 22px;background:#F7FAFD;border-bottom:1px solid #EEF3F8;font-size:11px;font-weight:700;letter-spacing:.05em;color:#8A9BAD">
+            <div>LEAD</div><div>TELEFONE</div><div>CIDADE</div><div>ETAPA</div><div>TAGS</div><div>RESPONSÁVEL</div><div style="text-align:right">ÚLTIMO CONTATO</div>
+          </div>
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+            <div onClick="{{ r.onClick }}" onDoubleClick="{{ r.onDouble }}" style="display:grid;grid-template-columns:2.4fr 1.35fr 1.25fr 1.35fr 2fr 1.4fr 1fr;gap:12px;padding:13px 22px;border-bottom:1px solid #F4F7FB;cursor:pointer;align-items:center" style-hover="background:#F7FAFD">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0">
+                <div style="{{ r.avatarStyle }}">{{ r.ini }}</div>
+                <div style="min-width:0">
+                  <div style="font-size:13.5px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</div>
+                  <div style="font-size:11.5px;color:#8A9BAD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.company }}</div>
+                </div>
+              </div>
+              <div style="font-size:12.5px;color:#5A6B7B;font-family:'JetBrains Mono',monospace">{{ r.phone }}</div>
+              <div style="font-size:12.5px;color:#5A6B7B">{{ r.city }}</div>
+              <div><span style="{{ r.stagePill }}">{{ r.stageLabel }}</span><sc-if value="{{ r.semRetorno }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:3px;margin-top:5px;font-size:10px;font-weight:700;color:#C0392B"><i class="ri-error-warning-fill" style="font-size:11px"></i>sem retorno</span></sc-if></div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;min-width:0">
+                <sc-for list="{{ r.tags }}" as="t" hint-placeholder-count="2"><span style="{{ t.style }}"><i class="{{ t.icon }}" style="font-size:11px"></i>{{ t.label }}</span></sc-for>
+                <sc-if value="{{ r.hasMoreTags }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;font-weight:700;color:#9AA9B8;align-self:center">+{{ r.moreTags }}</span></sc-if>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                <sc-if value="{{ r.hasAgent }}" hint-placeholder-val="{{ true }}">
+                  <div style="{{ r.agentAvatar }}">{{ r.agentIni }}</div>
+                  <span style="font-size:12.5px;color:#33475B;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.agentName }}</span>
+                </sc-if>
+                <sc-if value="{{ r.noAgent }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:12px;color:#B5C1CD;font-style:italic">Sem responsável</span>
+                </sc-if>
+              </div>
+              <div style="text-align:right;font-size:12px;color:#8A9BAD;font-weight:600">{{ r.last }}</div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:60px 20px;text-align:center;color:#9AA9B8"><i class="ri-search-eye-line" style="font-size:34px;color:#CBD8E6"></i><div style="margin-top:12px;font-size:14px;font-weight:600">Nenhum lead encontrado</div><div style="font-size:12.5px;margin-top:3px">Ajuste a busca ou os filtros.</div></div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- KANBAN -->
+    <sc-if value="{{ isKanban }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:18px 32px 40px;display:flex;gap:14px;min-width:min-content">
+        <sc-for list="{{ columns }}" as="col" hint-placeholder-count="6">
+          <div onDragOver="{{ col.onDragOver }}" onDrop="{{ col.onDrop }}" style="{{ col.wrapStyle }}">
+            <div style="display:flex;align-items:center;gap:8px;padding:2px 4px 12px">
+              <span style="{{ col.dotStyle }}"></span>
+              <span style="font-size:13px;font-weight:700;color:#33475B;flex:1">{{ col.label }}</span>
+              <span style="min-width:22px;height:22px;padding:0 7px;border-radius:20px;background:#EEF3F8;color:#5A6B7B;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ col.count }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <sc-for list="{{ col.cards }}" as="c" hint-placeholder-count="3">
+                <div draggable="true" onDragStart="{{ c.onDragStart }}" onDragEnd="{{ c.onDragEnd }}" onClick="{{ c.onClick }}" onDoubleClick="{{ c.onDouble }}" style="{{ c.cardStyle }}" style-hover="border-color:#CFE1FA;box-shadow:0 8px 20px -14px rgba(12,42,67,.4)">
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <div style="{{ c.avatarStyle }}">{{ c.ini }}</div>
+                    <div style="min-width:0;flex:1">
+                      <div style="font-size:13px;font-weight:700;color:#1B3248;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div>
+                      <div style="font-size:11px;color:#8A9BAD;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.company }}</div>
+                    </div>
+                    <sc-if value="{{ c.semRetorno }}" hint-placeholder-val="{{ false }}"><i class="ri-error-warning-fill" style="font-size:15px;color:#C0392B" title="Sem retorno"></i></sc-if>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px">
+                    <sc-for list="{{ c.tags }}" as="t" hint-placeholder-count="1"><span style="{{ t.style }}"><i class="{{ t.icon }}" style="font-size:10px"></i>{{ t.label }}</span></sc-for>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid #F1F5FA">
+                    <sc-if value="{{ c.hasAgent }}" hint-placeholder-val="{{ true }}"><div style="{{ c.agentAvatar }}">{{ c.agentIni }}</div><span style="font-size:11.5px;color:#5A6B7B;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.agentName }}</span></sc-if>
+                    <sc-if value="{{ c.noAgent }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;color:#B5C1CD;font-style:italic;flex:1">Sem responsável</span></sc-if>
+                    <span style="font-size:11px;color:#9AA9B8;flex:none"><i class="ri-time-line" style="font-size:12px"></i> {{ c.last }}</span>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ col.empty }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1.5px dashed #DCE6F0;border-radius:12px;padding:18px;text-align:center;color:#AEBDCC;font-size:11.5px">Arraste leads para cá</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- SIDE SHEET -->
+  <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(12,42,67,.28);z-index:40"></div>
+    <div style="position:absolute;top:0;right:0;bottom:0;width:400px;background:#fff;border-left:1px solid #E1E8F0;box-shadow:-24px 0 60px -30px rgba(12,42,67,.5);z-index:41;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #EEF3F8;flex:none">
+        <span style="font-size:15px;font-weight:800">Ficha do lead</span>
+        <button onClick="{{ closeSheet }}" style="width:30px;height:30px;border-radius:9px;border:0;background:#F4F7FB;color:#5A6B7B;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" style-hover="background:#EAF0F7"><i class="ri-close-line"></i></button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 20px">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center">
+          <div style="{{ sheet.bigAvatar }}">{{ sheet.ini }}</div>
+          <div style="font-size:18px;font-weight:800;letter-spacing:-.01em;margin-top:12px">{{ sheet.name }}</div>
+          <div style="font-size:12.5px;color:#8A9BAD;margin-top:2px">{{ sheet.company }}</div>
+          <sc-if value="{{ sheet.semRetorno }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:5px;margin-top:9px;font-size:11.5px;font-weight:700;color:#C0392B;background:#FBEBEA;padding:4px 10px;border-radius:8px"><i class="ri-error-warning-fill"></i>Sem retorno</span></sc-if>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:22px 2px 9px">
+          <span style="font-size:12px;font-weight:700;letter-spacing:.07em;color:#8A9BAD">ETAPA DO FUNIL</span>
+          <span style="{{ sheet.stagePill }}">{{ sheet.stageLabel }}</span>
+        </div>
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <sc-for list="{{ sheet.segs }}" as="s" hint-placeholder-count="6"><div style="{{ s.style }}"></div></sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#9AA9B8;margin-bottom:22px"><span>Novo Contato</span><span style="font-weight:600;color:#5A6B7B">{{ sheet.stageStep }}</span><span>Pós-venda</span></div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.07em;color:#8A9BAD;margin:0 2px 11px">INFORMAÇÕES GERAIS</div>
+        <div style="display:flex;flex-direction:column;gap:13px;margin-bottom:22px;padding:0 2px">
+          <div style="display:flex;align-items:center;gap:11px"><i class="ri-phone-line" style="font-size:16px;color:#1F74E0"></i><span style="font-size:13.5px;color:#33475B;font-family:'JetBrains Mono',monospace">{{ sheet.phone }}</span></div>
+          <div style="display:flex;align-items:center;gap:11px"><i class="ri-profile-line" style="font-size:16px;color:#1F74E0"></i><span style="font-size:13.5px;color:#33475B">{{ sheet.doc }}</span></div>
+          <div style="display:flex;align-items:center;gap:11px"><i class="ri-map-pin-2-line" style="font-size:16px;color:#1F74E0"></i><span style="font-size:13.5px;color:#33475B">{{ sheet.city }}</span></div>
+          <div style="display:flex;align-items:center;gap:11px"><i class="ri-user-star-line" style="font-size:16px;color:#1F74E0"></i><span style="font-size:13.5px;color:#33475B">Responsável · {{ sheet.agentName }}</span></div>
+          <div style="display:flex;align-items:center;gap:11px"><i class="ri-time-line" style="font-size:16px;color:#1F74E0"></i><span style="font-size:13.5px;color:#33475B">Último contato · {{ sheet.last }}</span></div>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;letter-spacing:.07em;color:#8A9BAD;margin:0 2px 10px">ETIQUETAS</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <sc-for list="{{ sheet.tags }}" as="t" hint-placeholder-count="3"><span style="{{ t.style }}"><i class="{{ t.icon }}" style="font-size:11px"></i>{{ t.label }}</span></sc-for>
+        </div>
+      </div>
+      <div style="flex:none;padding:14px 20px;border-top:1px solid #EEF3F8;display:flex;gap:10px">
+        <a href="Atendimentos.dc.html" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:11px;background:#1F74E0;color:#fff;font-size:13.5px;font-weight:700;box-shadow:0 8px 18px -8px rgba(31,116,224,.7)" style-hover="background:#1560C4"><i class="ri-chat-3-line" style="font-size:17px"></i>Abrir atendimento</a>
+        <button style="width:44px;height:44px;border-radius:11px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center" style-hover="background:#F4F7FB;color:#1F74E0" title="Ligar"><i class="ri-phone-line"></i></button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- MODAL -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:absolute;inset:0;background:rgba(12,42,67,.35);z-index:50;display:flex;align-items:center;justify-content:center">
+      <div onClick="{{ stop }}" style="width:520px;background:#fff;border-radius:18px;box-shadow:0 40px 100px -30px rgba(12,42,67,.6);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid #EEF3F8">
+          <div style="width:42px;height:42px;border-radius:12px;background:#EAF2FD;display:flex;align-items:center;justify-content:center;flex:none"><i class="{{ modal.icon }}" style="font-size:21px;color:#1F74E0"></i></div>
+          <div style="flex:1"><div style="font-size:16px;font-weight:800">{{ modal.title }}</div><div style="font-size:12.5px;color:#8A9BAD;margin-top:2px">{{ modal.sub }}</div></div>
+          <button onClick="{{ closeModal }}" style="width:30px;height:30px;border-radius:9px;border:0;background:#F4F7FB;color:#5A6B7B;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center" style-hover="background:#EAF0F7"><i class="ri-close-line"></i></button>
+        </div>
+        <div style="padding:22px 24px">
+          <sc-if value="{{ modal.isImport }}" hint-placeholder-val="{{ true }}">
+            <div style="border:2px dashed #CFDBE8;border-radius:14px;padding:34px 20px;text-align:center;background:#FAFCFE">
+              <i class="ri-file-upload-line" style="font-size:38px;color:#B5C6D8"></i>
+              <div style="font-size:14px;font-weight:700;color:#33475B;margin-top:12px">Arraste um arquivo .csv aqui</div>
+              <div style="font-size:12px;color:#9AA9B8;margin-top:3px">Colunas: nome, empresa, telefone, CNPJ/CPF, cidade, etapa, tags</div>
+              <button style="margin-top:16px;height:38px;padding:0 18px;border-radius:10px;border:1px solid #CFE1FA;background:#EAF3FD;color:#1F74E0;font-size:13px;font-weight:700;cursor:pointer" style-hover="background:#DDEBFC">Selecionar arquivo</button>
+            </div>
+            <div style="font-size:11.5px;color:#9AA9B8;margin-top:12px;display:flex;align-items:center;gap:6px"><i class="ri-download-line"></i><a href="#">Baixar modelo de planilha</a></div>
+          </sc-if>
+          <sc-if value="{{ modal.isExport }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13.5px;color:#33475B;line-height:1.6">Serão exportados <b style="color:#1F74E0">{{ shownCount }} leads</b> (aplicando os filtros atuais) com todas as colunas visíveis.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:14px">
+              <sc-for list="{{ exportCols }}" as="c" hint-placeholder-count="7"><span style="font-size:11.5px;font-weight:600;color:#5A6B7B;background:#F1F5FA;border:1px solid #E7EDF4;padding:4px 9px;border-radius:7px">{{ c }}</span></sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;background:#F9FBFD;border-top:1px solid #EEF3F8">
+          <button onClick="{{ closeModal }}" style="height:40px;padding:0 16px;border-radius:10px;border:1px solid #E1E8F0;background:#fff;color:#5A6B7B;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#F4F7FB">Cancelar</button>
+          <button onClick="{{ modal.onConfirm }}" style="height:40px;padding:0 18px;border-radius:10px;border:0;background:#1F74E0;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px" style-hover="background:#1560C4"><i class="{{ modal.confirmIcon }}" style="font-size:16px"></i>{{ modal.confirmLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- TOAST -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;background:#0F2438;color:#fff;padding:12px 18px;border-radius:12px;box-shadow:0 20px 50px -18px rgba(0,0,0,.5);font-size:13.5px;font-weight:600"><i class="ri-checkbox-circle-fill" style="font-size:18px;color:#4FD08A"></i>{{ toast }}</div>
+  </sc-if>
+
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}">
+class Component extends DCLogic {
+  state = { view:'lista', search:'', filters:{ etapa:[], atendente:[], cidade:[], tag:[] }, openFilter:null, sel:null, modal:null, toast:null };
+
+  STAGES=[
+    {k:'novo',label:'Novo Contato',tone:'sky',color:'#2E77C2'},
+    {k:'medidas',label:'Aguardando Medidas',tone:'warn',color:'#B07A15'},
+    {k:'orcamento',label:'Orçamento',tone:'blue',color:'#1560C4'},
+    {k:'negociacao',label:'Negociação',tone:'indigo',color:'#4C55B8'},
+    {k:'fechado',label:'Fechado',tone:'ok',color:'#17835A'},
+    {k:'posvenda',label:'Pós-venda',tone:'teal',color:'#1F857E'}
+  ];
+  AG={ js:['Jardel Souza','JS','#2C6BB8'], ab:['Ana Beatriz','AB','#2C6BB8'], da:['Daiane','DA','#2F8F86'], cl:['Clayton','CL','#5566A8'], ed:['Eduarda','ED','#3E8FD0'], ra:['Rafael','RA','#64748B'], na:['Nayara','NA','#1F5AA0'] };
+  TAGS={
+    'Box de Banheiro':['blue','ri-drop-line'], 'Vidro Temperado':['sky','ri-shield-check-line'], 'Espelho':['teal','ri-rectangle-line'],
+    'Bisotê':['sky','ri-shapes-line'], 'Fachada':['indigo','ri-building-2-line'], 'Guarda-corpo':['blue','ri-layout-row-line'],
+    'Porta Pivotante':['sky','ri-door-line'], 'Laminado':['teal','ri-stack-line'], 'Revenda':['indigo','ri-store-2-line'],
+    'B2B':['indigo','ri-briefcase-4-line'], 'Obra':['warn','ri-hammer-line'], 'Cliente Recorrente':['teal','ri-repeat-line'],
+    'Lead Novo':['ok','ri-user-add-line'], 'Follow-up':['warn','ri-refresh-line'], 'Parceiro':['teal','ri-user-shared-line']
+  };
+
+  pill(tone){ const M={ sky:['#E7F1FC','#2E77C2'], blue:['#E4EEFC','#1560C4'], warn:['#FBEFD6','#B07A15'], indigo:['#E9EAFA','#4C55B8'], ok:['#E2F4EC','#17835A'], teal:['#E0F2F1','#1F857E'], red:['#FBEBEA','#C0392B'], gray:['#EEF2F7','#5A6B7B'] }; const c=M[tone]||M.gray; return `display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;font-size:11px;font-weight:700;background:${c[0]};color:${c[1]};line-height:1.25;white-space:nowrap`; }
+
+  leads(){ if(this._l) return this._l; this._l=[
+    {id:'c1',ini:'MV',tint:'#2C6BB8',name:'Marcos Vinícius',company:'Vidraçaria Cristal Clara',phone:'(61) 9 9812-3345',doc:'12.345.678/0001-90',city:'Taguatinga · DF',stage:'orcamento',agent:'js',tags:['Box de Banheiro','Vidro Temperado','Cliente Recorrente'],last:'Há 12 min'},
+    {id:'c2',ini:'CN',tint:'#4C55B8',name:'Camila Nunes',company:'Construtora Horizonte',phone:'(61) 9 9740-1188',doc:'08.912.334/0001-55',city:'Águas Claras · DF',stage:'negociacao',agent:'ab',tags:['Fachada','Obra','B2B'],last:'Há 40 min'},
+    {id:'c3',ini:'AP',tint:'#3E8FD0',name:'Ana Paula Ferreira',company:'Cliente final',phone:'(61) 9 9333-2210',doc:'701.334.221-08',city:'Ceilândia · DF',stage:'novo',agent:null,tags:['Espelho','Lead Novo'],last:'Há 1 h'},
+    {id:'c4',ini:'SI',tint:'#2F8F86',name:'Serralheria Dois Irmãos',company:'Roberto · Revenda',phone:'(61) 9 9521-7788',doc:'19.223.114/0001-70',city:'Gama · DF',stage:'medidas',agent:'js',tags:['Vidro Temperado','Revenda','Parceiro'],last:'Ontem'},
+    {id:'c5',ini:'FL',tint:'#64748B',name:'Fernanda Lima',company:'Cliente final',phone:'(61) 9 9410-5566',doc:'022.551.907-33',city:'Sobradinho · DF',stage:'fechado',agent:'ab',tags:['Porta Pivotante','Vidro Temperado'],last:'Ontem'},
+    {id:'c6',ini:'PS',tint:'#1F5AA0',name:'Cond. Parque Sul',company:'Síndico Paulo',phone:'(61) 9 9877-0043',doc:'11.556.223/0001-04',city:'Lago Norte · DF',stage:'posvenda',agent:'js',tags:['Guarda-corpo','Laminado'],last:'Seg'},
+    {id:'c7',ini:'LA',tint:'#5566A8',name:'Lucas Andrade',company:'Cliente final',phone:'(61) 9 9120-8834',doc:'933.221.115-60',city:'Taguatinga · DF',stage:'medidas',agent:'ab',tags:['Box de Banheiro','Follow-up'],last:'2 dias'},
+    {id:'c8',ini:'DR',tint:'#2E8C8C',name:'Diego · V. Reflexo',company:'Vidraçaria Reflexo',phone:'(61) 9 9655-2299',doc:'27.884.552/0001-18',city:'Anápolis · GO',stage:'novo',agent:null,tags:['Revenda','B2B','Lead Novo'],last:'2 dias'},
+    {id:'c9',ini:'RM',tint:'#2C6BB8',name:'Ricardo Moura',company:'Cliente final',phone:'(61) 9 9702-4415',doc:'450.882.119-72',city:'Vicente Pires · DF',stage:'orcamento',agent:'da',tags:['Espelho','Bisotê'],last:'Há 3 h'},
+    {id:'c10',ini:'JT',tint:'#3E8FD0',name:'Juliana Teixeira',company:'Ateliê Arquitetura',phone:'(61) 9 9145-8820',doc:'318.667.204-51',city:'Asa Sul · DF',stage:'negociacao',agent:'da',tags:['Fachada','Parceiro'],last:'Há 5 h'},
+    {id:'c11',ini:'CB',tint:'#5566A8',name:'Construtora Brasília',company:'Setor de compras',phone:'(61) 3 3221-9080',doc:'04.221.876/0001-33',city:'SIA · DF',stage:'orcamento',agent:'cl',tags:['Obra','B2B'],last:'Ontem'},
+    {id:'c12',ini:'ML',tint:'#2F8F86',name:'Marina Lopes',company:'Cliente final',phone:'(61) 9 9330-1247',doc:'660.114.882-09',city:'Guará · DF',stage:'fechado',agent:'ed',tags:['Box de Banheiro'],last:'Ter'},
+    {id:'c13',ini:'VC',tint:'#1F5AA0',name:'Vidro & Cia',company:'Loja parceira',phone:'(62) 9 9410-2255',doc:'33.556.114/0001-90',city:'Luziânia · GO',stage:'posvenda',agent:'js',tags:['Revenda','Cliente Recorrente'],last:'Qua'},
+    {id:'c14',ini:'AT',tint:'#64748B',name:'André Tavares',company:'Cliente final',phone:'(61) 9 9887-6510',doc:'129.556.740-22',city:'Planaltina · DF',stage:'novo',agent:'cl',tags:['Guarda-corpo','Lead Novo'],last:'Há 2 h'},
+    {id:'c15',ini:'PE',tint:'#2C6BB8',name:'Paula Esteves',company:'Cliente final',phone:'(61) 9 9223-7788',doc:'774.221.556-13',city:'Águas Claras · DF',stage:'medidas',agent:'ed',tags:['Porta Pivotante'],last:'Há 6 h'},
+    {id:'c16',ini:'GT',tint:'#3E8FD0',name:'Gustavo Teles',company:'Serralheria Teles',phone:'(61) 9 9556-3300',doc:'22.114.667/0001-45',city:'Ceilândia · DF',stage:'negociacao',agent:'na',tags:['Vidro Temperado','Revenda'],last:'Ontem'}
+  ]; return this._l; }
+
+  stageDef(k){ return this.STAGES.find(s=>s.k===k)||this.STAGES[0]; }
+  tagPill(label,mini){ const t=this.TAGS[label]||['gray','ri-price-tag-3-line']; return { label, icon:t[1], style:this.pill(t[0])+(mini?';padding:2px 7px;font-size:10px':'') }; }
+  digits(s){ return (s||'').replace(/\D/g,''); }
+
+  matches(l){
+    const f=this.state.filters;
+    const q=this.state.search.trim().toLowerCase();
+    if(q){
+      const hay=[l.name,l.company,l.phone,l.doc,l.city,...l.tags].join(' ').toLowerCase();
+      const qd=this.digits(q);
+      const numHit = qd && (this.digits(l.phone).includes(qd) || this.digits(l.doc).includes(qd));
+      if(!hay.includes(q) && !numHit) return false;
+    }
+    if(f.etapa.length && !f.etapa.includes(l.stage)) return false;
+    if(f.atendente.length){ const key=l.agent||'none'; if(!f.atendente.includes(key)) return false; }
+    if(f.cidade.length && !f.cidade.includes(l.city)) return false;
+    if(f.tag.length && !l.tags.some(t=>f.tag.includes(t))) return false;
+    return true;
+  }
+
+  toggleFilter(group,val){ const arr=this.state.filters[group]; const next=arr.includes(val)?arr.filter(x=>x!==val):[...arr,val]; this.setState({ filters:{...this.state.filters,[group]:next} }); }
+  clearFilters(){ this.setState({ filters:{etapa:[],atendente:[],cidade:[],tag:[]}, search:'' }); }
+
+  onLeadClick(id){ clearTimeout(this._ct); this._ct=setTimeout(()=>this.setState({sel:id, openFilter:null}),210); }
+  onLeadDouble(){ clearTimeout(this._ct); location.href='Atendimentos.dc.html'; }
+
+  showToast(msg){ this.setState({toast:msg}); clearTimeout(this._tt); this._tt=setTimeout(()=>this.setState({toast:null}),2600); }
+
+  renderVals(){
+    const all=this.leads();
+    const filtered=all.filter(l=>this.matches(l));
+    const view=this.state.view;
+
+    const segTab=(active)=>`display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;font-size:13px;font-weight:700;cursor:pointer;color:${active?'#fff':'#5A6B7B'};background:${active?'#1F74E0':'transparent'}`;
+
+    // filter groups
+    const cityList=[...new Set(all.map(l=>l.city))];
+    const tagList=Object.keys(this.TAGS).filter(t=>all.some(l=>l.tags.includes(t)));
+    const countFor=(pred)=>all.filter(pred).length;
+    const gDef=[
+      { key:'etapa', label:'Etapa', icon:'ri-flow-chart', opts:this.STAGES.map(s=>({val:s.k,label:s.label,n:countFor(l=>l.stage===s.k)})) },
+      { key:'atendente', label:'Atendente', icon:'ri-user-star-line', opts:[...Object.keys(this.AG).map(k=>({val:k,label:this.AG[k][0],n:countFor(l=>l.agent===k)})), {val:'none',label:'Sem responsável',n:countFor(l=>!l.agent)}] },
+      { key:'cidade', label:'Cidade', icon:'ri-map-pin-2-line', opts:cityList.map(c=>({val:c,label:c,n:countFor(l=>l.city===c)})) },
+      { key:'tag', label:'Tag', icon:'ri-price-tag-3-line', opts:tagList.map(t=>({val:t,label:t,n:countFor(l=>l.tags.includes(t))})) }
+    ];
+    const filterGroups=gDef.map(g=>{
+      const sel=this.state.filters[g.key];
+      return {
+        label:g.label, icon:g.icon, open:this.state.openFilter===g.key,
+        hasCount:sel.length>0, count:sel.length,
+        onToggle:()=>this.setState({openFilter:this.state.openFilter===g.key?null:g.key, sel:null}),
+        btnStyle:`display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 12px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${sel.length?'#CFE1FA':'#E7EDF4'};background:${sel.length?'#EAF2FD':'#fff'};color:${sel.length?'#1560C4':'#3F5163'}`,
+        options:g.opts.map(o=>{ const checked=sel.includes(o.val); return {
+          label:o.label, n:o.n, checked,
+          onToggle:()=>this.toggleFilter(g.key,o.val),
+          boxStyle:`width:18px;height:18px;border-radius:6px;flex:none;display:flex;align-items:center;justify-content:center;border:1.5px solid ${checked?'#1F74E0':'#CBD8E6'};background:${checked?'#1F74E0':'#fff'}`
+        };})
+      };
+    });
+
+    // active chips
+    const chipLabel={ etapa:v=>this.stageDef(v).label, atendente:v=>v==='none'?'Sem responsável':this.AG[v][0], cidade:v=>v, tag:v=>v };
+    const activeChips=[];
+    ['etapa','atendente','cidade','tag'].forEach(grp=>this.state.filters[grp].forEach(v=>activeChips.push({ label:chipLabel[grp](v), onRemove:()=>this.toggleFilter(grp,v) })));
+
+    // list rows
+    const rows=filtered.map(l=>{ const sd=this.stageDef(l.stage); const ag=l.agent?this.AG[l.agent]:null; const tagObjs=l.tags.map(t=>this.tagPill(t,true)); return {
+      id:l.id, ini:l.ini, name:l.name, company:l.company, phone:l.phone, city:l.city, last:l.last, semRetorno:!!l.semRetorno,
+      avatarStyle:`width:40px;height:40px;border-radius:12px;background:${l.tint};color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none`,
+      stageLabel:sd.label, stagePill:this.pill(l.semRetorno?'red':sd.tone),
+      tags:tagObjs.slice(0,2), hasMoreTags:tagObjs.length>2, moreTags:tagObjs.length-2,
+      hasAgent:!!ag, noAgent:!ag, agentName:ag?ag[0]:'', agentIni:ag?ag[1]:'',
+      agentAvatar:ag?`width:26px;height:26px;border-radius:8px;background:${ag[2]};color:#fff;font-weight:700;font-size:10.5px;display:flex;align-items:center;justify-content:center;flex:none`:'',
+      onClick:()=>this.onLeadClick(l.id), onDouble:()=>this.onLeadDouble()
+    };});
+
+    // kanban columns
+    const columns=this.STAGES.map(s=>{ const cards=filtered.filter(l=>l.stage===s.k); return {
+      label:s.label, count:cards.length, empty:cards.length===0,
+      dotStyle:`width:9px;height:9px;border-radius:50%;background:${s.color};flex:none`,
+      wrapStyle:'width:270px;flex:none;background:#EFF3F8;border:1px solid #E4EBF3;border-radius:14px;padding:12px 10px;min-height:120px',
+      onDragOver:(e)=>{ e.preventDefault(); }, onDrop:(e)=>{ e.preventDefault(); const l=all.find(x=>x.id===this._drag); if(l){ l.stage=s.k; l.semRetorno=false; } this._drag=null; this.forceUpdate(); },
+      cards:cards.map(l=>{ const ag=l.agent?this.AG[l.agent]:null; return {
+        ini:l.ini, name:l.name, company:l.company, last:l.last, semRetorno:!!l.semRetorno,
+        avatarStyle:`width:34px;height:34px;border-radius:10px;background:${l.tint};color:#fff;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;flex:none`,
+        cardStyle:`background:#fff;border:1px solid ${l.semRetorno?'#F1C9C3':'#E7EDF4'};border-radius:12px;padding:12px 13px;cursor:grab;${l.semRetorno?'box-shadow:inset 3px 0 0 #C0392B':''}`,
+        tags:l.tags.slice(0,2).map(t=>this.tagPill(t,true)),
+        hasAgent:!!ag, noAgent:!ag, agentName:ag?ag[0]:'', agentIni:ag?ag[1]:'',
+        agentAvatar:ag?`width:22px;height:22px;border-radius:7px;background:${ag[2]};color:#fff;font-weight:700;font-size:9.5px;display:flex;align-items:center;justify-content:center;flex:none`:'',
+        onDragStart:(e)=>{ this._drag=l.id; },
+        onDragEnd:()=>{ this._drag=null; },
+        onClick:()=>this.onLeadClick(l.id), onDouble:()=>this.onLeadDouble()
+      };})
+    };});
+
+    // side sheet
+    const selLead=all.find(l=>l.id===this.state.sel);
+    let sheet=null;
+    if(selLead){ const sd=this.stageDef(selLead.stage); const idx=this.STAGES.findIndex(s=>s.k===selLead.stage); const ag=selLead.agent?this.AG[selLead.agent]:null;
+      sheet={ ini:selLead.ini, name:selLead.name, company:selLead.company, phone:selLead.phone, doc:selLead.doc, city:selLead.city, last:selLead.last, semRetorno:!!selLead.semRetorno,
+        bigAvatar:`width:76px;height:76px;border-radius:22px;background:${selLead.tint};color:#fff;font-weight:700;font-size:28px;display:flex;align-items:center;justify-content:center`,
+        stageLabel:sd.label, stagePill:this.pill(selLead.semRetorno?'red':sd.tone), stageStep:(idx+1)+' de 6',
+        segs:this.STAGES.map((s,i)=>({ style:`flex:1;height:6px;border-radius:4px;background:${i<=idx?'#1F74E0':'#E1E9F2'}` })),
+        agentName:ag?ag[0]:'Sem responsável',
+        tags:selLead.tags.map(t=>this.tagPill(t,false))
+      };
+    }
+
+    // modal
+    const modalOpen=!!this.state.modal;
+    const modal = this.state.modal==='import'
+      ? { icon:'ri-upload-2-line', title:'Importar leads (CSV)', sub:'Adicione contatos em lote à base', isImport:true, isExport:false, confirmIcon:'ri-check-line', confirmLabel:'Importar', onConfirm:()=>{ this.setState({modal:null}); this.showToast('Importação concluída · leads adicionados'); } }
+      : this.state.modal==='export'
+      ? { icon:'ri-download-2-line', title:'Exportar leads (CSV)', sub:'Baixe a base como planilha', isImport:false, isExport:true, confirmIcon:'ri-download-line', confirmLabel:'Baixar CSV', onConfirm:()=>{ this.setState({modal:null}); this.showToast('CSV exportado com '+filtered.length+' leads'); } }
+      : { icon:'', title:'', sub:'', isImport:false, isExport:false, confirmIcon:'', confirmLabel:'', onConfirm:()=>{} };
+
+    return {
+      isLista:view==='lista', isKanban:view==='kanban',
+      listaTabStyle:segTab(view==='lista'), kanbanTabStyle:segTab(view==='kanban'),
+      onViewLista:()=>this.setState({view:'lista'}), onViewKanban:()=>this.setState({view:'kanban'}),
+      search:this.state.search, onSearch:(e)=>this.setState({search:e.target.value}),
+      filterGroups, shownCount:filtered.length, totalCount:all.length,
+      hasActiveChips:activeChips.length>0, activeChips, onClearFilters:()=>this.clearFilters(),
+      rows, isEmpty:filtered.length===0, columns,
+      sheetOpen:!!selLead, sheet:sheet||{ segs:[], tags:[] }, closeSheet:()=>this.setState({sel:null}),
+      onImport:()=>this.setState({modal:'import', openFilter:null}), onExport:()=>this.setState({modal:'export', openFilter:null}),
+      modalOpen, modal, closeModal:()=>this.setState({modal:null}), stop:(e)=>e.stopPropagation(),
+      exportCols:['Nome','Empresa','Telefone','CNPJ/CPF','Cidade','Etapa','Tags','Responsável','Último contato'],
+      toast:this.state.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

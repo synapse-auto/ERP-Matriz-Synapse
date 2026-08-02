@@ -1,7 +1,60 @@
 {
-  "corPrimaria": "#0F172A",
-  "corDestaque": "#2563EB",
-  "corFundo": "#F8FAFC",
-  "logoUrl": "/assets/logo.svg",
-  "fonte": "Inter"
+  "corPrimaria": "#1F74E0",
+  "corPrimariaHover": "#1560C4",
+  "corPrimariaSuave": "#EAF2FD",
+  "corPrimariaBorda": "#CFE1FA",
+  "corPrimariaTexto": "#FFFFFF",
+
+  "fundoApp": "#F4F7FB",
+  "fundoSuperficie": "#FFFFFF",
+  "fundoSutil": "#EEF3F8",
+  "fundoSidebar": "#0F2438",
+  "fundoSidebarBloco": "#1B3248",
+
+  "textoForte": "#0F2438",
+  "textoPadrao": "#33475B",
+  "textoSuave": "#5A6B7B",
+  "textoFraco": "#8A9BAD",
+  "textoSidebarTitulo": "#5E7E9C",
+  "textoSidebarSub": "#6E92B4",
+  "textoSidebarItem": "#C9D9E8",
+
+  "borda": "#E7EDF4",
+  "bordaForte": "#E1E8F0",
+  "bordaSuave": "#CBD8E6",
+
+  "corSucesso": "#17835A",
+  "corAtencao": "#E0A61C",
+  "corAtencaoEscura": "#B07A15",
+  "corIa": "#6D4FD6",
+  "corInfo": "#3E8FD0",
+  "corDestaque2": "#4C55B8",
+  "corDestaque3": "#2F8F86",
+  "corErro": "#C0392B",
+  "corErroSuave": "#FBEAE8",
+
+  "fonteBase": "'Hanken Grotesk', system-ui, sans-serif",
+  "fonteMono": "'JetBrains Mono', monospace",
+
+  "textoXs": "11px",
+  "textoSm": "12px",
+  "textoBase": "13px",
+  "textoMd": "14px",
+  "textoLg": "16px",
+  "textoXl": "18px",
+  "texto2xl": "20px",
+
+  "raioSm": "8px",
+  "raioMd": "11px",
+  "raioLg": "16px",
+  "raioXl": "20px",
+  "raioPill": "999px",
+
+  "sombraSm": "0 1px 3px rgba(0,0,0,.25)",
+  "sombraMd": "0 10px 26px -18px rgba(12,42,67,.4)",
+  "sombraLg": "0 24px 60px -22px rgba(12,42,67,.4)",
+  "sombraXl": "0 40px 120px -34px rgba(12,42,67,.5)",
+  "sombraPrimaria": "0 8px 18px -8px rgba(31,116,224,.7)",
+
+  "logoUrl": null
 }

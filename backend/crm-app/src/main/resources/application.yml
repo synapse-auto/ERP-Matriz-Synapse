@@ -148,6 +148,10 @@ synapse:
     # filho consome. Sem default, mesma razao do webhook-secret: esquecer a
     # variavel deixa /internal/v1 inutil, nunca aberta.
     token-interno: ${SYNAPSE_TOKEN_INTERNO:}
+    # E10: origem do frontend, para o CORS liberar chamadas diretas do browser
+    # (porta diferente da API em dev). Nao e segredo — default de dev aqui e
+    # so conveniencia, nao risco.
+    frontend-origem: ${SYNAPSE_FRONTEND_ORIGEM:http://localhost:3000}
 
   # -------------------------------------------------------------------------
   # Particoes mensais de `mensagem`.
