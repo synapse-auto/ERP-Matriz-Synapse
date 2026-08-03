@@ -2,10 +2,13 @@ package com.synapse.crm.app.canal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,9 +135,11 @@ class CanalWhatsAppIT extends PostgresIT {
 
             rodarPublisher();
 
-            assertThat(canal.enviados()).hasSize(1);
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
-            assertThat(pendentesNaOutbox()).isZero();
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+                assertThat(pendentesNaOutbox()).isZero();
+            });
         }
 
         /**
@@ -151,16 +156,20 @@ class CanalWhatsAppIT extends PostgresIT {
             rodarPublisher();
 
             // Continua na fila, ainda PENDENTE, com a tentativa contabilizada.
-            assertThat(canal.enviados()).isEmpty();
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("PENDENTE");
-            assertThat(pendentesNaOutbox()).isEqualTo(1);
-            assertThat(tentativasNaOutbox()).isEqualTo(1);
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).isEmpty();
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("PENDENTE");
+                assertThat(pendentesNaOutbox()).isEqualTo(1);
+                assertThat(tentativasNaOutbox()).isEqualTo(1);
+            });
 
             canal.religar();
             rodarPublisher();
 
-            assertThat(canal.enviados()).hasSize(1);
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+            });
         }
 
         /**
@@ -177,9 +186,11 @@ class CanalWhatsAppIT extends PostgresIT {
             UUID mensagemId = enviar.executar(leadDaAna, "ola").mensagem().id();
             rodarPublisher();
 
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("PENDENTE");
-            assertThat(pendentesNaOutbox()).isEqualTo(1);
-            assertThat(esgotadasNaOutbox()).isZero();
+            esperar().untilAsserted(() -> {
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("PENDENTE");
+                assertThat(pendentesNaOutbox()).isEqualTo(1);
+                assertThat(esgotadasNaOutbox()).isZero();
+            });
         }
 
         /** Depois do limite a linha fica para inspecao — nunca some, e a mensagem vira FALHOU. */
@@ -194,13 +205,15 @@ class CanalWhatsAppIT extends PostgresIT {
             rodarPublisher();
             rodarPublisher();
 
-            assertThat(esgotadasNaOutbox()).isEqualTo(1);
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
-            // A linha continua la, com o motivo: descartar em silencio e o que nao pode.
-            assertThat(jdbc.queryForObject(
-                            "SELECT ultimo_erro FROM outbox_evento WHERE esgotado_em IS NOT NULL",
-                            String.class))
-                    .contains("provedor fora do ar");
+            esperar().untilAsserted(() -> {
+                assertThat(esgotadasNaOutbox()).isEqualTo(1);
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
+                // A linha continua la, com o motivo: descartar em silencio e o que nao pode.
+                assertThat(jdbc.queryForObject(
+                                "SELECT ultimo_erro FROM outbox_evento WHERE esgotado_em IS NOT NULL",
+                                String.class))
+                        .contains("provedor fora do ar");
+            });
         }
 
         /** Recusa permanente nao merece varias tentativas: esgota na primeira. */
@@ -213,7 +226,7 @@ class CanalWhatsAppIT extends PostgresIT {
             canal.recusarDeVez("131026 numero invalido");
             rodarPublisher();
 
-            assertThat(esgotadasNaOutbox()).isEqualTo(1);
+            esperar().untilAsserted(() -> assertThat(esgotadasNaOutbox()).isEqualTo(1));
         }
 
         /**
@@ -228,7 +241,7 @@ class CanalWhatsAppIT extends PostgresIT {
             enviar.executar(leadDaAna, "alguem ai?");
             canal.recusarDeVez("131026 numero invalido");
             rodarPublisher();
-            assertThat(esgotadasNaOutbox()).isEqualTo(1);
+            esperar().untilAsserted(() -> assertThat(esgotadasNaOutbox()).isEqualTo(1));
 
             publicador.alertarSobreEsgotadas();
         }
@@ -267,9 +280,11 @@ class CanalWhatsAppIT extends PostgresIT {
             enviar.executar(leadDaAna, ConteudoDeEnvio.MensagemTemplate.de("reativacao", "pt_BR", "Ana"));
             rodarPublisher();
 
-            assertThat(canal.enviados()).hasSize(1);
-            assertThat(canal.enviados().get(0).conteudo())
-                    .isInstanceOf(ConteudoDeEnvio.MensagemTemplate.class);
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).conteudo())
+                        .isInstanceOf(ConteudoDeEnvio.MensagemTemplate.class);
+            });
         }
     }
 
@@ -286,12 +301,14 @@ class CanalWhatsAppIT extends PostgresIT {
 
             rodarProcessador();
 
-            assertThat(mensagensDoLead()).isEqualTo(1);
-            assertThat(jdbc.queryForObject(
-                            "SELECT count(*) FROM atendimento WHERE lead_id = ?",
-                            Integer.class,
-                            leadDaAna))
-                    .isEqualTo(1);
+            esperar().untilAsserted(() -> {
+                assertThat(mensagensDoLead()).isEqualTo(1);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM atendimento WHERE lead_id = ?",
+                                Integer.class,
+                                leadDaAna))
+                        .isEqualTo(1);
+            });
         }
 
         /**
@@ -308,8 +325,10 @@ class CanalWhatsAppIT extends PostgresIT {
             postarWebhook(payload, CanalFake.ASSINATURA_VALIDA);
             rodarProcessador();
 
-            assertThat(linhasNoWebhookEntrada()).isEqualTo(1);
-            assertThat(mensagensDoLead()).isEqualTo(1);
+            esperar().untilAsserted(() -> {
+                assertThat(linhasNoWebhookEntrada()).isEqualTo(1);
+                assertThat(mensagensDoLead()).isEqualTo(1);
+            });
         }
 
         /** A rota e publica: sem esta checagem, injetar mensagem falsa e um curl. */
@@ -372,15 +391,17 @@ class CanalWhatsAppIT extends PostgresIT {
 
             rodarPublisher();
 
-            // A mensagem que ja estava na fila saiu.
-            assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
-            // A antiga continua no banco e o atendimento continua apontando para ela.
-            assertThat(jdbc.queryForObject(
-                            "SELECT canal_credencial_id FROM atendimento WHERE id = ?",
-                            UUID.class,
-                            atendimentoId))
-                    .isEqualTo(antiga)
-                    .isNotEqualTo(nova);
+            esperar().untilAsserted(() -> {
+                // A mensagem que ja estava na fila saiu.
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+                // A antiga continua no banco e o atendimento continua apontando para ela.
+                assertThat(jdbc.queryForObject(
+                                "SELECT canal_credencial_id FROM atendimento WHERE id = ?",
+                                UUID.class,
+                                atendimentoId))
+                        .isEqualTo(antiga)
+                        .isNotEqualTo(nova);
+            });
         }
 
         /**
@@ -424,6 +445,17 @@ class CanalWhatsAppIT extends PostgresIT {
 
     private void rodarProcessador() {
         processador.processarPendentes();
+    }
+
+    /**
+     * Espera por condicao, nunca por tempo fixo: o publisher/processador roda de verdade (nao e
+     * mock), entao o commit da transacao e a propagacao do efeito (linha na outbox, status da
+     * mensagem) podem nao estar visiveis no exato instante em que {@code rodarPublisher()} retorna.
+     * {@code Thread.sleep} trocaria uma corrida por outra, so que mais lenta; isto poll até a
+     * condicao ser verdadeira, ou desiste em 10s com a mensagem de falha do proprio assertj.
+     */
+    private static ConditionFactory esperar() {
+        return await().atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(100));
     }
 
     private static String payload(String id, String texto) {

@@ -34,7 +34,7 @@ jobs:
       # ubuntu-latest, entao o Testcontainers nao precisa de setup extra.
       - name: Build e testes
         working-directory: backend
-        run: mvn -B --no-transfer-progress clean verify
+        run: ./mvnw -B --no-transfer-progress clean verify
 
       - name: Publicar relatorios de teste
         if: always()

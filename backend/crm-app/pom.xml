@@ -108,6 +108,14 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Espera por condicao em vez de corrida com jobs assincronos (PublicadorDaOutbox
+         roda por fixedDelay) — ver CanalWhatsAppIT. Versao gerenciada pelo BOM do
+         Spring Boot. -->
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!--
       ArquiteturaTest roda aqui porque crm-app e o unico modulo cujo classpath
       contem todos os demais: uma suite so cobre a regra de dependencia do

@@ -52,6 +52,20 @@ public abstract class PostgresIT {
         // reprova a validacao. O sintoma depende da ORDEM em que as suites rodam, que e
         // o pior tipo de teste intermitente. Aqui — e so aqui — ignoramos ausentes.
         registro.add("spring.flyway.ignore-migration-patterns", () -> "*:missing");
+
+        // O perfil dev configura o publisher da outbox para rodar a cada 200ms (bom para
+        // ver PENDENTE virar ENVIADO rapido em desenvolvimento). Mas o Spring cacheia
+        // ApplicationContext por assinatura de configuracao: uma suite que nao sobrescreve
+        // este valor (a maioria) fica com um @Scheduled de verdade disparando em background
+        // contra o MESMO Postgres compartilhado, mesmo depois de a suite terminar — e esse
+        // publisher usa o adaptador real (meta-cloud), nao o fake. Quando outra suite (ex.:
+        // CanalWhatsAppIT) insere uma linha na outbox, esse agendador de um contexto alheio
+        // pode pega-la primeiro e falhar contra a API real. @DynamicPropertySource tem
+        // prioridade maior que @TestPropertySource, entao isto vence o perfil dev em
+        // qualquer suite — a suite que precisa do efeito do publisher chama o metodo
+        // @Scheduled na mao (ver CanalWhatsAppIT, TempoRealIT), nunca espera o timer real.
+        registro.add("synapse.canal.outbox.intervalo-ms", () -> "3600000");
+        registro.add("synapse.canal.webhook.intervalo-ms", () -> "3600000");
     }
 
     /** Segredo exclusivo dos testes. Longo o bastante para HMAC-SHA256. */
