@@ -47,11 +47,18 @@ class AtendimentoMensagensController {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Atendimento nao encontrado");
     }
 
+    /**
+     * {@code tipo}, {@code midiaUrl} e {@code midiaMetadados} destravam renderizar midia recebida do
+     * lead (imagem, audio, documento) — ja existem no dominio, so nao eram serializados.
+     */
     record MensagemResposta(
             UUID id,
             String remetenteTipo,
             UUID remetenteId,
+            String tipo,
             String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
             String statusEntrega,
             Instant enviadoEm) {
 
@@ -60,7 +67,10 @@ class AtendimentoMensagensController {
                     mensagem.id(),
                     mensagem.remetente().tipo().name(),
                     mensagem.remetente().id(),
+                    mensagem.tipo().name(),
                     mensagem.conteudo(),
+                    mensagem.midiaUrl(),
+                    mensagem.midiaMetadados(),
                     mensagem.statusEntrega().name(),
                     mensagem.enviadoEm());
         }
