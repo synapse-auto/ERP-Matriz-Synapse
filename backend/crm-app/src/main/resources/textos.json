@@ -44,5 +44,79 @@
     "tentarNovamente": "Tentar novamente",
     "emConstrucao": "Esta área ainda não foi construída.",
     "sessaoExpirada": "Sua sessão expirou. Entre novamente."
+  },
+  "atendimentos": {
+    "visoes": {
+      "ativos": "Ativos",
+      "pendentes": "Pendentes",
+      "potenciais": "Potenciais",
+      "todos": "Todos"
+    },
+    "filtros": {
+      "etapa": "Etapa",
+      "status": "Status",
+      "tag": "Tag",
+      "atendente": "Atendente",
+      "busca": "Buscar na conversa"
+    },
+    "cartao": {
+      "semAtendente": "Sem atendente",
+      "vazio": "Nenhuma conversa nesta visão."
+    },
+    "cabecalho": {
+      "atendidoPor": "Atendido por",
+      "semAtendente": "Sem atendente — com a IA",
+      "transferir": "Transferir",
+      "finalizar": "Finalizar",
+      "buscar": "Buscar na conversa"
+    },
+    "transferir": {
+      "titulo": "Transferir atendimento",
+      "descricao": "Escolha para quem transferir, ou devolva para a IA.",
+      "devolverParaIa": "Devolver para a IA",
+      "assumirParaMim": "Assumir para mim",
+      "confirmar": "Transferir",
+      "cancelar": "Cancelar",
+      "sucesso": "Atendimento transferido.",
+      "erro": "Não foi possível transferir."
+    },
+    "finalizar": {
+      "titulo": "Finalizar atendimento",
+      "descricao": "O atendimento será encerrado e o lead marcado como finalizado.",
+      "confirmar": "Finalizar",
+      "cancelar": "Cancelar",
+      "sucesso": "Atendimento finalizado.",
+      "erro": "Não foi possível finalizar."
+    },
+    "mensagem": {
+      "status": {
+        "pendente": "Enviando",
+        "enviado": "Enviado",
+        "entregue": "Entregue",
+        "lido": "Lido",
+        "falhou": "Falha ao enviar"
+      },
+      "reenviar": "Reenviar"
+    },
+    "composer": {
+      "placeholder": "Digite uma mensagem...",
+      "enviar": "Enviar",
+      "anexo": "Anexo",
+      "anexoIndisponivel": "Envio de anexo ainda não está disponível.",
+      "emoji": "Emoji",
+      "janelaFechadaTitulo": "Janela de 24h fechada",
+      "janelaFechadaDescricao": "Faz mais de 24h desde a última mensagem do cliente. Só é possível enviar um template aprovado.",
+      "semTemplates": "Nenhum template disponível ainda."
+    },
+    "tempoReal": {
+      "reconectando": "Reconectando...",
+      "conversaEncerrada": "Esta conversa não está mais disponível para você."
+    },
+    "media": {
+      "imagem": "Imagem",
+      "audio": "Áudio",
+      "documento": "Documento",
+      "baixar": "Baixar"
+    }
   }
 }

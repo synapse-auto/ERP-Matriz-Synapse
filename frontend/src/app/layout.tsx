@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth/auth-provider";
 import { buscarTema, buscarTextos, temaParaCssVariaveis } from "@/lib/config/fetch-config";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryProvider } from "@/lib/query/query-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
 
@@ -32,7 +33,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <QueryProvider>
           <TextosProvider textos={textos}>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </AuthProvider>
           </TextosProvider>
         </QueryProvider>
       </body>

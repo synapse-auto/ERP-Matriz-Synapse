@@ -102,6 +102,80 @@ export const TextosSchema = z.object({
     emConstrucao: z.string(),
     sessaoExpirada: z.string(),
   }),
+  atendimentos: z.object({
+    visoes: z.object({
+      ativos: z.string(),
+      pendentes: z.string(),
+      potenciais: z.string(),
+      todos: z.string(),
+    }),
+    filtros: z.object({
+      etapa: z.string(),
+      status: z.string(),
+      tag: z.string(),
+      atendente: z.string(),
+      busca: z.string(),
+    }),
+    cartao: z.object({
+      semAtendente: z.string(),
+      vazio: z.string(),
+    }),
+    cabecalho: z.object({
+      atendidoPor: z.string(),
+      semAtendente: z.string(),
+      transferir: z.string(),
+      finalizar: z.string(),
+      buscar: z.string(),
+    }),
+    transferir: z.object({
+      titulo: z.string(),
+      descricao: z.string(),
+      devolverParaIa: z.string(),
+      assumirParaMim: z.string(),
+      confirmar: z.string(),
+      cancelar: z.string(),
+      sucesso: z.string(),
+      erro: z.string(),
+    }),
+    finalizar: z.object({
+      titulo: z.string(),
+      descricao: z.string(),
+      confirmar: z.string(),
+      cancelar: z.string(),
+      sucesso: z.string(),
+      erro: z.string(),
+    }),
+    mensagem: z.object({
+      status: z.object({
+        pendente: z.string(),
+        enviado: z.string(),
+        entregue: z.string(),
+        lido: z.string(),
+        falhou: z.string(),
+      }),
+      reenviar: z.string(),
+    }),
+    composer: z.object({
+      placeholder: z.string(),
+      enviar: z.string(),
+      anexo: z.string(),
+      anexoIndisponivel: z.string(),
+      emoji: z.string(),
+      janelaFechadaTitulo: z.string(),
+      janelaFechadaDescricao: z.string(),
+      semTemplates: z.string(),
+    }),
+    tempoReal: z.object({
+      reconectando: z.string(),
+      conversaEncerrada: z.string(),
+    }),
+    media: z.object({
+      imagem: z.string(),
+      audio: z.string(),
+      documento: z.string(),
+      baixar: z.string(),
+    }),
+  }),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;
