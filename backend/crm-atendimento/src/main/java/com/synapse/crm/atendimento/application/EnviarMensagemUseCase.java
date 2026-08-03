@@ -130,14 +130,19 @@ public class EnviarMensagemUseCase {
         // PENDENTE, nao ENVIADO: nenhum provedor viu esta mensagem ainda. Gravar ENVIADO
         // aqui — como a E04 fazia — poe um tique de enviado numa mensagem que talvez
         // nunca saia. O publisher da outbox move para ENVIADO ou FALHOU.
+        //
+        // Texto e midia (E11b) gravam pelo MESMO metodo: so o que muda e tipo/midiaUrl/
+        // midiaMetadados, extraidos do ConteudoDeEnvio abaixo. Midia nao tem um caminho
+        // paralelo de envio — usa a mesma janela, a mesma transferencia (RN-CRM-06) e a
+        // mesma outbox que o texto sempre usou.
         Mensagem gravada = mensagens.registrar(new Mensagem(
                 UUID.randomUUID(),
                 aberto.id(),
                 Remetente.atendente(remetenteId),
-                TipoMensagem.TEXTO,
+                tipoDe(conteudo),
                 conteudo.paraHistorico(),
-                null,
-                null,
+                midiaUrlDe(conteudo),
+                midiaMetadadosDe(conteudo),
                 StatusEntrega.PENDENTE,
                 agora));
 
@@ -172,11 +177,26 @@ public class EnviarMensagemUseCase {
                 gravada.id(),
                 gravada.remetente().tipo().name(),
                 gravada.remetente().id(),
+                gravada.tipo().name(),
                 gravada.conteudo(),
+                gravada.midiaUrl(),
+                gravada.midiaMetadados(),
                 gravada.statusEntrega().name(),
                 agora));
 
         return new Resultado(aberto, gravada, trocouDeDono);
+    }
+
+    private static TipoMensagem tipoDe(ConteudoDeEnvio conteudo) {
+        return conteudo instanceof ConteudoDeEnvio.MensagemMidia midia ? midia.tipo() : TipoMensagem.TEXTO;
+    }
+
+    private static String midiaUrlDe(ConteudoDeEnvio conteudo) {
+        return conteudo instanceof ConteudoDeEnvio.MensagemMidia midia ? midia.referenciaStorage() : null;
+    }
+
+    private static String midiaMetadadosDe(ConteudoDeEnvio conteudo) {
+        return conteudo instanceof ConteudoDeEnvio.MensagemMidia midia ? midia.metadados() : null;
     }
 
     /** @param transferiuOLead se a RN-CRM-06 mudou o dono de fato */

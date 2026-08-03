@@ -43,11 +43,26 @@ public class TradutorFake implements TradutorDeCanal {
         if (id.isEmpty()) {
             return Optional.empty();
         }
+        String telefone = campo(payloadCru, "\"de\":").orElse("+5561999999999");
+        String nome = campo(payloadCru, "\"nome\":").orElse(null);
+
+        // "tipo" ausente ou "TEXTO": mensagem de texto, formato original desta classe.
+        // Qualquer outro valor (E11b): midia, com os campos extras que o teste declarar.
+        Optional<String> tipo = campo(payloadCru, "\"tipo\":");
+        if (tipo.isEmpty() || "TEXTO".equals(tipo.get())) {
+            return Optional.of(MensagemRecebidaDoCanal.texto(
+                    id.get(), telefone, nome, campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
+        }
         return Optional.of(new MensagemRecebidaDoCanal(
                 id.get(),
-                campo(payloadCru, "\"de\":").orElse("+5561999999999"),
-                campo(payloadCru, "\"nome\":").orElse(null),
-                campo(payloadCru, "\"texto\":").orElse(""),
+                telefone,
+                nome,
+                null,
+                tipo.get(),
+                campo(payloadCru, "\"midiaId\":").orElse(null),
+                campo(payloadCru, "\"mimetype\":").orElse(null),
+                campo(payloadCru, "\"nomeArquivo\":").orElse(null),
+                campo(payloadCru, "\"legenda\":").orElse(null),
                 Instant.now()));
     }
 

@@ -3,6 +3,8 @@ package com.synapse.crm.atendimento.domain.canal;
 import java.util.List;
 import java.util.Objects;
 
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+
 /**
  * O que se manda para o cliente — e a distincao existe por causa de uma regra de negocio, nao de
  * formato.
@@ -53,6 +55,29 @@ public sealed interface ConteudoDeEnvio {
         }
     }
 
+    /**
+     * Um anexo — imagem, audio ou documento. O arquivo em si mora no storage (E11b); aqui so viaja
+     * a referencia opaca, nunca bytes nem URL.
+     *
+     * @param referenciaStorage chave do objeto no bucket, devolvida por {@code ArmazenamentoDeMidia}
+     * @param metadados JSON pre-serializado (nome original, mimetype, tamanho, legenda) — String
+     *     opaca pelo mesmo motivo de {@link com.synapse.crm.atendimento.domain.mensagem.Mensagem
+     *     Mensagem#midiaMetadados()}: o dominio nao conhece Jackson, quem monta o JSON e a camada
+     *     de fora
+     */
+    record MensagemMidia(TipoMensagem tipo, String referenciaStorage, String metadados, String legenda)
+            implements ConteudoDeEnvio {
+
+        public MensagemMidia {
+            if (tipo == null || !tipo.exigeMidia()) {
+                throw new IllegalArgumentException("mensagem de midia exige um TipoMensagem de midia");
+            }
+            if (referenciaStorage == null || referenciaStorage.isBlank()) {
+                throw new IllegalArgumentException("mensagem de midia exige referencia de storage");
+            }
+        }
+    }
+
     /** Como a mensagem aparece na conversa e no historico do CRM. */
     default String paraHistorico() {
         return switch (this) {
@@ -60,6 +85,12 @@ public sealed interface ConteudoDeEnvio {
             // O texto renderizado quem tem e a Meta; o CRM guarda o que foi pedido.
             case MensagemTemplate template ->
                 "[template " + template.nome() + "] " + String.join(" | ", template.parametros());
+            case MensagemMidia midia -> {
+                String rotulo = "[" + midia.tipo().name().toLowerCase() + "]";
+                yield midia.legenda() == null || midia.legenda().isBlank()
+                        ? rotulo
+                        : rotulo + " " + midia.legenda();
+            }
         };
     }
 }

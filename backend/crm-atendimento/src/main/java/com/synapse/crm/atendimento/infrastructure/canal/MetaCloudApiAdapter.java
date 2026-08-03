@@ -12,6 +12,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -19,6 +21,8 @@ import org.springframework.web.client.RestClientResponseException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 
 /**
  * Anti-Corruption Layer da Meta Cloud API.
@@ -55,16 +59,19 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final CanalProperties propriedades;
     private final ObjectMapper json;
     private final CircuitBreaker breaker;
+    private final ArmazenamentoDeMidia armazenamento;
 
     MetaCloudApiAdapter(
             RestClient.Builder builder,
             CanalProperties propriedades,
             ObjectMapper json,
-            CircuitBreakerRegistry breakers) {
+            CircuitBreakerRegistry breakers,
+            ArmazenamentoDeMidia armazenamento) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
         this.breaker = breakers.circuitBreaker(NOME_DO_BREAKER);
+        this.armazenamento = armazenamento;
     }
 
     @Override
@@ -174,8 +181,123 @@ class MetaCloudApiAdapter implements CanalGateway {
                                     parametros.addObject().put("type", "text").put("text", valor));
                 }
             }
+            case ConteudoDeEnvio.MensagemMidia midia -> {
+                // A Meta nao aceita bytes direto na mensagem: e preciso subir o arquivo para o
+                // endpoint de midia dela primeiro e referenciar o "media id" devolvido. Isso
+                // acontece aqui, dentro do mesmo breaker.executeSupplier de chamar() — falha de
+                // upload conta para o circuit breaker igual falha de envio.
+                String campoTipo = campoDeTipoMeta(midia.tipo());
+                String mediaId = subirMidiaParaAMeta(midia);
+                raiz.put("type", campoTipo);
+                ObjectNode midiaNo = raiz.putObject(campoTipo);
+                midiaNo.put("id", mediaId);
+                if (midia.legenda() != null && !midia.legenda().isBlank()) {
+                    midiaNo.put("caption", midia.legenda());
+                }
+                if (midia.tipo() == TipoMensagem.DOCUMENTO) {
+                    String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
+                    if (nomeArquivo != null) {
+                        midiaNo.put("filename", nomeArquivo);
+                    }
+                }
+            }
         }
         return raiz;
+    }
+
+    private static String campoDeTipoMeta(TipoMensagem tipo) {
+        return switch (tipo) {
+            case IMAGEM -> "image";
+            case AUDIO -> "audio";
+            case DOCUMENTO -> "document";
+            case TEXTO -> throw new IllegalArgumentException("TEXTO nao e um tipo de midia");
+        };
+    }
+
+    /** Upload multipart para {@code /{numero}/media} — devolve o {@code media id} da Meta. */
+    private String subirMidiaParaAMeta(ConteudoDeEnvio.MensagemMidia midia) {
+        byte[] conteudo = armazenamento.baixar(midia.referenciaStorage());
+        String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
+        String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
+
+        MultipartBodyBuilder multipart = new MultipartBodyBuilder();
+        multipart.part("messaging_product", "whatsapp");
+        multipart.part("type", mimetype);
+        multipart.part("file", new ByteArrayResource(conteudo) {
+            @Override
+            public String getFilename() {
+                return nomeArquivo;
+            }
+        });
+
+        String resposta = http.post()
+                .uri("/{numero}/media", propriedades.numeroPrincipal())
+                .header("Authorization", "Bearer " + propriedades.token())
+                .body(multipart.build())
+                .retrieve()
+                .body(String.class);
+
+        try {
+            return json.readTree(resposta).path("id").asText();
+        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("resposta de upload de midia da Meta ilegivel", e);
+        }
+    }
+
+    private String campoDeMetadados(String metadadosJson, String campo) {
+        if (metadadosJson == null) {
+            return null;
+        }
+        try {
+            JsonNode no = json.readTree(metadadosJson).path(campo);
+            return no.isMissingNode() || no.isNull() ? null : no.asText();
+        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public CanalGateway.MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
+        try {
+            return breaker.executeSupplier(() -> buscarMidiaRecebida(midiaIdExterno));
+        } catch (CallNotPermittedException breakerAberto) {
+            // Diferente de enviar(): nao ha "recusa temporaria" para o webhook — quem chama
+            // (ProcessadorDeWebhookEntradaOperacoes) ja tem seu proprio retry com backoff.
+            // Lancar deixa esse mecanismo cuidar de tentar de novo mais tarde.
+            throw new IllegalStateException(
+                    "circuit breaker aberto para " + PROVEDOR + "; midia " + midiaIdExterno
+                            + " sera retentada");
+        }
+    }
+
+    /**
+     * A Meta entrega midia recebida por referencia, em dois passos: {@code GET /{media-id}} devolve
+     * uma URL temporaria (minutos de validade) e o mimetype; so entao um segundo {@code GET} nessa
+     * URL traz os bytes.
+     */
+    private CanalGateway.MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
+        String respostaMeta = http.get()
+                .uri("/{id}", midiaIdExterno)
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(String.class);
+
+        JsonNode no;
+        try {
+            no = json.readTree(respostaMeta);
+        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("resposta da Meta ilegivel ao resolver midia recebida", e);
+        }
+        String urlTemporaria = no.path("url").asText();
+        String mimetype = no.path("mime_type").asText();
+
+        byte[] bytes = http.get()
+                .uri(java.net.URI.create(urlTemporaria))
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(byte[].class);
+
+        return new CanalGateway.MidiaRecebida(bytes, mimetype);
     }
 
     private String idDaMensagem(String resposta) {

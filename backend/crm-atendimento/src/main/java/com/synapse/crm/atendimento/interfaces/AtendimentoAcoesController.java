@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.interfaces;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,13 +15,20 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
+import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
+import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
@@ -40,26 +48,53 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class AtendimentoAcoesController {
 
     private final EnviarMensagemUseCase enviar;
+    private final EnviarMidiaUseCase enviarMidia;
+    private final ResolverLeadDoAtendimentoUseCase resolverLead;
     private final TransferirAtendimentoUseCase transferir;
     private final FinalizarAtendimentoUseCase finalizar;
     private final UsuarioContext usuarioContext;
 
     AtendimentoAcoesController(
             EnviarMensagemUseCase enviar,
+            EnviarMidiaUseCase enviarMidia,
+            ResolverLeadDoAtendimentoUseCase resolverLead,
             TransferirAtendimentoUseCase transferir,
             FinalizarAtendimentoUseCase finalizar,
             UsuarioContext usuarioContext) {
         this.enviar = enviar;
+        this.enviarMidia = enviarMidia;
+        this.resolverLead = resolverLead;
         this.transferir = transferir;
         this.finalizar = finalizar;
         this.usuarioContext = usuarioContext;
     }
 
-    /** Texto livre apenas — sem endpoint de upload, nao ha midia para enviar ainda. */
     @PostMapping("/mensagens")
     EnvioResposta enviar(@Valid @RequestBody EnviarMensagemRequisicao requisicao) {
         EnviarMensagemUseCase.Resultado resultado =
                 enviar.executar(requisicao.leadId(), requisicao.conteudo());
+        return EnvioResposta.de(resultado);
+    }
+
+    /**
+     * Anexo do atendente (E11b). {@code id} e o atendimento, igual as rotas irmas
+     * {@code /transferir} e {@code /finalizar} abaixo — resolvido para o lead aqui, porque
+     * {@link EnviarMidiaUseCase} (como {@link EnviarMensagemUseCase}) trabalha em cima de lead.
+     */
+    @PostMapping(value = "/{id}/mensagens/midia", consumes = "multipart/form-data")
+    EnvioResposta enviarMidia(
+            @PathVariable UUID id,
+            @RequestPart("arquivo") MultipartFile arquivo,
+            @RequestParam(required = false) String legenda) {
+        UUID leadId = resolverLead.executar(id);
+        byte[] conteudo;
+        try {
+            conteudo = arquivo.getBytes();
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "falha ao ler o arquivo enviado");
+        }
+        EnviarMensagemUseCase.Resultado resultado =
+                enviarMidia.executar(leadId, conteudo, arquivo.getOriginalFilename(), legenda);
         return EnvioResposta.de(resultado);
     }
 
@@ -118,6 +153,22 @@ class AtendimentoAcoesController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
         problema.setTitle("Fora da janela de 24 horas");
+        return problema;
+    }
+
+    @ExceptionHandler(TipoDeMidiaNaoPermitidoException.class)
+    ProblemDetail aoRecusarTipoDeMidia(TipoDeMidiaNaoPermitidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Tipo de arquivo nao permitido");
+        return problema;
+    }
+
+    @ExceptionHandler(AnexoExcedeuLimiteException.class)
+    ProblemDetail aoExcederLimiteDeAnexo(AnexoExcedeuLimiteException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, e.getMessage());
+        problema.setTitle("Anexo excede o tamanho maximo");
         return problema;
     }
 

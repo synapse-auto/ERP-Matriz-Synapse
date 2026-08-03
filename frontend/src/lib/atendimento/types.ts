@@ -88,7 +88,10 @@ export interface MensagemTempoReal {
   mensagemId: string;
   remetenteTipo: RemetenteTipo;
   remetenteId: string | null;
+  tipo: TipoMensagem;
   conteudo: string | null;
+  midiaUrl: string | null;
+  midiaMetadados: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
 }

@@ -47,11 +47,41 @@ public interface TradutorDeCanal {
      * @param telefoneRemetente e por ele que se acha (ou se cria) o lead — o provedor nao conhece
      *     nosso id
      * @param nomeExibicao como o cliente aparece no WhatsApp; serve para nomear um lead novo
+     * @param texto {@code null} quando a mensagem e midia
+     * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"} ou {@code "DOCUMENTO"} — nome
+     *     de {@code TipoMensagem} como String, e nao o enum em si, para o dominio de canal nao
+     *     depender do de mensagem so por causa disto; quem converte e
+     *     {@code ProcessadorDeWebhookEntradaOperacoes}
+     * @param midiaIdExterno id da midia no provedor — chave para {@link
+     *     CanalGateway#baixarMidiaRecebida}; {@code null} quando {@code tipo} e {@code "TEXTO"}
+     * @param mimetype mimetype declarado pelo provedor; a instancia continua verificando por magic
+     *     bytes depois de baixar, este e so o valor que veio no webhook
+     * @param nomeArquivo so preenchido para documento
+     * @param legenda caption enviada junto com a midia, se houver
      */
     record MensagemRecebidaDoCanal(
             String idExterno,
             String telefoneRemetente,
             String nomeExibicao,
             String texto,
-            Instant enviadoEm) {}
+            String tipo,
+            String midiaIdExterno,
+            String mimetype,
+            String nomeArquivo,
+            String legenda,
+            Instant enviadoEm) {
+
+        /** Atalho para o caso comum: mensagem de texto, sem nenhum campo de midia. */
+        public static MensagemRecebidaDoCanal texto(
+                String idExterno, String telefoneRemetente, String nomeExibicao, String texto,
+                Instant enviadoEm) {
+            return new MensagemRecebidaDoCanal(
+                    idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
+                    enviadoEm);
+        }
+
+        public boolean ehMidia() {
+            return !"TEXTO".equals(tipo);
+        }
+    }
 }

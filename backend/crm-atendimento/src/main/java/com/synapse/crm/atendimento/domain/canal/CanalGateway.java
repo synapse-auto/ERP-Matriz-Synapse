@@ -52,10 +52,22 @@ public interface CanalGateway {
     ResultadoDeEnvio enviar(Envio envio);
 
     /**
+     * Baixa uma midia que o cliente mandou (E11b).
+     *
+     * <p>A Meta entrega midia recebida por <b>referencia</b> no webhook — um id, nao os bytes nem uma
+     * URL duradoura. Este metodo faz a troca desse id pelos bytes de verdade, para o CRM persistir no
+     * proprio storage; a URL da Meta expira em minutos e nao pode ser o que fica salvo.
+     */
+    MidiaRecebida baixarMidiaRecebida(String midiaIdExterno);
+
+    /**
      * Tudo o que o adaptador precisa para montar a chamada.
      *
      * @param credencialId qual credencial usar; o historico aponta para a vigente na epoca, entao
      *     troca de numero nao corrompe conversa antiga
      */
     record Envio(UUID mensagemId, String telefoneDestino, ConteudoDeEnvio conteudo, UUID credencialId) {}
+
+    /** Os bytes de uma midia recebida, prontos para o storage proprio. */
+    record MidiaRecebida(byte[] conteudo, String mimetype) {}
 }

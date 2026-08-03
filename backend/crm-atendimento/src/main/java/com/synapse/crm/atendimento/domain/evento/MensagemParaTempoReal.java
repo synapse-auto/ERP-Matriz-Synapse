@@ -21,6 +21,9 @@ public record MensagemParaTempoReal(
         UUID mensagemId,
         String remetenteTipo,
         UUID remetenteId,
+        String tipo,
         String conteudo,
+        String midiaUrl,
+        String midiaMetadados,
         String statusEntrega,
         Instant enviadoEm) {}

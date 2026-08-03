@@ -57,6 +57,20 @@ public record Mensagem(
                 quando);
     }
 
+    /** Midia — imagem, audio ou documento. {@code conteudo} fica nulo; o invariante ja permite. */
+    public static Mensagem midia(
+            UUID id,
+            UUID atendimentoId,
+            Remetente remetente,
+            TipoMensagem tipo,
+            String midiaUrl,
+            String midiaMetadados,
+            Instant quando) {
+        return new Mensagem(
+                id, atendimentoId, remetente, tipo, null, midiaUrl, midiaMetadados,
+                StatusEntrega.ENVIADO, quando);
+    }
+
     public boolean ehRecebida() {
         return remetente.ehDoLead();
     }

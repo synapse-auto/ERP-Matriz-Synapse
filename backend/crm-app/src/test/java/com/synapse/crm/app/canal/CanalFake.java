@@ -100,4 +100,22 @@ public class CanalFake implements CanalGateway {
         return resposta;
     }
 
+    // --- midia recebida (E11b) -------------------------------------------------
+
+    private final AtomicReference<MidiaRecebida> proximaMidiaRecebida = new AtomicReference<>();
+
+    /** O que {@link #baixarMidiaRecebida} vai devolver na proxima chamada. */
+    public void programarMidiaRecebida(byte[] conteudo, String mimetype) {
+        proximaMidiaRecebida.set(new MidiaRecebida(conteudo, mimetype));
+    }
+
+    @Override
+    public MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
+        MidiaRecebida programada = proximaMidiaRecebida.get();
+        if (programada == null) {
+            throw new IllegalStateException(
+                    "teste nao chamou programarMidiaRecebida antes de simular o webhook de midia");
+        }
+        return programada;
+    }
 }

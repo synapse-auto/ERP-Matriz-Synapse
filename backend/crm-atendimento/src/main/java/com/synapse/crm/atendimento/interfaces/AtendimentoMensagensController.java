@@ -16,6 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.tempo_real.ListarMensagensDesdeUseCase;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 
 /**
  * A reconciliacao que fecha a lacuna do WebSocket (E06 secao 4).
@@ -29,9 +31,16 @@ import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 class AtendimentoMensagensController {
 
     private final ListarMensagensDesdeUseCase listar;
+    private final ArmazenamentoDeMidia armazenamento;
+    private final MidiaProperties midiaPropriedades;
 
-    AtendimentoMensagensController(ListarMensagensDesdeUseCase listar) {
+    AtendimentoMensagensController(
+            ListarMensagensDesdeUseCase listar,
+            ArmazenamentoDeMidia armazenamento,
+            MidiaProperties midiaPropriedades) {
         this.listar = listar;
+        this.armazenamento = armazenamento;
+        this.midiaPropriedades = midiaPropriedades;
     }
 
     /** {@code desde} ausente devolve toda a janela conhecida — primeira carga da tela. */
@@ -39,7 +48,9 @@ class AtendimentoMensagensController {
     List<MensagemResposta> mensagens(
             @PathVariable UUID id, @RequestParam(required = false) Instant desde) {
         Instant efetivo = desde == null ? Instant.EPOCH : desde;
-        return listar.executar(id, efetivo).stream().map(MensagemResposta::de).toList();
+        return listar.executar(id, efetivo).stream()
+                .map(mensagem -> MensagemResposta.de(mensagem, armazenamento, midiaPropriedades))
+                .toList();
     }
 
     @ExceptionHandler(RecursoDeAtendimentoIndisponivelException.class)
@@ -62,14 +73,21 @@ class AtendimentoMensagensController {
             String statusEntrega,
             Instant enviadoEm) {
 
-        static MensagemResposta de(Mensagem mensagem) {
+        static MensagemResposta de(
+                Mensagem mensagem, ArmazenamentoDeMidia armazenamento, MidiaProperties midiaPropriedades) {
+            // A referencia opaca so vira URL assinada aqui, depois que a mensagem ja passou
+            // pela visibilidade do atendimento (ver o Javadoc desta classe) — e o que impede
+            // uma URL utilizavel de mensagem de outro atendente vazar por este endpoint.
+            String midiaUrl = mensagem.midiaUrl() == null
+                    ? null
+                    : armazenamento.urlAssinada(mensagem.midiaUrl(), midiaPropriedades.expiracaoLeitura());
             return new MensagemResposta(
                     mensagem.id(),
                     mensagem.remetente().tipo().name(),
                     mensagem.remetente().id(),
                     mensagem.tipo().name(),
                     mensagem.conteudo(),
-                    mensagem.midiaUrl(),
+                    midiaUrl,
                     mensagem.midiaMetadados(),
                     mensagem.statusEntrega().name(),
                     mensagem.enviadoEm());

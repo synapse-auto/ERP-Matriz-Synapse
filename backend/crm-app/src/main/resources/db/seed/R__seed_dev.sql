@@ -116,7 +116,16 @@ INSERT INTO configuracao_automacao
     ('automacao.habilitada', 'true', NULL, 'BOOLEAN', NULL, NULL,
      'Chave geral da automacao. Desligar pausa toda a operacao automatica.'),
     ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
-     NULL, NULL, 'Primeira mensagem enviada pela IA.')
+     NULL, NULL, 'Primeira mensagem enviada pela IA.'),
+    -- Teto da propria Meta Cloud API como valor_max: o admin pode apertar,
+    -- nunca alargar alem do que o provedor aceita (E11b). Confirmar estes
+    -- numeros contra a documentacao atual da Meta antes de producao.
+    ('anexo.tamanho_maximo_imagem_mb', '5', 'MB', 'INT', 1, 5,
+     'Tamanho maximo de imagem anexada no chat.'),
+    ('anexo.tamanho_maximo_audio_mb', '16', 'MB', 'INT', 1, 16,
+     'Tamanho maximo de audio anexado no chat.'),
+    ('anexo.tamanho_maximo_documento_mb', '100', 'MB', 'INT', 1, 100,
+     'Tamanho maximo de documento anexado no chat.')
 ON CONFLICT (chave) DO UPDATE
     SET valor = EXCLUDED.valor,
         unidade = EXCLUDED.unidade,

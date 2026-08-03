@@ -14,6 +14,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
+import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 
 /**
  * Publica no backplane Redis — nunca antes do commit.
@@ -34,10 +36,18 @@ class RelayDeTempoRealListener {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper json;
+    private final ArmazenamentoDeMidia armazenamento;
+    private final MidiaProperties midiaPropriedades;
 
-    RelayDeTempoRealListener(StringRedisTemplate redis, ObjectMapper json) {
+    RelayDeTempoRealListener(
+            StringRedisTemplate redis,
+            ObjectMapper json,
+            ArmazenamentoDeMidia armazenamento,
+            MidiaProperties midiaPropriedades) {
         this.redis = redis;
         this.json = json;
+        this.armazenamento = armazenamento;
+        this.midiaPropriedades = midiaPropriedades;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -48,7 +58,17 @@ class RelayDeTempoRealListener {
         dados.put("mensagemId", evento.mensagemId().toString());
         dados.put("remetenteTipo", evento.remetenteTipo());
         dados.put("remetenteId", evento.remetenteId() == null ? null : evento.remetenteId().toString());
+        dados.put("tipo", evento.tipo());
         dados.put("conteudo", evento.conteudo());
+        // Referencia opaca -> URL assinada aqui, no ponto de saida: quem recebe este evento
+        // ja passou pela autorizacao de assinatura do canal do atendimento (E06/E07).
+        dados.put(
+                "midiaUrl",
+                evento.midiaUrl() == null
+                        ? null
+                        : armazenamento.urlAssinada(
+                                evento.midiaUrl(), midiaPropriedades.expiracaoLeitura()));
+        dados.put("midiaMetadados", evento.midiaMetadados());
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
         publicar(evento.atendimentoId(), "MENSAGEM", dados);

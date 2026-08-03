@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
+import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -47,6 +52,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final TradutorDeCanal tradutor;
     private final RegistrarMensagemRecebidaUseCase registrar;
     private final LeadNoCaminhoDeMensagem leads;
+    private final CanalGateway canal;
+    private final ArmazenamentoDeMidia armazenamento;
+    private final ObjectMapper json;
     private final Clock relogio;
     private final int lote;
     private final int maximoDeTentativas;
@@ -56,6 +64,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal tradutor,
             RegistrarMensagemRecebidaUseCase registrar,
             LeadNoCaminhoDeMensagem leads,
+            CanalGateway canal,
+            ArmazenamentoDeMidia armazenamento,
+            ObjectMapper json,
             Clock relogio,
             @Value("${synapse.canal.webhook.lote:50}") int lote,
             @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas) {
@@ -63,6 +74,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.tradutor = tradutor;
         this.registrar = registrar;
         this.leads = leads;
+        this.canal = canal;
+        this.armazenamento = armazenamento;
+        this.json = json;
         this.relogio = relogio;
         this.lote = lote;
         this.maximoDeTentativas = maximoDeTentativas;
@@ -94,14 +108,41 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             UUID leadId =
                     leads.resolverPorTelefone(mensagem.telefoneRemetente(), mensagem.nomeExibicao());
 
-            registrar.executar(new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
-                    leadId, null, null, mensagem.texto()));
+            registrar.executar(mensagem.ehMidia()
+                    ? mensagemRecebidaDeMidia(leadId, mensagem)
+                    : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                            leadId, null, null, mensagem.texto()));
 
             entrada.marcarProcessado(pendente.idExterno(), agora);
 
         } catch (RuntimeException e) {
             falhar(pendente, agora, e);
         }
+    }
+
+    /**
+     * Troca o id de midia da Meta pelos bytes de verdade e persiste no storage proprio. A URL da
+     * Meta expira em minutos; guardar so a referencia opaca do nosso storage e o que faz o historico
+     * do cliente continuar acessivel depois disso (E11b, secao 3 do prompt).
+     */
+    private RegistrarMensagemRecebidaUseCase.MensagemRecebida mensagemRecebidaDeMidia(
+            UUID leadId, TradutorDeCanal.MensagemRecebidaDoCanal mensagem) {
+        CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
+        TipoMensagem tipo = TipoMensagem.valueOf(mensagem.tipo());
+        String referencia = armazenamento.salvar(baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
+
+        ObjectNode metadados = json.createObjectNode();
+        if (mensagem.nomeArquivo() != null) {
+            metadados.put("nome", mensagem.nomeArquivo());
+        }
+        metadados.put("mimetype", baixada.mimetype());
+        metadados.put("tamanho", baixada.conteudo().length);
+        if (mensagem.legenda() != null && !mensagem.legenda().isBlank()) {
+            metadados.put("legenda", mensagem.legenda());
+        }
+
+        return new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                leadId, null, null, null, tipo, referencia, metadados.toString());
     }
 
     private void falhar(WebhookEntrada.Pendente pendente, Instant agora, RuntimeException e) {

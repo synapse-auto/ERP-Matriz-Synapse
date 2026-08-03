@@ -173,6 +173,13 @@ class OutboxRepositorioJdbc implements Outbox {
                 var parametros = conteudoNo.putArray("parametros");
                 template.parametros().forEach(parametros::add);
             }
+            case ConteudoDeEnvio.MensagemMidia midia -> {
+                conteudoNo.put("tipo", "MIDIA");
+                conteudoNo.put("midiaTipo", midia.tipo().name());
+                conteudoNo.put("referenciaStorage", midia.referenciaStorage());
+                conteudoNo.put("metadados", midia.metadados());
+                conteudoNo.put("legenda", midia.legenda());
+            }
         }
         return raiz.toString();
     }
@@ -196,11 +203,20 @@ class OutboxRepositorioJdbc implements Outbox {
     }
 
     private static ConteudoDeEnvio paraConteudo(JsonNode conteudo) {
-        if ("TEMPLATE".equals(conteudo.get("tipo").asText())) {
+        String tipo = conteudo.get("tipo").asText();
+        if ("TEMPLATE".equals(tipo)) {
             List<String> parametros = new ArrayList<>();
             conteudo.get("parametros").forEach(parametro -> parametros.add(parametro.asText()));
             return new ConteudoDeEnvio.MensagemTemplate(
                     conteudo.get("nome").asText(), conteudo.get("idioma").asText(), parametros);
+        }
+        if ("MIDIA".equals(tipo)) {
+            return new ConteudoDeEnvio.MensagemMidia(
+                    com.synapse.crm.atendimento.domain.mensagem.TipoMensagem.valueOf(
+                            conteudo.get("midiaTipo").asText()),
+                    conteudo.get("referenciaStorage").asText(),
+                    conteudo.get("metadados").asText(null),
+                    conteudo.get("legenda").asText(null));
         }
         return new ConteudoDeEnvio.MensagemLivre(conteudo.get("texto").asText());
     }

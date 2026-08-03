@@ -26,6 +26,14 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  # Teto largo de proposito: quem aplica o limite fino por tipo de midia (imagem/
+  # audio/documento) e o EnviarMidiaUseCase, contra configuracao_automacao. Este
+  # teto do Spring so existe para nao rejeitar com um erro generico antes de
+  # chegar la — 110 MB cobre com folga o maior teto hoje conhecido (documento, 100 MB).
+  servlet:
+    multipart:
+      max-file-size: ${MIDIA_UPLOAD_TAMANHO_MAXIMO:110MB}
+      max-request-size: ${MIDIA_UPLOAD_TAMANHO_MAXIMO:110MB}
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     # Nao vem do ambiente de proposito. O seed de desenvolvimento mora em
@@ -118,6 +126,26 @@ synapse:
   automacao:
     url-base: ${AUTOMACAO_URL:}
     token-permanente: ${AUTOMACAO_TOKEN:}
+
+  # -------------------------------------------------------------------------
+  # Storage de midia do chat (E11b). MinIO em dev, S3-compativel em producao
+  # (docs/01, docs/09) — mesmo cliente, so muda endpoint/credenciais.
+  #
+  # endpoint: o que o BACKEND usa para falar com o storage (hostname interno
+  # do Docker em dev). url-publica: o host embutido na URL assinada que sai
+  # para o browser — vazio cai para "endpoint" (correto quando os dois
+  # coincidem, como em producao atras de um dominio unico).
+  # -------------------------------------------------------------------------
+  midia:
+    endpoint: ${MIDIA_S3_ENDPOINT:http://localhost:9000}
+    url-publica: ${MIDIA_S3_URL_PUBLICA:}
+    bucket: ${MIDIA_S3_BUCKET:synapse-crm-midia}
+    # Credencial de acesso ao bucket, nao segredo de assinatura (categoria de
+    # POSTGRES_PASSWORD, nao de JWT_SEGREDO): default so de desenvolvimento,
+    # casa com MINIO_ROOT_USER/PASSWORD do docker-compose. Producao sobrescreve.
+    access-key: ${MIDIA_S3_ACCESS_KEY:minioadmin}
+    secret-key: ${MIDIA_S3_SECRET_KEY:minioadmin}
+    expiracao-leitura: ${MIDIA_S3_EXPIRACAO_LEITURA:5m}
 
   alertas:
     webhook-grupo: ${ALERTA_WEBHOOK:}

@@ -101,5 +101,23 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!--
+      Storage de midia do chat (E11b). MinIO em dev, S3-compativel em producao —
+      mesmo cliente para os dois, so muda endpoint/credenciais (docs/01, docs/09).
+    -->
+    <dependency>
+      <groupId>io.minio</groupId>
+      <artifactId>minio</artifactId>
+    </dependency>
+
+    <!--
+      Deteccao de tipo real por magic bytes: so o core, sem parsers de conteudo
+      (nao precisamos extrair texto de PDF, so identificar o mimetype real).
+    -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-core</artifactId>
+    </dependency>
   </dependencies>
 </project>

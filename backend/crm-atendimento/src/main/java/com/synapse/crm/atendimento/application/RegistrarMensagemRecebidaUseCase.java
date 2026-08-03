@@ -13,6 +13,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -78,8 +79,12 @@ public class RegistrarMensagemRecebidaUseCase {
                     agora));
         }
 
-        Mensagem gravada = mensagens.registrar(Mensagem.texto(
-                UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.conteudo(), agora));
+        Mensagem gravada = mensagens.registrar(entrada.ehMidia()
+                ? Mensagem.midia(
+                        UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.tipo(),
+                        entrada.midiaUrl(), entrada.midiaMetadados(), agora)
+                : Mensagem.texto(
+                        UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.conteudo(), agora));
 
         // A divida da E03b, paga na MESMA transacao e na MESMA conexao: enquanto
         // ultima_interacao_em ficava nula, o filtro semRetornoDias media "criado ha N
@@ -97,7 +102,10 @@ public class RegistrarMensagemRecebidaUseCase {
                 gravada.id(),
                 gravada.remetente().tipo().name(),
                 gravada.remetente().id(),
+                gravada.tipo().name(),
                 gravada.conteudo(),
+                gravada.midiaUrl(),
+                gravada.midiaMetadados(),
                 gravada.statusEntrega().name(),
                 agora));
 
@@ -109,8 +117,29 @@ public class RegistrarMensagemRecebidaUseCase {
      *
      * @param canalCredencialId a credencial vigente na epoca; o historico aponta para ela para que
      *     troca de numero nao corrompa conversa antiga
+     * @param conteudo texto da mensagem; {@code null} quando {@code tipo} e midia
+     * @param tipo {@code null} ou {@code TEXTO} tratam como texto — {@code ehMidia()} e o que decide
+     * @param midiaUrl referencia opaca no storage proprio (E11b); {@code null} para texto
+     * @param midiaMetadados JSON (nome, mimetype, tamanho, legenda); {@code null} para texto
      */
-    public record MensagemRecebida(UUID leadId, UUID canalId, UUID canalCredencialId, String conteudo) {}
+    public record MensagemRecebida(
+            UUID leadId,
+            UUID canalId,
+            UUID canalCredencialId,
+            String conteudo,
+            TipoMensagem tipo,
+            String midiaUrl,
+            String midiaMetadados) {
+
+        /** Atalho para o caso comum: mensagem de texto, sem nenhum campo de midia. */
+        public MensagemRecebida(UUID leadId, UUID canalId, UUID canalCredencialId, String conteudo) {
+            this(leadId, canalId, canalCredencialId, conteudo, TipoMensagem.TEXTO, null, null);
+        }
+
+        public boolean ehMidia() {
+            return tipo != null && tipo != TipoMensagem.TEXTO;
+        }
+    }
 
     /** @param abriuAtendimento se esta mensagem comecou uma conversa nova */
     public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean abriuAtendimento) {}

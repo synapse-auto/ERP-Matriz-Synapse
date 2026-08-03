@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Optional;
 
 import javax.crypto.Mac;
@@ -80,6 +81,10 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         return primeiraMensagem(payloadCru).map(mensagem -> mensagem.path("id").asText(null));
     }
 
+    /** {@code type} da Meta -> {@code TipoMensagem} do CRM. {@code null} para tipo desconhecido. */
+    private static final Map<String, String> TIPO_META_PARA_CRM =
+            Map.of("image", "IMAGEM", "audio", "AUDIO", "document", "DOCUMENTO");
+
     @Override
     public Optional<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
         Optional<JsonNode> mensagem = primeiraMensagem(payloadCru);
@@ -87,20 +92,41 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             return Optional.empty();
         }
         JsonNode no = mensagem.get();
+        String tipoMeta = no.path("type").asText();
 
-        // So texto nesta etapa. Midia entra depois; devolver vazio faz o processador
-        // marcar como processado sem criar mensagem, em vez de estourar em loop.
-        if (!"text".equals(no.path("type").asText())) {
+        // A Meta manda epoch em segundos, como string.
+        Instant enviadoEm =
+                Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()));
+        String idExterno = no.path("id").asText();
+        String telefoneRemetente = no.path("from").asText();
+        String nomeExibicao = nomeDeExibicao(payloadCru);
+
+        if ("text".equals(tipoMeta)) {
+            return Optional.of(MensagemRecebidaDoCanal.texto(
+                    idExterno, telefoneRemetente, nomeExibicao, no.path("text").path("body").asText(),
+                    enviadoEm));
+        }
+
+        String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
+        if (tipoCrm == null) {
+            // Nem texto, nem midia suportada (status, reacao, sticker, etc.). Devolver
+            // vazio faz o processador marcar como processado sem criar mensagem, em vez
+            // de estourar em loop.
             return Optional.empty();
         }
 
+        JsonNode midiaNo = no.path(tipoMeta);
         return Optional.of(new MensagemRecebidaDoCanal(
-                no.path("id").asText(),
-                no.path("from").asText(),
-                nomeDeExibicao(payloadCru),
-                no.path("text").path("body").asText(),
-                // A Meta manda epoch em segundos, como string.
-                Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()))));
+                idExterno,
+                telefoneRemetente,
+                nomeExibicao,
+                null,
+                tipoCrm,
+                midiaNo.path("id").asText(null),
+                midiaNo.path("mime_type").asText(null),
+                midiaNo.path("filename").asText(null),
+                midiaNo.path("caption").asText(null),
+                enviadoEm));
     }
 
     // --- formato da Meta (nada abaixo daqui sai desta classe) ------------------
