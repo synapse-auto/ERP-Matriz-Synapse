@@ -1,3 +1,11 @@
 package com.synapse.crm.equipe.application.usuario;
 import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.synapse.crm.equipe.domain.usuario.PapelGerenciavel;
+import com.synapse.crm.equipe.domain.usuario.Usuario;
 @Service public class AtualizarUsuarioUseCase{private final EquipeRepositorio equipe;public AtualizarUsuarioUseCase(EquipeRepositorio e){equipe=e;}@PreAuthorize("hasAnyRole('GESTOR','ADMINISTRADOR')")@Transactional public Optional<Usuario> executar(UUID id,String nome,String email,PapelGerenciavel papel){return equipe.atualizar(id,nome.trim(),email.trim().toLowerCase(),papel);}}

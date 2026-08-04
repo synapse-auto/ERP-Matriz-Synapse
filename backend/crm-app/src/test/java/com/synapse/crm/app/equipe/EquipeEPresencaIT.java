@@ -1,7 +1,28 @@
 package com.synapse.crm.app.equipe;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
+import java.util.UUID;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
+
+import com.synapse.crm.app.PostgresIT;
+import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)@ActiveProfiles("dev")@TestPropertySource(properties="synapse.seguranca.token-interno=segredo-equipe-e13")class EquipeEPresencaIT extends PostgresIT{
  @Autowired TestRestTemplate http;@Autowired JdbcTemplate jdbc;@Autowired ObjectMapper json;
  @Test @DisplayName("gestor cria, edita e desativa sem deletar usuario")void crud()throws Exception{String sufixo=UUID.randomUUID().toString().substring(0,8);var criada=chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.POST,"/api/v1/usuarios",Map.of("nome","Atendente E13","email","e13-"+sufixo+"@teste.local","senha","senha-e13-segura","papel","ATENDENTE"));assertThat(criada.getStatusCode()).isEqualTo(HttpStatus.CREATED);UUID id=UUID.fromString(json.readTree(criada.getBody()).path("id").asText());assertThat(jdbc.queryForObject("SELECT senha_hash FROM usuario WHERE id=?",String.class,id)).doesNotContain("senha-e13-segura");var editada=chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.PUT,"/api/v1/usuarios/"+id,Map.of("nome","Subgestora E13","email","sub-"+sufixo+"@teste.local","papel","SUBGESTOR"));assertThat(editada.getBody()).contains("Subgestora E13").contains("SUBGESTOR");assertThat(chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.PATCH,"/api/v1/usuarios/"+id+"/desativar",null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);assertThat(jdbc.queryForObject("SELECT count(*) FROM usuario WHERE id=?",Integer.class,id)).isOne();assertThat(jdbc.queryForObject("SELECT ativo FROM usuario WHERE id=?",Boolean.class,id)).isFalse();}
