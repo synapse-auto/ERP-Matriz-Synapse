@@ -114,6 +114,7 @@
       "janelaFechadaTitulo": "Janela de 24h fechada",
       "janelaFechadaDescricao": "Faz mais de 24h desde a última mensagem do cliente. Só é possível enviar um template aprovado.",
       "semTemplates": "Nenhum template disponível ainda."
+      ,"agendar": "Agendar mensagem"
     },
     "tempoReal": {
       "reconectando": "Reconectando...",
@@ -183,7 +184,7 @@
         "usuario": "Usuário"
       }
     },
-    "acoes": { "lembrete": "Criar lembrete" }
+    "acoes": { "lembrete": "Criar lembrete", "mensagemProgramada": "Programar mensagem" }
   },
   "lembretes": {
     "titulo": "Lembretes", "descricao": "Compromissos pessoais ligados aos seus leads.", "novo": "Novo lembrete",
@@ -194,6 +195,14 @@
     "colunas": { "dataHora": "Data e hora", "lead": "Lead", "atendente": "Atendente", "texto": "Lembrete", "status": "Status", "acoes": "Ações" },
     "paginacao": { "anterior": "Anterior", "proxima": "Próxima" },
     "formulario": { "titulo": "Criar lembrete", "lead": "Lead", "selecionarLead": "Selecione um lead", "dataHora": "Data e hora", "texto": "Texto", "salvar": "Salvar", "cancelar": "Cancelar", "erro": "Não foi possível criar o lembrete." }
+  },
+  "mensagensProgramadas": {
+    "titulo":"Mensagens programadas","descricao":"Mensagens que a Automação enviará no horário escolhido.","nova":"Programar mensagem","carregando":"Carregando mensagens...","vazio":"Nenhuma mensagem neste período.","erro":"Não foi possível carregar as mensagens programadas.","editar":"Editar","cancelar":"Cancelar",
+    "status":{"agendada":"Agendada","enviada":"Enviada","cancelada":"Cancelada"},
+    "filtros":{"inicio":"De","fim":"Até","status":"Status","todos":"Todos"},
+    "colunas":{"data":"Envio","lead":"Lead","atendente":"Atendente","conteudo":"Mensagem","status":"Status","acoes":"Ações"},
+    "paginacao":{"anterior":"Anterior","proxima":"Próxima"},
+    "formulario":{"tituloCriar":"Programar mensagem","tituloEditar":"Editar mensagem programada","lead":"Lead","selecionarLead":"Selecione um lead","dataEnvio":"Data e hora do envio","conteudo":"Mensagem","salvar":"Salvar","cancelar":"Voltar","erro":"Não foi possível salvar a mensagem programada."}
   },
   "agenda": {
     "titulo": "Agenda de contatos",

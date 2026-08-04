@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
 
-import { Paperclip, Send, Smile, X } from "lucide-react";
+import { Clock, Paperclip, Send, Smile, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,6 +14,7 @@ import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 
 const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "😢", "😡", "👀", "✅"];
 
@@ -41,6 +42,7 @@ export function Composer({ conversa }: Props) {
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [progresso, setProgresso] = useState<number | null>(null);
+  const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const enviar = useEnviarMensagem();
   const enviarMidia = useEnviarMidia();
@@ -196,6 +198,14 @@ export function Composer({ conversa }: Props) {
           className="max-h-32 flex-1 resize-none"
         />
 
+        <Tooltip>
+          <TooltipTrigger className={buttonVariants({ variant: "ghost", size: "icon" })}
+            aria-label={textos.agendar} onClick={() => setAgendamentoAberto(true)}>
+            <Clock className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent>{textos.agendar}</TooltipContent>
+        </Tooltip>
+
         <Button
           type="button"
           size="icon"
@@ -212,6 +222,9 @@ export function Composer({ conversa }: Props) {
           {mensagemDeErro}
         </p>
       )}
+      <FormularioMensagemProgramada aberto={agendamentoAberto} leadId={conversa.leadId}
+        leadNome={conversa.leadNome} conteudoInicial={texto} onFechar={() => setAgendamentoAberto(false)}
+        onSalvo={() => setTexto("")} />
     </div>
   );
 }

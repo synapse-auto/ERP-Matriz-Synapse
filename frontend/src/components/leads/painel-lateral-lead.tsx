@@ -7,6 +7,7 @@ import {
   Calculator,
   LifeBuoy,
   Bell,
+  Clock,
   Repeat2,
   Tag as TagIcon,
   X,
@@ -20,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { FormularioLembrete } from "@/components/lembretes/formulario-lembrete";
+import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
@@ -113,6 +115,7 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
   const [avisoEdicao, setAvisoEdicao] = useState<"salvo" | "erro" | "obrigatorio" | null>(null);
   const [avisoTags, setAvisoTags] = useState(false);
   const [lembreteAberto, setLembreteAberto] = useState(false);
+  const [programadaAberta, setProgramadaAberta] = useState(false);
   const inicializado = useRef<string | null>(null);
 
   useEffect(() => {
@@ -236,6 +239,9 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
             <Button type="button" variant="outline" onClick={() => setLembreteAberto(true)}>
               <Bell className="size-4" /> {textos.acoes.lembrete}
             </Button>
+            <Button type="button" variant="outline" onClick={() => setProgramadaAberta(true)}>
+              <Clock className="size-4" /> {textos.acoes.mensagemProgramada}
+            </Button>
 
             <TagsDaFicha
               tags={tagsDoLead.data ?? []}
@@ -311,6 +317,7 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
         )}
       </div>
       {lead.data && <FormularioLembrete aberto={lembreteAberto} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
+      {lead.data && <FormularioMensagemProgramada aberto={programadaAberta} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setProgramadaAberta(false)} />}
     </aside>
   );
 }
