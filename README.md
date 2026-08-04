@@ -31,9 +31,9 @@ não existe `tenant_id` em nenhuma tabela, e não deve passar a existir.
 cp .env.example .env
 ```
 
-Os defaults de `.env.example` já funcionam para desenvolvimento. Os campos de **segredo**
-(`WHATSAPP_*`, `AUTOMACAO_*`) ficam vazios de propósito — as etapas que dependem deles ainda não
-existem, e um default falso é pior que um valor ausente.
+Os defaults de `.env.example` já funcionam para desenvolvimento sem integrações externas. Os
+campos de **segredo** (`WHATSAPP_*`, `AUTOMACAO_*`) ficam vazios de propósito porque pertencem a
+cada instância; um default falso ou compartilhado seria pior que a funcionalidade falhar fechada.
 
 ### 2. Infraestrutura
 
