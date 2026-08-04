@@ -172,6 +172,7 @@ export const TextosSchema = z.object({
       janelaFechadaDescricao: z.string(),
       semTemplates: z.string(),
       agendar: z.string(),
+      mensagensRapidas: z.string(),
     }),
     tempoReal: z.object({
       reconectando: z.string(),
@@ -260,6 +261,7 @@ export const TextosSchema = z.object({
     paginacao:z.object({anterior:z.string(),proxima:z.string()}),
     formulario:z.object({tituloCriar:z.string(),tituloEditar:z.string(),lead:z.string(),selecionarLead:z.string(),dataEnvio:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()}),
   }),
+  mensagensRapidas:z.object({titulo:z.string(),descricao:z.string(),nova:z.string(),carregando:z.string(),vazio:z.string(),erro:z.string(),editar:z.string(),remover:z.string(),colunas:z.object({atendente:z.string(),chave:z.string(),conteudo:z.string(),acoes:z.string()}),formulario:z.object({criarTitulo:z.string(),editarTitulo:z.string(),chave:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()})}),
   agenda: z.object({
     titulo: z.string(),
     descricao: z.string(),

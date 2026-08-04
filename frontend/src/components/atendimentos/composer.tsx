@@ -1,6 +1,7 @@
 "use client";
 
 import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Clock, Paperclip, Send, Smile, X } from "lucide-react";
 
@@ -14,6 +15,7 @@ import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { listarMensagensRapidas } from "@/lib/suporte/api";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 
 const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "😢", "😡", "👀", "✅"];
@@ -43,9 +45,11 @@ export function Composer({ conversa }: Props) {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
+  const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const enviar = useEnviarMensagem();
   const enviarMidia = useEnviarMidia();
+  const rapidas = useQuery({ queryKey: ["mensagens-rapidas", "minhas"], queryFn: () => listarMensagensRapidas(true) });
 
   if (conversa.status === "FINALIZADO") {
     return (
@@ -104,6 +108,17 @@ export function Composer({ conversa }: Props) {
   }
 
   function aoPressionarTecla(evento: KeyboardEvent<HTMLTextAreaElement>) {
+    if (sugestoes.length > 0 && (evento.key === "ArrowDown" || evento.key === "ArrowUp")) {
+      evento.preventDefault();
+      setAtalhoSelecionado((atual) => evento.key === "ArrowDown" ? (atual + 1) % sugestoes.length : (atual - 1 + sugestoes.length) % sugestoes.length);
+      return;
+    }
+    if (sugestoes.length > 0 && (evento.key === "Enter" || evento.key === "Tab")) {
+      evento.preventDefault();
+      setTexto(sugestoes[atalhoSelecionado]?.conteudo ?? texto);
+      setAtalhoSelecionado(0);
+      return;
+    }
     if (evento.key === "Enter" && !evento.shiftKey) {
       evento.preventDefault();
       enviarConteudo();
@@ -116,6 +131,8 @@ export function Composer({ conversa }: Props) {
       : enviarMidia.isError
         ? textos.anexoErro
         : null;
+  const termoAtalho = texto.startsWith("/") && !texto.includes(" ") ? texto.slice(1).toLowerCase() : null;
+  const sugestoes = termoAtalho === null ? [] : (rapidas.data ?? []).filter((m) => m.palavraChave.toLowerCase().includes(termoAtalho));
 
   if (!janelaAberta) {
     return (
@@ -189,14 +206,14 @@ export function Composer({ conversa }: Props) {
           <TooltipContent>{textos.anexoSelecionar}</TooltipContent>
         </Tooltip>
 
-        <Textarea
-          value={texto}
-          onChange={(evento) => setTexto(evento.target.value)}
-          onKeyDown={aoPressionarTecla}
-          placeholder={arquivo ? textos.anexoLegendaPlaceholder : textos.placeholder}
-          rows={1}
-          className="max-h-32 flex-1 resize-none"
-        />
+        <div className="relative flex-1">
+          <Textarea value={texto} onChange={(evento) => { setTexto(evento.target.value); setAtalhoSelecionado(0); }} onKeyDown={aoPressionarTecla}
+            placeholder={arquivo ? textos.anexoLegendaPlaceholder : textos.placeholder} rows={1} className="max-h-32 resize-none" />
+          {sugestoes.length > 0 && <ul role="listbox" aria-label={textos.mensagensRapidas}
+            className="absolute bottom-full z-20 mb-1 max-h-48 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+            {sugestoes.map((m,indice)=><li key={m.id}><button type="button" className={indice===atalhoSelecionado?"w-full rounded bg-accent p-2 text-left":"w-full rounded p-2 text-left hover:bg-accent"} onMouseDown={(e)=>e.preventDefault()} onClick={()=>{setTexto(m.conteudo);setAtalhoSelecionado(0)}}><span className="font-mono text-xs text-primary">/{m.palavraChave}</span><span className="block truncate text-sm">{m.conteudo}</span></button></li>)}
+          </ul>}
+        </div>
 
         <Tooltip>
           <TooltipTrigger className={buttonVariants({ variant: "ghost", size: "icon" })}

@@ -115,6 +115,7 @@
       "janelaFechadaDescricao": "Faz mais de 24h desde a última mensagem do cliente. Só é possível enviar um template aprovado.",
       "semTemplates": "Nenhum template disponível ainda."
       ,"agendar": "Agendar mensagem"
+      ,"mensagensRapidas": "Mensagens rápidas"
     },
     "tempoReal": {
       "reconectando": "Reconectando...",
@@ -204,6 +205,7 @@
     "paginacao":{"anterior":"Anterior","proxima":"Próxima"},
     "formulario":{"tituloCriar":"Programar mensagem","tituloEditar":"Editar mensagem programada","lead":"Lead","selecionarLead":"Selecione um lead","dataEnvio":"Data e hora do envio","conteudo":"Mensagem","salvar":"Salvar","cancelar":"Voltar","erro":"Não foi possível salvar a mensagem programada."}
   },
+  "mensagensRapidas":{"titulo":"Mensagens rápidas","descricao":"Atalhos pessoais para respostas usadas com frequência.","nova":"Nova mensagem rápida","carregando":"Carregando mensagens...","vazio":"Nenhuma mensagem rápida cadastrada.","erro":"Não foi possível carregar as mensagens rápidas.","editar":"Editar","remover":"Remover","colunas":{"atendente":"Atendente","chave":"Atalho","conteudo":"Mensagem","acoes":"Ações"},"formulario":{"criarTitulo":"Criar mensagem rápida","editarTitulo":"Editar mensagem rápida","chave":"Palavra-chave","conteudo":"Mensagem","salvar":"Salvar","cancelar":"Cancelar","erro":"Não foi possível salvar. Confira se a palavra-chave já está em uso."}},
   "agenda": {
     "titulo": "Agenda de contatos",
     "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",

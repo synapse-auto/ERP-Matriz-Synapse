@@ -1,0 +1,4 @@
+package com.synapse.crm.core.application.mensagemrapida;
+import java.util.UUID;import org.springframework.security.access.prepost.PreAuthorize;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
+@Service public class RemoverMensagemRapidaUseCase{private final MensagemRapidaRepositorio repo;private final UsuarioContext usuario;public RemoverMensagemRapidaUseCase(MensagemRapidaRepositorio repo,UsuarioContext usuario){this.repo=repo;this.usuario=usuario;}
+ @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR')") @Transactional public boolean executar(UUID id){var u=usuario.atual();return repo.remover(id,new EscopoMensagensRapidas(u.id(),u.papel().enxergaTodosOsLeads()));}}

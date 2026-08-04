@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
@@ -23,6 +24,14 @@ vi.mock("@/lib/atendimento/janela-24h", () => ({
   janelaTextoLivreAberta: () => true,
 }));
 
+vi.mock("@/lib/suporte/api", () => ({
+  listarMensagensRapidas: () => Promise.resolve([
+    { id: "rapida-1", atendenteId: "ana", atendenteNome: "Ana", palavraChave: "saudacao", conteudo: "Olá! Como posso ajudar?", tipoMidia: null },
+  ]),
+  criarMensagemProgramada: vi.fn(),
+  editarMensagemProgramada: vi.fn(),
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
@@ -42,13 +51,33 @@ vi.mock("@/lib/config/textos-provider", () => ({
         janelaFechadaTitulo: "",
         janelaFechadaDescricao: "",
         semTemplates: "",
+        agendar: "Agendar mensagem",
+        mensagensRapidas: "Mensagens rápidas",
       },
       mensagens: { reenviar: "Reenviar" },
+    },
+    mensagensProgramadas: {
+      formulario: {
+        tituloEditar: "Editar mensagem programada",
+        tituloCriar: "Programar mensagem",
+        lead: "Lead",
+        selecionarLead: "Selecione um lead",
+        dataEnvio: "Data e hora",
+        conteudo: "Mensagem",
+        erro: "Erro",
+        cancelar: "Cancelar",
+        salvar: "Salvar",
+      },
     },
   }),
 }));
 
 import { Composer } from "./composer";
+
+function renderizar() {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={cliente}><Composer conversa={conversa} /></QueryClientProvider>);
+}
 
 const conversa: CartaoAtendimento = {
   atendimentoId: "at-1",
@@ -74,7 +103,7 @@ function arquivoFake(nome: string, tipo: string): File {
 
 describe("Composer — anexo", () => {
   it("mostra o chip de preview com nome e tamanho ao selecionar um arquivo", () => {
-    render(<Composer conversa={conversa} />);
+    renderizar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
     fireEvent.change(input, { target: { files: [arquivoFake("foto.png", "image/png")] } });
@@ -83,7 +112,7 @@ describe("Composer — anexo", () => {
   });
 
   it("remove o arquivo selecionado ao clicar em remover", () => {
-    render(<Composer conversa={conversa} />);
+    renderizar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [arquivoFake("foto.png", "image/png")] } });
     expect(screen.getByText("foto.png")).toBeInTheDocument();
@@ -94,7 +123,7 @@ describe("Composer — anexo", () => {
   });
 
   it("envia o arquivo selecionado com a legenda digitada ao clicar em enviar", () => {
-    render(<Composer conversa={conversa} />);
+    renderizar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [arquivoFake("orcamento.pdf", "application/pdf")] } });
 
@@ -111,6 +140,18 @@ describe("Composer — anexo", () => {
       }),
       expect.anything(),
     );
+    expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("expande /palavra-chave com Enter sem enviar a mensagem", async () => {
+    renderizar();
+    const composer = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(composer, { target: { value: "/sau" } });
+    expect(await screen.findByText("/saudacao")).toBeInTheDocument();
+
+    fireEvent.keyDown(composer, { key: "Enter" });
+
+    expect(composer).toHaveValue("Olá! Como posso ajudar?");
     expect(mutateTexto).not.toHaveBeenCalled();
   });
 });

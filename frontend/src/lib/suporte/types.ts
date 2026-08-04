@@ -31,3 +31,6 @@ export interface MensagemProgramada {
 }
 export interface PaginaMensagensProgramadas { mensagens: MensagemProgramada[]; pagina: number; temMais: boolean; }
 export interface DadosMensagemProgramada { leadId: string; conteudo: string; dataEnvio: string; }
+
+export interface MensagemRapida { id:string; atendenteId:string; atendenteNome:string; palavraChave:string; conteudo:string; tipoMidia:string|null; }
+export interface DadosMensagemRapida { palavraChave:string; conteudo:string; }

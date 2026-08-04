@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api/http-client";
 
 import type { DadosLembrete, DadosMensagemProgramada, Lembrete, MensagemProgramada,
   PaginaLembretes, PaginaMensagensProgramadas, StatusLembrete, StatusMensagemProgramada } from "./types";
+import type { DadosMensagemRapida, MensagemRapida } from "./types";
 
 export function listarLembretes(filtros: {
   inicio?: string;
@@ -51,3 +52,7 @@ export function editarMensagemProgramada(id: string, d: Omit<DadosMensagemProgra
 export function cancelarMensagemProgramada(id: string): Promise<MensagemProgramada> {
   return apiFetch<MensagemProgramada>(`/api/v1/mensagens-programadas/${id}/cancelar`, { method: "POST" });
 }
+export function listarMensagensRapidas(minhas=false):Promise<MensagemRapida[]>{return apiFetch<MensagemRapida[]>(`/api/v1/mensagens-rapidas${minhas?"?minhas=true":""}`)}
+export function criarMensagemRapida(d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>("/api/v1/mensagens-rapidas",{method:"POST",body:JSON.stringify(d)})}
+export function editarMensagemRapida(id:string,d:DadosMensagemRapida):Promise<MensagemRapida>{return apiFetch<MensagemRapida>(`/api/v1/mensagens-rapidas/${id}`,{method:"PUT",body:JSON.stringify(d)})}
+export function removerMensagemRapida(id:string):Promise<void>{return apiFetch<void>(`/api/v1/mensagens-rapidas/${id}`,{method:"DELETE"})}
