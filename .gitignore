@@ -3,7 +3,9 @@
 # Contém requisitos internos, estratégia comercial e Base PAI
 # ==========================================================
 /docs/
+/design/
 /CLAUDE.md
+/AGENTS.md
 
 # ==========================================================
 # Segredos

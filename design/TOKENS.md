@@ -57,7 +57,17 @@ O protótipo usa **estilos inline**, não CSS variables. Este documento é a tra
 | `--cor-destaque-2` | `#4C55B8` | Categoria secundária |
 | `--cor-destaque-3` | `#2F8F86` | Categoria terciária |
 
-> **Falta definir:** `--cor-erro`. O protótipo não tem estado de falha, mas a E05 criou `FALHOU` no ciclo de entrega e ele precisa ser visível. Sugestão: `#C0392B`, validar com o modelo.
+### Acrescentados na E10
+
+O protótipo não cobria todos os estados da aplicação real. Quatro tokens entraram:
+
+| Token | Valor | Por quê |
+|---|---|---|
+| `--cor-erro` | `#C0392B` | Estado `FALHOU` do ciclo de entrega (E05). O protótipo não tem estado de falha |
+| `--cor-erro-suave` | fundo suave | Simétrico a `--cor-primaria-suave` |
+| `--cor-primaria-texto` | `#FFFFFF` | Texto sobre botão primário |
+| `--fundo-sidebar-bloco` | `#1B3248` | Estava em prosa, não formalizado |
+| `--texto-sidebar-item` | — | Itens de menu na sidebar escura; só havia título e subtítulo |
 
 ---
 
