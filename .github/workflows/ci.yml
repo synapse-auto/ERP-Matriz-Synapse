@@ -65,6 +65,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Auditar dependencias de producao
+        working-directory: frontend
+        run: npm audit --omit=dev
+
       - name: Lint
         working-directory: frontend
         run: npm run lint
@@ -77,10 +81,58 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  infra:
+    name: Stack de producao
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      POSTGRES_DB: synapse_ci
+      POSTGRES_USER: synapse_ci
+      POSTGRES_PASSWORD: dummy-postgres-ci
+      N8N_DB_NAME: n8n_ci
+      N8N_DB_USER: n8n_ci
+      N8N_DB_PASSWORD: dummy-n8n-db-ci
+      N8N_ENCRYPTION_KEY: dummy-n8n-encryption-key-for-compose-ci
+      SYNAPSE_TIMEZONE: America/Sao_Paulo
+      RABBITMQ_USER: rabbit_ci
+      RABBITMQ_PASSWORD: dummy-rabbit-ci
+      MINIO_ROOT_USER: dummy-minio-ci
+      MINIO_ROOT_PASSWORD: dummy-minio-password-ci
+      SYNAPSE_IMAGE_TAG: abcdef1
+      N8N_IMAGE_TAG: 0.0.0-ci
+      SYNAPSE_TENANT_CODIGO: ci
+      SYNAPSE_TENANT_NOME: CI
+      MIDIA_DOMINIO: midia.example.test
+      SYNAPSE_DOMINIO: crm.example.test
+      AUTOMACAO_DOMINIO: automacao.example.test
+      SYNAPSE_JWT_SEGREDO: dummy-jwt-secret-with-at-least-32-characters
+      SYNAPSE_TOKEN_INTERNO: dummy-internal-token-ci
+      WHATSAPP_NUMERO: "123"
+      WHATSAPP_TOKEN: dummy-whatsapp-token-ci
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: dummy-webhook-verify-ci
+      WHATSAPP_WEBHOOK_SECRET: dummy-webhook-secret-ci
+      AUTOMACAO_TOKEN: dummy-automation-token-ci
+      TRAEFIK_ROUTER_PREFIX: ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar sintaxe da stack e do init do Postgres
+        run: |
+          docker compose -f docker/dokploy-stack.yml config --quiet
+          sh -n docker/postgres-init/10-create-n8n-database.sh
+
+      - name: Provar que internal v1 nao tem rota publica
+        run: |
+          if grep -F 'PathPrefix(`/internal/v1`)' docker/dokploy-stack.yml; then
+            echo '/internal/v1 voltou a ser roteavel pelo Traefik' >&2
+            exit 1
+          fi
+          grep -F 'SYNAPSE_API_URL: http://synapse-backend-internal:8080/internal/v1' docker/dokploy-stack.yml
+
   imagens:
     name: Imagem ${{ matrix.nome }} (GHCR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend]
+    needs: [backend, frontend, infra]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:

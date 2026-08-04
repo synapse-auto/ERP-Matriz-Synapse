@@ -292,31 +292,43 @@ Sem os cinco, o agregado fica protegido só pela camada 2.
 
 ### Stack de homologação no Dokploy
 
-O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os seis serviços da
-instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend e frontend. Ele é para **Docker Stack
+O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os sete serviços da
+instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend, frontend e n8n. Ele é para **Docker Stack
 (Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR com
 as tags `latest` e SHA curto; use sempre o SHA em `SYNAPSE_IMAGE_TAG`, porque ele identifica uma
-versão exata e permite rollback sem rebuild.
+versão exata e permite rollback sem rebuild. O n8n usa sua imagem oficial, sempre com versão exata
+informada em `N8N_IMAGE_TAG`.
 
 Backend e frontend usam `start-first`, healthcheck em `/health/liveness` e rollback automático. Os
-quatro serviços com volume mantêm uma réplica no nó manager e não usam `start-first`: duas cópias
+cinco serviços com volume mantêm uma réplica no nó manager e não usam `start-first`: duas cópias
 do PostgreSQL, RabbitMQ ou MinIO escrevendo simultaneamente no mesmo volume local corromperiam os
-dados. Todos os seis têm limite de memória. Os defaults somam 4,25 GiB em regime e podem chegar a
-6,25 GiB se backend e frontend sobrepuserem as versões ao mesmo tempo; reserve ainda memória para
+dados; no n8n, duas instâncias executariam os mesmos gatilhos. Todos os sete têm limite de memória.
+Os defaults provisórios somam 5,25 GiB em regime e podem chegar a 7,25 GiB se backend e frontend
+sobrepuserem as versões ao mesmo tempo; reserve ainda memória para
 o sistema, Docker, Dokploy e Traefik ao dimensionar a VPS.
 
 O Traefik recebe as rotas pelas labels versionadas em `deploy.labels`:
 
 | Destino | Regra pública |
 |---|---|
-| Backend | `https://SYNAPSE_DOMINIO/api/v1`, `/internal/v1`, `/webhook/canal`, `/ws` e `/health` |
+| Backend | `https://SYNAPSE_DOMINIO/api/v1`, `/webhook/canal`, `/ws` e `/health` |
 | Frontend | Demais caminhos de `https://SYNAPSE_DOMINIO` |
 | MinIO S3 | `https://MIDIA_DOMINIO` |
+| n8n | `https://AUTOMACAO_DOMINIO` (editor e webhooks da Automação) |
+
+`/internal/v1` não tem router público. O n8n o acessa apenas pela rede overlay `synapse-internal`,
+em `http://synapse-backend-internal:8080/internal/v1`, e continua enviando `X-Synapse-Token` como
+segunda camada. Expor esse namespace para uma Automação externa é exceção: exige router dedicado e
+allowlist de IP além do token.
 
 PostgreSQL, Redis, RabbitMQ e os consoles do RabbitMQ/MinIO não publicam porta no host. A rede
 externa `dokploy-network` precisa existir (a instalação padrão do Dokploy a cria). Não cadastre
 rotas equivalentes de novo na aba Domains: isso criaria routers concorrentes com as labels da
 stack. O acesso ao GHCR privado é configurado no Registry do Dokploy, nunca no YAML.
+
+No primeiro volume do Postgres, o script `docker/postgres-init/10-create-n8n-database.sh` cria um
+banco e uma role exclusivos para o n8n. Ele não roda novamente em volume existente; alterar as
+variáveis `N8N_DB_*` depois do provisionamento exige migração/rotação manual no banco.
 
 #### Variáveis obrigatórias por instância
 
@@ -325,21 +337,28 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | Variável | Descrição |
 |---|---|
 | `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
+| `N8N_IMAGE_TAG` | Versão exata da imagem oficial do n8n; nunca use `latest`. |
 | `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
 | `SYNAPSE_DOMINIO` | Host do CRM sem protocolo, por exemplo `hml.crm.exemplo.com`. |
 | `MIDIA_DOMINIO` | Host separado do endpoint S3/MinIO, sem protocolo. |
+| `AUTOMACAO_DOMINIO` | Host do editor e dos webhooks do n8n, sem protocolo. |
 | `SYNAPSE_TENANT_CODIGO` | Código estável da instância; identifica o filho em logs e integrações. |
 | `SYNAPSE_TENANT_NOME` | Nome exibido da empresa cliente. |
 | `SYNAPSE_TIMEZONE` | Fuso IANA da instância, por exemplo `America/Sao_Paulo`. |
 | `POSTGRES_DB` | Nome do banco isolado desta instância. |
 | `POSTGRES_USER` | Usuário dono do schema e usado pelos dois pools da aplicação. |
 | `POSTGRES_PASSWORD` | Senha forte do PostgreSQL; o backend recebe a mesma referência. |
+| `N8N_DB_NAME` | Banco exclusivo do n8n, criado no primeiro boot do volume do Postgres. |
+| `N8N_DB_USER` | Role exclusiva do n8n; não reutilize o usuário do CRM. |
+| `N8N_DB_PASSWORD` | Senha forte da role exclusiva do n8n. |
+| `N8N_ENCRYPTION_KEY` | Chave aleatória e estável usada pelo n8n para cifrar credenciais salvas. |
 | `RABBITMQ_USER` | Usuário administrativo do RabbitMQ da instância. |
 | `RABBITMQ_PASSWORD` | Senha forte do RabbitMQ. |
 | `MINIO_ROOT_USER` | Access key do MinIO e do adaptador S3 do backend. |
 | `MINIO_ROOT_PASSWORD` | Secret key forte do MinIO e do adaptador S3 do backend. |
 | `SYNAPSE_JWT_SEGREDO` | Segredo HMAC dos tokens de usuário, com no mínimo 32 caracteres. |
-| `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo contrato `/internal/v1`. |
+| `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
+| `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
 | `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |
 | `WHATSAPP_TOKEN` | Token de acesso da Meta usado nas chamadas de saída. |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token escolhido pela instância para o desafio `GET` do webhook. |
@@ -355,7 +374,6 @@ lugar do outro.
 | `SYNAPSE_APP_NAME` | `synapse-crm` | Nome técnico em telemetria. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
-| `AUTOMACAO_URL`, `AUTOMACAO_TOKEN` | vazio | Quando a Automacao estiver provisionada. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
 | `MIDIA_S3_EXPIRACAO_LEITURA` | `5m` | Validade das URLs assinadas de anexos. |
@@ -368,6 +386,7 @@ lugar do outro.
 | `REDIS_MEMORY_LIMIT` | `256M` | Limite do cache/backplane. |
 | `RABBITMQ_MEMORY_LIMIT` | `512M` | Limite do broker. |
 | `MINIO_MEMORY_LIMIT` | `512M` | Limite do storage de mídia. |
+| `N8N_MEMORY_LIMIT` | `1G` | Limite provisório da Automação; revisar na E14a com a capacidade contratada. |
 | `JAVA_TOOL_OPTIONS` | heap em 70% do cgroup + exit em OOM | Ajuste fino da JVM sem reconstruir a imagem. |
 
 Roteiro no Dokploy:
@@ -378,7 +397,7 @@ Roteiro no Dokploy:
 3. Cadastre todas as variáveis obrigatórias e revise os limites para o tamanho real da VPS.
 4. Confira o Preview Compose: nenhuma porta de banco/broker deve estar publicada e os healthchecks
    de backend/frontend devem terminar em `/health/liveness`.
-5. Aponte os dois registros DNS para a VPS e faça o deploy. Para rollback, troque apenas
+5. Aponte os três registros DNS para a VPS e faça o deploy. Para rollback do CRM, troque apenas
    `SYNAPSE_IMAGE_TAG` pelo SHA anterior e redeploye.
 
 ### Extensões do PostgreSQL

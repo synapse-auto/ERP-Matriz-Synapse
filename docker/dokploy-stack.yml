@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Stack de producao para Docker Swarm/Dokploy. Segredos e valores da instancia
 # chegam exclusivamente pelo ambiente do Dokploy; este arquivo nao contem
 # credenciais nem defaults de desenvolvimento.
@@ -10,10 +8,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
       POSTGRES_USER: ${POSTGRES_USER:?obrigatoria}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      N8N_DB_NAME: ${N8N_DB_NAME:?obrigatoria}
+      N8N_DB_USER: ${N8N_DB_USER:?obrigatoria}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?obrigatoria}
       LANG: pt_BR.utf8
       TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    configs:
+      - source: postgres-init-n8n
+        target: /docker-entrypoint-initdb.d/10-create-n8n-database.sh
+        mode: 0555
     networks:
       - synapse-internal
     healthcheck:
@@ -164,8 +169,8 @@ services:
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:?obrigatoria}
       WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:?obrigatoria}
       WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
-      AUTOMACAO_URL: ${AUTOMACAO_URL:-}
-      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:-}
+      AUTOMACAO_URL: http://synapse-n8n-internal:5678
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
       ALERTA_WEBHOOK: ${ALERTA_WEBHOOK:-}
       FEATURE_CAMPANHAS: ${FEATURE_CAMPANHAS:-false}
       FEATURE_CHAT_INTERNO: ${FEATURE_CHAT_INTERNO:-true}
@@ -214,7 +219,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.swarm.network=dokploy-network"
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/internal/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`))'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.entrypoints=websecure'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls=true'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls.certresolver=letsencrypt'
@@ -224,6 +229,82 @@ services:
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.path=/health/liveness'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.interval=10s'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_IMAGE_TAG:?obrigatoria}
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${N8N_DB_NAME:?obrigatoria}
+      DB_POSTGRESDB_USER: ${N8N_DB_USER:?obrigatoria}
+      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?obrigatoria}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?obrigatoria}
+      N8N_HOST: ${AUTOMACAO_DOMINIO:?obrigatoria}
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${AUTOMACAO_DOMINIO:?obrigatoria}
+      WEBHOOK_URL: https://${AUTOMACAO_DOMINIO:?obrigatoria}/
+      N8N_PROXY_HOPS: "1"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      GENERIC_TIMEZONE: ${SYNAPSE_TIMEZONE:?obrigatoria}
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+      SYNAPSE_API_URL: http://synapse-backend-internal:8080/internal/v1
+      SYNAPSE_TOKEN_INTERNO: ${SYNAPSE_TOKEN_INTERNO:?obrigatoria}
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      synapse-internal:
+        aliases:
+          - synapse-n8n-internal
+      dokploy-network:
+    expose:
+      - "5678"
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:5678/healthz').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 60s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: ${N8N_MEMORY_LIMIT:-1G}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.rule=Host(`${AUTOMACAO_DOMINIO:?obrigatoria}`)'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.loadbalancer.server.port=5678'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.loadbalancer.healthcheck.path=/healthz'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.loadbalancer.healthcheck.interval=15s'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-automacao.loadbalancer.healthcheck.timeout=5s'
 
   frontend:
     image: ghcr.io/synapse-auto/erp-matriz-synapse-frontend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
@@ -293,3 +374,8 @@ volumes:
   redis-data:
   rabbitmq-data:
   minio-data:
+  n8n-data:
+
+configs:
+  postgres-init-n8n:
+    file: ./postgres-init/10-create-n8n-database.sh

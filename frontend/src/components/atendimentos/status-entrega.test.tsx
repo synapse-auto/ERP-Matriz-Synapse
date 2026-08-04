@@ -6,10 +6,18 @@ import type { Textos } from "@/lib/config/schema";
 
 import { StatusEntregaIcone } from "./status-entrega";
 
-const TEXTOS_FIXTURE: Textos = {
+type ParcialProfundo<T> = T extends object
+  ? { [Chave in keyof T]?: ParcialProfundo<T[Chave]> }
+  : T;
+
+const TEXTOS_FIXTURE = {
   app: { nome: "", marca: "", subtitulo: "" },
   menu: { grupoMenu: "", grupoGestao: "", itens: {} },
-  rodape: { trocarConta: "", sair: "" },
+  rodape: {
+    trocarConta: "",
+    sair: "",
+    presenca: { rotulo: "", online: "", ausente: "", offline: "" },
+  },
   login: {
     titulo: "",
     subtitulo: "",
@@ -53,6 +61,8 @@ const TEXTOS_FIXTURE: Textos = {
         falhou: "Falha ao enviar",
       },
       reenviar: "Reenviar",
+      carregarAnteriores: "",
+      carregandoAnteriores: "",
     },
     composer: {
       placeholder: "",
@@ -70,14 +80,18 @@ const TEXTOS_FIXTURE: Textos = {
       janelaFechadaTitulo: "",
       janelaFechadaDescricao: "",
       semTemplates: "",
+      agendar: "",
+      mensagensRapidas: "",
     },
     tempoReal: { reconectando: "", conversaEncerrada: "" },
     media: { imagem: "", audio: "", documento: "", baixar: "" },
   },
-};
+} satisfies ParcialProfundo<Textos>;
 
 function renderComTextos(ui: React.ReactElement) {
-  return render(<TextosProvider textos={TEXTOS_FIXTURE}>{ui}</TextosProvider>);
+  return render(
+    <TextosProvider textos={TEXTOS_FIXTURE as Textos}>{ui}</TextosProvider>,
+  );
 }
 
 describe("StatusEntregaIcone", () => {
