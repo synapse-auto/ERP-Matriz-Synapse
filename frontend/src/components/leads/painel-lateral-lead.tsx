@@ -6,6 +6,7 @@ import {
   Building2,
   Calculator,
   LifeBuoy,
+  Bell,
   Repeat2,
   Tag as TagIcon,
   X,
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { FormularioLembrete } from "@/components/lembretes/formulario-lembrete";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
@@ -110,6 +112,7 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
   const [tagSelecionada, setTagSelecionada] = useState("");
   const [avisoEdicao, setAvisoEdicao] = useState<"salvo" | "erro" | "obrigatorio" | null>(null);
   const [avisoTags, setAvisoTags] = useState(false);
+  const [lembreteAberto, setLembreteAberto] = useState(false);
   const inicializado = useRef<string | null>(null);
 
   useEffect(() => {
@@ -230,6 +233,10 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
               <Contador valor={lead.data.numMensagens} rotulo={textos.contadores.mensagens} />
             </div>
 
+            <Button type="button" variant="outline" onClick={() => setLembreteAberto(true)}>
+              <Bell className="size-4" /> {textos.acoes.lembrete}
+            </Button>
+
             <TagsDaFicha
               tags={tagsDoLead.data ?? []}
               disponiveis={tagsDisponiveis}
@@ -303,6 +310,7 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
           </div>
         )}
       </div>
+      {lead.data && <FormularioLembrete aberto={lembreteAberto} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
     </aside>
   );
 }
