@@ -93,8 +93,10 @@ synapse:
       url-base: ${WHATSAPP_URL_BASE:https://graph.facebook.com/v21.0}
       numero-principal: ${WHATSAPP_NUMERO:}
       token: ${WHATSAPP_TOKEN:}
-      # Sem default: sem segredo, o verificador de assinatura recusa TODO webhook.
-      # Uma variavel esquecida deixa a rota inutil, e nao aberta para a internet.
+      # Dois segredos distintos por contrato da Meta. O verify token e escolhido
+      # pela instancia e valida apenas o GET de cadastro; o App Secret calcula o
+      # HMAC de cada POST. Sem default: configuracao ausente falha fechada.
+      webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
       webhook-secret: ${WHATSAPP_WEBHOOK_SECRET:}
       # Regra da Meta oficial, nao lei da natureza: fora da janela so passa
       # template. Configuravel porque a Meta ja mudou regra de janela antes.

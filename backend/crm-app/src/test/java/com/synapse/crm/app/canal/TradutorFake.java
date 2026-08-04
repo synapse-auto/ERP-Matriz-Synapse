@@ -1,5 +1,7 @@
 package com.synapse.crm.app.canal;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -22,9 +24,19 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 @Component
 public class TradutorFake implements TradutorDeCanal {
 
+    public static final String TOKEN_DE_VERIFICACAO = "verify-token-fake";
+
     @Override
     public String provedor() {
         return CanalFake.PROVEDOR;
+    }
+
+    @Override
+    public boolean tokenDeVerificacaoValido(String tokenRecebido) {
+        return tokenRecebido != null
+                && MessageDigest.isEqual(
+                        TOKEN_DE_VERIFICACAO.getBytes(StandardCharsets.UTF_8),
+                        tokenRecebido.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override

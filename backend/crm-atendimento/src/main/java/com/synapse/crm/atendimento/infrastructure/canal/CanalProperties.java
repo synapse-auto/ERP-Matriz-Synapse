@@ -13,8 +13,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param provedor chave do adaptador; casa com {@code CanalGateway.provedor()}
  * @param urlBase raiz da API do provedor
- * @param webhookSecret segredo de validacao de assinatura do webhook. Sem default: se nao vier, o
- *     verificador recusa tudo, que e melhor que aceitar qualquer requisicao que chegue na rota
+ * @param webhookVerifyToken token escolhido pela instancia para o desafio {@code GET} de cadastro
+ *     do webhook; nao e o App Secret
+ * @param webhookSecret App Secret usado exclusivamente no HMAC do {@code POST}. Sem default: se nao
+ *     vier, o verificador recusa tudo, que e melhor que aceitar qualquer requisicao que chegue na
+ *     rota
  * @param janelaTextoLivre 24h na Meta oficial; configuravel porque nao e lei da natureza e a Meta ja
  *     mudou regra de janela antes
  */
@@ -24,6 +27,7 @@ public record CanalProperties(
         String urlBase,
         String numeroPrincipal,
         String token,
+        String webhookVerifyToken,
         String webhookSecret,
         Duration janelaTextoLivre,
         Duration timeout) {
@@ -37,5 +41,9 @@ public record CanalProperties(
 
     public boolean temSegredoDeWebhook() {
         return webhookSecret != null && !webhookSecret.isBlank();
+    }
+
+    public boolean temTokenDeVerificacao() {
+        return webhookVerifyToken != null && !webhookVerifyToken.isBlank();
     }
 }

@@ -64,7 +64,7 @@ public class WebhookCanalController {
             @RequestParam(name = "hub.verify_token", required = false) String token,
             @RequestParam(name = "hub.challenge", required = false) String desafio) {
 
-        if (tradutor.assinaturaValida("", token)) {
+        if (tradutor.tokenDeVerificacaoValido(token)) {
             return ResponseEntity.ok(desafio);
         }
         log.warn("Verificacao de webhook recusada (modo={}).", modo);

@@ -46,6 +46,22 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         return MetaCloudApiAdapter.PROVEDOR;
     }
 
+    /** Token do desafio de cadastro, distinto do App Secret que assina o {@code POST}. */
+    @Override
+    public boolean tokenDeVerificacaoValido(String tokenRecebido) {
+        if (!propriedades.temTokenDeVerificacao()) {
+            log.error(
+                    "synapse.canal.whatsapp.webhook-verify-token ausente: recusando desafio de webhook.");
+            return false;
+        }
+        if (tokenRecebido == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                propriedades.webhookVerifyToken().getBytes(StandardCharsets.UTF_8),
+                tokenRecebido.getBytes(StandardCharsets.UTF_8));
+    }
+
     /**
      * HMAC-SHA256 do corpo cru com o segredo do app, como a Meta manda em
      * {@code X-Hub-Signature-256}.

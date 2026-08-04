@@ -11,14 +11,24 @@ import java.util.Optional;
  * MensagemRecebidaDoCanal}, vocabulario do CRM. Quando o provedor mudar o formato do webhook, o diff
  * fica na implementacao.
  *
- * <p>A validacao de assinatura vive aqui pelo mesmo motivo do resto: cada provedor assina de um
- * jeito. A Meta usa HMAC-SHA256 do corpo no cabecalho {@code X-Hub-Signature-256}; outro provedor usa
- * um token no cabecalho, outro nao assina nada.
+ * <p>A verificacao de posse e a validacao de assinatura vivem aqui pelo mesmo motivo do resto: cada
+ * provedor faz isso de um jeito. Na Meta sao dois mecanismos independentes: o {@code GET} compara o
+ * token de verificacao escolhido pela instancia; o {@code POST} valida o HMAC-SHA256 do corpo com o
+ * App Secret. Misturar os dois impede cadastrar o webhook ou, pior, reutiliza um segredo onde nao
+ * deveria.
  */
 public interface TradutorDeCanal {
 
     /** Casa com {@code synapse.canal.whatsapp.provedor}. */
     String provedor();
+
+    /**
+     * O token do desafio de cadastro confere com o token de verificacao da instancia?
+     *
+     * <p>Nao e assinatura de payload. Na Meta este valor vem em {@code hub.verify_token} no
+     * {@code GET} de verificacao e deve ser comparado em tempo constante.
+     */
+    boolean tokenDeVerificacaoValido(String tokenRecebido);
 
     /**
      * A requisicao veio mesmo do provedor?
