@@ -183,6 +183,69 @@ export const TextosSchema = z.object({
       baixar: z.string(),
     }),
   }),
+  painelLead: z.object({
+    titulo: z.string(),
+    fechar: z.string(),
+    indisponivel: z.string(),
+    dados: z.object({
+      telefone: z.string(),
+      email: z.string(),
+      cpf: z.string(),
+      empresa: z.string(),
+      localizacao: z.string(),
+      canalOrigem: z.string(),
+      naoInformado: z.string(),
+    }),
+    etapa: z.object({
+      titulo: z.string(),
+      posicao: z.string(),
+      semEtapa: z.string(),
+    }),
+    contadores: z.object({
+      atendimentos: z.string(),
+      mensagens: z.string(),
+    }),
+    tags: z.object({
+      titulo: z.string(),
+      selecionar: z.string(),
+      adicionar: z.string(),
+      remover: z.string(),
+      erroReversao: z.string(),
+    }),
+    resumoIa: z.object({
+      titulo: z.string(),
+      vazio: z.string(),
+    }),
+    edicao: z.object({
+      notas: z.string(),
+      notasPlaceholder: z.string(),
+      camposCustomizados: z.string(),
+      obrigatorio: z.string(),
+      opcional: z.string(),
+      salvar: z.string(),
+      salvando: z.string(),
+      salvo: z.string(),
+      campoObrigatorio: z.string(),
+      erroReversao: z.string(),
+    }),
+    timeline: z.object({
+      titulo: z.string(),
+      vazia: z.string(),
+      carregarMais: z.string(),
+      carregandoMais: z.string(),
+      erro: z.string(),
+      origens: z.object({
+        sistema: z.string(),
+        automacao: z.string(),
+        usuario: z.string(),
+      }),
+    }),
+  }),
+  agenda: z.object({
+    titulo: z.string(),
+    descricao: z.string(),
+    vazia: z.string(),
+  }),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;

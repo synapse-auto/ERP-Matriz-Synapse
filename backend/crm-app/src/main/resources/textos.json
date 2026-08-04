@@ -125,5 +125,68 @@
       "documento": "Documento",
       "baixar": "Baixar"
     }
+  },
+  "painelLead": {
+    "titulo": "Ficha do lead",
+    "fechar": "Fechar ficha do lead",
+    "indisponivel": "Este lead não existe ou não está mais disponível para você.",
+    "dados": {
+      "telefone": "Telefone",
+      "email": "E-mail",
+      "cpf": "CPF",
+      "empresa": "Empresa",
+      "localizacao": "Localização",
+      "canalOrigem": "Canal de origem",
+      "naoInformado": "Não informado"
+    },
+    "etapa": {
+      "titulo": "Etapa",
+      "posicao": "{atual} de {total}",
+      "semEtapa": "Sem etapa definida"
+    },
+    "contadores": {
+      "atendimentos": "Atendimentos",
+      "mensagens": "Mensagens"
+    },
+    "tags": {
+      "titulo": "Tags",
+      "selecionar": "Selecionar tag",
+      "adicionar": "Adicionar tag",
+      "remover": "Remover tag {nome}",
+      "erroReversao": "O servidor recusou a alteração de tags. O estado anterior foi restaurado."
+    },
+    "resumoIa": {
+      "titulo": "Resumo por IA",
+      "vazio": "Nenhum resumo gerado ainda."
+    },
+    "edicao": {
+      "notas": "Notas",
+      "notasPlaceholder": "Registre aqui as observações compartilhadas sobre o lead.",
+      "camposCustomizados": "Campos customizados",
+      "obrigatorio": "Obrigatório",
+      "opcional": "Opcional",
+      "salvar": "Salvar alterações",
+      "salvando": "Salvando...",
+      "salvo": "Alterações salvas.",
+      "campoObrigatorio": "Preencha o campo obrigatório antes de salvar.",
+      "erroReversao": "O servidor recusou as alterações. Os valores anteriores foram restaurados."
+    },
+    "timeline": {
+      "titulo": "Linha do tempo",
+      "vazia": "Nenhum evento registrado ainda.",
+      "carregarMais": "Carregar eventos anteriores",
+      "carregandoMais": "Carregando eventos...",
+      "erro": "Não foi possível carregar a linha do tempo.",
+      "origens": {
+        "sistema": "Sistema",
+        "automacao": "Automação",
+        "usuario": "Usuário"
+      }
+    }
+  },
+  "agenda": {
+    "titulo": "Agenda de contatos",
+    "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
+    "vazia": "Nenhum contato disponível na agenda."
   }
 }

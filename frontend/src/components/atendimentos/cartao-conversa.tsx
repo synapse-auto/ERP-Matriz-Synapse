@@ -8,17 +8,19 @@ import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
 type Props = {
   cartao: CartaoAtendimento;
   selecionado: boolean;
-  onSelecionar: () => void;
+  onAbrirPainel: () => void;
+  onAbrirAtendimento: () => void;
 };
 
 /** Etapa, foto, nome, atendente responsável, prévia da última mensagem — o card do prompt E11. */
-export function CartaoConversa({ cartao, selecionado, onSelecionar }: Props) {
+export function CartaoConversa({ cartao, selecionado, onAbrirPainel, onAbrirAtendimento }: Props) {
   const textos = useTextos().atendimentos;
 
   return (
     <button
       type="button"
-      onClick={onSelecionar}
+      onClick={onAbrirPainel}
+      onDoubleClick={onAbrirAtendimento}
       className={cn(
         "flex w-full items-start gap-3 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted",
         selecionado && "bg-muted",

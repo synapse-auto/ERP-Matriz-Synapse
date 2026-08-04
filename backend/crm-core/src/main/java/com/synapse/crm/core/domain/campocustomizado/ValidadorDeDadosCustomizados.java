@@ -45,6 +45,14 @@ public final class ValidadorDeDadosCustomizados {
             }
             validado.put(chave, validarValor(campo, entrada.getValue()));
         }
+        metadados.stream()
+                .filter(CampoCustomizado::obrigatorio)
+                .filter(campo -> !bruto.containsKey(campo.chave()))
+                .findFirst()
+                .ifPresent(campo -> {
+                    throw new DadosCustomizadosInvalidosException(
+                            "campo customizado '" + campo.chave() + "' e obrigatorio");
+                });
         return validado;
     }
 

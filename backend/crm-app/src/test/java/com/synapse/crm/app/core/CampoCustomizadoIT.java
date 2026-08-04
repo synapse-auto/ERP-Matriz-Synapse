@@ -44,6 +44,7 @@ class CampoCustomizadoIT extends PostgresIT {
 
     private static final String CAMPO_TEXTO_FILTRAVEL = "e06b_numero_obra";
     private static final String CAMPO_NUMERO_NAO_FILTRAVEL = "e06b_qtd_vidros";
+    private static final String CAMPO_OBRIGATORIO = "e12_codigo_obrigatorio";
 
     @Autowired
     private TestRestTemplate http;
@@ -57,9 +58,10 @@ class CampoCustomizadoIT extends PostgresIT {
     void prepararCenario() {
         jdbc.update("DELETE FROM lead WHERE nome LIKE 'E06B-%'");
         jdbc.update(
-                "DELETE FROM campo_customizado WHERE chave IN (?, ?)",
+                "DELETE FROM campo_customizado WHERE chave IN (?, ?, ?)",
                 CAMPO_TEXTO_FILTRAVEL,
-                CAMPO_NUMERO_NAO_FILTRAVEL);
+                CAMPO_NUMERO_NAO_FILTRAVEL,
+                CAMPO_OBRIGATORIO);
 
         jdbc.update(
                 """
@@ -132,6 +134,25 @@ class CampoCustomizadoIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(resposta.getBody()).contains("numero inteiro");
+    }
+
+    @Test
+    @DisplayName("campo customizado obrigatorio ausente e rejeitado ao salvar")
+    void editar_campoObrigatorioAusente_devolve400() {
+        jdbc.update(
+                """
+                INSERT INTO campo_customizado (chave, rotulo, tipo, obrigatorio, filtravel, ordem)
+                VALUES (?, 'Codigo obrigatorio', 'TEXTO', true, false, 3)
+                """,
+                CAMPO_OBRIGATORIO);
+
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("dadosCustomizados", Map.of(CAMPO_TEXTO_FILTRAVEL, "OBRA-4521")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody()).contains(CAMPO_OBRIGATORIO).contains("obrigatorio");
     }
 
     @Test

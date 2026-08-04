@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +14,10 @@ import { CartaoConversa } from "./cartao-conversa";
 
 type Props = {
   selecionadoId: string | null;
-  onSelecionar: (cartao: CartaoAtendimento) => void;
+  leadInicialId?: string | null;
+  visaoInicial?: VisaoAtendimento | null;
+  onAbrirPainel: (cartao: CartaoAtendimento) => void;
+  onAbrirAtendimento: (cartao: CartaoAtendimento) => void;
 };
 
 const VISOES_ATENDENTE: VisaoAtendimento[] = ["ATIVOS", "PENDENTES", "POTENCIAIS"];
@@ -31,13 +34,19 @@ const ROTULO_VISAO: Record<VisaoAtendimento, keyof ReturnType<typeof useTextos>[
  * Ativos/Pendentes/Potenciais para atendente, Todos/Pendentes para gestor/subgestor — o servidor
  * já filtra por papel (RN-CRM-01); aqui só decidimos QUAIS abas pedir, nunca filtramos visibilidade.
  */
-export function ListaConversas({ selecionadoId, onSelecionar }: Props) {
+export function ListaConversas({
+  selecionadoId,
+  leadInicialId,
+  visaoInicial,
+  onAbrirPainel,
+  onAbrirAtendimento,
+}: Props) {
   const textos = useTextos().atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
   // null (sessao ainda carregando) usa o mesmo default de ATENDENTE — a suposicao mais restrita,
   // nunca "papel amplo" so porque o papel real ainda nao chegou do JWT.
   const visoes = papel && papel !== "ATENDENTE" ? VISOES_PAPEL_AMPLO : VISOES_ATENDENTE;
-  const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(null);
+  const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(visaoInicial ?? null);
   // Deriva no render, sem efeito: se o papel real (chegando depois da hidratacao) mudar o conjunto
   // de abas, uma escolha orfa (ex.: "ATIVOS" fora de VISOES_PAPEL_AMPLO) cai de volta pra primeira
   // aba valida automaticamente, sem precisar de setState dentro de useEffect.
@@ -46,6 +55,16 @@ export function ListaConversas({ selecionadoId, onSelecionar }: Props) {
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
 
   const { data, isLoading } = useAtendimentos(visao);
+  const abriuLeadInicial = useRef(false);
+
+  useEffect(() => {
+    if (!leadInicialId || abriuLeadInicial.current || !data) return;
+    const cartao = data.find((item) => item.leadId === leadInicialId);
+    if (cartao) {
+      abriuLeadInicial.current = true;
+      onAbrirAtendimento(cartao);
+    }
+  }, [data, leadInicialId, onAbrirAtendimento]);
 
   const etapas = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -133,7 +152,8 @@ export function ListaConversas({ selecionadoId, onSelecionar }: Props) {
               key={cartao.atendimentoId}
               cartao={cartao}
               selecionado={cartao.atendimentoId === selecionadoId}
-              onSelecionar={() => onSelecionar(cartao)}
+              onAbrirPainel={() => onAbrirPainel(cartao)}
+              onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
             />
           ))
         )}
