@@ -1,11 +1,15 @@
 # ==========================================================
-# Documentação interna Synapse — NÃO versionar
-# Contém requisitos internos, estratégia comercial e Base PAI
+# Documentação — VERSIONADA (decisão revista)
 # ==========================================================
-/docs/
-/design/
-/CLAUDE.md
-/AGENTS.md
+# `docs/`, `design/` e `AGENTS.md` eram ignorados por conterem
+# estratégia interna. A decisao foi revertida: o repositorio e
+# privado da organizacao, e manter a documentacao fora do git
+# custou caro — ela divergiu da infraestrutura versionada e
+# existia numa maquina so, o mesmo risco que ja eliminamos
+# para o codigo.
+#
+# Nada aqui e ignorado. Se algum documento especifico for
+# sensivel demais, ignore o arquivo, nunca a pasta inteira.
 
 # ==========================================================
 # Segredos
