@@ -41,13 +41,14 @@ existem, e um default falso é pior que um valor ausente.
 cd docker && docker compose up -d
 ```
 
-Sobe três serviços, cada um com healthcheck e volume nomeado:
+Sobe quatro serviços, cada um com healthcheck e volume nomeado:
 
 | Serviço | Porta padrão | Credenciais de dev |
 |---|---|---|
 | PostgreSQL 15 | 5432 | `synapse` / `synapse`, banco `synapse_crm` |
 | Redis 7 | 6379 | sem senha |
 | RabbitMQ 3 | 5672 (AMQP), 15672 (UI) | `synapse` / `synapse` |
+| MinIO | 9000 (S3), 9001 (UI) | `minioadmin` / `minioadmin` |
 
 Aguarde o `(healthy)`:
 
@@ -289,6 +290,97 @@ Sem os cinco, o agregado fica protegido só pela camada 2.
 
 ## Deploy
 
+### Stack de homologação no Dokploy
+
+O arquivo [`docker/dokploy-stack.yml`](docker/dokploy-stack.yml) descreve os seis serviços da
+instância: PostgreSQL, Redis, RabbitMQ, MinIO, backend e frontend. Ele é para **Docker Stack
+(Swarm)** e referencia somente imagens pré-compiladas. O CI publica backend e frontend no GHCR com
+as tags `latest` e SHA curto; use sempre o SHA em `SYNAPSE_IMAGE_TAG`, porque ele identifica uma
+versão exata e permite rollback sem rebuild.
+
+Backend e frontend usam `start-first`, healthcheck em `/health/liveness` e rollback automático. Os
+quatro serviços com volume mantêm uma réplica no nó manager e não usam `start-first`: duas cópias
+do PostgreSQL, RabbitMQ ou MinIO escrevendo simultaneamente no mesmo volume local corromperiam os
+dados. Todos os seis têm limite de memória. Os defaults somam 4,25 GiB em regime e podem chegar a
+6,25 GiB se backend e frontend sobrepuserem as versões ao mesmo tempo; reserve ainda memória para
+o sistema, Docker, Dokploy e Traefik ao dimensionar a VPS.
+
+O Traefik recebe as rotas pelas labels versionadas em `deploy.labels`:
+
+| Destino | Regra pública |
+|---|---|
+| Backend | `https://SYNAPSE_DOMINIO/api/v1`, `/internal/v1`, `/webhook/canal`, `/ws` e `/health` |
+| Frontend | Demais caminhos de `https://SYNAPSE_DOMINIO` |
+| MinIO S3 | `https://MIDIA_DOMINIO` |
+
+PostgreSQL, Redis, RabbitMQ e os consoles do RabbitMQ/MinIO não publicam porta no host. A rede
+externa `dokploy-network` precisa existir (a instalação padrão do Dokploy a cria). Não cadastre
+rotas equivalentes de novo na aba Domains: isso criaria routers concorrentes com as labels da
+stack. O acesso ao GHCR privado é configurado no Registry do Dokploy, nunca no YAML.
+
+#### Variáveis obrigatórias por instância
+
+Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack no Dokploy:
+
+| Variável | Descrição |
+|---|---|
+| `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
+| `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
+| `SYNAPSE_DOMINIO` | Host do CRM sem protocolo, por exemplo `hml.crm.exemplo.com`. |
+| `MIDIA_DOMINIO` | Host separado do endpoint S3/MinIO, sem protocolo. |
+| `SYNAPSE_TENANT_CODIGO` | Código estável da instância; identifica o filho em logs e integrações. |
+| `SYNAPSE_TENANT_NOME` | Nome exibido da empresa cliente. |
+| `SYNAPSE_TIMEZONE` | Fuso IANA da instância, por exemplo `America/Sao_Paulo`. |
+| `POSTGRES_DB` | Nome do banco isolado desta instância. |
+| `POSTGRES_USER` | Usuário dono do schema e usado pelos dois pools da aplicação. |
+| `POSTGRES_PASSWORD` | Senha forte do PostgreSQL; o backend recebe a mesma referência. |
+| `RABBITMQ_USER` | Usuário administrativo do RabbitMQ da instância. |
+| `RABBITMQ_PASSWORD` | Senha forte do RabbitMQ. |
+| `MINIO_ROOT_USER` | Access key do MinIO e do adaptador S3 do backend. |
+| `MINIO_ROOT_PASSWORD` | Secret key forte do MinIO e do adaptador S3 do backend. |
+| `SYNAPSE_JWT_SEGREDO` | Segredo HMAC dos tokens de usuário, com no mínimo 32 caracteres. |
+| `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo contrato `/internal/v1`. |
+| `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |
+| `WHATSAPP_TOKEN` | Token de acesso da Meta usado nas chamadas de saída. |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token escolhido pela instância para o desafio `GET` do webhook. |
+| `WHATSAPP_WEBHOOK_SECRET` | App Secret da Meta, usado somente no HMAC dos `POST` do webhook. |
+
+Os dois segredos do webhook são deliberadamente distintos e não podem ser reutilizados um no
+lugar do outro.
+
+#### Variáveis opcionais e capacidade
+
+| Variável | Default da stack | Quando alterar |
+|---|---:|---|
+| `SYNAPSE_APP_NAME` | `synapse-crm` | Nome técnico em telemetria. |
+| `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
+| `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
+| `AUTOMACAO_URL`, `AUTOMACAO_TOKEN` | vazio | Quando a Automacao estiver provisionada. |
+| `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
+| `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
+| `MIDIA_S3_EXPIRACAO_LEITURA` | `5m` | Validade das URLs assinadas de anexos. |
+| `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
+| `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |
+| `BACKEND_REPLICAS`, `FRONTEND_REPLICAS` | `1` | Escala horizontal; o Redis já é o backplane do WebSocket. |
+| `BACKEND_MEMORY_LIMIT` | `1536M` | Limite de memória por réplica do Spring Boot. |
+| `FRONTEND_MEMORY_LIMIT` | `512M` | Limite de memória por réplica do Next.js. |
+| `POSTGRES_MEMORY_LIMIT` | `1G` | Limite do banco. |
+| `REDIS_MEMORY_LIMIT` | `256M` | Limite do cache/backplane. |
+| `RABBITMQ_MEMORY_LIMIT` | `512M` | Limite do broker. |
+| `MINIO_MEMORY_LIMIT` | `512M` | Limite do storage de mídia. |
+| `JAVA_TOOL_OPTIONS` | heap em 70% do cgroup + exit em OOM | Ajuste fino da JVM sem reconstruir a imagem. |
+
+Roteiro no Dokploy:
+
+1. Cadastre o GHCR privado no Registry.
+2. Crie uma aplicação Docker Compose em modo Docker Stack apontando para
+   `docker/dokploy-stack.yml` na branch `main`.
+3. Cadastre todas as variáveis obrigatórias e revise os limites para o tamanho real da VPS.
+4. Confira o Preview Compose: nenhuma porta de banco/broker deve estar publicada e os healthchecks
+   de backend/frontend devem terminar em `/health/liveness`.
+5. Aponte os dois registros DNS para a VPS e faça o deploy. Para rollback, troque apenas
+   `SYNAPSE_IMAGE_TAG` pelo SHA anterior e redeploye.
+
 ### Extensões do PostgreSQL
 
 O schema usa **`pg_trgm`** (busca por nome). Em Postgres gerenciado (RDS, Cloud SQL, Azure Database
@@ -351,10 +443,12 @@ necessariamente o mesmo do `java -version`. Ajuste o `JAVA_HOME` se preciso.
 
 ## CI
 
-`.github/workflows/ci.yml` roda em todo push e pull request, em dois jobs paralelos:
+`.github/workflows/ci.yml` roda em todo push e pull request. Os dois primeiros jobs são paralelos:
 
 - **backend** — `mvn clean verify` com JDK 21 (Temurin), incluindo os testes com Testcontainers.
-- **frontend** — `npm ci`, `npm run lint` e `npm run build`.
+- **frontend** — `npm ci`, `npm run lint`, `npm test` e `npm run build`.
+- **imagens** — depois dos dois anteriores, somente em `main`, publica backend e frontend no GHCR
+  com tag por SHA curto e `latest`.
 
 ---
 

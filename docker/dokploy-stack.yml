@@ -1,0 +1,295 @@
+version: "3.9"
+
+# Stack de producao para Docker Swarm/Dokploy. Segredos e valores da instancia
+# chegam exclusivamente pelo ambiente do Dokploy; este arquivo nao contem
+# credenciais nem defaults de desenvolvimento.
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
+      POSTGRES_USER: ${POSTGRES_USER:?obrigatoria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      LANG: pt_BR.utf8
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - synapse-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: ${POSTGRES_MEMORY_LIMIT:-1G}
+      placement:
+        constraints:
+          - node.role == manager
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - synapse-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-256M}
+      placement:
+        constraints:
+          - node.role == manager
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    hostname: synapse-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?obrigatoria}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?obrigatoria}
+      RABBITMQ_NODENAME: rabbit@synapse-rabbitmq
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - synapse-internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: ${RABBITMQ_MEMORY_LIMIT:-512M}
+      placement:
+        constraints:
+          - node.role == manager
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?obrigatoria}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?obrigatoria}
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+    volumes:
+      - minio-data:/data
+    networks:
+      - synapse-internal
+      - dokploy-network
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: ${MINIO_MEMORY_LIMIT:-512M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.rule=Host(`${MIDIA_DOMINIO:?obrigatoria}`)'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.loadbalancer.server.port=9000'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.loadbalancer.healthcheck.path=/minio/health/live'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.loadbalancer.healthcheck.interval=10s'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-midia.loadbalancer.healthcheck.timeout=3s'
+
+  backend:
+    image: ghcr.io/synapse-auto/erp-matriz-synapse-backend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    environment:
+      SERVER_PORT: "8080"
+      TZ: ${SYNAPSE_TIMEZONE:?obrigatoria}
+      SYNAPSE_APP_NAME: ${SYNAPSE_APP_NAME:-synapse-crm}
+      SYNAPSE_TENANT_CODIGO: ${SYNAPSE_TENANT_CODIGO:?obrigatoria}
+      SYNAPSE_TENANT_NOME: ${SYNAPSE_TENANT_NOME:?obrigatoria}
+      SYNAPSE_TIMEZONE: ${SYNAPSE_TIMEZONE:?obrigatoria}
+      SYNAPSE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?obrigatoria}
+      SYNAPSE_DB_USER: ${POSTGRES_USER:?obrigatoria}
+      SYNAPSE_DB_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      MIDIA_S3_ENDPOINT: http://minio:9000
+      MIDIA_S3_URL_PUBLICA: https://${MIDIA_DOMINIO:?obrigatoria}
+      MIDIA_S3_BUCKET: ${MIDIA_S3_BUCKET:-synapse-crm-midia}
+      MIDIA_S3_ACCESS_KEY: ${MINIO_ROOT_USER:?obrigatoria}
+      MIDIA_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?obrigatoria}
+      MIDIA_S3_EXPIRACAO_LEITURA: ${MIDIA_S3_EXPIRACAO_LEITURA:-5m}
+      SYNAPSE_JWT_SEGREDO: ${SYNAPSE_JWT_SEGREDO:?obrigatoria}
+      SYNAPSE_TOKEN_INTERNO: ${SYNAPSE_TOKEN_INTERNO:?obrigatoria}
+      SYNAPSE_FRONTEND_ORIGEM: https://${SYNAPSE_DOMINIO:?obrigatoria}
+      WS_ORIGENS_PERMITIDAS: https://${SYNAPSE_DOMINIO:?obrigatoria}
+      WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-meta-cloud}
+      WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
+      WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:?obrigatoria}
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:?obrigatoria}
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:?obrigatoria}
+      WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
+      AUTOMACAO_URL: ${AUTOMACAO_URL:-}
+      AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:-}
+      ALERTA_WEBHOOK: ${ALERTA_WEBHOOK:-}
+      FEATURE_CAMPANHAS: ${FEATURE_CAMPANHAS:-false}
+      FEATURE_CHAT_INTERNO: ${FEATURE_CHAT_INTERNO:-true}
+      FEATURE_FIDELIZACAO: ${FEATURE_FIDELIZACAO:-true}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=70.0 -XX:+ExitOnOutOfMemoryError}
+    networks:
+      synapse-internal:
+        aliases:
+          - synapse-backend-internal
+      dokploy-network:
+    expose:
+      - "8080"
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8080/health/liveness",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+    deploy:
+      replicas: ${BACKEND_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: 60s
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        monitor: 60s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+      resources:
+        limits:
+          memory: ${BACKEND_MEMORY_LIMIT:-1536M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/internal/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.priority=100'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.server.port=8080'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.path=/health/liveness'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.interval=10s'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
+
+  frontend:
+    image: ghcr.io/synapse-auto/erp-matriz-synapse-frontend:${SYNAPSE_IMAGE_TAG:?obrigatoria}
+    environment:
+      NODE_ENV: production
+      SYNAPSE_BACKEND_URL: http://synapse-backend-internal:8080
+    networks:
+      - synapse-internal
+      - dokploy-network
+    expose:
+      - "3000"
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://127.0.0.1:3000/health/liveness",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      replicas: ${FRONTEND_REPLICAS:-1}
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 30s
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        monitor: 30s
+      restart_policy:
+        condition: on-failure
+        delay: 3s
+      resources:
+        limits:
+          memory: ${FRONTEND_MEMORY_LIMIT:-512M}
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - "traefik.enable=true"
+        - "traefik.swarm.network=dokploy-network"
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`)'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.entrypoints=websecure'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.tls=true'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.tls.certresolver=letsencrypt'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.priority=1'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.server.port=3000'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.path=/health/liveness'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.interval=10s'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.timeout=3s'
+
+networks:
+  synapse-internal:
+    driver: overlay
+  dokploy-network:
+    external: true
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
+  minio-data:
