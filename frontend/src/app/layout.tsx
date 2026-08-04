@@ -8,6 +8,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
 
+// Tema e textos sao arquivos da instancia lidos pelo backend no runtime; nunca devem ser
+// congelados na imagem durante `next build`.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const textos = await buscarTextos();
   return {

@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { MAX_AGE_COOKIE_REFRESH_SEGUNDOS, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
  * Faz o papel de BFF para o login: chama o backend real (`POST /api/v1/auth/login`, E07), que
@@ -14,7 +13,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export async function POST(requisicao: NextRequest) {
   const corpo = await requisicao.json();
 
-  const respostaBackend = await fetch(`${API_URL}/api/v1/auth/login`, {
+  const respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(corpo),

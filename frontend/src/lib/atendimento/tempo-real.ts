@@ -45,6 +45,18 @@ function clienteStompPadrao(opcoes: {
   }) as unknown as ClienteStompLike;
 }
 
+/** URL explicita em dev; na imagem generica usa a origem HTTPS que o browser realmente abriu. */
+function resolverBrokerUrl(configurada: string): string {
+  if (configurada) {
+    return configurada;
+  }
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const protocolo = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocolo}//${window.location.host}/ws`;
+}
+
 /**
  * Backoff exponencial com teto: base 1s, fator 2, teto 30s. `comJitter: false` existe só para o
  * teste determinístico da progressão base/teto — em produção o jitter evita que várias abas
@@ -143,7 +155,7 @@ export class ConexaoTempoReal {
   private abrirClienteEConectar(): void {
     const accessToken = this.opcoes.obterAccessToken();
     const cliente = (this.opcoes.criarCliente ?? clienteStompPadrao)({
-      brokerUrl: this.opcoes.brokerUrl,
+      brokerUrl: resolverBrokerUrl(this.opcoes.brokerUrl),
       accessToken,
     });
     this.cliente = cliente;

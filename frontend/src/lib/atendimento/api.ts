@@ -13,7 +13,7 @@ import type {
   VisaoAtendimento,
 } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export function listarAtendimentos(visao: VisaoAtendimento): Promise<CartaoAtendimento[]> {
   return apiFetch<CartaoAtendimento[]>(`/api/v1/atendimentos?visao=${visao}`);

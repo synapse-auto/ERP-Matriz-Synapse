@@ -4,7 +4,8 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { ErroDeApi, ProblemaHttp } from "./errors";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+// Vazio em producao: browser chama a mesma origem e o Traefik encaminha /api ao backend.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 interface SessaoResposta {
   accessToken: string;

@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { MAX_AGE_COOKIE_REFRESH_SEGUNDOS, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
  * O backend rotaciona o refresh token a cada uso (RenovarSessaoUseCase): o token apresentado
@@ -19,7 +18,7 @@ export async function POST() {
     return NextResponse.json({ detail: "Sem sessão para renovar" }, { status: 401 });
   }
 
-  const respostaBackend = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+  const respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),

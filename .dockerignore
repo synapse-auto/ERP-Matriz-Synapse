@@ -1,0 +1,12 @@
+.git
+.github
+.claude
+.env
+**/.env.local
+**/node_modules
+**/.next
+**/target
+**/*.log
+build-completo*.log
+docs
+design

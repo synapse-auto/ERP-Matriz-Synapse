@@ -1,10 +1,5 @@
 import { Tema, TemaSchema, Textos, TextosSchema } from "./schema";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_URL) {
-  throw new Error("NEXT_PUBLIC_API_URL não configurada — veja .env.example");
-}
+import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
  * `/api/v1/config/tema` e `/api/v1/config/textos` são públicos (SecurityConfig, E10): a própria
@@ -13,7 +8,7 @@ if (!API_URL) {
  * rebuild nem de invalidação manual de cache.
  */
 async function buscarConfig<T>(caminho: string): Promise<unknown> {
-  const resposta = await fetch(`${API_URL}${caminho}`, { cache: "no-store" });
+  const resposta = await fetch(`${obterUrlApiServidor()}${caminho}`, { cache: "no-store" });
   if (!resposta.ok) {
     throw new Error(`Falha ao buscar ${caminho}: HTTP ${resposta.status}`);
   }

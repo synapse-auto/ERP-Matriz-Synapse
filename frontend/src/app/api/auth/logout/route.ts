@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -12,7 +11,7 @@ export async function POST() {
   if (refreshToken) {
     // Best-effort: mesmo se o backend falhar em revogar, o cookie local é removido de qualquer
     // forma — o usuário não pode ficar preso numa sessão que ele mandou encerrar.
-    await fetch(`${API_URL}/api/v1/auth/logout`, {
+    await fetch(`${obterUrlApiServidor()}/api/v1/auth/logout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
