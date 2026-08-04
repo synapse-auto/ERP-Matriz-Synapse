@@ -3,9 +3,11 @@ package com.synapse.crm.core.application.mensagemprogramada;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.synapse.crm.core.application.lead.LeadRepositorio;
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;

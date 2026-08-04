@@ -3,6 +3,7 @@ package com.synapse.crm.core.application.mensagemprogramada;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 
 public interface MensagemProgramadaRepositorio {

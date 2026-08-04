@@ -3,6 +3,7 @@ package com.synapse.crm.core.application.mensagemrapida;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import com.synapse.crm.core.domain.mensagemrapida.MensagemRapida;
 
 public interface MensagemRapidaRepositorio {

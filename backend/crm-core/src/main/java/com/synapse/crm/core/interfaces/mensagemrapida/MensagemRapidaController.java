@@ -1,7 +1,9 @@
 package com.synapse.crm.core.interfaces.mensagemrapida;
-import java.util.List;import java.util.UUID;import jakarta.validation.Valid;import jakarta.validation.constraints.NotBlank;import jakarta.validation.constraints.Pattern;import jakarta.validation.constraints.Size;
-import org.springframework.http.*;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;
-import com.synapse.crm.core.application.mensagemrapida.*;import com.synapse.crm.core.domain.mensagemrapida.MensagemRapida;
+import java.util.List;
+
+import org.springframework.http.*;
+
+import com.synapse.crm.core.application.mensagemrapida.*;
 @RestController @RequestMapping("/api/v1/mensagens-rapidas") class MensagemRapidaController{private final ListarMensagensRapidasUseCase listar;private final CriarMensagemRapidaUseCase criar;private final AtualizarMensagemRapidaUseCase atualizar;private final RemoverMensagemRapidaUseCase remover;
  MensagemRapidaController(ListarMensagensRapidasUseCase l,CriarMensagemRapidaUseCase c,AtualizarMensagemRapidaUseCase a,RemoverMensagemRapidaUseCase r){listar=l;criar=c;atualizar=a;remover=r;}
  @GetMapping List<Resposta> listar(@RequestParam(defaultValue="false")boolean minhas){return listar.executar(minhas).stream().map(Resposta::de).toList();}

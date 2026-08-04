@@ -8,8 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
 import com.synapse.crm.core.application.mensagemprogramada.FiltroMensagensProgramadas;
 import com.synapse.crm.core.application.mensagemprogramada.MensagemProgramadaRepositorio;
 import com.synapse.crm.core.application.mensagemprogramada.PaginaMensagensProgramadas;

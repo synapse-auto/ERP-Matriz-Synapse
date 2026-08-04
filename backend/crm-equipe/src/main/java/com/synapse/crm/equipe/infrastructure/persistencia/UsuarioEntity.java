@@ -12,8 +12,8 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.synapse.crm.equipe.domain.usuario.Usuario;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
+import com.synapse.crm.equipe.domain.usuario.Usuario;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /** Mapeamento JPA da tabela {@code usuario}. */

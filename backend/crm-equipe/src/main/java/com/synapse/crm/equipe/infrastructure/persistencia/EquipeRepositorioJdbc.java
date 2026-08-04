@@ -1,5 +1,5 @@
 package com.synapse.crm.equipe.infrastructure.persistencia;
-import java.math.BigDecimal;import java.sql.ResultSet;import java.sql.SQLException;import java.util.*;import org.springframework.dao.DuplicateKeyException;import org.springframework.jdbc.core.JdbcTemplate;import org.springframework.stereotype.Repository;import com.synapse.crm.equipe.application.usuario.*;import com.synapse.crm.equipe.domain.avaliacao.ResumoAvaliacoes;import com.synapse.crm.equipe.domain.usuario.*;import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import java.math.BigDecimal;
 @Repository class EquipeRepositorioJdbc implements EquipeRepositorio{private final JdbcTemplate jdbc;EquipeRepositorioJdbc(JdbcTemplate j){jdbc=j;}private static final String BASE="SELECT id,nome,email,senha_hash,papel::text,status_presenca::text,ativo FROM usuario";
  @Override public List<Usuario> listar(FiltroEquipe f){return jdbc.query(BASE+(f.incluirInativos()?"":" WHERE ativo=TRUE")+" ORDER BY nome",EquipeRepositorioJdbc::mapear);}
  @Override public Usuario criar(String n,String e,String h,PapelGerenciavel p){UUID id=UUID.randomUUID();try{jdbc.update("INSERT INTO usuario(id,nome,email,senha_hash,papel) VALUES(?,?,?,?,CAST(? AS papel_usuario))",id,n,e,h,p.name());}catch(DuplicateKeyException x){throw new EmailDeUsuarioEmUsoException();}return porId(id).orElseThrow();}

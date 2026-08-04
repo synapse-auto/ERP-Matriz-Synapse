@@ -1,7 +1,9 @@
 package com.synapse.crm.core.infrastructure.persistencia.mensagemrapida;
-import java.sql.ResultSet;import java.sql.SQLException;import java.util.List;import java.util.Optional;import java.util.UUID;
-import org.springframework.dao.DuplicateKeyException;import org.springframework.jdbc.core.JdbcTemplate;import org.springframework.stereotype.Repository;
-import com.synapse.crm.core.application.mensagemrapida.*;import com.synapse.crm.core.domain.mensagemrapida.MensagemRapida;import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
+import java.sql.ResultSet;
+
+import org.springframework.dao.DuplicateKeyException;
+
+import com.synapse.crm.core.application.mensagemrapida.*;
 @Repository class MensagemRapidaRepositorioJdbc implements MensagemRapidaRepositorio{private final JdbcTemplate jdbc;MensagemRapidaRepositorioJdbc(JdbcTemplate jdbc){this.jdbc=jdbc;}
  private static final String BASE="SELECT m.id,m.atendente_id,u.nome atendente_nome,m.palavra_chave,m.conteudo,m.tipo_midia FROM mensagem_rapida m JOIN usuario u ON u.id=m.atendente_id";
  @Override public List<MensagemRapida> listar(EscopoMensagensRapidas e){TransacaoObrigatoria.exigir("listar mensagens rapidas");return e.todas()?jdbc.query(BASE+" ORDER BY u.nome,m.palavra_chave",MensagemRapidaRepositorioJdbc::mapear):jdbc.query(BASE+" WHERE m.atendente_id=? ORDER BY m.palavra_chave",MensagemRapidaRepositorioJdbc::mapear,e.usuarioId());}

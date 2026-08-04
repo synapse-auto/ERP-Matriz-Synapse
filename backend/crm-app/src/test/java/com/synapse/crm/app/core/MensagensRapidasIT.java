@@ -1,6 +1,7 @@
 package com.synapse.crm.app.core;
-import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;import static org.assertj.core.api.Assertions.assertThat;
-import java.util.Map;import java.util.UUID;import com.fasterxml.jackson.databind.ObjectMapper;import org.junit.jupiter.api.*;import org.springframework.beans.factory.annotation.Autowired;import org.springframework.boot.test.context.SpringBootTest;import org.springframework.boot.test.web.client.TestRestTemplate;import org.springframework.http.*;import org.springframework.jdbc.core.JdbcTemplate;import org.springframework.test.context.ActiveProfiles;import com.synapse.crm.app.PostgresIT;import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
+
+import java.util.Map;
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT) @ActiveProfiles("dev") class MensagensRapidasIT extends PostgresIT{
  @Autowired TestRestTemplate http;@Autowired JdbcTemplate jdbc;@Autowired ObjectMapper json;UUID ana,bruno,rapidaBruno;
  @BeforeEach void preparar(){ana=usuario(EMAIL_ANA);bruno=usuario(EMAIL_BRUNO);rapidaBruno=UUID.randomUUID();jdbc.update("INSERT INTO mensagem_rapida(id,atendente_id,palavra_chave,conteudo) VALUES(?,?,?,?)",rapidaBruno,bruno,"privada"+rapidaBruno.toString().substring(0,6),"Conteudo privado do Bruno");}

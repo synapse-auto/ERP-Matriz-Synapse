@@ -3,10 +3,12 @@ package com.synapse.crm.core.interfaces.mensagemprogramada;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+
 import com.synapse.crm.core.application.mensagemprogramada.*;
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 import com.synapse.crm.core.domain.mensagemprogramada.StatusMensagemProgramada;

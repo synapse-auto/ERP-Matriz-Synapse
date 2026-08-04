@@ -2,9 +2,11 @@ package com.synapse.crm.core.application.mensagemprogramada;
 
 import java.util.Optional;
 import java.util.UUID;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 
 @Service
