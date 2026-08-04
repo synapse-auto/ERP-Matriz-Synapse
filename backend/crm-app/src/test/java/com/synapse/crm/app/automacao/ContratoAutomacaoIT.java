@@ -19,11 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
@@ -42,19 +38,6 @@ class ContratoAutomacaoIT extends PostgresIT {
 
     private static final String TOKEN_VALIDO = "segredo-de-teste-do-internal-v1";
     private static final String CHAVE_TESTE = "e07-teste-numerico";
-
-    private static final GenericContainer<?> REDIS =
-            new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
-
-    static {
-        REDIS.start();
-    }
-
-    @DynamicPropertySource
-    static void apontarRedisParaOContainer(DynamicPropertyRegistry registro) {
-        registro.add("spring.data.redis.host", REDIS::getHost);
-        registro.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
-    }
 
     @Autowired
     private TestRestTemplate http;

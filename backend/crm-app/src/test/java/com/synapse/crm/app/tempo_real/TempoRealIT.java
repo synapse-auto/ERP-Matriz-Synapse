@@ -38,13 +38,9 @@ import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
@@ -81,19 +77,6 @@ class TempoRealIT extends PostgresIT {
     private static final String PREFIXO = "E06-";
     private static final Duration ESPERA_CURTA = Duration.ofSeconds(3);
     private static final Duration ESPERA_NEGATIVA = Duration.ofSeconds(2);
-
-    private static final GenericContainer<?> REDIS =
-            new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
-
-    static {
-        REDIS.start();
-    }
-
-    @DynamicPropertySource
-    static void apontarRedisParaOContainer(DynamicPropertyRegistry registro) {
-        registro.add("spring.data.redis.host", REDIS::getHost);
-        registro.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
-    }
 
     @Autowired
     private TestRestTemplate http;
