@@ -174,8 +174,17 @@ public class SecurityConfig {
     CodificadorDeSenha codificadorDeSenha(PasswordEncoder encoder) {
         // O adaptador BCrypt da porta de senha. Assinatura null-safe: senha ausente
         // e senha errada seguem o mesmo caminho.
-        return (senhaEmTexto, hashArmazenado) ->
-                senhaEmTexto != null && encoder.matches(senhaEmTexto, hashArmazenado);
+        return new CodificadorDeSenha() {
+            @Override
+            public boolean confere(String senhaEmTexto, String hashArmazenado) {
+                return senhaEmTexto != null && encoder.matches(senhaEmTexto, hashArmazenado);
+            }
+
+            @Override
+            public String codificar(String senhaEmTexto) {
+                return encoder.encode(senhaEmTexto);
+            }
+        };
     }
 
     /** Relogio injetavel: os testes de expiracao precisam controlar o tempo. */

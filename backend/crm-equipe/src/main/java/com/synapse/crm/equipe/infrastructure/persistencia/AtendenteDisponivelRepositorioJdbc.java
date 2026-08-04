@@ -23,6 +23,7 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               FROM disponibilidade_atendente_ia d
               JOIN usuario u ON u.id = d.atendente_id
              WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE
+               AND u.papel = 'ATENDENTE' AND u.status_presenca = 'ONLINE'
              ORDER BY u.nome
             """;
 

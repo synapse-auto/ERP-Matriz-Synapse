@@ -83,6 +83,7 @@ export const TextosSchema = z.object({
   rodape: z.object({
     trocarConta: z.string(),
     sair: z.string(),
+    presenca:z.object({rotulo:z.string(),online:z.string(),ausente:z.string(),offline:z.string()}),
   }),
   login: z.object({
     titulo: z.string(),
@@ -262,6 +263,7 @@ export const TextosSchema = z.object({
     formulario:z.object({tituloCriar:z.string(),tituloEditar:z.string(),lead:z.string(),selecionarLead:z.string(),dataEnvio:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()}),
   }),
   mensagensRapidas:z.object({titulo:z.string(),descricao:z.string(),nova:z.string(),carregando:z.string(),vazio:z.string(),erro:z.string(),editar:z.string(),remover:z.string(),colunas:z.object({atendente:z.string(),chave:z.string(),conteudo:z.string(),acoes:z.string()}),formulario:z.object({criarTitulo:z.string(),editarTitulo:z.string(),chave:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()})}),
+  equipe:z.object({titulo:z.string(),descricao:z.string(),novo:z.string(),carregando:z.string(),erro:z.string(),inativo:z.string(),editar:z.string(),desativar:z.string(),colunas:z.object({nome:z.string(),email:z.string(),papel:z.string(),presenca:z.string(),avaliacao:z.string(),acoes:z.string()}),papeis:z.object({atendente:z.string(),subgestor:z.string()}),presenca:z.object({online:z.string(),ausente:z.string(),offline:z.string()}),avaliacoes:z.object({media:z.string(),total:z.string(),semDados:z.string()}),formulario:z.object({criarTitulo:z.string(),editarTitulo:z.string(),nome:z.string(),email:z.string(),senha:z.string(),papel:z.string(),atendente:z.string(),subgestor:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()})}),
   agenda: z.object({
     titulo: z.string(),
     descricao: z.string(),

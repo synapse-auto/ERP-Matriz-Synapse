@@ -69,6 +69,7 @@ export interface UsuarioResposta {
   email: string;
   papel: "ATENDENTE" | "SUBGESTOR" | "GESTOR" | "ADMINISTRADOR";
   ativo: boolean;
+  statusPresenca: "ONLINE" | "AUSENTE" | "OFFLINE";
 }
 
 /** Espelha TagController.TagResposta — GET /api/v1/tags. */

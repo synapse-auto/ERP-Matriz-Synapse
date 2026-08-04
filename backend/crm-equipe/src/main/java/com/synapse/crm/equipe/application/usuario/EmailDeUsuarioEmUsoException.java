@@ -1,0 +1,1 @@
+package com.synapse.crm.equipe.application.usuario;public class EmailDeUsuarioEmUsoException extends RuntimeException{public EmailDeUsuarioEmUsoException(){super("E-mail ja usado por outro usuario");}}

@@ -1,6 +1,5 @@
 package com.synapse.crm.equipe.infrastructure.persistencia;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,8 +28,4 @@ class UsuarioRepositorioJpa implements UsuarioRepositorio {
         return jpa.findById(id).map(UsuarioEntity::paraDominio);
     }
 
-    @Override
-    public List<Usuario> listarTodos() {
-        return jpa.findAll().stream().map(UsuarioEntity::paraDominio).toList();
-    }
 }

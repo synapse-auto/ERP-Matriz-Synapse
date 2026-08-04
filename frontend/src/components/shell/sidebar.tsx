@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
+import { atualizarPresenca, obterPresenca } from "@/lib/equipe/api";
+import type { StatusPresenca } from "@/lib/equipe/types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -76,8 +79,12 @@ export function Sidebar() {
   const { data: flags, isLoading, isError } = useFeaturesHabilitadas();
   const papel = useAuthStore((estado) => estado.papel);
   const email = useAuthStore((estado) => estado.email);
+  const cache = useQueryClient();
+  const presenca = useQuery({ queryKey: ["minha-presenca"], queryFn: obterPresenca });
+  const mudarPresenca = useMutation({ mutationFn: atualizarPresenca, onSuccess: (dados) => cache.setQueryData(["minha-presenca"], dados) });
 
   function itemVisivel(item: ItemDeMenu): boolean {
+    if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
     if (!item.flag) return true;
     return (flags ?? []).includes(item.flag);
   }
@@ -121,6 +128,16 @@ export function Sidebar() {
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-sidebar-border px-4 py-4">
+        <label className="flex items-center gap-2 text-xs text-texto-sidebar-sub">
+          <span>{textos.rodape.presenca.rotulo}</span>
+          <select className="min-w-0 flex-1 rounded border border-sidebar-border bg-sidebar px-1 py-0.5"
+            value={presenca.data?.status ?? "OFFLINE"}
+            onChange={(e) => mudarPresenca.mutate(e.target.value as StatusPresenca)}>
+            <option value="ONLINE">{textos.rodape.presenca.online}</option>
+            <option value="AUSENTE">{textos.rodape.presenca.ausente}</option>
+            <option value="OFFLINE">{textos.rodape.presenca.offline}</option>
+          </select>
+        </label>
         <div className="flex flex-col gap-0.5">
           {email && <span className="truncate text-sm font-medium text-sidebar-foreground">{email}</span>}
           {papel && <span className="text-xs text-texto-sidebar-sub">{papel}</span>}

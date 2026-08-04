@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
-import com.synapse.crm.equipe.application.autenticacao.UsuarioRepositorio;
 import com.synapse.crm.equipe.domain.usuario.Usuario;
 
 /**
@@ -20,14 +19,14 @@ import com.synapse.crm.equipe.domain.usuario.Usuario;
 @Service
 public class ListarUsuariosUseCase {
 
-    private final UsuarioRepositorio usuarios;
+    private final EquipeRepositorio usuarios;
 
-    public ListarUsuariosUseCase(UsuarioRepositorio usuarios) {
+    public ListarUsuariosUseCase(EquipeRepositorio usuarios) {
         this.usuarios = usuarios;
     }
 
     @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     public List<Usuario> executar() {
-        return usuarios.listarTodos();
+        return usuarios.listar(new FiltroEquipe(true));
     }
 }

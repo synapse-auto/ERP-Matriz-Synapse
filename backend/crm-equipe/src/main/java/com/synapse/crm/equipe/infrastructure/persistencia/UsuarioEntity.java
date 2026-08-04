@@ -13,6 +13,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.synapse.crm.equipe.domain.usuario.Usuario;
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /** Mapeamento JPA da tabela {@code usuario}. */
@@ -38,6 +39,11 @@ class UsuarioEntity {
     @Column(name = "papel", nullable = false)
     private PapelUsuario papel;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status_presenca", nullable = false)
+    private StatusPresenca statusPresenca;
+
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
@@ -46,6 +52,6 @@ class UsuarioEntity {
     }
 
     Usuario paraDominio() {
-        return new Usuario(id, nome, email, senhaHash, papel, ativo);
+        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo);
     }
 }

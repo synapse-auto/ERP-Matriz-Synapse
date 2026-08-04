@@ -25,7 +25,8 @@
   },
   "rodape": {
     "trocarConta": "Trocar conta",
-    "sair": "Sair"
+    "sair": "Sair",
+    "presenca":{"rotulo":"Presença","online":"Online","ausente":"Ausente","offline":"Offline"}
   },
   "login": {
     "titulo": "Entrar",
@@ -206,6 +207,7 @@
     "formulario":{"tituloCriar":"Programar mensagem","tituloEditar":"Editar mensagem programada","lead":"Lead","selecionarLead":"Selecione um lead","dataEnvio":"Data e hora do envio","conteudo":"Mensagem","salvar":"Salvar","cancelar":"Voltar","erro":"Não foi possível salvar a mensagem programada."}
   },
   "mensagensRapidas":{"titulo":"Mensagens rápidas","descricao":"Atalhos pessoais para respostas usadas com frequência.","nova":"Nova mensagem rápida","carregando":"Carregando mensagens...","vazio":"Nenhuma mensagem rápida cadastrada.","erro":"Não foi possível carregar as mensagens rápidas.","editar":"Editar","remover":"Remover","colunas":{"atendente":"Atendente","chave":"Atalho","conteudo":"Mensagem","acoes":"Ações"},"formulario":{"criarTitulo":"Criar mensagem rápida","editarTitulo":"Editar mensagem rápida","chave":"Palavra-chave","conteudo":"Mensagem","salvar":"Salvar","cancelar":"Cancelar","erro":"Não foi possível salvar. Confira se a palavra-chave já está em uso."}},
+  "equipe":{"titulo":"Equipe","descricao":"Atendentes, subgestores, presença e avaliações.","novo":"Novo usuário","carregando":"Carregando equipe...","erro":"Não foi possível carregar a equipe.","inativo":"Inativo","editar":"Editar","desativar":"Desativar","colunas":{"nome":"Nome","email":"E-mail","papel":"Papel","presenca":"Presença","avaliacao":"Avaliação","acoes":"Ações"},"papeis":{"atendente":"Atendente","subgestor":"Subgestor"},"presenca":{"online":"Online","ausente":"Ausente","offline":"Offline"},"avaliacoes":{"media":"Média geral","total":"Total de avaliações","semDados":"Sem avaliações"},"formulario":{"criarTitulo":"Criar usuário","editarTitulo":"Editar usuário","nome":"Nome","email":"E-mail","senha":"Senha inicial","papel":"Papel","atendente":"Atendente","subgestor":"Subgestor","salvar":"Salvar","cancelar":"Cancelar","erro":"Não foi possível salvar o usuário."}},
   "agenda": {
     "titulo": "Agenda de contatos",
     "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
