@@ -44,7 +44,7 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
     },
   );
 
-  const { data: mensagens, isLoading: carregandoMensagens } = useMensagens(
+  const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
     estado,
@@ -92,9 +92,12 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
           <>
             <CabecalhoConversa conversa={conversa} />
             <ListaMensagens
-              mensagens={mensagens ?? []}
-              carregando={carregandoMensagens}
+              mensagens={mensagensQuery.data}
+              carregando={mensagensQuery.isLoading}
               onReenviar={reenviar}
+              temMais={mensagensQuery.hasNextPage}
+              carregandoMais={mensagensQuery.isFetchingNextPage}
+              onCarregarMais={() => void mensagensQuery.fetchNextPage()}
             />
             <Composer conversa={conversa} />
           </>

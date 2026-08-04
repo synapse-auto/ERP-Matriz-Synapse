@@ -46,6 +46,11 @@ export interface MensagemResposta {
   enviadoEm: string;
 }
 
+export interface PaginaMensagens {
+  mensagens: MensagemResposta[];
+  proximoCursor: string | null;
+}
+
 /** Espelha AtendimentoAcoesController.EnvioResposta — POST /api/v1/atendimentos/mensagens. */
 export interface EnvioResposta {
   atendimentoId: string;

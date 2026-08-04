@@ -7,6 +7,7 @@ import type {
   CartaoAtendimento,
   EnvioResposta,
   MensagemResposta,
+  PaginaMensagens,
   TagResposta,
   UsuarioResposta,
   VisaoAtendimento,
@@ -19,9 +20,18 @@ export function listarAtendimentos(visao: VisaoAtendimento): Promise<CartaoAtend
 }
 
 /** `desde` ausente traz a conversa inteira — primeira carga da tela. */
-export function mensagensDesde(atendimentoId: string, desde?: string): Promise<MensagemResposta[]> {
-  const query = desde ? `?desde=${encodeURIComponent(desde)}` : "";
-  return apiFetch<MensagemResposta[]>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
+export function paginaMensagens(
+  atendimentoId: string,
+  cursor: string | null,
+): Promise<PaginaMensagens> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
+}
+
+export function mensagensDesde(atendimentoId: string, desde: string): Promise<MensagemResposta[]> {
+  return apiFetch<MensagemResposta[]>(
+    `/api/v1/atendimentos/${atendimentoId}/mensagens/desde?desde=${encodeURIComponent(desde)}`,
+  );
 }
 
 export function enviarMensagem(leadId: string, conteudo: string): Promise<EnvioResposta> {

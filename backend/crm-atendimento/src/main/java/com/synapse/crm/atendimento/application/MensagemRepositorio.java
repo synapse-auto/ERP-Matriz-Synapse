@@ -25,6 +25,10 @@ public interface MensagemRepositorio {
     /** As mais recentes primeiro, no maximo {@code limite}. */
     List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite);
 
+    /** Pagina para tras por uma chave estavel, sem deslocamento por mensagens novas. */
+    List<Mensagem> anteriores(
+            UUID atendimentoId, Instant cursorEnviadoEm, UUID cursorId, int limite);
+
     /**
      * Tudo que chegou <b>depois</b> de {@code desde}, mais antiga primeiro — a reconciliacao que o
      * cliente pede ao reconectar o WebSocket (E06). Sem limite de proposito: a janela e curta (o

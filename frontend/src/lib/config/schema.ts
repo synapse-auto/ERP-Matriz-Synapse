@@ -155,6 +155,8 @@ export const TextosSchema = z.object({
         falhou: z.string(),
       }),
       reenviar: z.string(),
+      carregarAnteriores: z.string(),
+      carregandoAnteriores: z.string(),
     }),
     composer: z.object({
       placeholder: z.string(),

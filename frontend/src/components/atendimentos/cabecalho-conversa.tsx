@@ -10,13 +10,13 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 import { DialogoTransferir } from "./dialogo-transferir";
+import { AtalhoTags } from "./atalho-tags";
 
 type Props = {
   conversa: CartaoAtendimento;
 };
 
-/** Avatar, nome, empresa, "Atendido por X", Transferir/Finalizar — sem atalho de tags: a API não
- * vincula tags a lead ainda (só o catálogo global existe), então não há o que mostrar de verdade. */
+/** Identificação da conversa, tags persistidas e ações operacionais. */
 export function CabecalhoConversa({ conversa }: Props) {
   const textos = useTextos().atendimentos.cabecalho;
   const [transferirAberto, setTransferirAberto] = useState(false);
@@ -45,8 +45,10 @@ export function CabecalhoConversa({ conversa }: Props) {
         </div>
       </div>
 
-      {!finalizado && (
-        <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
+        <AtalhoTags leadId={conversa.leadId} />
+        {!finalizado && (
+          <>
           <Button type="button" variant="outline" size="sm" onClick={() => setTransferirAberto(true)}>
             {textos.transferir}
           </Button>
@@ -59,8 +61,9 @@ export function CabecalhoConversa({ conversa }: Props) {
           >
             {textos.finalizar}
           </Button>
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
       <DialogoTransferir
         atendimentoId={conversa.atendimentoId}

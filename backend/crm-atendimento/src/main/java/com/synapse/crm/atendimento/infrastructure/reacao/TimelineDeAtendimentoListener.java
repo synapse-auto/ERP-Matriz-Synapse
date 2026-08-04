@@ -1,10 +1,14 @@
 package com.synapse.crm.atendimento.infrastructure.reacao;
 
 import java.sql.Timestamp;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -16,36 +20,24 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
-/**
- * Escreve a timeline do lead a partir dos eventos de atendimento.
- *
- * <p>Duas decisoes de caminho critico moram nesta classe.
- *
- * <p>A primeira e a fase: {@code AFTER_COMMIT}. A timeline e uma <em>reacao</em> ao registro da
- * mensagem, nao parte dele. Se rodasse dentro da transacao, cada linha escrita aqui somaria latencia
- * ao ato de receber mensagem do cliente — e a aba Atendimentos nao pode ficar indisponivel entre
- * 08:00 e 18:30.
- *
- * <p>A segunda e o pool: {@code generalDataSource}, nao o do chat. A reserva do caminho critico e
- * para gravar mensagem; gastar uma conexao dela para escrever historico anularia o bulkhead
- * exatamente quando ele mais importa, que e sob carga.
- *
- * <p>{@code REQUIRES_NEW} e explicito porque, depois do commit, nao ha mais transacao — e uma escrita
- * sem transacao rodaria sem o contexto RLS que o gerente publica no {@code doBegin}.
- */
+/** Persiste snapshot legivel e parametros estruturados depois do commit do atendimento. */
 @Component
 class TimelineDeAtendimentoListener {
 
     private static final String SQL =
             """
-            INSERT INTO evento_timeline (lead_id, atendimento_id, tipo, descricao, origem, criado_em)
-                 VALUES (?, ?, ?, ?, ?::origem_evento, ?)
+            INSERT INTO evento_timeline
+                (lead_id, atendimento_id, tipo, descricao, origem, ator_id, dados, criado_em)
+            VALUES (?, ?, ?, ?, ?::origem_evento, ?, ?::jsonb, ?)
             """;
 
     private final JdbcTemplate geral;
+    private final ObjectMapper json;
 
-    TimelineDeAtendimentoListener(@Qualifier(Pools.GENERAL_DATA_SOURCE) DataSource generalDataSource) {
+    TimelineDeAtendimentoListener(
+            @Qualifier(Pools.GENERAL_DATA_SOURCE) DataSource generalDataSource, ObjectMapper json) {
         this.geral = new JdbcTemplate(generalDataSource);
+        this.json = json;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -59,56 +51,98 @@ class TimelineDeAtendimentoListener {
                 anotacao.tipo(),
                 anotacao.descricao(),
                 anotacao.origem(),
+                anotacao.atorId(),
+                serializar(anotacao.dados()),
                 Timestamp.from(evento.ocorridoEm()));
     }
 
-    /**
-     * Switch exaustivo sobre o tipo selado: um evento novo quebra o build aqui ate ganhar redacao. Um
-     * {@code default} silencioso produziria evento sem rastro na timeline — e a timeline e o que o
-     * atendente usa para saber o que aconteceu com o lead dele.
-     */
-    private static Anotacao descrever(EventoDeAtendimento evento) {
+    /** Switch exaustivo: um fato novo nao pode nascer sem representacao na timeline. */
+    private Anotacao descrever(EventoDeAtendimento evento) {
         return switch (evento) {
             case EventoDeAtendimento.MensagemRecebida recebida -> new Anotacao(
                     "MENSAGEM_RECEBIDA",
                     recebida.abriuAtendimento()
                             ? "Cliente iniciou uma conversa."
                             : "Cliente enviou uma mensagem.",
-                    "SISTEMA");
+                    "SISTEMA",
+                    null,
+                    Map.of("abriuAtendimento", recebida.abriuAtendimento()));
 
-            // A anotacao mais importante do modulo: e o registro de que a comissao
-            // daquele lead mudou de mao, e de quem para quem.
-            case EventoDeAtendimento.MensagemEnviada enviada -> new Anotacao(
-                    enviada.transferiu() ? "LEAD_TRANSFERIDO_POR_ENVIO" : "MENSAGEM_ENVIADA",
-                    enviada.transferiu()
-                            ? "Atendente " + enviada.remetenteId() + " enviou mensagem e assumiu o lead"
-                                    + enviada.donoAnterior()
-                                            .map(anterior -> ", antes de " + anterior + ".")
-                                            .orElse(", que estava sem responsavel.")
-                            : "Atendente " + enviada.remetenteId() + " enviou uma mensagem.",
-                    "USUARIO");
+            case EventoDeAtendimento.MensagemEnviada enviada -> {
+                Map<String, Object> dados = new LinkedHashMap<>();
+                dados.put("transferiu", enviada.transferiu());
+                dados.put("tinhaDonoAnterior", enviada.donoAnterior().isPresent());
+                dados.put("donoAnteriorId", enviada.donoAnterior().map(UUID::toString).orElse(null));
+                String ator = nome(enviada.remetenteId());
+                String descricao = enviada.transferiu()
+                        ? "Atendente " + ator + " enviou mensagem e assumiu o lead"
+                                + enviada.donoAnterior()
+                                        .map(anterior -> ", antes de " + nome(anterior) + ".")
+                                        .orElse(", que estava sem responsavel.")
+                        : "Atendente " + ator + " enviou uma mensagem.";
+                yield new Anotacao(
+                        enviada.transferiu() ? "LEAD_TRANSFERIDO_POR_ENVIO" : "MENSAGEM_ENVIADA",
+                        descricao,
+                        "USUARIO",
+                        enviada.remetenteId(),
+                        dados);
+            }
 
-            case EventoDeAtendimento.AtendimentoTransferido transferido -> new Anotacao(
-                    "ATENDIMENTO_TRANSFERIDO",
-                    "Atendimento transferido de "
-                            + rotulo(transferido.deAtendenteId())
-                            + " para "
-                            + rotulo(transferido.paraAtendenteId())
-                            + " por "
-                            + transferido.quemTransferiu()
-                            + ".",
-                    "USUARIO");
+            case EventoDeAtendimento.AtendimentoTransferido transferido -> {
+                Map<String, Object> dados = new LinkedHashMap<>();
+                dados.put("deIa", transferido.deAtendenteId() == null);
+                dados.put("deAtendenteId", idOuNulo(transferido.deAtendenteId()));
+                dados.put("paraIa", transferido.paraAtendenteId() == null);
+                dados.put("paraAtendenteId", idOuNulo(transferido.paraAtendenteId()));
+                yield new Anotacao(
+                        "ATENDIMENTO_TRANSFERIDO",
+                        "Atendimento transferido de "
+                                + rotulo(transferido.deAtendenteId())
+                                + " para "
+                                + rotulo(transferido.paraAtendenteId())
+                                + " por "
+                                + nome(transferido.quemTransferiu())
+                                + ".",
+                        "USUARIO",
+                        transferido.quemTransferiu(),
+                        dados);
+            }
 
             case EventoDeAtendimento.AtendimentoFinalizado finalizado -> new Anotacao(
                     "ATENDIMENTO_FINALIZADO",
-                    "Atendimento finalizado por " + finalizado.quemFinalizou() + ".",
-                    "USUARIO");
+                    "Atendimento finalizado por " + nome(finalizado.quemFinalizou()) + ".",
+                    "USUARIO",
+                    finalizado.quemFinalizou(),
+                    Map.of());
         };
     }
 
-    private static String rotulo(UUID atendenteId) {
-        return atendenteId == null ? "IA" : atendenteId.toString();
+    private String rotulo(UUID atendenteId) {
+        return atendenteId == null ? "IA" : nome(atendenteId);
     }
 
-    private record Anotacao(String tipo, String descricao, String origem) {}
+    private String nome(UUID usuarioId) {
+        return geral.query(
+                        "SELECT nome FROM usuario WHERE id = ?",
+                        (linha, indice) -> linha.getString("nome"),
+                        usuarioId)
+                .stream()
+                .findFirst()
+                .orElse(usuarioId.toString());
+    }
+
+    private String serializar(Map<String, Object> dados) {
+        try {
+            return json.writeValueAsString(dados);
+        } catch (JsonProcessingException erro) {
+            throw new IllegalStateException("Falha ao serializar dados da timeline", erro);
+        }
+    }
+
+    private static String idOuNulo(UUID id) {
+        return id == null ? null : id.toString();
+    }
+
+    private record Anotacao(
+            String tipo, String descricao, String origem, UUID atorId, Map<String, Object> dados) {}
 }

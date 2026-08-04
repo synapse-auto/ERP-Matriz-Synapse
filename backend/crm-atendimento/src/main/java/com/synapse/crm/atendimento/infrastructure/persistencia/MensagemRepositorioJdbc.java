@@ -51,7 +51,11 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
             """;
 
     private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + " FROM mensagem"
-            + " WHERE atendimento_id = ? ORDER BY enviado_em DESC LIMIT ?";
+            + " WHERE atendimento_id = ? ORDER BY enviado_em DESC, id DESC LIMIT ?";
+
+    private static final String SQL_ANTERIORES = "SELECT " + COLUNAS + " FROM mensagem"
+            + " WHERE atendimento_id = ? AND (enviado_em, id) < (?, ?)"
+            + " ORDER BY enviado_em DESC, id DESC LIMIT ?";
 
     // enviado_em > ? no WHERE: alem de filtro, e a chave de particao — o
     // planejador poda as particoes fora da janela em vez de varrer todas.
@@ -93,6 +97,22 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     public List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite) {
         TransacaoObrigatoria.exigir("ultimasDoAtendimento");
         return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
+    }
+
+    @Override
+    public List<Mensagem> anteriores(
+            UUID atendimentoId, Instant cursorEnviadoEm, UUID cursorId, int limite) {
+        TransacaoObrigatoria.exigir("anteriores");
+        if (cursorEnviadoEm == null) {
+            return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
+        }
+        return chat.query(
+                SQL_ANTERIORES,
+                MAPEADOR,
+                atendimentoId,
+                Timestamp.from(cursorEnviadoEm),
+                cursorId,
+                limite);
     }
 
     @Override

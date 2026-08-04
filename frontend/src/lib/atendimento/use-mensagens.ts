@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { type InfiniteData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
-import { mensagensDesde } from "./api";
+import { mensagensDesde, paginaMensagens } from "./api";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
-import type { MensagemResposta } from "./types";
+import type { MensagemResposta, PaginaMensagens } from "./types";
 
-/**
- * Histórico de uma conversa: carga inicial via `useQuery`, atualizado depois de forma incremental
- * (nunca refetch da lista inteira) por dois caminhos — eventos WS em tempo real e o backfill que
- * roda toda vez que a conexão volta de uma queda (reconciliação, RNF-CRM-01).
- */
+type DadosDoHistorico = InfiniteData<PaginaMensagens, string | null>;
+
+/** Historico por cursor, somado ao fluxo incremental do WebSocket e a reconciliacao de reconexao. */
 export function useMensagens(
   atendimentoId: string | null,
   conexao: ConexaoTempoReal,
@@ -22,13 +20,33 @@ export function useMensagens(
   const queryKey = ["mensagens", atendimentoId] as const;
   const ultimoInstanteRef = useRef<string | null>(null);
 
-  const query = useQuery({
+  const query = useInfiniteQuery({
     queryKey,
-    queryFn: () => mensagensDesde(atendimentoId as string),
+    queryFn: ({ pageParam }) => paginaMensagens(atendimentoId as string, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
     enabled: atendimentoId != null,
   });
 
-  // Assina a conversa aberta; desassina a anterior automaticamente (ConexaoTempoReal.abrirConversa).
+  const mensagens = useMemo(
+    () =>
+      query.data
+        ? [...query.data.pages].reverse().flatMap((pagina) => pagina.mensagens)
+        : [],
+    [query.data],
+  );
+
+  function atualizarPaginaRecente(
+    atualizador: (mensagensAtuais: MensagemResposta[]) => MensagemResposta[],
+  ) {
+    queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) => {
+      if (!atual || atual.pages.length === 0) return atual;
+      const pages = [...atual.pages];
+      pages[0] = { ...pages[0], mensagens: atualizador(pages[0].mensagens) };
+      return { ...atual, pages };
+    });
+  }
+
   useEffect(() => {
     ultimoInstanteRef.current = null;
     if (!atendimentoId) {
@@ -48,59 +66,47 @@ export function useMensagens(
           statusEntrega: evento.dados.statusEntrega,
           enviadoEm: evento.dados.enviadoEm,
         };
-        queryClient.setQueryData<MensagemResposta[]>(queryKey, (atual) =>
-          mesclarMensagens(atual ?? [], [nova]),
-        );
+        atualizarPaginaRecente((atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;
       } else if (evento.tipo === "STATUS") {
-        queryClient.setQueryData<MensagemResposta[]>(queryKey, (atual) =>
-          (atual ?? []).map((mensagem) =>
-            mensagem.id === evento.dados.mensagemId
-              ? { ...mensagem, statusEntrega: evento.dados.statusEntrega }
-              : mensagem,
-          ),
+        queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
+          atual
+            ? {
+                ...atual,
+                pages: atual.pages.map((pagina) => ({
+                  ...pagina,
+                  mensagens: pagina.mensagens.map((mensagem) =>
+                    mensagem.id === evento.dados.mensagemId
+                      ? { ...mensagem, statusEntrega: evento.dados.statusEntrega }
+                      : mensagem,
+                  ),
+                })),
+              }
+            : atual,
         );
       } else {
-        // TRANSFERENCIA/FINALIZACAO: a conversa em si não muda de conteúdo, mas o card na lista
-        // (dono, status) sim.
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
     });
     return () => conexao.fecharConversa();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reage só a troca de conversa
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a assinatura muda somente com a conversa
   }, [atendimentoId]);
 
-  // Acompanha o instante mais recente já visto, para o backfill de reconexão.
   useEffect(() => {
-    const mensagens = query.data;
-    if (!mensagens || mensagens.length === 0) {
-      return;
-    }
+    if (mensagens.length === 0) return;
     const maisRecente = mensagens.reduce((a, b) => (a.enviadoEm > b.enviadoEm ? a : b));
     if (!ultimoInstanteRef.current || maisRecente.enviadoEm > ultimoInstanteRef.current) {
       ultimoInstanteRef.current = maisRecente.enviadoEm;
     }
-  }, [query.data]);
+  }, [mensagens]);
 
-  // Backfill de reconexão: só dispara quando a conexão volta a "conectado" DEPOIS de já termos
-  // uma carga inicial (ultimoInstanteRef setado) — a primeira carga já é coberta pelo useQuery
-  // acima, então não duplicamos a busca aqui. Deliberadamente fora do array de deps: atendimentoId
-  // e queryKey precisam ser lidos com o valor corrente no momento em que a conexão reconecta, não
-  // disparar o efeito de novo a cada troca de conversa (isso já é tratado pelo efeito acima).
   useEffect(() => {
-    if (estadoConexao !== "conectado" || !atendimentoId || !ultimoInstanteRef.current) {
-      return;
-    }
+    if (estadoConexao !== "conectado" || !atendimentoId || !ultimoInstanteRef.current) return;
     mensagensDesde(atendimentoId, ultimoInstanteRef.current).then((novas) => {
-      if (novas.length === 0) {
-        return;
-      }
-      queryClient.setQueryData<MensagemResposta[]>(queryKey, (atual) =>
-        mesclarMensagens(atual ?? [], novas),
-      );
+      if (novas.length > 0) atualizarPaginaRecente((atuais) => mesclarMensagens(atuais, novas));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage a transição de estado da conexão
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reage somente a transicao da conexao
   }, [estadoConexao]);
 
-  return query;
+  return { ...query, data: mensagens };
 }

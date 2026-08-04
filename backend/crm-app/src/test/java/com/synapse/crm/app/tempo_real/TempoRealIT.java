@@ -385,7 +385,7 @@ class TempoRealIT extends PostgresIT {
             HttpHeaders cabecalhos = new HttpHeaders();
             cabecalhos.setBearerAuth(tokenDe("ana@dev.local"));
             ResponseEntity<String> resposta = http.exchange(
-                    "/api/v1/atendimentos/" + atendimentoId + "/mensagens?desde=" + antesDaQueda,
+                    "/api/v1/atendimentos/" + atendimentoId + "/mensagens/desde?desde=" + antesDaQueda,
                     HttpMethod.GET,
                     new HttpEntity<>(cabecalhos),
                     String.class);

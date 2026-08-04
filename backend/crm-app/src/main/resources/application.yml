@@ -197,6 +197,8 @@ synapse:
   # no primeiro envio das 9h.
   # -------------------------------------------------------------------------
   atendimento:
+    historico:
+      tamanho-pagina: ${HISTORICO_MENSAGENS_TAMANHO_PAGINA:50}
     particao:
       meses-a-frente: ${MENSAGEM_PARTICAO_MESES_A_FRENTE:3}
       # Quantos meses alem do corrente precisam existir para o boot passar.

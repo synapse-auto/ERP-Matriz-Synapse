@@ -185,6 +185,38 @@ class PainelDoLeadIT extends PostgresIT {
         assertThat(corpo).doesNotContain("tokenRef").doesNotContain("identificadorExterno");
     }
 
+    @Test
+    @DisplayName("timeline usa nome atual do ator e descricao como fallback para linha legada")
+    void timeline_nomeAtualEFallbackLegado() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        String nomeOriginal = jdbc.queryForObject(
+                "SELECT nome FROM usuario WHERE id = ?", String.class, ana);
+        jdbc.update(
+                """
+                INSERT INTO evento_timeline
+                    (lead_id, tipo, descricao, origem, ator_id, dados, criado_em)
+                VALUES (?, 'ATENDIMENTO_FINALIZADO', 'Snapshot anterior', 'USUARIO', ?, '{}'::jsonb, now()),
+                       (?, 'ATENDIMENTO_FINALIZADO', 'Evento legado legivel', 'USUARIO', NULL, '{}'::jsonb, now() - interval '1 second')
+                """,
+                leadDaAna,
+                ana,
+                leadDaAna);
+
+        try {
+            jdbc.update("UPDATE usuario SET nome = ? WHERE id = ?", "Ana Nome Atual E13", ana);
+            String corpo = comoAna(
+                            HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/timeline", null)
+                    .getBody();
+
+            assertThat(corpo)
+                    .contains("Atendimento finalizado por Ana Nome Atual E13.")
+                    .contains("Evento legado legivel")
+                    .doesNotContain("Snapshot anterior");
+        } finally {
+            jdbc.update("UPDATE usuario SET nome = ? WHERE id = ?", nomeOriginal, ana);
+        }
+    }
+
     private UUID criarLead(
             String nome, UUID atendente, UUID canal, int atendimentos, int mensagens) {
         UUID id = UUID.randomUUID();

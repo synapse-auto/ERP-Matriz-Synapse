@@ -97,7 +97,9 @@
         "lido": "Lido",
         "falhou": "Falha ao enviar"
       },
-      "reenviar": "Reenviar"
+      "reenviar": "Reenviar",
+      "carregarAnteriores": "Carregar mensagens anteriores",
+      "carregandoAnteriores": "Carregando mensagens..."
     },
     "composer": {
       "placeholder": "Digite uma mensagem...",

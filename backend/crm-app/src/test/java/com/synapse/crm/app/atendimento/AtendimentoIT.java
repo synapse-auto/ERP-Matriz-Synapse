@@ -203,7 +203,17 @@ class AtendimentoIT extends PostgresIT {
             assertThat(donoDoLead(leadSemDono)).isEqualTo(idBruno);
             assertThat(tiposDaTimeline(leadSemDono)).contains("LEAD_TRANSFERIDO_POR_ENVIO");
             assertThat(descricoesDaTimeline(leadSemDono))
-                    .anySatisfy(descricao -> assertThat(descricao).contains(idBruno.toString()));
+                    .anySatisfy(descricao -> assertThat(descricao).contains(nomeDoUsuario(idBruno)));
+            assertThat(jdbc.queryForObject(
+                            "SELECT ator_id FROM evento_timeline WHERE lead_id = ?",
+                            UUID.class,
+                            leadSemDono))
+                    .isEqualTo(idBruno);
+            assertThat(jdbc.queryForObject(
+                            "SELECT dados->>'transferiu' FROM evento_timeline WHERE lead_id = ?",
+                            String.class,
+                            leadSemDono))
+                    .isEqualTo("true");
         }
 
         /**
@@ -236,7 +246,8 @@ class AtendimentoIT extends PostgresIT {
             assertThat(resultado.transferiuOLead()).isTrue();
             assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
             assertThat(descricoesDaTimeline(leadDaAna))
-                    .anySatisfy(descricao -> assertThat(descricao).contains("antes de " + idAna));
+                    .anySatisfy(descricao ->
+                            assertThat(descricao).contains("antes de " + nomeDoUsuario(idAna)));
         }
 
         /** Responder o proprio lead nao e transferencia: nao pode gerar evento de troca de dono. */
@@ -429,6 +440,10 @@ class AtendimentoIT extends PostgresIT {
     private String statusDoLead(UUID leadId) {
         return jdbc.queryForObject(
                 "SELECT status_basico::text FROM lead WHERE id = ?", String.class, leadId);
+    }
+
+    private String nomeDoUsuario(UUID usuarioId) {
+        return jdbc.queryForObject("SELECT nome FROM usuario WHERE id = ?", String.class, usuarioId);
     }
 
     private int contarAtendimentos(UUID leadId) {

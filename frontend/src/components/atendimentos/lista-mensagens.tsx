@@ -6,6 +6,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTextos } from "@/lib/config/textos-provider";
 import type { MensagemResposta } from "@/lib/atendimento/types";
@@ -16,14 +17,23 @@ type Props = {
   mensagens: MensagemResposta[];
   carregando: boolean;
   onReenviar: (mensagem: MensagemResposta) => void;
+  temMais: boolean;
+  carregandoMais: boolean;
+  onCarregarMais: () => void;
 };
 
 /**
- * Virtualizada independente de paginação: o backend hoje só tem `GET /mensagens?desde=` (traz a
- * conversa inteira, sem cursor real — gap documentado no plano). Virtualizar aqui já protege o
- * render mesmo sem paginação no fetch.
+ * A lista virtualizada recebe paginas por cursor e busca as anteriores ao chegar ao topo. Mensagens
+ * novas entram no fim sem alterar o cursor que ancora o historico ja percorrido.
  */
-export function ListaMensagens({ mensagens, carregando, onReenviar }: Props) {
+export function ListaMensagens({
+  mensagens,
+  carregando,
+  onReenviar,
+  temMais,
+  carregandoMais,
+  onCarregarMais,
+}: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +75,13 @@ export function ListaMensagens({ mensagens, carregando, onReenviar }: Props) {
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-2">
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto px-4 py-2"
+        onScroll={(evento) => {
+          if (evento.currentTarget.scrollTop < 80 && temMais && !carregandoMais) onCarregarMais();
+        }}
+      >
         {carregando ? (
           <div className="space-y-3 py-2">
             {Array.from({ length: 6 }).map((_, indice) => (
@@ -75,7 +91,23 @@ export function ListaMensagens({ mensagens, carregando, onReenviar }: Props) {
         ) : filtradas.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">{textos.estados.vazio}</p>
         ) : (
-          <div style={{ height: virtualizador.getTotalSize(), position: "relative" }}>
+          <>
+            {temMais && (
+              <div className="flex justify-center py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onCarregarMais}
+                disabled={carregandoMais}
+              >
+                {carregandoMais
+                  ? textos.atendimentos.mensagem.carregandoAnteriores
+                  : textos.atendimentos.mensagem.carregarAnteriores}
+              </Button>
+              </div>
+            )}
+            <div style={{ height: virtualizador.getTotalSize(), position: "relative" }}>
             {virtualizador.getVirtualItems().map((item) => {
               const mensagem = filtradas[item.index];
               return (
@@ -101,7 +133,8 @@ export function ListaMensagens({ mensagens, carregando, onReenviar }: Props) {
                 </div>
               );
             })}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

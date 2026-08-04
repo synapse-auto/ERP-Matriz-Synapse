@@ -62,7 +62,7 @@ export function calcularBackoffMs(tentativa: number, comJitter = true): number {
 }
 
 /**
- * Funde o backfill HTTP (`GET /mensagens?desde=`) com o que já estava no cache, por `id` — uma
+ * Funde o backfill HTTP (`GET /mensagens/desde?desde=`) com o que já estava no cache, por `id` — uma
  * mensagem que chega tanto pelo backfill quanto por um evento WS não pode duplicar na tela, e uma
  * mudança de status (PENDENTE → ENVIADO) precisa substituir a entrada antiga, não somar outra.
  */
