@@ -6,6 +6,11 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -26,6 +31,8 @@ import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 /** Historico paginado e reconciliacao incremental da conversa. */
 @RestController
 @RequestMapping("/api/v1/atendimentos")
+@Tag(name = "Mensagens dos atendimentos", description = "Histórico paginado e reconciliação após lacunas do WebSocket.")
+@SecurityRequirement(name = "bearerAuth")
 class AtendimentoMensagensController {
 
     private final ListarHistoricoMensagensUseCase listarHistorico;
@@ -48,9 +55,19 @@ class AtendimentoMensagensController {
     }
 
     /** Cursor opaco e composto por instante + id; mensagens novas nao deslocam a proxima pagina. */
+    @Operation(
+            summary = "Listar histórico de mensagens",
+            description = "Navega para trás com cursor opaco e estável; o tamanho da página vem da configuração da instância.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Página do histórico e próximo cursor, quando houver."),
+                @ApiResponse(responseCode = "400", description = "Cursor malformado."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")
+            })
     @GetMapping("/{id}/mensagens")
     PaginaMensagensResposta mensagens(
-            @PathVariable UUID id, @RequestParam(required = false) String cursor) {
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Cursor opaco devolvido pela página anterior.")
+                    @RequestParam(required = false) String cursor) {
         var pagina = listarHistorico.executar(id, decodificar(cursor), tamanhoPagina);
         return new PaginaMensagensResposta(
                 pagina.mensagens().stream()
@@ -60,8 +77,18 @@ class AtendimentoMensagensController {
     }
 
     /** Lacuna curta do WebSocket; deliberadamente separada da navegacao do historico. */
+    @Operation(
+            summary = "Reconciliar mensagens desde um instante",
+            description = "Retorna a lacuna curta após perda ou reconexão do WebSocket; não substitui a paginação do histórico.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagens posteriores ao instante informado."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")
+            })
     @GetMapping("/{id}/mensagens/desde")
-    List<MensagemResposta> mensagensDesde(@PathVariable UUID id, @RequestParam Instant desde) {
+    List<MensagemResposta> mensagensDesde(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Instante inicial exclusivo em UTC.", required = true, example = "2026-08-05T12:00:00Z")
+                    @RequestParam Instant desde) {
         return listarDesde.executar(id, desde).stream()
                 .map(mensagem -> MensagemResposta.de(mensagem, armazenamento, midiaPropriedades))
                 .toList();

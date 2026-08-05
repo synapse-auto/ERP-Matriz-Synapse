@@ -130,15 +130,17 @@ class ContratoInternalV1IT extends PostgresIT {
     }
 
     /**
-     * Arvore do OpenAPI, sem {@code operationId}/{@code tags} (ruido, ver javadoc da classe) e com
-     * chaves de objeto em ordem alfabetica — para que o diff mostre so o que realmente mudou.
+     * Arvore do OpenAPI sem metadados editoriais ({@code operationId}, tags, resumo, descricao e
+     * seguranca declarativa) e com chaves em ordem alfabetica. O snapshot continua protegendo
+     * rotas, parametros, corpos, codigos HTTP e schemas — a forma que quebra o consumidor.
      */
     private static Object normalizar(JsonNode no) {
         if (no.isObject()) {
             TreeMap<String, Object> mapa = new TreeMap<>();
             no.fields().forEachRemaining(entrada -> {
                 String chave = entrada.getKey();
-                if (!"operationId".equals(chave) && !"tags".equals(chave)) {
+                if (!Set.of("operationId", "tags", "summary", "description", "security")
+                        .contains(chave)) {
                     mapa.put(chave, normalizar(entrada.getValue()));
                 }
             });

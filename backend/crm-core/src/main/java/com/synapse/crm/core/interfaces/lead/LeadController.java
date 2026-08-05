@@ -8,6 +8,12 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,6 +43,8 @@ import com.synapse.crm.core.domain.lead.StatusBasicoLead;
  */
 @RestController
 @RequestMapping("/api/v1/leads")
+@Tag(name = "Leads", description = "Consulta e edição de leads sob as regras de visibilidade comercial.")
+@SecurityRequirement(name = "bearerAuth")
 class LeadController {
 
     private final ListarLeadsUseCase listar;
@@ -50,22 +58,46 @@ class LeadController {
     }
 
     /** Listagem: devolve o resumo, que nao carrega notas nem resumo de IA. */
+    @Operation(
+            summary = "Listar leads",
+            description = "Retorna somente o resumo dos leads visíveis; notas, resumo de IA e dados customizados não saem na listagem.",
+            responses = @ApiResponse(responseCode = "200", description = "Leads visíveis."))
     @GetMapping
     List<LeadDaLista> listar(
-            @RequestParam(required = false) String busca,
-            @RequestParam(required = false) StatusBasicoLead status) {
+            @Parameter(description = "Busca textual por dados básicos do lead.", example = "Maria")
+                    @RequestParam(required = false) String busca,
+            @Parameter(description = "Status básico do lead.")
+                    @RequestParam(required = false) StatusBasicoLead status) {
         return listar.executar(new FiltroLead(busca, status)).stream()
                 .map(LeadDaLista::de)
                 .toList();
     }
 
+    @Operation(
+            summary = "Obter ficha do lead",
+            description = "Retorna a ficha completa quando o lead está dentro do recorte de visibilidade do usuário.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Ficha completa do lead."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+            })
     @GetMapping("/{id}")
-    FichaDoLead porId(@PathVariable UUID id) {
+    FichaDoLead porId(
+            @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID id) {
         return obter.executar(id).map(FichaDoLead::de).orElseThrow(LeadController::naoEncontrado);
     }
 
+    @Operation(
+            summary = "Atualizar ficha do lead",
+            description = "Atualiza apenas os campos enviados. Não permite trocar o responsável nem escrever o resumo de IA.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Ficha atualizada."),
+                @ApiResponse(responseCode = "400", description = "Dados básicos ou customizados inválidos."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+            })
     @PutMapping("/{id}")
-    FichaDoLead atualizar(@PathVariable UUID id, @Valid @RequestBody AtualizacaoRequisicao requisicao) {
+    FichaDoLead atualizar(
+            @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody AtualizacaoRequisicao requisicao) {
         return atualizar
                 .executar(id, requisicao.paraDados())
                 .map(FichaDoLead::de)
@@ -124,18 +156,30 @@ class LeadController {
      * Nao aceita {@code resumoIa} porque quem escreve e a Automacao.
      */
     record AtualizacaoRequisicao(
-            @Size(max = 150) String nome,
-            String fotoUrl,
-            @Size(max = 30) String telefone,
-            @Size(max = 200) String email,
-            @Size(max = 14) String cpf,
-            @Size(max = 150) String empresa,
-            @Size(max = 200) String localizacao,
-            UUID canalOrigemId,
-            StatusBasicoLead status,
-            UUID etapaAtendimentoId,
-            String notas,
-            Map<String, Object> dadosCustomizados) {
+            @Schema(description = "Nome; ausente preserva o valor atual.", example = "Maria Silva", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 150) String nome,
+            @Schema(description = "URL da foto; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    String fotoUrl,
+            @Schema(description = "Telefone; ausente preserva o valor atual.", example = "+5561999999999", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 30) String telefone,
+            @Schema(description = "E-mail; ausente preserva o valor atual.", example = "maria@example.invalid", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 200) String email,
+            @Schema(description = "CPF; ausente preserva o valor atual.", example = "00000000000", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 14) String cpf,
+            @Schema(description = "Empresa; ausente preserva o valor atual.", example = "Empresa Exemplo", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 150) String empresa,
+            @Schema(description = "Localização; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 200) String localizacao,
+            @Schema(description = "Canal de origem; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    UUID canalOrigemId,
+            @Schema(description = "Status básico; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    StatusBasicoLead status,
+            @Schema(description = "Etapa do funil; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    UUID etapaAtendimentoId,
+            @Schema(description = "Notas internas; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    String notas,
+            @Schema(description = "Mapa validado contra o catálogo de campos customizados.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    Map<String, Object> dadosCustomizados) {
 
         DadosDeAtualizacaoLead paraDados() {
             return new DadosDeAtualizacaoLead(

@@ -15,6 +15,12 @@
               }
             },
             "description" : "OK"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
           }
         }
       }
@@ -31,6 +37,12 @@
               }
             },
             "description" : "OK"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
           }
         }
       }
@@ -55,6 +67,15 @@
               }
             },
             "description" : "OK"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
+          },
+          "404" : {
+            "description" : "Chave nao encontrada."
           }
         }
       }
@@ -74,6 +95,12 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
           }
         }
       }
@@ -93,6 +120,12 @@
               }
             },
             "description" : "OK"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
           }
         }
       }
@@ -112,6 +145,12 @@
               }
             },
             "description" : "OK"
+          },
+          "401" : {
+            "description" : "Credencial ausente, invalida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial valida sem permissao para a operacao."
           }
         }
       }

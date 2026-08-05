@@ -3,6 +3,10 @@ package com.synapse.crm.core.interfaces.lead;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +24,10 @@ import com.synapse.crm.core.domain.tag.Tag;
 /** Consulta e edita tags de um lead sem expor uma consulta que contorne a Specification. */
 @RestController
 @RequestMapping("/api/v1/leads")
+@io.swagger.v3.oas.annotations.tags.Tag(
+        name = "Tags dos leads",
+        description = "Consulta e vínculo de tags sem contornar a visibilidade dos leads.")
+@SecurityRequirement(name = "bearerAuth")
 class TagsDoLeadController {
 
     private final ListarTagsDoLeadUseCase listar;
@@ -35,22 +43,29 @@ class TagsDoLeadController {
         this.desvincular = desvincular;
     }
 
+    @Operation(summary = "Listar tags do lead", description = "Retorna as tags de um lead visível.", responses = {@ApiResponse(responseCode = "200", description = "Tags vinculadas."), @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")})
     @GetMapping("/{leadId}/tags")
-    List<TagResposta> listar(@PathVariable UUID leadId) {
+    List<TagResposta> listar(@Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID leadId) {
         return listar.executar(leadId)
                 .map(TagsDoLeadController::responder)
                 .orElseThrow(TagsDoLeadController::naoEncontrado);
     }
 
+    @Operation(summary = "Vincular tag ao lead", description = "Vincula uma tag existente a um lead visível.", responses = {@ApiResponse(responseCode = "200", description = "Lista atualizada de tags."), @ApiResponse(responseCode = "404", description = "Lead ou tag inexistente, ou lead não visível.")})
     @PutMapping("/{leadId}/tags/{tagId}")
-    List<TagResposta> vincular(@PathVariable UUID leadId, @PathVariable UUID tagId) {
+    List<TagResposta> vincular(
+            @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID leadId,
+            @Parameter(description = "Identificador da tag.", required = true) @PathVariable UUID tagId) {
         return vincular.executar(leadId, tagId)
                 .map(TagsDoLeadController::responder)
                 .orElseThrow(TagsDoLeadController::naoEncontrado);
     }
 
+    @Operation(summary = "Desvincular tag do lead", description = "Remove o vínculo entre uma tag e um lead visível.", responses = {@ApiResponse(responseCode = "200", description = "Lista atualizada de tags."), @ApiResponse(responseCode = "404", description = "Lead ou tag inexistente, ou lead não visível.")})
     @DeleteMapping("/{leadId}/tags/{tagId}")
-    List<TagResposta> desvincular(@PathVariable UUID leadId, @PathVariable UUID tagId) {
+    List<TagResposta> desvincular(
+            @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID leadId,
+            @Parameter(description = "Identificador da tag.", required = true) @PathVariable UUID tagId) {
         return desvincular.executar(leadId, tagId)
                 .map(TagsDoLeadController::responder)
                 .orElseThrow(TagsDoLeadController::naoEncontrado);

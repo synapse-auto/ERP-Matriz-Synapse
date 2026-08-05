@@ -5,6 +5,13 @@ import java.util.List;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -37,6 +44,8 @@ import com.synapse.crm.core.domain.filtro.FiltroInvalidoException;
  */
 @RestController
 @RequestMapping("/api/v1/leads/filtrar")
+@Tag(name = "Filtro de leads", description = "Consultas de leads por árvores AND/OR de critérios.")
+@SecurityRequirement(name = "bearerAuth")
 class FiltroDeLeadsController {
 
     private final FiltrarLeadsUseCase filtrar;
@@ -52,14 +61,37 @@ class FiltroDeLeadsController {
         this.camposCustomizados = camposCustomizados;
     }
 
+    @Operation(
+            summary = "Filtrar leads",
+            description = "Executa a árvore de critérios sobre o mesmo recorte de visibilidade usado nas demais consultas de lead.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resumos dos leads correspondentes."),
+                @ApiResponse(responseCode = "400", description = "Campo, operador, valor ou estrutura da árvore inválido.")
+            })
     @PostMapping
-    List<LeadDaLista> filtrar(@Valid @RequestBody FiltroRequisicao requisicao) {
+    List<LeadDaLista> filtrar(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            description = "Árvore de critérios simples ou compostos.",
+                            required = true,
+                            content = @Content(examples = @ExampleObject(
+                                    name = "Status e empresa",
+                                    value = """
+                                            {"criterio":{"tipo":"COMPOSTO","conector":"AND","criterios":[{"tipo":"SIMPLES","campo":"status","operador":"IGUAL","valor":"ATIVO"},{"tipo":"SIMPLES","campo":"empresa","operador":"CONTEM","valor":"Exemplo"}]}}
+                                            """)))
+                    @Valid @RequestBody FiltroRequisicao requisicao) {
         return filtrar.executar(requisicao.paraDominio(camposCustomizados)).stream()
                 .map(LeadDaLista::de)
                 .toList();
     }
 
     /** Total sob o filtro montado, antes de salvar. A tela chama a cada mudanca de criterio. */
+    @Operation(
+            summary = "Contar leads filtrados",
+            description = "Conta os leads correspondentes sem salvar o filtro; útil para pré-visualização na montagem da árvore.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Total dentro do recorte de visibilidade."),
+                @ApiResponse(responseCode = "400", description = "Campo, operador, valor ou estrutura da árvore inválido.")
+            })
     @PostMapping("/contagem")
     Contagem contar(@Valid @RequestBody FiltroRequisicao requisicao) {
         return new Contagem(contar.executar(requisicao.paraDominio(camposCustomizados)));
@@ -88,7 +120,9 @@ class FiltroDeLeadsController {
      * <p>Um objeto em volta do criterio, e nao o criterio na raiz, para que ordenacao e paginacao
      * caibam depois sem quebrar quem ja integrou.
      */
-    record FiltroRequisicao(@NotNull CriterioRequisicao criterio) {
+    record FiltroRequisicao(
+            @Schema(description = "Nó raiz da árvore.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull CriterioRequisicao criterio) {
 
         FiltroDeLeads paraDominio(CampoCustomizadoRepositorio camposCustomizados) {
             return new FiltroDeLeads(criterio.paraDominio(1, camposCustomizados));
@@ -108,13 +142,13 @@ class FiltroDeLeadsController {
      * niveis. Antes disso o proprio parser do Jackson ja recusa aninhamento absurdo.
      */
     record CriterioRequisicao(
-            String tipo,
-            String campo,
-            String operador,
-            String valor,
-            List<String> valores,
-            String conector,
-            List<CriterioRequisicao> criterios) {
+            @Schema(description = "SIMPLES ou COMPOSTO.", allowableValues = {"SIMPLES", "COMPOSTO"}) String tipo,
+            @Schema(description = "Apelido de campo fixo ou chave customizada; usado em nó SIMPLES.") String campo,
+            @Schema(description = "Operador compatível com o campo; usado em nó SIMPLES.") String operador,
+            @Schema(description = "Valor único; mutuamente exclusivo com valores.") String valor,
+            @Schema(description = "Lista para operadores EM e ENTRE; mutuamente exclusiva com valor.") List<String> valores,
+            @Schema(description = "AND ou OR; usado em nó COMPOSTO.", allowableValues = {"AND", "OR"}) String conector,
+            @Schema(description = "Filhos do nó COMPOSTO.") List<CriterioRequisicao> criterios) {
 
         private static final String SIMPLES = "SIMPLES";
         private static final String COMPOSTO = "COMPOSTO";

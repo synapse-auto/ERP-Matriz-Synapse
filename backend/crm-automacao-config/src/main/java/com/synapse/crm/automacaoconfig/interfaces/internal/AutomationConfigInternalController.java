@@ -8,6 +8,12 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +46,8 @@ import com.synapse.crm.automacaoconfig.domain.telemetria.TipoEventoAutomacao;
  */
 @RestController
 @RequestMapping("/internal/v1")
+@Tag(name = "Contrato interno da automação", description = "Contrato versionado consumido pelos processos de automação de cada instância.")
+@SecurityRequirement(name = "synapseToken")
 class AutomationConfigInternalController {
 
     private final ListarConfiguracoesAutomacaoUseCase listarConfiguracoes;
@@ -64,6 +72,10 @@ class AutomationConfigInternalController {
         this.canal = canal;
     }
 
+    @Operation(
+            summary = "Listar parâmetros da automação",
+            description = "Retorna todas as configurações e a capacidade do canal que condiciona o uso de templates.",
+            responses = @ApiResponse(responseCode = "200", description = "Configuração completa da automação."))
     @GetMapping("/automation-config")
     AutomationConfigResposta todosOsParametros() {
         List<ParametroResposta> parametros =
@@ -73,8 +85,16 @@ class AutomationConfigInternalController {
         return new AutomationConfigResposta(parametros, canal.exigeTemplateForaDaJanela());
     }
 
+    @Operation(
+            summary = "Obter parâmetro da automação",
+            description = "Retorna um parâmetro por sua chave estável.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Parâmetro encontrado."),
+                @ApiResponse(responseCode = "404", description = "Chave não encontrada.")
+            })
     @GetMapping("/automation-config/{chave}")
-    ParametroResposta umParametro(@PathVariable String chave) {
+    ParametroResposta umParametro(
+            @Parameter(description = "Chave estável do parâmetro.", required = true) @PathVariable String chave) {
         return obterConfiguracao
                 .executar(chave)
                 .map(ParametroResposta::de)
@@ -82,16 +102,28 @@ class AutomationConfigInternalController {
                         HttpStatus.NOT_FOUND, "configuracao nao encontrada: '" + chave + "'"));
     }
 
+    @Operation(
+            summary = "Listar regras de follow-up",
+            description = "Retorna as regras ativas de contato após períodos sem resposta.",
+            responses = @ApiResponse(responseCode = "200", description = "Regras de follow-up."))
     @GetMapping("/regras/follow-up")
     List<RegraFollowUpResposta> regrasDeFollowUp() {
         return listarFollowUp.executar().stream().map(RegraFollowUpResposta::de).toList();
     }
 
+    @Operation(
+            summary = "Listar regras de fidelização",
+            description = "Retorna as regras ativas de reativação por dias sem contato.",
+            responses = @ApiResponse(responseCode = "200", description = "Regras de fidelização."))
     @GetMapping("/regras/fidelizacao")
     List<RegraFidelizacaoResposta> regrasDeFidelizacao() {
         return listarFidelizacao.executar().stream().map(RegraFidelizacaoResposta::de).toList();
     }
 
+    @Operation(
+            summary = "Registrar evento da automação",
+            description = "Registra telemetria operacional sem expor detalhes internos no contrato.",
+            responses = @ApiResponse(responseCode = "204", description = "Evento registrado."))
     @PostMapping("/eventos")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void registrarEvento(@Valid @RequestBody EventoRequisicao requisicao) {
@@ -137,5 +169,7 @@ class AutomationConfigInternalController {
         }
     }
 
-    record EventoRequisicao(@NotNull TipoEventoAutomacao tipo) {}
+    record EventoRequisicao(
+            @Schema(description = "Tipo de evento aceito pelo contrato interno.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull TipoEventoAutomacao tipo) {}
 }

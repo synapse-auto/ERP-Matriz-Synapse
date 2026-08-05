@@ -8,6 +8,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,6 +39,8 @@ import com.synapse.crm.core.domain.lembrete.StatusLembrete;
 
 @RestController
 @RequestMapping("/api/v1/lembretes")
+@Tag(name = "Lembretes", description = "Agenda paginada de lembretes vinculados aos leads visíveis.")
+@SecurityRequirement(name = "bearerAuth")
 class LembreteController {
     private final CriarLembreteUseCase criar;
     private final ListarLembretesUseCase listar;
@@ -50,14 +58,29 @@ class LembreteController {
         this.tamanhoPagina = tamanhoPagina;
     }
 
+    @Operation(
+            summary = "Listar lembretes",
+            description = "Filtra lembretes por período e status. A página é baseada em zero e o tamanho vem da configuração da instância.",
+            responses = @ApiResponse(responseCode = "200", description = "Página de lembretes."))
     @GetMapping
-    PaginaResposta listar(@RequestParam(required = false) Instant inicio,
-            @RequestParam(required = false) Instant fim,
-            @RequestParam(required = false) StatusLembrete status,
-            @RequestParam(defaultValue = "0") int pagina) {
+    PaginaResposta listar(
+            @Parameter(description = "Início inclusivo do período em UTC.", example = "2026-08-05T08:00:00Z")
+                    @RequestParam(required = false) Instant inicio,
+            @Parameter(description = "Fim inclusivo do período em UTC.", example = "2026-08-05T18:30:00Z")
+                    @RequestParam(required = false) Instant fim,
+            @Parameter(description = "Status do lembrete.") @RequestParam(required = false) StatusLembrete status,
+            @Parameter(description = "Índice da página, começando em zero.", example = "0")
+                    @RequestParam(defaultValue = "0") int pagina) {
         return PaginaResposta.de(listar.executar(new FiltroLembretes(inicio, fim, status, pagina, tamanhoPagina)));
     }
 
+    @Operation(
+            summary = "Criar lembrete",
+            description = "Cria um lembrete manual para um lead dentro do recorte de visibilidade do usuário.",
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Lembrete criado."),
+                @ApiResponse(responseCode = "404", description = "Lead não encontrado ou não visível.")
+            })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Resposta criar(@Valid @RequestBody Criacao requisicao) {
@@ -65,15 +88,32 @@ class LembreteController {
                 .map(Resposta::de).orElseThrow(LembreteController::naoEncontrado);
     }
 
+    @Operation(
+            summary = "Atualizar lembrete",
+            description = "Substitui texto, horário e status de um lembrete acessível ao usuário.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Lembrete atualizado."),
+                @ApiResponse(responseCode = "404", description = "Lembrete não encontrado ou não visível.")
+            })
     @PutMapping("/{id}")
-    Resposta atualizar(@PathVariable UUID id, @Valid @RequestBody Alteracao requisicao) {
+    Resposta atualizar(
+            @Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody Alteracao requisicao) {
         return atualizar.executar(id, requisicao.texto(), requisicao.dataHora(), requisicao.status())
                 .map(Resposta::de).orElseThrow(LembreteController::naoEncontrado);
     }
 
+    @Operation(
+            summary = "Remover lembrete",
+            description = "Remove um lembrete acessível ao usuário autenticado.",
+            responses = {
+                @ApiResponse(responseCode = "204", description = "Lembrete removido."),
+                @ApiResponse(responseCode = "404", description = "Lembrete não encontrado ou não visível.")
+            })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void remover(@PathVariable UUID id) {
+    void remover(
+            @Parameter(description = "Identificador do lembrete.", required = true) @PathVariable UUID id) {
         if (!remover.executar(id)) throw naoEncontrado();
     }
 
@@ -81,8 +121,20 @@ class LembreteController {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Lembrete ou lead nao encontrado");
     }
 
-    record Criacao(@NotNull UUID leadId, @NotBlank String texto, @NotNull Instant dataHora) {}
-    record Alteracao(@NotBlank String texto, @NotNull Instant dataHora, @NotNull StatusLembrete status) {}
+    record Criacao(
+            @Schema(description = "Lead visível ao qual o lembrete pertence.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull UUID leadId,
+            @Schema(description = "Texto do lembrete.", example = "Retornar com o orçamento", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String texto,
+            @Schema(description = "Data e hora em UTC.", example = "2026-08-06T13:00:00Z", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull Instant dataHora) {}
+    record Alteracao(
+            @Schema(description = "Texto do lembrete.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String texto,
+            @Schema(description = "Data e hora em UTC.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull Instant dataHora,
+            @Schema(description = "Novo status.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull StatusLembrete status) {}
     record Resposta(UUID id, UUID leadId, String leadNome, UUID atendenteId, String atendenteNome,
             String texto, Instant dataHora, boolean origemAutomatica, StatusLembrete status) {
         static Resposta de(Lembrete l) {

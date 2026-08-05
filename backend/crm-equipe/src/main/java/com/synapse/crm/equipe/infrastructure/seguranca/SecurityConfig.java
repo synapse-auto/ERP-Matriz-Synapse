@@ -109,7 +109,12 @@ public class SecurityConfig {
                         // Documentacao gerada, nao segredo (E07 §2): a forma das rotas,
                         // nao dado de cliente. Publica para poder virar artefato do
                         // release sem autenticar o pipeline de CI contra a API.
-                        .requestMatchers(HttpMethod.GET, "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/v3/api-docs",
+                                "/v3/api-docs.yaml",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**")
                         .permitAll()
                         .anyRequest()
                         .authenticated())

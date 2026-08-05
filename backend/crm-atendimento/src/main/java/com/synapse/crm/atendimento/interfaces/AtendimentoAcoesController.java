@@ -8,6 +8,13 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +52,8 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
  */
 @RestController
 @RequestMapping("/api/v1/atendimentos")
+@Tag(name = "Ações de atendimento", description = "Envio, transferência e finalização de conversas visíveis.")
+@SecurityRequirement(name = "bearerAuth")
 class AtendimentoAcoesController {
 
     private final EnviarMensagemUseCase enviar;
@@ -69,6 +78,14 @@ class AtendimentoAcoesController {
         this.usuarioContext = usuarioContext;
     }
 
+    @Operation(
+            summary = "Enviar mensagem de texto",
+            description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o lead para quem enviou.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagem aceita para entrega."),
+                @ApiResponse(responseCode = "404", description = "Lead ou atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "422", description = "Canal fora da janela de texto livre.")
+            })
     @PostMapping("/mensagens")
     EnvioResposta enviar(@Valid @RequestBody EnviarMensagemRequisicao requisicao) {
         EnviarMensagemUseCase.Resultado resultado =
@@ -81,11 +98,26 @@ class AtendimentoAcoesController {
      * {@code /transferir} e {@code /finalizar} abaixo — resolvido para o lead aqui, porque
      * {@link EnviarMidiaUseCase} (como {@link EnviarMensagemUseCase}) trabalha em cima de lead.
      */
+    @Operation(
+            summary = "Enviar mensagem com mídia",
+            description = "Valida e armazena o arquivo, persiste a mensagem e agenda a entrega assíncrona pelo canal.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mídia aceita para entrega."),
+                @ApiResponse(responseCode = "400", description = "Arquivo não pôde ser lido."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "413", description = "Arquivo excede o limite configurado."),
+                @ApiResponse(responseCode = "422", description = "Tipo de mídia não permitido ou canal fora da janela.")
+            })
     @PostMapping(value = "/{id}/mensagens/midia", consumes = "multipart/form-data")
     EnvioResposta enviarMidia(
-            @PathVariable UUID id,
-            @RequestPart("arquivo") MultipartFile arquivo,
-            @RequestParam(required = false) String legenda) {
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Parameter(
+                            description = "Arquivo binário. Tipo e limite são validados pela configuração da instância.",
+                            required = true,
+                            content = @Content(schema = @Schema(type = "string", format = "binary")))
+                    @RequestPart("arquivo") MultipartFile arquivo,
+            @Parameter(description = "Legenda opcional da mídia.")
+                    @RequestParam(required = false) String legenda) {
         UUID leadId = resolverLead.executar(id);
         byte[] conteudo;
         try {
@@ -99,9 +131,19 @@ class AtendimentoAcoesController {
     }
 
     /** {@code paraAtendenteId} ausente devolve o atendimento para a IA. */
+    @Operation(
+            summary = "Transferir atendimento",
+            description = "Transfere para o atendente informado; corpo ausente ou paraAtendenteId nulo devolve para a IA. Atendente comum só pode assumir para si ou devolver.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
+                @ApiResponse(responseCode = "403", description = "Destino não permitido para atendente comum."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "Atendimento já finalizado.")
+            })
     @PostMapping("/{id}/transferir")
     AtendimentoResumo transferir(
-            @PathVariable UUID id, @RequestBody(required = false) TransferenciaRequisicao requisicao) {
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @RequestBody(required = false) TransferenciaRequisicao requisicao) {
         UUID paraAtendenteId = requisicao == null ? null : requisicao.paraAtendenteId();
         UUID quemPediu = usuarioContext.atual().id();
         exigirTransferenciaPermitida(paraAtendenteId, quemPediu);
@@ -128,8 +170,17 @@ class AtendimentoAcoesController {
         }
     }
 
+    @Operation(
+            summary = "Finalizar atendimento",
+            description = "Finaliza uma conversa visível em nome do usuário autenticado.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Atendimento finalizado."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "Atendimento já estava finalizado.")
+            })
     @PostMapping("/{id}/finalizar")
-    AtendimentoResumo finalizar(@PathVariable UUID id) {
+    AtendimentoResumo finalizar(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id) {
         Atendimento atualizado = finalizar.executar(id, usuarioContext.atual().id());
         return AtendimentoResumo.de(atualizado);
     }
@@ -172,9 +223,15 @@ class AtendimentoAcoesController {
         return problema;
     }
 
-    record EnviarMensagemRequisicao(@NotNull UUID leadId, @NotBlank String conteudo) {}
+    record EnviarMensagemRequisicao(
+            @Schema(description = "Lead visível que receberá a mensagem.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull UUID leadId,
+            @Schema(description = "Conteúdo textual.", example = "Olá! Posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String conteudo) {}
 
-    record TransferenciaRequisicao(UUID paraAtendenteId) {}
+    record TransferenciaRequisicao(
+            @Schema(description = "Destino; nulo devolve o atendimento para a IA.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    UUID paraAtendenteId) {}
 
     record EnvioResposta(
             UUID atendimentoId,

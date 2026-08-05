@@ -8,6 +8,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,6 +38,8 @@ import com.synapse.crm.core.domain.mensagemrapida.MensagemRapida;
 
 @RestController
 @RequestMapping("/api/v1/mensagens-rapidas")
+@Tag(name = "Mensagens rápidas", description = "Atalhos de texto reutilizáveis no atendimento.")
+@SecurityRequirement(name = "bearerAuth")
 class MensagemRapidaController {
     private final ListarMensagensRapidasUseCase listar;
     private final CriarMensagemRapidaUseCase criar;
@@ -49,11 +57,24 @@ class MensagemRapidaController {
         this.remover = remover;
     }
 
+    @Operation(
+            summary = "Listar mensagens rápidas",
+            description = "Lista mensagens globais e, opcionalmente, limita o resultado às mensagens do usuário atual.",
+            responses = @ApiResponse(responseCode = "200", description = "Mensagens rápidas visíveis."))
     @GetMapping
-    List<Resposta> listar(@RequestParam(defaultValue = "false") boolean minhas) {
+    List<Resposta> listar(
+            @Parameter(description = "Quando true, retorna somente atalhos do usuário atual.", example = "false")
+                    @RequestParam(defaultValue = "false") boolean minhas) {
         return listar.executar(minhas).stream().map(Resposta::de).toList();
     }
 
+    @Operation(
+            summary = "Criar mensagem rápida",
+            description = "Cria um atalho de texto para o usuário autenticado.",
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Mensagem rápida criada."),
+                @ApiResponse(responseCode = "409", description = "Palavra-chave já está em uso.")
+            })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Resposta criar(@Valid @RequestBody Requisicao requisicao) {
@@ -61,17 +82,35 @@ class MensagemRapidaController {
                 requisicao.palavraChave(), requisicao.conteudo()));
     }
 
+    @Operation(
+            summary = "Atualizar mensagem rápida",
+            description = "Substitui palavra-chave e conteúdo de um atalho acessível ao usuário.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagem rápida atualizada."),
+                @ApiResponse(responseCode = "404", description = "Mensagem rápida não encontrada."),
+                @ApiResponse(responseCode = "409", description = "Palavra-chave já está em uso.")
+            })
     @PutMapping("/{id}")
-    Resposta atualizar(@PathVariable UUID id, @Valid @RequestBody Requisicao requisicao) {
+    Resposta atualizar(
+            @Parameter(description = "Identificador da mensagem rápida.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody Requisicao requisicao) {
         return atualizar
                 .executar(id, requisicao.palavraChave(), requisicao.conteudo())
                 .map(Resposta::de)
                 .orElseThrow(MensagemRapidaController::naoEncontrada);
     }
 
+    @Operation(
+            summary = "Remover mensagem rápida",
+            description = "Remove um atalho acessível ao usuário autenticado.",
+            responses = {
+                @ApiResponse(responseCode = "204", description = "Mensagem rápida removida."),
+                @ApiResponse(responseCode = "404", description = "Mensagem rápida não encontrada.")
+            })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void remover(@PathVariable UUID id) {
+    void remover(
+            @Parameter(description = "Identificador da mensagem rápida.", required = true) @PathVariable UUID id) {
         if (!remover.executar(id)) throw naoEncontrada();
     }
 
@@ -89,8 +128,10 @@ class MensagemRapidaController {
     }
 
     record Requisicao(
-            @NotBlank @Size(max = 60) @Pattern(regexp = "[\\p{L}\\p{N}_-]+") String palavraChave,
-            @NotBlank String conteudo) {}
+            @Schema(description = "Atalho sem espaços; aceita letras, números, _ e -.", example = "boas_vindas", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank @Size(max = 60) @Pattern(regexp = "[\\p{L}\\p{N}_-]+") String palavraChave,
+            @Schema(description = "Texto inserido no composer.", example = "Olá! Como posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String conteudo) {}
 
     record Resposta(
             UUID id,

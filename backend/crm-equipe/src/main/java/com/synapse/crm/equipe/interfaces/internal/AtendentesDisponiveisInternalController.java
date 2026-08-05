@@ -3,6 +3,10 @@ package com.synapse.crm.equipe.interfaces.internal;
 import java.util.List;
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +17,8 @@ import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
 /** {@code /internal/v1/atendentes/disponiveis} — parte do contrato da Automacao (E07 §1). */
 @RestController
 @RequestMapping("/internal/v1/atendentes")
+@Tag(name = "Disponibilidade interna", description = "Atendentes elegíveis para distribuição pela automação.")
+@SecurityRequirement(name = "synapseToken")
 class AtendentesDisponiveisInternalController {
 
     private final ListarAtendentesDisponiveisUseCase listar;
@@ -21,6 +27,10 @@ class AtendentesDisponiveisInternalController {
         this.listar = listar;
     }
 
+    @Operation(
+            summary = "Listar atendentes disponíveis",
+            description = "Retorna os atendentes ativos e disponíveis que a automação pode considerar na distribuição.",
+            responses = @ApiResponse(responseCode = "200", description = "Atendentes disponíveis."))
     @GetMapping("/disponiveis")
     List<AtendenteResposta> disponiveis() {
         return listar.executar().stream().map(AtendenteResposta::de).toList();

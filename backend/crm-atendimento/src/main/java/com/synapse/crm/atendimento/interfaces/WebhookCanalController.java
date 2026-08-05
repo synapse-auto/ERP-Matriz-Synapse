@@ -4,6 +4,13 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -38,6 +45,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  */
 @RestController
 @RequestMapping("/webhook/canal")
+@Tag(name = "Webhook do canal", description = "Entrada pública autenticada pelo protocolo do provedor de canal.")
 public class WebhookCanalController {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookCanalController.class);
@@ -58,11 +66,21 @@ public class WebhookCanalController {
      * <p>Devolve o desafio so quando o token confere; caso contrario 403. Delegar ao tradutor mantem
      * a regra no adaptador, e o padrao e recusar.
      */
+    @Operation(
+            summary = "Verificar webhook",
+            description = "Confirma a posse da rota durante o cadastro no provedor; o token de verificação nunca aparece na documentação.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Token válido; devolve o desafio."),
+                @ApiResponse(responseCode = "403", description = "Token de verificação inválido.")
+            })
     @GetMapping
     public ResponseEntity<String> verificar(
-            @RequestParam(name = "hub.mode", required = false) String modo,
-            @RequestParam(name = "hub.verify_token", required = false) String token,
-            @RequestParam(name = "hub.challenge", required = false) String desafio) {
+            @Parameter(description = "Modo enviado pelo provedor.", example = "subscribe")
+                    @RequestParam(name = "hub.mode", required = false) String modo,
+            @Parameter(description = "Token secreto de verificação configurado fora do código.")
+                    @RequestParam(name = "hub.verify_token", required = false) String token,
+            @Parameter(description = "Desafio que deve ser devolvido sem alteração.", example = "123456789")
+                    @RequestParam(name = "hub.challenge", required = false) String desafio) {
 
         if (tradutor.tokenDeVerificacaoValido(token)) {
             return ResponseEntity.ok(desafio);
@@ -78,11 +96,24 @@ public class WebhookCanalController {
      * (confirmacao de entrega, status, heartbeat) e para reentrega ja conhecida. Responder erro
      * nesses casos faria o provedor reentregar para sempre um evento que nunca vamos querer.
      */
+    @Operation(
+            summary = "Receber evento do canal",
+            description = "Valida a assinatura antes de persistir o payload bruto e responde rapidamente; tradução e processamento ocorrem depois.",
+            security = @SecurityRequirement(name = "metaWebhookSignature"),
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Evento aceito, ignorado ou reconhecido como reentrega."),
+                @ApiResponse(responseCode = "403", description = "Assinatura HMAC ausente ou inválida.")
+            })
     @PostMapping
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public ResponseEntity<Void> receber(
-            @RequestBody String payloadCru,
-            @RequestHeader(name = "X-Hub-Signature-256", required = false) String assinatura) {
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            description = "Payload JSON bruto do provedor.",
+                            required = true,
+                            content = @Content(examples = @ExampleObject(value = "{\"object\":\"whatsapp_business_account\",\"entry\":[]}")))
+                    @RequestBody String payloadCru,
+            @Parameter(description = "Assinatura no formato sha256=<hex>.", required = true)
+                    @RequestHeader(name = "X-Hub-Signature-256", required = false) String assinatura) {
 
         if (!tradutor.assinaturaValida(payloadCru, assinatura)) {
             // Nem uma linha gravada, nem um log com o corpo: a rota e publica.

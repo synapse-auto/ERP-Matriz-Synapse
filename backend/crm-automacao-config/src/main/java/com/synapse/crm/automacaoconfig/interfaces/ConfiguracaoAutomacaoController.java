@@ -6,6 +6,12 @@ import java.time.Instant;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,6 +33,8 @@ import com.synapse.crm.automacaoconfig.domain.TipoConfiguracaoAutomacao;
  */
 @RestController
 @RequestMapping("/api/v1/automacao/config")
+@Tag(name = "Configuração da automação", description = "Edição administrativa dos parâmetros consumidos pela automação.")
+@SecurityRequirement(name = "bearerAuth")
 class ConfiguracaoAutomacaoController {
 
     private final AtualizarConfiguracaoAutomacaoUseCase atualizar;
@@ -35,9 +43,19 @@ class ConfiguracaoAutomacaoController {
         this.atualizar = atualizar;
     }
 
+    @Operation(
+            summary = "Atualizar parâmetro de automação",
+            description = "Atualiza somente o valor de uma chave pré-existente; tipo, unidade e limites vêm do cadastro.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Parâmetro atualizado."),
+                @ApiResponse(responseCode = "400", description = "Valor incompatível com tipo ou limites."),
+                @ApiResponse(responseCode = "404", description = "Chave não encontrada.")
+            })
     @PutMapping("/{chave}")
     ParametroAutomacaoResposta atualizar(
-            @PathVariable String chave, @Valid @RequestBody AtualizacaoRequisicao requisicao) {
+            @Parameter(description = "Chave estável do parâmetro.", required = true, example = "followup.tempo_inicial")
+                    @PathVariable String chave,
+            @Valid @RequestBody AtualizacaoRequisicao requisicao) {
         return ParametroAutomacaoResposta.de(atualizar.executar(chave, requisicao.valor()));
     }
 
@@ -53,7 +71,9 @@ class ConfiguracaoAutomacaoController {
         return problema;
     }
 
-    record AtualizacaoRequisicao(@NotBlank String valor) {}
+    record AtualizacaoRequisicao(
+            @Schema(description = "Valor serializado conforme o tipo do parâmetro.", example = "30", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String valor) {}
 
     record ParametroAutomacaoResposta(
             String chave,

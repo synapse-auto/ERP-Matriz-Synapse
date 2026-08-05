@@ -2,6 +2,11 @@ package com.synapse.crm.atendimento.interfaces;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +22,8 @@ import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
  */
 @RestController
 @RequestMapping("/api/v1/atendimentos")
+@Tag(name = "Painel de atendimentos", description = "Conversas visíveis agrupadas pela visão operacional.")
+@SecurityRequirement(name = "bearerAuth")
 class PainelDeAtendimentosController {
 
     private final ListarAtendimentosVisiveisUseCase listar;
@@ -25,8 +32,14 @@ class PainelDeAtendimentosController {
         this.listar = listar;
     }
 
+    @Operation(
+            summary = "Listar atendimentos visíveis",
+            description = "Retorna os cartões da visão solicitada após aplicar a visibilidade do papel autenticado.",
+            responses = @ApiResponse(responseCode = "200", description = "Cartões da visão solicitada."))
     @GetMapping
-    List<CartaoAtendimento> listar(@RequestParam VisaoAtendimento visao) {
+    List<CartaoAtendimento> listar(
+            @Parameter(description = "Grupo operacional do painel.", required = true)
+                    @RequestParam VisaoAtendimento visao) {
         return listar.executar(visao);
     }
 }

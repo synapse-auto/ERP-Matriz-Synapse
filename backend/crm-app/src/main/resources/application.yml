@@ -73,6 +73,11 @@ resilience4j:
 # Bloco da instancia — docs/07-base-pai-multitenancy.md, secao 4.
 # ---------------------------------------------------------------------------
 synapse:
+  openapi:
+    title: ${SYNAPSE_OPENAPI_TITLE:Synapse CRM API}
+    description: ${SYNAPSE_OPENAPI_DESCRIPTION:API REST da Base PAI do Synapse CRM}
+    version: ${SYNAPSE_OPENAPI_VERSION:v0.1.0}
+
   suporte:
     tamanho-pagina: ${SUPORTE_TAMANHO_PAGINA:20}
 
