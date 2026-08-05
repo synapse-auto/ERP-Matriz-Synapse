@@ -219,7 +219,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.swarm.network=dokploy-network"
-        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`))'
+        - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.rule=Host(`${SYNAPSE_DOMINIO:?obrigatoria}`) && (PathPrefix(`/api/v1`) || PathPrefix(`/webhook/canal`) || PathPrefix(`/ws`) || PathPrefix(`/health`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`))'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.entrypoints=websecure'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls=true'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.tls.certresolver=letsencrypt'
