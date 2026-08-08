@@ -71,7 +71,15 @@ class SeedDesenvolvimentoIT extends PostgresIT {
     void featureFlags_seedAplicado_existemAsIniciais() {
         List<String> chaves = jdbc.queryForList("SELECT chave FROM feature_flag", String.class);
 
-        assertThat(chaves).contains("campanhas", "chat_interno", "fidelizacao", "relatorios", "dashboard");
+        assertThat(chaves)
+                .contains(
+                        "campanhas",
+                        "chat_interno",
+                        "fidelizacao",
+                        "relatorios",
+                        "dashboard",
+                        "automacao_regras",
+                        "horarios");
     }
 
     @Test

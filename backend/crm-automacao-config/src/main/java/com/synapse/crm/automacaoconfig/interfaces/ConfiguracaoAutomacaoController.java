@@ -2,6 +2,7 @@ package com.synapse.crm.automacaoconfig.interfaces;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -12,9 +13,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,25 +25,38 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.automacaoconfig.application.AtualizarConfiguracaoAutomacaoUseCase;
+import com.synapse.crm.automacaoconfig.application.ListarConfiguracoesAutomacaoAdminUseCase;
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacaoInvalidaException;
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacaoNaoEncontradaException;
 import com.synapse.crm.automacaoconfig.domain.TipoConfiguracaoAutomacao;
 
 /**
- * Edicao de parametro de automacao (E07 §3). So PUT: nao ha criacao pela API nesta fase — as linhas
- * ja existem, populadas por migration/seed (docs/09).
+ * Leitura e edicao de parametro de automacao (E07 §3, E15b §1). Sem criacao pela API: as linhas ja
+ * existem, populadas por migration/seed (docs/09).
  */
 @RestController
 @RequestMapping("/api/v1/automacao/config")
-@Tag(name = "Configuração da automação", description = "Edição administrativa dos parâmetros consumidos pela automação.")
+@Tag(name = "Configuração da automação", description = "Leitura e edição administrativa dos parâmetros consumidos pela automação.")
 @SecurityRequirement(name = "bearerAuth")
 class ConfiguracaoAutomacaoController {
 
+    private final ListarConfiguracoesAutomacaoAdminUseCase listar;
     private final AtualizarConfiguracaoAutomacaoUseCase atualizar;
 
-    ConfiguracaoAutomacaoController(AtualizarConfiguracaoAutomacaoUseCase atualizar) {
+    ConfiguracaoAutomacaoController(
+            ListarConfiguracoesAutomacaoAdminUseCase listar, AtualizarConfiguracaoAutomacaoUseCase atualizar) {
+        this.listar = listar;
         this.atualizar = atualizar;
+    }
+
+    @Operation(
+            summary = "Listar parâmetros de automação",
+            description = "Retorna todos os parâmetros com valor atual, faixa válida e unidade — a tela não conhece limite nenhum por conta própria.",
+            responses = @ApiResponse(responseCode = "200", description = "Parâmetros da automação."))
+    @GetMapping
+    List<ParametroAutomacaoResposta> listar() {
+        return listar.executar().stream().map(ParametroAutomacaoResposta::de).toList();
     }
 
     @Operation(

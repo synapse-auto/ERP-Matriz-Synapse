@@ -238,5 +238,19 @@
       "cancelar": "Cancelar",
       "erro": "Não foi possível salvar a tag. Verifique se o nome já está em uso."
     }
+  },
+  "automacao": {
+    "titulo": "Automação",
+    "descricao": "Parâmetros gerais que controlam o comportamento da automação.",
+    "carregando": "Carregando parâmetros...",
+    "vazio": "Nenhum parâmetro cadastrado.",
+    "erro": "Não foi possível carregar os parâmetros da automação.",
+    "erroSalvar": "Não foi possível salvar o parâmetro.",
+    "erroFaixa": "Valor fora da faixa permitida.",
+    "faixaLabel": "Faixa",
+    "ativado": "Ativado",
+    "desativado": "Desativado",
+    "salvar": "Salvar",
+    "salvando": "Salvando..."
   }
 }

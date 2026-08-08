@@ -1,7 +1,11 @@
 package com.synapse.crm.app.automacao;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -131,6 +135,83 @@ class ContratoAutomacaoIT extends PostgresIT {
                     HttpMethod.PUT,
                     new HttpEntity<>(java.util.Map.of("valor", novoValor), cabecalhos),
                     String.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("painel administrativo (GET /api/v1/automacao/config)")
+    class PainelAdmin {
+
+        @Test
+        @DisplayName("sem token, devolve 401")
+        void semToken_devolve401() {
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/automacao/config", HttpMethod.GET, semCabecalhos(), String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        @Test
+        @DisplayName("atendente nao pode ler — 403, o mesmo papel que ja nao pode editar")
+        void atendente_devolve403() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken());
+
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/automacao/config", HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+
+        @Test
+        @DisplayName("gestor le valor, faixa e unidade do parametro de teste")
+        void gestor_leValorFaixaEUnidade() {
+            ResponseEntity<String> resposta = listarComoGestor();
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(resposta.getBody())
+                    .contains("\"chave\":\"" + CHAVE_TESTE + "\"")
+                    .contains("\"valor\":\"10\"")
+                    .contains("\"unidade\":\"minutos\"")
+                    .contains("\"valorMin\":1")
+                    .contains("\"valorMax\":100");
+        }
+
+        @Test
+        @DisplayName("subgestor tambem le — mesma autorizacao do PUT, nao so o gestor")
+        void subgestor_tambemLe() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(
+                    ApoioAutenticacao.login(http, EMAIL_SUBGESTOR, SENHA_SUBGESTOR).accessToken());
+
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/automacao/config", HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+
+        @Test
+        @DisplayName("valor editado pelo PUT aparece na proxima leitura do GET")
+        void valorEditado_apareceNaProximaLeitura() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken());
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            http.exchange(
+                    "/api/v1/automacao/config/" + CHAVE_TESTE,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(java.util.Map.of("valor", "77"), cabecalhos),
+                    String.class);
+
+            ResponseEntity<String> resposta = listarComoGestor();
+
+            assertThat(resposta.getBody()).contains("\"valor\":\"77\"");
+        }
+
+        private ResponseEntity<String> listarComoGestor() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken());
+            return http.exchange(
+                    "/api/v1/automacao/config", HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
         }
     }
 

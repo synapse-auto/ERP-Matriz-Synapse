@@ -83,12 +83,20 @@ ON CONFLICT (id) DO UPDATE
 -- da primeira entrega. A aba nao e construida; e o corte por flag, nao por remocao, que
 -- deixa a Base PAI ligar essas abas para um filho futuro sem deploy de codigo novo.
 INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
-    ('campanhas',      FALSE, 'Aba de campanhas e motor de envio.'),
-    ('chat_interno',   TRUE, 'Chat entre atendentes e gestores.'),
-    ('fidelizacao',    TRUE, 'Regras de fidelizacao e reengajamento.'),
-    ('relatorios',     FALSE, 'Aba de relatorios.'),
-    ('banco_arquivos', FALSE, 'Aba de banco de arquivos.'),
-    ('dashboard',      TRUE, 'Dashboard de indicadores.')
+    ('campanhas',        FALSE, 'Aba de campanhas e motor de envio.'),
+    ('chat_interno',     TRUE, 'Chat entre atendentes e gestores.'),
+    ('fidelizacao',      TRUE, 'Regras de fidelizacao e reengajamento.'),
+    ('relatorios',       FALSE, 'Aba de relatorios.'),
+    ('banco_arquivos',   FALSE, 'Aba de banco de arquivos.'),
+    ('dashboard',        TRUE, 'Dashboard de indicadores.'),
+    -- E15b §1: schema existe (regra_follow_up, regra_fidelizacao, mensagem_festiva,
+    -- configuracao_resumo_ia) mas nenhum caso de uso de escrita foi construido ainda —
+    -- nao e sub-aba visivel no menu, e sim secao dentro de /automacao que so aparece
+    -- quando essa camada existir.
+    ('automacao_regras', FALSE, 'CRUD de regras de follow-up/fidelizacao/festivas e telemetria dentro de Automacao.'),
+    -- E15b §2: horario_trabalho e rotina_disponibilidade so tem migration, zero codigo
+    -- de aplicacao. Disponibilidade do atendente e manual (presenca) na 1a entrega.
+    ('horarios',         FALSE, 'Aba de horarios de atendimento por dia da semana.')
 ON CONFLICT (chave) DO UPDATE
     SET habilitado = EXCLUDED.habilitado, descricao = EXCLUDED.descricao;
 

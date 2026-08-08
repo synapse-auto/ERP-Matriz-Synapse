@@ -16,9 +16,11 @@ public final class ApoioAutenticacao {
     public static final String SENHA_ATENDENTE = "atendente123";
 
     public static final String SENHA_GESTOR = "gestor123";
+    public static final String SENHA_SUBGESTOR = "subgestor123";
     public static final String EMAIL_ANA = "ana@dev.local";
     public static final String EMAIL_BRUNO = "bruno@dev.local";
     public static final String EMAIL_GESTOR = "gestor@dev.local";
+    public static final String EMAIL_SUBGESTOR = "subgestor@dev.local";
 
     private ApoioAutenticacao() {}
 

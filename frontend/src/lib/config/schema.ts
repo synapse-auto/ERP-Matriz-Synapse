@@ -295,6 +295,20 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
   }),
+  automacao: z.object({
+    titulo: z.string(),
+    descricao: z.string(),
+    carregando: z.string(),
+    vazio: z.string(),
+    erro: z.string(),
+    erroSalvar: z.string(),
+    erroFaixa: z.string(),
+    faixaLabel: z.string(),
+    ativado: z.string(),
+    desativado: z.string(),
+    salvar: z.string(),
+    salvando: z.string(),
+  }),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;
