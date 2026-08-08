@@ -271,6 +271,30 @@ export const TextosSchema = z.object({
     descricao: z.string(),
     vazia: z.string(),
   }),
+  tags: z.object({
+    titulo: z.string(),
+    descricao: z.string(),
+    busca: z.string(),
+    nova: z.string(),
+    carregando: z.string(),
+    vazio: z.string(),
+    semResultados: z.string(),
+    erro: z.string(),
+    editar: z.string(),
+    remover: z.string(),
+    colunas: z.object({ tag: z.string(), acoes: z.string() }),
+    formulario: z.object({
+      criarTitulo: z.string(),
+      editarTitulo: z.string(),
+      nome: z.string(),
+      nomePlaceholder: z.string(),
+      cor: z.string(),
+      icone: z.string(),
+      salvar: z.string(),
+      cancelar: z.string(),
+      erro: z.string(),
+    }),
+  }),
 });
 
 export type Textos = z.infer<typeof TextosSchema>;

@@ -214,5 +214,29 @@
     "titulo": "Agenda de contatos",
     "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
     "vazia": "Nenhum contato disponível na agenda."
+  },
+  "tags": {
+    "titulo": "Tags",
+    "descricao": "Etiquetas para classificar e segmentar leads.",
+    "busca": "Buscar tag…",
+    "nova": "Nova tag",
+    "carregando": "Carregando tags...",
+    "vazio": "Nenhuma tag cadastrada ainda.",
+    "semResultados": "Nenhuma tag encontrada para a busca.",
+    "erro": "Não foi possível carregar as tags.",
+    "editar": "Editar",
+    "remover": "Remover",
+    "colunas": { "tag": "Tag", "acoes": "Ações" },
+    "formulario": {
+      "criarTitulo": "Nova tag",
+      "editarTitulo": "Editar tag",
+      "nome": "Nome da tag",
+      "nomePlaceholder": "Ex.: Prioridade",
+      "cor": "Cor",
+      "icone": "Ícone",
+      "salvar": "Salvar tag",
+      "cancelar": "Cancelar",
+      "erro": "Não foi possível salvar a tag. Verifique se o nome já está em uso."
+    }
   }
 }
