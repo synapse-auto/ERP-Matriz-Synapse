@@ -6,18 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   BarChart3,
+  BookUser,
+  Bot,
   CalendarClock,
-  CalendarDays,
   Clock,
   Folder,
+  Headset,
   LayoutDashboard,
   LogOut,
   Megaphone,
+  MessageSquareText,
   Tag,
-  UserCog,
   Users,
-  Workflow,
-  Zap,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
@@ -36,21 +36,21 @@ interface ItemDeMenu {
 }
 
 const ITENS_MENU: ItemDeMenu[] = [
-  { chave: "atendimentos", rota: "/atendimentos", icone: Users },
+  { chave: "atendimentos", rota: "/atendimentos", icone: Headset },
   { chave: "dashboard", rota: "/dashboard", icone: LayoutDashboard, flag: "dashboard" },
-  { chave: "agenda", rota: "/agenda", icone: CalendarDays },
+  { chave: "agenda", rota: "/agenda", icone: BookUser },
   { chave: "tags", rota: "/tags", icone: Tag },
-  { chave: "mensagensRapidas", rota: "/mensagens-rapidas", icone: Zap },
+  { chave: "mensagensRapidas", rota: "/mensagens-rapidas", icone: MessageSquareText },
   { chave: "bancoArquivos", rota: "/banco-arquivos", icone: Folder, flag: "banco_arquivos" },
   { chave: "mensagensProgramadas", rota: "/mensagens-programadas", icone: Clock },
   { chave: "lembretes", rota: "/lembretes", icone: Bell },
 ];
 
 const ITENS_GESTAO: ItemDeMenu[] = [
-  { chave: "equipe", rota: "/equipe", icone: UserCog },
+  { chave: "equipe", rota: "/equipe", icone: Users },
   { chave: "campanhas", rota: "/campanhas", icone: Megaphone, flag: "campanhas" },
-  { chave: "automacao", rota: "/automacao", icone: Workflow },
-  { chave: "horarios", rota: "/horarios", icone: CalendarClock },
+  { chave: "automacao", rota: "/automacao", icone: Bot },
+  { chave: "horarios", rota: "/horarios", icone: CalendarClock, flag: "horarios" },
   { chave: "relatorios", rota: "/relatorios", icone: BarChart3, flag: "relatorios" },
 ];
 
