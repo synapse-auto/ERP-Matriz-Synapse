@@ -213,7 +213,30 @@
   "agenda": {
     "titulo": "Agenda de contatos",
     "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
-    "vazia": "Nenhum contato disponível na agenda."
+    "vazia": "Nenhum contato encontrado com os filtros atuais.",
+    "carregando": "Carregando agenda...",
+    "erro": "Não foi possível carregar a agenda.",
+    "semResponsavel": "Sem responsável",
+    "contador": "Exibindo {exibindo} de {total}",
+    "colunas": {"lead":"Lead","telefone":"Telefone","cidade":"Cidade","etapa":"Etapa","tags":"Tags","responsavel":"Responsável","ultimoContato":"Último contato"},
+    "status": {"ia":"Potencial (IA)","emAtendimento":"Em atendimento","finalizado":"Finalizado"},
+    "filtros": {
+      "titulo": "Filtros",
+      "adicionar": "Adicionar filtro",
+      "campo": "Campo",
+      "operador": "Operador",
+      "valor": "Valor",
+      "valorInicial": "De",
+      "valorFinal": "Até",
+      "selecionarCampo": "Selecione o campo",
+      "selecionarOperador": "Selecione o operador",
+      "selecionarValor": "Selecione",
+      "limparTudo": "Limpar tudo",
+      "carregandoCampos": "Carregando campos...",
+      "erroCampos": "Não foi possível carregar os campos filtráveis.",
+      "operadores": {"igual":"é","diferente":"não é","contem":"contém","comecaCom":"começa com","maiorQue":"maior que","menorQue":"menor que","entre":"entre","em":"está em","preenchido":"preenchido","vazio":"vazio"}
+    },
+    "paginacao": {"anterior":"Anterior","proxima":"Próxima"}
   },
   "tags": {
     "titulo": "Tags",

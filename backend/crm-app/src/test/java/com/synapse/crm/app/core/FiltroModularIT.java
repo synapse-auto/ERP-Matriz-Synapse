@@ -265,6 +265,114 @@ class FiltroModularIT extends PostgresIT {
         }
     }
 
+    /**
+     * E16 §Bloco 1: a paginacao entra <b>depois</b> da visibilidade — nao pode virar um caminho
+     * novo para o mesmo vazamento que {@link Visibilidade} ja fecha sem paginacao.
+     */
+    @Nested
+    @DisplayName("paginacao (E16)")
+    class Paginacao {
+
+        @Test
+        @DisplayName("tamanho menor que o total devolve temMais e a pagina pedida")
+        void tamanhoMenorQueOTotal_devolveTemMaisEAPaginaPedida() {
+            String corpo = filtrarPaginado(gestor(), filtroDoEnunciado(), null, 2).getBody();
+
+            assertThat(quantidadeDeLeads(corpo)).isEqualTo(2);
+            assertThat(corpo).contains("\"temMais\":true").contains("\"pagina\":0");
+        }
+
+        @Test
+        @DisplayName("ultima pagina nao anuncia mais paginas")
+        void ultimaPagina_naoAnunciaMaisPaginas() {
+            String corpo = filtrarPaginado(gestor(), filtroDoEnunciado(), null, 10).getBody();
+
+            assertThat(corpo).contains("\"temMais\":false");
+        }
+
+        /**
+         * O teste central desta secao: atendente pedindo os leads do colega, com paginacao,
+         * continua vazio — LIMIT/OFFSET nunca vira caminho para alcancar o que a visibilidade
+         * ja recusou.
+         */
+        @Test
+        @DisplayName("atendente filtrando pelo colega, com paginacao, continua vazio")
+        void atendenteApontandoParaColega_comPaginacao_continuaVazio() {
+            Map<String, Object> doColega =
+                    simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString()));
+
+            String corpo = filtrarPaginado(ana(), doColega, null, 1).getBody();
+
+            assertThat(quantidadeDeLeads(corpo)).isZero();
+            assertThat(corpo).contains("\"temMais\":false").contains("\"pagina\":0");
+        }
+
+        @Test
+        @DisplayName("tamanho fora da faixa devolve 400")
+        void tamanhoForaDaFaixa_devolve400() {
+            ResponseEntity<String> resposta = filtrarPaginado(gestor(), filtroDoEnunciado(), null, 0);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        @Test
+        @DisplayName("pagina negativa devolve 400")
+        void paginaNegativa_devolve400() {
+            ResponseEntity<String> resposta = filtrarPaginado(gestor(), filtroDoEnunciado(), -1, null);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        private ResponseEntity<String> filtrarPaginado(
+                String token, Map<String, Object> criterio, Integer pagina, Integer tamanho) {
+            Map<String, Object> corpo = new HashMap<>();
+            corpo.put("criterio", criterio);
+            if (pagina != null) corpo.put("pagina", pagina);
+            if (tamanho != null) corpo.put("tamanho", tamanho);
+
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(token);
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            return http.postForEntity(
+                    "/api/v1/leads/filtrar", new HttpEntity<>(corpo, cabecalhos), String.class);
+        }
+    }
+
+    /** E16 §Bloco 1: a barra de filtros da tela se monta a partir daqui — sem campo hardcoded. */
+    @Nested
+    @DisplayName("GET /api/v1/leads/filtrar/campos")
+    class CamposFiltraveis {
+
+        @Test
+        @DisplayName("devolve apelido, rotulo, tipo e operadores dos campos estaticos")
+        void devolveApelidoRotuloTipoEOperadores() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(ana());
+
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/leads/filtrar/campos",
+                    HttpMethod.GET,
+                    new HttpEntity<>(cabecalhos),
+                    String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(resposta.getBody())
+                    .contains("\"apelido\":\"atendenteResponsavel\"")
+                    .contains("\"apelido\":\"tag\"")
+                    .contains("\"tipo\":\"REFERENCIA\"")
+                    .contains("IGUAL");
+        }
+
+        @Test
+        @DisplayName("sem autenticacao, devolve 401")
+        void semAutenticacao_devolve401() {
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/leads/filtrar/campos", HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+    }
+
     // --- montagem do filtro ---------------------------------------------------
 
     private static Map<String, Object> filtroDoEnunciado() {

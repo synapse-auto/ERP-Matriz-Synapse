@@ -68,8 +68,10 @@ class LeadController {
                     @RequestParam(required = false) String busca,
             @Parameter(description = "Status básico do lead.")
                     @RequestParam(required = false) StatusBasicoLead status) {
+        // Sem tags: esta listagem alimenta seletores simples (lembrete, mensagem programada),
+        // que nunca as exibem — buscar em lote so para descartar seria trabalho de banco atoa.
         return listar.executar(new FiltroLead(busca, status)).stream()
-                .map(LeadDaLista::de)
+                .map(lead -> LeadDaLista.de(lead, List.of()))
                 .toList();
     }
 

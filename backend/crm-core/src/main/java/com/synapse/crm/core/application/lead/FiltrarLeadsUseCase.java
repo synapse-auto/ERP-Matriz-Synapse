@@ -1,19 +1,18 @@
 package com.synapse.crm.core.application.lead;
 
-import java.util.List;
-
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
-import com.synapse.crm.core.domain.lead.LeadResumo;
 
 /**
- * Aplica o filtro modular e devolve os leads que o usuario enxerga sob ele (E03b).
+ * Aplica o filtro modular e devolve os leads que o usuario enxerga sob ele (E03b), paginados (E16
+ * §Bloco 1).
  *
  * <p>Atendente pode chamar. O que muda entre papeis nao e a permissao, e o conjunto: o filtro do
  * usuario compoe com {@code AND} por cima da regra de visibilidade dentro do repositorio, entao ele
- * so consegue reduzir o proprio recorte.
+ * so consegue reduzir o proprio recorte — a paginacao acontece <b>depois</b> desse recorte, nunca
+ * antes.
  */
 @Service
 public class FiltrarLeadsUseCase {
@@ -25,7 +24,7 @@ public class FiltrarLeadsUseCase {
     }
 
     @PreAuthorize("isAuthenticated()")
-    public List<LeadResumo> executar(FiltroDeLeads filtro) {
-        return leads.listar(filtro);
+    public PaginaDeLeads executar(FiltroDeLeads filtro, int pagina, int tamanho) {
+        return leads.listar(filtro, pagina, tamanho);
     }
 }

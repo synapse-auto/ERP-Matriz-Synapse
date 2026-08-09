@@ -81,6 +81,11 @@ synapse:
   suporte:
     tamanho-pagina: ${SUPORTE_TAMANHO_PAGINA:20}
 
+  leads:
+    # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global
+    # aqui — quem precisa do total exato chama /api/v1/leads/filtrar/contagem.
+    tamanho-pagina: ${LEADS_TAMANHO_PAGINA:50}
+
   timeline:
     # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global.
     tamanho-pagina: ${TIMELINE_TAMANHO_PAGINA:20}

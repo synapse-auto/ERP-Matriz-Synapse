@@ -28,28 +28,28 @@ import java.util.stream.Collectors;
  */
 public enum CampoFiltravel {
 
-    NOME("nome", TipoDeCampo.TEXTO),
-    EMPRESA("empresa", TipoDeCampo.TEXTO),
-    EMAIL("email", TipoDeCampo.TEXTO),
-    TELEFONE("telefone", TipoDeCampo.TEXTO),
-    CPF("cpf", TipoDeCampo.TEXTO),
-    LOCALIZACAO("localizacao", TipoDeCampo.TEXTO),
+    NOME("nome", "Nome", TipoDeCampo.TEXTO),
+    EMPRESA("empresa", "Empresa", TipoDeCampo.TEXTO),
+    EMAIL("email", "E-mail", TipoDeCampo.TEXTO),
+    TELEFONE("telefone", "Telefone", TipoDeCampo.TEXTO),
+    CPF("cpf", "CPF/CNPJ", TipoDeCampo.TEXTO),
+    LOCALIZACAO("localizacao", "Localização", TipoDeCampo.TEXTO),
 
-    STATUS("status", TipoDeCampo.STATUS),
-    ETAPA("etapa", TipoDeCampo.REFERENCIA),
-    CANAL_ORIGEM("canalOrigem", TipoDeCampo.REFERENCIA),
-    ATENDENTE_RESPONSAVEL("atendenteResponsavel", TipoDeCampo.REFERENCIA),
+    STATUS("status", "Status", TipoDeCampo.STATUS),
+    ETAPA("etapa", "Etapa", TipoDeCampo.REFERENCIA),
+    CANAL_ORIGEM("canalOrigem", "Canal de origem", TipoDeCampo.REFERENCIA),
+    ATENDENTE_RESPONSAVEL("atendenteResponsavel", "Atendente responsável", TipoDeCampo.REFERENCIA),
 
     /**
      * Tag do lead. Unico campo que nao e coluna de {@code lead}: mora em {@code lead_tag}, e a
      * traducao vira {@code EXISTS}. Por ser conjunto, {@code PREENCHIDO}/{@code VAZIO} teriam
      * leitura ambigua ("tem alguma tag?" vs. "a tag e nula?") e ficam de fora.
      */
-    TAG("tag", TipoDeCampo.REFERENCIA, Operadores.CONJUNTO),
+    TAG("tag", "Tag", TipoDeCampo.REFERENCIA, Operadores.CONJUNTO),
 
-    NUM_ATENDIMENTOS("numAtendimentos", TipoDeCampo.NUMERO),
-    NUM_MENSAGENS("numMensagens", TipoDeCampo.NUMERO),
-    CRIADO_EM("criadoEm", TipoDeCampo.DATA),
+    NUM_ATENDIMENTOS("numAtendimentos", "Nº de atendimentos", TipoDeCampo.NUMERO),
+    NUM_MENSAGENS("numMensagens", "Nº de mensagens", TipoDeCampo.NUMERO),
+    CRIADO_EM("criadoEm", "Criado em", TipoDeCampo.DATA),
 
     /**
      * Dias desde a ultima interacao com o lead.
@@ -61,7 +61,7 @@ public enum CampoFiltravel {
      * <p>Igualdade nao entra: "exatamente 30 dias sem retorno" seria uma faixa de 24 horas disfarcada
      * de igualdade, e ninguem acertaria o resultado na primeira tentativa.
      */
-    SEM_RETORNO_DIAS("semRetornoDias", TipoDeCampo.NUMERO, Operadores.JANELA);
+    SEM_RETORNO_DIAS("semRetornoDias", "Dias sem retorno", TipoDeCampo.NUMERO, Operadores.JANELA);
 
     /**
      * Teto de {@link #SEM_RETORNO_DIAS}: cem anos.
@@ -76,15 +76,17 @@ public enum CampoFiltravel {
             .collect(Collectors.toMap(campo -> campo.apelido.toLowerCase(), Function.identity()));
 
     private final String apelido;
+    private final String rotulo;
     private final TipoDeCampo tipo;
     private final Set<Operador> operadores;
 
-    CampoFiltravel(String apelido, TipoDeCampo tipo) {
-        this(apelido, tipo, tipo.operadoresNaturais());
+    CampoFiltravel(String apelido, String rotulo, TipoDeCampo tipo) {
+        this(apelido, rotulo, tipo, tipo.operadoresNaturais());
     }
 
-    CampoFiltravel(String apelido, TipoDeCampo tipo, Set<Operador> operadores) {
+    CampoFiltravel(String apelido, String rotulo, TipoDeCampo tipo, Set<Operador> operadores) {
         this.apelido = apelido;
+        this.rotulo = rotulo;
         this.tipo = tipo;
         this.operadores = operadores;
     }
@@ -94,8 +96,22 @@ public enum CampoFiltravel {
         return apelido;
     }
 
+    /**
+     * Nome legivel para a barra de filtros (E16). Vem do backend, e nao de um catalogo de textos do
+     * frontend, pelo mesmo motivo de {@link #apelido()}: campo novo no enum tem que aparecer na tela
+     * sem ninguem tocar no React.
+     */
+    public String rotulo() {
+        return rotulo;
+    }
+
     public TipoDeCampo tipo() {
         return tipo;
+    }
+
+    /** Operadores aceitos por este campo — o teto que {@link #exigirOperadorCompativel(Operador)} aplica. */
+    public Set<Operador> operadores() {
+        return operadores;
     }
 
     /** Traduz o texto recebido no JSON. Fora da lista, rejeita — nunca tenta adivinhar. */

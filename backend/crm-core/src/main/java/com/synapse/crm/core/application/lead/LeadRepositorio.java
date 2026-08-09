@@ -29,13 +29,15 @@ public interface LeadRepositorio {
     List<LeadResumo> listar(FiltroLead filtro);
 
     /**
-     * Idem, com a arvore de criterios do filtro modular (E03b).
+     * Idem, com a arvore de criterios do filtro modular (E03b), paginado (E16 §Bloco 1).
      *
      * <p>Sobrecarga em vez de metodo de nome proprio: as duas consultas tem a mesma garantia — o
      * resultado ja vem recortado pela RN-CRM-01 — e o vocabulario da porta continua sem conseguir
-     * expressar "me da todos os leads".
+     * expressar "me da todos os leads". {@code pagina} comeca em zero; {@code tamanho} e o teto de
+     * linhas por pagina, e a paginacao acontece <b>depois</b> da visibilidade — nunca ha como pedir a
+     * pagina 0 de tamanho grande o bastante para transformar um recorte em "quase tudo".
      */
-    List<LeadResumo> listar(FiltroDeLeads filtro);
+    PaginaDeLeads listar(FiltroDeLeads filtro, int pagina, int tamanho);
 
     /**
      * Ficha completa do lead, <em>se</em> visivel ao usuario da requisicao.

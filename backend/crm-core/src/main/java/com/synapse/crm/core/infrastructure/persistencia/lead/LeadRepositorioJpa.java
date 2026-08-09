@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Root;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.core.application.lead.FiltroLead;
 import com.synapse.crm.core.application.lead.LeadRepositorio;
+import com.synapse.crm.core.application.lead.PaginaDeLeads;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
@@ -62,10 +64,20 @@ class LeadRepositorioJpa implements LeadRepositorio {
         return projetarResumos(visivel(filtro));
     }
 
-    /** Filtro modular (E03b). Mesma projecao e mesma visibilidade da listagem comum. */
+    /**
+     * Filtro modular (E03b), paginado (E16 §Bloco 1). Mesma projecao e mesma visibilidade da
+     * listagem comum.
+     *
+     * <p>Busca {@code tamanho + 1} linhas e corta a extra para saber {@code temMais} sem um segundo
+     * {@code COUNT} — o mesmo truque de {@code LembreteRepositorioJdbc}. O total exato, quando a tela
+     * precisa dele, e {@link #contar(FiltroDeLeads)}.
+     */
     @Override
-    public List<LeadResumo> listar(FiltroDeLeads filtro) {
-        return projetarResumos(visivel(filtro));
+    public PaginaDeLeads listar(FiltroDeLeads filtro, int pagina, int tamanho) {
+        List<LeadResumo> linhas = projetarResumosPaginado(visivel(filtro), pagina, tamanho);
+        boolean temMais = linhas.size() > tamanho;
+        List<LeadResumo> itens = temMais ? linhas.subList(0, tamanho) : linhas;
+        return new PaginaDeLeads(List.copyOf(itens), pagina, temMais);
     }
 
     @Override
@@ -76,6 +88,18 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     private List<LeadResumo> projetarResumos(Specification<LeadEntity> especificacao) {
+        return montarConsulta(especificacao).getResultList();
+    }
+
+    private List<LeadResumo> projetarResumosPaginado(
+            Specification<LeadEntity> especificacao, int pagina, int tamanho) {
+        return montarConsulta(especificacao)
+                .setFirstResult(Math.multiplyExact(pagina, tamanho))
+                .setMaxResults(tamanho + 1)
+                .getResultList();
+    }
+
+    private TypedQuery<LeadResumo> montarConsulta(Specification<LeadEntity> especificacao) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<LeadResumo> consulta = cb.createQuery(LeadResumo.class);
         Root<LeadEntity> raiz = consulta.from(LeadEntity.class);
@@ -86,17 +110,19 @@ class LeadRepositorioJpa implements LeadRepositorio {
                 raiz.get(LeadEntity.Campos.NOME),
                 raiz.get(LeadEntity.Campos.TELEFONE),
                 raiz.get(LeadEntity.Campos.EMPRESA),
+                raiz.get(LeadEntity.Campos.LOCALIZACAO),
                 raiz.get(LeadEntity.Campos.STATUS_BASICO),
                 raiz.get(LeadEntity.Campos.ETAPA),
                 raiz.get(LeadEntity.Campos.ATENDENTE_RESPONSAVEL_ID),
                 raiz.get(LeadEntity.Campos.NUM_ATENDIMENTOS),
                 raiz.get(LeadEntity.Campos.NUM_MENSAGENS),
-                raiz.get(LeadEntity.Campos.CRIADO_EM)));
+                raiz.get(LeadEntity.Campos.CRIADO_EM),
+                raiz.get(LeadEntity.Campos.ULTIMA_INTERACAO_EM)));
 
         consulta.where(especificacao.toPredicate(raiz, consulta, cb));
         consulta.orderBy(cb.asc(raiz.get(LeadEntity.Campos.NOME)));
 
-        return em.createQuery(consulta).getResultList();
+        return em.createQuery(consulta);
     }
 
     @Override

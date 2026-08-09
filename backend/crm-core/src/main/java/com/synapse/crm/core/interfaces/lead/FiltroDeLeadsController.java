@@ -1,6 +1,10 @@
 package com.synapse.crm.core.interfaces.lead;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -12,9 +16,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.core.application.campocustomizado.CampoCustomizadoRepositorio;
 import com.synapse.crm.core.application.lead.ContarLeadsFiltradosUseCase;
 import com.synapse.crm.core.application.lead.FiltrarLeadsUseCase;
+import com.synapse.crm.core.application.lead.PaginaDeLeads;
+import com.synapse.crm.core.application.tag.ListarTagsDosLeadsUseCase;
 import com.synapse.crm.core.domain.campocustomizado.CampoCustomizado;
 import com.synapse.crm.core.domain.filtro.CampoFiltravel;
 import com.synapse.crm.core.domain.filtro.Criterio;
@@ -48,30 +56,63 @@ import com.synapse.crm.core.domain.filtro.FiltroInvalidoException;
 @SecurityRequirement(name = "bearerAuth")
 class FiltroDeLeadsController {
 
+    /** Teto de linhas por pagina — independente do que o cliente pedir em {@code tamanho}. */
+    private static final int TAMANHO_MAXIMO_DE_PAGINA = 200;
+
     private final FiltrarLeadsUseCase filtrar;
     private final ContarLeadsFiltradosUseCase contar;
     private final CampoCustomizadoRepositorio camposCustomizados;
+    private final ListarTagsDosLeadsUseCase tagsDosLeads;
+    private final int tamanhoPaginaPadrao;
 
     FiltroDeLeadsController(
             FiltrarLeadsUseCase filtrar,
             ContarLeadsFiltradosUseCase contar,
-            CampoCustomizadoRepositorio camposCustomizados) {
+            CampoCustomizadoRepositorio camposCustomizados,
+            ListarTagsDosLeadsUseCase tagsDosLeads,
+            @Value("${synapse.leads.tamanho-pagina}") int tamanhoPaginaPadrao) {
         this.filtrar = filtrar;
         this.contar = contar;
         this.camposCustomizados = camposCustomizados;
+        this.tagsDosLeads = tagsDosLeads;
+        this.tamanhoPaginaPadrao = tamanhoPaginaPadrao;
+    }
+
+    /**
+     * Descreve os campos filtraveis e seus operadores (E16 §Bloco 1): a barra de filtros da agenda
+     * monta a si mesma a partir daqui — campo novo no enum {@link CampoFiltravel} ou linha nova em
+     * {@code campo_customizado} com {@code filtravel = true} aparece na tela sem tocar em React.
+     *
+     * <p>Estaticos primeiro, depois customizados, na mesma ordem de prioridade que {@link
+     * CriterioRequisicao#criterioSimplesOuCustomizado} ja usa para resolver um apelido.
+     */
+    @Operation(
+            summary = "Campos filtraveis",
+            description = "Lista os campos que o filtro modular aceita, com rótulo, tipo e operadores compatíveis.",
+            responses = @ApiResponse(responseCode = "200", description = "Campos estáticos e customizados filtráveis."))
+    @GetMapping("/campos")
+    List<CampoFiltravelResposta> campos() {
+        Stream<CampoFiltravelResposta> estaticos =
+                java.util.Arrays.stream(CampoFiltravel.values()).map(CampoFiltravelResposta::de);
+        Stream<CampoFiltravelResposta> customizados = camposCustomizados.listarTodos().stream()
+                .filter(CampoCustomizado::filtravel)
+                .map(CampoFiltravelResposta::de);
+        return Stream.concat(estaticos, customizados)
+                .sorted(Comparator.comparing(CampoFiltravelResposta::rotulo))
+                .toList();
     }
 
     @Operation(
             summary = "Filtrar leads",
-            description = "Executa a árvore de critérios sobre o mesmo recorte de visibilidade usado nas demais consultas de lead.",
+            description = "Executa a árvore de critérios sobre o mesmo recorte de visibilidade usado nas demais consultas de lead, paginado.",
             responses = {
-                @ApiResponse(responseCode = "200", description = "Resumos dos leads correspondentes."),
-                @ApiResponse(responseCode = "400", description = "Campo, operador, valor ou estrutura da árvore inválido.")
+                @ApiResponse(responseCode = "200", description = "Página de leads correspondentes."),
+                @ApiResponse(responseCode = "400", description = "Campo, operador, valor, estrutura da árvore ou paginação inválidos.")
             })
     @PostMapping
-    List<LeadDaLista> filtrar(
+    PaginaLeadsResposta filtrar(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                            description = "Árvore de critérios simples ou compostos.",
+                            description = "Árvore de critérios simples ou compostos, com paginação opcional.",
                             required = true,
                             content = @Content(examples = @ExampleObject(
                                     name = "Status e empresa",
@@ -79,9 +120,20 @@ class FiltroDeLeadsController {
                                             {"criterio":{"tipo":"COMPOSTO","conector":"AND","criterios":[{"tipo":"SIMPLES","campo":"status","operador":"IGUAL","valor":"ATIVO"},{"tipo":"SIMPLES","campo":"empresa","operador":"CONTEM","valor":"Exemplo"}]}}
                                             """)))
                     @Valid @RequestBody FiltroRequisicao requisicao) {
-        return filtrar.executar(requisicao.paraDominio(camposCustomizados)).stream()
-                .map(LeadDaLista::de)
+        int pagina = paginaValidada(requisicao.pagina());
+        int tamanho = tamanhoValidado(requisicao.tamanho());
+
+        PaginaDeLeads paginaDeLeads =
+                filtrar.executar(requisicao.paraDominio(camposCustomizados), pagina, tamanho);
+
+        List<UUID> idsDaPagina = paginaDeLeads.leads().stream().map(lead -> lead.id()).toList();
+        Map<UUID, List<com.synapse.crm.core.domain.tag.Tag>> tagsPorLead =
+                tagsDosLeads.executar(idsDaPagina);
+
+        List<LeadDaLista> leads = paginaDeLeads.leads().stream()
+                .map(lead -> LeadDaLista.de(lead, tagsPorLead.getOrDefault(lead.id(), List.of())))
                 .toList();
+        return new PaginaLeadsResposta(leads, paginaDeLeads.pagina(), paginaDeLeads.temMais());
     }
 
     /** Total sob o filtro montado, antes de salvar. A tela chama a cada mudanca de criterio. */
@@ -114,6 +166,23 @@ class FiltroDeLeadsController {
         return problema;
     }
 
+    private int paginaValidada(Integer pagina) {
+        int valor = pagina == null ? 0 : pagina;
+        if (valor < 0) {
+            throw new FiltroInvalidoException("pagina deve ser maior ou igual a zero");
+        }
+        return valor;
+    }
+
+    private int tamanhoValidado(Integer tamanho) {
+        int valor = tamanho == null ? tamanhoPaginaPadrao : tamanho;
+        if (valor < 1 || valor > TAMANHO_MAXIMO_DE_PAGINA) {
+            throw new FiltroInvalidoException(
+                    "tamanho deve estar entre 1 e " + TAMANHO_MAXIMO_DE_PAGINA);
+        }
+        return valor;
+    }
+
     /**
      * Envelope da requisicao.
      *
@@ -122,7 +191,9 @@ class FiltroDeLeadsController {
      */
     record FiltroRequisicao(
             @Schema(description = "Nó raiz da árvore.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull CriterioRequisicao criterio) {
+                    @NotNull CriterioRequisicao criterio,
+            @Schema(description = "Página, começando em zero. Padrão: 0.") Integer pagina,
+            @Schema(description = "Tamanho da página. Padrão: config do servidor.") Integer tamanho) {
 
         FiltroDeLeads paraDominio(CampoCustomizadoRepositorio camposCustomizados) {
             return new FiltroDeLeads(criterio.paraDominio(1, camposCustomizados));
@@ -226,4 +297,41 @@ class FiltroDeLeadsController {
 
     /** Resposta da contagem. Objeto, e nao numero cru, para caber metadado depois. */
     record Contagem(long total) {}
+
+    /** Pagina de leads (E16 §Bloco 1): mesma forma de {@code PaginaDeLeads}, so que serializavel. */
+    record PaginaLeadsResposta(
+            @Schema(description = "Leads desta página.") List<LeadDaLista> leads,
+            @Schema(description = "Página devolvida, começando em zero.") int pagina,
+            @Schema(description = "Se existe pelo menos mais uma página além desta.") boolean temMais) {}
+
+    /**
+     * Um campo filtravel como a tela precisa para se montar sozinha (E16 §Bloco 1): rotulo para
+     * exibir, tipo para escolher o widget certo, operadores para o menu de comparacao, e as opcoes
+     * fechadas quando o tipo for {@code LISTA} (so em campo customizado).
+     */
+    record CampoFiltravelResposta(
+            @Schema(description = "Apelido usado no corpo do filtro.") String apelido,
+            @Schema(description = "Nome legível para a barra de filtros.") String rotulo,
+            @Schema(description = "TEXTO, NUMERO, DATA, STATUS, REFERENCIA, BOOLEANO ou LISTA.") String tipo,
+            @Schema(description = "Operadores compatíveis com este campo.") List<String> operadores,
+            @Schema(description = "Opções fechadas, apenas quando tipo = LISTA.") List<String> opcoes) {
+
+        static CampoFiltravelResposta de(CampoFiltravel campo) {
+            return new CampoFiltravelResposta(
+                    campo.apelido(),
+                    campo.rotulo(),
+                    campo.tipo().name(),
+                    campo.operadores().stream().map(Enum::name).sorted().toList(),
+                    List.of());
+        }
+
+        static CampoFiltravelResposta de(CampoCustomizado campo) {
+            return new CampoFiltravelResposta(
+                    campo.chave(),
+                    campo.rotulo(),
+                    campo.tipo().name(),
+                    campo.tipo().operadoresPermitidos().stream().map(Enum::name).sorted().toList(),
+                    campo.opcoes());
+        }
+    }
 }

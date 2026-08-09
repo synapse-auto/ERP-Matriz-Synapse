@@ -16,9 +16,11 @@ public record LeadResumo(
         String nome,
         String telefone,
         String empresa,
+        String localizacao,
         StatusBasicoLead statusBasico,
         UUID etapaAtendimentoId,
         UUID atendenteResponsavelId,
         int numAtendimentos,
         int numMensagens,
-        Instant criadoEm) {}
+        Instant criadoEm,
+        Instant ultimaInteracaoEm) {}
