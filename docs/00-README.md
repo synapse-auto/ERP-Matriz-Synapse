@@ -26,6 +26,10 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 8. [`08-plano-execucao.md`](./08-plano-execucao.md) — avaliação do prazo, cronograma semanal até 25/08 e definição objetiva de pronto.
 9. [`09-escopo-primeira-entrega.md`](./09-escopo-primeira-entrega.md) — **recorte oficial da primeira entrega.** Tem precedência sobre a lista de features dos requisitos para o que entra até 25/08.
 
+### Continuidade
+
+- [`13-estado-do-projeto.md`](./13-estado-do-projeto.md) — **leia primeiro se estiver retomando o projeto.** Onde estamos, o que falta, decisões que não se revertem, as nove proteções silenciosas e as dívidas com prazo.
+
 ### Execução com Claude Code
 - [`CLAUDE.md`](./CLAUDE.md) — **vai na raiz do repositório**, não em `/docs`. Lido automaticamente pelo Claude Code em todo comando: stack, regras de arquitetura, padrões obrigatórios, proibições e regras de negócio sensíveis.
 - [`PLANO-ETAPAS.md`](./PLANO-ETAPAS.md) — as 14 etapas de desenvolvimento com escopo, dependências e definição de pronto.

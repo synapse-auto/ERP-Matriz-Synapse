@@ -117,6 +117,34 @@ interfaces/      controllers REST, handlers WebSocket, DTOs
 
 ---
 
+## "CI verde" só vale com o número da run
+
+Rodar `./mvnw clean verify` na sua máquina **não é** CI verde. Cinco runs vermelhas se acumularam neste projeto enquanto os relatórios diziam "CI verde" com base em execução local — e, como o job que publica as imagens no GHCR só roda depois dos testes, **três etapas inteiras ficaram sem chegar ao servidor** sem ninguém perceber.
+
+Regras:
+
+- Antes de encerrar, rode `cd backend && ./mvnw clean verify` — o ciclo completo, que inclui `spotless:check`, ArchUnit e Testcontainers. Não `mvn test`, não `test-compile`.
+- Se o `spotless` reformatar arquivo, **commite a reformatação.** Build que conserta formatação localmente e não commita passa na sua máquina e falha no CI.
+- No relatório, "CI verde" exige o **número da run** e o resultado dela. Sem isso, escreva "não verificado" — é informação honesta; "verde" sem run é informação falsa.
+- Se não conseguir rodar algo (Docker ausente, por exemplo), diga qual teste ficou sem execução, pelo nome.
+
+---
+
+## Skills — use antes de escrever código
+
+Se o ambiente tiver skills disponíveis, **carregue as relevantes antes de começar**, não depois de codar. Vale para toda etapa, sem precisar ser repetido em cada prompt:
+
+| Skill | Quando |
+|---|---|
+| `clean-code` | Toda etapa que escreve ou refatora código |
+| `architecture-patterns` | Módulo novo, caso de uso novo, qualquer coisa que atravesse camadas |
+| `api-design-principles` | Endpoint novo ou mudança de contrato |
+| `supabaseboaspraticas` | Migration, query, índice, plano de execução |
+
+Skill lida depois do código pronto serve para justificar o que já foi feito — que é o oposto do ponto. Se nenhuma se aplicar, diga isso no relatório em vez de ignorar em silêncio.
+
+---
+
 ## Padrões obrigatórios
 
 | Padrão | Onde | Por quê |

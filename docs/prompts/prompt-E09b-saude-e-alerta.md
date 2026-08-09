@@ -1,6 +1,17 @@
 # Prompt E09b — Saúde crítica e alerta de indisponibilidade
 
-> Etapa curta: ~meio dia. Rodar **antes do deploy de homologação** (~11/08), não antes.
+> Etapa curta: ~meio dia. **O deploy de homologação já existe** — rode esta etapa contra ele.
+> Pré-requisito: E14b concluída (os scripts operacionais existem e o RLS foi verificado).
+
+---
+
+## Nota de calibração pós-deploy
+
+A stack de homologação está no ar no Dokploy com sete serviços. Isso muda duas coisas neste prompt:
+
+- **O watchdog tem alvo real.** `/health/critical` deve ser exercitado contra o ambiente hospedado, não contra `localhost`. Lembre que o CI já foi enganado uma vez por um Redis que existia só na máquina de quem testava.
+- **O watchdog vai em outro provedor.** O VPS da homologação é o monitorado; um Uptime Kuma nele cai junto. Um VPS mínimo de outro fornecedor, ou serviço gratuito de uptime, resolve — `docs/10` §1.3.
+- **`ALERTA_WEBHOOK` já existe como variável opcional na stack** e hoje está vazia. É por ela que o alerta sai; não invente outro caminho de configuração.
 
 ---
 
