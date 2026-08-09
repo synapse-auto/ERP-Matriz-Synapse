@@ -23,10 +23,19 @@ A E15b (verificação de código) encontrou que `horario_trabalho` e `rotina_dis
 
 **Isto precisa ser dito à subgestora na homologação.** Não é detalhe técnico: muda a rotina de quem usa — hoje, cobertura fora do horário combinado depende de alguém lembrar de marcar presença como ausente/offline, não de uma janela configurada previamente.
 
+### 1.2 `chat_interno` e `dashboard` — flags que anunciavam o que não existe
+
+A E15b (`docs/05` §Resumo da revisão, itens 1 e 2) encontrou as duas flags com `habilitado = TRUE` no seed sem nenhum código por trás:
+
+- **`chat_interno`**: só a migration `V8__chat_interno.sql` existe (`chat_interno_conversa/participante/mensagem`, `status_presenca`). Nenhum domain, application, repository, controller ou handler WebSocket usa essas tabelas. Diferente das demais flags desligadas desta lista, esta é mais grave — não é uma flag `false` sem tela por trás, é uma flag `true` anunciando uma tela que não existe.
+- **`dashboard`**: mesmo problema. A afirmação anterior deste documento (§2) de que "a aba existe, sem as três sub-abas" **estava errada** — não há `DashboardController` no backend nem rota `/dashboard` no frontend. Era descrição de intenção, não de código entregue.
+
+A E16 (`docker/dokploy-stack.yml`, `.env.example`, `R__seed_dev.sql`) corrigiu o default de `FEATURE_CHAT_INTERNO` para `false` nos arquivos de deploy e as duas flags para `false` no seed de desenvolvimento. `fidelizacao` não foi tocada: tem domínio, repositório, entity e um caso de uso de listagem real, exposto no `AutomationConfigInternalController` — falta CRUD humano, não o módulo em si.
+
 ## 2. O que permanece, com ajuste
 
-### Dashboard — visão única consolidada
-A aba **existe**, sem as três sub-abas. Uma tela só, com os indicadores principais: atendimentos do dia, leads por etapa, desempenho por atendente e filtro de período. Atende `RF-CRM-31` e `RF-CRM-33`; `RF-CRM-32` ("milhares de informações") fica explicitamente para a fase 2.
+### Dashboard — ainda não construída (correção desta seção)
+Este documento afirmava que a aba "existe, sem as três sub-abas". A auditoria da E15b (`docs/05`) mostrou que isso nunca foi verdade: não há `DashboardController`, nem rota de frontend. O plano continua o mesmo — uma tela só, com os indicadores principais: atendimentos do dia, leads por etapa, desempenho por atendente e filtro de período, atendendo `RF-CRM-31` e `RF-CRM-33` e deixando `RF-CRM-32` ("milhares de informações") explicitamente para a fase 2 — mas como trabalho **pendente**, não entregue. A flag `dashboard` fica `false` até essa tela ser construída de fato (E16 §Bloco 2).
 
 ### Anexos no chat — upload direto
 O composer mantém o botão de anexo com upload do computador (`RF-CRM-09`, `RF-CRM-68`). O que sai é o **repositório compartilhado** de arquivos frequentes (`RF-CRM-13/55/56`). O atendente continua enviando foto e orçamento — apenas sem a biblioteca reutilizável.

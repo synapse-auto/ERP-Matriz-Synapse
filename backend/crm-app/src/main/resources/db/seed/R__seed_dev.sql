@@ -84,11 +84,17 @@ ON CONFLICT (id) DO UPDATE
 -- deixa a Base PAI ligar essas abas para um filho futuro sem deploy de codigo novo.
 INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
     ('campanhas',        FALSE, 'Aba de campanhas e motor de envio.'),
-    ('chat_interno',     TRUE, 'Chat entre atendentes e gestores.'),
+    -- E16 §Bloco 2: so a V8__chat_interno.sql existe — nenhum modulo crm-chat-interno
+    -- (domain/application/repository/controller) foi construido. Flag mentindo TRUE
+    -- treinaria todo mundo a ignorar flag; ver docs/09 §1.2.
+    ('chat_interno',     FALSE, 'Chat entre atendentes e gestores.'),
     ('fidelizacao',      TRUE, 'Regras de fidelizacao e reengajamento.'),
     ('relatorios',       FALSE, 'Aba de relatorios.'),
     ('banco_arquivos',   FALSE, 'Aba de banco de arquivos.'),
-    ('dashboard',        TRUE, 'Dashboard de indicadores.'),
+    -- E16 §Bloco 2: dashboard tem tela construida (E15/docs/09 §2), mas TRUE por
+    -- seed sem checagem e a mesma falha do chat_interno. Fica FALSE em dev por
+    -- coerencia com o resto do bloco; instancia real liga via variavel propria.
+    ('dashboard',        FALSE, 'Dashboard de indicadores.'),
     -- E15b §1: schema existe (regra_follow_up, regra_fidelizacao, mensagem_festiva,
     -- configuracao_resumo_ia) mas nenhum caso de uso de escrita foi construido ainda —
     -- nao e sub-aba visivel no menu, e sim secao dentro de /automacao que so aparece
