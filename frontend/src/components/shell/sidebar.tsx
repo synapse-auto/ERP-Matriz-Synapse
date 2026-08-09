@@ -23,10 +23,12 @@ import {
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
-import { atualizarPresenca, obterPresenca } from "@/lib/equipe/api";
+import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
+import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { iniciaisDoNome } from "@/lib/utils";
 
 interface ItemDeMenu {
   chave: string;
@@ -87,28 +89,19 @@ async function encerrarSessao() {
   window.location.href = "/login";
 }
 
-/**
- * Primeira letra do e-mail, maiúscula — o melhor avatar honesto disponível hoje. O protótipo
- * (`Sidebar.html`) mostra iniciais de um nome completo ("JS" para "Jardel Souza"), mas o backend
- * não expõe o nome do usuário autenticado para quem não é GESTOR/SUBGESTOR/ADMINISTRADOR
- * (`GET /api/v1/usuarios` é restrito a esses papéis) — e o JWT só carrega `papel`, não `nome`.
- * Inventar iniciais de um nome que não temos seria dado mockado; o e-mail é o dado real disponível.
- */
-function inicialDoEmail(email: string | null): string {
-  return email ? email.charAt(0).toUpperCase() : "?";
-}
-
 export function Sidebar() {
   const textos = useTextos();
   const pathname = usePathname();
   const { data: flags, isLoading, isError } = useFeaturesHabilitadas();
   const papel = useAuthStore((estado) => estado.papel);
-  const email = useAuthStore((estado) => estado.email);
+  const meuUsuario = useMeuUsuario();
   const cache = useQueryClient();
-  const presenca = useQuery({ queryKey: ["minha-presenca"], queryFn: obterPresenca });
   const mudarPresenca = useMutation({
     mutationFn: atualizarPresenca,
-    onSuccess: (dados) => cache.setQueryData(["minha-presenca"], dados),
+    onSuccess: (dados) =>
+      cache.setQueryData(["me"], (atual: typeof meuUsuario.data) =>
+        atual ? { ...atual, presenca: dados.status } : atual,
+      ),
   });
   const [popupAberto, setPopupAberto] = useState(false);
 
@@ -118,7 +111,7 @@ export function Sidebar() {
     return (flags ?? []).includes(item.flag);
   }
 
-  const statusAtual = presenca.data?.status ?? "OFFLINE";
+  const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
   const rotuloDaPresenca = (status: StatusPresenca) =>
     ({
       ONLINE: textos.rodape.presenca.online,
@@ -222,18 +215,20 @@ export function Sidebar() {
           className="flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
         >
           <span className="relative flex size-[38px] flex-none items-center justify-center rounded-[11px] bg-primary text-sm font-bold text-white">
-            {inicialDoEmail(email)}
+            {meuUsuario.data ? iniciaisDoNome(meuUsuario.data.nome) : "?"}
             <span
               className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-sidebar"
               style={{ backgroundColor: COR_PRESENCA[statusAtual] }}
             />
           </span>
           <span className="min-w-0 flex-1 text-left">
-            {email && (
-              <span className="block truncate text-[13.5px] font-bold text-white">{email}</span>
+            {meuUsuario.data && (
+              <span className="block truncate text-[13.5px] font-bold text-white">
+                {meuUsuario.data.nome}
+              </span>
             )}
             <span className="block truncate text-[11.5px] font-medium text-texto-sidebar-sub">
-              {papel} · {rotuloDaPresenca(statusAtual)}
+              {meuUsuario.data?.papel ?? papel} · {rotuloDaPresenca(statusAtual)}
             </span>
           </span>
         </button>

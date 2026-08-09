@@ -69,9 +69,12 @@ class LembreteController {
             @Parameter(description = "Fim inclusivo do período em UTC.", example = "2026-08-05T18:30:00Z")
                     @RequestParam(required = false) Instant fim,
             @Parameter(description = "Status do lembrete.") @RequestParam(required = false) StatusLembrete status,
+            @Parameter(description = "Lembretes de um lead só — usada pela seção do painel de atendimento (E17).")
+                    @RequestParam(required = false) UUID leadId,
             @Parameter(description = "Índice da página, começando em zero.", example = "0")
                     @RequestParam(defaultValue = "0") int pagina) {
-        return PaginaResposta.de(listar.executar(new FiltroLembretes(inicio, fim, status, pagina, tamanhoPagina)));
+        return PaginaResposta.de(
+                listar.executar(new FiltroLembretes(inicio, fim, status, leadId, pagina, tamanhoPagina)));
     }
 
     @Operation(

@@ -50,8 +50,9 @@ class MensagemProgramadaController {
             @Parameter(description = "Início inclusivo do período em UTC.") @RequestParam(required=false)Instant inicio,
             @Parameter(description = "Fim inclusivo do período em UTC.") @RequestParam(required=false)Instant fim,
             @Parameter(description = "Status do agendamento.") @RequestParam(required=false)StatusMensagemProgramada status,
+            @Parameter(description = "Mensagens de um lead só — seção do painel de atendimento (E17).") @RequestParam(required=false)UUID leadId,
             @Parameter(description = "Índice da página, começando em zero.", example = "0") @RequestParam(defaultValue="0")int pagina){
-        return PaginaResposta.de(listar.executar(new FiltroMensagensProgramadas(inicio,fim,status,pagina,tamanho)));}
+        return PaginaResposta.de(listar.executar(new FiltroMensagensProgramadas(inicio,fim,status,leadId,pagina,tamanho)));}
     @Operation(summary = "Programar mensagem", description = "Agenda uma mensagem futura para um lead visível.", responses = {@ApiResponse(responseCode = "201", description = "Mensagem programada."), @ApiResponse(responseCode = "404", description = "Lead não encontrado ou não visível.")})
     @PostMapping @ResponseStatus(HttpStatus.CREATED) Resposta criar(@Valid @RequestBody Requisicao r){return criar.executar(r.leadId(),r.conteudo(),r.dataEnvio()).map(Resposta::de).orElseThrow(MensagemProgramadaController::naoEncontrada);}
     @Operation(summary = "Atualizar mensagem programada", description = "Altera conteúdo e data de um agendamento ainda editável.", responses = {@ApiResponse(responseCode = "200", description = "Agendamento atualizado."), @ApiResponse(responseCode = "404", description = "Agendamento não encontrado ou não visível."), @ApiResponse(responseCode = "409", description = "Agendamento não pode mais ser editado.")})

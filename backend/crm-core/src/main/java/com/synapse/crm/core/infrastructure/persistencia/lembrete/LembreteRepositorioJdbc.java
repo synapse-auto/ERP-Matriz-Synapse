@@ -51,6 +51,10 @@ class LembreteRepositorioJdbc implements LembreteRepositorio {
             sql.append(" AND l.status = CAST(? AS status_lembrete)");
             parametros.add(filtro.status().name());
         }
+        if (filtro.leadId() != null) {
+            sql.append(" AND l.lead_id = ?");
+            parametros.add(filtro.leadId());
+        }
         sql.append(" ORDER BY l.data_hora, l.id LIMIT ? OFFSET ?");
         parametros.add(filtro.tamanho() + 1);
         parametros.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));

@@ -6,6 +6,7 @@ import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa"
 import { Composer } from "@/components/atendimentos/composer";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
+import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import type { CartaoAtendimento, MensagemResposta, VisaoAtendimento } from "@/lib/atendimento/types";
@@ -67,7 +68,13 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
   }
 
   return (
-    <div className="grid h-full grid-cols-[320px_1fr] overflow-hidden">
+    <div
+      className={
+        conversa
+          ? "grid h-full grid-cols-[320px_1fr_344px] overflow-hidden"
+          : "grid h-full grid-cols-[320px_1fr] overflow-hidden"
+      }
+    >
       <ListaConversas
         selecionadoId={conversa?.atendimentoId ?? null}
         leadInicialId={leadInicialId}
@@ -107,6 +114,8 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
           </div>
         )}
       </div>
+
+      {conversa && <PainelDaConversa leadId={conversa.leadId} />}
 
       {leadNoPainel && (
         <PainelLateralLead leadId={leadNoPainel} onFechar={() => setLeadNoPainel(null)} />

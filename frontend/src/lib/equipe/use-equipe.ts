@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { listarEquipe } from "./api";
+import { listarEquipe, obterMeuUsuario } from "./api";
 
 /**
  * Extraída como hook próprio (em vez de `useQuery` inline no componente) para ficar mockável nos
@@ -11,4 +11,9 @@ import { listarEquipe } from "./api";
  */
 export function useEquipe() {
   return useQuery({ queryKey: ["equipe"], queryFn: listarEquipe });
+}
+
+/** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */
+export function useMeuUsuario() {
+  return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario });
 }

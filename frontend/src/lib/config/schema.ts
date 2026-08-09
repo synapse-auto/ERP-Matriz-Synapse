@@ -197,6 +197,17 @@ export const TextosSchema = z.object({
       documento: z.string(),
       baixar: z.string(),
     }),
+    painel: z.object({
+      titulo: z.string(),
+      notasInternas: z.string(),
+      secoes: z.object({
+        resumo: z.string(),
+        programadas: z.string(),
+        lembretes: z.string(),
+      }),
+      vazioProgramadas: z.string(),
+      vazioLembretes: z.string(),
+    }),
   }),
   painelLead: z.object({
     titulo: z.string(),

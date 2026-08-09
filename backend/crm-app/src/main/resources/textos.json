@@ -129,6 +129,17 @@
       "audio": "Áudio",
       "documento": "Documento",
       "baixar": "Baixar"
+    },
+    "painel": {
+      "titulo": "Detalhes do lead",
+      "notasInternas": "Notas internas",
+      "secoes": {
+        "resumo": "Resumo por IA e notas",
+        "programadas": "Mensagens programadas",
+        "lembretes": "Lembretes"
+      },
+      "vazioProgramadas": "Nenhuma mensagem programada",
+      "vazioLembretes": "Nenhum lembrete"
     }
   },
   "painelLead": {

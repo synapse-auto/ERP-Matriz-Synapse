@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 
 import { AuthProvider } from "@/lib/auth/auth-provider";
 import { buscarTema, buscarTextos, temaParaCssVariaveis } from "@/lib/config/fetch-config";
@@ -7,6 +8,24 @@ import { QueryProvider } from "@/lib/query/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
+
+/**
+ * O protótipo (design/componentes/*.html) carrega estas duas fontes via <link> do Google Fonts —
+ * `--fonte-base`/`--fonte-mono` (tema.json) já apontavam para elas, mas nenhum arquivo de fonte
+ * era baixado: o app inteiro caía no fallback `system-ui`, mais largo, o que truncava rótulos como
+ * "Mensagens Programadas" na Sidebar (E17). `next/font/google` auto-hospeda o arquivo (sem
+ * requisição em runtime à Google) e expõe a variável CSS que `--font-sans`/`--font-mono` já leem.
+ */
+const hankenGrotesk = Hanken_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--fonte-base-carregada",
+});
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--fonte-mono-carregada",
+});
 
 // Tema e textos sao arquivos da instancia lidos pelo backend no runtime; nunca devem ser
 // congelados na imagem durante `next build`.
@@ -30,7 +49,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const [tema, textos] = await Promise.all([buscarTema(), buscarTextos()]);
 
   return (
-    <html lang="pt-BR" className="h-full antialiased">
+    <html
+      lang="pt-BR"
+      className={`h-full antialiased ${hankenGrotesk.variable} ${jetBrainsMono.variable}`}
+    >
       <head>
         <style>{temaParaCssVariaveis(tema)}</style>
       </head>

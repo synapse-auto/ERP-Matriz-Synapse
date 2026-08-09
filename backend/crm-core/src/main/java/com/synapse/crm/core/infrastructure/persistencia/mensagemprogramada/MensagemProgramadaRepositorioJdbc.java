@@ -36,6 +36,7 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
         if (filtro.inicio()!=null) { sql.append(" AND m.data_envio>=?"); p.add(Timestamp.from(filtro.inicio())); }
         if (filtro.fim()!=null) { sql.append(" AND m.data_envio<=?"); p.add(Timestamp.from(filtro.fim())); }
         if (filtro.status()!=null) { sql.append(" AND m.status=CAST(? AS status_msg_prog)"); p.add(filtro.status().name()); }
+        if (filtro.leadId()!=null) { sql.append(" AND m.lead_id=?"); p.add(filtro.leadId()); }
         sql.append(" ORDER BY m.data_envio,m.id LIMIT ? OFFSET ?");
         p.add(filtro.tamanho()+1); p.add(Math.multiplyExact(filtro.pagina(), filtro.tamanho()));
         List<MensagemProgramada> itens=jdbc.query(sql.toString(), MensagemProgramadaRepositorioJdbc::mapear,p.toArray());

@@ -15,11 +15,14 @@ vi.mock("@/lib/api/http-client", () => ({
   apiFetch: () => Promise.resolve(["dashboard", "banco_arquivos"]),
 }));
 
-const atualizarPresencaMock = vi.fn((_status: string) => Promise.resolve({ status: "AUSENTE" }));
+const atualizarPresencaMock = vi.fn((status: string) => Promise.resolve({ status }));
 
 vi.mock("@/lib/equipe/api", () => ({
-  obterPresenca: () => Promise.resolve({ status: "ONLINE" }),
   atualizarPresenca: (status: string) => atualizarPresencaMock(status),
+}));
+
+vi.mock("@/lib/equipe/use-equipe", () => ({
+  useMeuUsuario: () => ({ data: { nome: "Ana Beatriz", papel: "ATENDENTE", presenca: "ONLINE" } }),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -82,7 +85,7 @@ describe("sidebar", () => {
   it("abre o popup de presença e troca o status, sem select nativo", async () => {
     renderSidebar();
 
-    const botaoConta = await screen.findByText("ana@dev.local");
+    const botaoConta = await screen.findByText("Ana Beatriz");
     fireEvent.click(botaoConta.closest("button")!);
 
     const opcaoAusente = await screen.findByText("Ausente");
