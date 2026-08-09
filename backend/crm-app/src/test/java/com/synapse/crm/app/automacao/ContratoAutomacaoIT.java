@@ -249,6 +249,144 @@ class ContratoAutomacaoIT extends PostgresIT {
         }
     }
 
+    /**
+     * {@code POST /internal/v1/eventos} (E16 §Bloco 3): a Automacao reporta telemetria operacional.
+     *
+     * <p>{@code status_automacao_telemetria} e singleton (id=1, incrementado por {@link
+     * com.synapse.crm.automacaoconfig.infrastructure.persistencia.StatusAutomacaoTelemetriaRepositorioJpa}),
+     * entao "persiste" aqui significa "o contador subiu", nao "uma linha nova apareceu" — os testes
+     * negativos leem o contador antes e depois e provam que ele nao se mexeu.
+     */
+    @Nested
+    @DisplayName("POST /internal/v1/eventos")
+    class Eventos {
+
+        @Test
+        @DisplayName("evento valido incrementa o contador certo em status_automacao_telemetria")
+        void eventoValido_incrementaContador() {
+            long antes = mensagensEnviadas();
+
+            ResponseEntity<String> resposta = postarEvento(TOKEN_VALIDO, "\"MENSAGEM_ENVIADA\"");
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(mensagensEnviadas()).isEqualTo(antes + 1);
+            assertThat(conexaoAtiva()).isTrue();
+        }
+
+        @Test
+        @DisplayName("sem X-Synapse-Token, devolve 401 e nada e gravado")
+        void semToken_devolve401ENadaGrava() {
+            long antes = mensagensEnviadas();
+
+            ResponseEntity<String> resposta = http.exchange(
+                    "/internal/v1/eventos",
+                    HttpMethod.POST,
+                    new HttpEntity<>(corpo("\"MENSAGEM_ENVIADA\""), semSynapseToken()),
+                    String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(mensagensEnviadas()).isEqualTo(antes);
+        }
+
+        @Test
+        @DisplayName("com X-Synapse-Token errado, devolve 401 e nada e gravado")
+        void tokenErrado_devolve401ENadaGrava() {
+            long antes = mensagensEnviadas();
+
+            ResponseEntity<String> resposta = postarEvento("token-forjado", "\"MENSAGEM_ENVIADA\"");
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(mensagensEnviadas()).isEqualTo(antes);
+        }
+
+        @Test
+        @DisplayName("payload sem 'tipo' devolve 400 e nada e gravado")
+        void payloadSemTipo_devolve400ENadaGrava() {
+            long antes = mensagensEnviadas();
+
+            ResponseEntity<String> resposta = http.exchange(
+                    "/internal/v1/eventos",
+                    HttpMethod.POST,
+                    new HttpEntity<>("{}", comSynapseTokenEJson(TOKEN_VALIDO)),
+                    String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensagensEnviadas()).isEqualTo(antes);
+        }
+
+        @Test
+        @DisplayName("tipo de evento desconhecido devolve 400 e nada e gravado")
+        void tipoDesconhecido_devolve400ENadaGrava() {
+            long antes = mensagensEnviadas();
+
+            ResponseEntity<String> resposta = postarEvento(TOKEN_VALIDO, "\"EVENTO_QUE_NAO_EXISTE\"");
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensagensEnviadas()).isEqualTo(antes);
+        }
+
+        /**
+         * O negativo que importa (enunciado do Bloco 3): {@code /internal/v1} e autenticado só por
+         * {@code X-Synapse-Token} — o filtro correspondente nem olha para o cabecalho
+         * {@code Authorization}. Um JWT humano, por mais legitimo que seja para o resto da API, nao
+         * abre a porta de servico.
+         */
+        @Test
+        @DisplayName("JWT de usuario humano nao abre /internal/v1")
+        void jwtHumano_naoAbreInternalV1() {
+            long antes = mensagensEnviadas();
+            String jwtDoGestor = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(jwtDoGestor);
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            ResponseEntity<String> resposta = http.exchange(
+                    "/internal/v1/eventos",
+                    HttpMethod.POST,
+                    new HttpEntity<>(corpo("\"MENSAGEM_ENVIADA\""), cabecalhos),
+                    String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(mensagensEnviadas()).isEqualTo(antes);
+        }
+
+        private ResponseEntity<String> postarEvento(String token, String tipoJson) {
+            return http.exchange(
+                    "/internal/v1/eventos",
+                    HttpMethod.POST,
+                    new HttpEntity<>(corpo(tipoJson), comSynapseTokenEJson(token)),
+                    String.class);
+        }
+
+        private String corpo(String tipoJson) {
+            return "{\"tipo\":" + tipoJson + "}";
+        }
+
+        private HttpHeaders comSynapseTokenEJson(String token) {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.set("X-Synapse-Token", token);
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            return cabecalhos;
+        }
+
+        private HttpHeaders semSynapseToken() {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            return cabecalhos;
+        }
+
+        private long mensagensEnviadas() {
+            return jdbc.queryForObject(
+                    "SELECT mensagens_enviadas FROM status_automacao_telemetria WHERE id = 1", Long.class);
+        }
+
+        private boolean conexaoAtiva() {
+            return Boolean.TRUE.equals(jdbc.queryForObject(
+                    "SELECT conexao_automacao_ativa FROM status_automacao_telemetria WHERE id = 1",
+                    Boolean.class));
+        }
+    }
+
     // --- apoio ------------------------------------------------------------
 
     private ResponseEntity<String> comToken(String token, String url) {
