@@ -24,7 +24,7 @@ O protótipo usa **estilos inline**, não CSS variables. Este documento é a tra
 | `--fundo-app` | `#F4F7FB` | Fundo geral |
 | `--fundo-superficie` | `#FFFFFF` | Cards, painéis |
 | `--fundo-sutil` | `#EEF3F8` | Faixa alternada, hover de linha |
-| `--fundo-sidebar` | `#0F2438` | Sidebar escura (`#1B3248` para blocos internos) |
+| `--fundo-sidebar` | `#0C2A43` | Sidebar escura (`#123A5C` para blocos internos, ex.: popup de presença) |
 
 ### Texto
 
@@ -36,6 +36,7 @@ O protótipo usa **estilos inline**, não CSS variables. Este documento é a tra
 | `--texto-fraco` | `#8A9BAD` | Placeholder, metadados (185 ocorrências) |
 | `--texto-sidebar-titulo` | `#5E7E9C` | Rótulos "MENU" / "GESTÃO" |
 | `--texto-sidebar-sub` | `#6E92B4` | "CRM · ATENDIMENTO" |
+| `--texto-sidebar-item` | `#C3D6E8` | Texto de item de menu inativo |
 
 ### Bordas
 
@@ -67,7 +68,25 @@ O protótipo não cobria todos os estados da aplicação real. Quatro tokens ent
 | `--cor-erro-suave` | fundo suave | Simétrico a `--cor-primaria-suave` |
 | `--cor-primaria-texto` | `#FFFFFF` | Texto sobre botão primário |
 | `--fundo-sidebar-bloco` | `#1B3248` | Estava em prosa, não formalizado |
-| `--texto-sidebar-item` | — | Itens de menu na sidebar escura; só havia título e subtítulo |
+
+### Acrescentados na E17 — item de menu ativo/hover da Sidebar
+
+`Sidebar.html` usa **overlays translúcidos**, não cores sólidas, para os estados de hover e ativo dos itens de menu — algo que os tokens sólidos de "Marca e ação" não expressam. Em vez de aproximar com `--cor-primaria` (que teria contraste errado sobre o fundo escuro `#0C2A43`), estes tokens replicam os valores exatos do protótipo:
+
+| Token | Valor | Uso no protótipo |
+|---|---|---|
+| `--sidebar-item-texto-hover` | `#F0F6FC` | Cor do texto do item inativo, no hover |
+| `--sidebar-item-icone-ativo` | `#7FBBF2` | Cor do ícone quando o item está ativo |
+| `--sidebar-item-overlay-hover` | `rgba(255,255,255,.06)` | Fundo do item inativo, no hover |
+| `--sidebar-item-overlay-ativo` | `rgba(79,163,240,.17)` | Fundo do item ativo |
+| `--sidebar-item-overlay-ativo-hover` | `rgba(79,163,240,.2)` | Fundo do item ativo, no hover |
+| `--sidebar-item-acento-ativo` | `#4FA3F0` | Barra vertical de 3px (`box-shadow: inset`) do item ativo |
+| `--marca-icone-gradiente-inicio` | `#3B86E6` | Início do gradiente do ícone de marca (topo da sidebar) |
+| `--marca-icone-gradiente-fim` | `#1657B8` | Fim do mesmo gradiente |
+| `--sidebar-item-texto-perigo` | `#E88B7D` | Texto da ação "Sair" no popup de presença (sobre fundo escuro — diferente de `--cor-erro`, calibrado para fundo claro) |
+| `--sidebar-item-overlay-perigo` | `rgba(255,90,70,.12)` | Fundo no hover da mesma ação |
+
+Também corrigido nesta rodada: `--fundo-sidebar` estava documentado como `#0F2438` (valor de uma versão anterior do protótipo); o `Sidebar.html` atual, aprovado pelo cliente, usa `#0C2A43`. `--fundo-sidebar-bloco` foi de `#1B3248` para `#123A5C` pelo mesmo motivo. `--texto-sidebar-item`, que só existia em `tema.json` sem entrar nesta tabela, ganhou registro formal.
 
 ---
 

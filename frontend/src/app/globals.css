@@ -46,6 +46,14 @@
   --color-fundo-sidebar-bloco: var(--fundo-sidebar-bloco);
   --color-texto-sidebar-titulo: var(--texto-sidebar-titulo);
   --color-texto-sidebar-sub: var(--texto-sidebar-sub);
+  --color-texto-sidebar-item: var(--texto-sidebar-item);
+  --color-sidebar-item-texto-hover: var(--sidebar-item-texto-hover);
+  --color-sidebar-item-icone-ativo: var(--sidebar-item-icone-ativo);
+  --color-sidebar-item-overlay-hover: var(--sidebar-item-overlay-hover);
+  --color-sidebar-item-overlay-ativo: var(--sidebar-item-overlay-ativo);
+  --color-sidebar-item-overlay-ativo-hover: var(--sidebar-item-overlay-ativo-hover);
+  --color-sidebar-item-texto-perigo: var(--sidebar-item-texto-perigo);
+  --color-sidebar-item-overlay-perigo: var(--sidebar-item-overlay-perigo);
 
   /* Cinco raios (TOKENS.md pede consolidação — os 8 a 20px do protótipo viram estes 5). */
   --radius-sm: var(--raio-sm);
