@@ -271,7 +271,7 @@ function MenuGrupo({ titulo, itens, visivel, rotulos, pathname }: MenuGrupoProps
                 <Icone
                   className={ativo ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo" : "size-[21px] shrink-0"}
                 />
-                <span className="flex-1 truncate">{rotulos[item.chave] ?? item.chave}</span>
+                <span className="flex-1">{rotulos[item.chave] ?? item.chave}</span>
               </Link>
             </li>
           );
