@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,15 @@ import { SeletorData } from "@/components/ui/seletor-data";
 import { SeletorMultiplo } from "@/components/ui/seletor-multiplo";
 import type { EtapaAtendimento, CanalResumo, TagDoLead } from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
-import type { CampoFiltravel, FiltroAtivo, OperadorDeFiltro, StatusBasicoLead } from "@/lib/agenda/types";
+import type {
+  CampoFiltravel,
+  FiltroAtivo,
+  FiltrosRapidosAgenda,
+  LeadDaAgenda,
+  OperadorDeFiltro,
+  StatusBasicoLead,
+} from "@/lib/agenda/types";
+import { SEM_RESPONSAVEL } from "@/lib/agenda/use-agenda";
 import type { Textos } from "@/lib/config/schema";
 
 type TextosFiltros = Textos["agenda"]["filtros"];
@@ -54,12 +62,16 @@ interface Props {
   carregandoCampos: boolean;
   erroCampos: boolean;
   filtrosAtivos: FiltroAtivo[];
+  filtrosRapidos: FiltrosRapidosAgenda;
+  leads: LeadDaAgenda[];
   referencias: Referencias;
   textos: TextosFiltros;
   textosStatus: TextosStatus;
+  textoSemResponsavel: string;
   /** "Exibindo N de M leads" (E17b §Bloco 3) — mesma linha da barra, como no protótipo. */
   contador: ReactNode;
   onAdicionar: (filtro: FiltroAtivo) => void;
+  onFiltrosRapidosChange: (filtros: FiltrosRapidosAgenda) => void;
   onRemover: (id: string) => void;
   onLimparTudo: () => void;
 }
@@ -69,45 +81,168 @@ export function BarraDeFiltros({
   carregandoCampos,
   erroCampos,
   filtrosAtivos,
+  filtrosRapidos,
+  leads,
   referencias,
   textos,
   textosStatus,
+  textoSemResponsavel,
   contador,
   onAdicionar,
+  onFiltrosRapidosChange,
   onRemover,
   onLimparTudo,
 }: Props) {
+  const [avancadosAbertos, setAvancadosAbertos] = useState(false);
+  const cidadesConhecidas = useMemo(
+    () =>
+      [...new Set([
+        ...filtrosRapidos.cidades,
+        ...leads
+          .map((lead) => lead.localizacao?.trim())
+          .filter((cidade): cidade is string => Boolean(cidade)),
+      ])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [filtrosRapidos.cidades, leads],
+  );
+
+  const opcoesRapidas = {
+    etapas: referencias.etapas.map((etapa) => ({ valor: etapa.id, rotulo: etapa.nome })),
+    atendentes: [
+      ...referencias.equipe.map((usuario) => ({ valor: usuario.id, rotulo: usuario.nome })),
+      { valor: SEM_RESPONSAVEL, rotulo: textoSemResponsavel },
+    ],
+    cidades: cidadesConhecidas.map((cidade) => ({ valor: cidade, rotulo: cidade })),
+    tags: referencias.tags.map((tag) => ({ valor: tag.id, rotulo: tag.nome })),
+  };
+
+  function atualizarRapido(
+    chave: "etapas" | "atendentes" | "cidades" | "tags",
+    valores: string[],
+  ) {
+    onFiltrosRapidosChange({ ...filtrosRapidos, [chave]: valores });
+  }
+
+  const chipsRapidos = [
+    ...(filtrosRapidos.busca
+      ? [{ chave: "busca" as const, valor: filtrosRapidos.busca, rotulo: `${textos.busca}: ${filtrosRapidos.busca}` }]
+      : []),
+    ...(["etapas", "atendentes", "cidades", "tags"] as const).flatMap((chave) =>
+      filtrosRapidos[chave].map((valor) => {
+        const opcao = opcoesRapidas[chave].find((item) => item.valor === valor);
+        const titulo = {
+          etapas: textos.etapa,
+          atendentes: textos.atendente,
+          cidades: textos.cidade,
+          tags: textos.tag,
+        }[chave];
+        return { chave, valor, rotulo: `${titulo}: ${opcao?.rotulo ?? valor}` };
+      }),
+    ),
+  ];
+
+  function removerRapido(chave: (typeof chipsRapidos)[number]["chave"], valor: string) {
+    if (chave === "busca") {
+      onFiltrosRapidosChange({ ...filtrosRapidos, busca: "" });
+      return;
+    }
+    atualizarRapido(chave, filtrosRapidos[chave].filter((atual) => atual !== valor));
+  }
+
+  const haFiltros = chipsRapidos.length > 0 || filtrosAtivos.length > 0;
+
   return (
     <div className="mb-4 space-y-3 rounded-lg border border-border bg-card p-3.5">
-      <div className="flex flex-wrap items-end gap-3">
-        <FormularioDeNovoFiltro
-          campos={campos}
-          carregandoCampos={carregandoCampos}
-          erroCampos={erroCampos}
-          referencias={referencias}
-          textos={textos}
-          textosStatus={textosStatus}
-          onAdicionar={onAdicionar}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-72 flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={filtrosRapidos.busca}
+            aria-label={textos.busca}
+            placeholder={textos.buscaPlaceholder}
+            className="pl-9"
+            onChange={(evento) =>
+              onFiltrosRapidosChange({ ...filtrosRapidos, busca: evento.target.value })
+            }
+          />
+        </div>
+        <SeletorMultiplo
+          className="min-w-28"
+          ariaLabel={textos.etapa}
+          valores={filtrosRapidos.etapas}
+          opcoes={opcoesRapidas.etapas}
+          placeholder={textos.etapa}
+          onChange={(valores) => atualizarRapido("etapas", valores)}
         />
-        <div className="ml-auto shrink-0 pb-1.5">{contador}</div>
+        <SeletorMultiplo
+          className="min-w-32"
+          ariaLabel={textos.atendente}
+          valores={filtrosRapidos.atendentes}
+          opcoes={opcoesRapidas.atendentes}
+          placeholder={textos.atendente}
+          onChange={(valores) => atualizarRapido("atendentes", valores)}
+        />
+        <SeletorMultiplo
+          className="min-w-28"
+          ariaLabel={textos.cidade}
+          valores={filtrosRapidos.cidades}
+          opcoes={opcoesRapidas.cidades}
+          placeholder={textos.cidade}
+          onChange={(valores) => atualizarRapido("cidades", valores)}
+        />
+        <SeletorMultiplo
+          className="min-w-24"
+          ariaLabel={textos.tag}
+          valores={filtrosRapidos.tags}
+          opcoes={opcoesRapidas.tags}
+          placeholder={textos.tag}
+          onChange={(valores) => atualizarRapido("tags", valores)}
+        />
+        <div className="ml-auto shrink-0">{contador}</div>
       </div>
-      {filtrosAtivos.length > 0 && (
+
+      <div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-expanded={avancadosAbertos}
+          onClick={() => setAvancadosAbertos((abertos) => !abertos)}
+        >
+          {textos.avancados}
+          <ChevronDown className={avancadosAbertos ? "rotate-180 transition-transform" : "transition-transform"} />
+        </Button>
+        {avancadosAbertos && (
+          <div className="mt-2 border-t border-border pt-3">
+            <FormularioDeNovoFiltro
+              campos={campos}
+              carregandoCampos={carregandoCampos}
+              erroCampos={erroCampos}
+              referencias={referencias}
+              textos={textos}
+              textosStatus={textosStatus}
+              onAdicionar={onAdicionar}
+            />
+          </div>
+        )}
+      </div>
+
+      {haFiltros && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          {chipsRapidos.map((filtro) => (
+            <ChipDeFiltro
+              key={`${filtro.chave}-${filtro.valor}`}
+              rotulo={filtro.rotulo}
+              textoRemover={textos.limparTudo}
+              onRemover={() => removerRapido(filtro.chave, filtro.valor)}
+            />
+          ))}
           {filtrosAtivos.map((filtro) => (
-            <span
+            <ChipDeFiltro
               key={filtro.id}
-              className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 py-1 pr-1.5 pl-2.5 text-xs font-semibold text-primary"
-            >
-              {filtro.rotuloValor}
-              <button
-                type="button"
-                aria-label={`${textos.limparTudo}: ${filtro.rotuloValor}`}
-                className="rounded-sm text-primary/70 hover:text-primary"
-                onClick={() => onRemover(filtro.id)}
-              >
-                <X className="size-3.5" />
-              </button>
-            </span>
+              rotulo={filtro.rotuloValor}
+              textoRemover={textos.limparTudo}
+              onRemover={() => onRemover(filtro.id)}
+            />
           ))}
           <Button type="button" variant="ghost" size="sm" onClick={onLimparTudo}>
             {textos.limparTudo}
@@ -115,6 +250,30 @@ export function BarraDeFiltros({
         </div>
       )}
     </div>
+  );
+}
+
+function ChipDeFiltro({
+  rotulo,
+  textoRemover,
+  onRemover,
+}: {
+  rotulo: string;
+  textoRemover: string;
+  onRemover: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 py-1 pr-1.5 pl-2.5 text-xs font-semibold text-primary">
+      {rotulo}
+      <button
+        type="button"
+        aria-label={`${textoRemover}: ${rotulo}`}
+        className="rounded-sm text-primary/70 hover:text-primary"
+        onClick={onRemover}
+      >
+        <X className="size-3.5" />
+      </button>
+    </span>
   );
 }
 

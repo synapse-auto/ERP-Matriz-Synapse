@@ -10,7 +10,12 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCanais, useEtapas, useTodasAsTags } from "@/lib/lead/use-painel-lead";
 import { useCamposFiltraveis, useContagemDeLeads, useLeadsDaAgenda } from "@/lib/agenda/use-agenda";
-import type { FiltroAtivo, LeadDaAgenda } from "@/lib/agenda/types";
+import {
+  FILTROS_RAPIDOS_VAZIOS,
+  type FiltroAtivo,
+  type FiltrosRapidosAgenda,
+  type LeadDaAgenda,
+} from "@/lib/agenda/types";
 import type { VisaoAtendimento } from "@/lib/atendimento/types";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
@@ -32,6 +37,9 @@ export function PaginaAgenda() {
   const papel = useAuthStore((estado) => estado.papel);
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
+  const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
+    ...FILTROS_RAPIDOS_VAZIOS,
+  });
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
 
@@ -40,8 +48,9 @@ export function PaginaAgenda() {
   const canais = useCanais();
   const tags = useTodasAsTags();
   const equipe = useEquipe();
-  const paginaDeLeads = useLeadsDaAgenda(filtrosAtivos, pagina);
-  const contagem = useContagemDeLeads(filtrosAtivos);
+  const tagsDisponiveis = tags.data ?? [];
+  const paginaDeLeads = useLeadsDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, pagina);
+  const contagem = useContagemDeLeads(filtrosRapidos, filtrosAtivos, tagsDisponiveis);
 
   function adicionarFiltro(filtro: FiltroAtivo) {
     setFiltrosAtivos((atuais) => [...atuais, filtro]);
@@ -53,8 +62,14 @@ export function PaginaAgenda() {
     setPagina(0);
   }
 
+  function atualizarFiltrosRapidos(novosFiltros: FiltrosRapidosAgenda) {
+    setFiltrosRapidos(novosFiltros);
+    setPagina(0);
+  }
+
   function limparFiltros() {
     setFiltrosAtivos([]);
+    setFiltrosRapidos({ ...FILTROS_RAPIDOS_VAZIOS });
     setPagina(0);
   }
 
@@ -87,18 +102,22 @@ export function PaginaAgenda() {
           carregandoCampos={campos.isLoading}
           erroCampos={campos.isError}
           filtrosAtivos={filtrosAtivos}
+          filtrosRapidos={filtrosRapidos}
+          leads={leads}
           referencias={{
             etapas: etapas.data ?? [],
             canais: canais.data ?? [],
             equipe: equipe.data ?? [],
-            tags: tags.data ?? [],
+            tags: tagsDisponiveis,
           }}
           textos={t.filtros}
           textosStatus={t.status}
+          textoSemResponsavel={t.semResponsavel}
           contador={
             <p className="text-sm whitespace-nowrap text-muted-foreground">{textoContador}</p>
           }
           onAdicionar={adicionarFiltro}
+          onFiltrosRapidosChange={atualizarFiltrosRapidos}
           onRemover={removerFiltro}
           onLimparTudo={limparFiltros}
         />

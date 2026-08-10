@@ -380,6 +380,13 @@ export const TextosSchema = z.object({
     status: z.object({ ia: z.string(), emAtendimento: z.string(), finalizado: z.string() }),
     filtros: z.object({
       titulo: z.string(),
+      busca: z.string(),
+      buscaPlaceholder: z.string(),
+      avancados: z.string(),
+      etapa: z.string(),
+      atendente: z.string(),
+      cidade: z.string(),
+      tag: z.string(),
       adicionar: z.string(),
       campo: z.string(),
       operador: z.string(),

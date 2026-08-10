@@ -62,6 +62,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       status: { ia: "Potencial (IA)", emAtendimento: "Em atendimento", finalizado: "Finalizado" },
       filtros: {
         titulo: "Filtros",
+        busca: "Busca",
+        buscaPlaceholder: "Buscar por nome, telefone, CNPJ/CPF ou tag...",
+        avancados: "Filtros avançados",
+        etapa: "Etapa",
+        atendente: "Atendente",
+        cidade: "Cidade",
+        tag: "Tag",
         adicionar: "Adicionar filtro",
         campo: "Campo",
         operador: "Operador",
@@ -112,8 +119,9 @@ const useCamposFiltraveis = vi.fn();
 
 vi.mock("@/lib/agenda/use-agenda", () => ({
   useCamposFiltraveis: () => useCamposFiltraveis(),
-  useLeadsDaAgenda: () => useLeadsDaAgenda(),
-  useContagemDeLeads: () => useContagemDeLeads(),
+  useLeadsDaAgenda: (...args: unknown[]) => useLeadsDaAgenda(...args),
+  useContagemDeLeads: (...args: unknown[]) => useContagemDeLeads(...args),
+  SEM_RESPONSAVEL: "__sem_responsavel__",
 }));
 
 import { PaginaAgenda } from "./pagina-agenda";
@@ -157,6 +165,8 @@ describe("pagina da agenda", () => {
   it("adiciona um filtro pelo campo e operador escolhidos, sem lista hardcoded", async () => {
     render(<PaginaAgenda />);
 
+    expect(screen.queryByRole("combobox", { name: "Campo" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Filtros avançados/i }));
     fireEvent.click(screen.getByRole("combobox", { name: "Campo" }));
     const campoNome = await screen.findByRole("option", { name: "Nome" });
     fireEvent.pointerDown(campoNome, { pointerType: "mouse", button: 0 });
@@ -169,6 +179,33 @@ describe("pagina da agenda", () => {
     fireEvent.click(screen.getByRole("button", { name: "Adicionar filtro" }));
 
     expect(screen.getByText("Nome contém Marcos")).toBeInTheDocument();
+  });
+
+  it("expõe busca, quatro filtros prontos e contador na barra principal", () => {
+    render(<PaginaAgenda />);
+
+    expect(screen.getByPlaceholderText("Buscar por nome, telefone, CNPJ/CPF ou tag...")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Etapa" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Atendente" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Cidade" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Tag" })).toBeInTheDocument();
+    expect(screen.getByText("Exibindo 1 de 1")).toBeInTheDocument();
+  });
+
+  it("envia a busca livre ao mesmo fluxo de filtro e cria chip removível", () => {
+    render(<PaginaAgenda />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Busca" }), {
+      target: { value: "Marcos" },
+    });
+
+    expect(useLeadsDaAgenda).toHaveBeenLastCalledWith(
+      expect.objectContaining({ busca: "Marcos" }),
+      expect.any(Array),
+      expect.any(Array),
+      0,
+    );
+    expect(screen.getByText("Busca: Marcos")).toBeInTheDocument();
   });
 
   it("clique simples abre a ficha; a paginação respeita temMais", () => {

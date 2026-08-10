@@ -234,6 +234,13 @@
     "status": {"ia":"Potencial (IA)","emAtendimento":"Em atendimento","finalizado":"Finalizado"},
     "filtros": {
       "titulo": "Filtros",
+      "busca": "Busca",
+      "buscaPlaceholder": "Buscar por nome, telefone, CNPJ/CPF ou tag...",
+      "avancados": "Filtros avançados",
+      "etapa": "Etapa",
+      "atendente": "Atendente",
+      "cidade": "Cidade",
+      "tag": "Tag",
       "adicionar": "Adicionar filtro",
       "campo": "Campo",
       "operador": "Operador",

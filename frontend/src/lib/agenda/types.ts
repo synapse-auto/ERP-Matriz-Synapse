@@ -70,11 +70,7 @@ export interface CriterioCompostoRequisicao {
 
 export type CriterioRequisicao = CriterioSimplesRequisicao | CriterioCompostoRequisicao;
 
-/**
- * Um filtro ativo na tela: sempre um {@link CriterioSimplesRequisicao} — a agenda só compõe
- * filtros com E (AND) entre chips, nunca árvore aninhada. `rotuloValor` é o texto já resolvido
- * para o chip (nome da etapa, do atendente etc.), calculado no momento em que o filtro é criado.
- */
+/** Filtro simples criado pelo construtor avançado e exibido como chip removível. */
 export interface FiltroAtivo {
   id: string;
   campo: CampoFiltravel;
@@ -83,3 +79,19 @@ export interface FiltroAtivo {
   valores?: string[];
   rotuloValor: string;
 }
+
+export interface FiltrosRapidosAgenda {
+  busca: string;
+  etapas: string[];
+  atendentes: string[];
+  cidades: string[];
+  tags: string[];
+}
+
+export const FILTROS_RAPIDOS_VAZIOS: FiltrosRapidosAgenda = {
+  busca: "",
+  etapas: [],
+  atendentes: [],
+  cidades: [],
+  tags: [],
+};

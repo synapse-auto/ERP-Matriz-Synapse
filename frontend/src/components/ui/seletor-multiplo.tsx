@@ -13,6 +13,7 @@ interface SeletorMultiploProps {
   onChange: (valores: string[]) => void;
   placeholder: string;
   className?: string;
+  ariaLabel?: string;
 }
 
 /** Seleção múltipla temática para os casos que o Select simples não representa. */
@@ -22,6 +23,7 @@ export function SeletorMultiplo({
   onChange,
   placeholder,
   className,
+  ariaLabel,
 }: SeletorMultiploProps) {
   const selecionadas = opcoes.filter((opcao) => valores.includes(opcao.valor));
   const rotulo = selecionadas.length
@@ -44,6 +46,7 @@ export function SeletorMultiplo({
             type="button"
             variant="outline"
             role="combobox"
+            aria-label={ariaLabel}
             className={cn("justify-between font-normal", className)}
           />
         }
