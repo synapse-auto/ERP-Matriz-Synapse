@@ -12,11 +12,16 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -133,6 +138,74 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
         String comoAna = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
         assertThat(comoAna).doesNotContain(atendimentoPendenteDoBruno.toString());
+    }
+
+    /**
+     * {@code GET /api/v1/atendimentos/contagem} (E17b §Bloco 6) — os badges das abas. O teste
+     * negativo do enunciado: contagem pedida por atendente devolve o numero restrito, gestor devolve
+     * o total. Comparacao relativa, e nao numero fixo, porque a suite roda contra o mesmo Postgres
+     * que outras IT (e o seed de demonstracao) tambem povoam — o que importa e que Ana nunca alcanca
+     * o que so o gestor alcanca, nao a contagem exata de um instante.
+     */
+    @Nested
+    @DisplayName("GET /api/v1/atendimentos/contagem")
+    class Contagem {
+
+        @Test
+        @DisplayName("PENDENTES: atendente recebe numero restrito, gestor recebe o total")
+        void pendentes_atendenteRestritoGestorTotal() {
+            long paraAna = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES");
+            long paraGestor = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES");
+
+            assertThat(paraAna).isLessThan(paraGestor);
+        }
+
+        @Test
+        @DisplayName("TODOS: atendente recebe numero restrito, gestor recebe o total")
+        void todos_atendenteRestritoGestorTotal() {
+            long paraAna = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
+            long paraGestor = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
+
+            assertThat(paraAna).isLessThan(paraGestor);
+        }
+
+        @Test
+        @DisplayName("a contagem por visao bate com o tamanho da listagem da mesma visao")
+        void contagem_bateComOTamanhoDaListagem() {
+            String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+
+            long contagem = contarComToken(token, "PENDENTES");
+            String listagem = ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=PENDENTES", String.class)
+                    .getBody();
+
+            assertThat(contagem).isEqualTo(quantidadeDeCartoes(listagem));
+        }
+
+        @Test
+        @DisplayName("sem autenticacao, devolve 401")
+        void semAutenticacao_devolve401() {
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/atendimentos/contagem", HttpMethod.GET, new HttpEntity<>(new HttpHeaders()), String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        private long contarComo(String email, String senha, String visao) {
+            String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+            return contarComToken(token, visao);
+        }
+
+        private long contarComToken(String token, String visaoQualquer) {
+            String corpo = ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                    .getBody();
+            return Long.parseLong(corpo.replaceAll(".*\"" + visaoQualquer + "\":(\\d+).*", "$1"));
+        }
+
+        private int quantidadeDeCartoes(String corpoJson) {
+            return corpoJson.split("\"atendimentoId\"", -1).length - 1;
+        }
     }
 
     // --- apoio ------------------------------------------------------------

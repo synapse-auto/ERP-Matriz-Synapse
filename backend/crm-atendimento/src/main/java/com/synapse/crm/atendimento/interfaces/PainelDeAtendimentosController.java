@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.interfaces;
 
 import java.util.List;
+import java.util.Map;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
+import com.synapse.crm.atendimento.application.painel.ContarAtendimentosPorVisaoUseCase;
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 
@@ -27,9 +29,12 @@ import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 class PainelDeAtendimentosController {
 
     private final ListarAtendimentosVisiveisUseCase listar;
+    private final ContarAtendimentosPorVisaoUseCase contarPorVisao;
 
-    PainelDeAtendimentosController(ListarAtendimentosVisiveisUseCase listar) {
+    PainelDeAtendimentosController(
+            ListarAtendimentosVisiveisUseCase listar, ContarAtendimentosPorVisaoUseCase contarPorVisao) {
         this.listar = listar;
+        this.contarPorVisao = contarPorVisao;
     }
 
     @Operation(
@@ -41,5 +46,18 @@ class PainelDeAtendimentosController {
             @Parameter(description = "Grupo operacional do painel.", required = true)
                     @RequestParam VisaoAtendimento visao) {
         return listar.executar(visao);
+    }
+
+    /**
+     * Os badges das abas (E17b §Bloco 6): uma contagem por visão, na mesma chamada, para a tela não
+     * disparar uma requisição por aba.
+     */
+    @Operation(
+            summary = "Contar atendimentos por visão",
+            description = "Retorna, para cada visão operacional, quantos cartões o papel autenticado enxergaria — a mesma visibilidade da listagem.",
+            responses = @ApiResponse(responseCode = "200", description = "Contagem por visão."))
+    @GetMapping("/contagem")
+    Map<VisaoAtendimento, Long> contagem() {
+        return contarPorVisao.executar();
     }
 }

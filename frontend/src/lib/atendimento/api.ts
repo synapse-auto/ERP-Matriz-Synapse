@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
+  ContagemPorVisao,
   EnvioResposta,
   MensagemResposta,
   PaginaMensagens,
@@ -17,6 +18,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export function listarAtendimentos(visao: VisaoAtendimento): Promise<CartaoAtendimento[]> {
   return apiFetch<CartaoAtendimento[]>(`/api/v1/atendimentos?visao=${visao}`);
+}
+
+/** Os badges das abas — uma contagem por visão, na mesma chamada (E17b §Bloco 6). */
+export function contarAtendimentosPorVisao(): Promise<ContagemPorVisao> {
+  return apiFetch<ContagemPorVisao>("/api/v1/atendimentos/contagem");
 }
 
 /** `desde` ausente traz a conversa inteira — primeira carga da tela. */

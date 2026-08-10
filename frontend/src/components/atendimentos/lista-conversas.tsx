@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAtendimentos } from "@/lib/atendimento/use-atendimentos";
+import { useAtendimentos, useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
 import type { CartaoAtendimento, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -55,6 +56,7 @@ export function ListaConversas({
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
 
   const { data, isLoading } = useAtendimentos(visao);
+  const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
 
   useEffect(() => {
@@ -97,8 +99,13 @@ export function ListaConversas({
       <Tabs value={visao} onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}>
         <TabsList className="w-full">
           {visoes.map((item) => (
-            <TabsTrigger key={item} value={item} className="flex-1">
+            <TabsTrigger key={item} value={item} className="flex-1 gap-1.5">
               {textos.visoes[ROTULO_VISAO[item]]}
+              {contagens && (
+                <Badge variant={item === visao ? "default" : "secondary"} className="px-1.5">
+                  {contagens[item]}
+                </Badge>
+              )}
             </TabsTrigger>
           ))}
         </TabsList>

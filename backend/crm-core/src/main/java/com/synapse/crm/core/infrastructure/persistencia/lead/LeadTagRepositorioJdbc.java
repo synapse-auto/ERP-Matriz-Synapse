@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.core.application.tag.LeadTagRepositorio;
+import com.synapse.crm.core.domain.tag.ContagemDeTag;
 import com.synapse.crm.core.domain.tag.Tag;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 
@@ -36,6 +37,20 @@ class LeadTagRepositorioJdbc implements LeadTagRepositorio {
               JOIN lead_tag lt ON lt.tag_id = t.id
              WHERE lt.lead_id = ANY(?)
              ORDER BY lt.lead_id, t.nome
+            """;
+
+    /** {@code DISTINCT lead_id}: um lead com tres tags conta uma vez so, nao tres. */
+    private static final String SQL_CONTAR_LEADS_COM_TAG =
+            "SELECT COUNT(DISTINCT lead_id) FROM lead_tag WHERE lead_id = ANY(?)";
+
+    private static final String SQL_CONTAR_POR_TAG =
+            """
+            SELECT t.id, t.nome, t.cor, t.icone, COUNT(*) AS quantidade
+              FROM tag t
+              JOIN lead_tag lt ON lt.tag_id = t.id
+             WHERE lt.lead_id = ANY(?)
+             GROUP BY t.id, t.nome, t.cor, t.icone
+             ORDER BY quantidade DESC, t.nome
             """;
 
     private final JdbcTemplate jdbc;
@@ -81,6 +96,31 @@ class LeadTagRepositorioJdbc implements LeadTagRepositorio {
     public void desvincular(UUID leadId, UUID tagId) {
         TransacaoObrigatoria.exigir("desvincular tag do lead");
         jdbc.update("DELETE FROM lead_tag WHERE lead_id = ? AND tag_id = ?", leadId, tagId);
+    }
+
+    @Override
+    public long contarLeadsComTag(List<UUID> leadIds) {
+        TransacaoObrigatoria.exigir("contar leads com tag");
+        if (leadIds == null || leadIds.isEmpty()) {
+            return 0;
+        }
+        Long total = jdbc.query(
+                SQL_CONTAR_LEADS_COM_TAG,
+                ps -> ps.setArray(1, ps.getConnection().createArrayOf("uuid", leadIds.toArray())),
+                linha -> linha.next() ? linha.getLong(1) : 0L);
+        return total == null ? 0 : total;
+    }
+
+    @Override
+    public List<ContagemDeTag> contarPorTag(List<UUID> leadIds) {
+        TransacaoObrigatoria.exigir("contar leads por tag");
+        if (leadIds == null || leadIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbc.query(
+                SQL_CONTAR_POR_TAG,
+                ps -> ps.setArray(1, ps.getConnection().createArrayOf("uuid", leadIds.toArray())),
+                (linha, indice) -> new ContagemDeTag(mapear(linha, indice), linha.getLong("quantidade")));
     }
 
     private static Tag mapear(ResultSet linha, int indice) throws SQLException {

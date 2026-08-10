@@ -64,20 +64,44 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String ORDEM = " ORDER BY COALESCE(ultima.enviado_em, a.iniciado_em) DESC";
 
-    private static final String SQL_ATIVOS = "SELECT " + CAMPOS + ORIGEM
-            + " WHERE a.status = 'EM_ATENDIMENTO' AND a.atendente_id = ?" + ORDEM;
+    /**
+     * As mesmas quatro condicoes de visao usadas em {@link #listar}, isoladas para que a contagem
+     * (E17b §Bloco 6) monte {@code SELECT COUNT(*)} sobre exatamente o mesmo {@code WHERE} — nunca uma
+     * segunda decisao de "o que e visivel" escrita a parte.
+     */
+    private static final String WHERE_ATIVOS = " WHERE a.status = 'EM_ATENDIMENTO' AND a.atendente_id = ?";
 
-    private static final String SQL_PENDENTES_PROPRIOS = "SELECT " + CAMPOS + ORIGEM
-            + " WHERE a.status = 'EM_ATENDIMENTO' AND a.atendente_id = ?"
-            + " AND ultima.remetente_tipo = 'LEAD'" + ORDEM;
+    private static final String WHERE_PENDENTES_PROPRIOS = " WHERE a.status = 'EM_ATENDIMENTO'"
+            + " AND a.atendente_id = ? AND ultima.remetente_tipo = 'LEAD'";
 
-    private static final String SQL_PENDENTES_TODOS = "SELECT " + CAMPOS + ORIGEM
-            + " WHERE a.status = 'EM_ATENDIMENTO' AND ultima.remetente_tipo = 'LEAD'" + ORDEM;
+    private static final String WHERE_PENDENTES_TODOS =
+            " WHERE a.status = 'EM_ATENDIMENTO' AND ultima.remetente_tipo = 'LEAD'";
 
-    private static final String SQL_POTENCIAIS =
-            "SELECT " + CAMPOS + ORIGEM + " WHERE a.status = 'EM_IA'" + ORDEM;
+    private static final String WHERE_POTENCIAIS = " WHERE a.status = 'EM_IA'";
+
+    private static final String SQL_ATIVOS = "SELECT " + CAMPOS + ORIGEM + WHERE_ATIVOS + ORDEM;
+
+    private static final String SQL_PENDENTES_PROPRIOS =
+            "SELECT " + CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS + ORDEM;
+
+    private static final String SQL_PENDENTES_TODOS =
+            "SELECT " + CAMPOS + ORIGEM + WHERE_PENDENTES_TODOS + ORDEM;
+
+    private static final String SQL_POTENCIAIS = "SELECT " + CAMPOS + ORIGEM + WHERE_POTENCIAIS + ORDEM;
 
     private static final String SQL_TODOS = "SELECT " + CAMPOS + ORIGEM + ORDEM;
+
+    private static final String SQL_CONTAR_ATIVOS = "SELECT COUNT(*) " + ORIGEM + WHERE_ATIVOS;
+
+    private static final String SQL_CONTAR_PENDENTES_PROPRIOS =
+            "SELECT COUNT(*) " + ORIGEM + WHERE_PENDENTES_PROPRIOS;
+
+    private static final String SQL_CONTAR_PENDENTES_TODOS =
+            "SELECT COUNT(*) " + ORIGEM + WHERE_PENDENTES_TODOS;
+
+    private static final String SQL_CONTAR_POTENCIAIS = "SELECT COUNT(*) " + ORIGEM + WHERE_POTENCIAIS;
+
+    private static final String SQL_CONTAR_TODOS = "SELECT COUNT(*) " + ORIGEM;
 
     private static final RowMapper<CartaoAtendimento> MAPEADOR =
             PainelDeAtendimentosRepositorioJdbc::paraCartao;
@@ -100,6 +124,24 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR);
             case TODOS -> chat.query(SQL_TODOS, MAPEADOR);
         };
+    }
+
+    @Override
+    public long contar(VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
+        TransacaoObrigatoria.exigir("contar");
+        return switch (visao) {
+            case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId);
+            case PENDENTES -> restritoAoProprioAtendente
+                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId)
+                    : queryForCount(SQL_CONTAR_PENDENTES_TODOS);
+            case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS);
+            case TODOS -> queryForCount(SQL_CONTAR_TODOS);
+        };
+    }
+
+    private long queryForCount(String sql, Object... parametros) {
+        Long total = chat.queryForObject(sql, Long.class, parametros);
+        return total == null ? 0 : total;
     }
 
     private static CartaoAtendimento paraCartao(ResultSet linha, int indice) throws SQLException {

@@ -13,6 +13,9 @@ export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO";
 /** Espelha RemetenteTipo.java. */
 export type RemetenteTipo = "LEAD" | "ATENDENTE" | "SISTEMA" | "IA";
 
+/** Espelha PainelDeAtendimentosController.contagem() — GET /api/v1/atendimentos/contagem. */
+export type ContagemPorVisao = Record<VisaoAtendimento, number>;
+
 /** Espelha PainelDeAtendimentosController.CartaoAtendimento — GET /api/v1/atendimentos?visao=. */
 export interface CartaoAtendimento {
   atendimentoId: string;

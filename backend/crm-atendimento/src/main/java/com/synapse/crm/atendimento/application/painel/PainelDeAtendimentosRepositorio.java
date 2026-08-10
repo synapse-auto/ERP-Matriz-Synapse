@@ -23,4 +23,11 @@ public interface PainelDeAtendimentosRepositorio {
      */
     List<CartaoAtendimento> listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
+
+    /**
+     * Quantos cartoes {@link #listar} devolveria para a mesma visao — os badges das abas (E17b §Bloco
+     * 6). Mesma assinatura, mesma decisao de "meu" vs. "de todos" por visao; o adaptador reaproveita
+     * as mesmas condicoes de {@code WHERE}, so trocando a projecao por {@code COUNT(*)}.
+     */
+    long contar(VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
 }

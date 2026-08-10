@@ -6,6 +6,7 @@ import java.time.Instant;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.automacaoconfig.application.telemetria.StatusAutomacaoTelemetriaRepositorio;
+import com.synapse.crm.automacaoconfig.domain.telemetria.StatusAutomacaoTelemetria;
 import com.synapse.crm.automacaoconfig.domain.telemetria.TipoEventoAutomacao;
 
 /**
@@ -37,5 +38,13 @@ class StatusAutomacaoTelemetriaRepositorioJpa implements StatusAutomacaoTelemetr
             case CLIENTE_TRANSFERIDO -> entidade.incrementarClientesTransferidos(agora);
         }
         jpa.save(entidade);
+    }
+
+    @Override
+    public StatusAutomacaoTelemetria obter() {
+        return jpa.findById(ID_SINGLETON)
+                .orElseThrow(() -> new IllegalStateException(
+                        "status_automacao_telemetria sem a linha singleton (id=1) — migration nao rodou?"))
+                .paraDominio();
     }
 }

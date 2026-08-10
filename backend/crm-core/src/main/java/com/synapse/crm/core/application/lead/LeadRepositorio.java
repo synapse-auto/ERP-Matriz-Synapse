@@ -60,6 +60,17 @@ public interface LeadRepositorio {
     long contar(FiltroDeLeads filtro);
 
     /**
+     * Ids de todos os leads visiveis ao usuario da requisicao, sem nenhum criterio alem da RN-CRM-01.
+     *
+     * <p>Existe so para agregacoes que atravessam outra tabela (E17b §Bloco 6 — contagem de leads por
+     * tag) e precisam saber <b>quais</b> leads estao dentro do recorte antes de fazer o proprio
+     * {@code JOIN}/{@code GROUP BY} do outro lado. Reaproveita a mesma especificacao de {@link
+     * #contar(FiltroLead)} e {@link #listar(FiltroLead)} — nunca listar leads propriamente, que
+     * continua devolvendo {@link LeadResumo}.
+     */
+    List<UUID> idsVisiveis();
+
+    /**
      * Grava alteracoes de um lead ja existente.
      *
      * @return o lead como ficou, ou vazio se ele nao for visivel a quem pediu

@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import com.synapse.crm.automacaoconfig.domain.telemetria.StatusAutomacaoTelemetria;
+
 /** Mapeamento JPA de {@code status_automacao_telemetria} (V7) — singleton, {@code id = 1}. */
 @Entity
 @Table(name = "status_automacao_telemetria")
@@ -48,5 +50,10 @@ class StatusAutomacaoTelemetriaEntity {
     private void marcarAtiva(Instant agora) {
         this.conexaoAutomacaoAtiva = true;
         this.atualizadoEm = agora;
+    }
+
+    StatusAutomacaoTelemetria paraDominio() {
+        return new StatusAutomacaoTelemetria(
+                mensagensEnviadas, clientesTransferidos, conexaoAutomacaoAtiva, crmOnline, atualizadoEm);
     }
 }

@@ -138,6 +138,21 @@ class LeadRepositorioJpa implements LeadRepositorio {
         return jpa.count(visivel(filtro));
     }
 
+    /**
+     * So a coluna id, sob {@link #visibilidade()} — nunca {@link #visivel(FiltroLead)} ou {@link
+     * #visivel(FiltroDeLeads)}, que agregam um criterio extra que aqui nao faz sentido: quem chama
+     * isto quer o recorte de visibilidade inteiro, para escopar uma consulta em outra tabela.
+     */
+    @Override
+    public List<UUID> idsVisiveis() {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<UUID> consulta = cb.createQuery(UUID.class);
+        Root<LeadEntity> raiz = consulta.from(LeadEntity.class);
+        consulta.select(raiz.get(LeadEntity.Campos.ID));
+        consulta.where(visibilidade().toPredicate(raiz, consulta, cb));
+        return em.createQuery(consulta).getResultList();
+    }
+
     @Override
     public Optional<Lead> salvar(Lead lead) {
         // Carrega pelo predicado de visibilidade: editar lead de colega nao encontra

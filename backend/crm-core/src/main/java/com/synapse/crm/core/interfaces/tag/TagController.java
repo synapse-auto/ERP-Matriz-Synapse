@@ -26,8 +26,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.synapse.crm.core.application.tag.AgregacaoDeTags;
 import com.synapse.crm.core.application.tag.GestaoDeTagsUseCases;
 import com.synapse.crm.core.application.tag.NomeDeTagEmUsoException;
+import com.synapse.crm.core.application.tag.ObterAgregacaoDeTagsUseCase;
+import com.synapse.crm.core.domain.tag.ContagemDeTag;
 import com.synapse.crm.core.domain.tag.Tag;
 
 /** CRUD de tags. A restricao por papel esta nos casos de uso, nao aqui. */
@@ -40,9 +43,11 @@ import com.synapse.crm.core.domain.tag.Tag;
 class TagController {
 
     private final GestaoDeTagsUseCases tags;
+    private final ObterAgregacaoDeTagsUseCase agregacao;
 
-    TagController(GestaoDeTagsUseCases tags) {
+    TagController(GestaoDeTagsUseCases tags, ObterAgregacaoDeTagsUseCase agregacao) {
         this.tags = tags;
+        this.agregacao = agregacao;
     }
 
     @Operation(
@@ -52,6 +57,20 @@ class TagController {
     @GetMapping
     List<TagResposta> listar() {
         return tags.listar().stream().map(TagResposta::de).toList();
+    }
+
+    /**
+     * Mini-dashboard de Tags (E17b §Bloco 6). {@code totalLeadsVisiveis} e {@code leadsComTag} vem do
+     * mesmo recorte de visibilidade que a listagem de leads — nunca o total da operacao para quem
+     * enxerga so a propria carteira.
+     */
+    @Operation(
+            summary = "Agregação de tags",
+            description = "Total de leads visíveis, quantos têm ao menos uma tag e a contagem por tag, dentro do mesmo recorte de visibilidade da listagem de leads.",
+            responses = @ApiResponse(responseCode = "200", description = "Agregação de tags do recorte visível."))
+    @GetMapping("/agregacao")
+    AgregacaoDeTagsResposta agregacao() {
+        return AgregacaoDeTagsResposta.de(agregacao.executar());
     }
 
     @Operation(
@@ -122,6 +141,47 @@ class TagController {
             @Schema(description = "Nome do ícone, quando configurado.") String icone) {
         static TagResposta de(Tag tag) {
             return new TagResposta(tag.id(), tag.nome(), tag.cor(), tag.icone());
+        }
+    }
+
+    /**
+     * {@code percentualTagueados} e {@code tagMaisUsada} sao calculados aqui, na borda HTTP, a partir
+     * de {@code porTag}/{@code leadsComTag} — nunca armazenados, para nao existir um numero que possa
+     * discordar do resto da resposta.
+     */
+    record AgregacaoDeTagsResposta(
+            @Schema(description = "Quantos leads o usuário da requisição enxerga, no mesmo recorte da listagem.") long totalLeadsVisiveis,
+            @Schema(description = "Quantos, dentre os visíveis, têm ao menos uma tag.") long leadsComTag,
+            @Schema(description = "leadsComTag / totalLeadsVisiveis × 100. Zero quando não há lead visível.") double percentualTagueados,
+            @Schema(description = "A tag com mais leads associados, ou null se nenhum lead visível tem tag.") ContagemDeTagResposta tagMaisUsada,
+            @Schema(description = "Contagem por tag, da mais usada para a menos usada.") List<ContagemDeTagResposta> porTag) {
+
+        static AgregacaoDeTagsResposta de(AgregacaoDeTags agregacao) {
+            List<ContagemDeTagResposta> porTag =
+                    agregacao.porTag().stream().map(ContagemDeTagResposta::de).toList();
+            double percentual = agregacao.totalLeadsVisiveis() == 0
+                    ? 0.0
+                    : (agregacao.leadsComTag() * 100.0) / agregacao.totalLeadsVisiveis();
+            ContagemDeTagResposta maisUsada = porTag.isEmpty() ? null : porTag.get(0);
+            return new AgregacaoDeTagsResposta(
+                    agregacao.totalLeadsVisiveis(), agregacao.leadsComTag(), percentual, maisUsada, porTag);
+        }
+    }
+
+    record ContagemDeTagResposta(
+            @Schema(description = "Identificador da tag.") UUID id,
+            @Schema(description = "Nome da tag.") String nome,
+            @Schema(description = "Token ou valor visual.") String cor,
+            @Schema(description = "Nome do ícone, quando configurado.") String icone,
+            @Schema(description = "Quantos leads visíveis usam esta tag.") long quantidade) {
+
+        static ContagemDeTagResposta de(ContagemDeTag contagem) {
+            return new ContagemDeTagResposta(
+                    contagem.tag().id(),
+                    contagem.tag().nome(),
+                    contagem.tag().cor(),
+                    contagem.tag().icone(),
+                    contagem.quantidade());
         }
     }
 }
