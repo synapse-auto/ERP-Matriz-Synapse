@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Seletor } from "@/components/ui/seletor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAtendimentos, useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
@@ -114,32 +115,22 @@ export function ListaConversas({
       {(etapas.length > 0 || atendentes.length > 1) && (
         <div className="flex gap-2 border-b border-border p-2 text-xs">
           {etapas.length > 0 && (
-            <select
-              className="rounded border border-border bg-background px-1.5 py-1"
-              value={filtroEtapa ?? ""}
-              onChange={(evento) => setFiltroEtapa(evento.target.value || null)}
-            >
-              <option value="">{textos.filtros.etapa}</option>
-              {etapas.map(([id, nome]) => (
-                <option key={id} value={id}>
-                  {nome}
-                </option>
-              ))}
-            </select>
+            <Seletor
+              className="min-w-28"
+              valor={filtroEtapa ?? ""}
+              placeholder={textos.filtros.etapa}
+              opcoes={etapas.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
+              onChange={(valor) => setFiltroEtapa(valor || null)}
+            />
           )}
           {atendentes.length > 1 && (
-            <select
-              className="rounded border border-border bg-background px-1.5 py-1"
-              value={filtroAtendente ?? ""}
-              onChange={(evento) => setFiltroAtendente(evento.target.value || null)}
-            >
-              <option value="">{textos.filtros.atendente}</option>
-              {atendentes.map(([id, nome]) => (
-                <option key={id} value={id}>
-                  {nome}
-                </option>
-              ))}
-            </select>
+            <Seletor
+              className="min-w-28"
+              valor={filtroAtendente ?? ""}
+              placeholder={textos.filtros.atendente}
+              opcoes={atendentes.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
+              onChange={(valor) => setFiltroAtendente(valor || null)}
+            />
           )}
         </div>
       )}

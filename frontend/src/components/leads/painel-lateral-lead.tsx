@@ -17,6 +17,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Seletor } from "@/components/ui/seletor";
+import { SeletorData } from "@/components/ui/seletor-data";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -464,19 +466,14 @@ function TagsDaFicha({
       </div>
       {disponiveis.length > 0 && (
         <div className="flex gap-2">
-          <select
-            className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm"
-            value={selecionada}
-            aria-label={textos.selecionar}
-            onChange={(evento) => onSelecionar(evento.target.value)}
-          >
-            <option value="">{textos.selecionar}</option>
-            {disponiveis.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {tag.nome}
-              </option>
-            ))}
-          </select>
+          <Seletor
+            className="min-w-0 flex-1"
+            valor={selecionada}
+            ariaLabel={textos.selecionar}
+            placeholder={textos.selecionar}
+            opcoes={disponiveis.map((tag) => ({ valor: tag.id, rotulo: tag.nome }))}
+            onChange={onSelecionar}
+          />
           <Button type="button" variant="outline" disabled={!selecionada || pendente} onClick={onAdicionar}>
             {textos.adicionar}
           </Button>
@@ -511,20 +508,14 @@ function CampoDaFicha({
         <span className="text-xs text-muted-foreground">{rotuloObrigatoriedade}</span>
       </label>
       {campo.tipo === "LISTA" ? (
-        <select
+        <Seletor
           id={id}
-          required={campo.obrigatorio}
-          value={typeof valor === "string" ? valor : ""}
-          className="h-8 w-full rounded-md border border-border bg-background px-2 text-sm"
-          onChange={(evento) => onChange(evento.target.value)}
-        >
-          <option value="">{textos.opcional}</option>
-          {campo.opcoes.map((opcao) => (
-            <option key={opcao} value={opcao}>
-              {opcao}
-            </option>
-          ))}
-        </select>
+          obrigatorio={campo.obrigatorio}
+          valor={typeof valor === "string" ? valor : ""}
+          placeholder={textos.opcional}
+          opcoes={campo.opcoes.map((opcao) => ({ valor: opcao, rotulo: opcao }))}
+          onChange={onChange}
+        />
       ) : campo.tipo === "BOOLEANO" ? (
         <input
           id={id}
@@ -533,11 +524,19 @@ function CampoDaFicha({
           className="size-4 accent-primary"
           onChange={(evento) => onChange(evento.target.checked)}
         />
+      ) : campo.tipo === "DATA" ? (
+        <SeletorData
+          id={id}
+          obrigatorio={campo.obrigatorio}
+          valor={typeof valor === "string" ? valor : ""}
+          placeholder={campo.rotulo}
+          onChange={onChange}
+        />
       ) : (
         <Input
           id={id}
           required={campo.obrigatorio}
-          type={campo.tipo === "NUMERO" ? "number" : campo.tipo === "DATA" ? "date" : "text"}
+          type={campo.tipo === "NUMERO" ? "number" : "text"}
           step={campo.tipo === "NUMERO" ? 1 : undefined}
           value={typeof valor === "string" || typeof valor === "number" ? String(valor) : ""}
           onChange={(evento) => onChange(evento.target.value)}

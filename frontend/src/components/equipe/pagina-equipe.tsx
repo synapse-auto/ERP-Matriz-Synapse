@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
+import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAvaliacoesEquipe,
@@ -370,14 +371,15 @@ function Formulario({
           )}
           <label className="block space-y-1">
             <span>{t.papel}</span>
-            <select
-              className="h-8 w-full rounded-lg border bg-background px-2"
-              value={papel}
-              onChange={(e) => setPapel(e.target.value as PapelGerenciavel)}
-            >
-              <option value="ATENDENTE">{t.atendente}</option>
-              <option value="SUBGESTOR">{t.subgestor}</option>
-            </select>
+            <Seletor
+              valor={papel}
+              placeholder={t.papel}
+              opcoes={[
+                { valor: "ATENDENTE", rotulo: t.atendente },
+                { valor: "SUBGESTOR", rotulo: t.subgestor },
+              ]}
+              onChange={(valor) => setPapel(valor as PapelGerenciavel)}
+            />
           </label>
           {comErro && <p className="text-destructive">{t.erro}</p>}
           <DialogFooter>

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { listarAtendimentos } from "@/lib/atendimento/api";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -29,7 +30,7 @@ export function FormularioMensagemProgramada({ aberto, leadId, leadNome, conteud
     onSuccess: async () => { await cache.invalidateQueries({ queryKey: ["mensagens-programadas"] }); onSalvo?.(); onFechar(); } });
   return <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}><DialogContent><DialogHeader><DialogTitle>{existente ? textos.tituloEditar : textos.tituloCriar}</DialogTitle></DialogHeader>
     <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if ((leadId ?? leadSelecionado) && conteudo.trim() && dataEnvio) salvar.mutate(); }}>
-      <label className="block space-y-1 text-sm"><span>{textos.lead}</span>{leadId || existente ? <Input disabled value={leadNome ?? existente?.leadNome ?? leadId} /> : <select required className="h-8 w-full rounded-lg border bg-background px-2" value={leadSelecionado} onChange={(e) => setLeadSelecionado(e.target.value)}><option value="">{textos.selecionarLead}</option>{leads.map(([id,n]) => <option key={id} value={id}>{n}</option>)}</select>}</label>
+      <label className="block space-y-1 text-sm"><span>{textos.lead}</span>{leadId || existente ? <Input disabled value={leadNome ?? existente?.leadNome ?? leadId} /> : <Seletor obrigatorio valor={leadSelecionado} placeholder={textos.selecionarLead} opcoes={leads.map(([id, nome]) => ({ valor: id, rotulo: nome }))} onChange={setLeadSelecionado} />}</label>
       <label className="block space-y-1 text-sm"><span>{textos.dataEnvio}</span><Input required type="datetime-local" value={dataEnvio} onChange={(e) => setDataEnvio(e.target.value)} /></label>
       <label className="block space-y-1 text-sm"><span>{textos.conteudo}</span><Textarea required value={conteudo} onChange={(e) => setConteudo(e.target.value)} /></label>
       {salvar.isError && <p role="alert" className="text-sm text-destructive">{textos.erro}</p>}

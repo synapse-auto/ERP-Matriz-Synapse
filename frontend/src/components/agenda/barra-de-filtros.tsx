@@ -6,6 +6,9 @@ import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Seletor } from "@/components/ui/seletor";
+import { SeletorData } from "@/components/ui/seletor-data";
+import { SeletorMultiplo } from "@/components/ui/seletor-multiplo";
 import type { EtapaAtendimento, CanalResumo, TagDoLead } from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import type { CampoFiltravel, FiltroAtivo, OperadorDeFiltro, StatusBasicoLead } from "@/lib/agenda/types";
@@ -254,35 +257,30 @@ function FormularioDeNovoFiltro({
     <div className="flex flex-wrap items-end gap-2">
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">
         {textos.campo}
-        <select
-          className="h-8 min-w-40 rounded-md border border-border bg-background px-2 text-sm text-foreground"
-          value={apelido}
-          onChange={(evento) => selecionarCampo(evento.target.value)}
-        >
-          <option value="">{textos.selecionarCampo}</option>
-          {campoOrdenados.map((c) => (
-            <option key={c.apelido} value={c.apelido}>
-              {c.rotulo}
-            </option>
-          ))}
-        </select>
+        <Seletor
+          className="min-w-40"
+          valor={apelido}
+          ariaLabel={textos.campo}
+          placeholder={textos.selecionarCampo}
+          opcoes={campoOrdenados.map((c) => ({ valor: c.apelido, rotulo: c.rotulo }))}
+          onChange={selecionarCampo}
+        />
       </label>
 
       {campo && (
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           {textos.operador}
-          <select
-            className="h-8 min-w-36 rounded-md border border-border bg-background px-2 text-sm text-foreground"
-            value={operador}
-            onChange={(evento) => selecionarOperador(evento.target.value as OperadorDeFiltro | "")}
-          >
-            <option value="">{textos.selecionarOperador}</option>
-            {campo.operadores.map((op) => (
-              <option key={op} value={op}>
-                {textos.operadores[ROTULOS_DE_OPERADOR[op]]}
-              </option>
-            ))}
-          </select>
+          <Seletor
+            className="min-w-36"
+            valor={operador}
+            ariaLabel={textos.operador}
+            placeholder={textos.selecionarOperador}
+            opcoes={campo.operadores.map((op) => ({
+              valor: op,
+              rotulo: textos.operadores[ROTULOS_DE_OPERADOR[op]],
+            }))}
+            onChange={(valor) => selecionarOperador(valor as OperadorDeFiltro | "")}
+          />
         </label>
       )}
 
@@ -294,11 +292,19 @@ function FormularioDeNovoFiltro({
         <>
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             {textos.valorInicial}
-            <Input className="h-8 w-32" type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" ? "number" : "text"} value={valor} onChange={(e) => setValor(e.target.value)} />
+            {campo.tipo === "DATA" ? (
+              <SeletorData className="w-40" valor={valor} placeholder={textos.valorInicial} onChange={setValor} />
+            ) : (
+              <Input className="h-8 w-32" type={campo.tipo === "NUMERO" ? "number" : "text"} value={valor} onChange={(e) => setValor(e.target.value)} />
+            )}
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             {textos.valorFinal}
-            <Input className="h-8 w-32" type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" ? "number" : "text"} value={valorAte} onChange={(e) => setValorAte(e.target.value)} />
+            {campo.tipo === "DATA" ? (
+              <SeletorData className="w-40" valor={valorAte} placeholder={textos.valorFinal} onChange={setValorAte} />
+            ) : (
+              <Input className="h-8 w-32" type={campo.tipo === "NUMERO" ? "number" : "text"} value={valorAte} onChange={(e) => setValorAte(e.target.value)} />
+            )}
           </label>
         </>
       )}
@@ -380,12 +386,16 @@ function ValorUnico({
   return (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {textos.valor}
-      <Input
-        className="h-8 w-40"
-        type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" ? "number" : "text"}
-        value={valor}
-        onChange={(evento) => onChange(evento.target.value)}
-      />
+      {campo.tipo === "DATA" ? (
+        <SeletorData className="w-40" valor={valor} placeholder={textos.valor} onChange={onChange} />
+      ) : (
+        <Input
+          className="h-8 w-40"
+          type={campo.tipo === "NUMERO" ? "number" : "text"}
+          value={valor}
+          onChange={(evento) => onChange(evento.target.value)}
+        />
+      )}
     </label>
   );
 }
@@ -404,18 +414,14 @@ function SeletorUnico({
   return (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {textos.valor}
-      <select
-        className="h-8 min-w-40 rounded-md border border-border bg-background px-2 text-sm text-foreground"
-        value={valor}
-        onChange={(evento) => onChange(evento.target.value)}
-      >
-        <option value="">{textos.selecionarValor}</option>
-        {opcoes.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.rotulo}
-          </option>
-        ))}
-      </select>
+      <Seletor
+        className="min-w-40"
+        valor={valor}
+        ariaLabel={textos.valor}
+        placeholder={textos.selecionarValor}
+        opcoes={opcoes.map((opcao) => ({ valor: opcao.id, rotulo: opcao.rotulo }))}
+        onChange={onChange}
+      />
     </label>
   );
 }
@@ -470,18 +476,16 @@ function ValorLista({
   return (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {textos.valor}
-      <select
-        multiple
-        className="h-20 min-w-40 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
-        value={valores}
-        onChange={(evento) => onChange(Array.from(evento.target.selectedOptions).map((o) => o.value))}
-      >
-        {opcoesDisponiveis.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.rotulo}
-          </option>
-        ))}
-      </select>
+      <SeletorMultiplo
+        className="min-w-40"
+        valores={valores}
+        placeholder={textos.selecionarValor}
+        opcoes={opcoesDisponiveis.map((opcao) => ({
+          valor: opcao.id,
+          rotulo: opcao.rotulo,
+        }))}
+        onChange={onChange}
+      />
     </label>
   );
 }

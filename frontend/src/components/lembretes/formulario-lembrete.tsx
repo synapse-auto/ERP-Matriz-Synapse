@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { listarAtendimentos } from "@/lib/atendimento/api";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -61,11 +62,13 @@ export function FormularioLembrete({ aberto, leadId, leadNome, onFechar }: Props
             {leadId ? (
               <Input value={leadNome ?? leadId} disabled />
             ) : (
-              <select className="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                value={leadSelecionado} onChange={(e) => setLeadSelecionado(e.target.value)} required>
-                <option value="">{textos.formulario.selecionarLead}</option>
-                {leads.map(([id, nome]) => <option key={id} value={id}>{nome}</option>)}
-              </select>
+              <Seletor
+                obrigatorio
+                valor={leadSelecionado}
+                placeholder={textos.formulario.selecionarLead}
+                opcoes={leads.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
+                onChange={setLeadSelecionado}
+              />
             )}
           </label>
           <label className="block space-y-1 text-sm">

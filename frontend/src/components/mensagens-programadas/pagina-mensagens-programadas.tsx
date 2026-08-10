@@ -7,9 +7,10 @@ import { X } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import type { TomDePill } from "@/components/ui/pill-de-status";
+import { Seletor } from "@/components/ui/seletor";
+import { SeletorData } from "@/components/ui/seletor-data";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cancelarMensagemProgramada, listarMensagensProgramadas } from "@/lib/suporte/api";
@@ -67,24 +68,35 @@ export function PaginaMensagensProgramadas() {
       <div className="flex flex-wrap gap-3 rounded-lg border p-3">
         <label className="text-sm">
           {t.filtros.inicio}
-          <Input type="date" value={inicio} onChange={(e) => mudarFiltro(() => setInicio(e.target.value))} />
+          <SeletorData
+            valor={inicio}
+            placeholder={t.filtros.inicio}
+            onChange={(valor) => mudarFiltro(() => setInicio(valor))}
+          />
         </label>
         <label className="text-sm">
           {t.filtros.fim}
-          <Input type="date" value={fim} onChange={(e) => mudarFiltro(() => setFim(e.target.value))} />
+          <SeletorData
+            valor={fim}
+            placeholder={t.filtros.fim}
+            onChange={(valor) => mudarFiltro(() => setFim(valor))}
+          />
         </label>
         <label className="text-sm">
           {t.filtros.status}
-          <select
-            className="ml-2 h-8 rounded-lg border bg-background px-2"
-            value={status}
-            onChange={(e) => mudarFiltro(() => setStatus(e.target.value as StatusMensagemProgramada | ""))}
-          >
-            <option value="">{t.filtros.todos}</option>
-            <option value="AGENDADA">{t.status.agendada}</option>
-            <option value="ENVIADA">{t.status.enviada}</option>
-            <option value="CANCELADA">{t.status.cancelada}</option>
-          </select>
+          <Seletor
+            className="ml-2"
+            valor={status}
+            placeholder={t.filtros.todos}
+            opcoes={[
+              { valor: "AGENDADA", rotulo: t.status.agendada },
+              { valor: "ENVIADA", rotulo: t.status.enviada },
+              { valor: "CANCELADA", rotulo: t.status.cancelada },
+            ]}
+            onChange={(valor) =>
+              mudarFiltro(() => setStatus(valor as StatusMensagemProgramada | ""))
+            }
+          />
         </label>
       </div>
 

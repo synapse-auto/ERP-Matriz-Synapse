@@ -7,8 +7,9 @@ import { Bot, Check, Trash2 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
+import { Seletor } from "@/components/ui/seletor";
+import { SeletorData } from "@/components/ui/seletor-data";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { atualizarLembrete, listarLembretes, removerLembrete } from "@/lib/suporte/api";
@@ -65,27 +66,32 @@ export function PaginaLembretes() {
       <div className="flex flex-wrap gap-3 rounded-lg border p-3">
         <label className="text-sm">
           {textos.filtros.inicio}
-          <Input
-            type="date"
-            value={inicio}
-            onChange={(e) => mudarFiltro(() => setInicio(e.target.value))}
+          <SeletorData
+            valor={inicio}
+            placeholder={textos.filtros.inicio}
+            onChange={(valor) => mudarFiltro(() => setInicio(valor))}
           />
         </label>
         <label className="text-sm">
           {textos.filtros.fim}
-          <Input type="date" value={fim} onChange={(e) => mudarFiltro(() => setFim(e.target.value))} />
+          <SeletorData
+            valor={fim}
+            placeholder={textos.filtros.fim}
+            onChange={(valor) => mudarFiltro(() => setFim(valor))}
+          />
         </label>
         <label className="text-sm">
           {textos.filtros.status}
-          <select
-            className="ml-2 h-8 rounded-lg border bg-background px-2"
-            value={status}
-            onChange={(e) => mudarFiltro(() => setStatus(e.target.value as StatusLembrete | ""))}
-          >
-            <option value="">{textos.filtros.todos}</option>
-            <option value="PENDENTE">{textos.status.pendente}</option>
-            <option value="CONCLUIDO">{textos.status.concluido}</option>
-          </select>
+          <Seletor
+            className="ml-2"
+            valor={status}
+            placeholder={textos.filtros.todos}
+            opcoes={[
+              { valor: "PENDENTE", rotulo: textos.status.pendente },
+              { valor: "CONCLUIDO", rotulo: textos.status.concluido },
+            ]}
+            onChange={(valor) => mudarFiltro(() => setStatus(valor as StatusLembrete | ""))}
+          />
         </label>
       </div>
 

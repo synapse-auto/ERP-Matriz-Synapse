@@ -154,11 +154,17 @@ describe("pagina da agenda", () => {
     expect(screen.getByText("Nenhum contato encontrado com os filtros atuais.")).toBeInTheDocument();
   });
 
-  it("adiciona um filtro pelo campo e operador escolhidos, sem lista hardcoded", () => {
+  it("adiciona um filtro pelo campo e operador escolhidos, sem lista hardcoded", async () => {
     render(<PaginaAgenda />);
 
-    fireEvent.change(screen.getByLabelText("Campo"), { target: { value: "nome" } });
-    fireEvent.change(screen.getByLabelText("Operador"), { target: { value: "CONTEM" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Campo" }));
+    const campoNome = await screen.findByRole("option", { name: "Nome" });
+    fireEvent.pointerDown(campoNome, { pointerType: "mouse", button: 0 });
+    fireEvent.click(campoNome);
+    fireEvent.click(screen.getByRole("combobox", { name: "Operador" }));
+    const operadorContem = await screen.findByRole("option", { name: /cont.m/i });
+    fireEvent.pointerDown(operadorContem, { pointerType: "mouse", button: 0 });
+    fireEvent.click(operadorContem);
     fireEvent.change(screen.getByLabelText("Valor"), { target: { value: "Marcos" } });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar filtro" }));
 
