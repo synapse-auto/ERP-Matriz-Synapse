@@ -71,39 +71,57 @@
   --shadow-xl: var(--sombra-xl);
 }
 
+/*
+ * E18: cada token shadcn abaixo é um ALIAS para o token Synapse equivalente (design/TOKENS.md,
+ * injetado em runtime por temaParaCssVariaveis() em lib/config/fetch-config.ts, via <style> no
+ * <head> de layout.tsx). O var(--token-synapse, #fallback) — nunca cor literal solta — é o que
+ * resolve o problema real: o <style> injetado e este :root compilado têm a MESMA especificidade
+ * (ambos `:root`), então "quem carrega por último no <head> vence" decide o valor final de, por
+ * exemplo, --background diretamente. Referenciar --fundo-app em vez de repetir o literal aqui
+ * torna o resultado correto nos dois sentidos: se o <style> injetado vier depois, ele ainda define
+ * --background diretamente (ganha, como sempre ganhou); se este :root compilado vier depois (o caso
+ * real observado — Next tende a colocar o <link> do CSS compilado no fim do <head>), a variável
+ * --fundo-app continua valendo o que o <style> injetado escreveu, e var() resolve para ela mesmo
+ * assim. O fallback (valor atual de tema.json) só entra em jogo se o <style> nunca chegar a
+ * existir — build estático sem backend no ar, por exemplo (já mordeu esse caminho antes).
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: var(--fundo-app, #F4F7FB);
+  --foreground: var(--texto-padrao, #33475B);
+  --card: var(--fundo-superficie, #FFFFFF);
+  --card-foreground: var(--texto-padrao, #33475B);
+  --popover: var(--fundo-superficie, #FFFFFF);
+  --popover-foreground: var(--texto-padrao, #33475B);
+  --primary: var(--cor-primaria, #1F74E0);
+  --primary-foreground: var(--cor-primaria-texto, #FFFFFF);
+  --secondary: var(--fundo-sutil, #EEF3F8);
+  --secondary-foreground: var(--texto-forte, #0F2438);
+  --muted: var(--fundo-sutil, #EEF3F8);
+  --muted-foreground: var(--texto-suave, #5A6B7B);
+  --accent: var(--cor-primaria-suave, #EAF2FD);
+  --accent-foreground: var(--cor-primaria, #1F74E0);
+  --destructive: var(--cor-erro, #C0392B);
+  --border: var(--borda, #E7EDF4);
+  --input: var(--borda-forte, #E1E8F0);
+  --ring: var(--cor-primaria, #1F74E0);
+
+  /* Paleta de tags (E15) — precisa ser COLORIDA e distinguível entre si, não cinco tons de cinza. */
+  --chart-1: var(--cor-info, #3E8FD0);
+  --chart-2: var(--cor-ia, #6D4FD6);
+  --chart-3: var(--cor-destaque-2, #4C55B8);
+  --chart-4: var(--cor-destaque-3, #2F8F86);
+  --chart-5: var(--cor-atencao, #E0A61C);
+
+  --radius: var(--raio-md, 11px);
+
+  --sidebar: var(--fundo-sidebar, #0C2A43);
+  --sidebar-foreground: var(--texto-sidebar-item, #C3D6E8);
+  --sidebar-primary: var(--cor-primaria, #1F74E0);
+  --sidebar-primary-foreground: var(--cor-primaria-texto, #FFFFFF);
+  --sidebar-accent: var(--fundo-sidebar-bloco, #123A5C);
+  --sidebar-accent-foreground: var(--texto-sidebar-item, #C3D6E8);
+  --sidebar-border: var(--fundo-sidebar-bloco, #123A5C);
+  --sidebar-ring: var(--cor-primaria, #1F74E0);
 }
 
 .dark {
