@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,8 @@ interface Props {
   referencias: Referencias;
   textos: TextosFiltros;
   textosStatus: TextosStatus;
+  /** "Exibindo N de M leads" (E17b §Bloco 3) — mesma linha da barra, como no protótipo. */
+  contador: ReactNode;
   onAdicionar: (filtro: FiltroAtivo) => void;
   onRemover: (id: string) => void;
   onLimparTudo: () => void;
@@ -66,35 +69,40 @@ export function BarraDeFiltros({
   referencias,
   textos,
   textosStatus,
+  contador,
   onAdicionar,
   onRemover,
   onLimparTudo,
 }: Props) {
   return (
-    <div className="mb-4 space-y-3 rounded-lg border border-border bg-background p-3">
-      <FormularioDeNovoFiltro
-        campos={campos}
-        carregandoCampos={carregandoCampos}
-        erroCampos={erroCampos}
-        referencias={referencias}
-        textos={textos}
-        textosStatus={textosStatus}
-        onAdicionar={onAdicionar}
-      />
+    <div className="mb-4 space-y-3 rounded-lg border border-border bg-card p-3.5">
+      <div className="flex flex-wrap items-end gap-3">
+        <FormularioDeNovoFiltro
+          campos={campos}
+          carregandoCampos={carregandoCampos}
+          erroCampos={erroCampos}
+          referencias={referencias}
+          textos={textos}
+          textosStatus={textosStatus}
+          onAdicionar={onAdicionar}
+        />
+        <div className="ml-auto shrink-0 pb-1.5">{contador}</div>
+      </div>
       {filtrosAtivos.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           {filtrosAtivos.map((filtro) => (
             <span
               key={filtro.id}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 py-1 pr-1.5 pl-2.5 text-xs font-semibold text-primary"
             >
               {filtro.rotuloValor}
               <button
                 type="button"
                 aria-label={`${textos.limparTudo}: ${filtro.rotuloValor}`}
+                className="rounded-sm text-primary/70 hover:text-primary"
                 onClick={() => onRemover(filtro.id)}
               >
-                <X className="size-3" />
+                <X className="size-3.5" />
               </button>
             </span>
           ))}

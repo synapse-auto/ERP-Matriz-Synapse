@@ -95,13 +95,14 @@ export function PaginaAgenda() {
           }}
           textos={t.filtros}
           textosStatus={t.status}
+          contador={
+            <p className="text-sm whitespace-nowrap text-muted-foreground">{textoContador}</p>
+          }
           onAdicionar={adicionarFiltro}
           onRemover={removerFiltro}
           onLimparTudo={limparFiltros}
         />
       </div>
-
-      <p className="mb-3 flex-none text-sm text-muted-foreground">{textoContador}</p>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {paginaDeLeads.isLoading ? (

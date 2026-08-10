@@ -1,11 +1,10 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import type { EtapaAtendimento } from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import type { LeadDaAgenda, StatusBasicoLead } from "@/lib/agenda/types";
 import type { Textos } from "@/lib/config/schema";
-import { iniciaisDoNome } from "@/lib/utils";
 
 type TextosAgenda = Textos["agenda"];
 
@@ -29,17 +28,31 @@ export function TabelaDeLeads({ leads, etapas, equipe, textos, onAbrirFicha, onA
   const nomePorAtendenteId = new Map(equipe.map((usuario) => [usuario.id, usuario.nome]));
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
-        <thead className="bg-muted">
+        <thead className="bg-muted/60">
           <tr>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.lead}</th>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.telefone}</th>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.cidade}</th>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.etapa}</th>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.tags}</th>
-            <th className="p-2 text-left font-medium text-muted-foreground">{textos.colunas.responsavel}</th>
-            <th className="p-2 text-right font-medium text-muted-foreground">{textos.colunas.ultimoContato}</th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.lead}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.telefone}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.cidade}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.etapa}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.tags}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.responsavel}
+            </th>
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.ultimoContato}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -51,62 +64,64 @@ export function TabelaDeLeads({ leads, etapas, equipe, textos, onAbrirFicha, onA
             return (
               <tr
                 key={lead.id}
-                className="cursor-pointer border-t border-border hover:bg-muted"
+                className="cursor-pointer border-t border-border hover:bg-muted/50"
                 onClick={() => onAbrirFicha(lead)}
                 onDoubleClick={() => onAbrirAtendimento(lead)}
               >
-                <td className="p-2">
+                <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar className="size-8">
-                      <AvatarFallback>{iniciaisDoNome(lead.nome)}</AvatarFallback>
-                    </Avatar>
+                    <AvatarIniciais
+                      id={lead.id}
+                      nome={lead.nome}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                    />
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{lead.nome}</p>
+                      <p className="truncate font-bold text-foreground">{lead.nome}</p>
                       {lead.empresa && (
                         <p className="truncate text-xs text-muted-foreground">{lead.empresa}</p>
                       )}
                     </div>
                   </div>
                 </td>
-                <td className="p-2 font-mono text-xs text-muted-foreground">{lead.telefone ?? "—"}</td>
-                <td className="p-2 text-muted-foreground">{lead.localizacao ?? "—"}</td>
-                <td className="p-2">
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {lead.telefone ?? "—"}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{lead.localizacao ?? "—"}</td>
+                <td className="px-4 py-3">
                   {etapa ? (
                     <span
-                      className="rounded-full px-2 py-0.5 text-xs font-medium"
+                      className="rounded-md px-2 py-0.5 text-xs font-bold"
                       style={
                         etapa.corVisual
-                          ? { backgroundColor: `${etapa.corVisual}22`, color: etapa.corVisual }
+                          ? { backgroundColor: `${etapa.corVisual}1f`, color: etapa.corVisual }
                           : undefined
                       }
                     >
                       {etapa.nome}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
                       {textos.status[CHAVE_DE_STATUS[lead.status]]}
                     </span>
                   )}
                 </td>
-                <td className="p-2">
+                <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {lead.tags.map((tag) => (
                       <span
                         key={tag.tagId}
-                        className="rounded-full border px-1.5 py-0.5 text-[0.65rem] font-medium"
-                        style={{ borderColor: tag.cor, color: tag.cor }}
+                        className="rounded-md px-1.5 py-0.5 text-[0.65rem] font-bold"
+                        style={{ backgroundColor: `${tag.cor}1f`, color: tag.cor }}
                       >
                         {tag.nome}
                       </span>
                     ))}
                   </div>
                 </td>
-                <td className="p-2 text-muted-foreground">
-                  {nomeDoAtendente ?? (
-                    <span className="italic">{textos.semResponsavel}</span>
-                  )}
+                <td className="px-4 py-3 text-muted-foreground">
+                  {nomeDoAtendente ?? <span className="italic">{textos.semResponsavel}</span>}
                 </td>
-                <td className="p-2 text-right text-xs text-muted-foreground">
+                <td className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">
                   {lead.ultimaInteracaoEm
                     ? new Intl.DateTimeFormat(undefined, { dateStyle: "short", timeStyle: "short" }).format(
                         new Date(lead.ultimaInteracaoEm),
