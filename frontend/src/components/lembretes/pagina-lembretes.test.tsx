@@ -53,6 +53,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
       status: { pendente: "Pendente", concluido: "Concluído" },
       filtros: { inicio: "De", fim: "Até", status: "Status", todos: "Todos" },
       semVinculo: "Sem vínculo",
+      colunas: {
+        texto: "Lembrete",
+        lead: "Lead vinculado",
+        dataHora: "Data e hora",
+        status: "Status",
+        atendente: "Atendente",
+        acoes: "Ações",
+      },
       paginacao: { anterior: "Anterior", proxima: "Próxima" },
       formulario: {
         titulo: "Criar lembrete",

@@ -98,18 +98,13 @@ export function PaginaLembretes() {
       ) : !consulta.data?.lembretes.length ? (
         <p className="text-muted-foreground">{textos.vazio}</p>
       ) : (
-        <div className="space-y-2">
-          {consulta.data.lembretes.map((item) => (
-            <CardDeLembrete
-              key={item.id}
-              item={item}
-              mostrarAtendente={gestor}
-              textos={textos}
-              onConcluir={() => atualizar.mutate({ item, novo: "CONCLUIDO" })}
-              onRemover={() => remover.mutate(item.id)}
-            />
-          ))}
-        </div>
+        <TabelaDeLembretes
+          itens={consulta.data.lembretes}
+          mostrarAtendente={gestor}
+          textos={textos}
+          onConcluir={(item) => atualizar.mutate({ item, novo: "CONCLUIDO" })}
+          onRemover={(id) => remover.mutate(id)}
+        />
       )}
 
       <div className="flex justify-end gap-2">
@@ -132,91 +127,129 @@ export function PaginaLembretes() {
 
 type TextosLembretes = ReturnType<typeof useTextos>["lembretes"];
 
-function CardDeLembrete({
-  item,
+function TabelaDeLembretes({
+  itens,
   mostrarAtendente,
   textos,
   onConcluir,
   onRemover,
 }: {
-  item: Lembrete;
+  itens: Lembrete[];
   mostrarAtendente: boolean;
   textos: TextosLembretes;
-  onConcluir: () => void;
-  onRemover: () => void;
+  onConcluir: (item: Lembrete) => void;
+  onRemover: (id: string) => void;
 }) {
-  const concluido = item.status === "CONCLUIDO";
-
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-      <button
-        type="button"
-        aria-label={textos.concluir}
-        disabled={concluido}
-        onClick={onConcluir}
-        className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 ${
-          concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
-        }`}
-      >
-        {concluido && <Check className="size-3.5 text-white" />}
-      </button>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          {item.origemAutomatica && (
-            <PillDeStatus tom="ia" icone={<Bot className="size-3" />}>
-              {textos.automatico}
-            </PillDeStatus>
-          )}
-          <p className={`truncate text-sm font-medium ${concluido ? "text-muted-foreground line-through" : ""}`}>
-            {item.texto}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex w-40 shrink-0 items-center gap-2">
-        {item.leadNome ? (
-          <>
-            <AvatarIniciais
-              id={item.leadId}
-              nome={item.leadNome}
-              className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-            />
-            <span className="truncate text-xs font-medium">{item.leadNome}</span>
-          </>
-        ) : (
-          <span className="text-xs italic text-muted-foreground">{textos.semVinculo}</span>
-        )}
-      </div>
-
-      <p className="w-28 shrink-0 text-xs font-medium text-muted-foreground">
-        {new Date(item.dataHora).toLocaleString("pt-BR")}
-      </p>
-
-      <PillDeStatus tom={concluido ? "sucesso" : "atencao"} className="shrink-0">
-        {concluido ? textos.status.concluido : textos.status.pendente}
-      </PillDeStatus>
-
-      {mostrarAtendente && (
-        <div className="flex w-32 shrink-0 items-center gap-2">
-          <AvatarIniciais
-            id={item.atendenteId}
-            nome={item.atendenteNome}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-          />
-          <span className="truncate text-xs font-medium">{item.atendenteNome}</span>
-        </div>
-      )}
-
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-8 shrink-0 text-destructive hover:text-destructive"
-        aria-label={`${textos.remover} ${item.texto}`}
-        onClick={onRemover}
-      >
-        <Trash2 className="size-4" />
-      </Button>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/60">
+          <tr>
+            <th className="w-10 px-4 py-3" />
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.texto}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.lead}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.dataHora}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.status}
+            </th>
+            {mostrarAtendente && (
+              <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                {textos.colunas.atendente}
+              </th>
+            )}
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.acoes}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {itens.map((item) => {
+            const concluido = item.status === "CONCLUIDO";
+            return (
+              <tr key={item.id} className="border-t border-border">
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    aria-label={textos.concluir}
+                    disabled={concluido}
+                    onClick={() => onConcluir(item)}
+                    className={`flex size-6 items-center justify-center rounded-full border-2 ${
+                      concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
+                    }`}
+                  >
+                    {concluido && <Check className="size-3.5 text-white" />}
+                  </button>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {item.origemAutomatica && (
+                      <PillDeStatus tom="ia" icone={<Bot className="size-3" />} className="shrink-0">
+                        {textos.automatico}
+                      </PillDeStatus>
+                    )}
+                    <p
+                      className={`truncate font-medium ${concluido ? "text-muted-foreground line-through" : "text-foreground"}`}
+                    >
+                      {item.texto}
+                    </p>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  {item.leadNome ? (
+                    <div className="flex min-w-0 items-center gap-2">
+                      <AvatarIniciais
+                        id={item.leadId}
+                        nome={item.leadNome}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                      />
+                      <span className="truncate text-xs font-medium">{item.leadNome}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs italic text-muted-foreground">{textos.semVinculo}</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
+                  {new Date(item.dataHora).toLocaleString("pt-BR")}
+                </td>
+                <td className="px-4 py-3">
+                  <PillDeStatus tom={concluido ? "sucesso" : "atencao"}>
+                    {concluido ? textos.status.concluido : textos.status.pendente}
+                  </PillDeStatus>
+                </td>
+                {mostrarAtendente && (
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <AvatarIniciais
+                        id={item.atendenteId}
+                        nome={item.atendenteNome}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                      />
+                      <span className="truncate text-xs font-medium">{item.atendenteNome}</span>
+                    </div>
+                  </td>
+                )}
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8 text-destructive hover:text-destructive"
+                    aria-label={`${textos.remover} ${item.texto}`}
+                    onClick={() => onRemover(item.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

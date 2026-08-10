@@ -79,23 +79,13 @@ export function PaginaEquipe() {
             <p className="px-0.5 text-xs font-bold tracking-wide text-muted-foreground">
               {t.grade.titulo} · {usuarios.length}
             </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {usuarios.map((usuario) => {
-                const avaliacao = avaliacoes.data?.porAtendente.find(
-                  (a) => a.atendenteId === usuario.id,
-                );
-                return (
-                  <CardDePessoa
-                    key={usuario.id}
-                    usuario={usuario}
-                    avaliacao={avaliacao}
-                    textos={t}
-                    onEditar={() => setEdicao(usuario)}
-                    onDesativar={() => desativar.mutate(usuario.id)}
-                  />
-                );
-              })}
-            </div>
+            <TabelaDeUsuarios
+              usuarios={usuarios}
+              avaliacoes={avaliacoes.data?.porAtendente ?? []}
+              textos={t}
+              onEditar={setEdicao}
+              onDesativar={(id) => desativar.mutate(id)}
+            />
           </div>
         </>
       )}
@@ -184,80 +174,133 @@ function MiniDashboard({
   );
 }
 
-function CardDePessoa({
-  usuario,
-  avaliacao,
+/** Papel colorido em azul (SUBGESTOR) ou neutro (ATENDENTE) — TOKENS.md, tons do protótipo. */
+const TOM_DO_PAPEL: Record<PapelGerenciavel, "info" | "neutro"> = {
+  SUBGESTOR: "info",
+  ATENDENTE: "neutro",
+};
+
+function TabelaDeUsuarios({
+  usuarios,
+  avaliacoes,
   textos,
   onEditar,
   onDesativar,
 }: {
-  usuario: UsuarioEquipe;
-  avaliacao: LinhaRanking | undefined;
+  usuarios: UsuarioEquipe[];
+  avaliacoes: LinhaRanking[];
   textos: TextosEquipe;
-  onEditar: () => void;
-  onDesativar: () => void;
+  onEditar: (usuario: UsuarioEquipe) => void;
+  onDesativar: (id: string) => void;
 }) {
-  const papel = usuario.papel as PapelGerenciavel;
+  const avaliacaoPorId = new Map(avaliacoes.map((a) => [a.atendenteId, a]));
 
   return (
-    <div className={`rounded-lg border bg-card p-4 ${usuario.ativo ? "" : "opacity-60"}`}>
-      <div className="flex items-start gap-3">
-        <AvatarIniciais
-          id={usuario.id}
-          nome={usuario.nome}
-          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-sm font-bold">{usuario.nome}</p>
-            {!usuario.ativo && (
-              <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                {textos.inativo}
-              </span>
-            )}
-          </div>
-          <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
-        </div>
-        <div className="flex shrink-0 gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8"
-            aria-label={`${textos.editar} ${usuario.nome}`}
-            onClick={onEditar}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          {usuario.ativo && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-8 text-destructive hover:text-destructive"
-              aria-label={`${textos.desativar} ${usuario.nome}`}
-              onClick={onDesativar}
-            >
-              <UserRoundX className="size-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <PillDeStatus tom="neutro">
-          {textos.papeis[papel === "SUBGESTOR" ? "subgestor" : "atendente"]}
-        </PillDeStatus>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <span
-            className="size-2 rounded-full"
-            style={{ backgroundColor: PRESENCA_COR[usuario.statusPresenca] }}
-          />
-          {textos.presenca[usuario.statusPresenca.toLowerCase() as "online" | "ausente" | "offline"]}
-        </span>
-        <span className="ml-auto inline-flex items-center gap-1 text-xs font-bold">
-          <Star className="size-3.5 text-cor-atencao" />
-          {avaliacao ? `${avaliacao.media.toFixed(1)} (${avaliacao.total})` : textos.avaliacoes.semDados}
-        </span>
-      </div>
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/60">
+          <tr>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.usuario}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.funcao}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.presenca}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.avaliacao}
+            </th>
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.acoes}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {usuarios.map((usuario) => {
+            const papel = usuario.papel as PapelGerenciavel;
+            const avaliacao = avaliacaoPorId.get(usuario.id);
+            return (
+              <tr
+                key={usuario.id}
+                className={`border-t border-border ${usuario.ativo ? "" : "opacity-60"}`}
+              >
+                <td className="px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <AvatarIniciais
+                      id={usuario.id}
+                      nome={usuario.nome}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-bold text-foreground">{usuario.nome}</p>
+                        {!usuario.ativo && (
+                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                            {textos.inativo}
+                          </span>
+                        )}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <PillDeStatus tom={TOM_DO_PAPEL[papel]}>
+                    {textos.papeis[papel === "SUBGESTOR" ? "subgestor" : "atendente"]}
+                  </PillDeStatus>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: PRESENCA_COR[usuario.statusPresenca] }}
+                    />
+                    {
+                      textos.presenca[
+                        usuario.statusPresenca.toLowerCase() as "online" | "ausente" | "offline"
+                      ]
+                    }
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold">
+                    <Star className="size-3.5 text-cor-atencao" />
+                    {avaliacao
+                      ? `${avaliacao.media.toFixed(1)} (${avaliacao.total})`
+                      : textos.avaliacoes.semDados}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8"
+                      aria-label={`${textos.editar} ${usuario.nome}`}
+                      onClick={() => onEditar(usuario)}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    {usuario.ativo && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-destructive hover:text-destructive"
+                        aria-label={`${textos.desativar} ${usuario.nome}`}
+                        onClick={() => onDesativar(usuario.id)}
+                      >
+                        <UserRoundX className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

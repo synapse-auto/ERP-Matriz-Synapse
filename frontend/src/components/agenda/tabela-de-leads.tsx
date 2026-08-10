@@ -14,6 +14,13 @@ const CHAVE_DE_STATUS: Record<StatusBasicoLead, keyof TextosAgenda["status"]> = 
   FINALIZADO: "finalizado",
 };
 
+/** Pill colorida por significado (E18): IA em roxo, em atendimento em âmbar, finalizado em verde. */
+const COR_DE_STATUS: Record<StatusBasicoLead, string> = {
+  IA: "var(--cor-ia)",
+  EM_ATENDIMENTO: "var(--cor-atencao)",
+  FINALIZADO: "var(--cor-sucesso)",
+};
+
 interface Props {
   leads: LeadDaAgenda[];
   etapas: EtapaAtendimento[];
@@ -100,7 +107,13 @@ export function TabelaDeLeads({ leads, etapas, equipe, textos, onAbrirFicha, onA
                       {etapa.nome}
                     </span>
                   ) : (
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+                    <span
+                      className="rounded-md px-2 py-0.5 text-xs font-bold"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${COR_DE_STATUS[lead.status]} 16%, transparent)`,
+                        color: COR_DE_STATUS[lead.status],
+                      }}
+                    >
                       {textos.status[CHAVE_DE_STATUS[lead.status]]}
                     </span>
                   )}

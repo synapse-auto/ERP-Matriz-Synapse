@@ -201,7 +201,14 @@ function MiniDashboard({
       </div>
 
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <div
+          className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted"
+          style={
+            maisUsada
+              ? { backgroundColor: `color-mix(in srgb, ${maisUsada.cor} 16%, transparent)` }
+              : undefined
+          }
+        >
           <IconeDaTag
             nome={maisUsada?.icone ?? null}
             className="size-6"
@@ -265,7 +272,10 @@ function CartaoDeTag({
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="flex items-center gap-3">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <div
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `color-mix(in srgb, ${tag.cor} 16%, transparent)` }}
+        >
           <IconeDaTag nome={tag.icone} className="size-5" style={{ color: tag.cor }} />
         </div>
         <div className="min-w-0 flex-1">

@@ -41,6 +41,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       inativo: "Inativo",
       editar: "Editar",
       desativar: "Desativar",
+      colunas: {
+        usuario: "Usuário",
+        funcao: "Função",
+        presenca: "Presença",
+        avaliacao: "Avaliação",
+        acoes: "Ações",
+      },
       dashboard: {
         equipeLabel: "Equipe",
         onlineLabel: "{online} online · {ativos} ativos",

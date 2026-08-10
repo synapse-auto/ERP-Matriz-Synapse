@@ -95,18 +95,13 @@ export function PaginaMensagensProgramadas() {
       ) : !consulta.data?.mensagens.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
       ) : (
-        <div className="space-y-2">
-          {consulta.data.mensagens.map((mensagem) => (
-            <CardDeMensagemProgramada
-              key={mensagem.id}
-              mensagem={mensagem}
-              mostrarAtendente={gestor}
-              textos={t}
-              onEditar={() => setEdicao(mensagem)}
-              onCancelar={() => cancelar.mutate(mensagem.id)}
-            />
-          ))}
-        </div>
+        <TabelaDeMensagensProgramadas
+          itens={consulta.data.mensagens}
+          mostrarAtendente={gestor}
+          textos={t}
+          onEditar={setEdicao}
+          onCancelar={(id) => cancelar.mutate(id)}
+        />
       )}
 
       <div className="flex justify-end gap-2">
@@ -132,67 +127,107 @@ export function PaginaMensagensProgramadas() {
 
 type TextosMensagensProgramadas = ReturnType<typeof useTextos>["mensagensProgramadas"];
 
-function CardDeMensagemProgramada({
-  mensagem,
+function TabelaDeMensagensProgramadas({
+  itens,
   mostrarAtendente,
   textos,
   onEditar,
   onCancelar,
 }: {
-  mensagem: MensagemProgramada;
+  itens: MensagemProgramada[];
   mostrarAtendente: boolean;
   textos: TextosMensagensProgramadas;
-  onEditar: () => void;
-  onCancelar: () => void;
+  onEditar: (mensagem: MensagemProgramada) => void;
+  onCancelar: (id: string) => void;
 }) {
-  const editavel = mensagem.status === "AGENDADA";
-
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
-      <AvatarIniciais
-        id={mensagem.leadId}
-        nome={mensagem.leadNome}
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-      />
-      <span className="w-36 shrink-0 truncate text-sm font-bold">{mensagem.leadNome}</span>
-
-      <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{mensagem.conteudo}</p>
-
-      <p className="w-28 shrink-0 text-xs font-medium text-muted-foreground">
-        {new Date(mensagem.dataEnvio).toLocaleString("pt-BR")}
-      </p>
-
-      <PillDeStatus tom={TOM_DO_STATUS[mensagem.status]} className="shrink-0">
-        {textos.status[mensagem.status.toLowerCase() as "agendada" | "enviada" | "cancelada"]}
-      </PillDeStatus>
-
-      {mostrarAtendente && (
-        <div className="flex w-32 shrink-0 items-center gap-2">
-          <AvatarIniciais
-            id={mensagem.atendenteId}
-            nome={mensagem.atendenteNome}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-          />
-          <span className="truncate text-xs font-medium">{mensagem.atendenteNome}</span>
-        </div>
-      )}
-
-      {editavel && (
-        <div className="flex shrink-0 gap-1">
-          <Button size="sm" variant="outline" onClick={onEditar}>
-            {textos.editar}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8 text-destructive hover:text-destructive"
-            aria-label={`${textos.cancelar} ${mensagem.leadNome}`}
-            onClick={onCancelar}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
-      )}
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/60">
+          <tr>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.lead}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.conteudo}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.data}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.status}
+            </th>
+            {mostrarAtendente && (
+              <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                {textos.colunas.atendente}
+              </th>
+            )}
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.acoes}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {itens.map((mensagem) => {
+            const editavel = mensagem.status === "AGENDADA";
+            return (
+              <tr key={mensagem.id} className="border-t border-border">
+                <td className="px-4 py-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <AvatarIniciais
+                      id={mensagem.leadId}
+                      nome={mensagem.leadNome}
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                    />
+                    <span className="truncate font-bold text-foreground">{mensagem.leadNome}</span>
+                  </div>
+                </td>
+                <td className="max-w-xs px-4 py-3 truncate text-muted-foreground">
+                  {mensagem.conteudo}
+                </td>
+                <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
+                  {new Date(mensagem.dataEnvio).toLocaleString("pt-BR")}
+                </td>
+                <td className="px-4 py-3">
+                  <PillDeStatus tom={TOM_DO_STATUS[mensagem.status]}>
+                    {textos.status[mensagem.status.toLowerCase() as "agendada" | "enviada" | "cancelada"]}
+                  </PillDeStatus>
+                </td>
+                {mostrarAtendente && (
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <AvatarIniciais
+                        id={mensagem.atendenteId}
+                        nome={mensagem.atendenteNome}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                      />
+                      <span className="truncate text-xs font-medium">{mensagem.atendenteNome}</span>
+                    </div>
+                  </td>
+                )}
+                <td className="px-4 py-3 text-right">
+                  {editavel && (
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" onClick={() => onEditar(mensagem)}>
+                        {textos.editar}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 text-destructive hover:text-destructive"
+                        aria-label={`${textos.cancelar} ${mensagem.leadNome}`}
+                        onClick={() => onCancelar(mensagem.id)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

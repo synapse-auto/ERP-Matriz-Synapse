@@ -47,6 +47,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
       cancelar: "Cancelar",
       status: { agendada: "Agendada", enviada: "Enviada", cancelada: "Cancelada" },
       filtros: { inicio: "De", fim: "Até", status: "Status", todos: "Todos" },
+      colunas: {
+        lead: "Lead",
+        conteudo: "Mensagem",
+        data: "Envio",
+        status: "Status",
+        atendente: "Atendente",
+        acoes: "Ações",
+      },
       paginacao: { anterior: "Anterior", proxima: "Próxima" },
       formulario: {
         tituloCriar: "Programar mensagem",
