@@ -37,6 +37,7 @@ export function temaParaCssVariaveis(tema: Tema): string {
     `--cor-primaria-borda: ${tema.corPrimariaBorda}`,
     `--cor-primaria-texto: ${tema.corPrimariaTexto}`,
     `--fundo-app: ${tema.fundoApp}`,
+    `--fundo-canvas: ${tema.fundoCanvas}`,
     `--fundo-superficie: ${tema.fundoSuperficie}`,
     `--fundo-sutil: ${tema.fundoSutil}`,
     `--fundo-sidebar: ${tema.fundoSidebar}`,

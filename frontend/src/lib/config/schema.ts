@@ -13,6 +13,7 @@ export const TemaSchema = z.object({
   corPrimariaTexto: z.string(),
 
   fundoApp: z.string(),
+  fundoCanvas: z.string(),
   fundoSuperficie: z.string(),
   fundoSutil: z.string(),
   fundoSidebar: z.string(),
