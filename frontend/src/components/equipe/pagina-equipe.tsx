@@ -1,3 +1,381 @@
-"use client";import{useState}from"react";import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{Button}from"@/components/ui/button";import{Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle}from"@/components/ui/dialog";import{Input}from"@/components/ui/input";import{useTextos}from"@/lib/config/textos-provider";import{avaliacoesEquipe,criarUsuario,desativarUsuario,editarUsuario,listarEquipe}from"@/lib/equipe/api";import type{PapelGerenciavel,UsuarioEquipe}from"@/lib/equipe/types";
-export function PaginaEquipe(){const t=useTextos().equipe;const cache=useQueryClient();const equipe=useQuery({queryKey:["equipe"],queryFn:listarEquipe});const avaliacoes=useQuery({queryKey:["equipe","avaliacoes"],queryFn:avaliacoesEquipe});const[novo,setNovo]=useState(false);const[edicao,setEdicao]=useState<UsuarioEquipe|null>(null);const desativar=useMutation({mutationFn:desativarUsuario,onSuccess:()=>cache.invalidateQueries({queryKey:["equipe"]})});return <div className="space-y-5 p-6"><header className="flex justify-between"><div><h1 className="text-xl font-semibold">{t.titulo}</h1><p className="text-sm text-muted-foreground">{t.descricao}</p></div><Button onClick={()=>setNovo(true)}>{t.novo}</Button></header><section className="grid gap-3 md:grid-cols-2"><div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">{t.avaliacoes.media}</p><p className="text-2xl font-semibold">{avaliacoes.data?.mediaGeral??t.avaliacoes.semDados}</p></div><div className="rounded-lg border p-4"><p className="text-sm text-muted-foreground">{t.avaliacoes.total}</p><p className="text-2xl font-semibold">{avaliacoes.data?.total??t.avaliacoes.semDados}</p></div></section>{equipe.isLoading?<p>{t.carregando}</p>:equipe.isError?<p className="text-destructive">{t.erro}</p>:<div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted"><tr><th className="p-2 text-left">{t.colunas.nome}</th><th className="p-2 text-left">{t.colunas.email}</th><th className="p-2 text-left">{t.colunas.papel}</th><th className="p-2 text-left">{t.colunas.presenca}</th><th className="p-2 text-left">{t.colunas.avaliacao}</th><th className="p-2 text-left">{t.colunas.acoes}</th></tr></thead><tbody>{equipe.data?.filter((u)=>u.papel==="ATENDENTE"||u.papel==="SUBGESTOR").map((u)=>{const a=avaliacoes.data?.porAtendente.find((x)=>x.atendenteId===u.id);return <tr className="border-t" key={u.id}><td className="p-2">{u.nome}{!u.ativo&&<span className="ml-2 text-xs text-muted-foreground">{t.inativo}</span>}</td><td className="p-2">{u.email}</td><td className="p-2">{t.papeis[u.papel.toLowerCase() as"atendente"|"subgestor"]}</td><td className="p-2">{t.presenca[u.statusPresenca.toLowerCase() as"online"|"ausente"|"offline"]}</td><td className="p-2">{a?`${a.media} (${a.total})`:t.avaliacoes.semDados}</td><td className="space-x-2 p-2"><Button size="sm" variant="outline" onClick={()=>setEdicao(u)}>{t.editar}</Button>{u.ativo&&<Button size="sm" variant="ghost" onClick={()=>desativar.mutate(u.id)}>{t.desativar}</Button>}</td></tr>})}</tbody></table></div>}<Formulario aberto={novo} onFechar={()=>setNovo(false)}/>{edicao&&<Formulario aberto existente={edicao} onFechar={()=>setEdicao(null)}/>}</div>}
-function Formulario({aberto,existente,onFechar}:{aberto:boolean;existente?:UsuarioEquipe;onFechar:()=>void}){const t=useTextos().equipe.formulario;const cache=useQueryClient();const[nome,setNome]=useState(existente?.nome??"");const[email,setEmail]=useState(existente?.email??"");const[senha,setSenha]=useState("");const[papel,setPapel]=useState<PapelGerenciavel>((existente?.papel as PapelGerenciavel)??"ATENDENTE");const salvar=useMutation({mutationFn:()=>existente?editarUsuario(existente.id,{nome,email,papel}):criarUsuario({nome,email,senha,papel}),onSuccess:async()=>{await cache.invalidateQueries({queryKey:["equipe"]});onFechar()}});return <Dialog open={aberto} onOpenChange={(v)=>!v&&onFechar()}><DialogContent><DialogHeader><DialogTitle>{existente?t.editarTitulo:t.criarTitulo}</DialogTitle></DialogHeader><form className="space-y-3" onSubmit={(e)=>{e.preventDefault();salvar.mutate()}}><label className="block space-y-1"><span>{t.nome}</span><Input required value={nome} onChange={(e)=>setNome(e.target.value)}/></label><label className="block space-y-1"><span>{t.email}</span><Input required type="email" value={email} onChange={(e)=>setEmail(e.target.value)}/></label>{!existente&&<label className="block space-y-1"><span>{t.senha}</span><Input required minLength={8} type="password" value={senha} onChange={(e)=>setSenha(e.target.value)}/></label>}<label className="block space-y-1"><span>{t.papel}</span><select className="h-8 w-full rounded-lg border bg-background px-2" value={papel} onChange={(e)=>setPapel(e.target.value as PapelGerenciavel)}><option value="ATENDENTE">{t.atendente}</option><option value="SUBGESTOR">{t.subgestor}</option></select></label>{salvar.isError&&<p className="text-destructive">{t.erro}</p>}<DialogFooter><Button type="button" variant="outline" onClick={onFechar}>{t.cancelar}</Button><Button type="submit">{t.salvar}</Button></DialogFooter></form></DialogContent></Dialog>}
+"use client";
+
+import { useState } from "react";
+
+import { Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useTextos } from "@/lib/config/textos-provider";
+import {
+  useAvaliacoesEquipe,
+  useCriarUsuario,
+  useDesativarUsuario,
+  useEditarUsuario,
+  useEquipe,
+} from "@/lib/equipe/use-equipe";
+import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
+
+/**
+ * Tons para o avatar de cada pessoa (design/TOKENS.md) — nenhuma cor literal, só `var(--...)`.
+ * A escolha é determinística pelo id (hash simples), então a mesma pessoa sempre recebe o mesmo
+ * tom entre renderizações, sem precisar o backend guardar uma cor por usuário.
+ */
+const TONS_DE_AVATAR = [
+  "var(--primary)",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+function tomDoAvatar(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return TONS_DE_AVATAR[hash % TONS_DE_AVATAR.length];
+}
+
+function iniciais(nome: string): string {
+  return nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+const PRESENCA_COR: Record<StatusPresenca, string> = {
+  ONLINE: "var(--cor-sucesso)",
+  AUSENTE: "var(--cor-atencao)",
+  OFFLINE: "var(--muted-foreground)",
+};
+
+export function PaginaEquipe() {
+  const t = useTextos().equipe;
+  const equipe = useEquipe();
+  const avaliacoes = useAvaliacoesEquipe();
+  const desativar = useDesativarUsuario();
+  const [novo, setNovo] = useState(false);
+  const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
+
+  const usuarios = (equipe.data ?? []).filter(
+    (u) => u.papel === "ATENDENTE" || u.papel === "SUBGESTOR",
+  );
+  const ativos = usuarios.filter((u) => u.ativo);
+  const online = usuarios.filter((u) => u.statusPresenca === "ONLINE").length;
+
+  const rankingAvaliacao = (avaliacoes.data?.porAtendente ?? [])
+    .slice()
+    .sort((a, b) => b.media - a.media)
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-5 p-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">{t.titulo}</h1>
+          <p className="text-sm text-muted-foreground">{t.descricao}</p>
+        </div>
+        <Button onClick={() => setNovo(true)}>{t.novo}</Button>
+      </header>
+
+      {equipe.isLoading ? (
+        <p>{t.carregando}</p>
+      ) : equipe.isError ? (
+        <p className="text-destructive">{t.erro}</p>
+      ) : (
+        <>
+          <MiniDashboard
+            totalUsuarios={usuarios.length}
+            online={online}
+            ativos={ativos.length}
+            mediaGeral={avaliacoes.data?.mediaGeral}
+            ranking={rankingAvaliacao}
+            textos={t}
+          />
+
+          <div className="space-y-3">
+            <p className="px-0.5 text-xs font-bold tracking-wide text-muted-foreground">
+              {t.grade.titulo} · {usuarios.length}
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {usuarios.map((usuario) => {
+                const avaliacao = avaliacoes.data?.porAtendente.find(
+                  (a) => a.atendenteId === usuario.id,
+                );
+                return (
+                  <CardDePessoa
+                    key={usuario.id}
+                    usuario={usuario}
+                    avaliacao={avaliacao}
+                    textos={t}
+                    onEditar={() => setEdicao(usuario)}
+                    onDesativar={() => desativar.mutate(usuario.id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      <Formulario aberto={novo} onFechar={() => setNovo(false)} />
+      {edicao && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+    </div>
+  );
+}
+
+type TextosEquipe = ReturnType<typeof useTextos>["equipe"];
+type LinhaRanking = { atendenteId: string; atendenteNome: string; media: number; total: number };
+
+function MiniDashboard({
+  totalUsuarios,
+  online,
+  ativos,
+  mediaGeral,
+  ranking,
+  textos,
+}: {
+  totalUsuarios: number;
+  online: number;
+  ativos: number;
+  mediaGeral: number | undefined;
+  ranking: LinhaRanking[];
+  textos: TextosEquipe;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <Users className="size-6 text-primary" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{textos.dashboard.equipeLabel}</p>
+          <p className="text-2xl font-bold">{totalUsuarios}</p>
+          <p className="text-xs text-muted-foreground">
+            {textos.dashboard.onlineLabel
+              .replace("{online}", String(online))
+              .replace("{ativos}", String(ativos))}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-cor-atencao/10">
+          <Star className="size-6 text-cor-atencao" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{textos.dashboard.avaliacaoMedia}</p>
+          <p className="text-2xl font-bold">
+            {mediaGeral != null ? mediaGeral.toFixed(1) : textos.avaliacoes.semDados}
+            {mediaGeral != null && <span className="text-sm font-normal text-muted-foreground"> / 10</span>}
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border bg-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <Medal className="size-4 text-cor-atencao" />
+          <p className="text-sm font-bold">{textos.dashboard.ranking}</p>
+        </div>
+        {ranking.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{textos.avaliacoes.semDados}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {ranking.map((item, indice) => (
+              <li key={item.atendenteId} className="flex items-center gap-2.5">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                  {indice + 1}
+                </span>
+                <span
+                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                  style={{ backgroundColor: tomDoAvatar(item.atendenteId) }}
+                >
+                  {iniciais(item.atendenteNome)}
+                </span>
+                <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
+                <span className="text-xs font-bold">{item.media.toFixed(1)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CardDePessoa({
+  usuario,
+  avaliacao,
+  textos,
+  onEditar,
+  onDesativar,
+}: {
+  usuario: UsuarioEquipe;
+  avaliacao: LinhaRanking | undefined;
+  textos: TextosEquipe;
+  onEditar: () => void;
+  onDesativar: () => void;
+}) {
+  const papel = usuario.papel as PapelGerenciavel;
+
+  return (
+    <div className={`rounded-lg border bg-card p-4 ${usuario.ativo ? "" : "opacity-60"}`}>
+      <div className="flex items-start gap-3">
+        <span
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
+          style={{ backgroundColor: tomDoAvatar(usuario.id) }}
+        >
+          {iniciais(usuario.nome)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-bold">{usuario.nome}</p>
+            {!usuario.ativo && (
+              <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                {textos.inativo}
+              </span>
+            )}
+          </div>
+          <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8"
+            aria-label={`${textos.editar} ${usuario.nome}`}
+            onClick={onEditar}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          {usuario.ativo && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 text-destructive hover:text-destructive"
+              aria-label={`${textos.desativar} ${usuario.nome}`}
+              onClick={onDesativar}
+            >
+              <UserRoundX className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
+          {textos.papeis[papel === "SUBGESTOR" ? "subgestor" : "atendente"]}
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: PRESENCA_COR[usuario.statusPresenca] }}
+          />
+          {textos.presenca[usuario.statusPresenca.toLowerCase() as "online" | "ausente" | "offline"]}
+        </span>
+        <span className="ml-auto inline-flex items-center gap-1 text-xs font-bold">
+          <Star className="size-3.5 text-cor-atencao" />
+          {avaliacao ? `${avaliacao.media.toFixed(1)} (${avaliacao.total})` : textos.avaliacoes.semDados}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Formulario({
+  aberto,
+  existente,
+  onFechar,
+}: {
+  aberto: boolean;
+  existente?: UsuarioEquipe;
+  onFechar: () => void;
+}) {
+  const t = useTextos().equipe.formulario;
+  const criar = useCriarUsuario();
+  const editar = useEditarUsuario();
+  const [nome, setNome] = useState(existente?.nome ?? "");
+  const [email, setEmail] = useState(existente?.email ?? "");
+  const [senha, setSenha] = useState("");
+  const [papel, setPapel] = useState<PapelGerenciavel>(
+    (existente?.papel as PapelGerenciavel) ?? "ATENDENTE",
+  );
+
+  const salvando = criar.isPending || editar.isPending;
+  const comErro = criar.isError || editar.isError;
+
+  function salvar() {
+    if (existente) {
+      editar.mutate({ id: existente.id, dados: { nome, email, papel } }, { onSuccess: onFechar });
+    } else {
+      criar.mutate({ nome, email, senha, papel }, { onSuccess: onFechar });
+    }
+  }
+
+  return (
+    <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{existente ? t.editarTitulo : t.criarTitulo}</DialogTitle>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            salvar();
+          }}
+        >
+          <label className="block space-y-1">
+            <span>{t.nome}</span>
+            <Input required value={nome} onChange={(e) => setNome(e.target.value)} />
+          </label>
+          <label className="block space-y-1">
+            <span>{t.email}</span>
+            <Input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          {!existente && (
+            <label className="block space-y-1">
+              <span>{t.senha}</span>
+              <Input
+                required
+                minLength={8}
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+              />
+            </label>
+          )}
+          <label className="block space-y-1">
+            <span>{t.papel}</span>
+            <select
+              className="h-8 w-full rounded-lg border bg-background px-2"
+              value={papel}
+              onChange={(e) => setPapel(e.target.value as PapelGerenciavel)}
+            >
+              <option value="ATENDENTE">{t.atendente}</option>
+              <option value="SUBGESTOR">{t.subgestor}</option>
+            </select>
+          </label>
+          {comErro && <p className="text-destructive">{t.erro}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onFechar}>
+              {t.cancelar}
+            </Button>
+            <Button type="submit" disabled={salvando}>
+              {t.salvar}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
