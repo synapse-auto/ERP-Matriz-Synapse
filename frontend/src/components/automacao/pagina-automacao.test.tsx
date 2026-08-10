@@ -26,6 +26,14 @@ const PARAMETROS = [
   },
 ];
 
+const TELEMETRIA = {
+  mensagensEnviadas: 1284,
+  clientesTransferidos: 342,
+  conexaoAutomacaoAtiva: true,
+  crmOnline: false,
+  atualizadoEm: "2026-01-01T00:00:00Z",
+};
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     automacao: {
@@ -41,6 +49,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
       desativado: "Desativado",
       salvar: "Salvar",
       salvando: "Salvando...",
+      telemetria: {
+        mensagensEnviadas: "Mensagens Enviadas",
+        clientesTransferidos: "Clientes Transferidos",
+        conexaoAutomacao: "Conexão Automação",
+        statusDoCrm: "Status do CRM",
+        conectado: "Conectado",
+        desconectado: "Desconectado",
+        online: "Online",
+        offline: "Offline",
+        erro: "Não foi possível carregar a telemetria.",
+      },
     },
   }),
 }));
@@ -52,11 +71,25 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
     isPending: false,
     isError: false,
   }),
+  useTelemetriaAutomacao: () => ({ data: TELEMETRIA, isLoading: false, isError: false }),
 }));
 
 import { PaginaAutomacao } from "./pagina-automacao";
 
 describe("pagina de automacao", () => {
+  it("mostra os quatro cards de telemetria com os valores do backend", () => {
+    render(<PaginaAutomacao />);
+
+    expect(screen.getByText("Mensagens Enviadas")).toBeInTheDocument();
+    expect(screen.getByText("1.284")).toBeInTheDocument();
+    expect(screen.getByText("Clientes Transferidos")).toBeInTheDocument();
+    expect(screen.getByText("342")).toBeInTheDocument();
+    expect(screen.getByText("Conexão Automação")).toBeInTheDocument();
+    expect(screen.getByText("Conectado")).toBeInTheDocument();
+    expect(screen.getByText("Status do CRM")).toBeInTheDocument();
+    expect(screen.getByText("Offline")).toBeInTheDocument();
+  });
+
   it("mostra a faixa valida vinda do backend, nao um limite fixo no componente", () => {
     render(<PaginaAutomacao />);
 

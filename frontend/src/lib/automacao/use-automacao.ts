@@ -2,14 +2,27 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { atualizarParametroAutomacao, listarConfiguracaoAutomacao } from "./api";
+import {
+  atualizarParametroAutomacao,
+  listarConfiguracaoAutomacao,
+  obterTelemetriaAutomacao,
+} from "./api";
 
 const CHAVE_CONFIGURACAO_AUTOMACAO = ["automacao", "config"] as const;
+const CHAVE_TELEMETRIA_AUTOMACAO = ["automacao", "telemetria"] as const;
 
 export function useConfiguracaoAutomacao() {
   return useQuery({
     queryKey: CHAVE_CONFIGURACAO_AUTOMACAO,
     queryFn: listarConfiguracaoAutomacao,
+  });
+}
+
+/** Os quatro cards do topo da tela de Automação (E17b §Bloco 5). */
+export function useTelemetriaAutomacao() {
+  return useQuery({
+    queryKey: CHAVE_TELEMETRIA_AUTOMACAO,
+    queryFn: obterTelemetriaAutomacao,
   });
 }
 

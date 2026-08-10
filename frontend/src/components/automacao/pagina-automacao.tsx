@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
+
+import { Database, Link2, MessageSquareText, UserRoundCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +12,14 @@ import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAtualizarParametroAutomacao,
   useConfiguracaoAutomacao,
+  useTelemetriaAutomacao,
 } from "@/lib/automacao/use-automacao";
-import type { ParametroAutomacao } from "@/lib/automacao/types";
+import type { ParametroAutomacao, StatusAutomacaoTelemetria } from "@/lib/automacao/types";
 
 export function PaginaAutomacao() {
   const t = useTextos().automacao;
   const parametros = useConfiguracaoAutomacao();
+  const telemetria = useTelemetriaAutomacao();
 
   return (
     <div className="space-y-5 p-6">
@@ -22,6 +27,8 @@ export function PaginaAutomacao() {
         <h1 className="text-xl font-semibold">{t.titulo}</h1>
         <p className="text-sm text-muted-foreground">{t.descricao}</p>
       </header>
+
+      <CardsDeTelemetria dados={telemetria.data} carregando={telemetria.isLoading} comErro={telemetria.isError} />
 
       {parametros.isLoading ? (
         <p>{t.carregando}</p>
@@ -38,6 +45,105 @@ export function PaginaAutomacao() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Os quatro cards do topo (E17b §Bloco 5): mensagens enviadas, clientes transferidos, conexão da
+ * Automação e status do CRM — snapshot de status_automacao_telemetria (Prompt A). Sem esqueleto
+ * quando carregando ou com erro: a tela some os cards em vez de mostrar zero, que pareceria dado
+ * real.
+ */
+function CardsDeTelemetria({
+  dados,
+  carregando,
+  comErro,
+}: {
+  dados: StatusAutomacaoTelemetria | undefined;
+  carregando: boolean;
+  comErro: boolean;
+}) {
+  const t = useTextos().automacao.telemetria;
+
+  if (carregando) return null;
+  if (comErro || !dados) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {t.erro}
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <CardDeTelemetria
+        icone={<MessageSquareText className="size-5 text-primary" />}
+        rotulo={t.mensagensEnviadas}
+        valor={dados.mensagensEnviadas.toLocaleString("pt-BR")}
+      />
+      <CardDeTelemetria
+        icone={<UserRoundCheck className="size-5 text-cor-ia" />}
+        rotulo={t.clientesTransferidos}
+        valor={dados.clientesTransferidos.toLocaleString("pt-BR")}
+      />
+      <CardDeTelemetria
+        icone={<Link2 className="size-5 text-cor-sucesso" />}
+        rotulo={t.conexaoAutomacao}
+        status={dados.conexaoAutomacaoAtiva}
+        rotuloAtivo={t.conectado}
+        rotuloInativo={t.desconectado}
+      />
+      <CardDeTelemetria
+        icone={<Database className="size-5 text-cor-sucesso" />}
+        rotulo={t.statusDoCrm}
+        status={dados.crmOnline}
+        rotuloAtivo={t.online}
+        rotuloInativo={t.offline}
+      />
+    </div>
+  );
+}
+
+function CardDeTelemetria({
+  icone,
+  rotulo,
+  valor,
+  status,
+  rotuloAtivo,
+  rotuloInativo,
+}: {
+  icone: ReactNode;
+  rotulo: string;
+  valor?: string;
+  status?: boolean;
+  rotuloAtivo?: string;
+  rotuloInativo?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+        {icone}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground">{rotulo}</p>
+        {status != null ? (
+          <p
+            className={
+              status
+                ? "mt-0.5 flex items-center gap-1.5 text-sm font-bold text-cor-sucesso"
+                : "mt-0.5 flex items-center gap-1.5 text-sm font-bold text-cor-erro"
+            }
+          >
+            <span
+              className={status ? "size-2 rounded-full bg-cor-sucesso" : "size-2 rounded-full bg-cor-erro"}
+            />
+            {status ? rotuloAtivo : rotuloInativo}
+          </p>
+        ) : (
+          <p className="text-lg font-bold">{valor}</p>
+        )}
+      </div>
     </div>
   );
 }
