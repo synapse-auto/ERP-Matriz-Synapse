@@ -1,9 +1,14 @@
 import { apiFetch } from "@/lib/api/http-client";
 
-import type { DadosDeTag, Tag } from "./types";
+import type { AgregacaoDeTags, DadosDeTag, Tag } from "./types";
 
 export function listarTags(): Promise<Tag[]> {
   return apiFetch<Tag[]>("/api/v1/tags");
+}
+
+/** Mini-dashboard de Tags (E17b §Bloco 5): tag mais usada, % de leads tagueados, contagem por tag. */
+export function obterAgregacaoDeTags(): Promise<AgregacaoDeTags> {
+  return apiFetch<AgregacaoDeTags>("/api/v1/tags/agregacao");
 }
 
 export function criarTag(dados: DadosDeTag): Promise<Tag> {

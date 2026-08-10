@@ -260,7 +260,19 @@
     "erro": "Não foi possível carregar as tags.",
     "editar": "Editar",
     "remover": "Remover",
-    "colunas": { "tag": "Tag", "acoes": "Ações" },
+    "dashboard": {
+      "totalTags": "Total de tags",
+      "tagMaisUsada": "Tag mais usada",
+      "leadsVinculados": "{n} leads vinculados",
+      "leadsTagueados": "Leads tagueados",
+      "leadsDeTotal": "{comTag} de {total} leads",
+      "semDados": "Sem leads visíveis ainda"
+    },
+    "grade": {
+      "titulo": "TODAS AS TAGS",
+      "leadsEPercentual": "{n} leads · {pct}% da base",
+      "previa": "Prévia da etiqueta"
+    },
     "formulario": {
       "criarTitulo": "Nova tag",
       "editarTitulo": "Editar tag",
@@ -285,6 +297,17 @@
     "ativado": "Ativado",
     "desativado": "Desativado",
     "salvar": "Salvar",
-    "salvando": "Salvando..."
+    "salvando": "Salvando...",
+    "telemetria": {
+      "mensagensEnviadas": "Mensagens Enviadas",
+      "clientesTransferidos": "Clientes Transferidos",
+      "conexaoAutomacao": "Conexão Automação",
+      "statusDoCrm": "Status do CRM",
+      "conectado": "Conectado",
+      "desconectado": "Desconectado",
+      "online": "Online",
+      "offline": "Offline",
+      "erro": "Não foi possível carregar a telemetria."
+    }
   }
 }

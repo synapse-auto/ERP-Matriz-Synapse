@@ -345,7 +345,19 @@ export const TextosSchema = z.object({
     erro: z.string(),
     editar: z.string(),
     remover: z.string(),
-    colunas: z.object({ tag: z.string(), acoes: z.string() }),
+    dashboard: z.object({
+      totalTags: z.string(),
+      tagMaisUsada: z.string(),
+      leadsVinculados: z.string(),
+      leadsTagueados: z.string(),
+      leadsDeTotal: z.string(),
+      semDados: z.string(),
+    }),
+    grade: z.object({
+      titulo: z.string(),
+      leadsEPercentual: z.string(),
+      previa: z.string(),
+    }),
     formulario: z.object({
       criarTitulo: z.string(),
       editarTitulo: z.string(),
@@ -371,6 +383,17 @@ export const TextosSchema = z.object({
     desativado: z.string(),
     salvar: z.string(),
     salvando: z.string(),
+    telemetria: z.object({
+      mensagensEnviadas: z.string(),
+      clientesTransferidos: z.string(),
+      conexaoAutomacao: z.string(),
+      statusDoCrm: z.string(),
+      conectado: z.string(),
+      desconectado: z.string(),
+      online: z.string(),
+      offline: z.string(),
+      erro: z.string(),
+    }),
   }),
 });
 

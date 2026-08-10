@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 
 import {
   Briefcase,
@@ -11,11 +11,14 @@ import {
   Flame,
   Heart,
   Layers,
+  Pencil,
+  Percent,
   Repeat,
   ShieldCheck,
   Star,
   Store,
   Tag as TagIcon,
+  Trash2,
   UserPlus,
   Wrench,
 } from "lucide-react";
@@ -31,8 +34,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useAtualizarTag, useCriarTag, useRemoverTag, useTags } from "@/lib/tags/use-tags";
-import type { DadosDeTag, Tag } from "@/lib/tags/types";
+import {
+  useAgregacaoDeTags,
+  useAtualizarTag,
+  useCriarTag,
+  useRemoverTag,
+  useTags,
+} from "@/lib/tags/use-tags";
+import type { AgregacaoDeTags, DadosDeTag, Tag } from "@/lib/tags/types";
 
 /**
  * Tokens de tema disponíveis para tag (design/TOKENS.md): nenhuma cor literal aqui, só
@@ -49,7 +58,7 @@ const CORES = [
 ];
 
 /** lucide-react continua a biblioteca de ícones do projeto — sem introduzir Remix Icon. */
-const ICONES: Record<string, ComponentType<{ className?: string }>> = {
+const ICONES: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   Tag: TagIcon,
   Flag,
   Star,
@@ -68,22 +77,40 @@ const ICONES: Record<string, ComponentType<{ className?: string }>> = {
 
 const ICONE_PADRAO = "Tag";
 
-function IconeDaTag({ nome, className }: { nome: string | null; className?: string }) {
+function IconeDaTag({
+  nome,
+  className,
+  style,
+}: {
+  nome: string | null;
+  className?: string;
+  style?: CSSProperties;
+}) {
   const Icone = (nome && ICONES[nome]) || ICONES[ICONE_PADRAO];
-  return <Icone className={className} />;
+  return <Icone className={className} style={style} />;
 }
+
+type TextosTags = ReturnType<typeof useTextos>["tags"];
 
 export function PaginaTags() {
   const t = useTextos().tags;
   const tags = useTags();
+  const agregacao = useAgregacaoDeTags();
   const remover = useRemoverTag();
   const [busca, setBusca] = useState("");
   const [novaAberta, setNovaAberta] = useState(false);
   const [edicao, setEdicao] = useState<Tag | null>(null);
 
-  const filtradas = (tags.data ?? []).filter((tag) =>
+  const todas = tags.data ?? [];
+  const filtradas = todas.filter((tag) =>
     tag.nome.toLowerCase().includes(busca.trim().toLowerCase()),
   );
+
+  const contagemPorTagId = new Map(
+    (agregacao.data?.porTag ?? []).map((item) => [item.id, item.quantidade]),
+  );
+  const maiorContagem = Math.max(1, ...Array.from(contagemPorTagId.values()));
+  const totalVisivel = agregacao.data?.totalLeadsVisiveis ?? 0;
 
   return (
     <div className="space-y-5 p-6">
@@ -107,47 +134,182 @@ export function PaginaTags() {
         <p>{t.carregando}</p>
       ) : tags.isError ? (
         <p className="text-destructive">{t.erro}</p>
-      ) : filtradas.length === 0 ? (
-        <p className="text-muted-foreground">{busca ? t.semResultados : t.vazio}</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted">
-              <tr>
-                <th className="p-2 text-left">{t.colunas.tag}</th>
-                <th className="p-2 text-left">{t.colunas.acoes}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtradas.map((tag) => (
-                <tr className="border-t" key={tag.id}>
-                  <td className="p-2">
-                    <Badge
-                      variant="outline"
-                      style={{ borderColor: tag.cor, color: tag.cor }}
-                      className="gap-1.5"
-                    >
-                      <IconeDaTag nome={tag.icone} className="size-3" />
-                      {tag.nome}
-                    </Badge>
-                  </td>
-                  <td className="space-x-2 p-2">
-                    <Button size="sm" variant="outline" onClick={() => setEdicao(tag)}>
-                      {t.editar}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => remover.mutate(tag.id)}>
-                      {t.remover}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <MiniDashboard totalTags={todas.length} agregacao={agregacao.data} textos={t.dashboard} />
+
+          {filtradas.length === 0 ? (
+            <p className="text-muted-foreground">{busca ? t.semResultados : t.vazio}</p>
+          ) : (
+            <div className="space-y-3">
+              <p className="px-0.5 text-xs font-bold tracking-wide text-muted-foreground">
+                {t.grade.titulo} · {filtradas.length}
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filtradas.map((tag) => (
+                  <CartaoDeTag
+                    key={tag.id}
+                    tag={tag}
+                    contagem={contagemPorTagId.get(tag.id) ?? 0}
+                    maiorContagem={maiorContagem}
+                    totalVisivel={totalVisivel}
+                    textos={t}
+                    onEditar={() => setEdicao(tag)}
+                    onRemover={() => remover.mutate(tag.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <Formulario aberto={novaAberta} onFechar={() => setNovaAberta(false)} />
       {edicao && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+    </div>
+  );
+}
+
+/**
+ * Mini-dashboard (E17b §Bloco 5): total de tags vem do catálogo (`useTags`), independente de papel
+ * — tag é da operação inteira. Tag mais usada e % tagueados vêm de `useAgregacaoDeTags`, que já
+ * chega recortado pela mesma visibilidade da listagem de leads (RN-CRM-01); nunca calculados aqui
+ * a partir de um total que o atendente não enxergaria.
+ */
+function MiniDashboard({
+  totalTags,
+  agregacao,
+  textos,
+}: {
+  totalTags: number;
+  agregacao: AgregacaoDeTags | undefined;
+  textos: TextosTags["dashboard"];
+}) {
+  const maisUsada = agregacao?.tagMaisUsada ?? null;
+  const percentual = agregacao ? Math.round(agregacao.percentualTagueados) : 0;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <TagIcon className="size-6 text-primary" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{textos.totalTags}</p>
+          <p className="text-2xl font-bold">{totalTags}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <IconeDaTag
+            nome={maisUsada?.icone ?? null}
+            className="size-6"
+            style={maisUsada ? { color: maisUsada.cor } : undefined}
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">{textos.tagMaisUsada}</p>
+          {maisUsada ? (
+            <>
+              <p className="truncate text-lg font-bold">{maisUsada.nome}</p>
+              <p className="text-xs text-muted-foreground">
+                {textos.leadsVinculados.replace("{n}", String(maisUsada.quantidade))}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">{textos.semDados}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-cor-sucesso/10">
+          <Percent className="size-6 text-cor-sucesso" />
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{textos.leadsTagueados}</p>
+          <p className="text-2xl font-bold">{percentual}%</p>
+          <p className="text-xs text-muted-foreground">
+            {textos.leadsDeTotal
+              .replace("{comTag}", String(agregacao?.leadsComTag ?? 0))
+              .replace("{total}", String(agregacao?.totalLeadsVisiveis ?? 0))}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Um card por tag (E17b §Bloco 5), no lugar da linha de tabela que existia antes. */
+function CartaoDeTag({
+  tag,
+  contagem,
+  maiorContagem,
+  totalVisivel,
+  textos,
+  onEditar,
+  onRemover,
+}: {
+  tag: Tag;
+  contagem: number;
+  maiorContagem: number;
+  totalVisivel: number;
+  textos: TextosTags;
+  onEditar: () => void;
+  onRemover: () => void;
+}) {
+  const percentualDaBase = totalVisivel > 0 ? Math.round((contagem / totalVisivel) * 100) : 0;
+  const larguraDaBarra = Math.round((contagem / maiorContagem) * 100);
+
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <IconeDaTag nome={tag.icone} className="size-5" style={{ color: tag.cor }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold">{tag.nome}</p>
+          <p className="text-xs text-muted-foreground">
+            {textos.grade.leadsEPercentual
+              .replace("{n}", String(contagem))
+              .replace("{pct}", String(percentualDaBase))}
+          </p>
+        </div>
+        <div className="flex gap-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8"
+            aria-label={`${textos.editar} ${tag.nome}`}
+            onClick={onEditar}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8 text-destructive hover:text-destructive"
+            aria-label={`${textos.remover} ${tag.nome}`}
+            onClick={onRemover}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${larguraDaBarra}%`, backgroundColor: tag.cor }}
+        />
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <Badge variant="outline" style={{ borderColor: tag.cor, color: tag.cor }} className="gap-1.5">
+          <IconeDaTag nome={tag.icone} className="size-3" />
+          {tag.nome}
+        </Badge>
+        <span className="text-xs font-medium text-muted-foreground">{textos.grade.previa}</span>
+      </div>
     </div>
   );
 }
