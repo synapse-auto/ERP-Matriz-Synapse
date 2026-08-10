@@ -273,7 +273,7 @@ export const TextosSchema = z.object({
     vazio: z.string(), erro: z.string(), automatico: z.string(), concluir: z.string(), remover: z.string(),
     status: z.object({ pendente: z.string(), concluido: z.string() }),
     filtros: z.object({ inicio: z.string(), fim: z.string(), status: z.string(), todos: z.string() }),
-    colunas: z.object({ dataHora: z.string(), lead: z.string(), atendente: z.string(), texto: z.string(), status: z.string(), acoes: z.string() }),
+    semVinculo: z.string(),
     paginacao: z.object({ anterior: z.string(), proxima: z.string() }),
     formulario: z.object({ titulo: z.string(), lead: z.string(), selecionarLead: z.string(), dataHora: z.string(), texto: z.string(), salvar: z.string(), cancelar: z.string(), erro: z.string() }),
   }),

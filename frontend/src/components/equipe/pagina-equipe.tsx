@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
 
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAvaliacoesEquipe,
@@ -22,35 +24,6 @@ import {
   useEquipe,
 } from "@/lib/equipe/use-equipe";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
-
-/**
- * Tons para o avatar de cada pessoa (design/TOKENS.md) — nenhuma cor literal, só `var(--...)`.
- * A escolha é determinística pelo id (hash simples), então a mesma pessoa sempre recebe o mesmo
- * tom entre renderizações, sem precisar o backend guardar uma cor por usuário.
- */
-const TONS_DE_AVATAR = [
-  "var(--primary)",
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
-
-function tomDoAvatar(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return TONS_DE_AVATAR[hash % TONS_DE_AVATAR.length];
-}
-
-function iniciais(nome: string): string {
-  return nome
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 const PRESENCA_COR: Record<StatusPresenca, string> = {
   ONLINE: "var(--cor-sucesso)",
@@ -195,12 +168,11 @@ function MiniDashboard({
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
                   {indice + 1}
                 </span>
-                <span
+                <AvatarIniciais
+                  id={item.atendenteId}
+                  nome={item.atendenteNome}
                   className="flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
-                  style={{ backgroundColor: tomDoAvatar(item.atendenteId) }}
-                >
-                  {iniciais(item.atendenteNome)}
-                </span>
+                />
                 <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
                 <span className="text-xs font-bold">{item.media.toFixed(1)}</span>
               </li>
@@ -230,12 +202,11 @@ function CardDePessoa({
   return (
     <div className={`rounded-lg border bg-card p-4 ${usuario.ativo ? "" : "opacity-60"}`}>
       <div className="flex items-start gap-3">
-        <span
+        <AvatarIniciais
+          id={usuario.id}
+          nome={usuario.nome}
           className="flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-          style={{ backgroundColor: tomDoAvatar(usuario.id) }}
-        >
-          {iniciais(usuario.nome)}
-        </span>
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-bold">{usuario.nome}</p>
@@ -272,9 +243,9 @@ function CardDePessoa({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-bold text-foreground">
+        <PillDeStatus tom="neutro">
           {textos.papeis[papel === "SUBGESTOR" ? "subgestor" : "atendente"]}
-        </span>
+        </PillDeStatus>
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <span
             className="size-2 rounded-full"

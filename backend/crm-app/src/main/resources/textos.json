@@ -207,7 +207,7 @@
     "automatico": "Automático", "concluir": "Concluir", "remover": "Remover",
     "status": { "pendente": "Pendente", "concluido": "Concluído" },
     "filtros": { "inicio": "De", "fim": "Até", "status": "Status", "todos": "Todos" },
-    "colunas": { "dataHora": "Data e hora", "lead": "Lead", "atendente": "Atendente", "texto": "Lembrete", "status": "Status", "acoes": "Ações" },
+    "semVinculo": "Sem vínculo",
     "paginacao": { "anterior": "Anterior", "proxima": "Próxima" },
     "formulario": { "titulo": "Criar lembrete", "lead": "Lead", "selecionarLead": "Selecione um lead", "dataHora": "Data e hora", "texto": "Texto", "salvar": "Salvar", "cancelar": "Cancelar", "erro": "Não foi possível criar o lembrete." }
   },
