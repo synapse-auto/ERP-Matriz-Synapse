@@ -65,3 +65,39 @@ Os limites de midia do exemplo sao 5 MB (imagem), 16 MB (audio) e 100 MB
 (documento), os valores atuais do seed. Confirme-os na documentacao atual da
 Meta antes do primeiro dado real; o script exige que os tres sejam declarados
 na configuracao da instancia.
+
+## Seed de demonstracao (E17b)
+
+`seed-demonstracao.sql` e `limpar-demonstracao.sql` sao um par separado de
+`provisionar-instancia.sql` — servem para popular um ambiente de
+**homologacao ou demonstracao** com leads, atendimentos, mensagens,
+lembretes e mensagens programadas, para as telas terem conteudo real para
+avaliar. Nao sao dado mockado: sao registros gravados no banco, lidos pelo
+caminho normal da aplicacao — a diferenca e a origem, nao o tratamento.
+
+Todo nome e obviamente falso ("Cliente Teste 1", "Obra Exemplo — Asa
+Norte"). Os ids usam os prefixos fixos `de`/`da`/`dm`/`db`/`dp`
+(leads/atendimentos/mensagens/lembretes/mensagens programadas), exclusivos
+deste seed — e o que permite `limpar-demonstracao.sql` remover exatamente o
+que foi criado, sem tocar em nada real.
+
+Executar (depois do `R__seed_dev.sql`/seed de dev, do qual dependem os ids
+fixos de etapa/usuario/canal/tag):
+
+```bash
+container="$(./docker/operacoes/resolver-postgres.sh)"
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  < docker/provisionamento/seed-demonstracao.sql
+```
+
+**`limpar-demonstracao.sql` e obrigatorio antes do go-live** — rode-o assim
+que a homologacao terminar e antes do primeiro lead real entrar:
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  < docker/provisionamento/limpar-demonstracao.sql
+```
+
+Idempotente nos dois sentidos: rodar o seed de novo reconcilia (nunca
+duplica); rodar a limpeza de novo com o seed ja removido nao falha, so
+não encontra linhas para apagar.
