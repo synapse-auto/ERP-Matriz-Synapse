@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,11 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 "DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
                 PREFIXO + "%");
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
+    }
+
+    @AfterEach
+    void limparCenarioDepoisDoTeste() {
+        limparCenario();
     }
 
     @Test
