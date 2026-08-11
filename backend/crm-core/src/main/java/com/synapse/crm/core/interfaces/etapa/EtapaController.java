@@ -14,8 +14,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,7 +58,10 @@ class EtapaController {
     @Operation(
             summary = "Criar etapa",
             description = "Inclui uma etapa no funil. Somente papéis de gestão podem executar a operação.",
-            responses = @ApiResponse(responseCode = "201", description = "Etapa criada."))
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Etapa criada."),
+                @ApiResponse(responseCode = "409", description = "Ordem ou resultado GANHO já configurado.")
+            })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     EtapaResposta criar(@Valid @RequestBody EtapaRequisicao requisicao) {
@@ -72,6 +78,7 @@ class EtapaController {
             description = "Substitui nome, ordem, cor visual e resultado comercial da etapa.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Etapa atualizada."),
+                @ApiResponse(responseCode = "409", description = "Ordem ou resultado GANHO já configurado."),
                 @ApiResponse(responseCode = "404", description = "Etapa não encontrada.")
             })
     @PutMapping("/{id}")
@@ -102,6 +109,15 @@ class EtapaController {
         if (!etapas.remover(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Etapa nao encontrada");
         }
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail aoConflitarConfiguracao(DataIntegrityViolationException erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Ja existe uma etapa com esta ordem ou uma etapa com resultado GANHO.");
+        problema.setTitle("Configuracao de etapa conflitante");
+        return problema;
     }
 
     record EtapaRequisicao(

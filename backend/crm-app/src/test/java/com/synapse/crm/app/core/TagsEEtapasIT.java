@@ -20,6 +20,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.synapse.crm.app.PostgresIT;
@@ -37,6 +38,9 @@ class TagsEEtapasIT extends PostgresIT {
 
     @Autowired
     private TestRestTemplate http;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("atendente NAO cria tag")
@@ -132,6 +136,23 @@ class TagsEEtapasIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(resposta.getBody()).contains("\"resultado\":\"PERDIDO\"");
+    }
+
+    @Test
+    @DisplayName("segunda etapa GANHO responde 409 e a constraint preserva a configuracao")
+    void etapa_segundaGanha_recebe409() {
+        Map<String, Object> nova = Map.of(
+                "nome", "Outra ganha " + sufixo(),
+                "ordem", 92,
+                "corVisual", "#fff",
+                "resultado", "GANHO");
+
+        var resposta = comoGestor(HttpMethod.POST, "/api/v1/etapas", nova);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        Integer ganhas = jdbc.queryForObject(
+                "SELECT count(*) FROM etapa_atendimento WHERE resultado = 'GANHO'", Integer.class);
+        assertThat(ganhas).isEqualTo(1);
     }
 
     // --- apoio ---------------------------------------------------------------
