@@ -34,6 +34,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       grupoGestao: "Gestão",
       itens: {
         atendimentos: "Atendimentos",
+        dashboard: "Dashboard",
         agenda: "Agenda de Contatos",
         tags: "Tags",
         mensagensRapidas: "Mensagens Rápidas",
@@ -72,6 +73,7 @@ describe("sidebar", () => {
 
     // dashboard/banco_arquivos vieram habilitados no mock de features; campanhas/horarios/relatorios não.
     expect(await screen.findByText("Agenda de Contatos")).toBeInTheDocument();
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText("Campanhas")).not.toBeInTheDocument();
   });
 

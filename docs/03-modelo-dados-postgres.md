@@ -139,9 +139,11 @@ CREATE TABLE etapa_atendimento (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome        VARCHAR(80) NOT NULL,
     ordem       SMALLINT NOT NULL,
-    cor_visual  VARCHAR(20)
+    cor_visual  VARCHAR(20),
+    resultado   resultado_etapa NOT NULL DEFAULT 'EM_ANDAMENTO'
 );
 CREATE UNIQUE INDEX idx_etapa_ordem ON etapa_atendimento (ordem);
+CREATE UNIQUE INDEX idx_etapa_unica_ganha ON etapa_atendimento (resultado) WHERE resultado = 'GANHO';
 
 -- =========================================================
 -- CRM Core (Lead, Tags, Lembretes, Mensagens Programadas)
@@ -228,9 +230,15 @@ CREATE TABLE evento_timeline (
     tipo            VARCHAR(60) NOT NULL,
     descricao       TEXT NOT NULL,
     origem          origem_evento NOT NULL,
+    ator_id         UUID REFERENCES usuario(id) ON DELETE SET NULL,
+    dados           JSONB NOT NULL DEFAULT '{}'::jsonb,
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_evento_timeline_lead ON evento_timeline (lead_id, criado_em DESC);
+CREATE INDEX idx_evento_timeline_tipo_criado_em ON evento_timeline (tipo, criado_em);
+
+-- ETAPA_ALTERADA registra no JSONB dados as etapas anterior/nova e o responsavel_id
+-- comercial no instante da transição. ator_id identifica quem executou a ação.
 
 -- =========================================================
 -- Atendimento (Conversas e Mensagens) — maior volume de escrita

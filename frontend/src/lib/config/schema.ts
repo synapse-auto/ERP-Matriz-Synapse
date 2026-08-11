@@ -361,6 +361,18 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
   }),
+  dashboard: z.object({
+    titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(), semDado: z.string(),
+    abas: z.object({ rotulo: z.string(), visaoGeral: z.string(), operacional: z.string(), comercial: z.string(), iaAutomacao: z.string(), depois: z.string() }),
+    filtros: z.object({ rotulo: z.string(), ano: z.string(), meses: z.string(), originacao: z.string(), de: z.string(), ate: z.string(), limpar: z.string(), selecioneMes: z.string(), origemCompleta: z.string() }),
+    meses: z.array(z.string()).length(12),
+    kpis: z.object({ rotulo: z.string(), atendimentos: z.string(), atendimentosApoio: z.string(), conversao: z.string(), conversaoApoio: z.string(), tempoMedio: z.string(), tempoMedioApoio: z.string(), vendas: z.string(), vendasApoio: z.string(), csat: z.string(), csatApoio: z.string(), periodoAnterior: z.string() }),
+    secoes: z.object({ ranking: z.string(), funil: z.string(), horarioPico: z.string() }),
+    ranking: z.object({ vazio: z.string(), semResponsavelSingular: z.string(), semResponsavelPlural: z.string() }),
+    funil: z.object({ vazio: z.string() }),
+    horario: z.object({ vazio: z.string(), hora: z.string() }),
+    tempo: z.object({ minutos: z.string(), horasMinutos: z.string() }),
+  }),
   agenda: z.object({
     titulo: z.string(),
     descricao: z.string(),

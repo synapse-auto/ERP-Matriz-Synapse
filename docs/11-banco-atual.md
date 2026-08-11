@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 18 migrations · 39 tabelas · 16 tipos enumerados · 34 índices · 4 políticas RLS · 9 funções
-**Última migration:** `V18__campos_customizados.sql`
+**Estado:** 22 migrations · 39 tabelas · 17 tipos enumerados · 36 índices · 4 políticas RLS · 9 funções
+**Última migration:** `V22__indice_historico_etapa.sql`
 
 ---
 
@@ -29,6 +29,10 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V16__outbox_e_webhook` | Retry da outbox + `webhook_entrada` |
 | `V17__webhook_payload_texto` | `payload` de JSONB → **TEXT** (reverificação de HMAC) |
 | `V18__campos_customizados` | `campo_customizado` + `lead.dados_customizados` |
+| `V19__mensagem_rapida_chave_case_insensitive` | Unicidade de palavra-chave sem diferenciar maiúsculas/minúsculas |
+| `V20__ator_estruturado_timeline` | `evento_timeline.ator_id` + `dados` JSONB |
+| `V21__resultado_etapa` | ENUM `resultado_etapa`, coluna em etapa e unicidade parcial de `GANHO` |
+| `V22__indice_historico_etapa` | Índice `(tipo, criado_em)` para métricas e início explícito do histórico de transições |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -54,6 +58,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `origem_evento` | SISTEMA, AUTOMACAO, USUARIO |
 | `gatilho_resumo` | A_CADA_X_MENSAGENS, AO_FINALIZAR, AMBOS |
 | `tipo_conversa_chat` | DIRETA, GRUPO |
+| `resultado_etapa` | EM_ANDAMENTO, GANHO, PERDIDO |
 
 ---
 
@@ -76,7 +81,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 > `token_ref` é **referência** ao secret manager, nunca o token.
 > `idx_canal_credencial_ativa` (único parcial `WHERE ativo`) garante no banco uma credencial ativa por canal.
 
-**`etapa_atendimento`** — `id`, `nome`, `ordem` (UK), `cor_visual`
+**`etapa_atendimento`** — `id`, `nome`, `ordem` (UK), `cor_visual`, `resultado` (`EM_ANDAMENTO` por default; no máximo uma `GANHO` por índice único parcial)
 
 ### 3.3 CRM Core
 
@@ -87,7 +92,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
 
-**`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only) · **`preferencia_usuario`** · **`arquivo_banco`**
+**`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only; `ator_id` identifica quem executou e `dados` JSONB guarda, em `ETAPA_ALTERADA`, etapas anterior/nova e `responsavel_id` comercial) · **`preferencia_usuario`** · **`arquivo_banco`**
 
 **`campo_customizado`** (V18) — `chave` (PK, CHECK de identificador seguro), `rotulo`, `tipo` (CHECK), `opcoes`, `obrigatorio`, `filtravel`, `ordem`
 

@@ -23,19 +23,22 @@ A E15b (verificação de código) encontrou que `horario_trabalho` e `rotina_dis
 
 **Isto precisa ser dito à subgestora na homologação.** Não é detalhe técnico: muda a rotina de quem usa — hoje, cobertura fora do horário combinado depende de alguém lembrar de marcar presença como ausente/offline, não de uma janela configurada previamente.
 
-### 1.2 `chat_interno` e `dashboard` — flags que anunciavam o que não existe
+### 1.2 `chat_interno` e `dashboard` — flags que anunciavam o que não existia
 
 A E15b (`docs/05` §Resumo da revisão, itens 1 e 2) encontrou as duas flags com `habilitado = TRUE` no seed sem nenhum código por trás:
 
 - **`chat_interno`**: só a migration `V8__chat_interno.sql` existe (`chat_interno_conversa/participante/mensagem`, `status_presenca`). Nenhum domain, application, repository, controller ou handler WebSocket usa essas tabelas. Diferente das demais flags desligadas desta lista, esta é mais grave — não é uma flag `false` sem tela por trás, é uma flag `true` anunciando uma tela que não existe.
-- **`dashboard`**: mesmo problema. A afirmação anterior deste documento (§2) de que "a aba existe, sem as três sub-abas" **estava errada** — não há `DashboardController` no backend nem rota `/dashboard` no frontend. Era descrição de intenção, não de código entregue.
+- **`dashboard` (situação encontrada na E15b):** tinha o mesmo problema. A afirmação anterior deste documento (§2) de que "a aba existe, sem as três sub-abas" **estava errada** naquele momento — não havia controller nem rota de frontend. A E20 corrigiu a lacuna após o cliente recolocar a Visão Geral no escopo.
 
-A E16 (`docker/dokploy-stack.yml`, `.env.example`, `R__seed_dev.sql`) corrigiu o default de `FEATURE_CHAT_INTERNO` para `false` nos arquivos de deploy e as duas flags para `false` no seed de desenvolvimento. `fidelizacao` não foi tocada: tem domínio, repositório, entity e um caso de uso de listagem real, exposto no `AutomationConfigInternalController` — falta CRUD humano, não o módulo em si.
+A E16 (`docker/dokploy-stack.yml`, `.env.example`, `R__seed_dev.sql`) corrigiu o default de `FEATURE_CHAT_INTERNO` para `false` nos arquivos de deploy e as duas flags para `false` no seed de desenvolvimento. A E20 voltou `dashboard` para `true` porque agora há read model, autorização e tela reais; `chat_interno` permanece `false`. `fidelizacao` não foi tocada: tem domínio, repositório, entity e um caso de uso de listagem real, exposto no `AutomationConfigInternalController` — falta CRUD humano, não o módulo em si.
 
 ## 2. O que permanece, com ajuste
 
-### Dashboard — ainda não construída (correção desta seção)
-Este documento afirmava que a aba "existe, sem as três sub-abas". A auditoria da E15b (`docs/05`) mostrou que isso nunca foi verdade: não há `DashboardController`, nem rota de frontend. O plano continua o mesmo — uma tela só, com os indicadores principais: atendimentos do dia, leads por etapa, desempenho por atendente e filtro de período, atendendo `RF-CRM-31` e `RF-CRM-33` e deixando `RF-CRM-32` ("milhares de informações") explicitamente para a fase 2 — mas como trabalho **pendente**, não entregue. A flag `dashboard` fica `false` até essa tela ser construída de fato (E16 §Bloco 2).
+### Dashboard — Visão Geral recolocada no escopo (decisão do cliente, E20)
+
+O cliente recolocou somente a aba **Visão Geral** na primeira entrega. A E20 entregou uma consulta consolidada por período e a tela com atendimentos, tempo médio, CSAT, funil, mensagens por hora e vendas calculadas pela transição para etapa `GANHO`. O acesso é exclusivo de `GESTOR` e `SUBGESTOR`, porque o ranking expõe resultados comerciais de colegas. A flag `dashboard` volta a `true` onde a tela existe.
+
+As abas **Operacional**, **Comercial** e **IA & Automação** continuam na fase 2: aparecem desabilitadas, sem dados, apenas para manter honesta a casca aprovada no protótipo. A Visão Geral atende o recorte de `RF-CRM-31` e `RF-CRM-33`; o detalhamento de `RF-CRM-32` permanece fora.
 
 ### Anexos no chat — upload direto
 O composer mantém o botão de anexo com upload do computador (`RF-CRM-09`, `RF-CRM-68`). O que sai é o **repositório compartilhado** de arquivos frequentes (`RF-CRM-13/55/56`). O atendente continua enviando foto e orçamento — apenas sem a biblioteca reutilizável.

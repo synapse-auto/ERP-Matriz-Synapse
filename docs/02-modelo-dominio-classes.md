@@ -118,6 +118,14 @@ classDiagram
         +String nome
         +int ordem
         +String corVisual
+        +ResultadoEtapa resultado
+    }
+
+    class ResultadoEtapa {
+        <<enumeration>>
+        EM_ANDAMENTO
+        GANHO
+        PERDIDO
     }
 
     class Tag {
@@ -179,6 +187,8 @@ classDiagram
         +String tipo
         +String descricao
         +OrigemEvento origem
+        +UUID atorId
+        +Map~String,Object~ dados
         +Instant criadoEm
     }
 
@@ -468,6 +478,6 @@ classDiagram
 ## Observações de modelagem
 
 - **`FiltroModular`** é compartilhado entre Agenda, Atendimentos e Campanhas (RF-CRM-04/05/40) — é uma entidade própria, não duplicada por tela.
-- **`EtapaAtendimento`** é uma tabela de configuração (não enum fixo em código), porque a etapa é definida pela Automação (RF-AUT-12) e pode mudar sem deploy do CRM.
+- **`EtapaAtendimento`** é uma tabela de configuração (não enum fixo em código), porque a etapa é definida pela Automação (RF-AUT-12) e pode mudar sem deploy do CRM. Seu `ResultadoEtapa` dá semântica comercial estável (`EM_ANDAMENTO`, `GANHO`, `PERDIDO`) sem deduzir venda pelo nome configurável; um índice único parcial permite no máximo uma etapa `GANHO`.
 - **`ConfiguracaoAutomacao`** usa modelo chave-valor tipado deliberadamente (em vez de uma coluna por parâmetro), para satisfazer RF-CRM-38e (extensibilidade: novo parâmetro = nova linha, nunca nova coluna/deploy).
 - **Enums vs. tabelas**: `PapelUsuario`, `StatusPresenca`, `TipoMensagem`, `StatusEntrega` são enums porque são estáveis e fazem parte do contrato do domínio; `EtapaAtendimento` e `Canal` são tabelas porque são geridos/expandidos por configuração (multicanal, novas etapas).

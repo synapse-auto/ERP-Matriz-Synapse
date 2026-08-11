@@ -97,10 +97,9 @@ INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
     ('fidelizacao',      TRUE, 'Regras de fidelizacao e reengajamento.'),
     ('relatorios',       FALSE, 'Aba de relatorios.'),
     ('banco_arquivos',   FALSE, 'Aba de banco de arquivos.'),
-    -- E16 §Bloco 2: dashboard tem tela construida (E15/docs/09 §2), mas TRUE por
-    -- seed sem checagem e a mesma falha do chat_interno. Fica FALSE em dev por
-    -- coerencia com o resto do bloco; instancia real liga via variavel propria.
-    ('dashboard',        FALSE, 'Dashboard de indicadores.'),
+    -- E20: a Visao Geral voltou ao escopo por decisao do cliente e agora possui
+    -- read model, autorizacao e tela reais. As demais abas continuam desabilitadas.
+    ('dashboard',        TRUE, 'Dashboard de indicadores.'),
     -- E15b §1: schema existe (regra_follow_up, regra_fidelizacao, mensagem_festiva,
     -- configuracao_resumo_ia) mas nenhum caso de uso de escrita foi construido ainda —
     -- nao e sub-aba visivel no menu, e sim secao dentro de /automacao que so aparece
