@@ -27,8 +27,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.core.application.campocustomizado.CampoCustomizadoRepositorio;
+import com.synapse.crm.core.application.lead.CatalogosDeFiltroDeLead;
 import com.synapse.crm.core.application.lead.ContarLeadsFiltradosUseCase;
 import com.synapse.crm.core.application.lead.FiltrarLeadsUseCase;
+import com.synapse.crm.core.application.lead.ListarCatalogosDeFiltroDeLeadUseCase;
 import com.synapse.crm.core.application.lead.PaginaDeLeads;
 import com.synapse.crm.core.application.tag.ListarTagsDosLeadsUseCase;
 import com.synapse.crm.core.domain.campocustomizado.CampoCustomizado;
@@ -63,6 +65,7 @@ class FiltroDeLeadsController {
     private final ContarLeadsFiltradosUseCase contar;
     private final CampoCustomizadoRepositorio camposCustomizados;
     private final ListarTagsDosLeadsUseCase tagsDosLeads;
+    private final ListarCatalogosDeFiltroDeLeadUseCase listarCatalogos;
     private final int tamanhoPaginaPadrao;
 
     FiltroDeLeadsController(
@@ -70,12 +73,25 @@ class FiltroDeLeadsController {
             ContarLeadsFiltradosUseCase contar,
             CampoCustomizadoRepositorio camposCustomizados,
             ListarTagsDosLeadsUseCase tagsDosLeads,
+            ListarCatalogosDeFiltroDeLeadUseCase listarCatalogos,
             @Value("${synapse.leads.tamanho-pagina}") int tamanhoPaginaPadrao) {
         this.filtrar = filtrar;
         this.contar = contar;
         this.camposCustomizados = camposCustomizados;
         this.tagsDosLeads = tagsDosLeads;
+        this.listarCatalogos = listarCatalogos;
         this.tamanhoPaginaPadrao = tamanhoPaginaPadrao;
+    }
+
+    @Operation(
+            summary = "Catalogos dos filtros rapidos",
+            description = "Lista cidades e tags existentes em todos os leads visiveis, independentemente da pagina carregada.",
+            responses = @ApiResponse(responseCode = "200", description = "Catalogos restritos pela visibilidade comercial."))
+    @GetMapping("/catalogos")
+    CatalogosResposta catalogos() {
+        CatalogosDeFiltroDeLead catalogos = listarCatalogos.executar();
+        return new CatalogosResposta(
+                catalogos.cidades(), catalogos.tags().stream().map(TagResposta::de).toList());
     }
 
     /**
@@ -297,6 +313,14 @@ class FiltroDeLeadsController {
 
     /** Resposta da contagem. Objeto, e nao numero cru, para caber metadado depois. */
     record Contagem(long total) {}
+
+    record CatalogosResposta(List<String> cidades, List<TagResposta> tags) {}
+
+    record TagResposta(UUID id, String nome, String cor, String icone) {
+        static TagResposta de(com.synapse.crm.core.domain.tag.Tag tag) {
+            return new TagResposta(tag.id(), tag.nome(), tag.cor(), tag.icone());
+        }
+    }
 
     /** Pagina de leads (E16 §Bloco 1): mesma forma de {@code PaginaDeLeads}, so que serializavel. */
     record PaginaLeadsResposta(

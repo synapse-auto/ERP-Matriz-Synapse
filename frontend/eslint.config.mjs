@@ -32,6 +32,16 @@ const eslintConfig = defineConfig([
             "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type'][value.value='date']",
           message: "Use Popover + Calendar do shadcn em vez de Input date nativo.",
         },
+        {
+          selector:
+            "JSXOpeningElement[name.name='input'] > JSXAttribute[name.name='type'][value.value='datetime-local']",
+          message: "Use Calendar + Select do shadcn em vez de input datetime-local nativo.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type'][value.value='datetime-local']",
+          message: "Use Calendar + Select do shadcn em vez de Input datetime-local nativo.",
+        },
       ],
     },
   },

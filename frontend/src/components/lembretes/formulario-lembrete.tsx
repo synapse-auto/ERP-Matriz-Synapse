@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { listarAtendimentos } from "@/lib/atendimento/api";
@@ -48,7 +49,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, onFechar }: Props
   const leadEfetivo = leadId ?? leadSelecionado;
   function salvar(evento: React.FormEvent) {
     evento.preventDefault();
-    if (!leadEfetivo || !texto.trim() || !dataHora) return;
+    if (!leadEfetivo || !texto.trim() || !dataHoraCompleta(dataHora)) return;
     criar.mutate({ leadId: leadEfetivo, texto: texto.trim(), dataHora: new Date(dataHora).toISOString() });
   }
 
@@ -73,7 +74,14 @@ export function FormularioLembrete({ aberto, leadId, leadNome, onFechar }: Props
           </label>
           <label className="block space-y-1 text-sm">
             <span>{textos.formulario.dataHora}</span>
-            <Input type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
+            <SeletorDataHora
+              valor={dataHora}
+              placeholderData={textos.formulario.selecionarData}
+              rotuloHora={textos.formulario.hora}
+              rotuloMinuto={textos.formulario.minuto}
+              obrigatorio
+              onChange={setDataHora}
+            />
           </label>
           <label className="block space-y-1 text-sm">
             <span>{textos.formulario.texto}</span>

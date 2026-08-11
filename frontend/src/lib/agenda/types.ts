@@ -1,3 +1,5 @@
+import type { TagDoLead } from "@/lib/lead/types";
+
 export type StatusBasicoLead = "IA" | "EM_ATENDIMENTO" | "FINALIZADO";
 
 /** Espelha `TipoDeCampo`/`TipoCampoCustomizado` do backend — o widget certo por campo. */
@@ -51,6 +53,11 @@ export interface PaginaDeLeads {
   leads: LeadDaAgenda[];
   pagina: number;
   temMais: boolean;
+}
+
+export interface CatalogosDeFiltro {
+  cidades: string[];
+  tags: TagDoLead[];
 }
 
 /** Um nó folha da árvore de critérios, como o backend espera. */

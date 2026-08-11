@@ -71,6 +71,15 @@ public interface LeadRepositorio {
     List<UUID> idsVisiveis();
 
     /**
+     * Localizacoes distintas existentes no mesmo recorte da agenda.
+     *
+     * <p>O catalogo nao pode nascer da pagina carregada: uma cidade presente apenas na pagina
+     * seguinte continuaria sendo filtravel. A implementacao aplica a mesma Specification de
+     * visibilidade antes do {@code DISTINCT}.
+     */
+    List<String> localizacoesVisiveis();
+
+    /**
      * Grava alteracoes de um lead ja existente.
      *
      * @return o lead como ficou, ou vazio se ele nao for visivel a quem pediu

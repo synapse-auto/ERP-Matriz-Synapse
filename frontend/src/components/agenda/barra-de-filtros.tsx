@@ -15,7 +15,6 @@ import type {
   CampoFiltravel,
   FiltroAtivo,
   FiltrosRapidosAgenda,
-  LeadDaAgenda,
   OperadorDeFiltro,
   StatusBasicoLead,
 } from "@/lib/agenda/types";
@@ -63,7 +62,7 @@ interface Props {
   erroCampos: boolean;
   filtrosAtivos: FiltroAtivo[];
   filtrosRapidos: FiltrosRapidosAgenda;
-  leads: LeadDaAgenda[];
+  cidades: string[];
   referencias: Referencias;
   textos: TextosFiltros;
   textosStatus: TextosStatus;
@@ -82,7 +81,7 @@ export function BarraDeFiltros({
   erroCampos,
   filtrosAtivos,
   filtrosRapidos,
-  leads,
+  cidades,
   referencias,
   textos,
   textosStatus,
@@ -95,14 +94,8 @@ export function BarraDeFiltros({
 }: Props) {
   const [avancadosAbertos, setAvancadosAbertos] = useState(false);
   const cidadesConhecidas = useMemo(
-    () =>
-      [...new Set([
-        ...filtrosRapidos.cidades,
-        ...leads
-          .map((lead) => lead.localizacao?.trim())
-          .filter((cidade): cidade is string => Boolean(cidade)),
-      ])].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [filtrosRapidos.cidades, leads],
+    () => [...new Set([...filtrosRapidos.cidades, ...cidades])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [filtrosRapidos.cidades, cidades],
   );
 
   const opcoesRapidas = {

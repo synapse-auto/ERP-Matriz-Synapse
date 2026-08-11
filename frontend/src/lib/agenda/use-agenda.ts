@@ -4,7 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { TagDoLead } from "@/lib/lead/types";
 
-import { CRITERIO_SEM_FILTRO, contarLeads, filtrarLeads, listarCamposFiltraveis } from "./api";
+import {
+  CRITERIO_SEM_FILTRO,
+  contarLeads,
+  filtrarLeads,
+  listarCamposFiltraveis,
+  listarCatalogosDeFiltro,
+} from "./api";
 import type {
   CriterioRequisicao,
   CriterioSimplesRequisicao,
@@ -88,6 +94,10 @@ export function criterioDosFiltrosAtivos(
 
 export function useCamposFiltraveis() {
   return useQuery({ queryKey: ["agenda", "campos"], queryFn: listarCamposFiltraveis });
+}
+
+export function useCatalogosDeFiltro() {
+  return useQuery({ queryKey: ["agenda", "catalogos"], queryFn: listarCatalogosDeFiltro });
 }
 
 export function useLeadsDaAgenda(

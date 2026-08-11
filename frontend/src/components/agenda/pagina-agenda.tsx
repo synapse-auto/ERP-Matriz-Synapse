@@ -8,8 +8,8 @@ import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useEquipe } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useCanais, useEtapas, useTodasAsTags } from "@/lib/lead/use-painel-lead";
-import { useCamposFiltraveis, useContagemDeLeads, useLeadsDaAgenda } from "@/lib/agenda/use-agenda";
+import { useCanais, useEtapas } from "@/lib/lead/use-painel-lead";
+import { useCamposFiltraveis, useCatalogosDeFiltro, useContagemDeLeads, useLeadsDaAgenda } from "@/lib/agenda/use-agenda";
 import {
   FILTROS_RAPIDOS_VAZIOS,
   type FiltroAtivo,
@@ -46,9 +46,9 @@ export function PaginaAgenda() {
   const campos = useCamposFiltraveis();
   const etapas = useEtapas();
   const canais = useCanais();
-  const tags = useTodasAsTags();
+  const catalogos = useCatalogosDeFiltro();
   const equipe = useEquipe();
-  const tagsDisponiveis = tags.data ?? [];
+  const tagsDisponiveis = catalogos.data?.tags ?? [];
   const paginaDeLeads = useLeadsDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, pagina);
   const contagem = useContagemDeLeads(filtrosRapidos, filtrosAtivos, tagsDisponiveis);
 
@@ -103,7 +103,7 @@ export function PaginaAgenda() {
           erroCampos={campos.isError}
           filtrosAtivos={filtrosAtivos}
           filtrosRapidos={filtrosRapidos}
-          leads={leads}
+          cidades={catalogos.data?.cidades ?? []}
           referencias={{
             etapas: etapas.data ?? [],
             canais: canais.data ?? [],

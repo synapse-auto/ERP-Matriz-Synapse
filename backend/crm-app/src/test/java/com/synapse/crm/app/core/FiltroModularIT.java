@@ -373,6 +373,70 @@ class FiltroModularIT extends PostgresIT {
         }
     }
 
+    @Nested
+    @DisplayName("GET /api/v1/leads/filtrar/catalogos")
+    class CatalogosDeFiltro {
+
+        @Test
+        @DisplayName("cidades e tags respeitam a mesma visibilidade da agenda")
+        void catalogos_atendenteNaoVeValoresExclusivosDoColega() {
+            String sufixo = UUID.randomUUID().toString().substring(0, 8);
+            String cidadeAna = "Cidade Ana " + sufixo;
+            String cidadeBruno = "Cidade Bruno " + sufixo;
+            UUID tagAna = criarTag("Tag Ana " + sufixo);
+            UUID tagBruno = criarTag("Tag Bruno " + sufixo);
+
+            UUID leadAna = criarLead("Catalogo Ana " + sufixo, QUALIFICACAO, idAna, 10);
+            UUID leadBruno = criarLead("Catalogo Bruno " + sufixo, QUALIFICACAO, idBruno, 10);
+            jdbc.update("UPDATE lead SET localizacao = ? WHERE id = ?", cidadeAna, leadAna);
+            jdbc.update("UPDATE lead SET localizacao = ? WHERE id = ?", cidadeBruno, leadBruno);
+            comTag(leadAna, tagAna.toString());
+            comTag(leadBruno, tagBruno.toString());
+
+            String paraAna = obterCatalogos(ana());
+            assertThat(paraAna).contains(cidadeAna).contains(tagAna.toString());
+            assertThat(paraAna).doesNotContain(cidadeBruno).doesNotContain(tagBruno.toString());
+
+            String paraGestor = obterCatalogos(gestor());
+            assertThat(paraGestor)
+                    .contains(cidadeAna)
+                    .contains(cidadeBruno)
+                    .contains(tagAna.toString())
+                    .contains(tagBruno.toString());
+        }
+
+        @Test
+        @DisplayName("sem autenticacao devolve 401")
+        void semAutenticacao_devolve401() {
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/leads/filtrar/catalogos",
+                    HttpMethod.GET,
+                    new HttpEntity<>(new HttpHeaders()),
+                    String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        private String obterCatalogos(String token) {
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(token);
+            ResponseEntity<String> resposta = http.exchange(
+                    "/api/v1/leads/filtrar/catalogos",
+                    HttpMethod.GET,
+                    new HttpEntity<>(cabecalhos),
+                    String.class);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            return resposta.getBody();
+        }
+
+        private UUID criarTag(String nome) {
+            UUID id = UUID.randomUUID();
+            jdbc.update(
+                    "INSERT INTO tag (id, nome, cor) VALUES (?, ?, '#123456')", id, nome);
+            return id;
+        }
+    }
+
     // --- montagem do filtro ---------------------------------------------------
 
     private static Map<String, Object> filtroDoEnunciado() {

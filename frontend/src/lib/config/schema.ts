@@ -284,7 +284,7 @@ export const TextosSchema = z.object({
       acoes: z.string(),
     }),
     paginacao: z.object({ anterior: z.string(), proxima: z.string() }),
-    formulario: z.object({ titulo: z.string(), lead: z.string(), selecionarLead: z.string(), dataHora: z.string(), texto: z.string(), salvar: z.string(), cancelar: z.string(), erro: z.string() }),
+    formulario: z.object({ titulo: z.string(), lead: z.string(), selecionarLead: z.string(), dataHora: z.string(), selecionarData: z.string(), hora: z.string(), minuto: z.string(), texto: z.string(), salvar: z.string(), cancelar: z.string(), erro: z.string() }),
   }),
   mensagensProgramadas: z.object({
     titulo:z.string(),descricao:z.string(),nova:z.string(),carregando:z.string(),vazio:z.string(),erro:z.string(),editar:z.string(),cancelar:z.string(),
@@ -299,7 +299,7 @@ export const TextosSchema = z.object({
       acoes: z.string(),
     }),
     paginacao:z.object({anterior:z.string(),proxima:z.string()}),
-    formulario:z.object({tituloCriar:z.string(),tituloEditar:z.string(),lead:z.string(),selecionarLead:z.string(),dataEnvio:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()}),
+    formulario:z.object({tituloCriar:z.string(),tituloEditar:z.string(),lead:z.string(),selecionarLead:z.string(),dataEnvio:z.string(),selecionarData:z.string(),hora:z.string(),minuto:z.string(),conteudo:z.string(),salvar:z.string(),cancelar:z.string(),erro:z.string()}),
   }),
   mensagensRapidas: z.object({
     titulo: z.string(),

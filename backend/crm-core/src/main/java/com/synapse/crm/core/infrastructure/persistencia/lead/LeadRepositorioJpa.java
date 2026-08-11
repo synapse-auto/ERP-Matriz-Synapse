@@ -154,6 +154,22 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     @Override
+    public List<String> localizacoesVisiveis() {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<String> consulta = cb.createQuery(String.class);
+        Root<LeadEntity> raiz = consulta.from(LeadEntity.class);
+        var localizacao = raiz.<String>get(LeadEntity.Campos.LOCALIZACAO);
+        consulta.select(localizacao).distinct(true);
+        consulta.where(visibilidade()
+                .and((lead, ignorada, builder) -> builder.and(
+                        builder.isNotNull(lead.get(LeadEntity.Campos.LOCALIZACAO)),
+                        builder.notEqual(builder.trim(lead.get(LeadEntity.Campos.LOCALIZACAO)), "")))
+                .toPredicate(raiz, consulta, cb));
+        consulta.orderBy(cb.asc(localizacao));
+        return em.createQuery(consulta).getResultList();
+    }
+
+    @Override
     public Optional<Lead> salvar(Lead lead) {
         // Carrega pelo predicado de visibilidade: editar lead de colega nao encontra
         // nada para editar, e o caso de uso responde 404 como na leitura.

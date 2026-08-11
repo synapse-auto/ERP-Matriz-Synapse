@@ -102,7 +102,6 @@ vi.mock("@/lib/config/textos-provider", () => ({
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useEtapas: () => ({ data: [{ id: "etapa-1", nome: "Orçamento", ordem: 1, corVisual: "#1F74E0" }] }),
   useCanais: () => ({ data: [] }),
-  useTodasAsTags: () => ({ data: [{ id: "tag-1", nome: "Urgente", cor: "#F00", icone: null }] }),
 }));
 
 vi.mock("@/lib/equipe/use-equipe", () => ({
@@ -116,9 +115,11 @@ vi.mock("@/components/leads/painel-lateral-lead", () => ({
 const useLeadsDaAgenda = vi.fn();
 const useContagemDeLeads = vi.fn();
 const useCamposFiltraveis = vi.fn();
+const useCatalogosDeFiltro = vi.fn();
 
 vi.mock("@/lib/agenda/use-agenda", () => ({
   useCamposFiltraveis: () => useCamposFiltraveis(),
+  useCatalogosDeFiltro: () => useCatalogosDeFiltro(),
   useLeadsDaAgenda: (...args: unknown[]) => useLeadsDaAgenda(...args),
   useContagemDeLeads: (...args: unknown[]) => useContagemDeLeads(...args),
   SEM_RESPONSAVEL: "__sem_responsavel__",
@@ -129,6 +130,14 @@ import { PaginaAgenda } from "./pagina-agenda";
 describe("pagina da agenda", () => {
   beforeEach(() => {
     useCamposFiltraveis.mockReturnValue({ data: CAMPOS, isLoading: false, isError: false });
+    useCatalogosDeFiltro.mockReturnValue({
+      data: {
+        cidades: ["Taguatinga · DF", "Cidade fora da pagina"],
+        tags: [{ id: "tag-1", nome: "Urgente", cor: "#F00", icone: null }],
+      },
+      isLoading: false,
+      isError: false,
+    });
     useLeadsDaAgenda.mockReturnValue({
       data: { leads: LEADS, pagina: 0, temMais: false },
       isLoading: false,
