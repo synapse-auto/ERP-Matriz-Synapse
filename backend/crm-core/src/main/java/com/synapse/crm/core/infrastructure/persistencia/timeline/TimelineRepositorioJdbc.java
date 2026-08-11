@@ -74,19 +74,21 @@ class TimelineRepositorioJdbc implements TimelineRepositorio {
 
     private EventoTimeline mapear(ResultSet linha, int indice) throws SQLException {
         String snapshot = linha.getString("descricao");
+        Map<String, Object> dados = dados(linha.getString("dados_json"));
         return new EventoTimeline(
                 linha.getObject("id", UUID.class),
                 linha.getObject("lead_id", UUID.class),
                 linha.getObject("atendimento_id", UUID.class),
                 linha.getString("tipo"),
-                renderizar(linha, snapshot),
+                renderizar(linha, snapshot, dados),
                 OrigemEvento.valueOf(linha.getString("origem")),
                 linha.getObject("ator_id", UUID.class),
-                dados(linha.getString("dados_json")),
+                dados,
                 linha.getTimestamp("criado_em").toInstant());
     }
 
-    private static String renderizar(ResultSet linha, String fallback) throws SQLException {
+    private static String renderizar(
+            ResultSet linha, String fallback, Map<String, Object> dados) throws SQLException {
         if (linha.getObject("ator_id", UUID.class) == null || linha.getString("ator_nome") == null) {
             return fallback;
         }
@@ -96,8 +98,18 @@ class TimelineRepositorioJdbc implements TimelineRepositorio {
             case "LEAD_TRANSFERIDO_POR_ENVIO" -> renderizarAssuncao(linha, ator, fallback);
             case "ATENDIMENTO_TRANSFERIDO" -> renderizarTransferencia(linha, ator, fallback);
             case "ATENDIMENTO_FINALIZADO" -> "Atendimento finalizado por " + ator + ".";
+            case "ETAPA_ALTERADA" -> renderizarMudancaDeEtapa(ator, fallback, dados);
             default -> fallback;
         };
+    }
+
+    private static String renderizarMudancaDeEtapa(
+            String ator, String fallback, Map<String, Object> dados) {
+        Object etapaNova = dados.get("etapa_nova_nome");
+        if (!(etapaNova instanceof String nova) || nova.isBlank()) return fallback;
+        Object etapaAnterior = dados.get("etapa_anterior_nome");
+        String anterior = etapaAnterior instanceof String nome && !nome.isBlank() ? nome : "Sem etapa";
+        return ator + " moveu o lead de " + anterior + " para " + nova + ".";
     }
 
     private static String renderizarAssuncao(ResultSet linha, String ator, String fallback)

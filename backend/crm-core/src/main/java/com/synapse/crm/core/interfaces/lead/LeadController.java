@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.synapse.crm.core.application.etapa.EtapaNaoEncontradaException;
 import com.synapse.crm.core.application.lead.AtualizarLeadUseCase;
 import com.synapse.crm.core.application.lead.DadosDeAtualizacaoLead;
 import com.synapse.crm.core.application.lead.FiltroLead;
@@ -116,6 +117,14 @@ class LeadController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problema.setTitle("Dados customizados invalidos");
+        return problema;
+    }
+
+    @ExceptionHandler(EtapaNaoEncontradaException.class)
+    ProblemDetail aoReceberEtapaInexistente(EtapaNaoEncontradaException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Etapa invalida");
         return problema;
     }
 

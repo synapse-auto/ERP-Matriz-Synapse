@@ -169,6 +169,7 @@ class SchemaMigracoesIT extends PostgresIT {
                             "idx_msg_prog_envio",
                             "idx_etapa_ordem",
                             "idx_etapa_unica_ganha",
+                            "idx_evento_timeline_tipo_criado_em",
                             "idx_msg_rapida_atendente_chave",
                             "idx_mensagem_atendimento");
         }
