@@ -13,17 +13,23 @@
 -- =========================================================
 
 -- --- Etapas do funil -------------------------------------------------------
-INSERT INTO etapa_atendimento (id, nome, ordem, cor_visual) VALUES
-    ('e1000000-0000-4000-8000-000000000001', 'Novo contato', 1, '#64748B'),
-    ('e1000000-0000-4000-8000-000000000002', 'Qualificacao', 2, '#0EA5E9'),
-    ('e1000000-0000-4000-8000-000000000003', 'Proposta',     3, '#6366F1'),
-    ('e1000000-0000-4000-8000-000000000004', 'Negociacao',   4, '#F59E0B'),
-    ('e1000000-0000-4000-8000-000000000005', 'Fechamento',   5, '#22C55E'),
-    ('e1000000-0000-4000-8000-000000000006', 'Pos-venda',    6, '#14B8A6')
+-- Limpa o GANHO antes da reconciliacao para permitir trocar qual etapa representa
+-- venda sem conflito transitorio com o indice unico parcial.
+UPDATE etapa_atendimento SET resultado = 'EM_ANDAMENTO' WHERE resultado = 'GANHO';
+
+INSERT INTO etapa_atendimento (id, nome, ordem, cor_visual, resultado) VALUES
+    ('e1000000-0000-4000-8000-000000000001', 'Novo contato', 1, '#64748B', 'EM_ANDAMENTO'),
+    ('e1000000-0000-4000-8000-000000000002', 'Qualificacao', 2, '#0EA5E9', 'EM_ANDAMENTO'),
+    ('e1000000-0000-4000-8000-000000000003', 'Proposta',     3, '#6366F1', 'EM_ANDAMENTO'),
+    ('e1000000-0000-4000-8000-000000000004', 'Negociacao',   4, '#F59E0B', 'EM_ANDAMENTO'),
+    ('e1000000-0000-4000-8000-000000000005', 'Fechamento',   5, '#22C55E', 'GANHO'),
+    ('e1000000-0000-4000-8000-000000000006', 'Pos-venda',    6, '#14B8A6', 'EM_ANDAMENTO'),
+    ('e1000000-0000-4000-8000-000000000007', 'Perdido',      7, '#EF4444', 'PERDIDO')
 ON CONFLICT (id) DO UPDATE
     SET nome = EXCLUDED.nome,
         ordem = EXCLUDED.ordem,
-        cor_visual = EXCLUDED.cor_visual;
+        cor_visual = EXCLUDED.cor_visual,
+        resultado = EXCLUDED.resultado;
 
 -- --- Canal e credencial ----------------------------------------------------
 INSERT INTO canal (id, nome, tipo, ativo) VALUES

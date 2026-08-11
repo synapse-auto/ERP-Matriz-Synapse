@@ -115,8 +115,23 @@ class TagsEEtapasIT extends PostgresIT {
     void etapas_seedDeDesenvolvimento_vemEmOrdem() {
         String corpo = comoAtendente(HttpMethod.GET, "/api/v1/etapas", null).getBody();
 
-        assertThat(corpo).contains("Novo contato");
+        assertThat(corpo).contains("Novo contato").contains("\"resultado\":\"GANHO\"");
         assertThat(corpo.indexOf("Novo contato")).isLessThan(corpo.indexOf("Pos-venda"));
+    }
+
+    @Test
+    @DisplayName("gestor configura o resultado comercial da etapa")
+    void etapa_gestorConfiguraResultado() {
+        Map<String, Object> nova = Map.of(
+                "nome", "Descartada " + sufixo(),
+                "ordem", 91,
+                "corVisual", "#fff",
+                "resultado", "PERDIDO");
+
+        var resposta = comoGestor(HttpMethod.POST, "/api/v1/etapas", nova);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resposta.getBody()).contains("\"resultado\":\"PERDIDO\"");
     }
 
     // --- apoio ---------------------------------------------------------------

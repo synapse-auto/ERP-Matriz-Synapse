@@ -46,17 +46,23 @@ ON CONFLICT (email) DO UPDATE
 -- JSON mantem quantidade de etapas livre por filho sem transformar este PAI
 -- em uma lista fixa de parametros. Nao removemos etapas antigas: podem estar
 -- referenciadas por leads historicos.
+-- Limpar primeiro evita conflito transitorio quando uma instancia troca qual
+-- etapa e GANHO; a transacao inteira continua atomica para os demais leitores.
+UPDATE etapa_atendimento SET resultado = 'EM_ANDAMENTO' WHERE resultado = 'GANHO';
+
 WITH etapas AS (
-    SELECT nome, ordem, cor_visual
+    SELECT nome, ordem, cor_visual, resultado
       FROM jsonb_to_recordset(:'etapas_json'::jsonb)
-           AS entrada(nome TEXT, ordem SMALLINT, cor_visual TEXT)
+           AS entrada(nome TEXT, ordem SMALLINT, cor_visual TEXT, resultado TEXT)
 )
-INSERT INTO etapa_atendimento (id, nome, ordem, cor_visual)
-SELECT gen_random_uuid(), nome, ordem, cor_visual
+INSERT INTO etapa_atendimento (id, nome, ordem, cor_visual, resultado)
+SELECT gen_random_uuid(), nome, ordem, cor_visual,
+       COALESCE(resultado, 'EM_ANDAMENTO')::resultado_etapa
   FROM etapas
 ON CONFLICT (ordem) DO UPDATE
     SET nome = EXCLUDED.nome,
-        cor_visual = EXCLUDED.cor_visual;
+        cor_visual = EXCLUDED.cor_visual,
+        resultado = EXCLUDED.resultado;
 
 WITH tags AS (
     SELECT nome, cor, icone

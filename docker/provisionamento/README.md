@@ -16,7 +16,9 @@ set +a
 ```
 
 As etapas e tags devem ser confirmadas com a operacao do cliente. O exemplo e
-apenas o formato de entrada, nao uma sugestao de funil.
+apenas o formato de entrada, nao uma sugestao de funil. Cada etapa declara
+`resultado` como `EM_ANDAMENTO`, `GANHO` ou `PERDIDO`; no maximo uma pode ser
+`GANHO`, independentemente do nome escolhido pelo cliente.
 
 ### Gerar o BCrypt sem senha no historico
 
@@ -53,7 +55,7 @@ container="$(./docker/operacoes/resolver-postgres.sh)"
 docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
   "SELECT email, papel, ativo FROM usuario WHERE email = '$SYNAPSE_ADMIN_EMAIL';"
 docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
-  'SELECT nome, ordem, cor_visual FROM etapa_atendimento ORDER BY ordem;'
+  'SELECT nome, ordem, cor_visual, resultado FROM etapa_atendimento ORDER BY ordem;'
 docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
   'SELECT chave, valor, valor_min, valor_max FROM configuracao_automacao ORDER BY chave;'
 ```

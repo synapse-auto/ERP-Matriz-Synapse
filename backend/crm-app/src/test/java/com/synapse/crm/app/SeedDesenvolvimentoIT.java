@@ -36,14 +36,14 @@ class SeedDesenvolvimentoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("as etapas do funil sao criadas em ordem, de Novo contato a Pos-venda")
+    @DisplayName("as etapas do funil sao criadas em ordem, incluindo ganho e perdido")
     void etapas_seedAplicado_ficamEmOrdem() {
         List<String> nomes =
                 jdbc.queryForList("SELECT nome FROM etapa_atendimento ORDER BY ordem", String.class);
 
         assertThat(nomes)
                 .startsWith("Novo contato")
-                .endsWith("Pos-venda")
+                .contains("Fechamento", "Pos-venda", "Perdido")
                 .hasSizeGreaterThanOrEqualTo(5);
     }
 

@@ -12,11 +12,13 @@ import java.util.UUID;
  * <p>{@code ordem} e a posicao no Kanban e tem indice unico no banco: duas etapas na mesma posicao
  * deixariam a tela nao-determinista.
  */
-public record EtapaAtendimento(UUID id, String nome, short ordem, String corVisual) {
+public record EtapaAtendimento(
+        UUID id, String nome, short ordem, String corVisual, ResultadoEtapa resultado) {
 
     public EtapaAtendimento {
         Objects.requireNonNull(id, "id da etapa e obrigatorio");
         Objects.requireNonNull(nome, "nome da etapa e obrigatorio");
+        Objects.requireNonNull(resultado, "resultado da etapa e obrigatorio");
         if (nome.isBlank()) {
             throw new IllegalArgumentException("nome da etapa nao pode ser vazio");
         }
@@ -25,11 +27,18 @@ public record EtapaAtendimento(UUID id, String nome, short ordem, String corVisu
         }
     }
 
-    public static EtapaAtendimento nova(String nome, short ordem, String corVisual) {
-        return new EtapaAtendimento(UUID.randomUUID(), nome, ordem, corVisual);
+    public static EtapaAtendimento nova(
+            String nome, short ordem, String corVisual, ResultadoEtapa resultado) {
+        return new EtapaAtendimento(UUID.randomUUID(), nome, ordem, corVisual, resultado);
     }
 
-    public EtapaAtendimento com(String nome, short ordem, String corVisual) {
-        return new EtapaAtendimento(id, nome, ordem, corVisual);
+    public EtapaAtendimento com(
+            String nome, short ordem, String corVisual, ResultadoEtapa novoResultado) {
+        return new EtapaAtendimento(
+                id,
+                nome,
+                ordem,
+                corVisual,
+                novoResultado == null ? resultado : novoResultado);
     }
 }

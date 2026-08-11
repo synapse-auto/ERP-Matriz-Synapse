@@ -127,6 +127,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "origem_evento",
                     "papel_usuario",
                     "remetente_tipo",
+                    "resultado_etapa",
                     "status_atendimento",
                     "status_basico_lead",
                     "status_campanha",
@@ -167,6 +168,7 @@ class SchemaMigracoesIT extends PostgresIT {
                             "idx_lead_status_basico",
                             "idx_msg_prog_envio",
                             "idx_etapa_ordem",
+                            "idx_etapa_unica_ganha",
                             "idx_msg_rapida_atendente_chave",
                             "idx_mensagem_atendimento");
         }
@@ -226,6 +228,33 @@ class SchemaMigracoesIT extends PostgresIT {
 
             // A antiga continua no banco: e ela que o historico referencia.
             assertThat(total).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("o banco rejeita uma segunda etapa GANHO")
+        void etapa_segundaGanha_ehRejeitadaPeloBanco() {
+            UUID primeira = UUID.randomUUID();
+            UUID segunda = UUID.randomUUID();
+            boolean criouPrimeira = jdbc.queryForObject(
+                            "SELECT count(*) = 0 FROM etapa_atendimento WHERE resultado = 'GANHO'",
+                            Boolean.class)
+                    .booleanValue();
+            try {
+                if (criouPrimeira) {
+                    jdbc.update(
+                            "INSERT INTO etapa_atendimento (id, nome, ordem, resultado) VALUES (?, 'Ganha A', 120, 'GANHO')",
+                            primeira);
+                }
+                assertThatThrownBy(() -> jdbc.update(
+                                "INSERT INTO etapa_atendimento (id, nome, ordem, resultado) VALUES (?, 'Ganha B', 121, 'GANHO')",
+                                segunda))
+                        .isInstanceOf(DuplicateKeyException.class);
+            } finally {
+                jdbc.update("DELETE FROM etapa_atendimento WHERE id = ?", segunda);
+                if (criouPrimeira) {
+                    jdbc.update("DELETE FROM etapa_atendimento WHERE id = ?", primeira);
+                }
+            }
         }
 
         private UUID criarCanal() {

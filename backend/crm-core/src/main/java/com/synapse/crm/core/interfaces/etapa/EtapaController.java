@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.core.application.etapa.GestaoDeEtapasUseCases;
 import com.synapse.crm.core.domain.etapa.EtapaAtendimento;
+import com.synapse.crm.core.domain.etapa.ResultadoEtapa;
 
 /** Etapas do funil. Leitura para todos; escrita so para gestor (checado no caso de uso). */
 @RestController
@@ -59,12 +60,16 @@ class EtapaController {
     @ResponseStatus(HttpStatus.CREATED)
     EtapaResposta criar(@Valid @RequestBody EtapaRequisicao requisicao) {
         return EtapaResposta.de(
-                etapas.criar(requisicao.nome(), requisicao.ordem(), requisicao.corVisual()));
+                etapas.criar(
+                        requisicao.nome(),
+                        requisicao.ordem(),
+                        requisicao.corVisual(),
+                        requisicao.resultado()));
     }
 
     @Operation(
             summary = "Atualizar etapa",
-            description = "Substitui nome, ordem e cor visual da etapa.",
+            description = "Substitui nome, ordem, cor visual e resultado comercial da etapa.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Etapa atualizada."),
                 @ApiResponse(responseCode = "404", description = "Etapa não encontrada.")
@@ -73,7 +78,12 @@ class EtapaController {
     EtapaResposta atualizar(
             @Parameter(description = "Identificador da etapa.", required = true) @PathVariable UUID id,
             @Valid @RequestBody EtapaRequisicao requisicao) {
-        return etapas.atualizar(id, requisicao.nome(), requisicao.ordem(), requisicao.corVisual())
+        return etapas.atualizar(
+                        id,
+                        requisicao.nome(),
+                        requisicao.ordem(),
+                        requisicao.corVisual(),
+                        requisicao.resultado())
                 .map(EtapaResposta::de)
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Etapa nao encontrada"));
@@ -100,11 +110,18 @@ class EtapaController {
             @Schema(description = "Posição positiva no funil.", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
                     @Positive short ordem,
             @Schema(description = "Token de cor opcional.", example = "warning", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-                    @Size(max = 20) String corVisual) {}
+                    @Size(max = 20) String corVisual,
+            @Schema(
+                            description = "Resultado comercial; ausente cria etapa em andamento e preserva o valor na edição.",
+                            example = "GANHO",
+                            requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    ResultadoEtapa resultado) {}
 
-    record EtapaResposta(UUID id, String nome, short ordem, String corVisual) {
+    record EtapaResposta(
+            UUID id, String nome, short ordem, String corVisual, ResultadoEtapa resultado) {
         static EtapaResposta de(EtapaAtendimento etapa) {
-            return new EtapaResposta(etapa.id(), etapa.nome(), etapa.ordem(), etapa.corVisual());
+            return new EtapaResposta(
+                    etapa.id(), etapa.nome(), etapa.ordem(), etapa.corVisual(), etapa.resultado());
         }
     }
 }

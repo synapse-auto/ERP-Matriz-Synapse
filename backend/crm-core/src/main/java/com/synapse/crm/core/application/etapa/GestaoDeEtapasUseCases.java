@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.core.domain.etapa.EtapaAtendimento;
+import com.synapse.crm.core.domain.etapa.ResultadoEtapa;
 
 /**
  * Casos de uso das etapas do funil.
@@ -34,14 +35,23 @@ public class GestaoDeEtapasUseCases {
 
     @PreAuthorize(SO_GESTOR)
     @Transactional
-    public EtapaAtendimento criar(String nome, short ordem, String corVisual) {
-        return etapas.salvar(EtapaAtendimento.nova(nome, ordem, corVisual));
+    public EtapaAtendimento criar(
+            String nome, short ordem, String corVisual, ResultadoEtapa resultado) {
+        ResultadoEtapa resultadoEfetivo =
+                resultado == null ? ResultadoEtapa.EM_ANDAMENTO : resultado;
+        return etapas.salvar(EtapaAtendimento.nova(nome, ordem, corVisual, resultadoEfetivo));
     }
 
     @PreAuthorize(SO_GESTOR)
     @Transactional
-    public Optional<EtapaAtendimento> atualizar(UUID id, String nome, short ordem, String corVisual) {
-        return etapas.porId(id).map(existente -> etapas.salvar(existente.com(nome, ordem, corVisual)));
+    public Optional<EtapaAtendimento> atualizar(
+            UUID id,
+            String nome,
+            short ordem,
+            String corVisual,
+            ResultadoEtapa resultado) {
+        return etapas.porId(id)
+                .map(existente -> etapas.salvar(existente.com(nome, ordem, corVisual, resultado)));
     }
 
     @PreAuthorize(SO_GESTOR)
