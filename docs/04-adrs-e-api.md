@@ -44,6 +44,14 @@
 **Decisão:** Redis pub/sub replica eventos de WebSocket entre instâncias, permitindo que uma mensagem publicada em qualquer instância chegue ao cliente conectado em outra.
 **Consequências:** dependência operacional adicional (Redis em alta disponibilidade), mas viabiliza escalar o backend horizontalmente sem *sticky sessions* rígidas.
 
+### ADR-008 — Venda ganha como transição de etapa no período
+
+**Contexto:** o estado atual do lead não responde quando a venda aconteceu. Contar hoje os leads numa etapa chamada "Fechado" repetiria para sempre vendas antigas e ainda acoplaria a métrica ao nome escolhido por cada filho da Base PAI. Uma reabertura também pode produzir mais de uma transição para ganho no mesmo intervalo por correção operacional.
+
+**Decisão:** cada etapa declara um resultado estável (`EM_ANDAMENTO`, `GANHO` ou `PERDIDO`) e somente uma etapa pode ser `GANHO`. "Vendas fechadas no período" é a quantidade de leads distintos que tiveram ao menos um `ETAPA_ALTERADA` cujo `resultado_novo` era `GANHO` dentro do intervalo. Reabrir e fechar o mesmo lead no mesmo período conta uma vez; fechar novamente num período posterior conta novamente, representando uma venda recorrente. O crédito comercial usa `responsavel_id`, snapshot do dono do lead na transição; `ator_id` identifica separadamente quem executou a mudança.
+
+**Consequências:** nomes como "Fechado", "Concluído" ou "Vendido" não entram em consultas nem regras. O histórico começa no deploy da migration que introduziu `ETAPA_ALTERADA`; períodos anteriores retornam zero. Não existe reconstrução pelo `audit_log`, porque sua retenção é de manutenção e não pode governar uma métrica comercial.
+
 ---
 
 ## Parte B — Convenções gerais de API
