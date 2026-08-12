@@ -30,6 +30,13 @@ const AVALIACOES = {
   porAtendente: [{ atendenteId: "u1", atendenteNome: "Ana Beatriz", media: 9.6, total: 20 }],
 };
 
+const DESEMPENHO = {
+  porAtendente: [
+    { atendenteId: "u1", atendenteNome: "Ana Beatriz", atendimentos: 142, vendas: 18 },
+    { atendenteId: "u2", atendenteNome: "Bruno Costa", atendimentos: 24, vendas: 2 },
+  ],
+};
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     equipe: {
@@ -46,13 +53,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         funcao: "Função",
         presenca: "Presença",
         avaliacao: "Avaliação",
+        atendimentos: "ATEND.",
+        vendas: "VENDAS",
         acoes: "Ações",
       },
       dashboard: {
         equipeLabel: "Equipe",
         onlineLabel: "{online} online · {ativos} ativos",
         avaliacaoMedia: "Avaliação média",
-        ranking: "Ranking · avaliação (0–10)",
+        rankingAvaliacao: "Ranking · avaliação (0–10)",
+        rankingVendas: "Ranking · vendas fechadas",
       },
       grade: { titulo: "USUÁRIOS" },
       papeis: { atendente: "Atendente", subgestor: "Subgestor" },
@@ -78,6 +88,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 vi.mock("@/lib/equipe/use-equipe", () => ({
   useEquipe: () => ({ data: USUARIOS, isLoading: false, isError: false }),
   useAvaliacoesEquipe: () => ({ data: AVALIACOES, isLoading: false, isError: false }),
+  useDesempenhoEquipe: () => ({ data: DESEMPENHO, isLoading: false, isError: false }),
   useCriarUsuario: () => ({ mutate: criarMutate, isPending: false, isError: false }),
   useEditarUsuario: () => ({ mutate: editarMutate, isPending: false, isError: false }),
   useDesativarUsuario: () => ({ mutate: desativarMutate, isPending: false, isError: false }),
@@ -90,12 +101,16 @@ describe("pagina de equipe", () => {
     render(<PaginaEquipe />);
 
     expect(screen.getAllByText("Ana Beatriz").length).toBeGreaterThan(0);
-    expect(screen.getByText("Bruno Costa")).toBeInTheDocument();
+    expect(screen.getAllByText("Bruno Costa").length).toBeGreaterThan(0);
     expect(screen.getByText("Online")).toBeInTheDocument();
     expect(screen.getByText("Offline")).toBeInTheDocument();
     expect(screen.getByText("Inativo")).toBeInTheDocument();
     expect(screen.getByText("9.6 (20)")).toBeInTheDocument();
     expect(screen.getByText("Sem avaliações")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "ATEND." })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "VENDAS" })).toBeInTheDocument();
+    expect(screen.getByText("142")).toBeInTheDocument();
+    expect(screen.getAllByText("18")).toHaveLength(2);
   });
 
   it("mostra o mini-dashboard com total, avaliação média e ranking", () => {
@@ -104,6 +119,7 @@ describe("pagina de equipe", () => {
     expect(screen.getByText("1 online · 1 ativos")).toBeInTheDocument();
     expect(screen.getByText("9.2")).toBeInTheDocument();
     expect(screen.getByText("Ranking · avaliação (0–10)")).toBeInTheDocument();
+    expect(screen.getByText("Ranking · vendas fechadas")).toBeInTheDocument();
   });
 
   it("desativa um usuário ativo", () => {

@@ -9,13 +9,15 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 
+import com.synapse.crm.relatorios.domain.IntervaloTemporal;
+
 /** Janelas temporais validadas do dashboard, sempre com fim exclusivo. */
 public record FiltroTemporalDashboard(
         int ano,
         List<Integer> meses,
-        List<Intervalo> periodoAtual,
-        Intervalo periodoAnterior,
-        Intervalo periodoDeOriginacao,
+        List<IntervaloTemporal> periodoAtual,
+        IntervaloTemporal periodoAnterior,
+        IntervaloTemporal periodoDeOriginacao,
         ZoneId fusoHorario) {
 
     public FiltroTemporalDashboard {
@@ -54,7 +56,7 @@ public record FiltroTemporalDashboard(
                     "origemInicio nao pode ser posterior a origemFim");
         }
 
-        List<Intervalo> atuais = meses.stream()
+        List<IntervaloTemporal> atuais = meses.stream()
                 .map(mes -> intervaloDoMes(YearMonth.of(ano, mes), fusoHorario))
                 .toList();
         YearMonth primeiroMes = YearMonth.of(ano, meses.getFirst());
@@ -64,37 +66,30 @@ public record FiltroTemporalDashboard(
                 .atDay(1)
                 .atStartOfDay(fusoHorario)
                 .toInstant();
-        Intervalo origem = origemInicio == null
+        IntervaloTemporal origem = origemInicio == null
                 ? null
-                : new Intervalo(
+                : new IntervaloTemporal(
                         origemInicio.atStartOfDay(fusoHorario).toInstant(),
                         origemFim.plusDays(1).atStartOfDay(fusoHorario).toInstant());
         return new FiltroTemporalDashboard(
                 ano,
                 meses,
                 atuais,
-                new Intervalo(inicioAnterior, fimAnterior),
+                new IntervaloTemporal(inicioAnterior, fimAnterior),
                 origem,
                 fusoHorario);
     }
 
     public Instant fimDoPeriodoAtual() {
-        return periodoAtual.stream().map(Intervalo::fimExclusivo).max(Instant::compareTo).orElseThrow();
+        return periodoAtual.stream()
+                .map(IntervaloTemporal::fimExclusivo)
+                .max(Instant::compareTo)
+                .orElseThrow();
     }
 
-    private static Intervalo intervaloDoMes(YearMonth mes, ZoneId fusoHorario) {
-        return new Intervalo(
+    private static IntervaloTemporal intervaloDoMes(YearMonth mes, ZoneId fusoHorario) {
+        return new IntervaloTemporal(
                 mes.atDay(1).atStartOfDay(fusoHorario).toInstant(),
                 mes.plusMonths(1).atDay(1).atStartOfDay(fusoHorario).toInstant());
-    }
-
-    public record Intervalo(Instant inicioInclusivo, Instant fimExclusivo) {
-        public Intervalo {
-            Objects.requireNonNull(inicioInclusivo, "inicio e obrigatorio");
-            Objects.requireNonNull(fimExclusivo, "fim e obrigatorio");
-            if (!inicioInclusivo.isBefore(fimExclusivo)) {
-                throw new IllegalArgumentException("intervalo deve ter inicio anterior ao fim");
-            }
-        }
     }
 }

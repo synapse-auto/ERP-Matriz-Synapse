@@ -13,19 +13,24 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.relatorios.application.dashboard.DashboardVisaoGeralRepositorio;
+import com.synapse.crm.relatorios.application.vendas.AgregacaoDeVendasRepositorio;
+import com.synapse.crm.relatorios.domain.IntervaloTemporal;
 import com.synapse.crm.relatorios.domain.dashboard.Comparativo;
 import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
-import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard.Intervalo;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
+import com.synapse.crm.relatorios.domain.vendas.AgregacaoDeVendas;
 
 /** Read model SQL consolidado; nenhuma consulta participa do caminho crítico de mensagens. */
 @Repository
 class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositorio {
 
     private final JdbcTemplate jdbc;
+    private final AgregacaoDeVendasRepositorio vendas;
 
-    DashboardVisaoGeralRepositorioJdbc(JdbcTemplate jdbc) {
+    DashboardVisaoGeralRepositorioJdbc(
+            JdbcTemplate jdbc, AgregacaoDeVendasRepositorio vendas) {
         this.jdbc = jdbc;
+        this.vendas = vendas;
     }
 
     @Override
@@ -37,10 +42,12 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         AgregadoAvaliacao avaliacaoAtual = avaliacoes(filtro.periodoAtual());
         AgregadoAvaliacao avaliacaoAnterior = avaliacoes(List.of(filtro.periodoAnterior()));
 
-        AgregadoVendas vendasAtual = vendas(filtro.periodoAtual(), filtro.periodoDeOriginacao());
-        AgregadoVendas vendasAnterior =
-                vendas(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
-        long vendasAcumuladas = vendasAte(filtro);
+        AgregacaoDeVendas vendasAtual =
+                vendas.agregar(filtro.periodoAtual(), filtro.periodoDeOriginacao());
+        AgregacaoDeVendas vendasAnterior =
+                vendas.agregar(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
+        long vendasAcumuladas =
+                vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
         long leadsAtuais = contarLeadsDaConversao(filtro, true);
         long leadsAnteriores = contarLeadsDaConversao(filtro, false);
@@ -74,10 +81,14 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 funil(filtro),
                 mensagensPorHora(filtro),
                 new VisaoGeralDashboard.RankingDeVendas(
-                        ranking(filtro), vendasAtual.semResponsavel()));
+                        vendasAtual.porAtendente().stream()
+                                .map(item -> new VisaoGeralDashboard.AtendenteNoRanking(
+                                        item.atendenteId(), item.atendenteNome(), item.vendas()))
+                                .toList(),
+                        vendasAtual.semResponsavel()));
     }
 
-    private AgregadoAtendimento atendimentos(List<Intervalo> periodos) {
+    private AgregadoAtendimento atendimentos(List<IntervaloTemporal> periodos) {
         FiltroSql filtro = periodos("iniciado_em", periodos);
         return jdbc.queryForObject(
                 """
@@ -92,7 +103,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 filtro.parametros().toArray());
     }
 
-    private AgregadoAvaliacao avaliacoes(List<Intervalo> periodos) {
+    private AgregadoAvaliacao avaliacoes(List<IntervaloTemporal> periodos) {
         FiltroSql filtro = periodos("criado_em", periodos);
         return jdbc.queryForObject(
                 "SELECT count(*) AS quantidade, avg(nota) AS media FROM avaliacao WHERE "
@@ -102,56 +113,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 filtro.parametros().toArray());
     }
 
-    private AgregadoVendas vendas(List<Intervalo> periodos, Intervalo origem) {
-        FiltroSql eventos = periodos("e.criado_em", periodos);
-        FiltroSql originacao = origem == null ? FiltroSql.vazio() : intervalo("l.criado_em", origem);
-        List<Object> parametros = new ArrayList<>(eventos.parametros());
-        parametros.addAll(originacao.parametros());
-        String porOrigem = originacao.vazia() ? "" : " AND " + originacao.clausula();
-        return jdbc.queryForObject(
-                """
-                WITH vendas AS (
-                    SELECT DISTINCT ON (e.lead_id)
-                           e.lead_id,
-                           NULLIF(e.dados ->> 'responsavel_id', '')::uuid AS responsavel_id
-                      FROM evento_timeline e
-                      JOIN lead l ON l.id = e.lead_id
-                     WHERE e.tipo = 'ETAPA_ALTERADA'
-                       AND e.dados ->> 'resultado_novo' = 'GANHO'
-                       AND %s%s
-                     ORDER BY e.lead_id, e.criado_em, e.id
-                )
-                SELECT count(*) AS total,
-                       count(*) FILTER (WHERE responsavel_id IS NULL) AS sem_responsavel
-                  FROM vendas
-                """.formatted(eventos.clausula(), porOrigem),
-                (linha, indice) ->
-                        new AgregadoVendas(linha.getLong("total"), linha.getLong("sem_responsavel")),
-                parametros.toArray());
-    }
-
-    private long vendasAte(FiltroTemporalDashboard filtro) {
-        FiltroSql origem = filtro.periodoDeOriginacao() == null
-                ? FiltroSql.vazio()
-                : intervalo("l.criado_em", filtro.periodoDeOriginacao());
-        List<Object> parametros = new ArrayList<>();
-        parametros.add(Timestamp.from(filtro.fimDoPeriodoAtual()));
-        parametros.addAll(origem.parametros());
-        String porOrigem = origem.vazia() ? "" : " AND " + origem.clausula();
-        Long total = jdbc.queryForObject(
-                """
-                SELECT count(DISTINCT e.lead_id)
-                  FROM evento_timeline e
-                  JOIN lead l ON l.id = e.lead_id
-                 WHERE e.tipo = 'ETAPA_ALTERADA'
-                   AND e.dados ->> 'resultado_novo' = 'GANHO'
-                   AND e.criado_em < ?%s
-                """.formatted(porOrigem),
-                Long.class,
-                parametros.toArray());
-        return total == null ? 0 : total;
-    }
-
     private long contarLeadsDaConversao(FiltroTemporalDashboard filtro, boolean atual) {
         if (filtro.periodoDeOriginacao() != null) {
             return contarLeads(List.of(filtro.periodoDeOriginacao()));
@@ -159,7 +120,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         return contarLeads(atual ? filtro.periodoAtual() : List.of(filtro.periodoAnterior()));
     }
 
-    private long contarLeads(List<Intervalo> periodos) {
+    private long contarLeads(List<IntervaloTemporal> periodos) {
         FiltroSql temporal = periodos("criado_em", periodos);
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM lead WHERE " + temporal.clausula(),
@@ -233,41 +194,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 .toList();
     }
 
-    private List<VisaoGeralDashboard.AtendenteNoRanking> ranking(
-            FiltroTemporalDashboard filtro) {
-        FiltroSql eventos = periodos("e.criado_em", filtro.periodoAtual());
-        FiltroSql origem = filtro.periodoDeOriginacao() == null
-                ? FiltroSql.vazio()
-                : intervalo("l.criado_em", filtro.periodoDeOriginacao());
-        List<Object> parametros = new ArrayList<>(eventos.parametros());
-        parametros.addAll(origem.parametros());
-        String porOrigem = origem.vazia() ? "" : " AND " + origem.clausula();
-        return jdbc.query(
-                """
-                WITH vendas AS (
-                    SELECT DISTINCT ON (e.lead_id)
-                           e.lead_id,
-                           NULLIF(e.dados ->> 'responsavel_id', '')::uuid AS responsavel_id
-                      FROM evento_timeline e
-                      JOIN lead l ON l.id = e.lead_id
-                     WHERE e.tipo = 'ETAPA_ALTERADA'
-                       AND e.dados ->> 'resultado_novo' = 'GANHO'
-                       AND %s%s
-                     ORDER BY e.lead_id, e.criado_em, e.id
-                )
-                SELECT u.id, u.nome, count(*) AS vendas
-                  FROM vendas v
-                  JOIN usuario u ON u.id = v.responsavel_id
-                 GROUP BY u.id, u.nome
-                 ORDER BY vendas DESC, u.nome
-                """.formatted(eventos.clausula(), porOrigem),
-                (linha, indice) -> new VisaoGeralDashboard.AtendenteNoRanking(
-                        linha.getObject("id", UUID.class),
-                        linha.getString("nome"),
-                        linha.getLong("vendas")),
-                parametros.toArray());
-    }
-
     private long contarAte(String tabela, String coluna, FiltroTemporalDashboard filtro) {
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM " + tabela + " WHERE " + coluna + " < ?",
@@ -276,10 +202,10 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         return total == null ? 0 : total;
     }
 
-    private static FiltroSql periodos(String coluna, List<Intervalo> periodos) {
+    private static FiltroSql periodos(String coluna, List<IntervaloTemporal> periodos) {
         List<String> partes = new ArrayList<>();
         List<Object> parametros = new ArrayList<>();
-        for (Intervalo periodo : periodos) {
+        for (IntervaloTemporal periodo : periodos) {
             partes.add("(" + coluna + " >= ? AND " + coluna + " < ?)");
             parametros.add(Timestamp.from(periodo.inicioInclusivo()));
             parametros.add(Timestamp.from(periodo.fimExclusivo()));
@@ -287,7 +213,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         return new FiltroSql("(" + String.join(" OR ", partes) + ")", parametros);
     }
 
-    private static FiltroSql intervalo(String coluna, Intervalo intervalo) {
+    private static FiltroSql intervalo(String coluna, IntervaloTemporal intervalo) {
         return new FiltroSql(
                 "(" + coluna + " >= ? AND " + coluna + " < ?)",
                 List.of(
@@ -326,8 +252,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     private record AgregadoAtendimento(long quantidade, BigDecimal mediaSegundos) {}
 
     private record AgregadoAvaliacao(long quantidade, BigDecimal media) {}
-
-    private record AgregadoVendas(long total, long semResponsavel) {}
 
     private record EtapaBruta(UUID id, String nome, int ordem, String corVisual, long quantidade) {}
 }

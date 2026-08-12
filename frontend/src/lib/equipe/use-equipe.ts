@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   avaliacoesEquipe,
   criarUsuario,
+  desempenhoEquipe,
   desativarUsuario,
   editarUsuario,
   listarEquipe,
@@ -14,6 +15,7 @@ import type { PapelGerenciavel } from "./types";
 
 const CHAVE_EQUIPE = ["equipe"] as const;
 const CHAVE_AVALIACOES = ["equipe", "avaliacoes"] as const;
+const CHAVE_DESEMPENHO = ["equipe", "desempenho"] as const;
 
 /**
  * Extraída como hook próprio (em vez de `useQuery` inline no componente) para ficar mockável nos
@@ -27,6 +29,11 @@ export function useEquipe() {
 /** Mini-dashboard e ranking por avaliação (E17b §Bloco 4). */
 export function useAvaliacoesEquipe() {
   return useQuery({ queryKey: CHAVE_AVALIACOES, queryFn: avaliacoesEquipe });
+}
+
+/** Atendimentos e vendas usam read model gerencial restrito a gestao. */
+export function useDesempenhoEquipe() {
+  return useQuery({ queryKey: CHAVE_DESEMPENHO, queryFn: desempenhoEquipe });
 }
 
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */

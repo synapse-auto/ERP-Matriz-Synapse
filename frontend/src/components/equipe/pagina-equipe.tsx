@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
+import { BadgeCheck, Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   useAvaliacoesEquipe,
   useCriarUsuario,
   useDesativarUsuario,
+  useDesempenhoEquipe,
   useEditarUsuario,
   useEquipe,
 } from "@/lib/equipe/use-equipe";
@@ -36,6 +37,7 @@ export function PaginaEquipe() {
   const t = useTextos().equipe;
   const equipe = useEquipe();
   const avaliacoes = useAvaliacoesEquipe();
+  const desempenho = useDesempenhoEquipe();
   const desativar = useDesativarUsuario();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
@@ -50,6 +52,14 @@ export function PaginaEquipe() {
     .slice()
     .sort((a, b) => b.media - a.media)
     .slice(0, 5);
+  const rankingVendas = (desempenho.data?.porAtendente ?? [])
+    .filter((item) => item.vendas > 0)
+    .slice()
+    .sort((a, b) => b.vendas - a.vendas || a.atendenteNome.localeCompare(b.atendenteNome))
+    .slice(0, 5);
+
+  const carregando = equipe.isLoading || avaliacoes.isLoading || desempenho.isLoading;
+  const comErro = equipe.isError || avaliacoes.isError || desempenho.isError;
 
   return (
     <div className="space-y-5 p-6">
@@ -61,9 +71,9 @@ export function PaginaEquipe() {
         <Button onClick={() => setNovo(true)}>{t.novo}</Button>
       </header>
 
-      {equipe.isLoading ? (
+      {carregando ? (
         <p>{t.carregando}</p>
-      ) : equipe.isError ? (
+      ) : comErro ? (
         <p className="text-destructive">{t.erro}</p>
       ) : (
         <>
@@ -72,7 +82,8 @@ export function PaginaEquipe() {
             online={online}
             ativos={ativos.length}
             mediaGeral={avaliacoes.data?.mediaGeral}
-            ranking={rankingAvaliacao}
+            rankingAvaliacao={rankingAvaliacao}
+            rankingVendas={rankingVendas}
             textos={t}
           />
 
@@ -83,6 +94,7 @@ export function PaginaEquipe() {
             <TabelaDeUsuarios
               usuarios={usuarios}
               avaliacoes={avaliacoes.data?.porAtendente ?? []}
+              desempenho={desempenho.data?.porAtendente ?? []}
               textos={t}
               onEditar={setEdicao}
               onDesativar={(id) => desativar.mutate(id)}
@@ -99,24 +111,32 @@ export function PaginaEquipe() {
 
 type TextosEquipe = ReturnType<typeof useTextos>["equipe"];
 type LinhaRanking = { atendenteId: string; atendenteNome: string; media: number; total: number };
+type LinhaDesempenho = {
+  atendenteId: string;
+  atendenteNome: string;
+  atendimentos: number;
+  vendas: number;
+};
 
 function MiniDashboard({
   totalUsuarios,
   online,
   ativos,
   mediaGeral,
-  ranking,
+  rankingAvaliacao,
+  rankingVendas,
   textos,
 }: {
   totalUsuarios: number;
   online: number;
   ativos: number;
   mediaGeral: number | undefined;
-  ranking: LinhaRanking[];
+  rankingAvaliacao: LinhaRanking[];
+  rankingVendas: LinhaDesempenho[];
   textos: TextosEquipe;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
           <Users className="size-6 text-primary" />
@@ -148,13 +168,13 @@ function MiniDashboard({
       <div className="rounded-lg border bg-card p-4">
         <div className="mb-2 flex items-center gap-2">
           <Medal className="size-4 text-cor-atencao" />
-          <p className="text-sm font-bold">{textos.dashboard.ranking}</p>
+          <p className="text-sm font-bold">{textos.dashboard.rankingAvaliacao}</p>
         </div>
-        {ranking.length === 0 ? (
+        {rankingAvaliacao.length === 0 ? (
           <p className="text-xs text-muted-foreground">{textos.avaliacoes.semDados}</p>
         ) : (
           <ul className="space-y-1.5">
-            {ranking.map((item, indice) => (
+            {rankingAvaliacao.map((item, indice) => (
               <li key={item.atendenteId} className="flex items-center gap-2.5">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
                   {indice + 1}
@@ -166,6 +186,33 @@ function MiniDashboard({
                 />
                 <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
                 <span className="text-xs font-bold">{item.media.toFixed(1)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded-lg border bg-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <BadgeCheck className="size-4 text-primary" />
+          <p className="text-sm font-bold">{textos.dashboard.rankingVendas}</p>
+        </div>
+        {rankingVendas.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{textos.avaliacoes.semDados}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {rankingVendas.map((item, indice) => (
+              <li key={item.atendenteId} className="flex items-center gap-2.5">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold text-muted-foreground">
+                  {indice + 1}
+                </span>
+                <AvatarIniciais
+                  id={item.atendenteId}
+                  nome={item.atendenteNome}
+                  className="flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                />
+                <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
+                <span className="text-xs font-bold">{item.vendas}</span>
               </li>
             ))}
           </ul>
@@ -184,21 +231,24 @@ const TOM_DO_PAPEL: Record<PapelGerenciavel, "info" | "neutro"> = {
 function TabelaDeUsuarios({
   usuarios,
   avaliacoes,
+  desempenho,
   textos,
   onEditar,
   onDesativar,
 }: {
   usuarios: UsuarioEquipe[];
   avaliacoes: LinhaRanking[];
+  desempenho: LinhaDesempenho[];
   textos: TextosEquipe;
   onEditar: (usuario: UsuarioEquipe) => void;
   onDesativar: (id: string) => void;
 }) {
   const avaliacaoPorId = new Map(avaliacoes.map((a) => [a.atendenteId, a]));
+  const desempenhoPorId = new Map(desempenho.map((item) => [item.atendenteId, item]));
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <table className="min-w-[980px] w-full text-sm">
         <thead className="bg-muted/60">
           <tr>
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
@@ -214,6 +264,12 @@ function TabelaDeUsuarios({
               {textos.colunas.avaliacao}
             </th>
             <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.atendimentos}
+            </th>
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.colunas.vendas}
+            </th>
+            <th className="px-4 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               {textos.colunas.acoes}
             </th>
           </tr>
@@ -222,6 +278,7 @@ function TabelaDeUsuarios({
           {usuarios.map((usuario) => {
             const papel = usuario.papel as PapelGerenciavel;
             const avaliacao = avaliacaoPorId.get(usuario.id);
+            const metricas = desempenhoPorId.get(usuario.id);
             return (
               <tr
                 key={usuario.id}
@@ -272,6 +329,12 @@ function TabelaDeUsuarios({
                       ? `${avaliacao.media.toFixed(1)} (${avaliacao.total})`
                       : textos.avaliacoes.semDados}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  {metricas?.atendimentos ?? 0}
+                </td>
+                <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  {metricas?.vendas ?? 0}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
