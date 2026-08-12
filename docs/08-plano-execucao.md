@@ -141,7 +141,8 @@ Organizado por semana, com as etapas do `PLANO-ETAPAS.md`. Datas de referência,
 - [ ] Filtros modulares combinam critérios aninhados com contagem em tempo real
 - [ ] `/internal/v1/automation-config` documentado em OpenAPI e consumível pela Automação
 - [ ] Alteração de parâmetro no painel reflete na Automação sem deploy
-- [ ] `/health/critical` responde corretamente e o watchdog alerta em caso de queda
+- [x] `/health/critical` responde corretamente (`SaudeCriticaIT`, `SaudeBancoIndisponivelIT`, `SaudeCanalInvalidoIT`)
+- [ ] watchdog externo provisionado e alerta confirmado em queda intencional de homologação (`docs/15`)
 - [ ] Derrubar o RabbitMQ no meio de uma transferência não perde o evento (outbox)
 - [ ] Testes de integração cobrindo o fluxo de mensagem ponta a ponta
 - [ ] CRUDs de suporte respeitando a privacidade por atendente (RN-CRM-04)

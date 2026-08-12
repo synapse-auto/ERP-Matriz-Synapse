@@ -48,6 +48,6 @@ Registrado aqui porque some de vista com facilidade:
 - **Seed de demonstração nunca executado** — as telas estão vazias
 - **Nenhuma mensagem real** jamais entrou ou saiu do ambiente hospedado
 - **Backup nunca restaurado** de verdade
-- **E09b** — saúde crítica e watchdog externo
+- **Watchdog externo da E22 ainda não provisionado/testado** — o endpoint e o runbook existem; falta configurar o Kuma fora do provedor do CRM e executar o teste destrutivo de `docs/15`
 - **Subdomínios reais** — o `sslip.io` compartilha cota do Let's Encrypt com o mundo; na renovação, o certificado pode não sair, e aí a Meta para de entregar webhook
 - **PITR** antes do go-live de produção (`docs/10` §1.1b)

@@ -104,7 +104,7 @@
 
 | Requisito | Status | Implementação | Teste |
 |---|---|---|---|
-| RNF-CRM-01 (estabilidade) | ⚠️ **rebaixado de ✅** | `/health/liveness` e `/health/readiness` são reais (não `/health/critical`, que a doc antiga citava). Circuit breaker real em `MetaCloudApiAdapter` (Resilience4j). "Réplicas ≥ 2" é configuração de deploy, não código — não verificável neste repositório | `AplicacaoIT` cobre os dois endpoints de health |
+| RNF-CRM-01 (estabilidade) | ⚠️ parcial | `/health/critical` verifica banco-chat, fila efetiva, canal, WebSocket, partições e outbox; liveness continua sem dependências. Watchdog externo ainda precisa ser provisionado e exercitado na homologação | `SaudeCriticaController` + `SaudeCriticaIT`, `SaudeBancoIndisponivelIT`, `SaudeCanalInvalidoIT`; runbook `docs/15` |
 | RNF-CRM-03 (modularidade) | ✅ | `configuracao_automacao`, `filtro_modular` (JSONB), feature flags | `ContratoAutomacaoIT` (flags), `FiltroModularIT` |
 | RNF-CRM-06 (intuitividade) | ⚠️ (mantido) | Decisão de produto/UI, fora do escopo deste documento | N/A |
 | RNF-CRM-08 (performance) | ⚠️ **rebaixado de ✅** | Particionamento real (`V5__atendimento.sql`), índices reais. **Nenhum teste de carga/performance no repositório** — a meta de "~5 mil atendimentos/mês" não tem evidência empírica, só schema compatível com o volume | Nenhum teste de carga encontrado |
@@ -136,7 +136,7 @@ Esta seção mistura decisões de arquitetura (verificáveis por código) com na
 | Reuso de componentes robustos | ⚠️ **rebaixado de ✅** | Escolha de dependência (`shadcn/ui`, `@base-ui/react` em `package.json`) — não é "requisito" testável | N/A |
 | Continuidade inegociável (precedência) | ⚠️ **rebaixado de ✅** | Circuit breaker real (`MetaCloudApiAdapter`); Bulkhead não localizado; "réplicas ≥ 2" é deploy, não código | Nenhum teste de resiliência sob carga |
 | Resiliência / degradação controlada | ✅ | `MetaCloudApiAdapter` usa Resilience4j (`CircuitBreaker`) | Não encontrei teste que force o circuito a abrir — evidência de implementação, não de comportamento sob falha |
-| Alerta automático de indisponibilidade | ⚠️ **rebaixado de ✅** | `/health/liveness`/`/health/readiness` existem; não encontrei `/health/critical` nem "watchdog externo" no código — isso é infraestrutura de monitoramento externa ao repositório | `AplicacaoIT` |
+| Alerta automático de indisponibilidade | ⚠️ parcial | backend classifica `CRITICO`/`DEGRADADO`, aplica duas falhas, janela e destinos via `ALERTA_WEBHOOK`; queda total exige o Kuma externo ainda não provisionado | `MonitorarSaudeCriticaUseCaseTest` + `docs/15-operacao-watchdog-externo.md` |
 | Substituição do número principal | ✅ | `canal_credencial` com `vigente_ate` — troca preserva histórico | `CanalWhatsAppIT::trocaDeNumero_preservaHistoricoEMensagemEmTransito` |
 | Logs de administração com filtros ricos | ✅ | `AuditLogController` + `ConsultarAuditLogUseCase` | `AuditoriaIT` |
 | Documentação de endpoints para a Automação | ✅ | OpenAPI gerado no build, 62 operações documentadas | `OpenApiIT` (cobertura de summary/description/tag/resposta + contagem exata) |

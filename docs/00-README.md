@@ -29,6 +29,8 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 ### Continuidade
 
 - [`13-estado-do-projeto.md`](./13-estado-do-projeto.md) — **leia primeiro se estiver retomando o projeto.** Onde estamos, o que falta, decisões que não se revertem, as nove proteções silenciosas e as dívidas com prazo.
+- [`14-pendencias-de-funcionalidade.md`](./14-pendencias-de-funcionalidade.md) — funcionalidades que ainda não existem.
+- [`15-operacao-watchdog-externo.md`](./15-operacao-watchdog-externo.md) — provisionamento e teste destrutivo do monitor externo de `/health/critical`.
 
 ### Execução com Claude Code
 - [`CLAUDE.md`](./CLAUDE.md) — **vai na raiz do repositório**, não em `/docs`. Lido automaticamente pelo Claude Code em todo comando: stack, regras de arquitetura, padrões obrigatórios, proibições e regras de negócio sensíveis.

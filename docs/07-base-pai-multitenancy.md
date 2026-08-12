@@ -227,9 +227,9 @@ Cada filho reporta para uma stack central de monitoramento, identificando-se pel
 
 - Logs estruturados JSON com `tenant`, `trace_id`, `usuario_id` em todo evento.
 - Métricas com label `tenant` — permite um painel único da Synapse com a saúde de todos os filhos.
-- **Watchdog externo** (fora do deploy do filho) fazendo *polling* em `/health/critical` a cada 30s. Duas falhas consecutivas ⇒ alerta no grupo do cliente + no canal interno da Synapse.
+- **Watchdog externo** (fora do deploy do filho) fazendo *polling* em `/health/critical` a cada 30s. Duas falhas consecutivas ⇒ alerta imediato à Synapse; o cliente recebe incidentes críticos dentro da janela configurada em `configuracao_automacao`.
 
-O alerta precisa distinguir "sistema fora" de "função crítica degradada" — avisar o cliente que o WhatsApp desconectou é útil; avisar que o relatório está lento gera ruído e treina o cliente a ignorar os alertas.
+O alerta distingue `CRITICO` de `DEGRADADO`: crítico vai à Synapse e, entre `alerta.horario_cliente.inicio` e `alerta.horario_cliente.fim`, também ao cliente; degradado vai somente à Synapse. Ambos saem pelo único `ALERTA_WEBHOOK`. O procedimento operacional está em `15-operacao-watchdog-externo.md`.
 
 ---
 

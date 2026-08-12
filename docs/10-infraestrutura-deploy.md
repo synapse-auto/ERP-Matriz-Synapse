@@ -38,6 +38,8 @@ O alerta de indisponibilidade só funciona se o monitor sobreviver à queda do m
 
 Um Uptime Kuma num VPS mínimo de **outro fornecedor**, ou um serviço gratuito de uptime, resolve.
 
+Configuração, roteamento por severidade e teste destrutivo: `15-operacao-watchdog-externo.md`.
+
 ### 1.4 Co-locação de filhos
 
 Dá para rodar 2–3 clientes pequenos no mesmo VPS com bancos separados. Barato, mas enfraquece a garantia de "queda de um não afeta outro" que o modelo de instância isolada oferece.
