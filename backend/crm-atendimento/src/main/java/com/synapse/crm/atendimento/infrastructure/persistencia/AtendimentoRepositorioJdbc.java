@@ -82,6 +82,24 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     }
 
     @Override
+    public void bloquearDistribuicaoDaAutomacao() {
+        TransacaoObrigatoria.exigir("bloquearDistribuicaoDaAutomacao");
+        chat.queryForObject(
+                "SELECT pg_advisory_xact_lock(hashtext('synapse:distribuicao-automacao'))",
+                Object.class);
+    }
+
+    @Override
+    public long contarAbertosDoAtendente(UUID atendenteId) {
+        TransacaoObrigatoria.exigir("contarAbertosDoAtendente");
+        Long quantidade = chat.queryForObject(
+                "SELECT count(*) FROM atendimento WHERE atendente_id = ? AND status = 'EM_ATENDIMENTO'",
+                Long.class,
+                atendenteId);
+        return quantidade == null ? 0 : quantidade;
+    }
+
+    @Override
     public Atendimento salvar(Atendimento atendimento) {
         TransacaoObrigatoria.exigir("salvar");
         chat.update(

@@ -70,7 +70,10 @@ class AuditoriaDeAtendimentoListener {
                     enviada.transferiu() ? "ENVIO_COM_TRANSFERENCIA_DE_LEAD" : "MENSAGEM_ENVIADA");
 
             case EventoDeAtendimento.AtendimentoTransferido transferido ->
-                new Registro(transferido.quemTransferiu(), "USUARIO", "ATENDIMENTO_TRANSFERIDO");
+                new Registro(
+                        transferido.atorId(),
+                        transferido.atorTipo().name(),
+                        "ATENDIMENTO_TRANSFERIDO");
 
             case EventoDeAtendimento.AtendimentoFinalizado finalizado ->
                 new Registro(finalizado.quemFinalizou(), "USUARIO", "ATENDIMENTO_FINALIZADO");

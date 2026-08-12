@@ -95,7 +95,8 @@ class RelayDeTempoRealListener {
         dados.put(
                 "paraAtendenteId",
                 evento.paraAtendenteId() == null ? null : evento.paraAtendenteId().toString());
-        dados.put("quemTransferiu", evento.quemTransferiu().toString());
+        dados.put("quemTransferiu", evento.atorId() == null ? null : evento.atorId().toString());
+        dados.put("atorTipo", evento.atorTipo().name());
         dados.put("ocorridoEm", evento.ocorridoEm().toString());
         // Revogacao (E06 secao 1): esta e a linha que faz o dono anterior parar de
         // receber. O assinante consulta o registro LOCAL de cada instancia; sem

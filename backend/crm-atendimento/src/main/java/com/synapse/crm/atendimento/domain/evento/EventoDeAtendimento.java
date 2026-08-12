@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.synapse.crm.core.domain.timeline.OrigemEvento;
+
 /**
  * Fatos consumados do modulo de atendimento.
  *
@@ -57,15 +59,27 @@ public sealed interface EventoDeAtendimento {
      * O atendimento mudou de responsavel.
      *
      * @param paraAtendenteId {@code null} quando voltou para a IA
+     * @param atorId usuario humano que executou; nulo quando {@code atorTipo} e AUTOMACAO
      */
     record AtendimentoTransferido(
             UUID leadId,
             UUID atendimentoId,
             UUID deAtendenteId,
             UUID paraAtendenteId,
-            UUID quemTransferiu,
+            UUID atorId,
+            OrigemEvento atorTipo,
             Instant ocorridoEm)
-            implements EventoDeAtendimento {}
+            implements EventoDeAtendimento {
+
+        public AtendimentoTransferido {
+            if (atorTipo == OrigemEvento.USUARIO && atorId == null) {
+                throw new IllegalArgumentException("transferencia de usuario exige atorId");
+            }
+            if (atorTipo == OrigemEvento.AUTOMACAO && atorId != null) {
+                throw new IllegalArgumentException("transferencia da Automacao nao possui usuario");
+            }
+        }
+    }
 
     record AtendimentoFinalizado(
             UUID leadId, UUID atendimentoId, UUID quemFinalizou, Instant ocorridoEm)

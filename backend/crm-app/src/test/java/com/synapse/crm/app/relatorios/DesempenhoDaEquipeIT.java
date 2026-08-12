@@ -98,7 +98,7 @@ class DesempenhoDaEquipeIT extends PostgresIT {
                 String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(resposta.getBody()).doesNotContain(nomeDoColega);
+        assertThat(String.valueOf(resposta.getBody())).doesNotContain(nomeDoColega);
     }
 
     private JsonNode chamarComoGestor() throws Exception {

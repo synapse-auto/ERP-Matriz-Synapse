@@ -101,10 +101,10 @@ class TimelineDeAtendimentoListener {
                                 + " para "
                                 + rotulo(transferido.paraAtendenteId())
                                 + " por "
-                                + nome(transferido.quemTransferiu())
+                                + rotuloDoAtor(transferido)
                                 + ".",
-                        "USUARIO",
-                        transferido.quemTransferiu(),
+                        transferido.atorTipo().name(),
+                        transferido.atorId(),
                         dados);
             }
 
@@ -119,6 +119,10 @@ class TimelineDeAtendimentoListener {
 
     private String rotulo(UUID atendenteId) {
         return atendenteId == null ? "IA" : nome(atendenteId);
+    }
+
+    private String rotuloDoAtor(EventoDeAtendimento.AtendimentoTransferido evento) {
+        return evento.atorId() == null ? "Automacao" : nome(evento.atorId());
     }
 
     private String nome(UUID usuarioId) {

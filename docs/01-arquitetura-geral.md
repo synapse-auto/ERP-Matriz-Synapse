@@ -53,15 +53,16 @@ A regra de dependência é sempre "de fora para dentro": Interface e Infrastruct
 
 O documento de requisitos é explícito: **o CRM não executa a automação, apenas a configura** (RN-CRM-07). A separação técnica reflete isso:
 
-- O módulo `automacao-config` expõe uma **API interna somente-leitura** (`GET /internal/automation-config`) que a Automação consulta em tempo de execução — nunca lê direto do banco do CRM (evita acoplamento de schema).
-- Alterações de configuração (RF-CRM-38b: "efeito sem novo deploy") disparam invalidação de cache Redis + evento `automation.config.updated` publicado na fila, para a Automação recarregar sem polling agressivo.
-- Ações da Automação sobre o CRM (transferir lead, marcar etapa, criar lembrete automático) chegam via **fila assíncrona** (`automation.events`), consumida por um *use case* dedicado no módulo `atendimento`/`crm-core`. Se a Automação cair ou atrasar, a fila apenas acumula — a aba Atendimentos (mensagens humanas) continua funcionando normalmente. Isso implementa diretamente a **RNF-CRM-01 (ultra-regra)**.
+- O módulo `automacao-config` expõe uma **API interna somente-leitura** (`GET /internal/v1/automation-config`) que a Automação consulta em tempo de execução — nunca lê direto do banco do CRM (evita acoplamento de schema).
+- Alterações de configuração (RF-CRM-38b: "efeito sem novo deploy") invalidam o cache Redis local depois do commit. A Automação obtém o valor vigente na próxima leitura da API interna; não existe evento RabbitMQ de configuração no contrato atual.
+- A entrega de uma conversa da IA para atendimento humano usa `POST /internal/v1/atendimentos/{id}/transferir`, autenticado por `X-Synapse-Token` na rede interna. O CRM escolhe o atendente elegível com menor carga aberta; a Automação não informa o destinatário. A resposta síncrona confirma imediatamente se a conversa foi entregue, sem criar usuário técnico nem contornar as regras comerciais.
+- Integrações assíncronas de telemetria e configuração continuam isoladas do caminho de mensagens humanas. Se a Automação cair, nenhuma operação humana da aba Atendimentos depende dela para enviar ou receber mensagens, preservando a **RNF-CRM-01 (ultra-regra)**.
 - Circuit breaker (Resilience4j) em qualquer chamada síncrona do CRM em direção a serviços externos de IA, para que uma falha externa nunca trave o envio/recebimento de mensagens.
 
 ## 4. Tempo real (aba Atendimentos e Chat Interno)
 
 - WebSocket gateway no backend Java, com Redis como *pub/sub* backplane — permite múltiplas instâncias do backend atrás de um load balancer sem perder mensagens em tempo real (necessário para RNF-CRM-08, concorrência de vários atendentes simultâneos).
-- Canais (*topics*) por atendimento (`/topic/atendimento/{id}`) e por usuário (`/topic/usuario/{id}` para notificações, badge de não lidas, presença).
+- O handshake STOMP ocorre em `/ws?token=<JWT>`. Eventos de atendimento são entregues apenas pela fila pessoal `/user/queue/atendimento.{id}`, após autorização por carteira; revogações usam `/user/queue/revogacoes`. Não há broadcast de dados de lead em `/topic`.
 - Status de entrega/leitura (RF-CRM-67) é modelado como estado da mensagem (`ENVIADO → ENTREGUE → LIDO`), atualizado por webhook do canal (WhatsApp) e propagado via WebSocket.
 
 ## 5. Filtros modulares (requisito transversal)

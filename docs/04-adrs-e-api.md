@@ -8,11 +8,11 @@
 **Decisão:** monólito modular (Clean Architecture por bounded context), banco único PostgreSQL.
 **Consequências:** deploy e operação simples; módulos com fronteira clara (portas/interfaces) permitem extrair qualquer um como serviço separado depois, se o volume ou a equipe crescerem — sem reescrever regra de negócio, só trocar o adaptador de infraestrutura.
 
-### ADR-002 — Automação desacoplada por fila assíncrona
+### ADR-002 — Integração da Automação sem bloquear o caminho humano
 
 **Contexto:** RNF-CRM-01 é a "ultra-regra": a aba Atendimentos não pode parar entre 08:00–18:30, mesmo que a Automação/IA falhe.
-**Decisão:** toda ação da Automação sobre o CRM chega por fila (RabbitMQ), nunca por chamada síncrona bloqueante; o CRM expõe API de configuração somente-leitura para a Automação consultar parâmetros.
-**Consequências:** uma falha ou lentidão da IA nunca bloqueia envio/recebimento humano de mensagens; exige tratamento de fila (retries, dead-letter) e idempotência nos consumidores.
+**Decisão:** envio e recebimento humanos não chamam a Automação. A entrega de uma conversa da IA para um humano é a exceção síncrona: `POST /internal/v1/atendimentos/{id}/transferir`, pela rede interna e com `X-Synapse-Token`, porque a própria ação perde o sentido quando o CRM está indisponível e o cliente espera confirmação imediata. O destinatário é escolhido pelo CRM entre atendentes online e disponíveis, priorizando a menor carga aberta; não existe destinatário no corpo. Telemetria e invalidação de configuração permanecem desacopladas.
+**Consequências:** falha ou lentidão da IA não bloqueia o atendimento humano. A Automação recebe sucesso ou falha da transferência na mesma chamada, não pode distribuir comissão escolhendo usuário e é registrada como `ator_tipo = AUTOMACAO`, com `ator_id` nulo.
 
 ### ADR-003 — Filtros modulares como JSONB genérico
 
@@ -109,6 +109,7 @@
 |---|---|---|---|
 | GET | `/internal/v1/automation-config` | Todos os parâmetros tipados atuais | Serviço de Automação |
 | GET | `/internal/v1/automation-config/{chave}` | Parâmetro específico | Serviço de Automação |
+| POST | `/internal/v1/atendimentos/{id}/transferir` | Entrega conversa da IA ao atendente elegível de menor carga; sem destinatário no corpo | Serviço de Automação |
 | PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro (dispara invalidação de cache + evento) | Gestor/Subgestor |
 | GET | `/api/v1/automacao/status` | Telemetria (mensagens enviadas, conexão, etc.) | Gestor |
 
@@ -142,22 +143,14 @@ Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token pe
 
 ## Parte D — WebSocket (tempo real)
 
-| Tópico | Direção | Payload | Requisito |
+| Destino | Direção | Payload | Proteção |
 |---|---|---|---|
-| `/topic/atendimento/{id}` | Servidor → Cliente | Nova mensagem, mudança de status de entrega/leitura | RF-CRM-08/67 |
-| `/topic/usuario/{id}/notificacoes` | Servidor → Cliente | Transferência recebida, lembrete disparado | RF-CRM-22/60 |
-| `/topic/presenca` | Servidor → Cliente | Mudança de status de presença de qualquer usuário | RF-CRM-78/81 |
-| `/topic/chat-interno/{conversaId}` | Servidor ↔ Cliente | Mensagens do chat interno | RF-CRM-45/78 |
-| `/topic/automacao/status` | Servidor → Cliente | Atualização de telemetria da automação | RF-CRM-76 |
+| `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade |
+| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência e finalização | Assinatura autorizada pela mesma visibilidade/RLS do atendimento |
+| `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência |
 
-## Parte E — Fila assíncrona (CRM ↔ Automação)
+Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.
 
-| Fila/Evento | Publicador | Consumidor | Descrição |
-|---|---|---|---|
-| `automation.config.updated` | CRM | Automação | Configuração alterada, recarregar cache |
-| `automation.events.transferir-lead` | Automação | CRM | IA solicita transferência de lead para atendente |
-| `automation.events.follow-up-enviado` | Automação | CRM | Registra evento na timeline (RF-CRM-15) |
-| `automation.events.resumo-gerado` | Automação | CRM | Atualiza `lead.resumo_ia` |
-| `automation.events.campanha-metrica` | Automação | CRM | Atualiza `campanha_mensagem_metrica` |
+## Parte E — Contrato CRM ↔ Automação
 
-Todos os consumidores devem ser **idempotentes** (checar se o evento já foi processado por `event_id`), já que filas garantem *at-least-once delivery*.
+Não há consumidor RabbitMQ da Automação no código atual. O contrato implementado é HTTP sobre a rede interna, autenticado por `X-Synapse-Token`: leitura de configuração e regras, telemetria em `POST /internal/v1/eventos`, consulta de atendentes disponíveis e transferência em `POST /internal/v1/atendimentos/{id}/transferir`. A fila do canal humano continua interna ao módulo de atendimento e não constitui contrato CRM ↔ Automação.
