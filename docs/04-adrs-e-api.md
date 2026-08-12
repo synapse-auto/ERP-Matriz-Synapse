@@ -1,5 +1,7 @@
 # 04. Architecture Decision Records (ADRs) e Contrato de API
 
+> **Regra de evidência:** Um endpoint só é documentado aqui com evidência nomeada: o controller que o implementa e o teste que o cobre. Contrato planejado não mora neste documento.
+
 ## Parte A — ADRs
 
 ### ADR-001 — Monólito modular em vez de microsserviços no MVP
@@ -11,7 +13,7 @@
 ### ADR-002 — Integração da Automação sem bloquear o caminho humano
 
 **Contexto:** RNF-CRM-01 é a "ultra-regra": a aba Atendimentos não pode parar entre 08:00–18:30, mesmo que a Automação/IA falhe.
-**Decisão:** envio e recebimento humanos não chamam a Automação. A entrega de uma conversa da IA para um humano é a exceção síncrona: `POST /internal/v1/atendimentos/{id}/transferir`, pela rede interna e com `X-Synapse-Token`, porque a própria ação perde o sentido quando o CRM está indisponível e o cliente espera confirmação imediata. O destinatário é escolhido pelo CRM entre atendentes online e disponíveis, priorizando a menor carga aberta; não existe destinatário no corpo. Telemetria e invalidação de configuração permanecem desacopladas.
+**Decisão:** envio e recebimento humanos não chamam a Automação. A entrega de uma conversa da IA para um humano é a exceção síncrona: `POST /internal/v1/atendimentos/{id}/transferir`, implementado por `TransferenciaAutomacaoInternalController` e coberto por `TransferenciaAutomacaoIT`, pela rede interna e com `X-Synapse-Token`, porque a própria ação perde o sentido quando o CRM está indisponível e o cliente espera confirmação imediata. O destinatário é escolhido pelo CRM entre atendentes online e disponíveis, priorizando a menor carga aberta; não existe destinatário no corpo. Telemetria e invalidação de configuração permanecem desacopladas.
 **Consequências:** falha ou lentidão da IA não bloqueia o atendimento humano. A Automação recebe sucesso ou falha da transferência na mesma chamada, não pode distribuir comissão escolhendo usuário e é registrada como `ator_tipo = AUTOMACAO`, com `ator_id` nulo.
 
 ### ADR-003 — Filtros modulares como JSONB genérico
@@ -57,100 +59,84 @@
 ## Parte B — Convenções gerais de API
 
 - **Versionamento:** prefixo `/api/v1/...`; mudanças incompatíveis sobem para `/api/v2` mantendo v1 ativo durante transição.
-- **Autenticação:** `Authorization: Bearer <JWT>`; access token curto (15 min) + refresh token (7 dias) via `POST /api/v1/auth/refresh`.
+- **Autenticação:** `Authorization: Bearer <JWT>`; access token curto (15 min) + refresh token opaco e rotativo (7 dias) via `POST /api/v1/auth/refresh` (`AutenticacaoController`, `AutenticacaoIT`).
 - **Paginação:** *offset-based* (`?page=0&size=20`) nas listagens de gestão; *cursor-based* (`?cursor=...`) na lista de mensagens de um atendimento (evita duplicar/pular itens quando novas mensagens chegam durante a rolagem).
-- **Erros:** formato padrão RFC 7807 (*Problem Details*):
-  ```json
-  {
-    "type": "https://api.crm.estrutural/erros/lead-nao-encontrado",
-    "title": "Lead não encontrado",
-    "status": 404,
-    "detail": "Nenhum lead com id 123 foi localizado",
-    "instance": "/api/v1/leads/123"
-  }
-  ```
+- **Erros:** respostas de erro HTTP usam o `ProblemDetail` do Spring (RFC 7807). Não há catálogo público de URIs de tipos de erro; portanto, este documento não inventa exemplos de `type` ou `instance` que o código não produza.
 - **Autorização:** cada endpoint declara o(s) papel(éis) mínimo(s) exigido(s); a checagem de "é dono deste recurso" (ex.: `RN-CRM-01`) é feita no *use case*, não apenas por papel.
 
-## Parte C — Endpoints REST por módulo (amostra representativa)
+## Parte C — Endpoints REST por módulo (contratos em operação)
 
 ### Atendimento
 
-| Método | Rota | Descrição | Papel mínimo | Requisito |
+| Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
-| GET | `/api/v1/atendimentos` | Lista atendimentos (filtra por `visao=ativos\|pendentes\|potenciais\|todos`) | Atendente | RF-CRM-20/21 |
-| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado (cursor) | Atendente | RF-CRM-08 |
-| POST | `/api/v1/atendimentos/{id}/mensagens` | Envia mensagem (texto/áudio/imagem/documento) | Atendente | RF-CRM-09 |
-| POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para outro atendente/IA | Atendente | RF-CRM-65/RN-CRM-06 |
-| POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | RF-CRM-65 |
-| GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | RF-CRM-15 |
+| GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
+| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` |
+| POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
+| POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
 
 ### CRM Core
 
-| Método | Rota | Descrição | Papel mínimo | Requisito |
+| Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
-| GET | `/api/v1/leads` | Lista/filtra leads (filtro modular via query ou `POST /leads/filtrar`) | Atendente | RF-CRM-04/23 |
-| POST | `/api/v1/leads/filtrar/contagem` | Retorna contagem em tempo real do filtro montado | Atendente | RF-CRM-05 |
-| POST | `/api/v1/leads/importar` | Importa CSV | Gestor | RF-CRM-26 |
-| GET | `/api/v1/leads/exportar` | Exporta CSV | Gestor | RF-CRM-27 |
-| POST | `/api/v1/lembretes` | Cria lembrete | Atendente | RF-CRM-57/59 |
-| POST | `/api/v1/mensagens-programadas` | Agenda mensagem | Atendente | RF-CRM-61/62 |
-
-### Campanhas
-
-| Método | Rota | Descrição | Papel mínimo | Requisito |
-|---|---|---|---|---|
-| POST | `/api/v1/campanhas` | Cria campanha (nome, mensagens, filtro, datas) | Gestor | RF-CRM-39 |
-| POST | `/api/v1/campanhas/{id}/ativar` | Ativa e define intervalo de envio | Gestor | RF-CRM-41 |
-| GET | `/api/v1/campanhas/{id}/metricas` | Métricas por mensagem + comparativo | Gestor | RF-CRM-43/44 |
+| GET | `/api/v1/leads` | Lista leads sob a `VisibilidadeLeadSpecification` | Atendente | `LeadController` · `PainelDoLeadIT` |
+| POST | `/api/v1/leads/filtrar` | Executa a árvore de critérios AND/OR | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
+| POST | `/api/v1/leads/filtrar/contagem` | Conta o resultado da mesma árvore de critérios | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
+| POST | `/api/v1/lembretes` | Cria lembrete | Atendente | `LembreteController` · `LembretesIT` |
+| POST | `/api/v1/mensagens-programadas` | Agenda mensagem | Atendente | `MensagemProgramadaController` · `MensagensProgramadasIT` |
 
 ### Automação — Configuração (consumida pelo serviço de Automação)
 
-| Método | Rota | Descrição | Consumidor |
-|---|---|---|---|
-| GET | `/internal/v1/automation-config` | Todos os parâmetros tipados atuais | Serviço de Automação |
-| GET | `/internal/v1/automation-config/{chave}` | Parâmetro específico | Serviço de Automação |
-| POST | `/internal/v1/atendimentos/{id}/transferir` | Entrega conversa da IA ao atendente elegível de menor carga; sem destinatário no corpo | Serviço de Automação |
-| PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro (dispara invalidação de cache + evento) | Gestor/Subgestor |
-| GET | `/api/v1/automacao/status` | Telemetria (mensagens enviadas, conexão, etc.) | Gestor |
+| Método | Rota | Descrição | Consumidor | Evidência |
+|---|---|---|---|---|
+| GET | `/internal/v1/automation-config` | Todos os parâmetros tipados atuais | Serviço de Automação | `AutomationConfigInternalController` · `ContratoAutomacaoIT` |
+| GET | `/internal/v1/automation-config/{chave}` | Parâmetro específico | Serviço de Automação | `AutomationConfigInternalController` · `ContratoAutomacaoIT` |
+| GET | `/internal/v1/regras/follow-up` | Snapshot das regras de follow-up | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |
+| GET | `/internal/v1/regras/fidelizacao` | Snapshot das regras de fidelização | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |
+| POST | `/internal/v1/eventos` | Recebe telemetria idempotente da Automação | Serviço de Automação | `AutomationConfigInternalController` · `ContratoAutomacaoIT` |
+| GET | `/internal/v1/atendentes/disponiveis` | Lista atendentes elegíveis à distribuição | Serviço de Automação | `AtendentesDisponiveisInternalController` · `ContratoInternalV1IT` |
+| POST | `/internal/v1/atendimentos/{id}/transferir` | Entrega conversa ao atendente elegível de menor carga; sem destinatário no corpo | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `TransferenciaAutomacaoIT` |
+| PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro e invalida o cache | Gestor/Subgestor | `ConfiguracaoAutomacaoController` · `ContratoAutomacaoIT` |
+| GET | `/api/v1/automacao/telemetria` | Snapshot cumulativo do estado da Automação | Gestor/Subgestor | `StatusAutomacaoTelemetriaController` · `StatusAutomacaoTelemetriaControllerIT` |
 
-Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token permanente da instância. Namespace e formato são idênticos em todos os filhos — só URL e token mudam. OpenAPI gerado no build e coberto por testes de contrato.
+Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token permanente da instância (`SynapseTokenAuthenticationFilter`, `ContratoInternalV1IT`). Namespace e formato são idênticos em todos os filhos — só URL e token mudam. O OpenAPI é exposto em runtime e seu contrato interno reduzido é coberto por `OpenApiIT` e `ContratoInternalV1IT`.
 
 ### Configuração da instância (consumida pelo frontend)
 
-| Método | Rota | Descrição | Requisito |
+| Método | Rota | Descrição | Evidência |
 |---|---|---|---|
-| GET | `/api/v1/config/tema` | Design tokens (cores, tipografia, logo) | Base PAI / nada hardcoded |
-| GET | `/api/v1/config/textos` | Catálogo de labels e nomes de cards | Base PAI / nada hardcoded |
-| GET | `/api/v1/config/features` | Feature flags habilitadas para esta instância | Base PAI |
-| GET | `/api/v1/canais/{id}/credenciais` | Credencial vigente do canal | Troca do número principal |
-| POST | `/api/v1/canais/{id}/credenciais/trocar` | Troca o número ativo (valida antes, versiona a antiga) | Troca do número principal |
-| GET | `/api/v1/audit-log` | Log de auditoria com filtros (ator, ação, entidade, lead, período) | Logs de administração |
+| GET | `/api/v1/config/features` | Feature flags da instância | `ConfigInstanciaController` · `ContratoAutomacaoIT` |
+| GET | `/api/v1/audit-log` | Auditoria filtrável por ator, ação, entidade, lead e período | `AuditLogController` · `AuditoriaIT` |
 
 ### Saúde e monitoramento
 
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/health/critical` | Valida o caminho de mensagens: banco, fila, canal autenticado, WebSocket aceitando conexão. Consumido pelo watchdog externo. |
-| GET | `/health/liveness` `/health/readiness` | Probes padrão de orquestrador |
+| Método | Rota | Descrição | Evidência |
+|---|---|---|---|
+| GET | `/health/liveness` | Processo vivo; não testa dependências | Spring Actuator `HealthEndpointWebExtension`, configurado em `application.yml` · `AplicacaoIT` |
+| GET | `/health/readiness` | Prontidão composta pelos indicadores do Actuator | Spring Actuator `HealthEndpointWebExtension`, configurado em `application.yml` · `AplicacaoIT` |
 
 ### Equipe
 
-| Método | Rota | Descrição | Papel mínimo | Requisito |
+| Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
-| GET/POST/PUT | `/api/v1/usuarios` | CRUD de atendentes/subgestores | Gestor | RF-CRM-46 |
-| PATCH | `/api/v1/usuarios/me/presenca` | Atualiza presença (online/ausente/offline) | Atendente | RF-CRM-81 |
-| GET | `/api/v1/equipe/avaliacoes` | Mini-dashboard de avaliações | Gestor | RF-CRM-47 |
+| POST | `/api/v1/usuarios` | Cria usuário operacional | Gestor | `UsuarioController` · `EquipeEPresencaIT` |
+| PUT | `/api/v1/usuarios/{id}` | Atualiza usuário operacional | Gestor | `UsuarioController` · `EquipeEPresencaIT` |
+| PATCH | `/api/v1/usuarios/me/presenca` | Atualiza presença própria | Atendente | `UsuarioController` · `EquipeEPresencaIT` |
+| GET | `/api/v1/equipe/avaliacoes` | Resumo de avaliações da equipe | Gestor | `AvaliacaoController` · `EquipeEPresencaIT` |
 
 ## Parte D — WebSocket (tempo real)
 
-| Destino | Direção | Payload | Proteção |
-|---|---|---|---|
-| `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade |
-| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência e finalização | Assinatura autorizada pela mesma visibilidade/RLS do atendimento |
-| `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência |
+| Destino | Direção | Payload | Proteção | Evidência |
+|---|---|---|---|---|
+| `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade | `WebSocketConfig` · `TempoRealIT` |
+| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência e finalização | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` |
+| `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência | `RedisSubscriberDeAtendimento` · `TempoRealIT` |
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.
 
 ## Parte E — Contrato CRM ↔ Automação
 
-Não há consumidor RabbitMQ da Automação no código atual. O contrato implementado é HTTP sobre a rede interna, autenticado por `X-Synapse-Token`: leitura de configuração e regras, telemetria em `POST /internal/v1/eventos`, consulta de atendentes disponíveis e transferência em `POST /internal/v1/atendimentos/{id}/transferir`. A fila do canal humano continua interna ao módulo de atendimento e não constitui contrato CRM ↔ Automação.
+Não há consumidor RabbitMQ da Automação no código atual. O contrato implementado é HTTP sobre a rede interna, autenticado por `X-Synapse-Token`; os controllers e testes de cada operação estão nomeados na tabela da Parte C. A fila do canal humano continua interna ao módulo de atendimento e não constitui contrato CRM ↔ Automação.

@@ -24,6 +24,7 @@ Atualizado em 12/08/2026, depois da E21b.
 | **Kanban na Agenda** | médio | precisa de endpoint de agrupamento por etapa com contagem; sem ele vira N+1 |
 | **Importar/exportar CSV de leads** | médio | não existe motor CSV em nenhum dos dois lados |
 | **Avaliação por atendimento na Automação** | médio | sem endpoint |
+| **Troca de credencial do canal pela gestão** | médio | o cadastro de canal existe, mas não há API para consultar ou rotacionar a credencial com validação e histórico; os contratos antes descritos no `docs/04` eram apenas planejados |
 
 ## Fora da primeira entrega por decisão (`docs/09`)
 
