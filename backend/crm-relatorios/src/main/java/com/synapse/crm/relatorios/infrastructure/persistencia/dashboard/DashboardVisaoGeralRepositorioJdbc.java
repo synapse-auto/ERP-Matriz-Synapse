@@ -42,6 +42,14 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         AgregadoAvaliacao avaliacaoAtual = avaliacoes(filtro.periodoAtual());
         AgregadoAvaliacao avaliacaoAnterior = avaliacoes(List.of(filtro.periodoAnterior()));
 
+        AgregadoResolucaoIa resolucaoIaAtual = resolucaoPorIa(filtro.periodoAtual());
+        AgregadoResolucaoIa resolucaoIaAnterior =
+                resolucaoPorIa(List.of(filtro.periodoAnterior()));
+        BigDecimal taxaResolucaoIaAtual = percentual(
+                resolucaoIaAtual.semTransferencia(), resolucaoIaAtual.finalizados());
+        BigDecimal taxaResolucaoIaAnterior = percentual(
+                resolucaoIaAnterior.semTransferencia(), resolucaoIaAnterior.finalizados());
+
         AgregacaoDeVendas vendasAtual =
                 vendas.agregar(filtro.periodoAtual(), filtro.periodoDeOriginacao());
         AgregacaoDeVendas vendasAnterior =
@@ -68,6 +76,12 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         5,
                         avaliacaoAtual.quantidade(),
                         Comparativo.pontos(avaliacaoAtual.media(), avaliacaoAnterior.media())),
+                new VisaoGeralDashboard.ResolucaoPorIa(
+                        taxaResolucaoIaAtual,
+                        resolucaoIaAtual.semTransferencia(),
+                        resolucaoIaAtual.finalizados(),
+                        Comparativo.pontosPercentuais(
+                                taxaResolucaoIaAtual, taxaResolucaoIaAnterior)),
                 new VisaoGeralDashboard.VendasFechadas(
                         vendasAtual.total(),
                         vendasAcumuladas,
@@ -110,6 +124,36 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         + filtro.clausula(),
                 (linha, indice) -> new AgregadoAvaliacao(
                         linha.getLong("quantidade"), linha.getBigDecimal("media")),
+                filtro.parametros().toArray());
+    }
+
+    /**
+     * Os dois tipos abaixo cobrem os tres caminhos de entrega humana: assumir por envio gera
+     * LEAD_TRANSFERIDO_POR_ENVIO; transferencia manual, reatribuicao por gestor e Automacao geram
+     * ATENDIMENTO_TRANSFERIDO. A ausencia e avaliada no historico inteiro do atendimento, enquanto
+     * o denominador e recortado por finalizado_em.
+     */
+    private AgregadoResolucaoIa resolucaoPorIa(List<IntervaloTemporal> periodos) {
+        FiltroSql filtro = periodos("a.finalizado_em", periodos);
+        return jdbc.queryForObject(
+                """
+                SELECT count(*) AS finalizados,
+                       count(*) FILTER (
+                           WHERE NOT EXISTS (
+                               SELECT 1
+                                 FROM evento_timeline evento
+                                WHERE evento.atendimento_id = a.id
+                                  AND evento.tipo IN (
+                                      'LEAD_TRANSFERIDO_POR_ENVIO',
+                                      'ATENDIMENTO_TRANSFERIDO'
+                                  )
+                           )
+                       ) AS sem_transferencia
+                  FROM atendimento a
+                 WHERE %s
+                """.formatted(filtro.clausula()),
+                (linha, indice) -> new AgregadoResolucaoIa(
+                        linha.getLong("finalizados"), linha.getLong("sem_transferencia")),
                 filtro.parametros().toArray());
     }
 
@@ -252,6 +296,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     private record AgregadoAtendimento(long quantidade, BigDecimal mediaSegundos) {}
 
     private record AgregadoAvaliacao(long quantidade, BigDecimal media) {}
+
+    private record AgregadoResolucaoIa(long finalizados, long semTransferencia) {}
 
     private record EtapaBruta(UUID id, String nome, int ordem, String corVisual, long quantidade) {}
 }

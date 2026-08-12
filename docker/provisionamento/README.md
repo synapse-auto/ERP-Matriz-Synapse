@@ -1,8 +1,15 @@
 # Provisionamento de instancia
 
 `provisionar-instancia.sql` reconcilia, sem duplicar: um administrador,
-etapas, tags e configuracoes da Automacao. Ele nao cria canal, credencial de
-WhatsApp ou dados de um cliente especifico.
+etapas, tags, a feature flag da Dashboard e configuracoes da Automacao. Ele
+nao cria canal, credencial de WhatsApp ou dados de um cliente especifico.
+
+Instancias provisionadas antes da E21b mantem o valor antigo da flag ate a
+reexecucao do provisionamento. Para habilitar imediatamente, execute uma vez:
+
+```sql
+UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'dashboard';
+```
 
 ## Preparar os parametros
 

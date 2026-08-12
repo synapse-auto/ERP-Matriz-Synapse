@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   BadgeCheck,
+  Bot,
   CalendarRange,
   Clock3,
   Handshake,
@@ -180,7 +181,7 @@ function ConteudoDashboard({ dados }: { dados: VisaoGeralDashboard }) {
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label={textos.kpis.rotulo}>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label={textos.kpis.rotulo}>
         <Kpi
           titulo={textos.kpis.atendimentos}
           valor={numero(dados.atendimentos.noPeriodo)}
@@ -219,6 +220,17 @@ function ConteudoDashboard({ dados }: { dados: VisaoGeralDashboard }) {
           apoio={preencher(textos.kpis.csatApoio, { total: dados.avaliacaoMedia.quantidade })}
           comparativo={dados.avaliacaoMedia.comparativo}
           Icone={CalendarRange}
+        />
+        <Kpi
+          titulo={textos.kpis.resolucaoIa}
+          valor={
+            dados.resolucaoPorIa.percentual === null
+              ? textos.semDado
+              : `${percentual(dados.resolucaoPorIa.percentual)}%`
+          }
+          apoio={textos.kpis.resolucaoIaApoio}
+          comparativo={dados.resolucaoPorIa.comparativo}
+          Icone={Bot}
         />
       </section>
 

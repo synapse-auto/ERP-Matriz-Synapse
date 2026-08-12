@@ -10,6 +10,7 @@ public record VisaoGeralDashboard(
         Atendimentos atendimentos,
         TempoMedioAtendimento tempoMedioAtendimento,
         AvaliacaoMedia avaliacaoMedia,
+        ResolucaoPorIa resolucaoPorIa,
         VendasFechadas vendasFechadas,
         TaxaConversao taxaConversao,
         List<EtapaDoFunil> funil,
@@ -33,6 +34,12 @@ public record VisaoGeralDashboard(
 
     public record AvaliacaoMedia(
             BigDecimal media, int escalaMaxima, long quantidade, Comparativo comparativo) {}
+
+    public record ResolucaoPorIa(
+            BigDecimal percentual,
+            long resolvidosSemTransferencia,
+            long atendimentosFinalizados,
+            Comparativo comparativo) {}
 
     public record VendasFechadas(long noPeriodo, long acumulado, Comparativo comparativo) {}
 

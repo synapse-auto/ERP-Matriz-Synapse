@@ -154,5 +154,14 @@ ON CONFLICT (chave) DO UPDATE
         descricao = EXCLUDED.descricao,
         atualizado_em = now();
 
+-- A Visao Geral voltou ao escopo da primeira entrega na E20. Provisionar uma
+-- instancia precisa habilitar a rota no menu; regras de autorizacao continuam
+-- restringindo seu conteudo a gestor e subgestor.
+INSERT INTO feature_flag (chave, habilitado, descricao)
+VALUES ('dashboard', TRUE, 'Dashboard de indicadores.')
+ON CONFLICT (chave) DO UPDATE
+    SET habilitado = TRUE,
+        descricao = EXCLUDED.descricao;
+
 COMMIT;
-\echo 'Provisionamento concluido: administrador, etapas, tags e configuracao da Automacao reconciliados.'
+\echo 'Provisionamento concluido: administrador, etapas, tags, Dashboard e configuracao da Automacao reconciliados.'

@@ -109,6 +109,7 @@ class DashboardVisaoGeralIT extends PostgresIT {
         criarMensagem(atendimentoAtual1, Instant.parse("2040-08-10T17:00:00Z"));
         criarMensagem(atendimentoAtual1, Instant.parse("2040-08-10T17:10:00Z"));
         criarMensagem(atendimentoAtual2, Instant.parse("2040-08-11T17:00:00Z"));
+        registrarTransferencia(atendimentoAtual1, atuais[0], gestor, agosto.plusSeconds(50));
 
         JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
 
@@ -120,6 +121,19 @@ class DashboardVisaoGeralIT extends PostgresIT {
         assertThat(resposta.at("/tempoMedioAtendimento/segundos").asLong()).isEqualTo(1500);
         assertThat(resposta.at("/avaliacaoMedia/media").decimalValue()).isEqualByComparingTo("4.50");
         assertThat(resposta.at("/avaliacaoMedia/escalaMaxima").asInt()).isEqualTo(5);
+
+        // Um dos quatro finalizados teve transferencia: permanece no denominador e sai apenas do
+        // numerador. Os dois finalizados de julho nao tiveram transferencia, portanto o comparativo
+        // e 75% - 100% = -25 pontos percentuais.
+        assertThat(resposta.at("/resolucaoPorIa/atendimentosFinalizados").asLong()).isEqualTo(4);
+        assertThat(resposta.at("/resolucaoPorIa/resolvidosSemTransferencia").asLong())
+                .isEqualTo(3);
+        assertThat(resposta.at("/resolucaoPorIa/percentual").decimalValue())
+                .isEqualByComparingTo("75.00");
+        assertThat(resposta.at("/resolucaoPorIa/comparativo/valor").decimalValue())
+                .isEqualByComparingTo("-25.00");
+        assertThat(resposta.at("/resolucaoPorIa/comparativo/unidade").asText())
+                .isEqualTo("PONTOS_PERCENTUAIS");
 
         // O fechamento de julho fica fora; duas transições do mesmo lead em agosto contam uma.
         assertThat(resposta.at("/vendasFechadas/noPeriodo").asLong()).isEqualTo(2);
@@ -247,6 +261,22 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 UUID.randomUUID(),
                 atendimentoId,
                 timestamp(enviadoEm));
+    }
+
+    private void registrarTransferencia(
+            UUID atendimentoId, UUID leadId, UUID atorId, Instant criadoEm) {
+        jdbc.update(
+                """
+                INSERT INTO evento_timeline
+                    (id, lead_id, atendimento_id, tipo, descricao, origem, ator_id, dados, criado_em)
+                VALUES (?, ?, ?, 'ATENDIMENTO_TRANSFERIDO', 'teste resolucao IA',
+                        'USUARIO', ?, '{}'::jsonb, ?)
+                """,
+                UUID.randomUUID(),
+                leadId,
+                atendimentoId,
+                atorId,
+                timestamp(criadoEm));
     }
 
     private JsonNode chamarComo(String email, String senha, String url) throws Exception {

@@ -15,6 +15,12 @@ export interface VisaoGeralDashboard {
     quantidade: number;
     comparativo: Comparativo | null;
   };
+  resolucaoPorIa: {
+    percentual: number | null;
+    resolvidosSemTransferencia: number;
+    atendimentosFinalizados: number;
+    comparativo: Comparativo | null;
+  };
   vendasFechadas: { noPeriodo: number; acumulado: number; comparativo: Comparativo | null };
   taxaConversao: {
     percentual: number | null;

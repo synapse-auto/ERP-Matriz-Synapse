@@ -14,7 +14,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", originacao: "Originação", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
-      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "CSAT", csatApoio: "{total} avaliações", periodoAnterior: "vs. período anterior" },
+      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "CSAT", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },
       secoes: { ranking: "Top atendentes · vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem vendas", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
       funil: { vazio: "Sem etapas" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
@@ -33,6 +33,7 @@ describe("PaginaDashboard", () => {
         atendimentos: { noPeriodo: 12, acumulado: 40, comparativo: { valor: 20, unidade: "PERCENTUAL" } },
         tempoMedioAtendimento: { segundos: 5400, comparativo: { valor: -10, unidade: "PERCENTUAL" } },
         avaliacaoMedia: { media: 4.5, escalaMaxima: 5, quantidade: 8, comparativo: null },
+        resolucaoPorIa: { percentual: 75, resolvidosSemTransferencia: 9, atendimentosFinalizados: 12, comparativo: { valor: 5, unidade: "PONTOS_PERCENTUAIS" } },
         vendasFechadas: { noPeriodo: 3, acumulado: 9, comparativo: null },
         taxaConversao: { percentual: 50, vendas: 3, leadsRecebidos: 6, comparativo: { valor: 25, unidade: "PONTOS_PERCENTUAIS" } },
         funil: [{ id: "e1", nome: "Negociação", ordem: 1, corVisual: null, quantidade: 6, percentualDePassagem: 50 }],
@@ -57,7 +58,9 @@ describe("PaginaDashboard", () => {
     expect(screen.getByRole("button", { name: /Operacional/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Comercial/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /IA e Automação/ })).toBeDisabled();
-    expect(screen.queryByText("Resolução por IA")).not.toBeInTheDocument();
+    expect(screen.getByText("Resolução por IA")).toBeInTheDocument();
+    expect(screen.getByText("75,0%")).toBeInTheDocument();
+    expect(screen.getByText("Sem transferência humana")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Jan" }));
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }));
