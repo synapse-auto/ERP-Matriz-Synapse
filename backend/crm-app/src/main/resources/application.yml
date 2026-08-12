@@ -169,6 +169,17 @@ synapse:
   alertas:
     webhook-grupo: ${ALERTA_WEBHOOK:}
 
+  # Diagnostico do caminho de mensagens. Limites por ambiente: um filho de
+  # maior volume pode ajustar sem recompilar a Base PAI.
+  saude:
+    critica:
+      fila-sem-consumo-maximo: ${SAUDE_FILA_SEM_CONSUMO_MAXIMO:10s}
+      outbox-idade-maxima: ${SAUDE_OUTBOX_IDADE_MAXIMA:5m}
+      outbox-pendentes-maximo: ${SAUDE_OUTBOX_PENDENTES_MAXIMO:20}
+      falhas-consecutivas-para-alertar: ${SAUDE_FALHAS_CONSECUTIVAS_ALERTA:2}
+      monitoramento-habilitado: ${SAUDE_MONITORAMENTO_INTERNO_HABILITADO:true}
+      intervalo-monitoramento: ${SAUDE_INTERVALO_MONITORAMENTO:30s}
+
   # Flags de nivel 3 (arquivo da instancia). O mapa e aberto: ligar um modulo
   # para um filho e uma linha aqui. As flags editaveis sem deploy chegam na E08
   # e tem precedencia sobre estas.
@@ -252,22 +263,24 @@ synapse:
 # ---------------------------------------------------------------------------
 # Health checks.
 #
-# base-path "/" + path-mapping expoe o health em /health, e os grupos em
-# /health/liveness e /health/readiness (formato documentado pelo Spring Boot).
+# O endpoint raiz do Actuator fica em /internal-health para nao capturar o
+# namespace /health/** inteiro. ProbesController preserva os caminhos publicos
+# /health/liveness e /health/readiness; /health/critical pertence ao controller
+# operacional.
 #
 # liveness NAO inclui o banco: liveness responde "o processo esta vivo". Incluir
 # o banco faria uma oscilacao do Postgres reiniciar o container, que e
 # exatamente o oposto do que a regra de estabilidade pede. Quem olha o banco e
 # readiness, que so tira a instancia do balanceador.
 #
-# /health/critical (doc 07, secao 7) e o watchdog externo entram na etapa E09.
+# /health/critical e observado externamente; nunca participa do liveness.
 # ---------------------------------------------------------------------------
 management:
   endpoints:
     web:
       base-path: /
       path-mapping:
-        health: health
+        health: internal-health
       exposure:
         include: health,info
   endpoint:

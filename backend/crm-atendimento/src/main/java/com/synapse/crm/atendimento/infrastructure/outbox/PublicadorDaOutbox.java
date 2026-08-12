@@ -26,15 +26,19 @@ public class PublicadorDaOutbox {
     private static final Logger log = LoggerFactory.getLogger(PublicadorDaOutbox.class);
 
     private final PublicadorDaOutboxOperacoes operacoes;
+    private final SaudeDoConsumidorDaOutbox saude;
 
-    public PublicadorDaOutbox(PublicadorDaOutboxOperacoes operacoes) {
+    public PublicadorDaOutbox(
+            PublicadorDaOutboxOperacoes operacoes, SaudeDoConsumidorDaOutbox saude) {
         this.operacoes = operacoes;
+        this.saude = saude;
     }
 
     /** Agendamento curto: e o que define a latencia percebida entre o clique e a saida. */
     @Scheduled(fixedDelayString = "${synapse.canal.outbox.intervalo-ms:1000}")
     public void publicarPendentes() {
         ContextoDeServico.executarComo("publicador-outbox", operacoes::rodada);
+        saude.registrarConsumoBemSucedido();
     }
 
     /**

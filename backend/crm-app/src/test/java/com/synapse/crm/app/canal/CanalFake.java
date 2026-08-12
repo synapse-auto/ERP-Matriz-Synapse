@@ -90,6 +90,11 @@ public class CanalFake implements CanalGateway {
     }
 
     @Override
+    public AutenticacaoDoCanal verificarAutenticacao() {
+        return AutenticacaoDoCanal.aceita();
+    }
+
+    @Override
     public ResultadoDeEnvio enviar(Envio envio) {
         ResultadoDeEnvio resposta = proximaResposta.get();
         // So conta como enviado o que o provedor de fato aceitou: e assim que o teste

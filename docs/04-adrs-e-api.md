@@ -115,8 +115,11 @@ Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token pe
 
 | Método | Rota | Descrição | Evidência |
 |---|---|---|---|
-| GET | `/health/liveness` | Processo vivo; não testa dependências | Spring Actuator `HealthEndpointWebExtension`, configurado em `application.yml` · `AplicacaoIT` |
-| GET | `/health/readiness` | Prontidão composta pelos indicadores do Actuator | Spring Actuator `HealthEndpointWebExtension`, configurado em `application.yml` · `AplicacaoIT` |
+| GET | `/health/liveness` | Processo vivo; não testa dependências | `ProbesController` · `AplicacaoIT` e `SaudeBancoIndisponivelIT` |
+| GET | `/health/readiness` | Prontidão da aplicação e acesso pelo pool geral | `ProbesController` · `AplicacaoIT` |
+| GET | `/health/critical` | Seis sinais do caminho de mensagens, com componente e severidade (`UP`, `DEGRADED` ou `DOWN`) | `SaudeCriticaController` · `SaudeCriticaIT`, `SaudeBancoIndisponivelIT` e `SaudeCanalInvalidoIT` |
+
+O componente `fila-outbox` mede a fila transacional que o backend realmente consome (`outbox_evento` + `PublicadorDaOutbox`), não o container RabbitMQ sem consumidor no código. `banco-chat`, `canal`, `websocket` e `particoes-mensagem` são críticos; acúmulo anormal da outbox é degradado. O endpoint raiz e os grupos internos do Actuator ficam em `/internal-health`; o healthcheck do container permanece em `/health/liveness`.
 
 ### Equipe
 

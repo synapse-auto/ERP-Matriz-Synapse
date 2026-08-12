@@ -99,6 +99,39 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     @Override
+    public AutenticacaoDoCanal verificarAutenticacao() {
+        if (propriedades.token() == null
+                || propriedades.token().isBlank()
+                || propriedades.numeroPrincipal() == null
+                || propriedades.numeroPrincipal().isBlank()) {
+            return AutenticacaoDoCanal.recusada("token ou identificador do canal ausente");
+        }
+        try {
+            return breaker.executeSupplier(this::consultarIdentidadeDoCanal);
+        } catch (CallNotPermittedException e) {
+            return AutenticacaoDoCanal.recusada("circuit breaker do provedor aberto");
+        } catch (RestClientResponseException e) {
+            return AutenticacaoDoCanal.recusada(
+                    "provedor recusou a credencial com HTTP " + e.getStatusCode().value());
+        } catch (RuntimeException e) {
+            return AutenticacaoDoCanal.recusada(
+                    "provedor indisponivel: " + e.getClass().getSimpleName());
+        }
+    }
+
+    private AutenticacaoDoCanal consultarIdentidadeDoCanal() {
+        JsonNode resposta = http.get()
+                .uri("/{numero}?fields=id", propriedades.numeroPrincipal())
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(JsonNode.class);
+        if (resposta == null || resposta.path("id").asText().isBlank()) {
+            return AutenticacaoDoCanal.recusada("provedor respondeu sem identificar o canal");
+        }
+        return AutenticacaoDoCanal.aceita();
+    }
+
+    @Override
     public ResultadoDeEnvio enviar(Envio envio) {
         try {
             return breaker.executeSupplier(() -> chamar(envio));

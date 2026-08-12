@@ -81,6 +81,10 @@ public abstract class PostgresIT {
         // @Scheduled na mao (ver CanalWhatsAppIT, TempoRealIT), nunca espera o timer real.
         registro.add("synapse.canal.outbox.intervalo-ms", () -> "3600000");
         registro.add("synapse.canal.webhook.intervalo-ms", () -> "3600000");
+        // O monitor operacional tem testes que chamam seu caso de uso explicitamente. Deixa-lo
+        // agendado em todos os ApplicationContexts publicaria alertas de suites alheias e repetiria
+        // a mesma interferencia entre testes que ja ocorreu com o publisher da outbox.
+        registro.add("synapse.saude.critica.monitoramento-habilitado", () -> "false");
     }
 
     /**

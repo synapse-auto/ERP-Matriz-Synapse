@@ -43,6 +43,14 @@ public interface CanalGateway {
     boolean exigeTemplateForaDaJanela();
 
     /**
+     * Confirma que a credencial configurada ainda autentica no provedor.
+     *
+     * <p>Esta chamada pertence exclusivamente ao monitoramento operacional. Nunca entra no caminho
+     * sincrono de envio ou recebimento de mensagem.
+     */
+    AutenticacaoDoCanal verificarAutenticacao();
+
+    /**
      * Entrega a mensagem ao provedor.
      *
      * <p>Nao lanca por falha do provedor: devolve {@link ResultadoDeEnvio.Recusado}. Excecao aqui
@@ -70,4 +78,16 @@ public interface CanalGateway {
 
     /** Os bytes de uma midia recebida, prontos para o storage proprio. */
     record MidiaRecebida(byte[] conteudo, String mimetype) {}
+
+    /** Resultado sanitizado: o diagnostico nunca carrega token nem corpo devolvido pelo provedor. */
+    record AutenticacaoDoCanal(boolean autenticada, String detalhe) {
+
+        public static AutenticacaoDoCanal aceita() {
+            return new AutenticacaoDoCanal(true, "credencial aceita pelo provedor");
+        }
+
+        public static AutenticacaoDoCanal recusada(String detalhe) {
+            return new AutenticacaoDoCanal(false, detalhe);
+        }
+    }
 }
