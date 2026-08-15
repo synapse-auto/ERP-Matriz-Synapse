@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { enviarMidia } from "./api";
+import { atualizarPaginaRecente } from "./cache-mensagens";
 import type { MensagemResposta, TipoMensagem } from "./types";
 
 interface VariaveisEnvioMidia {
@@ -60,15 +61,15 @@ export function useEnviarMidia() {
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
       };
-      queryClient.setQueryData<MensagemResposta[]>(queryKey, (atual) => [...(atual ?? []), otimista]);
+      atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
       return { queryKey, idOtimista };
     },
     onError: (_erro, _variaveis, contexto) => {
       if (!contexto) {
         return;
       }
-      queryClient.setQueryData<MensagemResposta[]>(contexto.queryKey, (atual) =>
-        (atual ?? []).map((mensagem) =>
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        atual.map((mensagem) =>
           mensagem.id === contexto.idOtimista
             ? ({ ...mensagem, statusEntrega: "FALHOU" } as MensagemResposta)
             : mensagem,
@@ -79,8 +80,8 @@ export function useEnviarMidia() {
       if (!contexto) {
         return;
       }
-      queryClient.setQueryData<MensagemResposta[]>(contexto.queryKey, (atual) =>
-        (atual ?? []).map((mensagem) =>
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        atual.map((mensagem) =>
           mensagem.id === contexto.idOtimista
             ? {
                 ...mensagem,

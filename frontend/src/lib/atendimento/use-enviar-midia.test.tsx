@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
 
+import type { DadosDoHistorico } from "./cache-mensagens";
 import { useEnviarMidia } from "./use-enviar-midia";
-import type { MensagemResposta } from "./types";
 
 vi.mock("./api", () => ({
   enviarMidia: vi.fn(),
@@ -24,9 +24,24 @@ function arquivoFake(nome: string, tipo: string): File {
   return new File(["conteudo"], nome, { type: tipo });
 }
 
+function prepararHistorico(queryClient: QueryClient, atendimentoId: string) {
+  queryClient.setQueryData<DadosDoHistorico>(["mensagens", atendimentoId], {
+    pages: [{ mensagens: [], proximoCursor: null }],
+    pageParams: [null],
+  });
+}
+
+function mensagensDoHistorico(queryClient: QueryClient, atendimentoId: string) {
+  return queryClient.getQueryData<DadosDoHistorico>(["mensagens", atendimentoId])?.pages[0]
+    .mensagens;
+}
+
 describe("useEnviarMidia", () => {
+  beforeEach(() => vi.resetAllMocks());
+
   it("adiciona bolha PENDENTE otimista assim que o mutate roda", async () => {
     const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-1");
     vi.mocked(enviarMidia).mockImplementation(() => new Promise(() => {}));
 
     const { result } = renderHook(() => useEnviarMidia(), { wrapper: wrapper(queryClient) });
@@ -38,7 +53,7 @@ describe("useEnviarMidia", () => {
     });
 
     await waitFor(() => {
-      const mensagens = queryClient.getQueryData<MensagemResposta[]>(["mensagens", "at-1"]);
+      const mensagens = mensagensDoHistorico(queryClient, "at-1");
       expect(mensagens).toHaveLength(1);
       expect(mensagens?.[0].statusEntrega).toBe("PENDENTE");
       expect(mensagens?.[0].tipo).toBe("IMAGEM");
@@ -47,6 +62,7 @@ describe("useEnviarMidia", () => {
 
   it("troca para FALHOU quando o upload falha", async () => {
     const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-2");
     vi.mocked(enviarMidia).mockRejectedValue(new ErroDeApi(500, null, "falhou"));
 
     const { result } = renderHook(() => useEnviarMidia(), { wrapper: wrapper(queryClient) });
@@ -58,13 +74,14 @@ describe("useEnviarMidia", () => {
     });
 
     await waitFor(() => {
-      const mensagens = queryClient.getQueryData<MensagemResposta[]>(["mensagens", "at-2"]);
+      const mensagens = mensagensDoHistorico(queryClient, "at-2");
       expect(mensagens?.[0].statusEntrega).toBe("FALHOU");
     });
   });
 
   it("no sucesso troca o id temporario pelo id real devolvido pelo backend", async () => {
     const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-3");
     vi.mocked(enviarMidia).mockResolvedValue({
       atendimentoId: "at-3",
       mensagemId: "msg-real-123",
@@ -82,7 +99,7 @@ describe("useEnviarMidia", () => {
     });
 
     await waitFor(() => {
-      const mensagens = queryClient.getQueryData<MensagemResposta[]>(["mensagens", "at-3"]);
+      const mensagens = mensagensDoHistorico(queryClient, "at-3");
       expect(mensagens?.[0].id).toBe("msg-real-123");
       expect(mensagens?.[0].statusEntrega).toBe("ENVIADO");
       expect(mensagens?.[0].tipo).toBe("AUDIO");
@@ -91,6 +108,7 @@ describe("useEnviarMidia", () => {
 
   it("reporta progresso de upload via onProgresso", async () => {
     const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-4");
     let progressoCapturado: ((percentual: number) => void) | undefined;
     vi.mocked(enviarMidia).mockImplementation((_id, _arquivo, _legenda, onProgresso) => {
       progressoCapturado = onProgresso as (percentual: number) => void;

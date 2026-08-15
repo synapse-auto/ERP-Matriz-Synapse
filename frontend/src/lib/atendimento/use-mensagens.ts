@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
-import { type InfiniteData, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { mensagensDesde, paginaMensagens } from "./api";
+import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
-import type { MensagemResposta, PaginaMensagens } from "./types";
-
-type DadosDoHistorico = InfiniteData<PaginaMensagens, string | null>;
+import type { MensagemResposta } from "./types";
 
 /** Historico por cursor, somado ao fluxo incremental do WebSocket e a reconciliacao de reconexao. */
 export function useMensagens(
@@ -36,17 +35,6 @@ export function useMensagens(
     [query.data],
   );
 
-  function atualizarPaginaRecente(
-    atualizador: (mensagensAtuais: MensagemResposta[]) => MensagemResposta[],
-  ) {
-    queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) => {
-      if (!atual || atual.pages.length === 0) return atual;
-      const pages = [...atual.pages];
-      pages[0] = { ...pages[0], mensagens: atualizador(pages[0].mensagens) };
-      return { ...atual, pages };
-    });
-  }
-
   useEffect(() => {
     ultimoInstanteRef.current = null;
     if (!atendimentoId) {
@@ -66,7 +54,7 @@ export function useMensagens(
           statusEntrega: evento.dados.statusEntrega,
           enviadoEm: evento.dados.enviadoEm,
         };
-        atualizarPaginaRecente((atuais) => mesclarMensagens(atuais, [nova]));
+        atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;
       } else if (evento.tipo === "STATUS") {
         queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
@@ -103,7 +91,9 @@ export function useMensagens(
   useEffect(() => {
     if (estadoConexao !== "conectado" || !atendimentoId || !ultimoInstanteRef.current) return;
     mensagensDesde(atendimentoId, ultimoInstanteRef.current).then((novas) => {
-      if (novas.length > 0) atualizarPaginaRecente((atuais) => mesclarMensagens(atuais, novas));
+      if (novas.length > 0) {
+        atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, novas));
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reage somente a transicao da conexao
   }, [estadoConexao]);

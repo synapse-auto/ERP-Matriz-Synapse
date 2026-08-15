@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { enviarMensagem } from "./api";
+import { atualizarPaginaRecente } from "./cache-mensagens";
 import type { MensagemResposta } from "./types";
 
 interface VariaveisEnvio {
@@ -40,15 +41,15 @@ export function useEnviarMensagem() {
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
       };
-      queryClient.setQueryData<MensagemResposta[]>(queryKey, (atual) => [...(atual ?? []), otimista]);
+      atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
       return { queryKey, idOtimista };
     },
     onError: (_erro, _variaveis, contexto) => {
       if (!contexto) {
         return;
       }
-      queryClient.setQueryData<MensagemResposta[]>(contexto.queryKey, (atual) =>
-        (atual ?? []).map((mensagem) =>
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        atual.map((mensagem) =>
           mensagem.id === contexto.idOtimista
             ? ({ ...mensagem, statusEntrega: "FALHOU" } as MensagemResposta)
             : mensagem,
@@ -70,8 +71,8 @@ export function useEnviarMensagem() {
         statusEntrega: resposta.statusEntrega,
         enviadoEm: resposta.enviadoEm,
       };
-      queryClient.setQueryData<MensagemResposta[]>(contexto.queryKey, (atual) =>
-        (atual ?? []).map((mensagem) => (mensagem.id === contexto.idOtimista ? real : mensagem)),
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        atual.map((mensagem) => (mensagem.id === contexto.idOtimista ? real : mensagem)),
       );
       if (resposta.transferiuOLead) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
