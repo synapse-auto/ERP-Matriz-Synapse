@@ -84,7 +84,7 @@ jobs:
   infra:
     name: Stack de producao
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     env:
       POSTGRES_DB: synapse_ci
       POSTGRES_USER: synapse_ci
@@ -128,6 +128,9 @@ jobs:
             exit 1
           fi
           grep -F 'SYNAPSE_API_URL: http://synapse-backend-internal:8080/internal/v1' docker/dokploy-stack.yml
+
+      - name: Handshake WebSocket pela imagem e pelo Traefik
+        run: docker/verificacao/testar-websocket-empacotado.sh
 
   imagens:
     name: Imagem ${{ matrix.nome }} (GHCR)

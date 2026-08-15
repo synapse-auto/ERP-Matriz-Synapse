@@ -1,0 +1,77 @@
+name: synapse-websocket-empacotado
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: synapse_ws
+      POSTGRES_USER: synapse_ws
+      POSTGRES_PASSWORD: synapse_ws_teste
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse_ws -d synapse_ws"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    networks: [internal]
+
+  backend:
+    image: synapse-backend-websocket-test:local
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SYNAPSE_DB_URL: jdbc:postgresql://postgres:5432/synapse_ws
+      SYNAPSE_DB_USER: synapse_ws
+      SYNAPSE_DB_PASSWORD: synapse_ws_teste
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      SYNAPSE_JWT_SEGREDO: teste-websocket-empacotado-segredo-com-mais-de-32-bytes
+      SYNAPSE_TOKEN_INTERNO: teste-websocket-token-interno
+      SYNAPSE_FRONTEND_ORIGEM: http://crm.ws.test
+      WS_ORIGENS_PERMITIDAS: http://crm.ws.test
+      WHATSAPP_PROVEDOR: meta-cloud
+      WHATSAPP_URL_BASE: http://127.0.0.1:9
+      WHATSAPP_NUMERO: phone-id-teste
+      WHATSAPP_TOKEN: token-teste
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: verify-teste
+      WHATSAPP_WEBHOOK_SECRET: webhook-secret-teste
+      AUTOMACAO_TOKEN: automacao-token-teste
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal, proxy]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=synapse-ws-proxy"
+      - 'traefik.http.routers.ws-backend.rule=Host(`crm.ws.test`) && (PathPrefix(`/api/v1`) || PathPrefix(`/ws`) || PathPrefix(`/health`))'
+      - "traefik.http.routers.ws-backend.entrypoints=web"
+      - "traefik.http.routers.ws-backend.service=ws-backend"
+      - "traefik.http.services.ws-backend.loadbalancer.server.port=8080"
+
+  traefik:
+    image: traefik:v3.6
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "127.0.0.1:18080:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [proxy]
+
+networks:
+  internal:
+    name: synapse-ws-internal
+    internal: true
+  proxy:
+    name: synapse-ws-proxy
