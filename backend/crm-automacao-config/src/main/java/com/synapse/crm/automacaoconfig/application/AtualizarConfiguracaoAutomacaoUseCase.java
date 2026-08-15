@@ -17,8 +17,8 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 /**
  * Altera um parametro de automacao (E07 §3).
  *
- * <p>Restrito a gestor/subgestor: e um parametro que muda o comportamento da automacao para todo
- * mundo, nao uma preferencia pessoal. A validacao de faixa mora em {@link ConfiguracaoAutomacao},
+ * <p>Restrito a gestão e administrador: e um parametro que muda o comportamento da automacao para
+ * todo mundo, nao uma preferencia pessoal. A validacao de faixa mora em {@link ConfiguracaoAutomacao},
  * nao aqui — este caso de uso so orquestra carregar, validar, salvar e avisar quem precisa reagir.
  */
 @Service
@@ -40,7 +40,7 @@ public class AtualizarConfiguracaoAutomacaoUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional
     public ConfiguracaoAutomacao executar(String chave, String novoValor) {
         ConfiguracaoAutomacao atual = configuracoes

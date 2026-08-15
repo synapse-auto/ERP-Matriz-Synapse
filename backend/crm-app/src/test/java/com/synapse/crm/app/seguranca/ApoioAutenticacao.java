@@ -14,10 +14,12 @@ public final class ApoioAutenticacao {
 
     /** Senhas do seed de desenvolvimento (R__seed_dev.sql). Publicas e descartaveis. */
     public static final String SENHA_ATENDENTE = "atendente123";
+    public static final String SENHA_ADMINISTRADOR = "admin123";
 
     public static final String SENHA_GESTOR = "gestor123";
     public static final String SENHA_SUBGESTOR = "subgestor123";
     public static final String EMAIL_ANA = "ana@dev.local";
+    public static final String EMAIL_ADMINISTRADOR = "admin@dev.local";
     public static final String EMAIL_BRUNO = "bruno@dev.local";
     public static final String EMAIL_GESTOR = "gestor@dev.local";
     public static final String EMAIL_SUBGESTOR = "subgestor@dev.local";

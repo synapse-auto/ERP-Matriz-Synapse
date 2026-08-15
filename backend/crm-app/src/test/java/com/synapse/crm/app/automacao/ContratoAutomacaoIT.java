@@ -1,8 +1,10 @@
 package com.synapse.crm.app.automacao;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
@@ -188,6 +190,32 @@ class ContratoAutomacaoIT extends PostgresIT {
                     "/api/v1/automacao/config", HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
 
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+
+        @Test
+        @DisplayName("administrador pode ler e editar configuracao")
+        void administrador_leEEdita() {
+            String token = ApoioAutenticacao.login(
+                            http, EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR)
+                    .accessToken();
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(token);
+
+            ResponseEntity<String> leitura = http.exchange(
+                    "/api/v1/automacao/config",
+                    HttpMethod.GET,
+                    new HttpEntity<>(cabecalhos),
+                    String.class);
+            assertThat(leitura.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+            ResponseEntity<String> edicao = http.exchange(
+                    "/api/v1/automacao/config/" + CHAVE_TESTE,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(java.util.Map.of("valor", "33"), cabecalhos),
+                    String.class);
+            assertThat(edicao.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(edicao.getBody()).contains("\"valor\":\"33\"");
         }
 
         @Test

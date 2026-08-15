@@ -1,11 +1,17 @@
 package com.synapse.crm.app.arquitetura;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Regra de dependencia do monorepo, verificada no build.
@@ -29,6 +35,28 @@ import com.tngtech.archunit.lang.ArchRule;
         packages = "com.synapse.crm",
         importOptions = {ImportOption.DoNotIncludeTests.class})
 class ArquiteturaTest {
+
+    @ArchTest
+    static final ArchRule autorizacao_de_gestao_inclui_administrador = methods()
+            .that()
+            .areAnnotatedWith(PreAuthorize.class)
+            .should(new ArchCondition<>("incluir ADMINISTRADOR quando inclui GESTOR") {
+                @Override
+                public void check(JavaMethod metodo, ConditionEvents eventos) {
+                    String expressao = metodo.getAnnotationOfType(PreAuthorize.class).value();
+                    boolean valida = autorizacaoGerencialIncluiAdministrador(expressao);
+                    eventos.add(new SimpleConditionEvent(
+                            metodo,
+                            valida,
+                            metodo.getFullName() + " declara " + expressao
+                                    + (valida ? "" : " sem ADMINISTRADOR")));
+                }
+            })
+            .because("ADMINISTRADOR tem no minimo as permissoes gerenciais");
+
+    static boolean autorizacaoGerencialIncluiAdministrador(String expressao) {
+        return !expressao.contains("GESTOR") || expressao.contains("ADMINISTRADOR");
+    }
 
     /**
      * O dominio e Java puro. Se foi preciso importar {@code jakarta.persistence} aqui, o mapeamento

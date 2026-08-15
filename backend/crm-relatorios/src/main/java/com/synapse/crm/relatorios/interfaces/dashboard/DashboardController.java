@@ -41,7 +41,7 @@ class DashboardController {
             responses = {
                 @ApiResponse(responseCode = "200", description = "Visão consolidada."),
                 @ApiResponse(responseCode = "400", description = "Período inválido."),
-                @ApiResponse(responseCode = "403", description = "Usuário não é gestor ou subgestor.")
+                @ApiResponse(responseCode = "403", description = "Usuário não possui papel de gestão.")
             })
     @Parameters({
         @Parameter(name = "ano", description = "Ano dos meses selecionados.", example = "2026"),

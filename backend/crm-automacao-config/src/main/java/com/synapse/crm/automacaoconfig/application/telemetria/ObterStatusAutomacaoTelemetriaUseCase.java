@@ -9,8 +9,8 @@ import com.synapse.crm.automacaoconfig.domain.telemetria.StatusAutomacaoTelemetr
 /**
  * Os quatro cards do topo da tela de Automação (E17b §Bloco 6).
  *
- * <p>Mesma autorização de {@code ListarConfiguracoesAutomacaoAdminUseCase} — GESTOR/SUBGESTOR — e
- * pelo mesmo motivo: essa tela e administrativa, e o singleton nao carrega recorte por atendente
+ * <p>Mesma autorização de {@code ListarConfiguracoesAutomacaoAdminUseCase} — gestão e administrador
+ * — e pelo mesmo motivo: essa tela e administrativa, e o singleton nao carrega recorte por atendente
  * (telemetria e da operacao inteira, nao de um dono de lead), entao a unica linha de defesa aqui e
  * o papel de quem pede, nao um filtro de visibilidade por linha.
  */
@@ -23,7 +23,7 @@ public class ObterStatusAutomacaoTelemetriaUseCase {
         this.telemetria = telemetria;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional(readOnly = true)
     public StatusAutomacaoTelemetria executar() {
         return telemetria.obter();

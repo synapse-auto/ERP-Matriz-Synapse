@@ -1,8 +1,10 @@
 package com.synapse.crm.app.relatorios;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
@@ -155,8 +157,8 @@ class DashboardVisaoGeralIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("atendente recebe 403 e subgestor recebe 200")
-    void acesso_restrito_aGestorESubgestor() throws Exception {
+    @DisplayName("atendente recebe 403; subgestor e administrador recebem 200")
+    void acesso_restrito_aGestaoEAdministrador() throws Exception {
         var atendente = ApoioAutenticacao.comToken(
                 http,
                 ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken(),
@@ -167,6 +169,9 @@ class DashboardVisaoGeralIT extends PostgresIT {
 
         JsonNode subgestor = chamarComo(EMAIL_SUBGESTOR, SENHA_SUBGESTOR, URL);
         assertThat(subgestor.at("/periodo/ano").asInt()).isEqualTo(2040);
+
+        JsonNode administrador = chamarComo(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR, URL);
+        assertThat(administrador.at("/periodo/ano").asInt()).isEqualTo(2040);
     }
 
     @Test

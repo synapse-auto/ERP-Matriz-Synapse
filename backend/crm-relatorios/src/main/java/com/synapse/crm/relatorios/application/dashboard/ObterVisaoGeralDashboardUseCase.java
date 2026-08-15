@@ -26,7 +26,7 @@ public class ObterVisaoGeralDashboardUseCase {
         this.fusoHorario = ZoneId.of(fusoHorario);
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional(readOnly = true)
     public VisaoGeralDashboard executar(
             int ano, List<Integer> meses, LocalDate origemInicio, LocalDate origemFim) {

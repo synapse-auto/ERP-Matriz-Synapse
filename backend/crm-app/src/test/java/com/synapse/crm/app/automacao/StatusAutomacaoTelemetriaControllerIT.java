@@ -1,8 +1,10 @@
 package com.synapse.crm.app.automacao;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
@@ -73,6 +75,14 @@ class StatusAutomacaoTelemetriaControllerIT extends PostgresIT {
     @DisplayName("subgestor tambem le — mesma autorizacao do gestor")
     void subgestor_tambemLe() {
         ResponseEntity<String> resposta = comoUsuario(EMAIL_SUBGESTOR, SENHA_SUBGESTOR);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("administrador le a telemetria global")
+    void administrador_tambemLe() {
+        ResponseEntity<String> resposta = comoUsuario(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

@@ -28,7 +28,7 @@ public class ListarConfiguracoesAutomacaoAdminUseCase {
         this.configuracoes = configuracoes;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional(readOnly = true)
     public List<ConfiguracaoAutomacao> executar() {
         return configuracoes.listarTodas();
