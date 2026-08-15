@@ -125,12 +125,19 @@ export function Composer({ conversa }: Props) {
     }
   }
 
-  const mensagemDeErro =
+  const erroDeTexto =
+    enviar.error instanceof ErroDeApi
+      ? enviar.error.message
+      : enviar.isError
+        ? textosAtendimentos.mensagem.status.falhou
+        : null;
+  const erroDeMidia =
     enviarMidia.error instanceof ErroDeApi
       ? enviarMidia.error.message
       : enviarMidia.isError
         ? textos.anexoErro
         : null;
+  const mensagemDeErro = erroDeTexto ?? erroDeMidia;
   const termoAtalho = texto.startsWith("/") && !texto.includes(" ") ? texto.slice(1).toLowerCase() : null;
   const sugestoes = termoAtalho === null ? [] : (rapidas.data ?? []).filter((m) => m.palavraChave.toLowerCase().includes(termoAtalho));
 

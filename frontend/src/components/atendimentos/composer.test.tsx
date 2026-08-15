@@ -1,14 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
+const estadoTexto: { isError: boolean; error: Error | null } = { isError: false, error: null };
 
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
-  useEnviarMensagem: () => ({ mutate: mutateTexto, isPending: false }),
+  useEnviarMensagem: () => ({ mutate: mutateTexto, isPending: false, ...estadoTexto }),
 }));
 
 vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
@@ -54,7 +55,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         agendar: "Agendar mensagem",
         mensagensRapidas: "Mensagens rápidas",
       },
-      mensagens: { reenviar: "Reenviar" },
+      mensagem: {
+        status: {
+          pendente: "Enviando",
+          enviado: "Enviado",
+          entregue: "Entregue",
+          lido: "Lido",
+          falhou: "Falha ao enviar",
+        },
+        reenviar: "Reenviar",
+      },
     },
     mensagensProgramadas: {
       formulario: {
@@ -102,6 +112,12 @@ function arquivoFake(nome: string, tipo: string): File {
 }
 
 describe("Composer — anexo", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    estadoTexto.isError = false;
+    estadoTexto.error = null;
+  });
+
   it("mostra o chip de preview com nome e tamanho ao selecionar um arquivo", () => {
     renderizar();
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -153,5 +169,14 @@ describe("Composer — anexo", () => {
 
     expect(composer).toHaveValue("Olá! Como posso ajudar?");
     expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("mostra na tela quando o envio de texto falha", () => {
+    estadoTexto.isError = true;
+    estadoTexto.error = new Error("falha de rede");
+
+    renderizar();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha ao enviar");
   });
 });
