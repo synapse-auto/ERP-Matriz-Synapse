@@ -10,6 +10,8 @@ variaveis_obrigatorias=(
   SYNAPSE_ETAPAS_JSON
   SYNAPSE_TAGS_JSON
   SYNAPSE_AUTOMACAO_JSON
+  WHATSAPP_NUMERO
+  WHATSAPP_PROVEDOR
 )
 
 for variavel in "${variaveis_obrigatorias[@]}"; do
@@ -41,4 +43,6 @@ container="$(resolver_postgres_container)"
     --set=admin_email="${SYNAPSE_ADMIN_EMAIL}" \
     --set=etapas_json="${SYNAPSE_ETAPAS_JSON}" \
     --set=tags_json="${SYNAPSE_TAGS_JSON}" \
-    --set=automacao_json="${SYNAPSE_AUTOMACAO_JSON}"
+    --set=automacao_json="${SYNAPSE_AUTOMACAO_JSON}" \
+    --set=whatsapp_numero="${WHATSAPP_NUMERO}" \
+    --set=whatsapp_provedor="${WHATSAPP_PROVEDOR}"

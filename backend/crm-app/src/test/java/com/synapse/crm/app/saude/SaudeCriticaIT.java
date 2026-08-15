@@ -2,6 +2,7 @@ package com.synapse.crm.app.saude;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,6 +46,7 @@ class SaudeCriticaIT extends PostgresIT {
 
     private String nomeCredencialAtiva;
     private String nomeOutbox;
+    private List<UUID> canaisAtivosAntes;
 
     @BeforeEach
     void preparar() {
@@ -52,6 +54,7 @@ class SaudeCriticaIT extends PostgresIT {
         consumidor.publicarPendentes();
         nomeCredencialAtiva = "canal_credencial_e22_" + UUID.randomUUID().toString().replace("-", "");
         nomeOutbox = "outbox_evento_e22_" + UUID.randomUUID().toString().replace("-", "");
+        canaisAtivosAntes = jdbc.queryForList("SELECT id FROM canal WHERE ativo", UUID.class);
     }
 
     @AfterEach
@@ -62,6 +65,9 @@ class SaudeCriticaIT extends PostgresIT {
         }
         if (tabelaExiste(nomeCredencialAtiva)) {
             jdbc.execute("ALTER TABLE " + nomeCredencialAtiva + " RENAME TO canal_credencial");
+        }
+        for (UUID canalId : canaisAtivosAntes) {
+            jdbc.update("UPDATE canal SET ativo = TRUE WHERE id = ?", canalId);
         }
         jdbc.update("DELETE FROM outbox_evento WHERE tipo = 'e22.saude.teste'");
     }
@@ -106,6 +112,18 @@ class SaudeCriticaIT extends PostgresIT {
         assertThat(resposta.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(componente(resposta.corpo(), "canal").path("status").asText())
                 .isEqualTo("DOWN");
+    }
+
+    @Test
+    @DisplayName("nenhum canal ativo cadastrado derruba a saude critica")
+    void canalAtivoAusente_identificaCanal() throws Exception {
+        jdbc.update("UPDATE canal SET ativo = FALSE");
+
+        Resposta resposta = chamarCritical();
+        assertThat(resposta.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        JsonNode canal = componente(resposta.corpo(), "canal");
+        assertThat(canal.path("status").asText()).isEqualTo("DOWN");
+        assertThat(canal.path("detalhe").asText()).isEqualTo("nenhum canal ativo cadastrado");
     }
 
     @Test

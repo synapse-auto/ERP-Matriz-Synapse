@@ -1,8 +1,13 @@
 # Provisionamento de instancia
 
-`provisionar-instancia.sql` reconcilia, sem duplicar: um administrador,
-etapas, tags, a feature flag da Dashboard e configuracoes da Automacao. Ele
-nao cria canal, credencial de WhatsApp ou dados de um cliente especifico.
+`provisionar-instancia.sql` reconcilia, sem duplicar: um administrador, o canal
+de WhatsApp e sua credencial ativa, etapas, tags, a feature flag da Dashboard e
+configuracoes da Automacao. Ele nao cria dados de um cliente especifico.
+
+O canal usa `WHATSAPP_NUMERO` (Phone Number ID) e `WHATSAPP_PROVEDOR`, as mesmas
+variaveis do deploy. O token nao e copiado: `canal_credencial.token_ref` guarda
+somente `env://WHATSAPP_TOKEN`. Quando o Phone Number ID muda, a credencial
+anterior e desativada e preservada para o historico.
 
 Instancias provisionadas antes da E21b mantem o valor antigo da flag ate a
 reexecucao do provisionamento. Para habilitar imediatamente, execute uma vez:
@@ -65,6 +70,8 @@ docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
   'SELECT nome, ordem, cor_visual, resultado FROM etapa_atendimento ORDER BY ordem;'
 docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
   'SELECT chave, valor, valor_min, valor_max FROM configuracao_automacao ORDER BY chave;'
+docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
+  'SELECT c.nome, c.tipo, c.ativo, cc.identificador_externo, cc.token_ref FROM canal c JOIN canal_credencial cc ON cc.canal_id = c.id WHERE cc.ativo;'
 ```
 
 Rode o mesmo executor uma segunda vez: as quantidades nao devem crescer.

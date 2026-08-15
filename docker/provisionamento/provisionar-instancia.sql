@@ -30,6 +30,16 @@
   \echo 'ERRO: parametro automacao_json ausente.'
   \quit
 \endif
+\if :{?whatsapp_numero}
+\else
+  \echo 'ERRO: parametro whatsapp_numero ausente.'
+  \quit
+\endif
+\if :{?whatsapp_provedor}
+\else
+  \echo 'ERRO: parametro whatsapp_provedor ausente.'
+  \quit
+\endif
 
 BEGIN;
 
@@ -42,6 +52,50 @@ ON CONFLICT (email) DO UPDATE
         senha_hash = EXCLUDED.senha_hash,
         papel = EXCLUDED.papel,
         ativo = TRUE;
+
+-- O numero configurado no deploy e o Phone Number ID da Meta. A credencial
+-- persiste apenas a referencia ao secret do ambiente; o token nunca entra no
+-- SQL nem no banco. Reexecutar reconcilia o canal e mantem uma unica
+-- credencial ativa, preservando as antigas como historico quando o numero muda.
+INSERT INTO canal (id, nome, tipo, ativo)
+VALUES (gen_random_uuid(), 'WhatsApp Principal', :'whatsapp_provedor', TRUE)
+ON CONFLICT (nome) DO UPDATE
+    SET tipo = EXCLUDED.tipo,
+        ativo = TRUE
+RETURNING id AS canal_whatsapp_id
+\gset
+
+UPDATE canal_credencial
+   SET ativo = FALSE,
+       vigente_ate = COALESCE(vigente_ate, now())
+ WHERE canal_id = :'canal_whatsapp_id'::uuid
+   AND ativo;
+
+UPDATE canal_credencial
+   SET numero = :'whatsapp_numero',
+       token_ref = 'env://WHATSAPP_TOKEN',
+       ativo = TRUE,
+       vigente_ate = NULL
+ WHERE id = (
+       SELECT id
+         FROM canal_credencial
+        WHERE canal_id = :'canal_whatsapp_id'::uuid
+          AND identificador_externo = :'whatsapp_numero'
+        ORDER BY vigente_desde DESC, id
+        LIMIT 1
+ );
+
+INSERT INTO canal_credencial
+    (id, canal_id, numero, identificador_externo, token_ref, ativo)
+SELECT gen_random_uuid(), :'canal_whatsapp_id'::uuid, :'whatsapp_numero',
+       :'whatsapp_numero', 'env://WHATSAPP_TOKEN', TRUE
+ WHERE NOT EXISTS (
+       SELECT 1
+         FROM canal_credencial
+        WHERE canal_id = :'canal_whatsapp_id'::uuid
+          AND identificador_externo = :'whatsapp_numero'
+          AND ativo
+ );
 
 -- JSON mantem quantidade de etapas livre por filho sem transformar este PAI
 -- em uma lista fixa de parametros. Nao removemos etapas antigas: podem estar
@@ -164,4 +218,4 @@ ON CONFLICT (chave) DO UPDATE
         descricao = EXCLUDED.descricao;
 
 COMMIT;
-\echo 'Provisionamento concluido: administrador, etapas, tags, Dashboard e configuracao da Automacao reconciliados.'
+\echo 'Provisionamento concluido: administrador, canal, etapas, tags, Dashboard e configuracao da Automacao reconciliados.'

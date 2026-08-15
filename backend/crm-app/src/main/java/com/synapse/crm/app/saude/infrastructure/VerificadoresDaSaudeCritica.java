@@ -122,6 +122,8 @@ class VerificadorFilaOutbox extends VerificadorBase {
 @Component
 class VerificadorCanal extends VerificadorBase {
 
+    private static final String SQL_CANAL_ATIVO = "SELECT count(*) FROM canal WHERE ativo";
+
     private static final String SQL_CREDENCIAL_ATIVA =
             """
             SELECT count(*)
@@ -157,6 +159,11 @@ class VerificadorCanal extends VerificadorBase {
     @Override
     public ComponenteDaSaude verificar() {
         try {
+            Long canais = chat.queryForObject(SQL_CANAL_ATIVO, Long.class);
+            if (canais == null || canais < 1) {
+                return ComponenteDaSaude.down(
+                        nome(), severidadeDaFalha(), "nenhum canal ativo cadastrado");
+            }
             Long credenciais = chat.queryForObject(SQL_CREDENCIAL_ATIVA, Long.class);
             if (credenciais == null || credenciais < 1) {
                 return ComponenteDaSaude.down(
