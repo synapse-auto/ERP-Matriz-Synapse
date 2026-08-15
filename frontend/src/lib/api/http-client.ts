@@ -17,7 +17,7 @@ interface SessaoResposta {
 // três vezes (o que invalidaria as duas primeiras chamadas por reuso).
 let renovacaoEmCurso: Promise<boolean> | null = null;
 
-async function renovarAccessToken(): Promise<boolean> {
+export async function renovarAccessToken(): Promise<boolean> {
   if (!renovacaoEmCurso) {
     renovacaoEmCurso = (async () => {
       try {

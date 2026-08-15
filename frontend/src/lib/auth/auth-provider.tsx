@@ -3,15 +3,12 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { renovarAccessToken } from "@/lib/api/http-client";
+
 import { useAuthStore } from "./auth-store";
 
 /** Renova 30s antes de expirar — margem para a chamada de renovação em si não perder a janela. */
 const MARGEM_REFRESH_MS = 30_000;
-
-interface SessaoResposta {
-  accessToken: string;
-  expiraEmSegundos: number;
-}
 
 /**
  * Hidrata o access token em memória a partir do cookie httpOnly no mount (uma recarga de página
@@ -21,21 +18,10 @@ interface SessaoResposta {
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const expiraEm = useAuthStore((estado) => estado.expiraEm);
-  const definirSessao = useAuthStore((estado) => estado.definirSessao);
   const limparSessao = useAuthStore((estado) => estado.limparSessao);
   const router = useRouter();
   const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  async function renovar(): Promise<SessaoResposta | null> {
-    try {
-      const resposta = await fetch("/api/auth/refresh", { method: "POST" });
-      if (!resposta.ok) return null;
-      return (await resposta.json()) as SessaoResposta;
-    } catch {
-      return null;
-    }
-  }
 
   function irParaLogin() {
     limparSessao();
@@ -45,12 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // O provider envolve também /login. Ali ainda não há cookie e chamar refresh só produz um
+    // 401 esperado no console; o LoginForm já grava a sessão em memória quando autentica.
+    if (pathname === "/login") return;
+
     let cancelado = false;
-    renovar().then((sessao) => {
+    renovarAccessToken().then((renovou) => {
       if (cancelado) return;
-      if (sessao) {
-        definirSessao(sessao);
-      } else {
+      if (!renovou) {
         irParaLogin();
       }
     });
@@ -67,10 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const atraso = Math.max(expiraEm - Date.now() - MARGEM_REFRESH_MS, 0);
     timerRef.current = setTimeout(async () => {
-      const sessao = await renovar();
-      if (sessao) {
-        definirSessao(sessao);
-      } else {
+      const renovou = await renovarAccessToken();
+      if (!renovou) {
         irParaLogin();
       }
     }, atraso);
