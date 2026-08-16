@@ -127,7 +127,12 @@ export function PaginaAtendimentosCliente({
         )}
       </div>
 
-      {conversa && <PainelDaConversa leadId={conversa.leadId} />}
+      {conversa && (
+        <PainelDaConversa
+          leadId={conversa.leadId}
+          responsavelNome={conversa.atendenteNome}
+        />
+      )}
     </div>
   );
 }

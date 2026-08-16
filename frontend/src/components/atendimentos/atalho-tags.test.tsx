@@ -9,6 +9,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     painelLead: {
       tags: {
         titulo: "Tags",
+        botao: "+ Tag",
         selecionar: "Selecionar tag",
         adicionar: "Adicionar tag",
         remover: "Remover tag {nome}",
@@ -20,7 +21,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useTagsDoLead: () => ({
-    data: [{ id: "tag-atual", nome: "Atual", cor: "var(--primary)", icone: null }],
+    data: [
+      { id: "tag-atual", nome: "Atual", cor: "var(--primary)", icone: null },
+    ],
   }),
   useTodasAsTags: () => ({
     data: [

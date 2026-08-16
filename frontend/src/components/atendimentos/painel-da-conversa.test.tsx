@@ -6,17 +6,33 @@ vi.mock("@/lib/config/textos-provider", () => ({
     atendimentos: {
       painel: {
         titulo: "Detalhes do lead",
+        informacoesGerais: "Informações gerais",
         notasInternas: "Notas internas",
-        secoes: { resumo: "Resumo por IA e notas", programadas: "Mensagens programadas", lembretes: "Lembretes" },
+        secoes: {
+          resumo: "Resumo por IA e notas",
+          programadas: "Mensagens programadas",
+          lembretes: "Lembretes",
+        },
         vazioProgramadas: "Nenhuma mensagem programada",
         vazioLembretes: "Nenhum lembrete",
       },
     },
     painelLead: {
-      dados: { telefone: "Telefone", email: "E-mail", localizacao: "Localização" },
-      etapa: { titulo: "Etapa" },
+      dados: {
+        telefone: "Telefone",
+        email: "E-mail",
+        localizacao: "Localização",
+        responsavel: "Responsável",
+      },
+      etapa: { titulo: "Etapa", posicao: "{atual} de {total}" },
       contadores: { atendimentos: "Atendimentos", mensagens: "Mensagens" },
-      tags: { titulo: "Etiquetas" },
+      tags: {
+        titulo: "Etiquetas",
+        botao: "+ Tag",
+        adicionar: "Adicionar tag",
+        remover: "Remover tag {nome}",
+        erroReversao: "Estado anterior restaurado",
+      },
       resumoIa: { vazio: "Sem notas." },
     },
   }),
@@ -39,34 +55,57 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
       notas: "",
     },
   }),
-  useEtapas: () => ({ data: [{ id: "etapa-1", nome: "Orçamento", ordem: 1, corVisual: "#1F74E0" }] }),
-  useTagsDoLead: () => ({ data: [] }),
-  useTodasAsTags: () => ({ data: [] }),
+  useEtapas: () => ({
+    data: [
+      { id: "etapa-0", nome: "Novo contato", ordem: 1, corVisual: "#64748B" },
+      { id: "etapa-1", nome: "Orçamento", ordem: 2, corVisual: "#1F74E0" },
+      { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "#7C3AED" },
+    ],
+  }),
+  useTagsDoLead: () => ({
+    data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
+  }),
+  useTodasAsTags: () => ({
+    data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
+  }),
   useVincularTag: () => ({ mutate: vi.fn() }),
   useDesvincularTag: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock("@/lib/suporte/use-suporte", () => ({
-  useMensagensProgramadasDoLead: () => ({ data: { mensagens: [], pagina: 0, temMais: false } }),
-  useLembretesDoLead: () => ({ data: { lembretes: [], pagina: 0, temMais: false } }),
+  useMensagensProgramadasDoLead: () => ({
+    data: { mensagens: [], pagina: 0, temMais: false },
+  }),
+  useLembretesDoLead: () => ({
+    data: { lembretes: [], pagina: 0, temMais: false },
+  }),
 }));
 
 import { PainelDaConversa } from "./painel-da-conversa";
 
 describe("painel da conversa", () => {
   it("mostra contadores, etapa e resumo por IA aberto por padrão — sem seção de arquivos", () => {
-    render(<PainelDaConversa leadId="lead-1" />);
+    render(<PainelDaConversa leadId="lead-1" responsavelNome="Jardel Lima" />);
 
     expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
+    expect(screen.getByText("Informações gerais")).toBeInTheDocument();
+    expect(screen.getByText("Jardel Lima")).toBeInTheDocument();
     expect(screen.getByText("Orçamento")).toBeInTheDocument();
-    expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+    expect(screen.getByText("2 de 3")).toBeInTheDocument();
+    expect(screen.getByText("Prioridade")).toBeInTheDocument();
+    expect(screen.getByText("+ Tag")).toBeInTheDocument();
+    expect(
+      screen.getByText("Cliente pediu orçamento de box."),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/arquivos/i)).not.toBeInTheDocument();
   });
 
   it("mensagens programadas e lembretes começam fechados e abrem com o estado vazio real", () => {
-    render(<PainelDaConversa leadId="lead-1" />);
+    render(<PainelDaConversa leadId="lead-1" responsavelNome="Jardel Lima" />);
 
-    expect(screen.queryByText("Nenhuma mensagem programada")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Nenhuma mensagem programada"),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Mensagens programadas"));
     expect(screen.getByText("Nenhuma mensagem programada")).toBeInTheDocument();
 

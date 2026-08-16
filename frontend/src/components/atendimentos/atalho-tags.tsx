@@ -6,7 +6,11 @@ import { Check, Plus, Tag, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useDesvincularTag,
@@ -15,7 +19,13 @@ import {
   useVincularTag,
 } from "@/lib/lead/use-painel-lead";
 
-export function AtalhoTags({ leadId }: { leadId: string }) {
+export function AtalhoTags({
+  leadId,
+  modo = "cabecalho",
+}: {
+  leadId: string;
+  modo?: "cabecalho" | "painel";
+}) {
   const textos = useTextos().painelLead.tags;
   const [erro, setErro] = useState(false);
   const tags = useTagsDoLead(leadId);
@@ -25,8 +35,20 @@ export function AtalhoTags({ leadId }: { leadId: string }) {
   const vinculadas = new Set(tags.data?.map((tag) => tag.id));
 
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <div className="hidden max-w-48 gap-1 overflow-hidden xl:flex">
+    <div
+      className={
+        modo === "painel"
+          ? "flex flex-wrap items-center gap-1.5"
+          : "flex min-w-0 items-center gap-1"
+      }
+    >
+      <div
+        className={
+          modo === "painel"
+            ? "flex flex-wrap gap-1.5"
+            : "hidden max-w-48 gap-1 overflow-hidden xl:flex"
+        }
+      >
         {tags.data?.map((tag) => (
           <Badge
             key={tag.id}
@@ -40,14 +62,26 @@ export function AtalhoTags({ leadId }: { leadId: string }) {
       </div>
       <Popover>
         <PopoverTrigger
-          className={buttonVariants({ variant: "ghost", size: "icon" })}
+          className={buttonVariants({
+            variant: modo === "painel" ? "outline" : "ghost",
+            size: modo === "painel" ? "sm" : "icon",
+          })}
           aria-label={textos.titulo}
         >
-          <Tag className="size-4" />
+          {modo === "painel" ? (
+            <>
+              <Plus className="size-3.5" />
+              {textos.botao}
+            </>
+          ) : (
+            <Tag className="size-4" />
+          )}
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-2">
           <p className="text-sm font-medium text-foreground">{textos.titulo}</p>
-          {erro && <p className="text-xs text-destructive">{textos.erroReversao}</p>}
+          {erro && (
+            <p className="text-xs text-destructive">{textos.erroReversao}</p>
+          )}
           <div className="max-h-64 space-y-1 overflow-y-auto">
             {todas.data?.map((tag) => {
               const ativa = vinculadas.has(tag.id);
@@ -68,7 +102,11 @@ export function AtalhoTags({ leadId }: { leadId: string }) {
                     mutacao.mutate({ tag }, { onError: () => setErro(true) });
                   }}
                 >
-                  {ativa ? <Check className="size-4" /> : <Plus className="size-4" />}
+                  {ativa ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
                   <span
                     className="size-2.5 rounded-full border"
                     style={{ borderColor: tag.cor, backgroundColor: tag.cor }}

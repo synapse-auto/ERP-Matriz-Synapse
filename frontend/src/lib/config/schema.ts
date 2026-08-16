@@ -211,6 +211,7 @@ export const TextosSchema = z.object({
     }),
     painel: z.object({
       titulo: z.string(),
+      informacoesGerais: z.string(),
       notasInternas: z.string(),
       secoes: z.object({
         resumo: z.string(),
@@ -231,6 +232,7 @@ export const TextosSchema = z.object({
       cpf: z.string(),
       empresa: z.string(),
       localizacao: z.string(),
+      responsavel: z.string(),
       canalOrigem: z.string(),
       naoInformado: z.string(),
     }),
@@ -245,6 +247,7 @@ export const TextosSchema = z.object({
     }),
     tags: z.object({
       titulo: z.string(),
+      botao: z.string(),
       selecionar: z.string(),
       adicionar: z.string(),
       remover: z.string(),

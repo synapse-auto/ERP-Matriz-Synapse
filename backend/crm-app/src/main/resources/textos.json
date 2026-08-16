@@ -143,6 +143,7 @@
     },
     "painel": {
       "titulo": "Detalhes do lead",
+      "informacoesGerais": "Informações gerais",
       "notasInternas": "Notas internas",
       "secoes": {
         "resumo": "Resumo por IA e notas",
@@ -163,6 +164,7 @@
       "cpf": "CPF",
       "empresa": "Empresa",
       "localizacao": "Localização",
+      "responsavel": "Responsável",
       "canalOrigem": "Canal de origem",
       "naoInformado": "Não informado"
     },
@@ -177,6 +179,7 @@
     },
     "tags": {
       "titulo": "Tags",
+      "botao": "+ Tag",
       "selecionar": "Selecionar tag",
       "adicionar": "Adicionar tag",
       "remover": "Remover tag {nome}",
