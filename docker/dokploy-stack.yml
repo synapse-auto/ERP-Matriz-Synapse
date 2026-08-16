@@ -171,7 +171,14 @@ services:
       WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
       AUTOMACAO_URL: http://synapse-n8n-internal:5678
       AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
-      AUTOMACAO_WEBHOOK_EVENTOS_URL: ${AUTOMACAO_WEBHOOK_EVENTOS_URL:?obrigatoria}
+      # OPCIONAL de proposito. Vazia = repasse desligado, e o CRM funciona igual — a
+      # entrada de mensagem nunca depende da Automacao estar configurada. Declarar como
+      # `:?obrigatoria` fez o deploy inteiro falhar em 16/08 numa instancia que ainda nao
+      # tinha a variavel: o stack deploy recusa antes de subir qualquer servico.
+      #
+      # Regra: `:?obrigatoria` e so para o que a instancia NAO PODE rodar sem — segredo,
+      # banco, dominio. Recurso que pode ficar desligado usa default vazio.
+      AUTOMACAO_WEBHOOK_EVENTOS_URL: ${AUTOMACAO_WEBHOOK_EVENTOS_URL:-}
       ALERTA_WEBHOOK: ${ALERTA_WEBHOOK:-}
       FEATURE_CAMPANHAS: ${FEATURE_CAMPANHAS:-false}
       FEATURE_CHAT_INTERNO: ${FEATURE_CHAT_INTERNO:-false}

@@ -117,6 +117,19 @@ interfaces/      controllers REST, handlers WebSocket, DTOs
 
 ---
 
+## Variável nova no `dokploy-stack.yml` quebra o deploy de quem já está no ar
+
+O `docker stack deploy` valida a interpolação **antes** de subir qualquer serviço. Uma variável declarada como `${VAR:?obrigatoria}` que ainda não existe no ambiente do Dokploy derruba o deploy inteiro — não o serviço dela, o deploy inteiro. Aconteceu em 16/08 com `AUTOMACAO_WEBHOOK_EVENTOS_URL`.
+
+Duas regras:
+
+- **`:?obrigatoria` é só para o que a instância não pode rodar sem**: segredo, banco, domínio, tag de imagem. Recurso que pode ficar desligado usa **default vazio** (`${VAR:-}`) e a aplicação trata a ausência.
+- Toda variável nova entra no relatório final, em item próprio: **"ação necessária no Dokploy antes do próximo deploy"**, com nome e valor de exemplo. Sem isso, quem opera descobre pelo deploy falhando.
+
+Atualize também o `.env.example` e a tabela de variáveis do `README.md` na mesma etapa.
+
+---
+
 ## "CI verde" só vale com o número da run
 
 Rodar `./mvnw clean verify` na sua máquina **não é** CI verde. Cinco runs vermelhas se acumularam neste projeto enquanto os relatórios diziam "CI verde" com base em execução local — e, como o job que publica as imagens no GHCR só roda depois dos testes, **três etapas inteiras ficaram sem chegar ao servidor** sem ninguém perceber.
