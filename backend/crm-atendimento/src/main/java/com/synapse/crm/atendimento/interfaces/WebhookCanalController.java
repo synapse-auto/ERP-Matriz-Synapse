@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase;
+import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
+import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase.Decisao;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -54,16 +56,19 @@ public class WebhookCanalController {
     private final TradutorDeCanal tradutor;
     private final WebhookEntrada entrada;
     private final AgendarRepasseWebhookAutomacaoUseCase agendarRepasse;
+    private final ValidarDestinoWebhookUseCase validarDestino;
     private final Clock relogio;
 
     public WebhookCanalController(
             TradutorDeCanal tradutor,
             WebhookEntrada entrada,
             AgendarRepasseWebhookAutomacaoUseCase agendarRepasse,
+            ValidarDestinoWebhookUseCase validarDestino,
             Clock relogio) {
         this.tradutor = tradutor;
         this.entrada = entrada;
         this.agendarRepasse = agendarRepasse;
+        this.validarDestino = validarDestino;
         this.relogio = relogio;
     }
 
@@ -126,6 +131,39 @@ public class WebhookCanalController {
             // Nem uma linha gravada, nem um log com o corpo: a rota e publica.
             log.warn("Webhook com assinatura invalida recusado.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // O destino e validado depois do HMAC, mas antes das duas persistencias do payload cru.
+        // Reescrever um POST misto quebraria a reconferencia da assinatura, por isso ele e
+        // descartado por inteiro.
+        Decisao destino = validarDestino.executar(tradutor.destinos(payloadCru));
+        switch (destino.resultado()) {
+            case ACEITO -> {
+                // segue o fluxo normal abaixo
+            }
+            case OUTRO_CANAL -> {
+                log.warn(
+                        "Webhook de outro canal descartado (phone_number_ids={}, eventos={}).",
+                        destino.identificadoresRecebidos(),
+                        destino.quantidadeEventos());
+                return ResponseEntity.ok().build();
+            }
+            case MISTO -> {
+                log.error(
+                        "Webhook com destinos mistos descartado (phone_number_ids={}, eventos={}).",
+                        destino.identificadoresRecebidos(),
+                        destino.quantidadeEventos());
+                return ResponseEntity.ok().build();
+            }
+            case SEM_CONFIGURACAO -> {
+                log.error(
+                        "Webhook descartado: canal ativo sem phone_number_id configurado"
+                                + " (canais_ativos={}, canais_sem_identificador={}, eventos={}).",
+                        destino.quantidadeCanaisAtivos(),
+                        destino.quantidadeCanaisSemIdentificador(),
+                        destino.quantidadeEventos());
+                return ResponseEntity.ok().build();
+            }
         }
 
         Instant recebidoEm = Instant.now(relogio);

@@ -3,7 +3,9 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -93,6 +95,29 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
     }
 
     @Override
+    public DestinosDoWebhook destinos(String payloadCru) {
+        List<String> identificadores = new ArrayList<>();
+        int quantidadeEventos = 0;
+        for (JsonNode entrada : entradas(payloadCru)) {
+            JsonNode mudancas = entrada.path("changes");
+            if (!mudancas.isArray()) {
+                continue;
+            }
+            for (JsonNode mudanca : mudancas) {
+                quantidadeEventos++;
+                String identificador = mudanca.path("value")
+                        .path("metadata")
+                        .path("phone_number_id")
+                        .asText(null);
+                if (identificador != null && !identificador.isBlank()) {
+                    identificadores.add(identificador);
+                }
+            }
+        }
+        return new DestinosDoWebhook(quantidadeEventos, identificadores);
+    }
+
+    @Override
     public Optional<String> idExterno(String payloadCru) {
         return primeiraMensagem(payloadCru).map(mensagem -> mensagem.path("id").asText(null));
     }
@@ -164,19 +189,27 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
     }
 
     private Optional<JsonNode> valor(String payloadCru) {
+        JsonNode entradas = entradas(payloadCru);
+        if (!entradas.isArray() || entradas.isEmpty()) {
+            return Optional.empty();
+        }
+        JsonNode mudancas = entradas.get(0).path("changes");
+        if (!mudancas.isArray() || mudancas.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(mudancas.get(0).path("value"));
+    }
+
+    private JsonNode entradas(String payloadCru) {
         try {
             JsonNode entradas = json.readTree(payloadCru).path("entry");
-            if (!entradas.isArray() || entradas.isEmpty()) {
-                return Optional.empty();
+            if (!entradas.isArray()) {
+                return json.createArrayNode();
             }
-            JsonNode mudancas = entradas.get(0).path("changes");
-            if (!mudancas.isArray() || mudancas.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(mudancas.get(0).path("value"));
+            return entradas;
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             log.warn("Payload de webhook ilegivel.", e);
-            return Optional.empty();
+            return json.createArrayNode();
         }
     }
 

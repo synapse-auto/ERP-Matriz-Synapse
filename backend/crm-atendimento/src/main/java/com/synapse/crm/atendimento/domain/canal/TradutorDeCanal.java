@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.domain.canal;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -40,6 +41,14 @@ public interface TradutorDeCanal {
     boolean assinaturaValida(String payloadCru, String assinaturaRecebida);
 
     /**
+     * Destinos declarados em cada evento contido no POST do provedor.
+     *
+     * <p>{@code quantidadeEventos} inclui eventos sem identificador. Isso impede que uma mudanca
+     * malformada desapareca da contagem e transforme um payload misto em aparentemente seguro.
+     */
+    DestinosDoWebhook destinos(String payloadCru);
+
+    /**
      * O id da mensagem no provedor — a chave de idempotencia.
      *
      * <p>Vazio quando o payload nao e uma mensagem (confirmacao de entrega, evento de status,
@@ -50,6 +59,16 @@ public interface TradutorDeCanal {
 
     /** Traduz. Vazio quando o payload nao carrega mensagem de cliente. */
     Optional<MensagemRecebidaDoCanal> traduzir(String payloadCru);
+
+    record DestinosDoWebhook(int quantidadeEventos, List<String> identificadores) {
+
+        public DestinosDoWebhook {
+            if (quantidadeEventos < 0) {
+                throw new IllegalArgumentException("quantidade de eventos nao pode ser negativa");
+            }
+            identificadores = List.copyOf(identificadores);
+        }
+    }
 
     /**
      * Uma mensagem de cliente, ja em vocabulario do CRM.

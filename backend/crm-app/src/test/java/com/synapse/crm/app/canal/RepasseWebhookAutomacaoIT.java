@@ -155,7 +155,7 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
 
     private static String payload(String id, String texto) {
         return """
-                {"object":"whatsapp_business_account","entry":[{"changes":[{"value":{"contacts":[{"profile":{"name":"Cliente E25"},"wa_id":"%s"}],"messages":[{"from":"%s","id":"%s","timestamp":"1786842000","text":{"body":"%s"},"type":"text"}]}}]}]}
+                {"object":"whatsapp_business_account","entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"999999999999999"},"contacts":[{"profile":{"name":"Cliente E25"},"wa_id":"%s"}],"messages":[{"from":"%s","id":"%s","timestamp":"1786842000","text":{"body":"%s"},"type":"text"}]}}]}]}
                 """
                 .formatted(TELEFONE, TELEFONE, id, texto.replace("\n", "\\n"))
                 .stripTrailing();

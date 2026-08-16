@@ -3,6 +3,7 @@ package com.synapse.crm.app.canal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 public class TradutorFake implements TradutorDeCanal {
 
     public static final String TOKEN_DE_VERIFICACAO = "verify-token-fake";
+    public static final String IDENTIFICADOR_DESTINO = "999999999999999";
 
     @Override
     public String provedor() {
@@ -42,6 +44,11 @@ public class TradutorFake implements TradutorDeCanal {
     @Override
     public boolean assinaturaValida(String payloadCru, String assinaturaRecebida) {
         return CanalFake.ASSINATURA_VALIDA.equals(assinaturaRecebida);
+    }
+
+    @Override
+    public DestinosDoWebhook destinos(String payloadCru) {
+        return new DestinosDoWebhook(1, List.of(IDENTIFICADOR_DESTINO));
     }
 
     @Override
