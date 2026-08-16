@@ -121,6 +121,7 @@ class CanalWhatsAppIT extends PostgresIT {
     @AfterEach
     void sair() {
         ApoioRls.sair();
+        limpar();
     }
 
     @Nested
@@ -570,11 +571,13 @@ class CanalWhatsAppIT extends PostgresIT {
     private UUID criarCredencial(UUID canalId, String numero, boolean ativo) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO canal_credencial (id, canal_id, numero, token_ref, ativo)"
-                        + " VALUES (?, ?, ?, 'secret://dev/token', ?)",
+                "INSERT INTO canal_credencial"
+                        + " (id, canal_id, numero, identificador_externo, token_ref, ativo)"
+                        + " VALUES (?, ?, ?, ?, 'secret://dev/token', ?)",
                 id,
                 canalId,
                 numero,
+                numero.replaceAll("\\D", ""),
                 ativo);
         return id;
     }

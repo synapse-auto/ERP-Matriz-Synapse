@@ -201,34 +201,49 @@ class SchemaMigracoesIT extends PostgresIT {
         @DisplayName("duas credenciais ativas no mesmo canal sao rejeitadas")
         void canalCredencial_segundaAtivaNoMesmoCanal_ehRejeitada() {
             UUID canalId = criarCanal();
-            jdbc.update(
-                    "INSERT INTO canal_credencial (canal_id, numero, ativo) VALUES (?, '+5561900000001', TRUE)",
-                    canalId);
+            try {
+                jdbc.update(
+                        "INSERT INTO canal_credencial"
+                                + " (canal_id, numero, identificador_externo, ativo)"
+                                + " VALUES (?, '+5561900000001', '900000000000001', TRUE)",
+                        canalId);
 
-            assertThatThrownBy(() -> jdbc.update(
-                            "INSERT INTO canal_credencial (canal_id, numero, ativo)"
-                                    + " VALUES (?, '+5561900000002', TRUE)",
-                            canalId))
-                    .isInstanceOf(DuplicateKeyException.class);
+                assertThatThrownBy(() -> jdbc.update(
+                                "INSERT INTO canal_credencial"
+                                        + " (canal_id, numero, identificador_externo, ativo)"
+                                        + " VALUES (?, '+5561900000002', '900000000000002', TRUE)",
+                                canalId))
+                        .isInstanceOf(DuplicateKeyException.class);
+            } finally {
+                excluirCanal(canalId);
+            }
         }
 
         @Test
         @DisplayName("a credencial anterior convive com a nova quando desativada")
         void canalCredencial_anteriorDesativada_permiteNovaAtiva() {
             UUID canalId = criarCanal();
-            jdbc.update(
-                    "INSERT INTO canal_credencial (canal_id, numero, ativo, vigente_ate)"
-                            + " VALUES (?, '+5561900000003', FALSE, now())",
-                    canalId);
-            jdbc.update(
-                    "INSERT INTO canal_credencial (canal_id, numero, ativo) VALUES (?, '+5561900000004', TRUE)",
-                    canalId);
+            try {
+                jdbc.update(
+                        "INSERT INTO canal_credencial (canal_id, numero, ativo, vigente_ate)"
+                                + " VALUES (?, '+5561900000003', FALSE, now())",
+                        canalId);
+                jdbc.update(
+                        "INSERT INTO canal_credencial"
+                                + " (canal_id, numero, identificador_externo, ativo)"
+                                + " VALUES (?, '+5561900000004', '900000000000004', TRUE)",
+                        canalId);
 
-            Integer total = jdbc.queryForObject(
-                    "SELECT count(*) FROM canal_credencial WHERE canal_id = ?", Integer.class, canalId);
+                Integer total = jdbc.queryForObject(
+                        "SELECT count(*) FROM canal_credencial WHERE canal_id = ?",
+                        Integer.class,
+                        canalId);
 
-            // A antiga continua no banco: e ela que o historico referencia.
-            assertThat(total).isEqualTo(2);
+                // A antiga continua no banco: e ela que o historico referencia.
+                assertThat(total).isEqualTo(2);
+            } finally {
+                excluirCanal(canalId);
+            }
         }
 
         @Test
@@ -265,6 +280,11 @@ class SchemaMigracoesIT extends PostgresIT {
                     canalId,
                     "Canal " + canalId);
             return canalId;
+        }
+
+        private void excluirCanal(UUID canalId) {
+            jdbc.update("DELETE FROM canal_credencial WHERE canal_id = ?", canalId);
+            jdbc.update("DELETE FROM canal WHERE id = ?", canalId);
         }
     }
 
