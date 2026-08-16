@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
@@ -92,7 +93,7 @@ async function encerrarSessao() {
 export function Sidebar() {
   const textos = useTextos();
   const pathname = usePathname();
-  const { data: flags, isLoading, isError } = useFeaturesHabilitadas();
+  const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
   const cache = useQueryClient();
@@ -152,28 +153,26 @@ export function Sidebar() {
           <p className="px-2 py-4 text-sm text-texto-sidebar-sub">{textos.estados.carregando}</p>
         )}
         {isError && (
-          <p role="alert" className="px-2 py-4 text-sm text-cor-erro-suave">
-            {textos.estados.erroGenerico}
-          </p>
+          <ErroDeCarregamento
+            mensagem={textos.estados.erroGenerico}
+            onTentarNovamente={() => refetch()}
+            className="mx-2 border-white/15 bg-white/5 text-cor-erro-suave"
+          />
         )}
-        {!isLoading && !isError && (
-          <>
-            <MenuGrupo
-              titulo={textos.menu.grupoMenu}
-              itens={ITENS_MENU}
-              visivel={itemVisivel}
-              rotulos={textos.menu.itens}
-              pathname={pathname}
-            />
-            <MenuGrupo
-              titulo={textos.menu.grupoGestao}
-              itens={ITENS_GESTAO}
-              visivel={itemVisivel}
-              rotulos={textos.menu.itens}
-              pathname={pathname}
-            />
-          </>
-        )}
+        <MenuGrupo
+          titulo={textos.menu.grupoMenu}
+          itens={ITENS_MENU}
+          visivel={itemVisivel}
+          rotulos={textos.menu.itens}
+          pathname={pathname}
+        />
+        <MenuGrupo
+          titulo={textos.menu.grupoGestao}
+          itens={ITENS_GESTAO}
+          visivel={itemVisivel}
+          rotulos={textos.menu.itens}
+          pathname={pathname}
+        />
       </nav>
 
       <div className="relative border-t border-white/8 px-3 py-3.5">

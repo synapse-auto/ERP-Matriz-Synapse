@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
@@ -60,6 +61,7 @@ interface Props {
   campos: CampoFiltravel[];
   carregandoCampos: boolean;
   erroCampos: boolean;
+  onTentarCamposNovamente: () => void | Promise<unknown>;
   filtrosAtivos: FiltroAtivo[];
   filtrosRapidos: FiltrosRapidosAgenda;
   cidades: string[];
@@ -79,6 +81,7 @@ export function BarraDeFiltros({
   campos,
   carregandoCampos,
   erroCampos,
+  onTentarCamposNovamente,
   filtrosAtivos,
   filtrosRapidos,
   cidades,
@@ -210,6 +213,7 @@ export function BarraDeFiltros({
               campos={campos}
               carregandoCampos={carregandoCampos}
               erroCampos={erroCampos}
+              onTentarNovamente={onTentarCamposNovamente}
               referencias={referencias}
               textos={textos}
               textosStatus={textosStatus}
@@ -293,6 +297,7 @@ function FormularioDeNovoFiltro({
   campos,
   carregandoCampos,
   erroCampos,
+  onTentarNovamente,
   referencias,
   textos,
   textosStatus,
@@ -301,6 +306,7 @@ function FormularioDeNovoFiltro({
   campos: CampoFiltravel[];
   carregandoCampos: boolean;
   erroCampos: boolean;
+  onTentarNovamente: () => void | Promise<unknown>;
   referencias: Referencias;
   textos: TextosFiltros;
   textosStatus: TextosStatus;
@@ -398,11 +404,7 @@ function FormularioDeNovoFiltro({
     return <p className="text-sm text-muted-foreground">{textos.carregandoCampos}</p>;
   }
   if (erroCampos) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        {textos.erroCampos}
-      </p>
-    );
+    return <ErroDeCarregamento mensagem={textos.erroCampos} onTentarNovamente={onTentarNovamente} />;
   }
 
   return (

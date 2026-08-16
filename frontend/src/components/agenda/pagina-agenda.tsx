@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useEquipe } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -101,6 +102,7 @@ export function PaginaAgenda() {
           campos={campos.data ?? []}
           carregandoCampos={campos.isLoading}
           erroCampos={campos.isError}
+          onTentarCamposNovamente={() => campos.refetch()}
           filtrosAtivos={filtrosAtivos}
           filtrosRapidos={filtrosRapidos}
           cidades={catalogos.data?.cidades ?? []}
@@ -127,9 +129,10 @@ export function PaginaAgenda() {
         {paginaDeLeads.isLoading ? (
           <p className="text-sm text-muted-foreground">{t.carregando}</p>
         ) : paginaDeLeads.isError ? (
-          <p role="alert" className="text-sm text-destructive">
-            {t.erro}
-          </p>
+          <ErroDeCarregamento
+            mensagem={t.erro}
+            onTentarNovamente={() => paginaDeLeads.refetch()}
+          />
         ) : leads.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.vazia}</p>
         ) : (

@@ -14,6 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -168,7 +169,12 @@ export function PaginaDashboard() {
       </section>
 
       {consulta.isLoading && <p className="text-sm text-muted-foreground">{textos.carregando}</p>}
-      {consulta.isError && <p role="alert" className="text-sm text-destructive">{textos.erro}</p>}
+      {consulta.isError && (
+        <ErroDeCarregamento
+          mensagem={textos.erro}
+          onTentarNovamente={() => consulta.refetch()}
+        />
+      )}
       {consulta.data && <ConteudoDashboard dados={consulta.data} />}
     </div>
   );

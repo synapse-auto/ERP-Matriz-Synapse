@@ -2,19 +2,24 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authMock = vi.hoisted(() => ({ papel: "ATENDENTE" }));
+const authMock = vi.hoisted(() => ({
+  papel: "ATENDENTE",
+  accessToken: "token-de-teste",
+  limparSessao: vi.fn(),
+  definirSessao: vi.fn(),
+}));
+const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/atendimentos",
 }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: (seletor: (estado: { papel: string; email: string }) => unknown) =>
-    seletor({ papel: authMock.papel, email: "ana@dev.local" }),
-}));
-
-vi.mock("@/lib/api/http-client", () => ({
-  apiFetch: () => Promise.resolve(["dashboard", "banco_arquivos"]),
+  useAuthStore: Object.assign(
+    (seletor: (estado: typeof authMock & { email: string }) => unknown) =>
+      seletor({ ...authMock, email: "ana@dev.local" }),
+    { getState: () => authMock },
+  ),
 }));
 
 const atualizarPresencaMock = vi.fn((status: string) => Promise.resolve({ status }));
@@ -30,7 +35,11 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     app: { marca: "Estrutural Vidros", subtitulo: "CRM · Atendimento" },
-    estados: { carregando: "Carregando...", erroGenerico: "Erro." },
+    estados: {
+      carregando: "Carregando...",
+      erroGenerico: "Erro.",
+      tentarNovamente: "Tentar novamente",
+    },
     menu: {
       grupoMenu: "Menu",
       grupoGestao: "Gestão",
@@ -68,6 +77,14 @@ function renderSidebar() {
 describe("sidebar", () => {
   beforeEach(() => {
     authMock.papel = "ATENDENTE";
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(["dashboard", "banco_arquivos"]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
   });
 
   it("mostra a marca, os grupos MENU/GESTÃO na ordem do protótipo, e some com o que a flag desliga", async () => {
@@ -108,5 +125,25 @@ describe("sidebar", () => {
     fireEvent.click(opcaoAusente);
 
     await waitFor(() => expect(atualizarPresencaMock).toHaveBeenCalledWith("AUSENTE"));
+  });
+
+  it("mantem o menu central navegavel quando o endpoint de features responde 500", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ title: "Falha nas features" }), {
+        status: 500,
+        headers: { "Content-Type": "application/problem+json" },
+      }),
+    );
+
+    renderSidebar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Erro.");
+    const agenda = screen.getByRole("link", { name: "Agenda de Contatos" });
+    expect(agenda).toHaveAttribute("href", "/agenda");
+    expect(screen.getByRole("link", { name: "Atendimentos" })).toHaveAttribute(
+      "href",
+      "/atendimentos",
+    );
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
   });
 });

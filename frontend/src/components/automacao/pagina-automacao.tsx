@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Database, Link2, MessageSquareText, UserRoundCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -28,14 +29,20 @@ export function PaginaAutomacao() {
         <p className="text-sm text-muted-foreground">{t.descricao}</p>
       </header>
 
-      <CardsDeTelemetria dados={telemetria.data} carregando={telemetria.isLoading} comErro={telemetria.isError} />
+      <CardsDeTelemetria
+        dados={telemetria.data}
+        carregando={telemetria.isLoading}
+        comErro={telemetria.isError}
+        onTentarNovamente={() => telemetria.refetch()}
+      />
 
       {parametros.isLoading ? (
         <p>{t.carregando}</p>
       ) : parametros.isError ? (
-        <p role="alert" className="text-destructive">
-          {t.erro}
-        </p>
+        <ErroDeCarregamento
+          mensagem={t.erro}
+          onTentarNovamente={() => parametros.refetch()}
+        />
       ) : !parametros.data?.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
       ) : (
@@ -59,20 +66,18 @@ function CardsDeTelemetria({
   dados,
   carregando,
   comErro,
+  onTentarNovamente,
 }: {
   dados: StatusAutomacaoTelemetria | undefined;
   carregando: boolean;
   comErro: boolean;
+  onTentarNovamente: () => void | Promise<unknown>;
 }) {
   const t = useTextos().automacao.telemetria;
 
   if (carregando) return null;
   if (comErro || !dados) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        {t.erro}
-      </p>
-    );
+    return <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={onTentarNovamente} />;
   }
 
   return (

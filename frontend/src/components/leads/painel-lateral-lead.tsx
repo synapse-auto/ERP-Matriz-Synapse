@@ -16,6 +16,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
@@ -210,9 +211,10 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
             {textos.indisponivel}
           </p>
         ) : lead.isError || !lead.data ? (
-          <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {textosGerais.estados.erroGenerico}
-          </p>
+          <ErroDeCarregamento
+            mensagem={textosGerais.estados.erroGenerico}
+            onTentarNovamente={() => lead.refetch()}
+          />
         ) : (
           <div className="space-y-5">
             <CabecalhoDaFicha lead={lead.data} />
@@ -561,9 +563,10 @@ function TimelineDaFicha({ consulta }: { consulta: ReturnType<typeof useTimeline
       {consulta.isLoading ? (
         <Skeleton className="h-20 w-full" />
       ) : consulta.isError ? (
-        <p role="alert" className="text-sm text-destructive">
-          {textos.erro}
-        </p>
+        <ErroDeCarregamento
+          mensagem={textos.erro}
+          onTentarNovamente={() => consulta.refetch()}
+        />
       ) : eventos.length === 0 ? (
         <p className="text-sm text-muted-foreground">{textos.vazia}</p>
       ) : (

@@ -7,6 +7,7 @@ import { Bot, Check, Trash2 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
@@ -98,9 +99,10 @@ export function PaginaLembretes() {
       {consulta.isLoading ? (
         <p>{textos.carregando}</p>
       ) : consulta.isError ? (
-        <p role="alert" className="text-destructive">
-          {textos.erro}
-        </p>
+        <ErroDeCarregamento
+          mensagem={textos.erro}
+          onTentarNovamente={() => consulta.refetch()}
+        />
       ) : !consulta.data?.lembretes.length ? (
         <p className="text-muted-foreground">{textos.vazio}</p>
       ) : (

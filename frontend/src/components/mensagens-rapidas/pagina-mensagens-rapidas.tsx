@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -62,7 +63,7 @@ export function PaginaMensagensRapidas() {
       {consulta.isLoading ? (
         <p>{t.carregando}</p>
       ) : consulta.isError ? (
-        <p className="text-destructive">{t.erro}</p>
+        <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
       ) : !consulta.data?.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
       ) : (

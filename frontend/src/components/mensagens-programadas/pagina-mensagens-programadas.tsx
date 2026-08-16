@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import type { TomDePill } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
@@ -103,7 +104,7 @@ export function PaginaMensagensProgramadas() {
       {consulta.isLoading ? (
         <p>{t.carregando}</p>
       ) : consulta.isError ? (
-        <p className="text-destructive">{t.erro}</p>
+        <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
       ) : !consulta.data?.mensagens.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
       ) : (

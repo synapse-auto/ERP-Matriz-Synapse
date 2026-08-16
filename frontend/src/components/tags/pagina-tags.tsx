@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAgregacaoDeTags,
@@ -133,10 +134,17 @@ export function PaginaTags() {
       {tags.isLoading ? (
         <p>{t.carregando}</p>
       ) : tags.isError ? (
-        <p className="text-destructive">{t.erro}</p>
+        <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => tags.refetch()} />
       ) : (
         <>
-          <MiniDashboard totalTags={todas.length} agregacao={agregacao.data} textos={t.dashboard} />
+          {agregacao.isError ? (
+            <ErroDeCarregamento
+              mensagem={t.erro}
+              onTentarNovamente={() => agregacao.refetch()}
+            />
+          ) : (
+            <MiniDashboard totalTags={todas.length} agregacao={agregacao.data} textos={t.dashboard} />
+          )}
 
           {filtradas.length === 0 ? (
             <p className="text-muted-foreground">{busca ? t.semResultados : t.vazio}</p>

@@ -6,6 +6,7 @@ import { BadgeCheck, Medal, Pencil, Star, UserRoundX, Users } from "lucide-react
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
+import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import {
   Dialog,
   DialogContent,
@@ -58,9 +59,6 @@ export function PaginaEquipe() {
     .sort((a, b) => b.vendas - a.vendas || a.atendenteNome.localeCompare(b.atendenteNome))
     .slice(0, 5);
 
-  const carregando = equipe.isLoading || avaliacoes.isLoading || desempenho.isLoading;
-  const comErro = equipe.isError || avaliacoes.isError || desempenho.isError;
-
   return (
     <div className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -71,21 +69,30 @@ export function PaginaEquipe() {
         <Button onClick={() => setNovo(true)}>{t.novo}</Button>
       </header>
 
-      {carregando ? (
+      {equipe.isLoading ? (
         <p>{t.carregando}</p>
-      ) : comErro ? (
-        <p className="text-destructive">{t.erro}</p>
+      ) : equipe.isError ? (
+        <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => equipe.refetch()} />
       ) : (
         <>
-          <MiniDashboard
-            totalUsuarios={usuarios.length}
-            online={online}
-            ativos={ativos.length}
-            mediaGeral={avaliacoes.data?.mediaGeral}
-            rankingAvaliacao={rankingAvaliacao}
-            rankingVendas={rankingVendas}
-            textos={t}
-          />
+          {avaliacoes.isError || desempenho.isError ? (
+            <ErroDeCarregamento
+              mensagem={t.erro}
+              onTentarNovamente={() =>
+                Promise.all([avaliacoes.refetch(), desempenho.refetch()])
+              }
+            />
+          ) : !avaliacoes.isLoading && !desempenho.isLoading ? (
+            <MiniDashboard
+              totalUsuarios={usuarios.length}
+              online={online}
+              ativos={ativos.length}
+              mediaGeral={avaliacoes.data?.mediaGeral}
+              rankingAvaliacao={rankingAvaliacao}
+              rankingVendas={rankingVendas}
+              textos={t}
+            />
+          ) : null}
 
           <div className="space-y-3">
             <p className="px-0.5 text-xs font-bold tracking-wide text-muted-foreground">
