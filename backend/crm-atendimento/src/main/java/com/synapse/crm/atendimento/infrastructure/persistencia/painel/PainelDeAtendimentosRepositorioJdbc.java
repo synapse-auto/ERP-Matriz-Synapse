@@ -37,7 +37,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String CAMPOS =
             """
             a.id AS atendimento_id, a.lead_id, l.nome AS lead_nome, l.foto_url AS lead_foto_url,
-            l.empresa AS lead_empresa, l.etapa_atendimento_id, et.nome AS etapa_nome,
+            l.empresa AS lead_empresa, c.tipo AS canal_tipo,
+            l.etapa_atendimento_id, et.nome AS etapa_nome,
             et.cor_visual AS etapa_cor, a.status, a.atendente_id, u.nome AS atendente_nome,
             ultima.conteudo AS ultima_mensagem_preview,
             ultima.remetente_tipo AS ultima_mensagem_remetente_tipo,
@@ -49,6 +50,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             """
             FROM atendimento a
             JOIN lead l ON l.id = a.lead_id
+            LEFT JOIN canal c ON c.id = a.canal_id
             LEFT JOIN etapa_atendimento et ON et.id = l.etapa_atendimento_id
             LEFT JOIN usuario u ON u.id = a.atendente_id
             LEFT JOIN LATERAL (
@@ -151,6 +153,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 linha.getString("lead_nome"),
                 linha.getString("lead_foto_url"),
                 linha.getString("lead_empresa"),
+                linha.getString("canal_tipo"),
                 linha.getObject("etapa_atendimento_id", UUID.class),
                 linha.getString("etapa_nome"),
                 linha.getString("etapa_cor"),

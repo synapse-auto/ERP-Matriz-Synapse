@@ -10,6 +10,7 @@ const cartoes: CartaoAtendimento[] = [
     leadNome: "Ana Vidros",
     leadFotoUrl: null,
     leadEmpresa: "Vidraçaria Central",
+    canalTipo: "WHATSAPP",
     etapaId: "etapa-1",
     etapaNome: "Negociação",
     etapaCor: "#2563eb",
@@ -27,6 +28,7 @@ const cartoes: CartaoAtendimento[] = [
     leadNome: "Bruno Almeida",
     leadFotoUrl: null,
     leadEmpresa: null,
+    canalTipo: "WHATSAPP",
     etapaId: null,
     etapaNome: null,
     etapaCor: null,
@@ -51,6 +53,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     menu: { itens: { atendimentos: "Atendimentos" } },
     atendimentos: {
+      canais: { whatsapp: "WhatsApp" },
       lista: {
         busca: "Buscar cliente ou protocolo...",
         filtros: "Filtros da lista",
@@ -80,16 +83,21 @@ describe("ListaConversas", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Atendimentos" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Atendimentos" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(4);
     expect(screen.getByRole("tab", { name: /Todos/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Ativos/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Pendentes/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Potenciais/ })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText("Buscar cliente ou protocolo..."), {
-      target: { value: "protocolo-002" },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText("Buscar cliente ou protocolo..."),
+      {
+        target: { value: "protocolo-002" },
+      },
+    );
 
     expect(screen.queryByText("Ana Vidros")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));

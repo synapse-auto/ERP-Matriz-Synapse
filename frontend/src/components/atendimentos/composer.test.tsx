@@ -95,6 +95,7 @@ const conversa: CartaoAtendimento = {
   leadNome: "Cliente Teste",
   leadFotoUrl: null,
   leadEmpresa: null,
+  canalTipo: "WHATSAPP",
   etapaId: null,
   etapaNome: null,
   etapaCor: null,

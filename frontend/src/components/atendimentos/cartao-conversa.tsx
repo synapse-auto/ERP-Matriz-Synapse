@@ -1,5 +1,7 @@
 "use client";
 
+import { MessageCircleMore } from "lucide-react";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -19,6 +21,8 @@ export function CartaoConversa({
 }: Props) {
   const textos = useTextos().atendimentos;
   const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
+  const canal =
+    cartao.canalTipo === "WHATSAPP" ? textos.canais.whatsapp : cartao.canalTipo;
 
   return (
     <button
@@ -42,6 +46,14 @@ export function CartaoConversa({
             {iniciaisDoNome(cartao.leadNome)}
           </AvatarFallback>
         </Avatar>
+        {canal && (
+          <span
+            className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border-2 border-background bg-cor-sucesso text-background"
+            title={canal}
+          >
+            <MessageCircleMore className="size-2.5" aria-hidden />
+          </span>
+        )}
       </div>
 
       <div className="min-w-0 flex-1">

@@ -128,6 +128,23 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("cartao informa o tipo real do canal")
+    void cartao_informaCanalDoAtendimento() {
+        UUID canalWhatsapp = jdbc.queryForObject(
+                "SELECT id FROM canal WHERE tipo = 'WHATSAPP' ORDER BY id LIMIT 1", UUID.class);
+        jdbc.update(
+                "UPDATE atendimento SET canal_id = ? WHERE id = ?",
+                canalWhatsapp,
+                atendimentoAtivoDaAna);
+
+        String corpo = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS");
+
+        assertThat(corpo)
+                .contains(atendimentoAtivoDaAna.toString())
+                .contains("\"canalTipo\":\"WHATSAPP\"");
+    }
+
+    @Test
     @DisplayName("TODOS: gestor ve tudo; atendente pedindo TODOS nao contorna a RN-CRM-01")
     void todos_gestorVeTudoAtendenteNao() {
         String comoGestor = listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");

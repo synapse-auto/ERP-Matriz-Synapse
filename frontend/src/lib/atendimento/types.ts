@@ -5,7 +5,8 @@ export type VisaoAtendimento = "ATIVOS" | "PENDENTES" | "POTENCIAIS" | "TODOS";
 export type StatusAtendimento = "EM_IA" | "EM_ATENDIMENTO" | "FINALIZADO";
 
 /** Espelha StatusEntrega.java — o ciclo PENDENTE → ENVIADO → ENTREGUE → LIDO, ou PENDENTE → FALHOU. */
-export type StatusEntrega = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
+export type StatusEntrega =
+  "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
 
 /** Espelha TipoMensagem.java. */
 export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO";
@@ -23,6 +24,7 @@ export interface CartaoAtendimento {
   leadNome: string;
   leadFotoUrl: string | null;
   leadEmpresa: string | null;
+  canalTipo: string | null;
   etapaId: string | null;
   etapaNome: string | null;
   etapaCor: string | null;

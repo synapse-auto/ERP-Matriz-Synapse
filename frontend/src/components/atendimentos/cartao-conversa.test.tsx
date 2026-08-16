@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 vi.mock("@/lib/config/textos-provider", () => ({
-  useTextos: () => ({ atendimentos: { cartao: { semAtendente: "Sem atendente" } } }),
+  useTextos: () => ({
+    atendimentos: {
+      canais: { whatsapp: "WhatsApp" },
+      cartao: { semAtendente: "Sem atendente" },
+    },
+  }),
 }));
 
 import { CartaoConversa } from "./cartao-conversa";
@@ -15,6 +20,7 @@ const cartao: CartaoAtendimento = {
   leadNome: "Cliente E12",
   leadFotoUrl: null,
   leadEmpresa: null,
+  canalTipo: "WHATSAPP",
   etapaId: null,
   etapaNome: null,
   etapaCor: null,

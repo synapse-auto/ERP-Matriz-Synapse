@@ -47,6 +47,9 @@
     "sessaoExpirada": "Sua sessão expirou. Entre novamente."
   },
   "atendimentos": {
+    "canais": {
+      "whatsapp": "WhatsApp"
+    },
     "lista": {
       "busca": "Buscar cliente ou protocolo...",
       "filtros": "Filtros da lista"

@@ -34,6 +34,7 @@ export function PaginaAtendimentosCliente({
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
+  const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
 
   const { conexao, estado } = useConexaoTempoReal(
@@ -58,6 +59,7 @@ export function PaginaAtendimentosCliente({
 
   function abrirAtendimento(cartao: CartaoAtendimento) {
     setAvisoRevogacao(false);
+    setBuscaAberta(false);
     setConversa(cartao);
   }
 
@@ -99,7 +101,11 @@ export function PaginaAtendimentosCliente({
 
         {conversa ? (
           <>
-            <CabecalhoConversa conversa={conversa} />
+            <CabecalhoConversa
+              conversa={conversa}
+              buscaAberta={buscaAberta}
+              onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
+            />
             <ListaMensagens
               mensagens={mensagensQuery.data}
               carregando={mensagensQuery.isLoading}
@@ -107,6 +113,7 @@ export function PaginaAtendimentosCliente({
               temMais={mensagensQuery.hasNextPage}
               carregandoMais={mensagensQuery.isFetchingNextPage}
               onCarregarMais={() => void mensagensQuery.fetchNextPage()}
+              buscaAberta={buscaAberta}
             />
             <Composer conversa={conversa} />
           </>

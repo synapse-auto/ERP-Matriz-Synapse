@@ -115,6 +115,9 @@ export const TextosSchema = z.object({
     sessaoExpirada: z.string(),
   }),
   atendimentos: z.object({
+    canais: z.object({
+      whatsapp: z.string(),
+    }),
     lista: z.object({
       busca: z.string(),
       filtros: z.string(),
