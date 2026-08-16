@@ -26,6 +26,22 @@
 
 BEGIN;
 
+-- A demonstracao nao pode mascarar uma instancia que descartaria todo webhook. O Phone Number ID
+-- precisa ter sido cadastrado pelo provisionamento antes de qualquer dado de homologacao.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM canal c
+          JOIN canal_credencial cc ON cc.canal_id = c.id
+         WHERE c.ativo
+           AND cc.ativo
+           AND COALESCE(btrim(cc.identificador_externo), '') <> ''
+    ) THEN
+        RAISE EXCEPTION 'canal ativo sem phone_number_id; execute o provisionamento antes do seed';
+    END IF;
+END $$;
+
 -- --- Leads -------------------------------------------------------------
 -- Etapas e usuarios vem do R__seed_dev.sql (mesmos ids fixos). Se este
 -- script rodar antes do seed de dev, os INSERTs abaixo falham por FK —

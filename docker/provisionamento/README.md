@@ -4,10 +4,18 @@
 de WhatsApp e sua credencial ativa, etapas, tags, a feature flag da Dashboard e
 configuracoes da Automacao. Ele nao cria dados de um cliente especifico.
 
-O canal usa `WHATSAPP_NUMERO` (Phone Number ID) e `WHATSAPP_PROVEDOR`, as mesmas
-variaveis do deploy. O token nao e copiado: `canal_credencial.token_ref` guarda
-somente `env://WHATSAPP_TOKEN`. Quando o Phone Number ID muda, a credencial
-anterior e desativada e preservada para o historico.
+O canal usa `WHATSAPP_NUMERO` (Phone Number ID numerico, nao o telefone exibido
+nem o WABA ID) e `WHATSAPP_PROVEDOR`, as mesmas variaveis do deploy. O executor
+e o SQL recusam valor ausente, vazio ou nao numerico. O token nao e copiado:
+`canal_credencial.token_ref` guarda somente `env://WHATSAPP_TOKEN`. Quando o
+Phone Number ID muda, a credencial anterior e desativada e preservada para o
+historico.
+
+Na homologacao da Estrutural, o valor exigido e `1307417749115229`. A inscricao
+do app na Meta e feita por WABA e entrega eventos dos demais numeros da mesma
+conta; o backend aceita somente o ID persistido em
+`canal_credencial.identificador_externo`. No go-live, reexecute o
+provisionamento com o Phone Number ID oficial antes de trocar a inscricao.
 
 Instancias provisionadas antes da E21b mantem o valor antigo da flag ate a
 reexecucao do provisionamento. Para habilitar imediatamente, execute uma vez:

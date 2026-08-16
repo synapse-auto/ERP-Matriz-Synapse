@@ -3,50 +3,60 @@
 \if :{?admin_nome}
 \else
   \echo 'ERRO: parametro admin_nome ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?admin_email}
 \else
   \echo 'ERRO: parametro admin_email ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?admin_senha_hash}
 \else
   \echo 'ERRO: parametro admin_senha_hash ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?etapas_json}
 \else
   \echo 'ERRO: parametro etapas_json ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?tags_json}
 \else
   \echo 'ERRO: parametro tags_json ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?automacao_json}
 \else
   \echo 'ERRO: parametro automacao_json ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?whatsapp_numero}
 \else
   \echo 'ERRO: parametro whatsapp_numero ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 \if :{?whatsapp_provedor}
 \else
   \echo 'ERRO: parametro whatsapp_provedor ausente.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 
-BEGIN;
-
--- Mesmo formato canonico usado pelo dominio e pela Meta: apenas digitos. O Phone Number ID
--- tambem e numerico e permanece sendo a chave estavel da credencial.
-SELECT regexp_replace(:'whatsapp_numero', '[^0-9]', '', 'g') AS whatsapp_numero_canonico
+-- Phone Number ID nao e o numero telefonico exibido: e o identificador numerico da Meta.
+-- Recusar em vez de normalizar impede um valor errado de virar vazio e deixar o webhook
+-- silenciosamente fechado depois do provisionamento.
+SELECT :'whatsapp_numero' ~ '^[0-9]+$' AS whatsapp_phone_number_id_valido
 \gset
+
+\if :whatsapp_phone_number_id_valido
+\else
+  \echo 'ERRO: whatsapp_numero deve ser o Phone Number ID numerico da Meta.'
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
+\endif
+
+SELECT :'whatsapp_numero' AS whatsapp_phone_number_id
+\gset
+
+BEGIN;
 
 -- Um e-mail e o identificador estavel do administrador. Reexecutar atualiza
 -- dados e hash, sem criar outro admin nem duplicar usuario.
@@ -77,7 +87,7 @@ UPDATE canal_credencial
    AND ativo;
 
 UPDATE canal_credencial
-   SET numero = :'whatsapp_numero_canonico',
+   SET numero = :'whatsapp_phone_number_id',
        token_ref = 'env://WHATSAPP_TOKEN',
        ativo = TRUE,
        vigente_ate = NULL
@@ -85,20 +95,20 @@ UPDATE canal_credencial
        SELECT id
          FROM canal_credencial
         WHERE canal_id = :'canal_whatsapp_id'::uuid
-          AND identificador_externo = :'whatsapp_numero_canonico'
+          AND identificador_externo = :'whatsapp_phone_number_id'
         ORDER BY vigente_desde DESC, id
         LIMIT 1
  );
 
 INSERT INTO canal_credencial
     (id, canal_id, numero, identificador_externo, token_ref, ativo)
-SELECT gen_random_uuid(), :'canal_whatsapp_id'::uuid, :'whatsapp_numero_canonico',
-       :'whatsapp_numero_canonico', 'env://WHATSAPP_TOKEN', TRUE
+SELECT gen_random_uuid(), :'canal_whatsapp_id'::uuid, :'whatsapp_phone_number_id',
+       :'whatsapp_phone_number_id', 'env://WHATSAPP_TOKEN', TRUE
  WHERE NOT EXISTS (
        SELECT 1
          FROM canal_credencial
         WHERE canal_id = :'canal_whatsapp_id'::uuid
-          AND identificador_externo = :'whatsapp_numero_canonico'
+          AND identificador_externo = :'whatsapp_phone_number_id'
           AND ativo
  );
 
@@ -197,7 +207,7 @@ SELECT count(*) = 3 AS provisionamento_midia_completa
 \if :provisionamento_midia_completa
 \else
   \echo 'ERRO: automacao_json precisa conter os tres limites de midia da Meta.'
-  \quit
+  DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 
 INSERT INTO configuracao_automacao

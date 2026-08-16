@@ -127,6 +127,39 @@ class SaudeCriticaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("canal ativo sem phone number id orienta executar o provisionamento")
+    void canalAtivoSemPhoneNumberId_identificaAcaoCorretiva() throws Exception {
+        UUID credencial = jdbc.queryForObject(
+                "SELECT cc.id FROM canal_credencial cc JOIN canal c ON c.id = cc.canal_id"
+                        + " WHERE c.ativo AND cc.ativo ORDER BY cc.vigente_desde DESC LIMIT 1",
+                UUID.class);
+        String identificador = jdbc.queryForObject(
+                "SELECT identificador_externo FROM canal_credencial WHERE id = ?",
+                String.class,
+                credencial);
+        try {
+            jdbc.update(
+                    "UPDATE canal_credencial SET identificador_externo = NULL WHERE id = ?",
+                    credencial);
+
+            Resposta resposta = chamarCritical();
+
+            assertThat(resposta.status()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+            JsonNode canal = componente(resposta.corpo(), "canal");
+            assertThat(canal.path("status").asText()).isEqualTo("DOWN");
+            assertThat(canal.path("detalhe").asText())
+                    .contains("canal ativo sem phone_number_id")
+                    .contains("execute o provisionamento")
+                    .contains("canal_credencial.identificador_externo");
+        } finally {
+            jdbc.update(
+                    "UPDATE canal_credencial SET identificador_externo = ? WHERE id = ?",
+                    identificador,
+                    credencial);
+        }
+    }
+
+    @Test
     @DisplayName("acúmulo real da outbox degrada sem declarar queda crítica")
     void acumuloRealDaOutbox_respondeDegraded() throws Exception {
         jdbc.update(

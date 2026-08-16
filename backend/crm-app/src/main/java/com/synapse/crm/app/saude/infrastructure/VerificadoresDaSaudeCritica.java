@@ -16,6 +16,8 @@ import com.synapse.crm.app.saude.application.ComponenteDaSaude;
 import com.synapse.crm.app.saude.application.DependenciaDoBancoChat;
 import com.synapse.crm.app.saude.application.SeveridadeSaude;
 import com.synapse.crm.app.saude.application.VerificadorDeComponente;
+import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
+import com.synapse.crm.atendimento.application.canal.ConfiguracaoCanalAtivo;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.infrastructure.outbox.SaudeDoConsumidorDaOutbox;
 import com.synapse.crm.atendimento.infrastructure.particao.ManutencaoParticaoMensagem;
@@ -122,8 +124,6 @@ class VerificadorFilaOutbox extends VerificadorBase {
 @Component
 class VerificadorCanal extends VerificadorBase {
 
-    private static final String SQL_CANAL_ATIVO = "SELECT count(*) FROM canal WHERE ativo";
-
     private static final String SQL_CREDENCIAL_ATIVA =
             """
             SELECT count(*)
@@ -139,11 +139,15 @@ class VerificadorCanal extends VerificadorBase {
 
     private final JdbcTemplate chat;
     private final CanalGateway canal;
+    private final CanalCredencialAtivaRepositorio credenciais;
 
     VerificadorCanal(
-            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, CanalGateway canal) {
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource,
+            CanalGateway canal,
+            CanalCredencialAtivaRepositorio credenciais) {
         this.chat = new JdbcTemplate(chatDataSource);
         this.canal = canal;
+        this.credenciais = credenciais;
     }
 
     @Override
@@ -159,13 +163,20 @@ class VerificadorCanal extends VerificadorBase {
     @Override
     public ComponenteDaSaude verificar() {
         try {
-            Long canais = chat.queryForObject(SQL_CANAL_ATIVO, Long.class);
-            if (canais == null || canais < 1) {
+            ConfiguracaoCanalAtivo configuracao = credenciais.carregarConfiguracao();
+            if (configuracao.quantidadeCanaisAtivos() < 1) {
                 return ComponenteDaSaude.down(
                         nome(), severidadeDaFalha(), "nenhum canal ativo cadastrado");
             }
-            Long credenciais = chat.queryForObject(SQL_CREDENCIAL_ATIVA, Long.class);
-            if (credenciais == null || credenciais < 1) {
+            if (configuracao.quantidadeSemIdentificadorExterno() > 0) {
+                return ComponenteDaSaude.down(
+                        nome(),
+                        severidadeDaFalha(),
+                        "canal ativo sem phone_number_id; execute o provisionamento para preencher"
+                                + " canal_credencial.identificador_externo");
+            }
+            Long credenciaisValidas = chat.queryForObject(SQL_CREDENCIAL_ATIVA, Long.class);
+            if (credenciaisValidas == null || credenciaisValidas < 1) {
                 return ComponenteDaSaude.down(
                         nome(), severidadeDaFalha(), "nenhuma credencial ativa e valida");
             }
