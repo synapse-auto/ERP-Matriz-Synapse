@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const authMock = vi.hoisted(() => ({ papel: "ATENDENTE" }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/atendimentos",
@@ -8,7 +10,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (seletor: (estado: { papel: string; email: string }) => unknown) =>
-    seletor({ papel: "ATENDENTE", email: "ana@dev.local" }),
+    seletor({ papel: authMock.papel, email: "ana@dev.local" }),
 }));
 
 vi.mock("@/lib/api/http-client", () => ({
@@ -64,6 +66,10 @@ function renderSidebar() {
 }
 
 describe("sidebar", () => {
+  beforeEach(() => {
+    authMock.papel = "ATENDENTE";
+  });
+
   it("mostra a marca, os grupos MENU/GESTÃO na ordem do protótipo, e some com o que a flag desliga", async () => {
     renderSidebar();
 
@@ -82,6 +88,14 @@ describe("sidebar", () => {
 
     await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Equipe")).not.toBeInTheDocument();
+  });
+
+  it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {
+    authMock.papel = "ADMINISTRADOR";
+
+    renderSidebar();
+
+    expect(await screen.findByText("Dashboard")).toBeInTheDocument();
   });
 
   it("abre o popup de presença e troca o status, sem select nativo", async () => {

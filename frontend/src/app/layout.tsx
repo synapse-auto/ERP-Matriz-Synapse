@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 
 import { AuthProvider } from "@/lib/auth/auth-provider";
 import { buscarTema, buscarTextos, temaParaCssVariaveis } from "@/lib/config/fetch-config";
@@ -10,20 +10,21 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 /**
- * O protótipo (design/componentes/*.html) carrega estas duas fontes via <link> do Google Fonts —
- * `--fonte-base`/`--fonte-mono` (tema.json) já apontavam para elas, mas nenhum arquivo de fonte
- * era baixado: o app inteiro caía no fallback `system-ui`, mais largo, o que truncava rótulos como
- * "Mensagens Programadas" na Sidebar (E17). `next/font/google` auto-hospeda o arquivo (sem
- * requisição em runtime à Google) e expõe a variável CSS que `--font-sans`/`--font-mono` já leem.
+ * As duas fontes do protótipo ficam versionadas junto da aplicação. Além de evitar o fallback
+ * mais largo que truncava rótulos como "Mensagens Programadas", `next/font/local` elimina a
+ * consulta ao CDN do Google durante `next build` — uma indisponibilidade externa não pode quebrar
+ * a imagem do frontend.
  */
-const hankenGrotesk = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const hankenGrotesk = localFont({
+  src: "./fonts/HankenGrotesk-Variable.woff2",
+  weight: "100 900",
+  display: "swap",
   variable: "--fonte-base-carregada",
 });
-const jetBrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const jetBrainsMono = localFont({
+  src: "./fonts/JetBrainsMono-Variable.woff2",
+  weight: "100 800",
+  display: "swap",
   variable: "--fonte-mono-carregada",
 });
 

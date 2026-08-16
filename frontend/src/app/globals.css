@@ -7,9 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* --fonte-base-carregada/--fonte-mono-carregada vêm do next/font/google (layout.tsx) — o
-     arquivo de fonte de verdade. --fonte-base/--fonte-mono (tema.json) ficam como fallback de
-     nome, para o app continuar de pé mesmo se o carregamento em build falhar. */
+  /* --fonte-base-carregada/--fonte-mono-carregada vêm dos arquivos locais carregados em
+     layout.tsx. --fonte-base/--fonte-mono (tema.json) ficam como fallback de nome. */
   --font-sans: var(--fonte-base-carregada), var(--fonte-base);
   --font-mono: var(--fonte-mono-carregada), var(--fonte-mono);
   --font-heading: var(--fonte-base-carregada), var(--fonte-base);

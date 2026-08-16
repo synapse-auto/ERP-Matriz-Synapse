@@ -107,7 +107,13 @@ export function Sidebar() {
 
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
-    if (item.chave === "dashboard" && papel !== "GESTOR" && papel !== "SUBGESTOR") return false;
+    if (
+      item.chave === "dashboard" &&
+      papel !== "GESTOR" &&
+      papel !== "SUBGESTOR" &&
+      papel !== "ADMINISTRADOR"
+    )
+      return false;
     if (!item.flag) return true;
     return (flags ?? []).includes(item.flag);
   }
