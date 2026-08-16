@@ -7,7 +7,6 @@ import { Composer } from "@/components/atendimentos/composer";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
-import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import type { CartaoAtendimento, MensagemResposta, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -21,14 +20,13 @@ interface Props {
 }
 
 /**
- * Um clique consulta a ficha sem invalidar a lista; o duplo clique seleciona o atendimento e
- * reassina o socket existente (RN-CRM-05).
+ * Um clique seleciona o atendimento e reassina o socket existente (RN-CRM-05). A ficha acompanha
+ * a conversa no painel da direita, sem um overlay intermediário.
  */
 export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
-  const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
 
   const { conexao, estado } = useConexaoTempoReal(
@@ -38,7 +36,6 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
         if (atual?.atendimentoId !== atendimentoRevogado) {
           return atual;
         }
-        setLeadNoPainel(null);
         setAvisoRevogacao(true);
         return null;
       });
@@ -54,7 +51,6 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
 
   function abrirAtendimento(cartao: CartaoAtendimento) {
     setAvisoRevogacao(false);
-    setLeadNoPainel(null);
     setConversa(cartao);
   }
 
@@ -79,7 +75,6 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
         selecionadoId={conversa?.atendimentoId ?? null}
         leadInicialId={leadInicialId}
         visaoInicial={visaoInicial}
-        onAbrirPainel={(cartao) => setLeadNoPainel(cartao.leadId)}
         onAbrirAtendimento={abrirAtendimento}
       />
 
@@ -116,10 +111,6 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
       </div>
 
       {conversa && <PainelDaConversa leadId={conversa.leadId} />}
-
-      {leadNoPainel && (
-        <PainelLateralLead leadId={leadNoPainel} onFechar={() => setLeadNoPainel(null)} />
-      )}
     </div>
   );
 }

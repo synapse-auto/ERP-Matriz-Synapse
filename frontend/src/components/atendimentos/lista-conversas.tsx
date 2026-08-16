@@ -18,7 +18,6 @@ type Props = {
   selecionadoId: string | null;
   leadInicialId?: string | null;
   visaoInicial?: VisaoAtendimento | null;
-  onAbrirPainel: (cartao: CartaoAtendimento) => void;
   onAbrirAtendimento: (cartao: CartaoAtendimento) => void;
 };
 
@@ -40,7 +39,6 @@ export function ListaConversas({
   selecionadoId,
   leadInicialId,
   visaoInicial,
-  onAbrirPainel,
   onAbrirAtendimento,
 }: Props) {
   const textos = useTextos().atendimentos;
@@ -150,7 +148,6 @@ export function ListaConversas({
               key={cartao.atendimentoId}
               cartao={cartao}
               selecionado={cartao.atendimentoId === selecionadoId}
-              onAbrirPainel={() => onAbrirPainel(cartao)}
               onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
             />
           ))

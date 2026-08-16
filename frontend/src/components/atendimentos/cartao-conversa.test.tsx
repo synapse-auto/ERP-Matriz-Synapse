@@ -28,37 +28,19 @@ const cartao: CartaoAtendimento = {
 };
 
 describe("CartaoConversa — RN-CRM-05", () => {
-  it("um clique abre somente o painel lateral", () => {
-    const abrirPainel = vi.fn();
+  it("um clique abre a conversa sem exibir overlay da ficha", () => {
     const abrirAtendimento = vi.fn();
     render(
       <CartaoConversa
         cartao={cartao}
         selecionado={false}
-        onAbrirPainel={abrirPainel}
         onAbrirAtendimento={abrirAtendimento}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Cliente E12/ }));
 
-    expect(abrirPainel).toHaveBeenCalledOnce();
-    expect(abrirAtendimento).not.toHaveBeenCalled();
-  });
-
-  it("duplo clique abre o atendimento", () => {
-    const abrirAtendimento = vi.fn();
-    render(
-      <CartaoConversa
-        cartao={cartao}
-        selecionado={false}
-        onAbrirPainel={vi.fn()}
-        onAbrirAtendimento={abrirAtendimento}
-      />,
-    );
-
-    fireEvent.doubleClick(screen.getByRole("button", { name: /Cliente E12/ }));
-
     expect(abrirAtendimento).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
