@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.outbox;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -40,12 +41,15 @@ class OutboxRepositorioJdbc implements Outbox {
 
     /** Tipo do evento na tabela. Fixo e greppavel — o publisher filtra por ele. */
     static final String TIPO_ENVIO = "canal.mensagem.enviar";
+    static final String TIPO_REPASSE_WEBHOOK = "automacao.webhook.repassar";
 
     private static final int LIMITE_DO_ERRO = 500;
 
     private static final String SQL_ENFILEIRAR =
             "INSERT INTO outbox_evento (id, tipo, payload, criado_em, proxima_tentativa_em)"
                     + " VALUES (?, ?, ?::jsonb, ?, ?)";
+
+    private static final String SQL_ENFILEIRAR_IDEMPOTENTE = SQL_ENFILEIRAR + " ON CONFLICT (id) DO NOTHING";
 
     /**
      * {@code SKIP LOCKED} e o que permite duas instancias rodarem o mesmo job sem coordenacao
@@ -76,7 +80,8 @@ class OutboxRepositorioJdbc implements Outbox {
             "UPDATE outbox_evento SET tentativas = tentativas + 1, esgotado_em = ?, ultimo_erro = ?"
                     + " WHERE id = ?";
 
-    private static final String SQL_ESGOTADAS = "SELECT outbox_esgotadas()";
+    private static final String SQL_ESGOTADAS =
+            "SELECT count(*) FROM outbox_evento WHERE tipo = ? AND esgotado_em IS NOT NULL";
 
     private final JdbcTemplate chat;
     private final ObjectMapper json;
@@ -111,9 +116,37 @@ class OutboxRepositorioJdbc implements Outbox {
     }
 
     @Override
+    public void enfileirarRepasseWebhook(
+            String payloadCru, String assinatura, Instant recebidoEm) {
+        TransacaoObrigatoria.exigir("enfileirarRepasseWebhook");
+        UUID idempotencia = UUID.nameUUIDFromBytes(
+                (TIPO_REPASSE_WEBHOOK + "\n" + assinatura + "\n" + payloadCru)
+                        .getBytes(StandardCharsets.UTF_8));
+        chat.update(
+                SQL_ENFILEIRAR_IDEMPOTENTE,
+                idempotencia,
+                TIPO_REPASSE_WEBHOOK,
+                serializarRepasseWebhook(payloadCru, assinatura),
+                Timestamp.from(recebidoEm),
+                Timestamp.from(recebidoEm));
+    }
+
+    @Override
     public List<EnvioPendente> reservarPendentes(int limite, Instant agora) {
         TransacaoObrigatoria.exigir("reservarPendentes");
         return chat.query(SQL_RESERVAR, this::desserializar, TIPO_ENVIO, Timestamp.from(agora), limite);
+    }
+
+    @Override
+    public List<RepasseWebhookPendente> reservarRepassesWebhookPendentes(
+            int limite, Instant agora) {
+        TransacaoObrigatoria.exigir("reservarRepassesWebhookPendentes");
+        return chat.query(
+                SQL_RESERVAR,
+                this::desserializarRepasseWebhook,
+                TIPO_REPASSE_WEBHOOK,
+                Timestamp.from(agora),
+                limite);
     }
 
     @Override
@@ -137,7 +170,14 @@ class OutboxRepositorioJdbc implements Outbox {
     @Override
     public long quantidadeEsgotada() {
         TransacaoObrigatoria.exigir("quantidadeEsgotada");
-        Long total = chat.queryForObject(SQL_ESGOTADAS, Long.class);
+        Long total = chat.queryForObject(SQL_ESGOTADAS, Long.class, TIPO_ENVIO);
+        return total == null ? 0L : total;
+    }
+
+    @Override
+    public long quantidadeRepassesWebhookEsgotados() {
+        TransacaoObrigatoria.exigir("quantidadeRepassesWebhookEsgotados");
+        Long total = chat.queryForObject(SQL_ESGOTADAS, Long.class, TIPO_REPASSE_WEBHOOK);
         return total == null ? 0L : total;
     }
 
@@ -184,6 +224,13 @@ class OutboxRepositorioJdbc implements Outbox {
         return raiz.toString();
     }
 
+    private String serializarRepasseWebhook(String payloadCru, String assinatura) {
+        ObjectNode raiz = json.createObjectNode();
+        raiz.put("payloadCru", payloadCru);
+        raiz.put("assinatura", assinatura);
+        return raiz.toString();
+    }
+
     private EnvioPendente desserializar(ResultSet linha, int indice) throws SQLException {
         JsonNode payload = ler(linha.getString("payload"));
         JsonNode conteudo = payload.get("conteudo");
@@ -199,6 +246,16 @@ class OutboxRepositorioJdbc implements Outbox {
                         ? null
                         : UUID.fromString(payload.get("credencialId").asText()),
                 paraConteudo(conteudo),
+                linha.getInt("tentativas"));
+    }
+
+    private RepasseWebhookPendente desserializarRepasseWebhook(ResultSet linha, int indice)
+            throws SQLException {
+        JsonNode payload = ler(linha.getString("payload"));
+        return new RepasseWebhookPendente(
+                linha.getObject("id", UUID.class),
+                payload.get("payloadCru").asText(),
+                payload.get("assinatura").asText(),
                 linha.getInt("tentativas"));
     }
 

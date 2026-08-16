@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -52,11 +53,17 @@ public class WebhookCanalController {
 
     private final TradutorDeCanal tradutor;
     private final WebhookEntrada entrada;
+    private final AgendarRepasseWebhookAutomacaoUseCase agendarRepasse;
     private final Clock relogio;
 
-    public WebhookCanalController(TradutorDeCanal tradutor, WebhookEntrada entrada, Clock relogio) {
+    public WebhookCanalController(
+            TradutorDeCanal tradutor,
+            WebhookEntrada entrada,
+            AgendarRepasseWebhookAutomacaoUseCase agendarRepasse,
+            Clock relogio) {
         this.tradutor = tradutor;
         this.entrada = entrada;
+        this.agendarRepasse = agendarRepasse;
         this.relogio = relogio;
     }
 
@@ -121,6 +128,9 @@ public class WebhookCanalController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        Instant recebidoEm = Instant.now(relogio);
+        agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
+
         Optional<String> idExterno = tradutor.idExterno(payloadCru);
         if (idExterno.isEmpty()) {
             return ResponseEntity.ok().build();
@@ -131,7 +141,7 @@ public class WebhookCanalController {
         boolean novo = ContextoDeServico.buscarComo(
                 "webhook-canal",
                 () -> entrada.registrarSeNovo(
-                        idExterno.get(), tradutor.provedor(), payloadCru, Instant.now(relogio)));
+                        idExterno.get(), tradutor.provedor(), payloadCru, recebidoEm));
 
         if (!novo) {
             log.debug("Reentrega do evento {} ignorada.", idExterno.get());

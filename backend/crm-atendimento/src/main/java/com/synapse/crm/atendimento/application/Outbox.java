@@ -37,12 +37,21 @@ public interface Outbox {
             ConteudoDeEnvio conteudo);
 
     /**
+     * Agenda o repasse do webhook cru para a Automacao na mesma transacao que reconhece a entrada.
+     * Reentregas byte a byte identicas sao idempotentes.
+     */
+    void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm);
+
+    /**
      * Pendentes cuja hora de tentar ja chegou, travadas para este publisher.
      *
      * <p>Trava porque duas instancias da aplicacao rodam o mesmo job: sem isso, a mesma mensagem
      * sairia duas vezes para o cliente.
      */
     List<EnvioPendente> reservarPendentes(int limite, Instant agora);
+
+    /** Repasses de webhook cuja proxima tentativa ja chegou. */
+    List<RepasseWebhookPendente> reservarRepassesWebhookPendentes(int limite, Instant agora);
 
     /** Deu certo: marca publicado e sai da fila para sempre. */
     void marcarPublicado(UUID outboxId, Instant quando);
@@ -62,6 +71,9 @@ public interface Outbox {
     /** Quantas desistiram. Espera-se zero; qualquer valor acima disso e alarme. */
     long quantidadeEsgotada();
 
+    /** Quantos repasses para a Automacao esgotaram as tentativas. */
+    long quantidadeRepassesWebhookEsgotados();
+
     /**
      * Uma linha da outbox pronta para o publisher.
      *
@@ -77,4 +89,7 @@ public interface Outbox {
             UUID credencialId,
             ConteudoDeEnvio conteudo,
             int tentativas) {}
+
+    record RepasseWebhookPendente(
+            UUID outboxId, String payloadCru, String assinatura, int tentativas) {}
 }
