@@ -153,18 +153,18 @@ export function ListaConversas({
         value={visao}
         onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}
       >
-        <TabsList className="mx-4 mt-3 h-auto w-[calc(100%-2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
+        <TabsList className="mx-4 mt-3 grid h-auto w-[calc(100%-2rem)] grid-cols-4 gap-0 rounded-none border-b border-border bg-transparent p-0">
           {VISOES.map((item) => (
             <TabsTrigger
               key={item}
               value={item}
-              className="min-w-max gap-1.5 rounded-none border-b-2 border-transparent px-1.5 pb-2.5 pt-1 text-xs shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              className="min-w-0 gap-1 rounded-none border-b-2 border-transparent px-0.5 pt-1 pb-2.5 text-[0.6875rem] shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
             >
               {textos.visoes[ROTULO_VISAO[item]]}
               {contagens && (
                 <Badge
                   variant={item === visao ? "default" : "secondary"}
-                  className="px-1.5"
+                  className="shrink-0 px-1 text-[0.625rem]"
                 >
                   {contagens[item]}
                 </Badge>

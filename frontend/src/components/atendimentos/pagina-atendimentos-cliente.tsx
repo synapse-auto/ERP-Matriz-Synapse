@@ -87,7 +87,7 @@ export function PaginaAtendimentosCliente({
         onAbrirAtendimento={abrirAtendimento}
       />
 
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
