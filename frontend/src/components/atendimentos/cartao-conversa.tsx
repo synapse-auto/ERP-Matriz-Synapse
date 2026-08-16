@@ -12,52 +12,102 @@ type Props = {
 };
 
 /** Etapa, foto, nome, atendente responsável, prévia da última mensagem — o card do prompt E11. */
-export function CartaoConversa({ cartao, selecionado, onAbrirAtendimento }: Props) {
+export function CartaoConversa({
+  cartao,
+  selecionado,
+  onAbrirAtendimento,
+}: Props) {
   const textos = useTextos().atendimentos;
+  const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
 
   return (
     <button
       type="button"
       onClick={onAbrirAtendimento}
       className={cn(
-        "flex w-full items-start gap-3 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-muted",
-        selecionado && "bg-muted",
+        "m-1.5 flex w-[calc(100%-0.75rem)] items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-muted",
+        selecionado &&
+          "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
       )}
     >
-      <Avatar>
-        {urlSegura(cartao.leadFotoUrl) && (
-          <AvatarImage src={urlSegura(cartao.leadFotoUrl)} alt={cartao.leadNome} />
-        )}
-        <AvatarFallback>{iniciaisDoNome(cartao.leadNome)}</AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="size-11 rounded-xl">
+          {urlSegura(cartao.leadFotoUrl) && (
+            <AvatarImage
+              src={urlSegura(cartao.leadFotoUrl)}
+              alt={cartao.leadNome}
+            />
+          )}
+          <AvatarFallback className="rounded-xl">
+            {iniciaisDoNome(cartao.leadNome)}
+          </AvatarFallback>
+        </Avatar>
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-medium text-foreground">{cartao.leadNome}</p>
+          <p className="truncate text-sm font-bold text-foreground">
+            {cartao.leadNome}
+          </p>
+          {hora && (
+            <time className="shrink-0 text-[0.7rem] text-muted-foreground">
+              {hora}
+            </time>
+          )}
+        </div>
+
+        {cartao.leadEmpresa && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {cartao.leadEmpresa}
+          </p>
+        )}
+
+        {cartao.ultimaMensagemPreview && (
+          <p className="mt-1 truncate text-xs text-foreground/70">
+            {cartao.ultimaMensagemPreview}
+          </p>
+        )}
+
+        <div className="mt-2 flex min-h-5 items-center gap-1.5">
           {cartao.etapaNome && (
             <span
-              className="shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-medium"
+              className="max-w-[11rem] truncate rounded-full px-2 py-0.5 text-[0.65rem] font-semibold"
               style={
                 cartao.etapaCor
-                  ? { backgroundColor: `${cartao.etapaCor}22`, color: cartao.etapaCor }
+                  ? {
+                      backgroundColor: `${cartao.etapaCor}22`,
+                      color: cartao.etapaCor,
+                    }
                   : undefined
               }
             >
               {cartao.etapaNome}
             </span>
           )}
+          <span
+            className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[0.6rem] font-bold text-muted-foreground"
+            title={cartao.atendenteNome ?? textos.cartao.semAtendente}
+          >
+            {cartao.atendenteNome ? iniciaisDoNome(cartao.atendenteNome) : "—"}
+          </span>
         </div>
-
-        <p className="truncate text-xs text-muted-foreground">
-          {cartao.atendenteNome ?? textos.cartao.semAtendente}
-        </p>
-
-        {cartao.ultimaMensagemPreview && (
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {cartao.ultimaMensagemPreview}
-          </p>
-        )}
       </div>
     </button>
   );
+}
+
+function formatarHoraDaLista(valor: string | null): string | null {
+  if (!valor) return null;
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return null;
+  const hoje = new Date();
+  if (data.toDateString() === hoje.toDateString()) {
+    return new Intl.DateTimeFormat("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(data);
+  }
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
+    .format(data)
+    .replace(".", "");
 }

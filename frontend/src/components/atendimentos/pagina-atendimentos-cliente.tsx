@@ -8,7 +8,11 @@ import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import type { CartaoAtendimento, MensagemResposta, VisaoAtendimento } from "@/lib/atendimento/types";
+import type {
+  CartaoAtendimento,
+  MensagemResposta,
+  VisaoAtendimento,
+} from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -23,7 +27,10 @@ interface Props {
  * Um clique seleciona o atendimento e reassina o socket existente (RN-CRM-05). A ficha acompanha
  * a conversa no painel da direita, sem um overlay intermediário.
  */
-export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props) {
+export function PaginaAtendimentosCliente({
+  leadInicialId,
+  visaoInicial,
+}: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
@@ -67,8 +74,8 @@ export function PaginaAtendimentosCliente({ leadInicialId, visaoInicial }: Props
     <div
       className={
         conversa
-          ? "grid h-full grid-cols-[320px_1fr_344px] overflow-hidden"
-          : "grid h-full grid-cols-[320px_1fr] overflow-hidden"
+          ? "grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
+          : "grid h-full grid-cols-[346px_1fr] overflow-hidden"
       }
     >
       <ListaConversas

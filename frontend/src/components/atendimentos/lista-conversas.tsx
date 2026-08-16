@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Seletor } from "@/components/ui/seletor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAtendimentos, useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
-import type { CartaoAtendimento, VisaoAtendimento } from "@/lib/atendimento/types";
-import { useAuthStore } from "@/lib/auth/auth-store";
+import {
+  useAtendimentos,
+  useContagemDeAtendimentos,
+} from "@/lib/atendimento/use-atendimentos";
+import type {
+  CartaoAtendimento,
+  VisaoAtendimento,
+} from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { CartaoConversa } from "./cartao-conversa";
@@ -21,10 +29,17 @@ type Props = {
   onAbrirAtendimento: (cartao: CartaoAtendimento) => void;
 };
 
-const VISOES_ATENDENTE: VisaoAtendimento[] = ["ATIVOS", "PENDENTES", "POTENCIAIS"];
-const VISOES_PAPEL_AMPLO: VisaoAtendimento[] = ["TODOS", "PENDENTES"];
+const VISOES: VisaoAtendimento[] = [
+  "TODOS",
+  "ATIVOS",
+  "PENDENTES",
+  "POTENCIAIS",
+];
 
-const ROTULO_VISAO: Record<VisaoAtendimento, keyof ReturnType<typeof useTextos>["atendimentos"]["visoes"]> = {
+const ROTULO_VISAO: Record<
+  VisaoAtendimento,
+  keyof ReturnType<typeof useTextos>["atendimentos"]["visoes"]
+> = {
   ATIVOS: "ativos",
   PENDENTES: "pendentes",
   POTENCIAIS: "potenciais",
@@ -32,8 +47,8 @@ const ROTULO_VISAO: Record<VisaoAtendimento, keyof ReturnType<typeof useTextos>[
 };
 
 /**
- * Ativos/Pendentes/Potenciais para atendente, Todos/Pendentes para gestor/subgestor — o servidor
- * já filtra por papel (RN-CRM-01); aqui só decidimos QUAIS abas pedir, nunca filtramos visibilidade.
+ * As quatro visões são sempre apresentadas. O servidor mantém o recorte por papel e propriedade
+ * (RN-CRM-01); esta lista nunca amplia a visibilidade recebida da API.
  */
 export function ListaConversas({
   selecionadoId,
@@ -41,16 +56,17 @@ export function ListaConversas({
   visaoInicial,
   onAbrirAtendimento,
 }: Props) {
-  const textos = useTextos().atendimentos;
-  const papel = useAuthStore((estado) => estado.papel);
-  // null (sessao ainda carregando) usa o mesmo default de ATENDENTE — a suposicao mais restrita,
-  // nunca "papel amplo" so porque o papel real ainda nao chegou do JWT.
-  const visoes = papel && papel !== "ATENDENTE" ? VISOES_PAPEL_AMPLO : VISOES_ATENDENTE;
-  const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(visaoInicial ?? null);
-  // Deriva no render, sem efeito: se o papel real (chegando depois da hidratacao) mudar o conjunto
-  // de abas, uma escolha orfa (ex.: "ATIVOS" fora de VISOES_PAPEL_AMPLO) cai de volta pra primeira
-  // aba valida automaticamente, sem precisar de setState dentro de useEffect.
-  const visao = visaoEscolhida && visoes.includes(visaoEscolhida) ? visaoEscolhida : visoes[0];
+  const catalogo = useTextos();
+  const textos = catalogo.atendimentos;
+  const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(
+    visaoInicial ?? null,
+  );
+  const visao =
+    visaoEscolhida && VISOES.includes(visaoEscolhida)
+      ? visaoEscolhida
+      : VISOES[0];
+  const [busca, setBusca] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
 
@@ -87,21 +103,69 @@ export function ListaConversas({
     return Array.from(mapa.entries());
   }, [data]);
 
-  const filtrados = (data ?? []).filter(
-    (cartao) =>
-      (!filtroEtapa || cartao.etapaId === filtroEtapa) &&
-      (!filtroAtendente || cartao.atendenteId === filtroAtendente),
-  );
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase("pt-BR");
+    return (data ?? []).filter((cartao) => {
+      const correspondeABusca =
+        !termo ||
+        [cartao.leadNome, cartao.leadEmpresa, cartao.atendimentoId].some(
+          (valor) => valor?.toLocaleLowerCase("pt-BR").includes(termo),
+        );
+      return (
+        correspondeABusca &&
+        (!filtroEtapa || cartao.etapaId === filtroEtapa) &&
+        (!filtroAtendente || cartao.atendenteId === filtroAtendente)
+      );
+    });
+  }, [busca, data, filtroAtendente, filtroEtapa]);
 
   return (
-    <div className="flex h-full flex-col border-r border-border">
-      <Tabs value={visao} onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}>
-        <TabsList className="w-full">
-          {visoes.map((item) => (
-            <TabsTrigger key={item} value={item} className="flex-1 gap-1.5">
+    <div className="flex h-full flex-col border-r border-border bg-background">
+      <div className="px-4 pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-lg font-extrabold tracking-tight text-foreground">
+            {catalogo.menu.itens.atendimentos}
+          </h1>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={textos.lista.filtros}
+            aria-pressed={filtrosAbertos}
+            disabled={etapas.length === 0 && atendentes.length <= 1}
+            onClick={() => setFiltrosAbertos((abertos) => !abertos)}
+          >
+            <SlidersHorizontal className="size-4" aria-hidden />
+          </Button>
+        </div>
+        <div className="relative mt-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={busca}
+            onChange={(evento) => setBusca(evento.target.value)}
+            placeholder={textos.lista.busca}
+            className="h-10 rounded-xl bg-muted/60 pl-9"
+          />
+        </div>
+      </div>
+
+      <Tabs
+        value={visao}
+        onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}
+      >
+        <TabsList className="mx-4 mt-3 h-auto w-[calc(100%-2rem)] justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
+          {VISOES.map((item) => (
+            <TabsTrigger
+              key={item}
+              value={item}
+              className="min-w-max gap-1.5 rounded-none border-b-2 border-transparent px-1.5 pb-2.5 pt-1 text-xs shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
               {textos.visoes[ROTULO_VISAO[item]]}
               {contagens && (
-                <Badge variant={item === visao ? "default" : "secondary"} className="px-1.5">
+                <Badge
+                  variant={item === visao ? "default" : "secondary"}
+                  className="px-1.5"
+                >
                   {contagens[item]}
                 </Badge>
               )}
@@ -110,7 +174,7 @@ export function ListaConversas({
         </TabsList>
       </Tabs>
 
-      {(etapas.length > 0 || atendentes.length > 1) && (
+      {filtrosAbertos && (etapas.length > 0 || atendentes.length > 1) && (
         <div className="flex gap-2 border-b border-border p-2 text-xs">
           {etapas.length > 0 && (
             <Seletor
@@ -126,7 +190,10 @@ export function ListaConversas({
               className="min-w-28"
               valor={filtroAtendente ?? ""}
               placeholder={textos.filtros.atendente}
-              opcoes={atendentes.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
+              opcoes={atendentes.map(([id, nome]) => ({
+                valor: id,
+                rotulo: nome,
+              }))}
               onChange={(valor) => setFiltroAtendente(valor || null)}
             />
           )}
@@ -141,7 +208,9 @@ export function ListaConversas({
             ))}
           </div>
         ) : filtrados.length === 0 ? (
-          <p className="p-4 text-center text-sm text-muted-foreground">{textos.cartao.vazio}</p>
+          <p className="p-4 text-center text-sm text-muted-foreground">
+            {textos.cartao.vazio}
+          </p>
         ) : (
           filtrados.map((cartao) => (
             <CartaoConversa

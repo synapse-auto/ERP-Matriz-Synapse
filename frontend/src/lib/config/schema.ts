@@ -115,6 +115,10 @@ export const TextosSchema = z.object({
     sessaoExpirada: z.string(),
   }),
   atendimentos: z.object({
+    lista: z.object({
+      busca: z.string(),
+      filtros: z.string(),
+    }),
     visoes: z.object({
       ativos: z.string(),
       pendentes: z.string(),

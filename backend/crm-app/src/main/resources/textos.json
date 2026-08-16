@@ -47,6 +47,10 @@
     "sessaoExpirada": "Sua sessão expirou. Entre novamente."
   },
   "atendimentos": {
+    "lista": {
+      "busca": "Buscar cliente ou protocolo...",
+      "filtros": "Filtros da lista"
+    },
     "visoes": {
       "ativos": "Ativos",
       "pendentes": "Pendentes",
