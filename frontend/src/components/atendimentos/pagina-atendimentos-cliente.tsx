@@ -114,6 +114,9 @@ export function PaginaAtendimentosCliente({
               carregandoMais={mensagensQuery.isFetchingNextPage}
               onCarregarMais={() => void mensagensQuery.fetchNextPage()}
               buscaAberta={buscaAberta}
+              canalTipo={conversa.canalTipo}
+              atendenteId={conversa.atendenteId}
+              atendenteNome={conversa.atendenteNome}
             />
             <Composer conversa={conversa} />
           </>

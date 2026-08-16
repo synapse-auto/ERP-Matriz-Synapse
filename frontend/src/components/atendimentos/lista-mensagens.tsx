@@ -21,6 +21,9 @@ type Props = {
   carregandoMais: boolean;
   onCarregarMais: () => void;
   buscaAberta: boolean;
+  canalTipo: string | null;
+  atendenteId: string | null;
+  atendenteNome: string | null;
 };
 
 /**
@@ -35,6 +38,9 @@ export function ListaMensagens({
   carregandoMais,
   onCarregarMais,
   buscaAberta,
+  canalTipo,
+  atendenteId,
+  atendenteNome,
 }: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
@@ -124,6 +130,15 @@ export function ListaMensagens({
             >
               {virtualizador.getVirtualItems().map((item) => {
                 const mensagem = filtradas[item.index];
+                const anterior = filtradas[item.index - 1];
+                const mostrarData =
+                  !anterior ||
+                  diaDaMensagem(anterior.enviadoEm) !==
+                    diaDaMensagem(mensagem.enviadoEm);
+                const nomeDoRemetente =
+                  mensagem.remetenteId && mensagem.remetenteId === atendenteId
+                    ? atendenteNome
+                    : null;
                 return (
                   <div
                     key={mensagem.id}
@@ -138,8 +153,18 @@ export function ListaMensagens({
                     }}
                     className="py-1"
                   >
+                    {mostrarData && (
+                      <SeparadorDeData enviadoEm={mensagem.enviadoEm} />
+                    )}
+                    {item.index === 0 && (
+                      <LinhaDeInicio
+                        canalTipo={canalTipo}
+                        atendenteNome={atendenteNome}
+                      />
+                    )}
                     <BolhaMensagem
                       mensagem={mensagem}
+                      nomeDoRemetente={nomeDoRemetente}
                       onReenviar={
                         mensagem.statusEntrega === "FALHOU"
                           ? () => onReenviar(mensagem)
@@ -155,4 +180,73 @@ export function ListaMensagens({
       </div>
     </div>
   );
+}
+
+function SeparadorDeData({ enviadoEm }: { enviadoEm: string }) {
+  const textos = useTextos().atendimentos.mensagem;
+  return (
+    <div className="mb-3 flex justify-center">
+      <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+        {rotuloDaData(enviadoEm, textos.hoje, textos.ontem)}
+      </span>
+    </div>
+  );
+}
+
+function LinhaDeInicio({
+  canalTipo,
+  atendenteNome,
+}: {
+  canalTipo: string | null;
+  atendenteNome: string | null;
+}) {
+  const textos = useTextos().atendimentos;
+  const canal = canalTipo === "WHATSAPP" ? textos.canais.whatsapp : canalTipo;
+  const partes: Array<string | null> = [
+    textos.mensagem.atendimentoRecebido,
+    canal,
+  ];
+  if (atendenteNome) {
+    partes.push(
+      textos.mensagem.responsavelAtual.replace("{nome}", atendenteNome),
+    );
+  }
+  return (
+    <p className="mb-3 text-center text-xs text-muted-foreground">
+      {partes.filter(Boolean).join(" · ")}
+    </p>
+  );
+}
+
+function diaDaMensagem(valor: string): string {
+  const data = new Date(valor);
+  return `${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`;
+}
+
+export function rotuloDaData(
+  valor: string,
+  hoje: string,
+  ontem: string,
+): string {
+  const data = new Date(valor);
+  const agora = new Date();
+  const inicioHoje = new Date(
+    agora.getFullYear(),
+    agora.getMonth(),
+    agora.getDate(),
+  );
+  const inicioDaData = new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+  );
+  const inicioOntem = new Date(inicioHoje);
+  inicioOntem.setDate(inicioHoje.getDate() - 1);
+  if (inicioDaData.getTime() === inicioHoje.getTime()) return hoje;
+  if (inicioDaData.getTime() === inicioOntem.getTime()) return ontem;
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: data.getFullYear() === agora.getFullYear() ? undefined : "numeric",
+  }).format(data);
 }

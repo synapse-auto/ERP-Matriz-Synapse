@@ -29,10 +29,15 @@ function metadadosDaMidia(json: string | null): MidiaMetadados {
 type Props = {
   mensagem: MensagemResposta;
   onReenviar?: () => void;
+  nomeDoRemetente?: string | null;
 };
 
 /** Texto, imagem, áudio ou documento — a bolha renderiza os quatro tipos que o backend já entrega. */
-export function BolhaMensagem({ mensagem, onReenviar }: Props) {
+export function BolhaMensagem({
+  mensagem,
+  onReenviar,
+  nomeDoRemetente,
+}: Props) {
   const textos = useTextos().atendimentos.media;
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
@@ -47,9 +52,17 @@ export function BolhaMensagem({ mensagem, onReenviar }: Props) {
       <div
         className={cn(
           "max-w-[70%] rounded-lg px-3 py-2 text-sm",
-          doAtendente ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+          doAtendente
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-foreground",
         )}
       >
+        {doAtendente && nomeDoRemetente && (
+          <p className="mb-1 text-xs font-bold text-primary-foreground/80">
+            {nomeDoRemetente}
+          </p>
+        )}
+
         {mensagem.tipo === "IMAGEM" && (
           <div className="space-y-1">
             {midiaUrl && (
@@ -76,11 +89,27 @@ export function BolhaMensagem({ mensagem, onReenviar }: Props) {
             href={midiaUrl ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 underline underline-offset-2"
+            className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 no-underline"
           >
-            <FileText className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">{metadados.nome ?? textos.documento}</span>
-            <Download className="size-3.5 shrink-0" aria-hidden />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/15">
+              <FileText className="size-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-semibold">
+                {metadados.nome ?? textos.documento}
+              </span>
+              {metadados.tamanho !== undefined && (
+                <span className="block text-xs opacity-75">
+                  {tamanhoLegivel(metadados.tamanho)}
+                </span>
+              )}
+              {metadados.legenda && (
+                <span className="mt-0.5 block text-xs opacity-85">
+                  {metadados.legenda}
+                </span>
+              )}
+            </span>
+            <Download className="size-4 shrink-0" aria-hidden />
           </a>
         )}
 
@@ -91,15 +120,26 @@ export function BolhaMensagem({ mensagem, onReenviar }: Props) {
         <div
           className={cn(
             "mt-1 flex items-center gap-1.5 text-[0.7rem]",
-            doAtendente ? "justify-end text-primary-foreground/70" : "text-muted-foreground",
+            doAtendente
+              ? "justify-end text-primary-foreground/70"
+              : "text-muted-foreground",
           )}
         >
           <span>{hora}</span>
           {doAtendente && (
-            <StatusEntregaIcone status={mensagem.statusEntrega} onReenviar={onReenviar} />
+            <StatusEntregaIcone
+              status={mensagem.statusEntrega}
+              onReenviar={onReenviar}
+            />
           )}
         </div>
       </div>
     </div>
   );
+}
+
+function tamanhoLegivel(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

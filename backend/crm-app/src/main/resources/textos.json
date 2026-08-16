@@ -97,6 +97,10 @@
       "erro": "Não foi possível finalizar."
     },
     "mensagem": {
+      "hoje": "Hoje",
+      "ontem": "Ontem",
+      "atendimentoRecebido": "Atendimento recebido",
+      "responsavelAtual": "Responsável atual: {nome}",
       "status": {
         "pendente": "Enviando",
         "enviado": "Enviado",

@@ -165,6 +165,10 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
     mensagem: z.object({
+      hoje: z.string(),
+      ontem: z.string(),
+      atendimentoRecebido: z.string(),
+      responsavelAtual: z.string(),
       status: z.object({
         pendente: z.string(),
         enviado: z.string(),
