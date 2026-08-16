@@ -83,6 +83,24 @@ function clienteStompFalso() {
 }
 
 describe("ConexaoTempoReal", () => {
+  it("nao cria nem ativa cliente STOMP sem access token", () => {
+    const { cliente } = clienteStompFalso();
+    const criarCliente = vi.fn(() => cliente);
+    const estados: string[] = [];
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => null,
+      onEstadoMudou: (estado) => estados.push(estado),
+      criarCliente,
+    });
+
+    conexao.conectar();
+
+    expect(criarCliente).not.toHaveBeenCalled();
+    expect(cliente.activate).not.toHaveBeenCalled();
+    expect(estados).toEqual(["desconectado"]);
+  });
+
   it("assina a conversa e a fila de revogações ANTES de avisar 'conectado' — o gatilho do backfill", () => {
     const { cliente, chamadas } = clienteStompFalso();
 

@@ -129,7 +129,7 @@ jobs:
           fi
           grep -F 'SYNAPSE_API_URL: http://synapse-backend-internal:8080/internal/v1' docker/dokploy-stack.yml
 
-      - name: Handshake WebSocket pela imagem e pelo Traefik
+      - name: Fumaca de boot dos quatro papeis e handshake WebSocket
         run: docker/verificacao/testar-websocket-empacotado.sh
 
   imagens:

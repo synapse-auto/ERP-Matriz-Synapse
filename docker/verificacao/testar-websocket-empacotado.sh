@@ -32,17 +32,56 @@ done
   exit 1
 }
 
-resposta_login=$(curl --fail --silent --show-error \
-  --header 'Host: crm.ws.test' \
-  --header 'Content-Type: application/json' \
-  --data '{"email":"admin@dev.local","senha":"admin123"}' \
-  http://127.0.0.1:18080/api/v1/auth/login)
-access_token=$(printf '%s' "$resposta_login" \
-  | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
-[ -n "$access_token" ] || {
-  echo "login nao devolveu accessToken" >&2
-  exit 1
+testar_boot_por_papel() {
+  email=$1
+  senha=$2
+  papel=$3
+
+  resposta_login=$(curl --fail --silent --show-error \
+    --header 'Host: crm.ws.test' \
+    --header 'Content-Type: application/json' \
+    --data "{\"email\":\"$email\",\"senha\":\"$senha\"}" \
+    http://127.0.0.1:18080/api/v1/auth/login)
+  access_token=$(printf '%s' "$resposta_login" \
+    | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
+  [ -n "$access_token" ] || {
+    echo "login nao devolveu accessToken para $papel" >&2
+    exit 1
+  }
+
+  resposta_features=$(curl --fail --silent --show-error \
+    --header 'Host: crm.ws.test' \
+    --header "Authorization: Bearer $access_token" \
+    http://127.0.0.1:18080/api/v1/config/features)
+  printf '%s' "$resposta_features" | grep --quiet '^\[' || {
+    echo "features nao devolveu lista para $papel: $resposta_features" >&2
+    exit 1
+  }
+
+  resposta_me=$(curl --fail --silent --show-error \
+    --header 'Host: crm.ws.test' \
+    --header "Authorization: Bearer $access_token" \
+    http://127.0.0.1:18080/api/v1/me)
+  printf '%s' "$resposta_me" | grep --quiet '"nome":' || {
+    echo "/me nao devolveu nome para $papel: $resposta_me" >&2
+    exit 1
+  }
+  printf '%s' "$resposta_me" | grep --quiet "\"papel\":\"$papel\"" || {
+    echo "/me devolveu papel incorreto para $papel: $resposta_me" >&2
+    exit 1
+  }
+  printf '%s' "$resposta_me" | grep --quiet '"presenca":' || {
+    echo "/me nao devolveu presenca para $papel: $resposta_me" >&2
+    exit 1
+  }
+
+  echo "fumaca de boot confirmada para $papel: features=200, me=200"
 }
+
+testar_boot_por_papel 'admin@dev.local' 'admin123' 'ADMINISTRADOR'
+testar_boot_por_papel 'gestor@dev.local' 'gestor123' 'GESTOR'
+testar_boot_por_papel 'subgestor@dev.local' 'subgestor123' 'SUBGESTOR'
+testar_boot_por_papel 'ana@dev.local' 'atendente123' 'ATENDENTE'
 
 docker run --rm --interactive \
   --network synapse-ws-proxy \

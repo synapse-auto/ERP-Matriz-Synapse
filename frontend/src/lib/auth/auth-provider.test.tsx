@@ -1,6 +1,8 @@
-import { StrictMode } from "react";
-import { render, waitFor } from "@testing-library/react";
+import { StrictMode, useEffect } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { apiFetch } from "@/lib/api/http-client";
 
 import { useAuthStore } from "./auth-store";
 
@@ -61,5 +63,89 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(useAuthStore.getState().status).toBe("autenticado"));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("/api/auth/refresh", { method: "POST" });
+  });
+
+  it("hidrata a sessao ao sair de login para uma rota protegida", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ accessToken: "token-apos-navegacao", expiraEmSegundos: 900 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { rerender } = render(
+      <AuthProvider>
+        <span>Conteudo</span>
+      </AuthProvider>,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    caminho = "/agenda";
+    rerender(
+      <AuthProvider>
+        <span>Conteudo</span>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(useAuthStore.getState().status).toBe("autenticado"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/refresh", { method: "POST" });
+  });
+
+  it("so monta consultas protegidas depois de restaurar o token em memoria", async () => {
+    caminho = "/agenda";
+    let concluirRefresh!: (resposta: {
+      ok: boolean;
+      json: () => Promise<{ accessToken: string; expiraEmSegundos: number }>;
+    }) => void;
+    const refreshPendente = new Promise<{
+      ok: boolean;
+      json: () => Promise<{ accessToken: string; expiraEmSegundos: number }>;
+    }>((resolver) => {
+      concluirRefresh = resolver;
+    });
+    const fetchMock = vi.fn((entrada: string | URL | Request, opcoes?: RequestInit) => {
+      const caminhoDaRequisicao = String(entrada);
+      if (caminhoDaRequisicao === "/api/auth/refresh") {
+        return refreshPendente;
+      }
+
+      const token = new Headers(opcoes?.headers).get("Authorization");
+      return Promise.resolve({
+        ok: token === "Bearer token-restaurado",
+        status: token === "Bearer token-restaurado" ? 200 : 401,
+        json: async () => (caminhoDaRequisicao.endsWith("/me") ? { nome: "Admin" } : []),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    function ConsultasDoShell() {
+      useEffect(() => {
+        void Promise.all([
+          apiFetch<string[]>("/api/v1/config/features"),
+          apiFetch<{ nome: string }>("/api/v1/me"),
+        ]);
+      }, []);
+      return <span>Shell montado</span>;
+    }
+
+    render(
+      <AuthProvider>
+        <ConsultasDoShell />
+      </AuthProvider>,
+    );
+
+    expect(screen.queryByText("Shell montado")).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/auth/refresh", { method: "POST" });
+
+    concluirRefresh({
+      ok: true,
+      json: async () => ({ accessToken: "token-restaurado", expiraEmSegundos: 900 }),
+    });
+
+    await screen.findByText("Shell montado");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    for (const [, opcoes] of fetchMock.mock.calls.slice(1)) {
+      expect(new Headers(opcoes?.headers).get("Authorization")).toBe("Bearer token-restaurado");
+    }
   });
 });

@@ -154,6 +154,11 @@ export class ConexaoTempoReal {
 
   private abrirClienteEConectar(): void {
     const accessToken = this.opcoes.obterAccessToken();
+    if (!accessToken) {
+      this.cliente = null;
+      this.opcoes.onEstadoMudou?.("desconectado");
+      return;
+    }
     const cliente = (this.opcoes.criarCliente ?? clienteStompPadrao)({
       brokerUrl: resolverBrokerUrl(this.opcoes.brokerUrl),
       accessToken,
