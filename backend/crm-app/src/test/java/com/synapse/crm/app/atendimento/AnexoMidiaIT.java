@@ -56,7 +56,7 @@ import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEn
 class AnexoMidiaIT extends PostgresIT {
 
     private static final String PREFIXO = "E11b-";
-    private static final String TELEFONE = "+5561977776666";
+    private static final String TELEFONE = "5561977776666";
 
     // 8 bytes de assinatura PNG + preenchimento — suficiente para o Tika detectar image/png.
     private static final byte[] PNG_VALIDO = concatenar(

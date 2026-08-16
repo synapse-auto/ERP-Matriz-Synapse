@@ -36,7 +36,7 @@ import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEn
 class RepasseWebhookAutomacaoDesabilitadoIT extends PostgresIT {
 
     private static final String PREFIXO = "E25-SEM-REPASSE-";
-    private static final String TELEFONE = "+5561977771111";
+    private static final String TELEFONE = "5561977771111";
 
     @Autowired
     private TestRestTemplate http;
