@@ -16,12 +16,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.application.ListarHistoricoMensagensUseCase;
+import com.synapse.crm.atendimento.application.MarcarAtendimentoComoLidoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.tempo_real.ListarMensagensDesdeUseCase;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -37,6 +40,7 @@ class AtendimentoMensagensController {
 
     private final ListarHistoricoMensagensUseCase listarHistorico;
     private final ListarMensagensDesdeUseCase listarDesde;
+    private final MarcarAtendimentoComoLidoUseCase marcarComoLido;
     private final ArmazenamentoDeMidia armazenamento;
     private final MidiaProperties midiaPropriedades;
     private final int tamanhoPagina;
@@ -44,11 +48,13 @@ class AtendimentoMensagensController {
     AtendimentoMensagensController(
             ListarHistoricoMensagensUseCase listarHistorico,
             ListarMensagensDesdeUseCase listarDesde,
+            MarcarAtendimentoComoLidoUseCase marcarComoLido,
             ArmazenamentoDeMidia armazenamento,
             MidiaProperties midiaPropriedades,
             @Value("${synapse.atendimento.historico.tamanho-pagina}") int tamanhoPagina) {
         this.listarHistorico = listarHistorico;
         this.listarDesde = listarDesde;
+        this.marcarComoLido = marcarComoLido;
         this.armazenamento = armazenamento;
         this.midiaPropriedades = midiaPropriedades;
         this.tamanhoPagina = tamanhoPagina;
@@ -92,6 +98,17 @@ class AtendimentoMensagensController {
         return listarDesde.executar(id, desde).stream()
                 .map(mensagem -> MensagemResposta.de(mensagem, armazenamento, midiaPropriedades))
                 .toList();
+    }
+
+    @Operation(
+            summary = "Marcar conversa como lida",
+            description = "Avança a leitura somente quando o usuário autenticado é o responsável atual; a consulta de um gestor é um no-op.",
+            responses = @ApiResponse(responseCode = "204", description = "Abertura processada sem expor a propriedade do atendimento."))
+    @PostMapping("/{id}/leitura")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void marcarComoLido(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id) {
+        marcarComoLido.executar(id);
     }
 
     private static ListarHistoricoMensagensUseCase.Cursor decodificar(String cursor) {

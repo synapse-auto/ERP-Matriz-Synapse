@@ -58,6 +58,7 @@ const conversa: CartaoAtendimento = {
   ultimaMensagemRemetenteTipo: null,
   ultimaMensagemEm: null,
   ultimaMensagemDoLeadEm: null,
+  naoLidas: 0,
 };
 
 describe("CabecalhoConversa", () => {

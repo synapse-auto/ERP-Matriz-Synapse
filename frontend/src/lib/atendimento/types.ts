@@ -36,6 +36,7 @@ export interface CartaoAtendimento {
   ultimaMensagemEm: string | null;
   /** Base para a estimativa client-side da janela de 24h — ver janela-24h.ts. */
   ultimaMensagemDoLeadEm: string | null;
+  naoLidas: number;
 }
 
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */

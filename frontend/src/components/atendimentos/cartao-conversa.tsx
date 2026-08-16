@@ -3,6 +3,7 @@
 import { MessageCircleMore } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
@@ -61,11 +62,22 @@ export function CartaoConversa({
           <p className="truncate text-sm font-bold text-foreground">
             {cartao.leadNome}
           </p>
-          {hora && (
-            <time className="shrink-0 text-[0.7rem] text-muted-foreground">
-              {hora}
-            </time>
-          )}
+          <span className="flex shrink-0 items-center gap-1.5">
+            {hora && (
+              <time className="text-[0.7rem] text-muted-foreground">{hora}</time>
+            )}
+            {cartao.naoLidas > 0 && (
+              <Badge
+                className="h-5 min-w-5 justify-center rounded-full px-1 text-[0.625rem]"
+                title={textos.cartao.naoLidas.replace(
+                  "{quantidade}",
+                  String(cartao.naoLidas),
+                )}
+              >
+                {cartao.naoLidas}
+              </Badge>
+            )}
+          </span>
         </div>
 
         {cartao.leadEmpresa && (

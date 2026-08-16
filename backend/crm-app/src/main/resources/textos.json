@@ -69,7 +69,8 @@
     },
     "cartao": {
       "semAtendente": "Sem atendente",
-      "vazio": "Nenhuma conversa nesta visão."
+      "vazio": "Nenhuma conversa nesta visão.",
+      "naoLidas": "{quantidade} mensagens não lidas"
     },
     "cabecalho": {
       "atendidoPor": "Atendido por",

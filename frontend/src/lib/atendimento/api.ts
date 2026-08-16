@@ -25,6 +25,12 @@ export function contarAtendimentosPorVisao(): Promise<ContagemPorVisao> {
   return apiFetch<ContagemPorVisao>("/api/v1/atendimentos/contagem");
 }
 
+export function marcarAtendimentoComoLido(atendimentoId: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/atendimentos/${atendimentoId}/leitura`, {
+    method: "POST",
+  });
+}
+
 /** `desde` ausente traz a conversa inteira — primeira carga da tela. */
 export function paginaMensagens(
   atendimentoId: string,

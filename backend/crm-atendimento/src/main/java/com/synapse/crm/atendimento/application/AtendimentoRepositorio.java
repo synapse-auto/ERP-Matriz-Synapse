@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.application;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +42,12 @@ public interface AtendimentoRepositorio {
 
     /** Quantos atendimentos abertos compoem a carga atual de um candidato elegivel. */
     long contarAbertosDoAtendente(UUID atendenteId);
+
+    /**
+     * Avanca a leitura somente quando {@code responsavelId} ainda e o dono do atendimento. Gestor
+     * que apenas consulta a conversa e transferencia concorrente nao zeram a fila do atendente.
+     */
+    void marcarComoLido(UUID atendimentoId, UUID responsavelId, Instant quando);
 
     /** Insere ou atualiza. Devolve o estado gravado. */
     Atendimento salvar(Atendimento atendimento);

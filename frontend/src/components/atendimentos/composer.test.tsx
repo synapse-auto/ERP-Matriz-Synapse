@@ -106,6 +106,7 @@ const conversa: CartaoAtendimento = {
   ultimaMensagemRemetenteTipo: null,
   ultimaMensagemEm: null,
   ultimaMensagemDoLeadEm: new Date().toISOString(),
+  naoLidas: 0,
 };
 
 function arquivoFake(nome: string, tipo: string): File {

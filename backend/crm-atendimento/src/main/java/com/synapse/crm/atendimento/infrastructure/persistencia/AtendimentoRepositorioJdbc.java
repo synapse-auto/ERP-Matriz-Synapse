@@ -49,6 +49,14 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String SQL_POR_ID = "SELECT " + COLUNAS + " FROM atendimento WHERE id = ?";
 
+    private static final String SQL_MARCAR_COMO_LIDO =
+            """
+            UPDATE atendimento
+               SET lido_ate = GREATEST(COALESCE(lido_ate, 'epoch'::timestamptz), ?)
+             WHERE id = ?
+               AND atendente_id = ?
+            """;
+
     // Upsert: o caso de uso nao precisa saber se esta abrindo ou atualizando.
     private static final String SQL_SALVAR =
             """
@@ -97,6 +105,12 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                 Long.class,
                 atendenteId);
         return quantidade == null ? 0 : quantidade;
+    }
+
+    @Override
+    public void marcarComoLido(UUID atendimentoId, UUID responsavelId, Instant quando) {
+        TransacaoObrigatoria.exigir("marcarComoLido");
+        chat.update(SQL_MARCAR_COMO_LIDO, Timestamp.from(quando), atendimentoId, responsavelId);
     }
 
     @Override

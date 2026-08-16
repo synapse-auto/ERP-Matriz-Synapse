@@ -21,6 +21,7 @@ const cartoes: CartaoAtendimento[] = [
     ultimaMensagemRemetenteTipo: "LEAD",
     ultimaMensagemEm: "2026-08-16T12:30:00Z",
     ultimaMensagemDoLeadEm: "2026-08-16T12:30:00Z",
+    naoLidas: 1,
   },
   {
     atendimentoId: "protocolo-002",
@@ -39,6 +40,7 @@ const cartoes: CartaoAtendimento[] = [
     ultimaMensagemRemetenteTipo: null,
     ultimaMensagemEm: null,
     ultimaMensagemDoLeadEm: null,
+    naoLidas: 0,
   },
 ];
 
@@ -65,7 +67,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         potenciais: "Potenciais",
       },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
-      cartao: { semAtendente: "Sem atendente", vazio: "Nenhuma conversa" },
+      cartao: {
+        semAtendente: "Sem atendente",
+        vazio: "Nenhuma conversa",
+        naoLidas: "{quantidade} mensagens não lidas",
+      },
     },
   }),
 }));

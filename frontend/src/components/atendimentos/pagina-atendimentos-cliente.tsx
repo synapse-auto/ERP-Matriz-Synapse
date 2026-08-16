@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
 import { Composer } from "@/components/atendimentos/composer";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   MensagemResposta,
@@ -33,6 +36,7 @@ export function PaginaAtendimentosCliente({
 }: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
+  const cache = useQueryClient();
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
@@ -61,6 +65,13 @@ export function PaginaAtendimentosCliente({
     setAvisoRevogacao(false);
     setBuscaAberta(false);
     setConversa(cartao);
+    void marcarAtendimentoComoLido(cartao.atendimentoId)
+      .catch(() => {
+        // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
+      })
+      .finally(() => {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      });
   }
 
   function reenviar(mensagem: MensagemResposta) {

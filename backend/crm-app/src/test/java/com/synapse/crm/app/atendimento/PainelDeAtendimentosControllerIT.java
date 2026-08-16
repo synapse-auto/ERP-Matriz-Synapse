@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +46,9 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private ObjectMapper json;
 
     private UUID idAna;
     private UUID idBruno;
@@ -157,6 +162,73 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         assertThat(comoAna).doesNotContain(atendimentoPendenteDoBruno.toString());
     }
 
+    @Nested
+    @DisplayName("nao lidas")
+    class NaoLidas {
+
+        @Test
+        @DisplayName("cartao conta somente mensagens do lead posteriores a leitura")
+        void cartao_contaSomenteMensagensDoLeadDepoisDaLeitura() throws Exception {
+            JsonNode pendente = cartao(
+                    listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
+                    atendimentoPendenteDaAna);
+            JsonNode ativo = cartao(
+                    listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"),
+                    atendimentoAtivoDaAna);
+
+            assertThat(pendente.path("naoLidas").asLong()).isEqualTo(1);
+            assertThat(ativo.path("naoLidas").asLong()).isZero();
+        }
+
+        @Test
+        @DisplayName("gestor abre conversa alheia e NAO altera lido_ate")
+        void gestor_abreConversaAlheia_naoMarcaComoLida() throws Exception {
+            ResponseEntity<String> resposta = marcarComoLidoComo(
+                    EMAIL_GESTOR, SENHA_GESTOR, atendimentoPendenteDaAna);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(jdbc.queryForObject(
+                            "SELECT lido_ate IS NULL FROM atendimento WHERE id = ?",
+                            Boolean.class,
+                            atendimentoPendenteDaAna))
+                    .isTrue();
+            assertThat(cartao(
+                                    listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("responsavel abre conversa e zera as nao lidas existentes")
+        void responsavel_abreConversa_marcaComoLida() throws Exception {
+            ResponseEntity<String> resposta = marcarComoLidoComo(
+                    EMAIL_ANA, SENHA_ATENDENTE, atendimentoPendenteDaAna);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(jdbc.queryForObject(
+                            "SELECT lido_ate IS NOT NULL FROM atendimento WHERE id = ?",
+                            Boolean.class,
+                            atendimentoPendenteDaAna))
+                    .isTrue();
+            assertThat(cartao(
+                                    listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
+
+            inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "nova pergunta depois da leitura");
+            assertThat(cartao(
+                                    listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(1);
+        }
+    }
+
     /**
      * {@code GET /api/v1/atendimentos/contagem} (E17b §Bloco 6) — os badges das abas. O teste
      * negativo do enunciado: contagem pedida por atendente devolve o numero restrito, gestor devolve
@@ -232,6 +304,26 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         return ApoioAutenticacao.comToken(
                         http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
                 .getBody();
+    }
+
+    private ResponseEntity<String> marcarComoLidoComo(
+            String email, String senha, UUID atendimentoId) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+        return ApoioAutenticacao.comToken(
+                http,
+                token,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/leitura",
+                String.class);
+    }
+
+    private JsonNode cartao(String corpo, UUID atendimentoId) throws Exception {
+        for (JsonNode item : json.readTree(corpo)) {
+            if (atendimentoId.toString().equals(item.path("atendimentoId").asText())) {
+                return item;
+            }
+        }
+        throw new AssertionError("cartao nao encontrado: " + atendimentoId);
     }
 
     private UUID idDoUsuario(String email) {

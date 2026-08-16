@@ -43,7 +43,13 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ultima.conteudo AS ultima_mensagem_preview,
             ultima.remetente_tipo AS ultima_mensagem_remetente_tipo,
             ultima.enviado_em AS ultima_mensagem_em,
-            ultima_lead.enviado_em AS ultima_mensagem_do_lead_em
+            ultima_lead.enviado_em AS ultima_mensagem_do_lead_em,
+            (
+                SELECT count(*) FROM mensagem nao_lida
+                 WHERE nao_lida.atendimento_id = a.id
+                   AND nao_lida.remetente_tipo = 'LEAD'
+                   AND nao_lida.enviado_em > COALESCE(a.lido_ate, 'epoch'::timestamptz)
+            ) AS nao_lidas
             """;
 
     private static final String ORIGEM =
@@ -163,7 +169,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 linha.getString("ultima_mensagem_preview"),
                 linha.getString("ultima_mensagem_remetente_tipo"),
                 instante(linha, "ultima_mensagem_em"),
-                instante(linha, "ultima_mensagem_do_lead_em"));
+                instante(linha, "ultima_mensagem_do_lead_em"),
+                linha.getLong("nao_lidas"));
     }
 
     private static Instant instante(ResultSet linha, String coluna) throws SQLException {

@@ -30,4 +30,5 @@ public record CartaoAtendimento(
         String ultimaMensagemPreview,
         String ultimaMensagemRemetenteTipo,
         Instant ultimaMensagemEm,
-        Instant ultimaMensagemDoLeadEm) {}
+        Instant ultimaMensagemDoLeadEm,
+        long naoLidas) {}

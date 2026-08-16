@@ -138,6 +138,7 @@ export const TextosSchema = z.object({
     cartao: z.object({
       semAtendente: z.string(),
       vazio: z.string(),
+      naoLidas: z.string(),
     }),
     cabecalho: z.object({
       atendidoPor: z.string(),

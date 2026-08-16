@@ -7,7 +7,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
       canais: { whatsapp: "WhatsApp" },
-      cartao: { semAtendente: "Sem atendente" },
+      cartao: {
+        semAtendente: "Sem atendente",
+        naoLidas: "{quantidade} mensagens não lidas",
+      },
     },
   }),
 }));
@@ -31,6 +34,7 @@ const cartao: CartaoAtendimento = {
   ultimaMensagemRemetenteTipo: null,
   ultimaMensagemEm: null,
   ultimaMensagemDoLeadEm: null,
+  naoLidas: 3,
 };
 
 describe("CartaoConversa — RN-CRM-05", () => {
@@ -48,5 +52,9 @@ describe("CartaoConversa — RN-CRM-05", () => {
 
     expect(abrirAtendimento).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("3")).toHaveAttribute(
+      "title",
+      "3 mensagens não lidas",
+    );
   });
 });
