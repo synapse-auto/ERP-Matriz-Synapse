@@ -135,10 +135,11 @@ export function ListaMensagens({
                   !anterior ||
                   diaDaMensagem(anterior.enviadoEm) !==
                     diaDaMensagem(mensagem.enviadoEm);
-                const nomeDoRemetente =
-                  mensagem.remetenteId && mensagem.remetenteId === atendenteId
-                    ? atendenteNome
-                    : null;
+                const nomeDoRemetente = nomeDaAutoria(
+                  mensagem,
+                  atendenteId,
+                  atendenteNome,
+                );
                 return (
                   <div
                     key={mensagem.id}
@@ -179,6 +180,20 @@ export function ListaMensagens({
         )}
       </div>
     </div>
+  );
+}
+
+/** O dado persistido prevalece; o responsavel atual e so fallback para eventos em tempo real. */
+export function nomeDaAutoria(
+  mensagem: MensagemResposta,
+  atendenteId: string | null,
+  atendenteNome: string | null,
+): string | null {
+  return (
+    mensagem.remetenteNome ??
+    (mensagem.remetenteId && mensagem.remetenteId === atendenteId
+      ? atendenteNome
+      : null)
   );
 }
 

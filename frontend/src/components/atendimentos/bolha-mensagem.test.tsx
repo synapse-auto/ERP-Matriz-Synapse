@@ -28,6 +28,7 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
     id: "mensagem-1",
     remetenteTipo: "ATENDENTE",
     remetenteId: "usuario-1",
+    remetenteNome: "Jardel Lima",
     tipo: "TEXTO",
     conteudo: "Olá",
     midiaUrl: null,

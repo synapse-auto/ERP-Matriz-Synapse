@@ -35,6 +35,7 @@ function mensagem(
     id,
     remetenteTipo: "ATENDENTE",
     remetenteId: null,
+    remetenteNome: null,
     tipo: "TEXTO",
     conteudo: "conteúdo",
     midiaUrl: null,

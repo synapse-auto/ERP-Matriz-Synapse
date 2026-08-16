@@ -9,9 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
-import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
-import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
+import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -31,16 +31,17 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 public class ListarMensagensDesdeUseCase {
 
     private final AtendimentoRepositorio atendimentos;
-    private final MensagemRepositorio mensagens;
+    private final HistoricoDeMensagensRepositorio mensagens;
 
-    public ListarMensagensDesdeUseCase(AtendimentoRepositorio atendimentos, MensagemRepositorio mensagens) {
+    public ListarMensagensDesdeUseCase(
+            AtendimentoRepositorio atendimentos, HistoricoDeMensagensRepositorio mensagens) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public List<Mensagem> executar(UUID atendimentoId, Instant desde) {
+    public List<MensagemDoHistorico> executar(UUID atendimentoId, Instant desde) {
         atendimentos
                 .porId(atendimentoId)
                 .orElseThrow(

@@ -47,6 +47,7 @@ export function useMensagens(
           id: evento.dados.mensagemId,
           remetenteTipo: evento.dados.remetenteTipo,
           remetenteId: evento.dados.remetenteId,
+          remetenteNome: null,
           tipo: evento.dados.tipo,
           conteudo: evento.dados.conteudo,
           midiaUrl: evento.dados.midiaUrl,

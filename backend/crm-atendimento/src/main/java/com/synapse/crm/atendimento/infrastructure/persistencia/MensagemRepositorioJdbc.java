@@ -1,25 +1,18 @@
 package com.synapse.crm.atendimento.infrastructure.persistencia;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
-import com.synapse.crm.atendimento.domain.mensagem.Remetente;
-import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
-import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -38,10 +31,6 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Repository
 class MensagemRepositorioJdbc implements MensagemRepositorio {
 
-    private static final String COLUNAS =
-            "id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo, midia_url,"
-                    + " midia_metadados, status_entrega, enviado_em";
-
     private static final String SQL_REGISTRAR =
             """
             INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,
@@ -50,24 +39,10 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
                          ?::status_entrega, ?)
             """;
 
-    private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + " FROM mensagem"
-            + " WHERE atendimento_id = ? ORDER BY enviado_em DESC, id DESC LIMIT ?";
-
-    private static final String SQL_ANTERIORES = "SELECT " + COLUNAS + " FROM mensagem"
-            + " WHERE atendimento_id = ? AND (enviado_em, id) < (?, ?)"
-            + " ORDER BY enviado_em DESC, id DESC LIMIT ?";
-
-    // enviado_em > ? no WHERE: alem de filtro, e a chave de particao — o
-    // planejador poda as particoes fora da janela em vez de varrer todas.
-    private static final String SQL_DESDE = "SELECT " + COLUNAS + " FROM mensagem"
-            + " WHERE atendimento_id = ? AND enviado_em > ? ORDER BY enviado_em ASC";
-
     // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
     // varreria todas as particoes para achar uma unica linha.
     private static final String SQL_STATUS_ENTREGA =
             "UPDATE mensagem SET status_entrega = ?::status_entrega WHERE id = ? AND enviado_em = ?";
-
-    private static final RowMapper<Mensagem> MAPEADOR = MensagemRepositorioJdbc::paraDominio;
 
     private final JdbcTemplate chat;
 
@@ -93,34 +68,6 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
         return mensagem;
     }
 
-    @Override
-    public List<Mensagem> ultimasDoAtendimento(UUID atendimentoId, int limite) {
-        TransacaoObrigatoria.exigir("ultimasDoAtendimento");
-        return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
-    }
-
-    @Override
-    public List<Mensagem> anteriores(
-            UUID atendimentoId, Instant cursorEnviadoEm, UUID cursorId, int limite) {
-        TransacaoObrigatoria.exigir("anteriores");
-        if (cursorEnviadoEm == null) {
-            return chat.query(SQL_ULTIMAS, MAPEADOR, atendimentoId, limite);
-        }
-        return chat.query(
-                SQL_ANTERIORES,
-                MAPEADOR,
-                atendimentoId,
-                Timestamp.from(cursorEnviadoEm),
-                cursorId,
-                limite);
-    }
-
-    @Override
-    public List<Mensagem> desde(UUID atendimentoId, Instant desde) {
-        TransacaoObrigatoria.exigir("desde");
-        return chat.query(SQL_DESDE, MAPEADOR, atendimentoId, Timestamp.from(desde));
-    }
-
     /**
      * Move a mensagem no ciclo de entrega. Chamado pelo publisher da outbox depois de o provedor
      * responder — {@code PENDENTE} vira {@code ENVIADO} ou {@code FALHOU}.
@@ -132,19 +79,5 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     public void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status) {
         TransacaoObrigatoria.exigir("atualizarStatusEntrega");
         chat.update(SQL_STATUS_ENTREGA, status.name(), mensagemId, Timestamp.from(enviadoEm));
-    }
-
-    private static Mensagem paraDominio(ResultSet linha, int indice) throws SQLException {
-        RemetenteTipo tipoRemetente = RemetenteTipo.valueOf(linha.getString("remetente_tipo"));
-        return new Mensagem(
-                linha.getObject("id", UUID.class),
-                linha.getObject("atendimento_id", UUID.class),
-                new Remetente(tipoRemetente, linha.getObject("remetente_id", UUID.class)),
-                TipoMensagem.valueOf(linha.getString("tipo")),
-                linha.getString("conteudo"),
-                linha.getString("midia_url"),
-                linha.getString("midia_metadados"),
-                StatusEntrega.valueOf(linha.getString("status_entrega")),
-                linha.getTimestamp("enviado_em").toInstant());
     }
 }

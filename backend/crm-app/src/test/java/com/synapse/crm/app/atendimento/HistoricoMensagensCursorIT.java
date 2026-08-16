@@ -1,6 +1,7 @@
 package com.synapse.crm.app.atendimento;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +41,8 @@ class HistoricoMensagensCursorIT extends PostgresIT {
     @Autowired private ObjectMapper json;
 
     private UUID atendimentoId;
+    private UUID anaId;
+    private UUID brunoId;
     private Instant inicio;
 
     @BeforeEach
@@ -52,22 +55,38 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 PREFIXO + "%");
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
 
-        UUID ana = jdbc.queryForObject(
+        anaId = jdbc.queryForObject(
                 "SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_ANA);
+        brunoId = jdbc.queryForObject(
+                "SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_BRUNO);
         UUID leadId = UUID.randomUUID();
         atendimentoId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico) VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
                 leadId,
                 PREFIXO + leadId,
-                ana);
+                anaId);
         jdbc.update(
                 "INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
                 atendimentoId,
                 leadId,
-                ana);
+                anaId);
         inicio = Instant.parse("2026-08-04T10:00:00Z");
         for (int indice = 1; indice <= 4; indice++) inserir("original-" + indice, inicio.plusSeconds(indice));
+    }
+
+    @Test
+    @DisplayName("autoria historica vem do remetente da mensagem, nao do responsavel atual")
+    void resolveAutoriaPeloRemetenteId() throws Exception {
+        inserirDoAtendente("escrita-pelo-bruno", inicio.plusSeconds(20), brunoId);
+        inserirDoAtendente("escrita-pela-ana", inicio.plusSeconds(21), anaId);
+
+        JsonNode mensagens = pagina(null).path("mensagens");
+
+        assertThat(nomeDoRemetente(mensagens, "escrita-pelo-bruno"))
+                .isEqualTo(nomeDoUsuario(brunoId));
+        assertThat(nomeDoRemetente(mensagens, "escrita-pela-ana"))
+                .isEqualTo(nomeDoUsuario(anaId));
     }
 
     @Test
@@ -106,6 +125,19 @@ class HistoricoMensagensCursorIT extends PostgresIT {
         return pagina.path("mensagens").findValuesAsText("conteudo");
     }
 
+    private static String nomeDoRemetente(JsonNode mensagens, String conteudo) {
+        for (JsonNode mensagem : mensagens) {
+            if (conteudo.equals(mensagem.path("conteudo").asText())) {
+                return mensagem.path("remetenteNome").asText();
+            }
+        }
+        throw new AssertionError("Mensagem nao encontrada: " + conteudo);
+    }
+
+    private String nomeDoUsuario(UUID usuarioId) {
+        return jdbc.queryForObject("SELECT nome FROM usuario WHERE id = ?", String.class, usuarioId);
+    }
+
     private void inserir(String conteudo, Instant enviadoEm) {
         jdbc.update(
                 """
@@ -115,6 +147,21 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 """,
                 UUID.randomUUID(),
                 atendimentoId,
+                conteudo,
+                Timestamp.from(enviadoEm));
+    }
+
+    private void inserirDoAtendente(String conteudo, Instant enviadoEm, UUID remetenteId) {
+        jdbc.update(
+                """
+                INSERT INTO mensagem
+                    (id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo,
+                     status_entrega, enviado_em)
+                VALUES (?, ?, 'ATENDENTE', ?, 'TEXTO', ?, 'ENTREGUE', ?)
+                """,
+                UUID.randomUUID(),
+                atendimentoId,
+                remetenteId,
                 conteudo,
                 Timestamp.from(enviadoEm));
     }

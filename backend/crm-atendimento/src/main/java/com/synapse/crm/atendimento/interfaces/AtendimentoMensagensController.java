@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.atendimento.application.ListarHistoricoMensagensUseCase;
 import com.synapse.crm.atendimento.application.MarcarAtendimentoComoLidoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.application.tempo_real.ListarMensagensDesdeUseCase;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
@@ -139,6 +140,7 @@ class AtendimentoMensagensController {
             UUID id,
             String remetenteTipo,
             UUID remetenteId,
+            String remetenteNome,
             String tipo,
             String conteudo,
             String midiaUrl,
@@ -147,7 +149,10 @@ class AtendimentoMensagensController {
             Instant enviadoEm) {
 
         static MensagemResposta de(
-                Mensagem mensagem, ArmazenamentoDeMidia armazenamento, MidiaProperties midiaPropriedades) {
+                MensagemDoHistorico item,
+                ArmazenamentoDeMidia armazenamento,
+                MidiaProperties midiaPropriedades) {
+            Mensagem mensagem = item.mensagem();
             String midiaUrl = mensagem.midiaUrl() == null
                     ? null
                     : armazenamento.urlAssinada(mensagem.midiaUrl(), midiaPropriedades.expiracaoLeitura());
@@ -155,6 +160,7 @@ class AtendimentoMensagensController {
                     mensagem.id(),
                     mensagem.remetente().tipo().name(),
                     mensagem.remetente().id(),
+                    item.remetenteNome(),
                     mensagem.tipo().name(),
                     mensagem.conteudo(),
                     midiaUrl,

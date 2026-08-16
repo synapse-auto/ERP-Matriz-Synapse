@@ -44,6 +44,7 @@ export interface MensagemResposta {
   id: string;
   remetenteTipo: RemetenteTipo;
   remetenteId: string | null;
+  remetenteNome: string | null;
   tipo: TipoMensagem;
   conteudo: string | null;
   midiaUrl: string | null;

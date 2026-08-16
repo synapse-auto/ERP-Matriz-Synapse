@@ -49,6 +49,7 @@ export function useEnviarMidia() {
         id: idOtimista,
         remetenteTipo: "ATENDENTE",
         remetenteId: null,
+        remetenteNome: null,
         tipo: tipoDoArquivo(variaveis.arquivo.type),
         conteudo: null,
         midiaUrl: previewUrl,

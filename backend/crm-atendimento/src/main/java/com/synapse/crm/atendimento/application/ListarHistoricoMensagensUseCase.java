@@ -9,7 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
+import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Le a conversa em paginas estaveis, das mensagens mais recentes para as mais antigas. */
@@ -17,10 +18,10 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 public class ListarHistoricoMensagensUseCase {
 
     private final AtendimentoRepositorio atendimentos;
-    private final MensagemRepositorio mensagens;
+    private final HistoricoDeMensagensRepositorio mensagens;
 
     public ListarHistoricoMensagensUseCase(
-            AtendimentoRepositorio atendimentos, MensagemRepositorio mensagens) {
+            AtendimentoRepositorio atendimentos, HistoricoDeMensagensRepositorio mensagens) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
     }
@@ -33,23 +34,25 @@ public class ListarHistoricoMensagensUseCase {
                 .orElseThrow(
                         () -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
 
-        List<Mensagem> encontradas = mensagens.anteriores(
+        List<MensagemDoHistorico> encontradas = mensagens.anteriores(
                 atendimentoId,
                 cursor == null ? null : cursor.enviadoEm(),
                 cursor == null ? null : cursor.id(),
                 tamanho + 1);
         boolean temMais = encontradas.size() > tamanho;
-        List<Mensagem> pagina = new ArrayList<>(
+        List<MensagemDoHistorico> pagina = new ArrayList<>(
                 temMais ? encontradas.subList(0, tamanho) : encontradas);
         Cursor proximo = temMais
-                ? new Cursor(pagina.getLast().enviadoEm(), pagina.getLast().id())
+                ? new Cursor(
+                        pagina.getLast().mensagem().enviadoEm(),
+                        pagina.getLast().mensagem().id())
                 : null;
         return new Pagina(pagina.reversed(), proximo);
     }
 
     public record Cursor(Instant enviadoEm, UUID id) {}
 
-    public record Pagina(List<Mensagem> mensagens, Cursor proximoCursor) {
+    public record Pagina(List<MensagemDoHistorico> mensagens, Cursor proximoCursor) {
         public Pagina {
             mensagens = List.copyOf(mensagens);
         }
