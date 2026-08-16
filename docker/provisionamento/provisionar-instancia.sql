@@ -43,6 +43,11 @@
 
 BEGIN;
 
+-- Mesmo formato canonico usado pelo dominio e pela Meta: apenas digitos. O Phone Number ID
+-- tambem e numerico e permanece sendo a chave estavel da credencial.
+SELECT regexp_replace(:'whatsapp_numero', '[^0-9]', '', 'g') AS whatsapp_numero_canonico
+\gset
+
 -- Um e-mail e o identificador estavel do administrador. Reexecutar atualiza
 -- dados e hash, sem criar outro admin nem duplicar usuario.
 INSERT INTO usuario (id, nome, email, senha_hash, papel, ativo)
@@ -72,7 +77,7 @@ UPDATE canal_credencial
    AND ativo;
 
 UPDATE canal_credencial
-   SET numero = :'whatsapp_numero',
+   SET numero = :'whatsapp_numero_canonico',
        token_ref = 'env://WHATSAPP_TOKEN',
        ativo = TRUE,
        vigente_ate = NULL
@@ -80,20 +85,20 @@ UPDATE canal_credencial
        SELECT id
          FROM canal_credencial
         WHERE canal_id = :'canal_whatsapp_id'::uuid
-          AND identificador_externo = :'whatsapp_numero'
+          AND identificador_externo = :'whatsapp_numero_canonico'
         ORDER BY vigente_desde DESC, id
         LIMIT 1
  );
 
 INSERT INTO canal_credencial
     (id, canal_id, numero, identificador_externo, token_ref, ativo)
-SELECT gen_random_uuid(), :'canal_whatsapp_id'::uuid, :'whatsapp_numero',
-       :'whatsapp_numero', 'env://WHATSAPP_TOKEN', TRUE
+SELECT gen_random_uuid(), :'canal_whatsapp_id'::uuid, :'whatsapp_numero_canonico',
+       :'whatsapp_numero_canonico', 'env://WHATSAPP_TOKEN', TRUE
  WHERE NOT EXISTS (
        SELECT 1
          FROM canal_credencial
         WHERE canal_id = :'canal_whatsapp_id'::uuid
-          AND identificador_externo = :'whatsapp_numero'
+          AND identificador_externo = :'whatsapp_numero_canonico'
           AND ativo
  );
 

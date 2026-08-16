@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -134,16 +135,25 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     @Override
     public UUID resolverPorTelefone(String telefone, String nomeSugerido) {
         TransacaoObrigatoria.exigir("resolverPorTelefone");
+        String telefoneCanonico = TelefoneCanonico.normalizar(telefone);
+        if (telefoneCanonico == null) {
+            throw new IllegalArgumentException("telefone deve conter ao menos um digito");
+        }
 
         List<UUID> existentes = chat.query(
-                SQL_POR_TELEFONE, (linha, indice) -> linha.getObject(1, UUID.class), telefone);
+                SQL_POR_TELEFONE,
+                (linha, indice) -> linha.getObject(1, UUID.class),
+                telefoneCanonico);
         if (!existentes.isEmpty()) {
             return existentes.get(0);
         }
 
         UUID novo = UUID.randomUUID();
-        String nome = (nomeSugerido == null || nomeSugerido.isBlank()) ? telefone : nomeSugerido;
-        chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefone);
+        String nome =
+                (nomeSugerido == null || nomeSugerido.isBlank())
+                        ? telefoneCanonico
+                        : nomeSugerido;
+        chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefoneCanonico);
         return novo;
     }
 

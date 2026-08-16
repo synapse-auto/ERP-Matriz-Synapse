@@ -43,7 +43,7 @@ INSERT INTO canal_credencial
     (id, canal_id, numero, identificador_externo, token_ref, ativo) VALUES
     ('cc000000-0000-4000-8000-000000000001',
      'ca000000-0000-4000-8000-000000000001',
-     '+5561900000000', 'phone-number-id-dev', 'secret://dev/whatsapp/token', TRUE)
+     '5561900000000', 'phone-number-id-dev', 'secret://dev/whatsapp/token', TRUE)
 ON CONFLICT (id) DO UPDATE
     SET numero = EXCLUDED.numero,
         identificador_externo = EXCLUDED.identificador_externo,

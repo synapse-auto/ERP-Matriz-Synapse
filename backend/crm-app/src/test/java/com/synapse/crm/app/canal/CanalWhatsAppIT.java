@@ -1,5 +1,7 @@
 package com.synapse.crm.app.canal;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -18,8 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +34,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
+import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -63,7 +68,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 class CanalWhatsAppIT extends PostgresIT {
 
     private static final String PREFIXO = "E05-";
-    private static final String TELEFONE = "+5561988887777";
+    private static final String TELEFONE = "5561988887777";
 
     @Autowired
     private EnviarMensagemUseCase enviar;
@@ -293,6 +298,50 @@ class CanalWhatsAppIT extends PostgresIT {
     class Webhook {
 
         @Test
+        @DisplayName("telefone formatado pela tela e canonico no webhook resolvem o mesmo lead")
+        void telefoneDaTelaEWebhook_resolvemOMesmoLead() {
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(token);
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+
+            ResponseEntity<String> atualizacao = http.exchange(
+                    "/api/v1/leads/" + leadDaAna,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(java.util.Map.of("telefone", "+55 61 98888-7777"), cabecalhos),
+                    String.class);
+
+            assertThat(atualizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(jdbc.queryForObject(
+                            "SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                    .isEqualTo(TELEFONE);
+
+            postarWebhook(payload("ext-telefone-canonico", TELEFONE, "bom dia"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(mensagensDoLead()).isEqualTo(1);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM lead WHERE telefone = ?",
+                                Integer.class,
+                                TELEFONE))
+                        .isEqualTo(1);
+            });
+        }
+
+        @Test
+        @DisplayName("indice impede que dois leads tenham o mesmo telefone canonico")
+        void telefoneCanonicoDuplicado_eRecusadoPeloBanco() {
+            assertThatThrownBy(() -> jdbc.update(
+                            "INSERT INTO lead (id, nome, telefone, status_basico)"
+                                    + " VALUES (?, ?, ?, 'IA')",
+                            UUID.randomUUID(),
+                            PREFIXO + "Duplicado",
+                            TELEFONE))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+        }
+
+        @Test
         @DisplayName("mensagem recebida vira atendimento e mensagem na conversa")
         void webhook_mensagemNova_criaAtendimento() {
             assertThat(postarWebhook(payload("ext-1", "bom dia"), CanalFake.ASSINATURA_VALIDA)
@@ -459,7 +508,11 @@ class CanalWhatsAppIT extends PostgresIT {
     }
 
     private static String payload(String id, String texto) {
-        return "{\"id\":\"" + id + "\",\"de\":\"" + TELEFONE + "\",\"nome\":\"Cliente\",\"texto\":\""
+        return payload(id, TELEFONE, texto);
+    }
+
+    private static String payload(String id, String telefone, String texto) {
+        return "{\"id\":\"" + id + "\",\"de\":\"" + telefone + "\",\"nome\":\"Cliente\",\"texto\":\""
                 + texto + "\"}";
     }
 
