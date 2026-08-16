@@ -112,6 +112,7 @@ jobs:
       WHATSAPP_WEBHOOK_VERIFY_TOKEN: dummy-webhook-verify-ci
       WHATSAPP_WEBHOOK_SECRET: dummy-webhook-secret-ci
       AUTOMACAO_TOKEN: dummy-automation-token-ci
+      AUTOMACAO_WEBHOOK_EVENTOS_URL: https://automation.example.test/webhook/ci
       TRAEFIK_ROUTER_PREFIX: ci
     steps:
       - uses: actions/checkout@v4
