@@ -13,6 +13,7 @@ import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarConfiguracaoAutomacaoUseCase;
 import com.synapse.crm.core.application.tag.GestaoDeTagsUseCases;
 import com.synapse.crm.equipe.application.autenticacao.AlterarSenhaUseCase;
+import com.synapse.crm.equipe.application.usuario.DefinirSenhaProvisoriaUseCase;
 import com.synapse.crm.sharedkernel.auditoria.Auditable;
 
 /**
@@ -81,7 +82,9 @@ class AuditoriaDeAcoesSensiveisTest {
                     String.class,
                     String.class),
             AcaoSensivel.viaAuditable(
-                    AlterarSenhaUseCase.class, "executar", String.class, String.class));
+                    AlterarSenhaUseCase.class, "executar", String.class, String.class),
+            AcaoSensivel.viaAuditable(
+                    DefinirSenhaProvisoriaUseCase.class, "executar", UUID.class));
 
     @Test
     @DisplayName("toda acao sensivel marcada como AUDITABLE tem @Auditable no metodo")

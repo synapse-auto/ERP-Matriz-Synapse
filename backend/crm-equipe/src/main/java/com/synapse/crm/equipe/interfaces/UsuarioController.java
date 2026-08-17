@@ -32,6 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.equipe.application.usuario.AtualizarMinhaPresencaUseCase;
 import com.synapse.crm.equipe.application.usuario.AtualizarUsuarioUseCase;
 import com.synapse.crm.equipe.application.usuario.CriarUsuarioUseCase;
+import com.synapse.crm.equipe.application.usuario.DefinirSenhaProvisoriaUseCase;
 import com.synapse.crm.equipe.application.usuario.DesativarUsuarioUseCase;
 import com.synapse.crm.equipe.application.usuario.EmailDeUsuarioEmUsoException;
 import com.synapse.crm.equipe.application.usuario.ListarUsuariosUseCase;
@@ -54,16 +55,19 @@ class UsuarioController {
     private final DesativarUsuarioUseCase desativar;
     private final ObterMinhaPresencaUseCase obterPresenca;
     private final AtualizarMinhaPresencaUseCase atualizarPresenca;
+    private final DefinirSenhaProvisoriaUseCase definirSenhaProvisoria;
 
     UsuarioController(ListarUsuariosUseCase listar, CriarUsuarioUseCase criar,
             AtualizarUsuarioUseCase atualizar, DesativarUsuarioUseCase desativar,
-            ObterMinhaPresencaUseCase obterPresenca, AtualizarMinhaPresencaUseCase atualizarPresenca) {
+            ObterMinhaPresencaUseCase obterPresenca, AtualizarMinhaPresencaUseCase atualizarPresenca,
+            DefinirSenhaProvisoriaUseCase definirSenhaProvisoria) {
         this.listar = listar;
         this.criar = criar;
         this.atualizar = atualizar;
         this.desativar = desativar;
         this.obterPresenca = obterPresenca;
         this.atualizarPresenca = atualizarPresenca;
+        this.definirSenhaProvisoria = definirSenhaProvisoria;
     }
 
     @Operation(summary = "Listar usuários", description = "Lista a equipe sem expor hashes ou credenciais; restrito aos papéis de gestão.", responses = @ApiResponse(responseCode = "200", description = "Usuários da equipe."))
@@ -92,6 +96,12 @@ class UsuarioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void desativar(@Parameter(description = "Identificador do usuário.", required = true) @PathVariable UUID id) {
         if (!desativar.executar(id)) throw naoEncontrado();
+    }
+
+    @Operation(summary = "Gerar senha provisória", description = "O gestor devolve o acesso de quem esqueceu a senha: gera uma senha aleatória, revoga as sessões do alvo e devolve a senha em claro uma única vez.", responses = {@ApiResponse(responseCode = "200", description = "Senha provisória gerada."), @ApiResponse(responseCode = "404", description = "Usuário não encontrado.")})
+    @PostMapping("/{id}/senha-provisoria")
+    SenhaProvisoriaResposta gerarSenhaProvisoria(@Parameter(description = "Identificador do usuário.", required = true) @PathVariable UUID id) {
+        return definirSenhaProvisoria.executar(id).map(SenhaProvisoriaResposta::new).orElseThrow(UsuarioController::naoEncontrado);
     }
 
     @Operation(summary = "Obter minha presença", description = "Retorna o estado de presença do usuário autenticado.", responses = {@ApiResponse(responseCode = "200", description = "Presença atual."), @ApiResponse(responseCode = "404", description = "Usuário autenticado não encontrado.")})
@@ -141,4 +151,7 @@ class UsuarioController {
             @Schema(description = "Novo estado de presença.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull StatusPresenca status) {}
     record PresencaResposta(StatusPresenca status) {}
+    /** A senha em claro sai daqui uma unica vez; nunca e persistida em claro nem logada. */
+    record SenhaProvisoriaResposta(
+            @Schema(description = "Senha gerada; mostrada uma única vez, para o gestor repassar.", format = "password") String senha) {}
 }
