@@ -16,14 +16,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** Executa a V26 sobre um banco parado na V25, inclusive no caminho que precisa abortar. */
-@SpringBootTest
-class TelefoneComDdiMigrationIT extends PostgresIT {
+@Testcontainers
+class TelefoneComDdiMigrationIT {
+
+    @Container
+    private static final PostgreSQLContainer<?> POSTGRES =
+            new PostgreSQLContainer<>("postgres:15-alpine");
 
     private String banco;
     private String url;
