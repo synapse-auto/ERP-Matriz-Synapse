@@ -120,7 +120,7 @@ export function ListaConversas({
   }, [busca, data, filtroAtendente, filtroEtapa]);
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background">
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-extrabold tracking-tight text-foreground">
@@ -200,7 +200,7 @@ export function ListaConversas({
         </div>
       )}
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
         {isLoading ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 5 }).map((_, indice) => (

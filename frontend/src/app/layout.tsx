@@ -57,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <style>{temaParaCssVariaveis(tema)}</style>
       </head>
-      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
+      <body className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
         <QueryProvider>
           <TextosProvider textos={textos}>
             <AuthProvider>

@@ -84,3 +84,6 @@ redis-data/
 coverage/
 .nyc_output/
 /backend/**/target/surefire-reports/
+/.playwright-cli/
+**/test-results/
+**/playwright-report/

@@ -55,7 +55,10 @@ export function CabecalhoConversa({
     .join(" · ");
 
   return (
-    <div className="flex h-[72px] items-center justify-between border-b border-border bg-background px-5">
+    <div
+      className="flex h-[72px] items-center justify-between border-b border-border bg-background px-5"
+      data-slot="cabecalho-conversa"
+    >
       <div className="flex min-w-0 items-center gap-3">
         <Avatar>
           {urlSegura(conversa.leadFotoUrl) && (
