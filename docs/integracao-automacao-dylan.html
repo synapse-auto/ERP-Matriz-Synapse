@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Integração da Automação — CRM Estrutural Vidros</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif;
+    color: #33475B; font-size: 10.5pt; line-height: 1.5; margin: 0;
+  }
+  h1 { font-size: 19pt; color: #0F2438; margin: 0 0 2px; letter-spacing: -.3px; }
+  .sub { color: #5A6B7B; font-size: 10pt; margin-bottom: 18px; }
+  h2 {
+    font-size: 12.5pt; color: #0F2438; margin: 22px 0 8px;
+    padding-bottom: 5px; border-bottom: 2px solid #1F74E0;
+  }
+  h3 { font-size: 10.5pt; color: #1F74E0; margin: 14px 0 5px; }
+  p { margin: 0 0 8px; }
+  code {
+    font-family: "JetBrains Mono", Consolas, monospace; font-size: 9pt;
+    background: #EEF3F8; padding: 1px 4px; border-radius: 3px; color: #0F2438;
+  }
+  pre {
+    font-family: "JetBrains Mono", Consolas, monospace; font-size: 8.8pt;
+    background: #0C2A43; color: #C3D6E8; padding: 10px 12px;
+    border-radius: 8px; overflow-x: auto; margin: 8px 0; line-height: 1.45;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.5pt; }
+  th {
+    text-align: left; background: #F4F7FB; color: #0F2438; font-weight: 700;
+    padding: 7px 9px; border-bottom: 2px solid #E1E8F0;
+  }
+  td { padding: 7px 9px; border-bottom: 1px solid #E7EDF4; vertical-align: top; }
+  .metodo { font-family: "JetBrains Mono", Consolas, monospace; font-size: 8.5pt; font-weight: 700; }
+  .get { color: #17835A; }
+  .post { color: #1F74E0; }
+  .card {
+    background: #F4F7FB; border: 1px solid #E7EDF4; border-radius: 10px;
+    padding: 12px 14px; margin: 10px 0;
+  }
+  .alerta {
+    background: #FBEAE8; border: 1px solid #F3D3CF; border-left: 4px solid #C0392B;
+    border-radius: 8px; padding: 11px 14px; margin: 10px 0;
+  }
+  .alerta strong { color: #C0392B; }
+  .nota {
+    background: #FFF8E8; border: 1px solid #F0E0BB; border-left: 4px solid #E0A61C;
+    border-radius: 8px; padding: 11px 14px; margin: 10px 0;
+  }
+  ul { margin: 6px 0 10px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  .fluxo {
+    display: flex; align-items: stretch; gap: 10px; margin: 12px 0;
+  }
+  .bloco {
+    flex: 1; background: #fff; border: 1.5px solid #CFE1FA; border-radius: 10px;
+    padding: 10px 12px; text-align: center;
+  }
+  .bloco .t { font-weight: 800; color: #0F2438; font-size: 10pt; }
+  .bloco .d { color: #5A6B7B; font-size: 8.7pt; margin-top: 3px; }
+  .seta { align-self: center; color: #1F74E0; font-weight: 800; font-size: 13pt; }
+  .quebra { page-break-before: always; }
+  footer {
+    margin-top: 26px; padding-top: 10px; border-top: 1px solid #E7EDF4;
+    color: #8A9BAD; font-size: 8.5pt;
+  }
+</style>
+</head>
+<body>
+
+<h1>Integração da Automação com o CRM</h1>
+<div class="sub">Estrutural Vidros &middot; ambiente de homologação &middot; agosto de 2026</div>
+
+<p>Este documento tem o que é preciso para construir os fluxos do n8n contra o CRM. São duas direções de comunicação, e elas funcionam de formas diferentes.</p>
+
+<div class="fluxo">
+  <div class="bloco"><div class="t">Meta / WhatsApp</div><div class="d">mensagem do cliente</div></div>
+  <div class="seta">&rarr;</div>
+  <div class="bloco"><div class="t">CRM</div><div class="d">grava e mostra ao atendente</div></div>
+  <div class="seta">&rarr;</div>
+  <div class="bloco"><div class="t">n8n</div><div class="d">recebe o payload cru</div></div>
+</div>
+
+<h2>1. O que o CRM manda para você</h2>
+
+<p>A cada webhook válido recebido da Meta, o CRM repassa o <strong>payload exatamente como a Meta enviou</strong> — sem reformatar, sem enriquecer, sem traduzir. O que você recebe é o mesmo JSON que a Meta manda para um webhook direto.</p>
+
+<div class="card">
+  <strong>Destino configurado nesta instância</strong>
+  <pre><code>POST https://n8n.187.77.47.30.sslip.io/webhook/estrutural-vidros/eventos</code></pre>
+  <p style="margin:0">O caminho do seu nó Webhook precisa ser <code>estrutural-vidros/eventos</code>.</p>
+</div>
+
+<p>O cabeçalho <code>X-Hub-Signature-256</code> da Meta é repassado junto. Use-o para validar a origem — a URL é pública e sem essa verificação qualquer POST é aceito.</p>
+
+<div class="nota">
+  <strong>O workflow precisa estar ATIVADO.</strong> O n8n expõe duas URLs por webhook: a de teste
+  (<code>/webhook-test/…</code>), que só escuta enquanto você clica em "Listen for test event", e a de
+  produção (<code>/webhook/…</code>), que exige o workflow ativo. O CRM posta na de produção. Com o
+  workflow inativo você recebe 404 e o CRM retenta até desistir.
+</div>
+
+<p>O repasse é assíncrono e com retentativa (recuo exponencial, até 8 tentativas). Se o n8n estiver fora do ar, o CRM continua recebendo e mostrando a mensagem ao atendente normalmente — o atendimento nunca depende da Automação.</p>
+
+<h2>2. Como você fala com o CRM</h2>
+
+<p>Pelo contrato interno, na rede privada da instância. Ele <strong>não tem rota pública</strong>: só é alcançável de dentro da mesma rede Docker, o que é proposital.</p>
+
+<pre><code>Base:  http://synapse-backend-internal:8080/internal/v1
+Auth:  X-Synapse-Token: &lt;SYNAPSE_TOKEN_INTERNO&gt;
+Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
+
+<p>No n8n, o token vai numa <strong>Credential do tipo Header Auth</strong>, nunca digitado dentro do nó. Credential é cifrada com a <code>N8N_ENCRYPTION_KEY</code>; valor solto no nó viaja em texto claro dentro do JSON do workflow — e workflow a gente exporta e versiona.</p>
+
+<h3>Endpoints disponíveis</h3>
+
+<table>
+  <tr><th style="width:60px">Método</th><th>Caminho</th><th>Para quê</th></tr>
+  <tr><td class="metodo get">GET</td><td><code>/atendentes/disponiveis</code></td><td>quem pode receber atendimento agora</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/automation-config</code></td><td>todos os parâmetros de configuração</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/automation-config/{chave}</code></td><td>um parâmetro específico</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/regras/follow-up</code></td><td>regras de follow-up cadastradas</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/regras/fidelizacao</code></td><td>regras de fidelização cadastradas</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/eventos</code></td><td>registrar telemetria da Automação</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/transferir</code></td><td>passar o atendimento da IA para um humano</td></tr>
+</table>
+
+<p>O Swagger é a fonte da verdade para formato de requisição e resposta. Se algo aqui divergir dele, o Swagger está certo.</p>
+
+<div class="alerta">
+  <strong>A transferência não aceita destinatário escolhido.</strong> O endpoint de transferência
+  distribui pela regra de roteamento do CRM, ignorando qualquer atendente informado no corpo.
+  Os atendentes trabalham por comissão, e escolher a dedo quem recebe um lead é um caminho lateral
+  que a regra de negócio proíbe.
+</div>
+
+<div class="quebra"></div>
+
+<h2>3. O que não fazer</h2>
+
+<h3>Não acessar o banco do CRM</h3>
+
+<p>Existem dois bancos no mesmo servidor PostgreSQL: o do CRM e o do n8n, com usuários separados. A role do n8n <strong>não tem permissão</strong> no banco do CRM, e isso é desenho, não descuido.</p>
+
+<p>Além do isolamento, escrever direto não funciona como se espera. O CRM reage a mudanças por eventos de domínio: um <code>INSERT</code> manual numa tabela de mensagem</p>
+
+<ul>
+  <li>não avisa a tela do atendente pelo WebSocket — ninguém vê a mensagem chegar;</li>
+  <li>não entra na outbox — ela nunca é enviada ao WhatsApp;</li>
+  <li>não gera evento de timeline — some do histórico do lead;</li>
+  <li>não conta nas métricas do Dashboard.</li>
+</ul>
+
+<p>A linha existe no banco e é como se não existisse no produto.</p>
+
+<h3>Não pedir para expor o <code>/internal/v1</code> publicamente</h3>
+
+<p>Se um nó devolver 404, a URL está errada — use a interna, sem HTTPS e sem domínio. A resposta certa é corrigir a URL, nunca abrir a rota.</p>
+
+<h2>4. Quando precisar guardar um dado novo</h2>
+
+<p><strong>Campo customizado, não coluna nova.</strong> O CRM já tem esse mecanismo: o gestor define campos extras por instância e eles aparecem na ficha do lead, no filtro e na API. É exatamente o caso de "a Automação precisa gravar mais uma informação no lead" — sem migration, sem deploy, e diferente em cada cliente sem tocar em código.</p>
+
+<p>Se não couber num campo customizado, ou se faltar operação na API, peça a extensão do contrato. É etapa curta de backend, e vem com autorização, evento de domínio e teste — que é o que faz o dado valer para o produto inteiro, e não só para o seu workflow.</p>
+
+<h2>5. Para começar</h2>
+
+<ul>
+  <li>Criar o nó Webhook em <code>estrutural-vidros/eventos</code> e <strong>ativar o workflow</strong>;</li>
+  <li>validar o <code>X-Hub-Signature-256</code> antes de processar;</li>
+  <li>criar a Credential Header Auth com o <code>X-Synapse-Token</code>;</li>
+  <li>apontar as chamadas para <code>http://synapse-backend-internal:8080/internal/v1</code>;</li>
+  <li>conferir o Swagger antes de assumir formato de payload;</li>
+  <li>exportar o JSON dos workflows e versionar em <code>automacao/workflows/</code>, sem credenciais — o que fica só no volume some junto com o volume.</li>
+</ul>
+
+<div class="nota">
+  <strong>As URLs desta instância são temporárias.</strong> O <code>sslip.io</code> será trocado por
+  subdomínios reais antes da produção, e nesse momento o endereço do editor e dos webhooks do n8n
+  muda. Não cadastre a URL atual em nenhum serviço externo até a troca.
+</div>
+
+<footer>
+  Referência completa no repositório: <code>docs/16-acesso-da-automacao.md</code>.
+  Dúvidas de contrato: Swagger em <code>/swagger-ui</code> no domínio do CRM.
+</footer>
+
+</body>
+</html>

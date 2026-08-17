@@ -46,7 +46,9 @@ Registrado aqui porque some de vista com facilidade:
 
 - **Smoke RLS nunca executado** no ambiente real — atendente pode estar vendo lead de colega e ninguém saberia
 - **Seed de demonstração nunca executado** — as telas estão vazias
-- **Nenhuma mensagem real** jamais entrou ou saiu do ambiente hospedado
+- **Entrada de mensagem: PROVADA** em 15/08 pelo webhook de teste do painel da Meta — lead criado a partir de número desconhecido, atendimento aberto com a IA, mensagem persistida, tela atualizada. Falta a **saída** (responder pela tela), que só dá para provar com mensagem real
+- **App da Meta não publicado** — enquanto estiver assim, a Meta só entrega webhook de teste do painel. Nenhuma mensagem real entra, nem de administrador ou testador. Publicar exige política de privacidade, ícone, categoria e possivelmente verificação do negócio (dias)
+- **Lead de teste no ambiente** — o webhook de teste criou "test user name" (`16315551181`). Limpar antes de o cliente usar
 - **Backup nunca restaurado** de verdade
 - **Watchdog externo da E22 ainda não provisionado/testado** — o endpoint e o runbook existem; falta configurar o Kuma fora do provedor do CRM e executar o teste destrutivo de `docs/15`
 - **Subdomínios reais** — o `sslip.io` compartilha cota do Let's Encrypt com o mundo; na renovação, o certificado pode não sair, e aí a Meta para de entregar webhook

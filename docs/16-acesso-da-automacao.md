@@ -89,7 +89,7 @@ Nenhuma migration, nenhum deploy, e funciona diferente em cada cliente sem tocar
 
 **Se o dado não couber num campo customizado**, ou se o `/internal/v1` não expuser a operação que você precisa — não contorne pelo banco. Peça a extensão do contrato. É uma etapa curta de backend, e ela vem com autorização, evento de domínio e teste, que é o que faz o dado valer para o produto inteiro e não só para o seu workflow.
 
-## 6. Resumo para o Dylan
+## 6. Resumo 
 
 | Pergunta | Resposta |
 |---|---|

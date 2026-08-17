@@ -1,155 +1,105 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. Se a conversa com o arquiteto for reiniciada, **este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
+Documento de continuidade. **Este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
 
-Atualizado em: 03/08/2026, após a etapa de isolamento do `/internal/v1`.
+Atualizado em 16/08/2026, depois da E25.
 
 ---
 
 ## 1. Onde estamos
 
-**Entrega: 25/08/2026. Homologação com a subgestora: ~11/08.** Desenvolvedor solo.
+**Entrega: 25/08/2026.** Nove dias. Desenvolvedor solo, com agentes (Codex desde a E12).
 
-| Etapa | Status | Commit |
-|---|---|---|
-| E00 Fundação do monorepo | ✅ | `1549651` |
-| E01 Schema e migrations | ✅ | `ac8326e` |
-| E01b Ajustes de constraints e partição | ✅ | `ad94956` |
-| E02 Auth, RBAC, isolamento de agenda | ✅ | `84f9bd8` |
-| E02b RLS | ✅ | `1b24e82` |
-| E03a Agregados de lead, tags, etapas | ✅ | `66d5844` |
-| E03b Filtro modular | ✅ | `6e20515` |
-| E04 Atendimento e mensagem | ✅ | `36e3b54` |
-| E05 Canal WhatsApp, outbox, ACL | ✅ | `defbb09` |
-| E06 Tempo real | ✅ | `3e8365c` |
-| E06b Campos customizados | ✅ | `00d5ea3` |
-| E07 Contrato `/internal/v1` + config | ✅ | `e745302` |
-| E07b Correção dos jobs agendados | ✅ | `a104951` |
-| E09a Auditoria via AOP | ✅ | `8a01aca` |
-| E10 Fundação do frontend | ✅ | `fa862c3` |
-| E11 Tela de Atendimentos | ✅ | `19f9008` |
-| E11b Anexos de mídia | ✅ | `69912a1` |
-| E12 Painel lateral e timeline | ✅ | `5dffbb8` |
-| E13 CRUDs de suporte e gaps | ✅ | `03cbe9b` |
-| E14 Preparo do deploy | ✅ | `668b681` |
-| Isolamento do `/internal/v1` + n8n | ✅ | `add65b8` |
-| Swagger/OpenAPI | ✅ | `3f5f0b0` |
-| Roteamento Swagger no Traefik | ✅ commitado, **redeploy pendente** | `4c747e2` |
-| E14a Deploy de homologação | ⚠️ **stack no ar, definição de pronto NÃO cumprida** | — |
-| **E14b Verificação e provisionamento** | ⏳ **próxima** | — |
-| E09b Saúde crítica e watchdog | ⏳ após E14b | — |
-| E15 Dashboard consolidada | ⏳ opcional | — |
+O CRM está **no ar em homologação**, com WhatsApp funcionando ponta a ponta e tempo real ativo.
 
-**CI verde** desde `668b681`. Backend 184 testes, frontend 34.
+| Etapa | Entrega |
+|---|---|
+| E00–E17b | fundação, backend, frontend, fidelidade visual — ver histórico do git |
+| E18 | tema do produto ligado à base do shadcn |
+| E19 | controles do design system, filtros da Agenda, superfície da página |
+| E20a | histórico de transição de etapa, `resultado` da etapa |
+| E20 | Dashboard, aba Visão Geral |
+| E21 / E21b | desempenho por atendente, transferência pela Automação, resolução por IA |
+| E22 | `/health/critical`, watchdog, `docs/04` com evidência nomeada |
+| E23 | correções do primeiro uso real — **introduziu regressão** |
+| E24 | regressão da E23, teste de fumaça de boot |
+| E25 | repasse para a Automação, bug do clique, fidelidade de Atendimentos |
+| **E26** | **próxima** — telefone canônico, não lidas, autoria, degradação de tela |
 
----
+## 2. O que já foi provado no ambiente real
 
-## 2. O que falta
+- **Mensagem entrando**, de número real, ponta a ponta: Meta → Traefik → HMAC → lead → atendimento → tela
+- **Mensagem saindo**, com status de entrega
+- **WebSocket conectando** — `CONNECT(5)-CONNECTED(5)` no log do backend
+- App da Meta **publicado**, webhook cadastrado, campo `messages` assinado
+- Canal e credencial cadastrados no banco
 
-**E14a — Deploy de homologação.** Prompt em `docs/prompts/prompt-E14a-deploy-homologacao.md`.
+## 3. Pendências operacionais — dependem do Marcondes
 
-Bloqueios atuais:
+Nenhuma é prompt. Passo a passo completo em `docs/18-runbook-pendencias-operacionais.md`.
 
 | Item | Situação |
 |---|---|
-| Acesso ao Dokploy | ✅ disponível |
-| Número/credenciais da Meta | ⏳ sendo providenciado |
-| Domínios (`SYNAPSE_DOMINIO`, `MIDIA_DOMINIO`, n8n) | ❌ a definir |
-| S3-compatível + credenciais | ❌ a definir |
-| Etapas do funil e tags | ❌ **depende da subgestora** — pedir hoje |
-| Admin inicial + canal para a senha | ❌ a definir |
-| Capacidade do VPS | ❌ a definir |
-| `N8N_IMAGE_TAG` | ❌ a definir |
+| **Smoke RLS** | nunca executado. Se um atendente vê lead de colega, é incidente comercial |
+| **Seed de demonstração** | nunca executado; telas quase vazias |
+| **Backup + restauração testada** | não feito |
+| **Watchdog externo** | endpoint e runbook prontos; Uptime Kuma não provisionado |
+| **Subdomínios reais** | `sslip.io` divide cota do Let's Encrypt com o mundo; na renovação o certificado pode não sair |
+| **Painel do Dokploy em HTTP na porta 3000** | fechar com `ufw` e acessar por túnel |
+| **Etapas do funil e tags** | dependem da subgestora |
+| `AUTOMACAO_WEBHOOK_EVENTOS_URL` | cadastrar no Dokploy com a URL interna do n8n |
 
-**Divisão de trabalho no deploy:** o agente prepara scripts, comandos e checklist; **o humano executa no painel do Dokploy** e devolve a saída. Não entregue credencial de infraestrutura ao agente — ações lá são irreversíveis e ele não vê a tela para confirmar visualmente.
+## 4. Decisões que não se revertem sem custo
 
-**E09b** roda depois do deploy — watchdog só faz sentido com algo hospedado para vigiar.
-
-**E15 (Dashboard)** é opcional; decidir com o progresso real.
-
----
-
-## 3. Decisões arquiteturais que não podem ser revertidas sem custo
-
-- **Multi-tenancy Silo:** instância isolada por cliente, sem `tenant_id`. Um repositório, uma imagem, N deploys com configuração diferente. **Filho novo não escreve código.**
-- **Regra de precedência:** aba Atendimentos não pode cair 08:00–18:30. Precede qualquer outra decisão.
+- **Multi-tenancy Silo**: instância isolada por cliente, sem `tenant_id`. Um repositório, uma imagem, N deploys. **Filho novo não escreve código.**
+- **Regra de precedência**: a aba Atendimentos não pode cair 08:00–18:30.
 - **`/internal/v1` não é roteável publicamente.** n8n na mesma overlay, token como segunda camada.
-- **n8n tem banco e role próprios** dentro do Postgres da instância — credencial de workflow não alcança tabelas do CRM.
-- **Backup:** `pg_dump` horário na homologação. **PITR é dívida com data: antes do go-live de produção.**
-- **Registry:** GHCR, imagens com tag por SHA e `latest`.
+- **Repasse para a Automação é assíncrono e opcional.** A entrada de mensagem nunca depende do n8n.
 - **Java 21 fixo.** Java 25 quebra o ArchUnit silenciosamente.
-- **Documentação versionada** (`docs/`, `design/`, `AGENTS.md`) — decisão revertida em 03/08 após a divergência aparecer.
+- **`SYNAPSE_IMAGE_TAG=latest` em homologação**, SHA fixo em produção.
+- **Telefone canônico**: só dígitos, com código de país, sem `+` (a decidir na E26).
+- **Venda ganha** = transições para etapa `GANHO` no período, por lead distinto (ADR-008).
 
----
+## 5. O padrão que se repete — quinze casos
 
-## 4. As nove proteções que falharam em silêncio
+Proteção que existe, passa no teste, e não protege nada. Os mais caros:
 
-O padrão mais valioso aprendido no projeto. Em todos, a proteção existia, o build passava, e nada estava protegido:
+1. `DoNotIncludeJars` — ArchUnit nunca rodou por três etapas
+2. RLS escrita, usuário era dono das tabelas — só o **teste negativo** expôs
+3. `@Scheduled` com auto-invocação — mensagens quebradas nos dois sentidos, build verde
+4. `JwtAuthenticationToken` de um argumento nasce `authenticated=false`
+5. Webhook `GET` reusando o validador HMAC do `POST`
+6. Redis em `localhost` — passava local, 166 falhas no runner
+7. **E23**: `traefik.docker.network` somada à `traefik.swarm.network` fez o Traefik **descartar o router do backend inteiro**. `/api/v1` devolvia HTML, `/ws` dava 502, o webhook da Meta parou. CI verde com 323 testes; o teste de handshake da própria etapa passava contra um Traefik montado por ela
+8. **E23**: `onMutate` tratando cache de `useInfiniteQuery` como array plano — `mutationFn` nunca era chamado, e **o teste assumia a mesma forma errada**
 
-1. **E00–E02:** `ArquiteturaTest` com `DoNotIncludeJars` — módulos chegam como JAR, as regras nunca rodaram
-2. **E02b:** políticas RLS escritas, mas o usuário era dono/superusuário — todo mundo via tudo, e os testes *positivos* passavam por isso
-3. **E03a:** upgrade para Java 25 fez o ArchUnit importar zero classes
-4. **E07:** `@Scheduled` chamando método transacional do próprio bean — o caminho de mensagens estava quebrado nas duas direções por duas etapas
-5. **E09a:** javadoc afirmando "vira 400" sem `@ExceptionHandler` que fizesse isso
-6. **E06:** `JwtAuthenticationToken` de um argumento nasce com `authenticated=false` — todo `@PreAuthorize` falhava sem exceção visível
-7. **E01b:** `@Scheduled` de um contexto de teste roubando linha de outbox de outro teste pelo Postgres compartilhado
-8. **E14:** verificação `GET` do webhook reusando o validador HMAC do `POST` — a Meta nunca configuraria o webhook
-9. **E14:** testes passando local por haver um Redis em `localhost`; no runner, 166 falhas
+**Regras derivadas** (também no `AGENTS.md`): proteção nova nasce com teste que a viola; teste o ponto de entrada, não o método interno; erro recorrente em log é defeito, não paisagem; teste o negativo; espere por condição, nunca por tempo; **"CI verde" só vale com o número da run**; e o mais recente — **teste que valida a configuração que você montou não prova nada sobre a que roda**.
 
-**Regras derivadas** (também no `AGENTS.md`):
+## 6. Dívidas abertas
 
-- Toda proteção nova nasce com um teste que a viola de propósito
-- Teste o ponto de entrada, não só o método interno — chamar `bean::metodoInterno` num `@Autowired` *parece* testar o ponto de entrada e não exercita a auto-invocação
-- Erro recorrente em log de teste é defeito, não paisagem
-- Teste o negativo: provar que alguém *não* vê algo pega o que o teste positivo esconde
-- Espere por condição, nunca por tempo
+`docs/14-pendencias-de-funcionalidade.md` tem a lista completa. As maiores:
 
----
+- **Regras de automação** (follow-up, fidelização, festiva, resumo IA) — tabelas existem, zero caso de uso
+- **Horários de trabalho** — módulo inteiro; hoje a disponibilidade do atendente é **manual**
+- **Treze superfícies somem inteiras quando uma query falha** — endereçado na E26
+- Kanban, CSV, avaliação por atendimento, troca de credencial de canal
+- **PITR** antes do go-live de produção
 
-## 5. Dívidas registradas
+## 7. Como o arquiteto trabalha aqui
 
-| Item | Prazo | Onde |
-|---|---|---|
-| **PITR no Postgres** | antes do go-live de produção | `docs/10` §1.1b |
-| Limites de mídia conferidos contra a doc atual da Meta | antes da produção | `docs/10` §2 |
-| Dashboard/Relatórios detalhado | fase 2 | `docs/09` |
-| Campanhas, Banco de Arquivos, Chat interno | fase 2 | `docs/09` |
-| Teste de combinações de feature flags | quando existir o 2º filho | `docs/06` |
-| Warning do React Compiler em `useVirtualizer` | sem prazo | — |
-| Docker Desktop local em modo somente-leitura | antes do próximo build local | — |
+**O ciclo:** um prompt por etapa → o agente executa e reporta no formato de sete itens do `AGENTS.md` → o arquiteto lê, decide o que ficou aberto e calibra o próximo.
 
----
+**O que extrair de cada relatório:** o item 3 (decisões não especificadas) traz as escolhas a validar; o item 5 (bugs encontrados) é onde apareceram quase todos os defeitos silenciosos; o item 7 é o que precisa de decisão — decida quando for técnico, devolva ao humano quando envolver dinheiro, cliente ou risco irreversível.
 
-## 6. Como o arquiteto trabalha nesta conversa
+**Ponto de parada é ferramenta.** Prompts que mandam o agente parar e avisar quando a premissa não se sustenta já evitaram duas entregas erradas — a Dashboard sem histórico de etapa, e o card de IA sem registro de transferência.
 
-Se o contexto for perdido, este é o modo de operação que vinha funcionando:
+**Tom:** direto, sem bajulação. Admitir erro rápido e seguir. Neste projeto o arquiteto errou, entre outras: avaliou vulnerabilidades npm como dev-only quando eram de produção; decidiu ignorar `docs/` no git; extraiu o `TOKENS.md` sem mapear a base do shadcn; instruiu a converter tabelas em cards com base num relatório não conferido; sugeriu rollback num ambiente que não é produção.
 
-**O ciclo:** o arquiteto escreve um prompt por etapa → o agente executa e reporta no formato de sete itens do `AGENTS.md` → o arquiteto lê o relatório, decide o que ficou em aberto e calibra o prompt seguinte.
+## 8. Ordem recomendada
 
-**O que o arquiteto extrai de cada relatório:**
+1. **E26** — telefone canônico primeiro; duplicidade de lead é comissão
+2. **Pendências operacionais** — smoke RLS e seed são dez minutos somados
+3. **Liberar o Lucas para testar** e reservar 23–24/08 para o retorno dele
+4. **25/08** — entrega
 
-- **Item 3 (decisões não especificadas)** — é onde estão as escolhas que precisam ser validadas ou registradas
-- **Item 5 (bugs encontrados)** — sete das nove proteções silenciosas apareceram aqui, fora do escopo da etapa
-- **Item 7 (decisões pendentes)** — o arquiteto decide, ou devolve ao humano quando é escolha de produto/custo
-
-**O que ele faz que importa:**
-
-- Decide em vez de listar opções, quando a decisão é técnica
-- Devolve ao humano quando envolve dinheiro, cliente ou risco irreversível
-- Registra decisão revista nos docs, com o motivo — não sobrescreve silenciosamente
-- Diz quando errou. Já errou duas vezes: avaliou vulnerabilidades npm como dev-only quando eram de produção, e decidiu ignorar `docs/` no git
-
-**Tom:** direto, sem bajulação. Discordar do agente quando ele estiver certo tecnicamente mas errado no contexto do produto.
-
----
-
-## 7. Ordem recomendada daqui
-
-1. **E14a** — deploy de homologação, assim que os acessos existirem
-2. **E09b** — health crítico e watchdog, logo após o deploy
-3. **Liberar para a subgestora** (~11/08) e coletar feedback
-4. **E15** — Dashboard, se o progresso permitir
-5. **E14 final** — hardening, checklist do `docs/08` §5
-6. **25/08** — entrega
-
-**O que não pode escorregar:** o deploy de homologação. É o primeiro contato do cliente com o produto e o começo da validação contínua prevista no documento interno. Tudo o mais tem folga; isso não.
+`docs/17-plano-de-fechamento.md` tem o plano completo, incluindo o que fica de fora e o que precisa ir por escrito ao cliente.
