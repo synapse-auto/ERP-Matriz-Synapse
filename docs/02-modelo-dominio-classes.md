@@ -17,8 +17,10 @@ classDiagram
         +StatusPresenca statusPresenca
         +boolean ativo
         +Instant criadoEm
+        +Instant senhaAlteradaEm
         +autenticar(senha) boolean
         +definirPresenca(status)
+        +precisaTrocarSenha() boolean
     }
 
     class PapelUsuario {

@@ -66,7 +66,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.1 Equipe
 
-**`usuario`** — `id`, `nome`, `email` (UK), `senha_hash`, `papel`, `status_presenca`, `ativo`, `criado_em`
+**`usuario`** — `id`, `nome`, `email` (UK), `senha_hash`, `papel`, `status_presenca`, `ativo`, `criado_em`, `senha_alterada_em` (V28, E29 — `NULL` = senha provisória, nunca trocada pelo dono)
 **`refresh_token`** — `id`, `usuario_id`, `token_hash` (UK, SHA-256), `familia`, `expira_em`, `revogado_em`, `criado_em`
 **`avaliacao`** — `id`, `atendimento_id`, `atendente_id`, `nota` (CHECK 1–5), `comentario`, `criado_em`
 **`horario_trabalho`** — `id`, `aplicavel_a`, `dia_semana`, `inicio`, `fim` (CHECK `fim > inicio`)

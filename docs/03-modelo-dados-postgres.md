@@ -83,7 +83,10 @@ CREATE TABLE usuario (
     papel             papel_usuario NOT NULL,
     status_presenca   status_presenca NOT NULL DEFAULT 'OFFLINE',
     ativo             BOOLEAN NOT NULL DEFAULT TRUE,
-    criado_em         TIMESTAMPTZ NOT NULL DEFAULT now()
+    criado_em         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- E29 (V28): NULL = senha provisoria, nunca trocada pelo dono. Bloqueia
+    -- toda rota autenticada exceto POST /api/v1/auth/senha e /auth/logout.
+    senha_alterada_em TIMESTAMPTZ
 );
 CREATE INDEX idx_usuario_papel ON usuario (papel) WHERE ativo;
 
