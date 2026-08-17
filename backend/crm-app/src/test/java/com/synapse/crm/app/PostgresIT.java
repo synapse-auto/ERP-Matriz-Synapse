@@ -54,6 +54,10 @@ public abstract class PostgresIT {
             registro.add("synapse.datasource." + pool + ".url", POSTGRES::getJdbcUrl);
             registro.add("synapse.datasource." + pool + ".username", POSTGRES::getUsername);
             registro.add("synapse.datasource." + pool + ".password", POSTGRES::getPassword);
+            // Os ApplicationContexts ficam no cache do Spring e compartilham um unico Postgres.
+            // Herdar os pools de producao (12 + 8) esgota max_connections antes da ultima suite.
+            registro.add("synapse.datasource." + pool + ".hikari.maximum-pool-size", () -> "2");
+            registro.add("synapse.datasource." + pool + ".hikari.minimum-idle", () -> "0");
         }
         // synapse.seguranca.jwt-segredo nao tem default em application.yml de
         // proposito: a aplicacao nao sobe sem ele. Os testes fornecem o seu.

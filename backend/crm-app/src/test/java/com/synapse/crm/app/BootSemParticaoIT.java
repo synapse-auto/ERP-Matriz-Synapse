@@ -37,9 +37,13 @@ class BootSemParticaoIT extends PostgresIT {
             "--synapse.datasource.general.url=" + POSTGRES.getJdbcUrl(),
             "--synapse.datasource.general.username=" + POSTGRES.getUsername(),
             "--synapse.datasource.general.password=" + POSTGRES.getPassword(),
+            "--synapse.datasource.general.hikari.maximum-pool-size=2",
+            "--synapse.datasource.general.hikari.minimum-idle=0",
             "--synapse.datasource.chat.url=" + POSTGRES.getJdbcUrl(),
             "--synapse.datasource.chat.username=" + POSTGRES.getUsername(),
             "--synapse.datasource.chat.password=" + POSTGRES.getPassword(),
+            "--synapse.datasource.chat.hikari.maximum-pool-size=2",
+            "--synapse.datasource.chat.hikari.minimum-idle=0",
             "--synapse.atendimento.particao.meses-minimos=" + JANELA_MAIOR_QUE_A_CRIADA,
             // Mesmo motivo do PostgresIT, que esta aplicacao nao herda por subir pelo
             // builder em vez do TestContext: o container e compartilhado e as suites com
