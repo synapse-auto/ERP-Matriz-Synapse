@@ -8,6 +8,7 @@ import {
   desempenhoEquipe,
   desativarUsuario,
   editarUsuario,
+  gerarSenhaProvisoria,
   listarEquipe,
   obterMeuUsuario,
 } from "./api";
@@ -69,5 +70,12 @@ export function useDesativarUsuario() {
   return useMutation({
     mutationFn: (id: string) => desativarUsuario(id),
     onSuccess: () => cache.invalidateQueries({ queryKey: CHAVE_EQUIPE }),
+  });
+}
+
+/** E29: não invalida CHAVE_EQUIPE — gerar a senha não muda nenhum campo listado na grade. */
+export function useGerarSenhaProvisoria() {
+  return useMutation({
+    mutationFn: (id: string) => gerarSenhaProvisoria(id),
   });
 }

@@ -19,10 +19,17 @@ const MARGEM_REFRESH_MS = 30_000;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const expiraEm = useAuthStore((estado) => estado.expiraEm);
   const status = useAuthStore((estado) => estado.status);
+  const precisaTrocarSenha = useAuthStore((estado) => estado.precisaTrocarSenha);
   const limparSessao = useAuthStore((estado) => estado.limparSessao);
   const router = useRouter();
   const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // E29: à prova de digitar a rota. O bloqueio de verdade é no backend (SenhaProvisoriaFilter);
+  // isto só evita que o usuário veja uma tela protegida por um instante antes do redirect.
+  const rotaLivreDeSenhaProvisoria = pathname === "/login" || pathname === "/trocar-senha";
+  const presoNaTrocaDeSenha =
+    status === "autenticado" && precisaTrocarSenha && !rotaLivreDeSenhaProvisoria;
 
   function irParaLogin() {
     limparSessao();
@@ -52,6 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, status]);
 
   useEffect(() => {
+    if (presoNaTrocaDeSenha) {
+      router.replace("/trocar-senha");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presoNaTrocaDeSenha, pathname]);
+
+  useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (!expiraEm) return;
 
@@ -73,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // de o cookie httpOnly restaurá-lo: isso evita 401 transitório, queries em estado de erro e uma
   // primeira tentativa de WebSocket com `access_token=` vazio. Se a renovação falhar, a árvore
   // continua bloqueada durante o redirecionamento para /login.
-  if (pathname !== "/login" && status !== "autenticado") {
+  if ((pathname !== "/login" && status !== "autenticado") || presoNaTrocaDeSenha) {
     return null;
   }
 

@@ -14,6 +14,7 @@ import {
   Clock,
   Folder,
   Headset,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -207,6 +208,14 @@ export function Sidebar() {
               );
             })}
             <div className="my-1.5 h-px bg-white/10" />
+            <Link
+              href="/trocar-senha"
+              onClick={() => setPopupAberto(false)}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] font-semibold text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+            >
+              <KeyRound className="size-4" />
+              {textos.rodape.trocarSenha}
+            </Link>
             <button
               type="button"
               onClick={() => void encerrarSessao()}

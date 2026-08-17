@@ -13,23 +13,25 @@ interface AuthState {
   expiraEm: number | null;
   email: string | null;
   papel: string | null;
+  /** true enquanto a senha for provisória (E29) — decidido pelo backend, só lido aqui. */
+  precisaTrocarSenha: boolean;
   status: "carregando" | "autenticado" | "nao-autenticado";
   definirSessao: (sessao: SessaoIniciada) => void;
   limparSessao: () => void;
 }
 
 /**
- * Decodifica o payload do JWT sem validar assinatura — só para ler `papel`, exibido no rodapé da
- * sidebar. A validação de verdade é sempre do backend; isto é leitura de exibição, não decisão de
- * autorização.
+ * Decodifica o payload do JWT sem validar assinatura — só para leitura de exibição/roteamento
+ * (`papel` no rodapé da sidebar, `senha_provisoria` para o redirecionamento de primeiro acesso). A
+ * validação de verdade é sempre do backend: qualquer rota que dependa de `senha_provisoria` continua
+ * bloqueada no servidor (SenhaProvisoriaFilter) mesmo que este decode minta.
  */
-function decodificarPapel(accessToken: string): string | null {
+function decodificarPayload(accessToken: string): Record<string, unknown> {
   try {
     const payloadBase64 = accessToken.split(".")[1];
-    const payload = JSON.parse(atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof payload.papel === "string" ? payload.papel : null;
+    return JSON.parse(atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/")));
   } catch {
-    return null;
+    return {};
   }
 }
 
@@ -38,15 +40,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   expiraEm: null,
   email: null,
   papel: null,
+  precisaTrocarSenha: false,
   status: "carregando",
   definirSessao: ({ accessToken, expiraEmSegundos, email }) =>
-    set((estadoAtual) => ({
-      accessToken,
-      expiraEm: Date.now() + expiraEmSegundos * 1000,
-      email: email ?? estadoAtual.email,
-      papel: decodificarPapel(accessToken),
-      status: "autenticado",
-    })),
+    set((estadoAtual) => {
+      const payload = decodificarPayload(accessToken);
+      return {
+        accessToken,
+        expiraEm: Date.now() + expiraEmSegundos * 1000,
+        email: email ?? estadoAtual.email,
+        papel: typeof payload.papel === "string" ? payload.papel : null,
+        precisaTrocarSenha: payload.senha_provisoria === true,
+        status: "autenticado",
+      };
+    }),
   limparSessao: () =>
-    set({ accessToken: null, expiraEm: null, email: null, papel: null, status: "nao-autenticado" }),
+    set({
+      accessToken: null,
+      expiraEm: null,
+      email: null,
+      papel: null,
+      precisaTrocarSenha: false,
+      status: "nao-autenticado",
+    }),
 }));

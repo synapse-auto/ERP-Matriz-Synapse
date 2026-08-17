@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 const criarMutate = vi.fn();
 const editarMutate = vi.fn();
 const desativarMutate = vi.fn();
+const gerarSenhaMutate = vi.fn();
 
 const USUARIOS = [
   {
@@ -81,6 +82,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
         cancelar: "Cancelar",
         erro: "Não foi possível salvar o usuário.",
       },
+      senhaProvisoria: {
+        acao: "Gerar senha provisória",
+        dialogoTitulo: "Senha provisória gerada",
+        dialogoDescricao: "Repasse esta senha para {nome}. Ela não será mostrada novamente.",
+        copiar: "Copiar",
+        copiada: "Copiada!",
+        fechar: "Fechar",
+        erro: "Não foi possível gerar a senha provisória.",
+      },
     },
   }),
 }));
@@ -92,6 +102,7 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
   useCriarUsuario: () => ({ mutate: criarMutate, isPending: false, isError: false }),
   useEditarUsuario: () => ({ mutate: editarMutate, isPending: false, isError: false }),
   useDesativarUsuario: () => ({ mutate: desativarMutate, isPending: false, isError: false }),
+  useGerarSenhaProvisoria: () => ({ mutate: gerarSenhaMutate, isPending: false, isError: false }),
 }));
 
 import { PaginaEquipe } from "./pagina-equipe";

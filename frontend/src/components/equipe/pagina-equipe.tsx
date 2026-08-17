@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { BadgeCheck, Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
+import { BadgeCheck, Check, Copy, KeyRound, Medal, Pencil, Star, UserRoundX, Users } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
@@ -25,6 +26,7 @@ import {
   useDesempenhoEquipe,
   useEditarUsuario,
   useEquipe,
+  useGerarSenhaProvisoria,
 } from "@/lib/equipe/use-equipe";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
 
@@ -40,8 +42,11 @@ export function PaginaEquipe() {
   const avaliacoes = useAvaliacoesEquipe();
   const desempenho = useDesempenhoEquipe();
   const desativar = useDesativarUsuario();
+  const gerarSenha = useGerarSenhaProvisoria();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
+  const [senhaGeradaPara, setSenhaGeradaPara] = useState<UsuarioEquipe | null>(null);
+  const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
 
   const usuarios = (equipe.data ?? []).filter(
     (u) => u.papel === "ATENDENTE" || u.papel === "SUBGESTOR",
@@ -105,6 +110,13 @@ export function PaginaEquipe() {
               textos={t}
               onEditar={setEdicao}
               onDesativar={(id) => desativar.mutate(id)}
+              onGerarSenhaProvisoria={(usuario) => {
+                setSenhaGeradaPara(usuario);
+                setSenhaGerada(null);
+                gerarSenha.mutate(usuario.id, {
+                  onSuccess: (resposta) => setSenhaGerada(resposta.senha),
+                });
+              }}
             />
           </div>
         </>
@@ -112,6 +124,14 @@ export function PaginaEquipe() {
 
       <Formulario aberto={novo} onFechar={() => setNovo(false)} />
       {edicao && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+      {senhaGeradaPara && (
+        <SenhaProvisoriaDialog
+          usuario={senhaGeradaPara}
+          senha={senhaGerada}
+          erro={gerarSenha.isError}
+          onFechar={() => setSenhaGeradaPara(null)}
+        />
+      )}
     </div>
   );
 }
@@ -242,6 +262,7 @@ function TabelaDeUsuarios({
   textos,
   onEditar,
   onDesativar,
+  onGerarSenhaProvisoria,
 }: {
   usuarios: UsuarioEquipe[];
   avaliacoes: LinhaRanking[];
@@ -249,6 +270,7 @@ function TabelaDeUsuarios({
   textos: TextosEquipe;
   onEditar: (usuario: UsuarioEquipe) => void;
   onDesativar: (id: string) => void;
+  onGerarSenhaProvisoria: (usuario: UsuarioEquipe) => void;
 }) {
   const avaliacaoPorId = new Map(avaliacoes.map((a) => [a.atendenteId, a]));
   const desempenhoPorId = new Map(desempenho.map((item) => [item.atendenteId, item]));
@@ -354,6 +376,15 @@ function TabelaDeUsuarios({
                     >
                       <Pencil className="size-4" />
                     </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8"
+                      aria-label={`${textos.senhaProvisoria.acao} ${usuario.nome}`}
+                      onClick={() => onGerarSenhaProvisoria(usuario)}
+                    >
+                      <KeyRound className="size-4" />
+                    </Button>
                     {usuario.ativo && (
                       <Button
                         size="icon"
@@ -373,6 +404,61 @@ function TabelaDeUsuarios({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * A senha só existe em memória enquanto este diálogo estiver aberto (E29): não há como reabri-lo
+ * com a mesma senha depois de fechado — o backend não a devolve de novo.
+ */
+function SenhaProvisoriaDialog({
+  usuario,
+  senha,
+  erro,
+  onFechar,
+}: {
+  usuario: UsuarioEquipe;
+  senha: string | null;
+  erro: boolean;
+  onFechar: () => void;
+}) {
+  const t = useTextos().equipe.senhaProvisoria;
+  const [copiada, setCopiada] = useState(false);
+
+  async function copiar() {
+    if (!senha) return;
+    await navigator.clipboard.writeText(senha);
+    setCopiada(true);
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onFechar()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t.dialogoTitulo}</DialogTitle>
+          <DialogDescription>
+            {t.dialogoDescricao.replace("{nome}", usuario.nome)}
+          </DialogDescription>
+        </DialogHeader>
+        {erro ? (
+          <p className="text-destructive">{t.erro}</p>
+        ) : senha ? (
+          <div className="flex items-center gap-2">
+            <Input readOnly value={senha} className="font-mono" />
+            <Button type="button" variant="outline" size="icon" onClick={() => void copiar()}>
+              {copiada ? <Check className="size-4" /> : <Copy className="size-4" />}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">…</p>
+        )}
+        <DialogFooter>
+          <Button type="button" onClick={onFechar}>
+            {t.fechar}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
