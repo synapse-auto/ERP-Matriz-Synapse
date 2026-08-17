@@ -1,5 +1,6 @@
 package com.synapse.crm.equipe.infrastructure.persistencia;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -47,11 +48,15 @@ class UsuarioEntity {
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
+    /** {@code null} = senha provisoria, nunca trocada pelo dono (E29). */
+    @Column(name = "senha_alterada_em")
+    private Instant senhaAlteradaEm;
+
     protected UsuarioEntity() {
         // exigido pelo JPA
     }
 
     Usuario paraDominio() {
-        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo);
+        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, senhaAlteradaEm);
     }
 }

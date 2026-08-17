@@ -44,8 +44,10 @@ class UsuarioContextSpring implements UsuarioContext {
             return Optional.empty();
         }
 
+        Boolean senhaProvisoria = jwt.getClaimAsBoolean(ClaimsJwt.SENHA_PROVISORIA);
         return Optional.of(new UsuarioAutenticado(
                 UUID.fromString(jwt.getSubject()),
-                PapelUsuario.valueOf(jwt.getClaimAsString(ClaimsJwt.PAPEL))));
+                PapelUsuario.valueOf(jwt.getClaimAsString(ClaimsJwt.PAPEL)),
+                Boolean.TRUE.equals(senhaProvisoria)));
     }
 }

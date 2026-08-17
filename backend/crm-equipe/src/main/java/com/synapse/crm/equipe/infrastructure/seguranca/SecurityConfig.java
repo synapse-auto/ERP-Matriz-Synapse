@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -50,6 +51,7 @@ public class SecurityConfig {
             HttpSecurity http,
             SynapseTokenAuthenticationFilter filtroSynapseToken,
             RequisicaoContextSpring filtroRequisicaoContext,
+            SenhaProvisoriaFilter filtroSenhaProvisoria,
             CorsConfigurationSource corsConfigurationSource)
             throws Exception {
         return http.csrf(csrf -> csrf.disable())
@@ -63,7 +65,20 @@ public class SecurityConfig {
                 // autenticacao, entao o filtro de contexto e adicionado primeiro.
                 .addFilterBefore(filtroRequisicaoContext, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroSynapseToken, UsernamePasswordAuthenticationFilter.class)
+                // E29: precisa vir DEPOIS que o resource server OAuth2 autentica o JWT — so ali a
+                // claim senha_provisoria esta disponivel no SecurityContextHolder para este filtro
+                // ler. BearerTokenAuthenticationFilter e a classe padrao que o oauth2ResourceServer
+                // registra abaixo; referencia-la aqui so fixa a posicao relativa, nao exige que o
+                // bean dela seja injetado.
+                .addFilterAfter(filtroSenhaProvisoria, BearerTokenAuthenticationFilter.class)
                 .authorizeHttpRequests(rotas -> rotas
+                        // E29: trocar a propria senha exige um Bearer token valido — sem isto a
+                        // rota cairia no permitAll de /api/v1/auth/** logo abaixo, e qualquer
+                        // requisicao (sem token nenhum) poderia tentar trocar a senha de qualquer
+                        // um. A regra precisa vir ANTES da mais generica: a primeira que casar
+                        // decide.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/senha")
+                        .authenticated()
                         .requestMatchers("/api/v1/auth/**")
                         .permitAll()
                         // E10: tema e textos precisam estar disponiveis ANTES do login — a

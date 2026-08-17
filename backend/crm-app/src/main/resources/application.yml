@@ -229,6 +229,10 @@ synapse:
     # (porta diferente da API em dev). Nao e segredo — default de dev aqui e
     # so conveniencia, nao risco.
     frontend-origem: ${SYNAPSE_FRONTEND_ORIGEM:http://localhost:3000}
+    # E29: politica de senha configuravel, sem numero fixo no codigo. Default
+    # so de conveniencia — nao e segredo, entao nao precisa de ${VAR:?obrigatoria}.
+    politica-senha:
+      tamanho-minimo: ${SYNAPSE_SENHA_TAMANHO_MINIMO:8}
 
   # -------------------------------------------------------------------------
   # Particoes mensais de `mensagem`.

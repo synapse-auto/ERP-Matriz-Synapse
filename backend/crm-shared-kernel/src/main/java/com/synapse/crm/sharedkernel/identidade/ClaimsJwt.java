@@ -15,5 +15,14 @@ public final class ClaimsJwt {
     /** Nome da claim que carrega {@link PapelUsuario#name()}. */
     public static final String PAPEL = "papel";
 
+    /**
+     * Nome da claim booleana que carrega {@code Usuario#precisaTrocarSenha()} (E29). Existe para
+     * que o filtro de senha provisoria (crm-equipe) bloqueie rotas sem consultar o banco a cada
+     * requisicao — o custo e a mesma troca desta classe: quando a senha e trocada, um novo access
+     * token precisa ser emitido para a claim refletir o estado atual, porque o JWT antigo continua
+     * criptograficamente valido ate expirar.
+     */
+    public static final String SENHA_PROVISORIA = "senha_provisoria";
+
     private ClaimsJwt() {}
 }

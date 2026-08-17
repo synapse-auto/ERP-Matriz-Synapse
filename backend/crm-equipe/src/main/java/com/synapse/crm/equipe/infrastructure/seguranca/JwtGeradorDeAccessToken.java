@@ -35,6 +35,7 @@ class JwtGeradorDeAccessToken implements GeradorDeAccessToken {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(usuario.id().toString())
                 .claim(ClaimsJwt.PAPEL, usuario.papel().name())
+                .claim(ClaimsJwt.SENHA_PROVISORIA, usuario.senhaProvisoria())
                 .issuedAt(agora)
                 .expiresAt(agora.plus(validade()))
                 .build();

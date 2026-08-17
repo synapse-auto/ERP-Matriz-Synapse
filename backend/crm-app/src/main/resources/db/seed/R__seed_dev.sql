@@ -56,23 +56,31 @@ ON CONFLICT (id) DO UPDATE
 -- subgestor@dev.local / subgestor123
 -- ana@dev.local       / atendente123
 -- bruno@dev.local     / atendente123
-INSERT INTO usuario (id, nome, email, senha_hash, papel, ativo) VALUES
+--
+-- senha_alterada_em = now(): os usuarios do seed representam contas que ja
+-- passaram pelo primeiro acesso, nao o go-live real (E29). Deixar NULL aqui
+-- forcaria toda a suite de integracao a passar pela troca de senha antes de
+-- qualquer chamada — nenhum dos testes de integracao existentes espera isso.
+-- Quem quer testar o fluxo de primeiro acesso cria seu proprio usuario ad-hoc
+-- com a coluna NULL, como ja se faz para usuario inativo em AutenticacaoIT.
+INSERT INTO usuario (id, nome, email, senha_hash, papel, ativo, senha_alterada_em) VALUES
     ('11000000-0000-4000-8000-000000000001', 'Administrador', 'admin@dev.local',
-     '$2a$10$WcHAhzJQHWC/Kmt0YV8onO2T9SlT.DC0xj.vixOBEkLqmlB.ZCqCS', 'ADMINISTRADOR', TRUE),
+     '$2a$10$WcHAhzJQHWC/Kmt0YV8onO2T9SlT.DC0xj.vixOBEkLqmlB.ZCqCS', 'ADMINISTRADOR', TRUE, now()),
     ('11000000-0000-4000-8000-000000000002', 'Gestora', 'gestor@dev.local',
-     '$2a$10$5vISVeL7I/o7K8rKLvXFDOko5iYacVlYlvxIJqTywAoLzf2eP6dPK', 'GESTOR', TRUE),
+     '$2a$10$5vISVeL7I/o7K8rKLvXFDOko5iYacVlYlvxIJqTywAoLzf2eP6dPK', 'GESTOR', TRUE, now()),
     ('11000000-0000-4000-8000-000000000003', 'Subgestora', 'subgestor@dev.local',
-     '$2a$10$SJJMQ4SF5/1FJfkg9AwJiePRz3LR88QIx/k8W7VIaJBkYI7MskOhe', 'SUBGESTOR', TRUE),
+     '$2a$10$SJJMQ4SF5/1FJfkg9AwJiePRz3LR88QIx/k8W7VIaJBkYI7MskOhe', 'SUBGESTOR', TRUE, now()),
     ('11000000-0000-4000-8000-000000000004', 'Ana Atendente', 'ana@dev.local',
-     '$2a$10$3RQQjf4jsEx11gmaTnUkkeky8yurpHKdl5UPkuWlVe7tsphWGmj42', 'ATENDENTE', TRUE),
+     '$2a$10$3RQQjf4jsEx11gmaTnUkkeky8yurpHKdl5UPkuWlVe7tsphWGmj42', 'ATENDENTE', TRUE, now()),
     ('11000000-0000-4000-8000-000000000005', 'Bruno Atendente', 'bruno@dev.local',
-     '$2a$10$3RQQjf4jsEx11gmaTnUkkeky8yurpHKdl5UPkuWlVe7tsphWGmj42', 'ATENDENTE', TRUE)
+     '$2a$10$3RQQjf4jsEx11gmaTnUkkeky8yurpHKdl5UPkuWlVe7tsphWGmj42', 'ATENDENTE', TRUE, now())
 ON CONFLICT (id) DO UPDATE
     SET nome = EXCLUDED.nome,
         email = EXCLUDED.email,
         senha_hash = EXCLUDED.senha_hash,
         papel = EXCLUDED.papel,
-        ativo = EXCLUDED.ativo;
+        ativo = EXCLUDED.ativo,
+        senha_alterada_em = EXCLUDED.senha_alterada_em;
 
 -- --- Tags ------------------------------------------------------------------
 INSERT INTO tag (id, nome, cor, icone) VALUES
