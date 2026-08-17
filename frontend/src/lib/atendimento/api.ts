@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
+  ConfiguracaoComposer,
   ContagemPorVisao,
   EnvioResposta,
   MensagemResposta,
@@ -51,6 +52,10 @@ export function enviarMensagem(leadId: string, conteudo: string): Promise<EnvioR
     method: "POST",
     body: JSON.stringify({ leadId, conteudo }),
   });
+}
+
+export function obterConfiguracaoComposer(): Promise<ConfiguracaoComposer> {
+  return apiFetch<ConfiguracaoComposer>("/api/v1/atendimentos/configuracao-composer");
 }
 
 /**

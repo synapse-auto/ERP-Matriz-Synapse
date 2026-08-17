@@ -195,18 +195,19 @@ SELECT chave, valor, unidade, tipo, valor_min, valor_max, descricao
            descricao TEXT
        );
 
-SELECT count(*) = 3 AS provisionamento_midia_completa
+SELECT count(*) = 4 AS provisionamento_midia_completa
   FROM _provisionamento_configuracao
  WHERE chave IN (
      'anexo.tamanho_maximo_imagem_mb',
      'anexo.tamanho_maximo_audio_mb',
-     'anexo.tamanho_maximo_documento_mb'
+     'anexo.tamanho_maximo_documento_mb',
+     'gravacao_audio.duracao_maxima_segundos'
  )
 \gset
 
 \if :provisionamento_midia_completa
 \else
-  \echo 'ERRO: automacao_json precisa conter os tres limites de midia da Meta.'
+  \echo 'ERRO: automacao_json precisa conter os tres limites de midia e a duracao maxima de gravacao.'
   DO $$ BEGIN RAISE EXCEPTION 'provisionamento interrompido'; END $$;
 \endif
 

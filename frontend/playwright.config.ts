@@ -8,6 +8,10 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
+    permissions: ["microphone"],
+    launchOptions: {
+      args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+    },
   },
   webServer: {
     command: "npm run dev",

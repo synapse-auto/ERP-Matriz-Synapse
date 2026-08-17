@@ -143,6 +143,8 @@ INSERT INTO configuracao_automacao
      'Tamanho maximo de imagem anexada no chat.'),
     ('anexo.tamanho_maximo_audio_mb', '16', 'MB', 'INT', 1, 16,
      'Tamanho maximo de audio anexado no chat.'),
+    ('gravacao_audio.duracao_maxima_segundos', '120', 'segundos', 'INT', 10, 600,
+     'Duracao maxima de uma gravacao de audio feita no composer.'),
     ('anexo.tamanho_maximo_documento_mb', '100', 'MB', 'INT', 1, 100,
      'Tamanho maximo de documento anexado no chat.')
 ON CONFLICT (chave) DO UPDATE

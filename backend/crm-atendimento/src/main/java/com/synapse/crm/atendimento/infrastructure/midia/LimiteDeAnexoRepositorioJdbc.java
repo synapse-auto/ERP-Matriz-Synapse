@@ -30,6 +30,7 @@ class LimiteDeAnexoRepositorioJdbc implements LimiteDeAnexoRepositorio {
             TipoMensagem.DOCUMENTO, "anexo.tamanho_maximo_documento_mb");
 
     private static final String SQL = "SELECT valor FROM configuracao_automacao WHERE chave = ?";
+    private static final String CHAVE_DURACAO_AUDIO = "gravacao_audio.duracao_maxima_segundos";
 
     private final JdbcTemplate geral;
 
@@ -46,6 +47,15 @@ class LimiteDeAnexoRepositorioJdbc implements LimiteDeAnexoRepositorio {
         try {
             String valorEmMb = geral.queryForObject(SQL, String.class, chave);
             return Optional.of(Long.parseLong(valorEmMb) * 1024 * 1024);
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<Long> duracaoMaximaAudioEmSegundos() {
+        try {
+            return Optional.of(Long.parseLong(geral.queryForObject(SQL, String.class, CHAVE_DURACAO_AUDIO)));
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }

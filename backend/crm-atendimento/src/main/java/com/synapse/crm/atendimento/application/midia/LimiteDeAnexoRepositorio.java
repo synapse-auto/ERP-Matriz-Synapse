@@ -19,4 +19,7 @@ import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 public interface LimiteDeAnexoRepositorio {
 
     Optional<Long> limiteEmBytes(TipoMensagem tipo);
+
+    /** Limite da captura no navegador; vazio indica configuracao incompleta da instancia. */
+    Optional<Long> duracaoMaximaAudioEmSegundos();
 }

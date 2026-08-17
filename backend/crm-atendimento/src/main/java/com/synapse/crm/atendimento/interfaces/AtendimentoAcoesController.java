@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +35,7 @@ import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelE
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
 import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
+import com.synapse.crm.atendimento.application.midia.ObterConfiguracaoComposerUseCase;
 import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
@@ -58,6 +60,7 @@ class AtendimentoAcoesController {
 
     private final EnviarMensagemUseCase enviar;
     private final EnviarMidiaUseCase enviarMidia;
+    private final ObterConfiguracaoComposerUseCase obterConfiguracaoComposer;
     private final ResolverLeadDoAtendimentoUseCase resolverLead;
     private final TransferirAtendimentoUseCase transferir;
     private final FinalizarAtendimentoUseCase finalizar;
@@ -66,16 +69,29 @@ class AtendimentoAcoesController {
     AtendimentoAcoesController(
             EnviarMensagemUseCase enviar,
             EnviarMidiaUseCase enviarMidia,
+            ObterConfiguracaoComposerUseCase obterConfiguracaoComposer,
             ResolverLeadDoAtendimentoUseCase resolverLead,
             TransferirAtendimentoUseCase transferir,
             FinalizarAtendimentoUseCase finalizar,
             UsuarioContext usuarioContext) {
         this.enviar = enviar;
         this.enviarMidia = enviarMidia;
+        this.obterConfiguracaoComposer = obterConfiguracaoComposer;
         this.resolverLead = resolverLead;
         this.transferir = transferir;
         this.finalizar = finalizar;
         this.usuarioContext = usuarioContext;
+    }
+
+    @Operation(
+            summary = "Obter limites do composer",
+            description = "Retorna os limites configurados que o navegador aplica antes de enviar uma gravação de áudio.",
+            responses = @ApiResponse(responseCode = "200", description = "Limites vigentes da instância."))
+    @GetMapping("/configuracao-composer")
+    ConfiguracaoComposerResposta obterConfiguracaoComposer() {
+        ObterConfiguracaoComposerUseCase.Resultado resultado = obterConfiguracaoComposer.executar();
+        return new ConfiguracaoComposerResposta(
+                resultado.tamanhoMaximoAudioBytes(), resultado.duracaoMaximaAudioSegundos());
     }
 
     @Operation(
@@ -228,6 +244,9 @@ class AtendimentoAcoesController {
                     @NotNull UUID leadId,
             @Schema(description = "Conteúdo textual.", example = "Olá! Posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String conteudo) {}
+
+    record ConfiguracaoComposerResposta(
+            long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos) {}
 
     record TransferenciaRequisicao(
             @Schema(description = "Destino; nulo devolve o atendimento para a IA.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)

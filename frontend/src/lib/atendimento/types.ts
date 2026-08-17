@@ -11,6 +11,11 @@ export type StatusEntrega =
 /** Espelha TipoMensagem.java. */
 export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO";
 
+export interface ConfiguracaoComposer {
+  tamanhoMaximoAudioBytes: number;
+  duracaoMaximaAudioSegundos: number;
+}
+
 /** Espelha RemetenteTipo.java. */
 export type RemetenteTipo = "LEAD" | "ATENDENTE" | "SISTEMA" | "IA";
 
