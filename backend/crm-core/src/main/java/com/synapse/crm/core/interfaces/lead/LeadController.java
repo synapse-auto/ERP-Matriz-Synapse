@@ -35,6 +35,7 @@ import com.synapse.crm.core.application.lead.ObterLeadUseCase;
 import com.synapse.crm.core.domain.campocustomizado.DadosCustomizadosInvalidosException;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
+import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 
 /**
  * Leitura e edicao de leads.
@@ -125,6 +126,14 @@ class LeadController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problema.setTitle("Etapa invalida");
+        return problema;
+    }
+
+    @ExceptionHandler(TelefoneInvalidoException.class)
+    ProblemDetail aoReceberTelefoneInvalido(TelefoneInvalidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Telefone invalido");
         return problema;
     }
 

@@ -86,6 +86,23 @@ class LeadFichaIT extends PostgresIT {
         assertThat(resposta.getBody()).contains("Cliente da Ana editado").contains("Vidros ABC");
     }
 
+    @Test
+    @DisplayName("telefone com menos de dez digitos devolve Problem Details")
+    void editar_telefoneCurto_devolveProblemDetails() {
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("telefone", "1234"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getHeaders().getContentType())
+                .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(resposta.getBody())
+                .contains("Telefone invalido")
+                .contains("DDD e numero com 10 ou 11 digitos");
+        assertThat(jdbc.queryForObject(
+                        "SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isNull();
+    }
+
     /** 404 e nao 403: 403 confirmaria que o lead existe e esta com um colega. */
     @Test
     @DisplayName("atendente NAO edita lead de colega — 404, nao 403")
