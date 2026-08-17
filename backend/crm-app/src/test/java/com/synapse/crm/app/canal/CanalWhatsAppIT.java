@@ -309,7 +309,7 @@ class CanalWhatsAppIT extends PostgresIT {
             ResponseEntity<String> atualizacao = http.exchange(
                     "/api/v1/leads/" + leadDaAna,
                     HttpMethod.PUT,
-                    new HttpEntity<>(java.util.Map.of("telefone", "+55 61 98888-7777"), cabecalhos),
+                    new HttpEntity<>(java.util.Map.of("telefone", "(61) 98888-7777"), cabecalhos),
                     String.class);
 
             assertThat(atualizacao.getStatusCode()).isEqualTo(HttpStatus.OK);

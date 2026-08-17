@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 
 /**
  * Campos editaveis da ficha do lead. Atualizacao parcial: {@code null} significa "nao mexa".
@@ -46,12 +47,12 @@ public record DadosDeAtualizacaoLead(
      * de um metodo puro de dominio. {@link AtualizarLeadUseCase} faz essa validacao e aplica o
      * resultado com {@link Lead#comDadosCustomizados}. Aqui o valor atual so e preservado.
      */
-    Lead aplicarEm(Lead atual) {
+    Lead aplicarEm(Lead atual, TelefoneCanonico telefoneCanonico) {
         return new Lead(
                 atual.id(),
                 ouAtual(nome, atual.nome()),
                 ouAtual(fotoUrl, atual.fotoUrl()),
-                ouAtual(telefone, atual.telefone()),
+                telefone == null ? atual.telefone() : telefoneCanonico.normalizar(telefone),
                 ouAtual(email, atual.email()),
                 ouAtual(cpf, atual.cpf()),
                 ouAtual(empresa, atual.empresa()),

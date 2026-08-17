@@ -375,6 +375,7 @@ lugar do outro.
 | `SYNAPSE_APP_NAME` | `synapse-crm` | Nome técnico em telemetria. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
+| `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
 | `MIDIA_S3_EXPIRACAO_LEITURA` | `5m` | Validade das URLs assinadas de anexos. |

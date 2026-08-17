@@ -84,9 +84,13 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
             "INSERT INTO lead (id, nome, telefone, status_basico) VALUES (?, ?, ?, 'IA')";
 
     private final JdbcTemplate chat;
+    private final TelefoneCanonico telefoneCanonico;
 
-    LeadNoCaminhoDeMensagemJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
+    LeadNoCaminhoDeMensagemJdbc(
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource,
+            TelefoneCanonico telefoneCanonico) {
         this.chat = new JdbcTemplate(chatDataSource);
+        this.telefoneCanonico = telefoneCanonico;
     }
 
     @Override
@@ -135,9 +139,9 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     @Override
     public UUID resolverPorTelefone(String telefone, String nomeSugerido) {
         TransacaoObrigatoria.exigir("resolverPorTelefone");
-        String telefoneCanonico = TelefoneCanonico.normalizar(telefone);
+        String telefoneCanonico = this.telefoneCanonico.normalizar(telefone);
         if (telefoneCanonico == null) {
-            throw new IllegalArgumentException("telefone deve conter ao menos um digito");
+            throw new IllegalArgumentException("telefone e obrigatorio para resolver o lead");
         }
 
         List<UUID> existentes = chat.query(

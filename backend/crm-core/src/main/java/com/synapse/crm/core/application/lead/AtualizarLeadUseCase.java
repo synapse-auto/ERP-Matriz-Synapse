@@ -19,6 +19,7 @@ import com.synapse.crm.core.domain.campocustomizado.ValidadorDeDadosCustomizados
 import com.synapse.crm.core.domain.etapa.EtapaAtendimento;
 import com.synapse.crm.core.domain.evento.EtapaDoLeadAlterada;
 import com.synapse.crm.core.domain.lead.Lead;
+import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
@@ -40,6 +41,7 @@ public class AtualizarLeadUseCase {
     private final UsuarioContext usuarioContext;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final TelefoneCanonico telefoneCanonico;
 
     public AtualizarLeadUseCase(
             LeadRepositorio leads,
@@ -47,20 +49,22 @@ public class AtualizarLeadUseCase {
             EtapaRepositorio etapas,
             UsuarioContext usuarioContext,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio,
+            TelefoneCanonico telefoneCanonico) {
         this.leads = leads;
         this.camposCustomizados = camposCustomizados;
         this.etapas = etapas;
         this.usuarioContext = usuarioContext;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.telefoneCanonico = telefoneCanonico;
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional
     public Optional<Lead> executar(UUID id, DadosDeAtualizacaoLead dados) {
         return leads.porId(id).flatMap(atual -> {
-            Lead atualizado = dados.aplicarEm(atual);
+            Lead atualizado = dados.aplicarEm(atual, telefoneCanonico);
             // dadosCustomizados so e tocado quando o cliente efetivamente mandou algo: ausencia no
             // corpo do PUT significa "nao mexa", igual a qualquer outro campo desta ficha.
             if (dados.dadosCustomizados() != null) {

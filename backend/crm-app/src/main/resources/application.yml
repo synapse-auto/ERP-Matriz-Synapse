@@ -45,6 +45,9 @@ spring:
     # pool do chat e reserva do caminho critico e nao e gasto com migration.
     locations: classpath:db/migration
     baseline-on-migrate: true
+    placeholders:
+      # A migration de dados usa o mesmo valor que o normalizador em runtime.
+      telefone_ddi_padrao: ${TELEFONE_DDI_PADRAO:55}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -81,6 +84,10 @@ resilience4j:
 # Bloco da instancia — docs/07-base-pai-multitenancy.md, secao 4.
 # ---------------------------------------------------------------------------
 synapse:
+  telefone:
+    # Configuracao da instancia: filhos de outro pais trocam somente esta variavel.
+    ddi-padrao: ${TELEFONE_DDI_PADRAO:55}
+
   openapi:
     title: ${SYNAPSE_OPENAPI_TITLE:Synapse CRM API}
     description: ${SYNAPSE_OPENAPI_DESCRIPTION:API REST da Base PAI do Synapse CRM}

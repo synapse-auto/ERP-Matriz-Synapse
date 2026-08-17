@@ -39,7 +39,6 @@ public record Lead(
         Objects.requireNonNull(id, "id do lead e obrigatorio");
         Objects.requireNonNull(nome, "nome do lead e obrigatorio");
         Objects.requireNonNull(statusBasico, "status basico do lead e obrigatorio");
-        telefone = TelefoneCanonico.normalizar(telefone);
         dadosCustomizados = dadosCustomizados == null ? Map.of() : Map.copyOf(dadosCustomizados);
     }
 
