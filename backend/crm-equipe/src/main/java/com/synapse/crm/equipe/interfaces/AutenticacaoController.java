@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -18,13 +19,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.synapse.crm.equipe.application.autenticacao.AlterarSenhaUseCase;
 import com.synapse.crm.equipe.application.autenticacao.AutenticarUsuarioUseCase;
 import com.synapse.crm.equipe.application.autenticacao.EncerrarSessaoUseCase;
 import com.synapse.crm.equipe.application.autenticacao.RenovarSessaoUseCase;
 import com.synapse.crm.equipe.application.autenticacao.Sessao;
 import com.synapse.crm.equipe.domain.usuario.AutenticacaoInvalidaException;
+import com.synapse.crm.equipe.domain.usuario.SenhaInvalidaException;
 
-/** Login, renovacao e logout. Unicas rotas abertas da API. */
+/** Login, renovacao, troca de senha e logout. Unica rota fechada do grupo: POST /senha. */
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Autenticação", description = "Emissão, rotação e revogação da sessão stateless.")
@@ -33,14 +36,17 @@ class AutenticacaoController {
     private final AutenticarUsuarioUseCase autenticar;
     private final RenovarSessaoUseCase renovar;
     private final EncerrarSessaoUseCase encerrar;
+    private final AlterarSenhaUseCase alterarSenha;
 
     AutenticacaoController(
             AutenticarUsuarioUseCase autenticar,
             RenovarSessaoUseCase renovar,
-            EncerrarSessaoUseCase encerrar) {
+            EncerrarSessaoUseCase encerrar,
+            AlterarSenhaUseCase alterarSenha) {
         this.autenticar = autenticar;
         this.renovar = renovar;
         this.encerrar = encerrar;
+        this.alterarSenha = alterarSenha;
     }
 
     @Operation(
@@ -87,6 +93,20 @@ class AutenticacaoController {
         encerrar.executar(requisicao.refreshToken());
     }
 
+    @Operation(
+            summary = "Trocar a própria senha",
+            description = "Vale para primeiro acesso e troca voluntária. Exige a senha atual, revoga as demais sessões e devolve uma sessão nova.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Senha trocada; nova sessão emitida."),
+                @ApiResponse(responseCode = "400", description = "Senha atual incorreta, nova senha fora da política, ou igual à atual."),
+                @ApiResponse(responseCode = "401", description = "Sem token válido.")
+            })
+    @PostMapping("/senha")
+    SessaoResposta trocarSenha(@Valid @RequestBody TrocarSenhaRequisicao requisicao) {
+        return SessaoResposta.de(alterarSenha.executar(requisicao.senhaAtual(), requisicao.novaSenha()));
+    }
+
     /**
      * Toda falha de autenticacao vira 401 com a mesma mensagem (RFC 7807). O motivo real fica no log
      * do servidor: distinguir "senha errada" de "usuario inativo" na resposta entrega informacao a
@@ -99,6 +119,23 @@ class AutenticacaoController {
         problema.setTitle("Falha de autenticacao");
         return problema;
     }
+
+    /**
+     * Ao contrario da falha de login, aqui o usuario ja provou identidade (senha atual conferida ou
+     * token valido) — a mensagem pode dizer a regra sem virar vazamento (E29).
+     */
+    @ExceptionHandler(SenhaInvalidaException.class)
+    ProblemDetail aoRecusarSenha(SenhaInvalidaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Senha invalida");
+        return problema;
+    }
+
+    record TrocarSenhaRequisicao(
+            @Schema(description = "Senha atual, para confirmar identidade.", format = "password", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String senhaAtual,
+            @Schema(description = "Nova senha; precisa atender à política configurada e ser diferente da atual.", format = "password", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotBlank String novaSenha) {}
 
     record LoginRequisicao(
             @Schema(description = "E-mail do usuário.", example = "usuario@example.invalid", requiredMode = Schema.RequiredMode.REQUIRED)
