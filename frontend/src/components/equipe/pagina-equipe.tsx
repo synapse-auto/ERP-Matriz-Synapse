@@ -45,6 +45,7 @@ export function PaginaEquipe() {
   const gerarSenha = useGerarSenhaProvisoria();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
+  const [paraDesativar, setParaDesativar] = useState<UsuarioEquipe | null>(null);
   const [senhaGeradaPara, setSenhaGeradaPara] = useState<UsuarioEquipe | null>(null);
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
 
@@ -109,7 +110,7 @@ export function PaginaEquipe() {
               desempenho={desempenho.data?.porAtendente ?? []}
               textos={t}
               onEditar={setEdicao}
-              onDesativar={(id) => desativar.mutate(id)}
+              onDesativar={setParaDesativar}
               onGerarSenhaProvisoria={(usuario) => {
                 setSenhaGeradaPara(usuario);
                 setSenhaGerada(null);
@@ -131,6 +132,35 @@ export function PaginaEquipe() {
           erro={gerarSenha.isError}
           onFechar={() => setSenhaGeradaPara(null)}
         />
+      )}
+      {paraDesativar && (
+        <Dialog open onOpenChange={(v) => !v && setParaDesativar(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t.desativacao.titulo}</DialogTitle>
+              <DialogDescription>
+                {t.desativacao.descricao.replace("{nome}", paraDesativar.nome)}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setParaDesativar(null)}>
+                {t.desativacao.cancelar}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  desativar.mutate(paraDesativar.id, {
+                    onSuccess: () => setParaDesativar(null),
+                  });
+                }}
+                disabled={desativar.isPending}
+              >
+                {t.desativacao.confirmar}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -269,7 +299,7 @@ function TabelaDeUsuarios({
   desempenho: LinhaDesempenho[];
   textos: TextosEquipe;
   onEditar: (usuario: UsuarioEquipe) => void;
-  onDesativar: (id: string) => void;
+  onDesativar: (usuario: UsuarioEquipe) => void;
   onGerarSenhaProvisoria: (usuario: UsuarioEquipe) => void;
 }) {
   const avaliacaoPorId = new Map(avaliacoes.map((a) => [a.atendenteId, a]));
@@ -391,7 +421,7 @@ function TabelaDeUsuarios({
                         variant="ghost"
                         className="size-8 text-destructive hover:text-destructive"
                         aria-label={`${textos.desativar} ${usuario.nome}`}
-                        onClick={() => onDesativar(usuario.id)}
+                        onClick={() => onDesativar(usuario)}
                       >
                         <UserRoundX className="size-4" />
                       </Button>

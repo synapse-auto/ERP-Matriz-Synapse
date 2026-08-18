@@ -370,6 +370,12 @@ export const TextosSchema = z.object({
     inativo: z.string(),
     editar: z.string(),
     desativar: z.string(),
+    desativacao: z.object({
+      titulo: z.string(),
+      descricao: z.string(),
+      confirmar: z.string(),
+      cancelar: z.string(),
+    }),
     colunas: z.object({
       usuario: z.string(),
       funcao: z.string(),

@@ -91,6 +91,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         fechar: "Fechar",
         erro: "Não foi possível gerar a senha provisória.",
       },
+      desativacao: {
+        titulo: "Desativar usuário",
+        descricao: "Deseja realmente desativar {nome}?",
+        confirmar: "Desativar",
+        cancelar: "Cancelar",
+      },
     },
   }),
 }));
@@ -133,12 +139,29 @@ describe("pagina de equipe", () => {
     expect(screen.getByText("Ranking · vendas fechadas")).toBeInTheDocument();
   });
 
-  it("desativa um usuário ativo", () => {
+  it("abre dialogo de confirmacao ao tentar desativar, e so desativa ao confirmar", () => {
     render(<PaginaEquipe />);
 
+    // 1. Clica no botão da tabela
     fireEvent.click(screen.getByRole("button", { name: "Desativar Ana Beatriz" }));
 
-    expect(desativarMutate).toHaveBeenCalledWith("u1");
+    // 2. Garante que a mutação não foi chamada ainda
+    expect(desativarMutate).not.toHaveBeenCalled();
+
+    // 3. Verifica se o diálogo abriu e tenta cancelar
+    const botaoCancelar = screen.getByRole("button", { name: "Cancelar" });
+    fireEvent.click(botaoCancelar);
+    expect(desativarMutate).not.toHaveBeenCalled(); // Mutação não chamada
+
+    // 4. Abre de novo e confirma
+    fireEvent.click(screen.getByRole("button", { name: "Desativar Ana Beatriz" }));
+    const botaoConfirmar = screen.getAllByRole("button", { name: "Desativar" }).find((btn) => 
+      btn.getAttribute("aria-label") !== "Desativar Ana Beatriz"
+    );
+    fireEvent.click(botaoConfirmar!);
+
+    // 5. Garante que a mutação foi chamada com o ID correto
+    expect(desativarMutate).toHaveBeenCalledWith("u1", expect.any(Object));
   });
 
   it("nao mostra o botao de desativar para quem ja esta inativo", () => {
