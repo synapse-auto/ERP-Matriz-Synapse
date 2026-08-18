@@ -60,13 +60,27 @@ BEGIN;
 
 -- Um e-mail e o identificador estavel do administrador. Reexecutar atualiza
 -- dados e hash, sem criar outro admin nem duplicar usuario.
+--
+-- E31b: senha_alterada_em (E29) so volta a NULL quando o hash gravado REALMENTE
+-- muda. Reexecutar o provisionamento para reconciliar canal/etapas/flags e comum
+-- (a operacao faz isso), e nao pode forcar o administrador a trocar de senha a
+-- toa; mas um SYNAPSE_ADMIN_SENHA_HASH novo significa que alguem redefiniu a
+-- senha por fora do produto, e o dono nao a escolheu — o sistema tem que tratar
+-- como provisoria de novo, senao o bloqueio de primeiro acesso da E29 nunca
+-- dispara para quem entra pela porta do provisionamento. IS DISTINCT FROM trata
+-- NULL corretamente (nunca e o caso aqui, mas evita a armadilha de NULL = NULL
+-- ser desconhecido em vez de verdadeiro).
 INSERT INTO usuario (id, nome, email, senha_hash, papel, ativo)
 VALUES (gen_random_uuid(), :'admin_nome', :'admin_email', :'admin_senha_hash', 'ADMINISTRADOR', TRUE)
 ON CONFLICT (email) DO UPDATE
     SET nome = EXCLUDED.nome,
         senha_hash = EXCLUDED.senha_hash,
         papel = EXCLUDED.papel,
-        ativo = TRUE;
+        ativo = TRUE,
+        senha_alterada_em = CASE
+            WHEN usuario.senha_hash IS DISTINCT FROM EXCLUDED.senha_hash THEN NULL
+            ELSE usuario.senha_alterada_em
+        END;
 
 -- O numero configurado no deploy e o Phone Number ID da Meta. A credencial
 -- persiste apenas a referencia ao secret do ambiente; o token nunca entra no

@@ -68,6 +68,52 @@ Depois abre `http://localhost:3000` no navegador.
 
 Ele apareceu inteiro num print. Dokploy → o projeto → **Deployments** → o ícone de refresh ao lado do Webhook URL.
 
+**1.3 — Senha do administrador: efeito do reprovisionamento, e como recuperar o acesso (E31b)**
+
+A E29 criou `usuario.senha_alterada_em`: `NULL` significa senha provisória (nunca trocada pelo
+dono), e enquanto for `NULL` o backend bloqueia qualquer rota que não seja troca de senha ou
+logout.
+
+`provisionar-instancia.sql` roda de novo sempre que a operação reconcilia canal, etapas ou
+feature flags — isso é rotina, não incidente. Desde a E31b, o script só zera
+`senha_alterada_em` quando o `senha_hash` gravado **realmente muda** em relação ao que já estava
+no banco:
+
+- Reexecutar com o **mesmo** `SYNAPSE_ADMIN_SENHA_HASH` de sempre: `senha_alterada_em` não é
+  tocado. O administrador não é obrigado a trocar de senha à toa.
+- Reexecutar com um `SYNAPSE_ADMIN_SENHA_HASH` **novo**: `senha_alterada_em` volta a `NULL`. Isso
+  é intencional — um hash novo significa que alguém redefiniu a senha por fora do produto, o dono
+  não a escolheu, e o próximo login do administrador cai no fluxo de primeiro acesso.
+
+**Isso é, também, o caminho de recuperação do administrador que esquece a senha.**
+`POST /api/v1/usuarios/{id}/senha-provisoria` (E29) é restrito a alvos ATENDENTE/SUBGESTOR — de
+propósito, mesmo recorte da gestão de equipe. Não existe endpoint para um ADMINISTRADOR resetar a
+senha de outro ADMINISTRADOR: a instância de hoje tem **um único administrador**, então essa rota
+não resolveria nada (não há um segundo admin para conceder o acesso) e criaria uma capacidade nova
+só para um cenário que a topologia atual não tem. Recuperar acesso de nível mais alto por uma via
+operacional — não por um par do mesmo nível — é o desenho mais simples que ainda funciona.
+
+O comando exato, a partir de uma máquina com acesso ao banco de produção:
+
+```bash
+# 1. Gerar o hash BCrypt da nova senha temporária (o valor em texto claro nunca
+#    entra no banco nem no comando de reprovisionamento em si).
+htpasswd -bnBC 10 "" 'nova-senha-temporaria' | tr -d ':\n' | sed 's/^\$2y/\$2a/'
+
+# 2. Reexecutar o provisionamento com o hash novo — reconcilia tudo de novo E
+#    zera senha_alterada_em, porque o hash mudou.
+psql "$SYNAPSE_DB_URL" \
+  -v admin_nome="Administrador" \
+  -v admin_email="admin@dominio-da-instancia" \
+  -v admin_senha_hash="<hash gerado no passo 1>" \
+  -v whatsapp_provedor="meta-cloud" \
+  -v whatsapp_numero="<phone number id atual>" \
+  -f docker/provisionamento/provisionar-instancia.sql
+```
+
+O administrador entra com a senha temporária e cai direto na tela de troca — o produto cuida do
+resto a partir daí.
+
 ---
 
 ## Fase 2 — Destravar o ambiente (20 minutos)
