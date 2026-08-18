@@ -29,6 +29,10 @@
     "sair": "Sair",
     "presenca":{"rotulo":"Presença","online":"Online","ausente":"Ausente","offline":"Offline"}
   },
+  "auth": {
+    "mostrarSenha": "Mostrar senha",
+    "ocultarSenha": "Ocultar senha"
+  },
   "login": {
     "titulo": "Entrar",
     "subtitulo": "Acesse sua conta para continuar",

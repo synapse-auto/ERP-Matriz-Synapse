@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { ErroDeApi } from "@/lib/api/errors";
 import { trocarSenha } from "@/lib/auth/api";
@@ -64,9 +65,8 @@ export function TrocarSenhaForm() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="senha-atual">{textos.campoSenhaAtual}</Label>
-            <Input
+            <PasswordInput
               id="senha-atual"
-              type="password"
               autoComplete="current-password"
               required
               value={senhaAtual}
@@ -75,9 +75,8 @@ export function TrocarSenhaForm() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nova-senha">{textos.campoNovaSenha}</Label>
-            <Input
+            <PasswordInput
               id="nova-senha"
-              type="password"
               autoComplete="new-password"
               required
               value={novaSenha}
@@ -86,9 +85,8 @@ export function TrocarSenhaForm() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="confirmar-senha">{textos.campoConfirmarSenha}</Label>
-            <Input
+            <PasswordInput
               id="confirmar-senha"
-              type="password"
               autoComplete="new-password"
               required
               value={confirmarSenha}

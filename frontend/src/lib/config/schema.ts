@@ -97,6 +97,10 @@ export const TextosSchema = z.object({
     sair: z.string(),
     presenca:z.object({rotulo:z.string(),online:z.string(),ausente:z.string(),offline:z.string()}),
   }),
+  auth: z.object({
+    mostrarSenha: z.string(),
+    ocultarSenha: z.string(),
+  }),
   login: z.object({
     titulo: z.string(),
     subtitulo: z.string(),

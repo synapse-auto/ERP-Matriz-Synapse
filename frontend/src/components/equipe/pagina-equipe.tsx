@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -546,10 +547,9 @@ function Formulario({
           {!existente && (
             <label className="block space-y-1">
               <span>{t.senha}</span>
-              <Input
+              <PasswordInput
                 required
                 minLength={8}
-                type="password"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
               />
