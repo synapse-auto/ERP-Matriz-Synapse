@@ -33,11 +33,15 @@ const jetBrainsMono = localFont({
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const textos = await buscarTextos();
-  return {
+  const [tema, textos] = await Promise.all([buscarTema(), buscarTextos()]);
+  const metadata: Metadata = {
     title: textos.app.nome,
     description: textos.app.subtitulo,
   };
+  if (tema.logoUrl) {
+    metadata.icons = { icon: tema.logoUrl };
+  }
+  return metadata;
 }
 
 /**

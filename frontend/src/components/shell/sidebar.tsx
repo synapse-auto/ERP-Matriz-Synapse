@@ -85,6 +85,13 @@ function useFeaturesHabilitadas() {
   });
 }
 
+function useTemaConfig() {
+  return useQuery({
+    queryKey: ["config", "tema"],
+    queryFn: () => apiFetch<{ logoUrl?: string | null }>("/api/v1/config/tema"),
+  });
+}
+
 async function encerrarSessao() {
   await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
   useAuthStore.getState().limparSessao();
@@ -95,6 +102,7 @@ export function Sidebar() {
   const textos = useTextos();
   const pathname = usePathname();
   const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
+  const { data: tema } = useTemaConfig();
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
   const cache = useQueryClient();
@@ -134,14 +142,19 @@ export function Sidebar() {
       data-slot="sidebar"
     >
       <div className="flex items-center gap-3 px-[18px] py-5">
-        <div
-          className="flex size-10 flex-none items-center justify-center rounded-lg"
-          style={{
-            background: `linear-gradient(150deg, var(--marca-icone-gradiente-inicio), var(--marca-icone-gradiente-fim))`,
-          }}
-        >
-          <div className="size-[17px] rotate-45 rounded-[3px] bg-white" />
-        </div>
+        {tema?.logoUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={tema.logoUrl} alt={textos.app.marca} className="size-10 flex-none rounded-lg object-contain" />
+        ) : (
+          <div
+            className="flex size-10 flex-none items-center justify-center rounded-lg"
+            style={{
+              background: `linear-gradient(150deg, var(--marca-icone-gradiente-inicio), var(--marca-icone-gradiente-fim))`,
+            }}
+          >
+            <div className="size-[17px] rotate-45 rounded-[3px] bg-white" />
+          </div>
+        )}
         <div className="min-w-0">
           <p className="text-[15px] leading-tight font-extrabold tracking-tight text-white">
             {textos.app.marca}
