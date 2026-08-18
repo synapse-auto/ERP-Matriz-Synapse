@@ -143,7 +143,10 @@ export function Sidebar() {
     >
       <div className="flex items-center gap-3 px-[18px] py-5">
         {tema?.logoUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
+          // logoUrl é dado de instância (tema.json), não um asset local — next/image exigiria
+          // declarar o domínio em next.config a cada filho novo, o que quebraria "trocar de
+          // cliente sem editar código". <img> puro aceita qualquer URL em runtime.
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={tema.logoUrl} alt={textos.app.marca} className="size-10 flex-none rounded-lg object-contain" />
         ) : (
           <div
