@@ -33,7 +33,7 @@ class VisibilidadeLeadTest {
     @Test
     @DisplayName("atendente ve o proprio lead")
     void atendente_leadProprio_enxerga() {
-        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE));
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
 
         assertThat(visao.permite(leadDe(ANA, StatusBasicoLead.EM_ATENDIMENTO))).isTrue();
     }
@@ -41,7 +41,7 @@ class VisibilidadeLeadTest {
     @Test
     @DisplayName("atendente NAO ve o lead de outro atendente")
     void atendente_leadDeColega_naoEnxerga() {
-        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE));
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
 
         assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.EM_ATENDIMENTO))).isFalse();
         assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.FINALIZADO))).isFalse();
@@ -50,7 +50,7 @@ class VisibilidadeLeadTest {
     @Test
     @DisplayName("atendente ve os leads em IA, que sao de todos")
     void atendente_leadEmIa_enxerga() {
-        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE));
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
 
         assertThat(visao.permite(leadDe(null, StatusBasicoLead.IA))).isTrue();
         // Mesmo com dono, enquanto estiver em IA continua no grupo "Potenciais".
@@ -61,7 +61,7 @@ class VisibilidadeLeadTest {
     @EnumSource(value = PapelUsuario.class, names = {"SUBGESTOR", "GESTOR", "ADMINISTRADOR"})
     @DisplayName("gestao enxerga qualquer lead")
     void gestao_qualquerLead_enxerga(PapelUsuario papel) {
-        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, papel));
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, papel, false));
 
         assertThat(visao).isInstanceOf(VisibilidadeLead.Ampla.class);
         assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.EM_ATENDIMENTO))).isTrue();
@@ -71,7 +71,7 @@ class VisibilidadeLeadTest {
     @Test
     @DisplayName("so o atendente recebe visao restrita")
     void papel_atendente_recebeVisaoRestrita() {
-        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE));
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
 
         assertThat(visao).isEqualTo(new VisibilidadeLead.DoAtendente(ANA));
     }

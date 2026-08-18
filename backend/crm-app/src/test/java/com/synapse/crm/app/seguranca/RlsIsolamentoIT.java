@@ -146,7 +146,7 @@ class RlsIsolamentoIT extends PostgresIT {
 
         for (Caso caso : casos) {
             VisibilidadeLead regra =
-                    VisibilidadeLead.de(new UsuarioAutenticado(caso.usuarioId(), caso.papel()));
+                    VisibilidadeLead.de(new UsuarioAutenticado(caso.usuarioId(), caso.papel(), false));
             List<UUID> peloDominio =
                     universo.stream().filter(regra::permite).map(Lead::id).toList();
 

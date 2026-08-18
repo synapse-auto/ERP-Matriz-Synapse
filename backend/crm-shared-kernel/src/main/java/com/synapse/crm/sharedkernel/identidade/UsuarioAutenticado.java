@@ -17,10 +17,13 @@ public record UsuarioAutenticado(UUID id, PapelUsuario papel, boolean senhaProvi
     }
 
     /**
-     * Conveniencia para contextos que nao lidam com o ciclo de troca de senha (E29) — por exemplo
-     * testes de visibilidade de lead, que so se importam com {@code papel}.
+     * Conveniencia so para uso dentro deste pacote (E31b) — nenhum outro modulo pode mais
+     * construir um UsuarioAutenticado sem decidir explicitamente {@code senhaProvisoria}. Existia
+     * public antes, e nada no codigo de producao a usava, mas nada impedia que passasse a usar e
+     * perdesse o campo por engano. Callers de teste em outros pacotes usam o construtor de 3
+     * argumentos.
      */
-    public UsuarioAutenticado(UUID id, PapelUsuario papel) {
+    UsuarioAutenticado(UUID id, PapelUsuario papel) {
         this(id, papel, false);
     }
 

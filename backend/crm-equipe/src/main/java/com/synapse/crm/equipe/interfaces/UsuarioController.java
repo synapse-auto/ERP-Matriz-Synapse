@@ -38,6 +38,7 @@ import com.synapse.crm.equipe.application.usuario.EmailDeUsuarioEmUsoException;
 import com.synapse.crm.equipe.application.usuario.ListarUsuariosUseCase;
 import com.synapse.crm.equipe.application.usuario.ObterMinhaPresencaUseCase;
 import com.synapse.crm.equipe.domain.usuario.PapelGerenciavel;
+import com.synapse.crm.equipe.domain.usuario.SenhaInvalidaException;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.equipe.domain.usuario.Usuario;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
@@ -124,6 +125,13 @@ class UsuarioController {
         return problema;
     }
 
+    @ExceptionHandler(SenhaInvalidaException.class)
+    ProblemDetail senhaInvalida(SenhaInvalidaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Senha invalida");
+        return problema;
+    }
+
     private static ResponseStatusException naoEncontrado() {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario nao encontrado");
     }
@@ -141,7 +149,7 @@ class UsuarioController {
     record Criacao(
             @Schema(description = "Nome do integrante.", example = "Pessoa Exemplo", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 150) String nome,
             @Schema(description = "E-mail único.", example = "pessoa@example.invalid", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Email String email,
-            @Schema(description = "Senha inicial entre 8 e 100 caracteres.", format = "password", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(min = 8, max = 100) String senha,
+            @Schema(description = "Senha inicial; precisa atender à política configurada da instância.", format = "password", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 100) String senha,
             @Schema(description = "Papel aceito na gestão de usuários.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull PapelGerenciavel papel) {}
     record Alteracao(
             @Schema(description = "Nome do integrante.", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 150) String nome,

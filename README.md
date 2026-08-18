@@ -373,6 +373,9 @@ lugar do outro.
 | Variável | Default da stack | Quando alterar |
 |---|---:|---|
 | `SYNAPSE_APP_NAME` | `synapse-crm` | Nome técnico em telemetria. |
+| `SYNAPSE_ACCESS_TOKEN_VALIDADE` | `15m` | Curto de propósito — um token vazado tem pouca janela de uso. |
+| `SYNAPSE_REFRESH_TOKEN_VALIDADE` | `7d` | Revogável e rotativo a cada uso; ver `RenovarSessaoUseCase`. |
+| `SYNAPSE_SENHA_TAMANHO_MINIMO` | `8` | Política de senha (E29): vale na troca, na criação de usuário e na senha provisória gerada pelo gestor. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
