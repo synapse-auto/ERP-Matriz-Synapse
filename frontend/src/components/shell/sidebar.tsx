@@ -114,6 +114,10 @@ export function Sidebar() {
       ),
   });
   const [popupAberto, setPopupAberto] = useState(false);
+  // E31b: logoUrl agora aponta sempre para a rota (/api/v1/config/logo), nunca mais null — a
+  // ausência do arquivo vira 404 no servidor, não um logoUrl vazio. O onError é o que faz o
+  // fallback (quadrado com gradiente) continuar funcionando quando o filho não tem logo.
+  const [logoFalhou, setLogoFalhou] = useState(false);
 
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
@@ -142,12 +146,17 @@ export function Sidebar() {
       data-slot="sidebar"
     >
       <div className="flex items-center gap-3 px-[18px] py-5">
-        {tema?.logoUrl ? (
+        {tema?.logoUrl && !logoFalhou ? (
           // logoUrl é dado de instância (tema.json), não um asset local — next/image exigiria
           // declarar o domínio em next.config a cada filho novo, o que quebraria "trocar de
           // cliente sem editar código". <img> puro aceita qualquer URL em runtime.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={tema.logoUrl} alt={textos.app.marca} className="size-10 flex-none rounded-lg object-contain" />
+          <img
+            src={tema.logoUrl}
+            alt={textos.app.marca}
+            className="size-10 flex-none rounded-lg object-contain"
+            onError={() => setLogoFalhou(true)}
+          />
         ) : (
           <div
             className="flex size-10 flex-none items-center justify-center rounded-lg"

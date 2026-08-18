@@ -85,7 +85,11 @@ public class SecurityConfig {
                         // propria tela de login e themeable, e "zero cor/texto literal em
                         // componente" nao tem excecao para telas pre-autenticacao. Nenhum dos
                         // dois carrega dado sensivel: e paleta de cor e rotulo de UI.
-                        .requestMatchers(HttpMethod.GET, "/api/v1/config/tema", "/api/v1/config/textos")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/config/tema",
+                                "/api/v1/config/textos",
+                                "/api/v1/config/logo")
                         .permitAll()
                         // O contrato da Automacao (E07): sem JWT de usuario, autenticado por
                         // X-Synapse-Token no filtro registrado acima. "hasRole" aqui e

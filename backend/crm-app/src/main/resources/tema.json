@@ -67,5 +67,5 @@
   "sombraXl": "0 40px 120px -34px rgba(12,42,67,.5)",
   "sombraPrimaria": "0 8px 18px -8px rgba(31,116,224,.7)",
 
-  "logoUrl": null
+  "logoUrl": "/api/v1/config/logo"
 }

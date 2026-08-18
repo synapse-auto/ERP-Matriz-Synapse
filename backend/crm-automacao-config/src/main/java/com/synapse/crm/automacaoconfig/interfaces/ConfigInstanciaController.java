@@ -1,5 +1,6 @@
 package com.synapse.crm.automacaoconfig.interfaces;
 
+import java.time.Duration;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,6 +8,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -57,5 +61,24 @@ class ConfigInstanciaController {
     @GetMapping("/textos")
     JsonNode textos() {
         return recursos.textos();
+    }
+
+    @Operation(
+            summary = "Obter a marca da instância",
+            description = "Retorna logo.png quando o filho tem marca própria configurada; 404 quando não tem — caso normal, o frontend cai no fallback.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Imagem da marca."),
+                @ApiResponse(responseCode = "404", description = "Instância sem logo configurado.")
+            })
+    @GetMapping("/logo")
+    ResponseEntity<byte[]> logo() {
+        byte[] logo = recursos.logo();
+        if (logo == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic())
+                .body(logo);
     }
 }

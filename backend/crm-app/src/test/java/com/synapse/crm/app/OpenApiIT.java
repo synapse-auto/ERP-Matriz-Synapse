@@ -37,7 +37,7 @@ class OpenApiIT extends PostgresIT {
     }
 
     @Test
-    void documentoTemIdentidadeSegurancaECoberturaDas78Operacoes() throws Exception {
+    void documentoTemIdentidadeSegurancaECoberturaDas79Operacoes() throws Exception {
         JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
 
         assertThat(openApi.path("info").path("title").asText()).isEqualTo("Synapse CRM API");
@@ -51,7 +51,7 @@ class OpenApiIT extends PostgresIT {
 
         List<String> falhas = falhasDeCobertura(openApi);
         assertThat(falhas).isEmpty();
-        assertThat(contarOperacoes(openApi)).isEqualTo(78);
+        assertThat(contarOperacoes(openApi)).isEqualTo(79);
 
         assertThat(openApi.at("/paths/~1api~1v1~1leads/get/security/0/bearerAuth").isArray())
                 .isTrue();
