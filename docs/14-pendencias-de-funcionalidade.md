@@ -14,6 +14,7 @@ Atualizado em 12/08/2026, depois da E21b.
 |---|---|---|
 | **Mensagens rápidas compartilhadas ("Geral")** | `atendente_id` passa a aceitar nulo, com o significado de "da equipe" | hoje toda mensagem rápida é pessoal. Numa operação com vários atendentes, resposta pronta compartilhada é das coisas mais úteis que existem — e o protótipo mostra o grupo |
 | **Modal de tag com a paleta do protótipo** | 7 tons e 22 ícones do modelo, no lugar dos 7/14 atuais | decisão de produto, não de fidelidade: confirme o conjunto com o cliente antes |
+| **Disponibilidade para a IA independente da presença** | a coluna `disponibilidade_atendente_ia.disponivel_para_ia` existe, mas é escrita junto com a presença e **só** para `papel = 'ATENDENTE'`; falta o toggle próprio | descoberto em 19/08 pelo Dylan, ao ver `/internal/v1/atendentes/disponiveis` devolver vazio. Hoje **não existe** "atendente online mas fora do rodízio da IA": quem fica ONLINE entra no rodízio, sem escolha. Some com o item de Horários de trabalho — decidir junto |
 
 ## Prioridade 3 — módulo ou endpoint novo
 

@@ -363,6 +363,70 @@ docker service scale <stack>_backend=1
 
 ---
 
+## Acessos criados fora das fases
+
+Registrado aqui porque nenhum dos dois aparece no `dokploy-stack.yml` e some de vista.
+
+### DBGate — console de banco do Dylan (19/08)
+
+Aplicação **separada** no Dokploy, tipo **Stack** (não "Docker Compose"): a rede `synapse-internal` é declarada sem `attachable: true`, então container comum não entra nela — só serviço Swarm. Escolher Docker Compose falha com *"network is not manually attachable"*, e as `deploy.labels` do Traefik seriam ignoradas.
+
+**Não entra no `dokploy-stack.yml`.** Aquele arquivo é o template da Base PAI: ferramenta de desenvolvimento ali significa que todo filho futuro nasce com um console de banco publicado.
+
+Publicado em `dbgate.187.77.47.30.sslip.io`, **só por `https://`** — esta VPS não tem router na porta 80, e `http://` devolve 404 em qualquer host, o CRM inclusive.
+
+Role do banco, criado em 19/08:
+
+```sql
+CREATE ROLE dylan LOGIN PASSWORD '<senha>';
+GRANT CONNECT ON DATABASE matriz_hml TO dylan;
+GRANT USAGE ON SCHEMA public TO dylan;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO dylan;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO dylan;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO dylan;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO dylan;
+ALTER ROLE dylan BYPASSRLS;
+```
+
+**Sem `CREATE`, de propósito** — schema continua só por migration do Flyway. Os dois `ALTER DEFAULT PRIVILEGES` existem para que a próxima migration não quebre o acesso dele sem motivo aparente.
+
+**Por que o `BYPASSRLS` existe.** As políticas da `V12` leem `app.papel` e `app.usuario_id`, que o backend define com `SET LOCAL` a cada transação. O DBGate não define nada, e a V12 é explícita: sem contexto, nega tudo. Sem o `BYPASSRLS`, `SELECT * FROM lead` devolve zero linhas e parece banco vazio.
+
+**Consequência que precisa ficar registrada:** o role `dylan` **não serve para a Fase 3 (smoke RLS)** — ele contorna exatamente o que o teste mede. O smoke roda pelo caminho da aplicação.
+
+**Não remover achando que é sobra.** Para revogar: `DROP ROLE dylan;` e apagar a aplicação no Dokploy.
+
+### HTTP/3 e o `ERR_QUIC_PROTOCOL_ERROR`
+
+O Traefik anuncia `alt-svc: h3=":443"`. Em rede que bloqueia ou degrada UDP/443, resposta pequena passa e arquivo grande falha — foi o que derrubou o `bundle.js` do DBGate para o Dylan, com a página em branco e HTML já carregado.
+
+Contorno pelo cliente: `chrome://flags/#enable-quic` → **Disabled** → Relaunch.
+
+**Não mexer no Traefik por causa disso.** A configuração de HTTP/3 é do servidor inteiro; desligar para resolver uma ferramenta interna arrisca tudo que está publicado.
+
+---
+
+## Deploy: a tag da imagem é o SHA, nunca `latest`
+
+Descoberto em 19/08, depois de dois deploys parciais — o da E29 (backend novo com frontend velho, que produziu a tela "Esta área ainda não foi construída") e o do favicon.
+
+O CI publica `:<sha-curto>` **e** `:latest`. Serviço Swarm criado com `latest` **fixa o digest** no momento da criação: `Restart` e `Deploy` seguintes sobem o mesmo digest, mesmo com um `latest` novo no registry. O sintoma é sempre o mesmo — CI verde, deploy feito, metade do sistema velha.
+
+**Regra:** `SYNAPSE_IMAGE_TAG` sempre com o SHA do commit. Trocar o valor é o que força a substituição, porque muda a referência da imagem.
+
+**O custo dessa regra:** todo deploy passa a exigir atualizar a variável. Esquecer significa deploy que roda e não muda nada — o mesmo problema com o sinal trocado.
+
+**Verificação, sempre nos dois serviços:**
+
+```bash
+docker service inspect <stack>_frontend --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+docker service inspect <stack>_backend  --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+```
+
+**Saída permanente:** o workflow chamar a API do Dokploy no fim do build e atualizar a variável sozinho. Enquanto não existir, o SHA entra no relatório de cada etapa junto do número da run do CI.
+
+---
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |
