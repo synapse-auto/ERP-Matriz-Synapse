@@ -149,6 +149,9 @@
             },
             "description" : "OK"
           },
+          "400" : {
+            "description" : "Idempotency-Key ausente ou inválido."
+          },
           "401" : {
             "description" : "Credencial ausente, invalida ou expirada."
           },
