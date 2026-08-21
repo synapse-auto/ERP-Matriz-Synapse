@@ -427,9 +427,7 @@
     }
   },
   "schemas" : {
-    "ModoIaRequisicao" : {
-      "type" : "object"
-    },
+    "ModoIaRequisicao" : { },
     "RespostaComandoAutomacao" : {
       "properties" : {
         "atendimentoId" : {
