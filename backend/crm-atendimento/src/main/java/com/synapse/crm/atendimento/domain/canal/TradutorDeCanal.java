@@ -2,7 +2,6 @@ package com.synapse.crm.atendimento.domain.canal;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * A metade de entrada do ACL: transforma o que o provedor manda no que o CRM entende.
@@ -48,17 +47,11 @@ public interface TradutorDeCanal {
      */
     DestinosDoWebhook destinos(String payloadCru);
 
-    /**
-     * O id da mensagem no provedor — a chave de idempotencia.
-     *
-     * <p>Vazio quando o payload nao e uma mensagem (confirmacao de entrega, evento de status,
-     * heartbeat). Esses sao respondidos com 200 e ignorados: reclamar deles faria o provedor
-     * reentregar para sempre.
-     */
-    Optional<String> idExterno(String payloadCru);
+    /** IDs das mensagens presentes no POST; a fila usa o primeiro para a chave da linha do POST. */
+    List<String> idsExternos(String payloadCru);
 
-    /** Traduz. Vazio quando o payload nao carrega mensagem de cliente. */
-    Optional<MensagemRecebidaDoCanal> traduzir(String payloadCru);
+    /** Traduz todas as mensagens, na ordem do payload. Vazio quando nao ha mensagens de cliente. */
+    List<MensagemRecebidaDoCanal> traduzir(String payloadCru);
 
     record DestinosDoWebhook(int quantidadeEventos, List<String> identificadores) {
 

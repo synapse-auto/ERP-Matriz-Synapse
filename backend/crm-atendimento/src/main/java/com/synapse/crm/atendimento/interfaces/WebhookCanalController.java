@@ -2,7 +2,7 @@ package com.synapse.crm.atendimento.interfaces;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Optional;
+import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -169,8 +169,8 @@ public class WebhookCanalController {
         Instant recebidoEm = Instant.now(relogio);
         agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
 
-        Optional<String> idExterno = tradutor.idExterno(payloadCru);
-        if (idExterno.isEmpty()) {
+        List<String> idsExternos = tradutor.idsExternos(payloadCru);
+        if (idsExternos.isEmpty()) {
             return ResponseEntity.ok().build();
         }
 
@@ -179,10 +179,10 @@ public class WebhookCanalController {
         boolean novo = ContextoDeServico.buscarComo(
                 "webhook-canal",
                 () -> entrada.registrarSeNovo(
-                        idExterno.get(), tradutor.provedor(), payloadCru, recebidoEm));
+                        idsExternos.get(0), tradutor.provedor(), payloadCru, recebidoEm));
 
         if (!novo) {
-            log.debug("Reentrega do evento {} ignorada.", idExterno.get());
+            log.debug("Reentrega do payload {} ignorada.", idsExternos.get(0));
         }
         return ResponseEntity.ok().build();
     }

@@ -52,15 +52,15 @@ public class TradutorFake implements TradutorDeCanal {
     }
 
     @Override
-    public Optional<String> idExterno(String payloadCru) {
-        return campo(payloadCru, "\"id\":");
+    public List<String> idsExternos(String payloadCru) {
+        return campo(payloadCru, "\"id\":").stream().toList();
     }
 
     @Override
-    public Optional<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
-        Optional<String> id = idExterno(payloadCru);
-        if (id.isEmpty()) {
-            return Optional.empty();
+    public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
+        List<String> ids = idsExternos(payloadCru);
+        if (ids.isEmpty()) {
+            return List.of();
         }
         String telefone = campo(payloadCru, "\"de\":").orElse("+5561999999999");
         String nome = campo(payloadCru, "\"nome\":").orElse(null);
@@ -69,11 +69,11 @@ public class TradutorFake implements TradutorDeCanal {
         // Qualquer outro valor (E11b): midia, com os campos extras que o teste declarar.
         Optional<String> tipo = campo(payloadCru, "\"tipo\":");
         if (tipo.isEmpty() || "TEXTO".equals(tipo.get())) {
-            return Optional.of(MensagemRecebidaDoCanal.texto(
-                    id.get(), telefone, nome, campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
+            return List.of(MensagemRecebidaDoCanal.texto(
+                    ids.get(0), telefone, nome, campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
         }
-        return Optional.of(new MensagemRecebidaDoCanal(
-                id.get(),
+        return List.of(new MensagemRecebidaDoCanal(
+                ids.get(0),
                 telefone,
                 nome,
                 null,

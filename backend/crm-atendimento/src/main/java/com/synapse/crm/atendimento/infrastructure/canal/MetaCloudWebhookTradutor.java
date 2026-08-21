@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -118,8 +117,12 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
     }
 
     @Override
-    public Optional<String> idExterno(String payloadCru) {
-        return primeiraMensagem(payloadCru).map(mensagem -> mensagem.path("id").asText(null));
+    public List<String> idsExternos(String payloadCru) {
+        return mensagens(payloadCru).stream()
+                .map(MensagemDoPayload::mensagem)
+                .map(mensagem -> mensagem.path("id").asText(null))
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
     }
 
     /** {@code type} da Meta -> {@code TipoMensagem} do CRM. {@code null} para tipo desconhecido. */
@@ -127,76 +130,95 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             Map.of("image", "IMAGEM", "audio", "AUDIO", "document", "DOCUMENTO");
 
     @Override
-    public Optional<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
-        Optional<JsonNode> mensagem = primeiraMensagem(payloadCru);
-        if (mensagem.isEmpty()) {
-            return Optional.empty();
-        }
-        JsonNode no = mensagem.get();
-        String tipoMeta = no.path("type").asText();
+    public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
+        List<MensagemRecebidaDoCanal> traduzidas = new ArrayList<>();
+        for (MensagemDoPayload mensagemDoPayload : mensagens(payloadCru)) {
+            JsonNode no = mensagemDoPayload.mensagem();
+            String tipoMeta = no.path("type").asText();
 
-        // A Meta manda epoch em segundos, como string.
-        Instant enviadoEm =
-                Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()));
-        String idExterno = no.path("id").asText();
-        String telefoneRemetente = no.path("from").asText();
-        String nomeExibicao = nomeDeExibicao(payloadCru);
+            // A Meta manda epoch em segundos, como string.
+            Instant enviadoEm =
+                    Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()));
+            String idExterno = no.path("id").asText();
+            String telefoneRemetente = no.path("from").asText();
+            String nomeExibicao = nomeDeExibicao(mensagemDoPayload.valor(), telefoneRemetente);
 
-        if ("interactive".equals(tipoMeta)) {
-            String titulo = tituloDaResposta(no.path("interactive"));
-            if (titulo == null || titulo.isBlank()) {
-                return Optional.empty();
+            if ("interactive".equals(tipoMeta)) {
+                String titulo = tituloDaResposta(no.path("interactive"));
+                if (titulo == null || titulo.isBlank()) {
+                    continue;
+                }
+                // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
+                // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
+                traduzidas.add(MensagemRecebidaDoCanal.texto(
+                        idExterno, telefoneRemetente, nomeExibicao, titulo, enviadoEm));
+                continue;
             }
-            // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
-            // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
-            return Optional.of(MensagemRecebidaDoCanal.texto(
-                    idExterno, telefoneRemetente, nomeExibicao, titulo, enviadoEm));
-        }
 
-        if ("text".equals(tipoMeta)) {
-            return Optional.of(MensagemRecebidaDoCanal.texto(
-                    idExterno, telefoneRemetente, nomeExibicao, no.path("text").path("body").asText(),
+            if ("text".equals(tipoMeta)) {
+                traduzidas.add(MensagemRecebidaDoCanal.texto(
+                        idExterno, telefoneRemetente, nomeExibicao, no.path("text").path("body").asText(),
+                        enviadoEm));
+                continue;
+            }
+
+            String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
+            if (tipoCrm == null) {
+                // Nem texto, nem midia suportada (status, reacao, sticker, etc.). Ignorar
+                // somente este item preserva as mensagens boas que vierem no mesmo POST.
+                continue;
+            }
+
+            JsonNode midiaNo = no.path(tipoMeta);
+            traduzidas.add(new MensagemRecebidaDoCanal(
+                    idExterno,
+                    telefoneRemetente,
+                    nomeExibicao,
+                    null,
+                    tipoCrm,
+                    midiaNo.path("id").asText(null),
+                    midiaNo.path("mime_type").asText(null),
+                    midiaNo.path("filename").asText(null),
+                    midiaNo.path("caption").asText(null),
                     enviadoEm));
         }
-
-        String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
-        if (tipoCrm == null) {
-            // Nem texto, nem midia suportada (status, reacao, sticker, etc.). Devolver
-            // vazio faz o processador marcar como processado sem criar mensagem, em vez
-            // de estourar em loop.
-            return Optional.empty();
-        }
-
-        JsonNode midiaNo = no.path(tipoMeta);
-        return Optional.of(new MensagemRecebidaDoCanal(
-                idExterno,
-                telefoneRemetente,
-                nomeExibicao,
-                null,
-                tipoCrm,
-                midiaNo.path("id").asText(null),
-                midiaNo.path("mime_type").asText(null),
-                midiaNo.path("filename").asText(null),
-                midiaNo.path("caption").asText(null),
-                enviadoEm));
+        return traduzidas;
     }
 
     // --- formato da Meta (nada abaixo daqui sai desta classe) ------------------
 
-    private Optional<JsonNode> primeiraMensagem(String payloadCru) {
-        return valor(payloadCru)
-                .map(valor -> valor.path("messages"))
-                .flatMap(mensagens -> mensagens.isArray() && !mensagens.isEmpty()
-                        ? Optional.of(mensagens.get(0))
-                        : Optional.empty());
+    private List<MensagemDoPayload> mensagens(String payloadCru) {
+        List<MensagemDoPayload> resultado = new ArrayList<>();
+        for (JsonNode entrada : entradas(payloadCru)) {
+            JsonNode mudancas = entrada.path("changes");
+            if (!mudancas.isArray()) {
+                continue;
+            }
+            for (JsonNode mudanca : mudancas) {
+                JsonNode valor = mudanca.path("value");
+                JsonNode mensagens = valor.path("messages");
+                if (!mensagens.isArray()) {
+                    continue;
+                }
+                for (JsonNode mensagem : mensagens) {
+                    resultado.add(new MensagemDoPayload(valor, mensagem));
+                }
+            }
+        }
+        return resultado;
     }
 
-    private String nomeDeExibicao(String payloadCru) {
-        return valor(payloadCru)
-                .map(valor -> valor.path("contacts"))
-                .filter(contatos -> contatos.isArray() && !contatos.isEmpty())
-                .map(contatos -> contatos.get(0).path("profile").path("name").asText(null))
-                .orElse(null);
+    private String nomeDeExibicao(JsonNode valor, String telefoneRemetente) {
+        JsonNode contatos = valor.path("contacts");
+        if (!contatos.isArray()) {
+            return null;
+        }
+        for (JsonNode contato : contatos) {
+            if (telefoneRemetente.equals(contato.path("wa_id").asText(null))) {
+                return contato.path("profile").path("name").asText(null);
+            }
+        }
+        return null;
     }
 
     private static String tituloDaResposta(JsonNode interativa) {
@@ -210,17 +232,7 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         return null;
     }
 
-    private Optional<JsonNode> valor(String payloadCru) {
-        JsonNode entradas = entradas(payloadCru);
-        if (!entradas.isArray() || entradas.isEmpty()) {
-            return Optional.empty();
-        }
-        JsonNode mudancas = entradas.get(0).path("changes");
-        if (!mudancas.isArray() || mudancas.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(mudancas.get(0).path("value"));
-    }
+    private record MensagemDoPayload(JsonNode valor, JsonNode mensagem) {}
 
     private JsonNode entradas(String payloadCru) {
         try {
