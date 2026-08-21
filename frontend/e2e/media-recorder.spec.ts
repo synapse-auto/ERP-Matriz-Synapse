@@ -3,19 +3,20 @@ import { expect, test } from "@playwright/test";
 const email = process.env.PLAYWRIGHT_EMAIL ?? "admin@dev.local";
 const senha = process.env.PLAYWRIGHT_SENHA ?? "admin123";
 
-test("o Chrome entrega audio/mp4 gravavel sem conversao", async ({ page }) => {
+test("o Chrome entrega M4A/AAC gravavel sem conversao", async ({ page }) => {
   await page.goto("/login");
 
   const resultado = await page.evaluate(async () => {
     const candidatos = [
-      "audio/ogg;codecs=opus",
+      "audio/mp4;codecs=mp4a.40.2",
       "audio/mp4",
+      "audio/ogg;codecs=opus",
       "audio/webm;codecs=opus",
     ];
     const suportados = candidatos.filter((tipo) =>
       MediaRecorder.isTypeSupported(tipo),
     );
-    const mimeType = suportados.find((tipo) => tipo !== "audio/webm;codecs=opus");
+    const mimeType = suportados.find((tipo) => tipo.startsWith("audio/mp4"));
     if (!mimeType)
       return { suportados, mimeType: null, blobType: null, tamanho: 0 };
 
@@ -42,9 +43,9 @@ test("o Chrome entrega audio/mp4 gravavel sem conversao", async ({ page }) => {
     };
   });
 
-  expect(resultado.suportados).toEqual(["audio/mp4", "audio/webm;codecs=opus"]);
-  expect(resultado.mimeType).toBe("audio/mp4;codecs=opus");
-  expect(resultado.blobType).toBe("audio/mp4;codecs=opus");
+  expect(resultado.suportados).toContain("audio/mp4;codecs=mp4a.40.2");
+  expect(resultado.mimeType).toBe("audio/mp4;codecs=mp4a.40.2");
+  expect(resultado.blobType).toBe("audio/mp4;codecs=mp4a.40.2");
   expect(resultado.tamanho).toBeGreaterThan(0);
 });
 

@@ -75,4 +75,8 @@ public class ArmazenamentoDeMidiaFake implements ArmazenamentoDeMidia {
     public int contagemDeObjetos() {
         return objetos.size();
     }
+
+    public String ultimoMimetype() {
+        return objetos.values().stream().reduce((anterior, atual) -> atual).map(Objeto::mimetype).orElse(null);
+    }
 }

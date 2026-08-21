@@ -66,6 +66,26 @@ class AnexoMidiaIT extends PostgresIT {
     private static final byte[] EXECUTAVEL_DISFARCADO =
             new byte[] {0x4D, 0x5A, (byte) 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00};
 
+    /** Contêiner M4A com faixa AAC (ftyp M4A + moov + mdat), sem Content-Type forjado. */
+    private static final byte[] M4A_AAC_VALIDO = concatenar(
+            new byte[] {
+                0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41, 0x20,
+                0, 0, 0, 0, 0x4D, 0x34, 0x41, 0x20, 0x69, 0x73, 0x6F, 0x6D,
+                0, 0, 0, 8, 0x6D, 0x6F, 0x6F, 0x76,
+                0, 0, 0, 20, 0x6D, 0x64, 0x61, 0x74,
+                (byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x02, 0x3F, (byte) 0xFC,
+                0x21, 0x10, 0x04, 0x60, (byte) 0x8C, 0x1C, 0, 0, 0, 0
+            },
+            new byte[64]);
+
+    /** MP4 com ftyp isom: o Tika o classifica como vídeo/quicktime, que continua proibido. */
+    private static final byte[] VIDEO_MP4_REAL = new byte[] {
+        0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D,
+        0, 0, 2, 0, 0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32,
+        0, 0, 0, 8, 0x6D, 0x6F, 0x6F, 0x76,
+        0, 0, 0, 12, 0x6D, 0x64, 0x61, 0x74, 0, 0, 0, 0
+    };
+
     @Autowired
     private TestRestTemplate http;
 
@@ -128,6 +148,26 @@ class AnexoMidiaIT extends PostgresIT {
             assertThat(canal.enviados().get(0).conteudo())
                     .isInstanceOf(ConteudoDeEnvio.MensagemMidia.class);
         });
+    }
+
+    @Test
+    @DisplayName("M4A/AAC real e detectado como audio/mp4 e aceito")
+    void upload_m4aAacReal_eAceito() {
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, M4A_AAC_VALIDO, "gravacao.m4a", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"statusEntrega\":\"PENDENTE\"");
+        assertThat(armazenamento.contagemDeObjetos()).isEqualTo(1);
+        assertThat(armazenamento.ultimoMimetype()).isEqualTo("audio/mp4");
+    }
+
+    @Test
+    @DisplayName("vídeo MP4 real continua recusado pela allowlist")
+    void upload_videoReal_continuaRecusado() {
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_REAL, "video.mp4", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(armazenamento.contagemDeObjetos()).isZero();
     }
 
     @Test

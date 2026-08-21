@@ -198,13 +198,17 @@ export function Composer({ conversa }: Props) {
         ? textos.anexoErro
         : null;
   const erroDeGravacao =
-    gravador.erro === "PERMISSAO"
-      ? textos.audioPermissaoNegada
-      : gravador.erro === "CAPTURA"
-        ? textos.audioErroCaptura
-        : gravador.erro === "TAMANHO"
-          ? textos.audioExcedeuLimite
-          : null;
+    gravador.erro === "SEM_MICROFONE"
+      ? textos.audioSemMicrofone
+      : gravador.erro === "PERMISSAO"
+        ? textos.audioPermissaoNegada
+        : gravador.erro === "EM_USO"
+          ? textos.audioMicrofoneEmUso
+          : gravador.erro === "CAPTURA"
+            ? textos.audioErroCaptura
+            : gravador.erro === "TAMANHO"
+              ? textos.audioExcedeuLimite
+              : null;
   const mensagemDeErro = erroDeTexto ?? erroDeMidia ?? erroDeGravacao;
   const termoAtalho =
     texto.startsWith("/") && !texto.includes(" ")

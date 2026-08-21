@@ -62,7 +62,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
         audioDescartar: "Descartar gravação",
         audioEnviar: "Enviar gravação",
         audioPreview: "Pré-visualização da gravação",
+        audioSemMicrofone: "Nenhum microfone disponível.",
         audioPermissaoNegada: "Permissão de microfone negada.",
+        audioMicrofoneEmUso: "Microfone em uso.",
         audioErroCaptura: "Falha ao gravar.",
         audioExcedeuLimite: "Áudio excedeu o limite.",
         audioLimiteDuracao: "Duração máxima atingida.",
@@ -229,7 +231,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(screen.getByLabelText("Enviar gravação"));
 
     const variaveis = mutateMidia.mock.calls[0]?.[0] as { arquivo: File };
-    expect(variaveis.arquivo.type).toBe("audio/mp4");
+    expect(variaveis.arquivo.type).toBe("audio/mp4;codecs=mp4a.40.2");
     expect(mutateMidia).toHaveBeenCalledTimes(1);
   });
 
@@ -287,6 +289,18 @@ describe("Composer — anexo", () => {
     expect(screen.getByLabelText("Enviar gravação")).toBeDisabled();
     expect(mutateMidia).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["NotFoundError", "Nenhum microfone disponível."],
+    ["NotReadableError", "Microfone em uso."],
+  ])("informa o motivo quando a captura falha com %s", async (nome, mensagem) => {
+    habilitarGravacao(vi.fn().mockRejectedValue(new DOMException("falha", nome)));
+    renderizar();
+
+    fireEvent.click(await screen.findByLabelText("Gravar áudio"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(mensagem);
+  });
 });
 
 function habilitarGravacao(
@@ -296,7 +310,7 @@ function habilitarGravacao(
 ) {
   class MediaRecorderFake {
     static isTypeSupported(tipo: string) {
-      return tipo === "audio/mp4";
+      return tipo === "audio/mp4;codecs=mp4a.40.2";
     }
 
     readonly mimeType: string;

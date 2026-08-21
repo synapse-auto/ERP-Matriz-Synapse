@@ -11,13 +11,20 @@ import {
 import type { ConfiguracaoComposer } from "@/lib/atendimento/types";
 
 const FORMATOS_ACEITOS_PELA_META = [
-  "audio/ogg;codecs=opus",
+  "audio/mp4;codecs=mp4a.40.2",
   "audio/mp4",
+  "audio/ogg;codecs=opus",
 ] as const;
 const semAssinatura = () => () => {};
 const semFormatoNoServidor = () => null;
 
-export type ErroDeGravacao = "PERMISSAO" | "CAPTURA" | "TAMANHO" | null;
+export type ErroDeGravacao =
+  | "SEM_MICROFONE"
+  | "PERMISSAO"
+  | "EM_USO"
+  | "CAPTURA"
+  | "TAMANHO"
+  | null;
 export type FaseDaGravacao = "INATIVO" | "GRAVANDO" | "PREVISUALIZACAO";
 
 export function formatoDeGravacaoDisponivel(): string | null {
@@ -161,11 +168,15 @@ export function useGravadorAudio(
     } catch (falha) {
       limparRecursos();
       setFase("INATIVO");
+      const nome = falha instanceof DOMException ? falha.name : null;
       setErro(
-        falha instanceof DOMException &&
-          (falha.name === "NotAllowedError" || falha.name === "SecurityError")
-          ? "PERMISSAO"
-          : "CAPTURA",
+        nome === "NotFoundError"
+          ? "SEM_MICROFONE"
+          : nome === "NotAllowedError" || nome === "SecurityError"
+            ? "PERMISSAO"
+            : nome === "NotReadableError"
+              ? "EM_USO"
+              : "CAPTURA",
       );
     }
   }, [configuracao, limparRecursos, mimeType, parar, revogarPreview]);
