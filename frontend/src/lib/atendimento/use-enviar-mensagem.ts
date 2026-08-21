@@ -39,6 +39,7 @@ export function useEnviarMensagem() {
         conteudo: variaveis.conteudo,
         midiaUrl: null,
         midiaMetadados: null,
+        opcoes: null,
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
       };
@@ -70,6 +71,7 @@ export function useEnviarMensagem() {
         conteudo: variaveis.conteudo,
         midiaUrl: null,
         midiaMetadados: null,
+        opcoes: null,
         statusEntrega: resposta.statusEntrega,
         enviadoEm: resposta.enviadoEm,
       };

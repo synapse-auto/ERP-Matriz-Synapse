@@ -59,6 +59,7 @@ export function useEnviarMidia() {
           tamanho: variaveis.arquivo.size,
           legenda: variaveis.legenda,
         }),
+        opcoes: null,
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
       };

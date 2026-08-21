@@ -6,7 +6,7 @@ import type { MensagemResposta } from "@/lib/atendimento/types";
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
-      media: { imagem: "Imagem", audio: "Áudio", documento: "Documento" },
+      media: { imagem: "Imagem", audio: "Áudio", documento: "Documento", baixar: "Baixar", botoes: "Opções", lista: "Lista" },
       mensagem: {
         status: {
           pendente: "Enviando",
@@ -33,6 +33,7 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
     conteudo: "Olá",
     midiaUrl: null,
     midiaMetadados: null,
+    opcoes: null,
     statusEntrega: "LIDO",
     enviadoEm: "2026-08-16T12:00:00Z",
     ...parcial,
@@ -90,5 +91,21 @@ describe("BolhaMensagem", () => {
       screen.getByRole("img", { name: "Foto da medida da suíte" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Foto da medida da suíte")).toBeInTheDocument();
+  });
+
+  it("mostra títulos e descrições das opções interativas", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "BOTOES",
+          conteudo: "Escolha uma opção",
+          opcoes: JSON.stringify([{ id: "sim", titulo: "Sim", descricao: "Confirmar" }]),
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Escolha uma opção")).toBeInTheDocument();
+    expect(screen.getByText("Sim")).toBeInTheDocument();
+    expect(screen.getByText("Confirmar")).toBeInTheDocument();
   });
 });

@@ -249,6 +249,7 @@ class MetaCloudApiAdapter implements CanalGateway {
             case AUDIO -> "audio";
             case DOCUMENTO -> "document";
             case TEXTO -> throw new IllegalArgumentException("TEXTO nao e um tipo de midia");
+            case BOTOES, LISTA -> throw new IllegalArgumentException("mensagem interativa nao e midia");
         };
     }
 

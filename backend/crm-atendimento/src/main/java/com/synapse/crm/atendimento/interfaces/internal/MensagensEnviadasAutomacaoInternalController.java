@@ -61,7 +61,8 @@ class MensagensEnviadasAutomacaoInternalController {
                 requisicao.tipo(),
                 requisicao.conteudo(),
                 requisicao.midiaUrl(),
-                requisicao.midiaMetadados());
+                requisicao.midiaMetadados(),
+                requisicao.opcoes());
         var resultado = ContextoDeServico.buscarComo("registro-mensagem-automacao", () -> registrar.executar(id, entrada));
         return MensagemEnviadaResposta.de(resultado);
     }
@@ -94,7 +95,8 @@ class MensagensEnviadasAutomacaoInternalController {
                     @NotNull TipoMensagem tipo,
             @Schema(description = "Texto quando tipo=TEXTO.") String conteudo,
             @Schema(description = "Referência opaca de mídia já armazenada no CRM.") String midiaUrl,
-            @Schema(description = "Metadados normalizados da mídia.") String midiaMetadados) {}
+            @Schema(description = "Metadados normalizados da mídia.") String midiaMetadados,
+            @Schema(description = "Opções normalizadas para BOTOES/LISTA.") String opcoes) {}
 
     record MensagemEnviadaResposta(
             UUID atendimentoId,

@@ -142,6 +142,17 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         String telefoneRemetente = no.path("from").asText();
         String nomeExibicao = nomeDeExibicao(payloadCru);
 
+        if ("interactive".equals(tipoMeta)) {
+            String titulo = tituloDaResposta(no.path("interactive"));
+            if (titulo == null || titulo.isBlank()) {
+                return Optional.empty();
+            }
+            // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
+            // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
+            return Optional.of(MensagemRecebidaDoCanal.texto(
+                    idExterno, telefoneRemetente, nomeExibicao, titulo, enviadoEm));
+        }
+
         if ("text".equals(tipoMeta)) {
             return Optional.of(MensagemRecebidaDoCanal.texto(
                     idExterno, telefoneRemetente, nomeExibicao, no.path("text").path("body").asText(),
@@ -186,6 +197,17 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 .filter(contatos -> contatos.isArray() && !contatos.isEmpty())
                 .map(contatos -> contatos.get(0).path("profile").path("name").asText(null))
                 .orElse(null);
+    }
+
+    private static String tituloDaResposta(JsonNode interativa) {
+        String tipo = interativa.path("type").asText();
+        if ("button".equals(tipo)) {
+            return interativa.path("button_reply").path("title").asText(null);
+        }
+        if ("list".equals(tipo)) {
+            return interativa.path("list_reply").path("title").asText(null);
+        }
+        return null;
     }
 
     private Optional<JsonNode> valor(String payloadCru) {

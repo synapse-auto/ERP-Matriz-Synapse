@@ -9,7 +9,7 @@ export type StatusEntrega =
   "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
 
 /** Espelha TipoMensagem.java. */
-export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO";
+export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO" | "BOTOES" | "LISTA";
 
 export interface ConfiguracaoComposer {
   tamanhoMaximoAudioBytes: number;
@@ -54,6 +54,7 @@ export interface MensagemResposta {
   conteudo: string | null;
   midiaUrl: string | null;
   midiaMetadados: string | null;
+  opcoes: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
 }
@@ -110,6 +111,7 @@ export interface MensagemTempoReal {
   conteudo: string | null;
   midiaUrl: string | null;
   midiaMetadados: string | null;
+  opcoes: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
 }

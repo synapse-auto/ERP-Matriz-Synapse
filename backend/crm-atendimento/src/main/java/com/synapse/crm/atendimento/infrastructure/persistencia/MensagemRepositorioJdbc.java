@@ -34,8 +34,8 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     private static final String SQL_REGISTRAR =
             """
             INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,
-                                  conteudo, midia_url, midia_metadados, status_entrega, enviado_em)
-                 VALUES (?, ?, ?::remetente_tipo, ?, ?::tipo_mensagem, ?, ?, ?::jsonb,
+                                  conteudo, midia_url, midia_metadados, opcoes, status_entrega, enviado_em)
+                 VALUES (?, ?, ?::remetente_tipo, ?, ?::tipo_mensagem, ?, ?, ?::jsonb, ?::jsonb,
                          ?::status_entrega, ?)
             """;
 
@@ -63,6 +63,7 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
                 mensagem.conteudo(),
                 mensagem.midiaUrl(),
                 mensagem.midiaMetadados(),
+                mensagem.opcoes(),
                 mensagem.statusEntrega().name(),
                 Timestamp.from(mensagem.enviadoEm()));
         return mensagem;

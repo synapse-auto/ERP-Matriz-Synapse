@@ -52,6 +52,7 @@ export function useMensagens(
           conteudo: evento.dados.conteudo,
           midiaUrl: evento.dados.midiaUrl,
           midiaMetadados: evento.dados.midiaMetadados,
+          opcoes: evento.dados.opcoes,
           statusEntrega: evento.dados.statusEntrega,
           enviadoEm: evento.dados.enviadoEm,
         };

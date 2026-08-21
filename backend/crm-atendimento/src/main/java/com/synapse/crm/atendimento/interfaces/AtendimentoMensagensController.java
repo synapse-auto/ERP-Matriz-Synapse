@@ -145,6 +145,7 @@ class AtendimentoMensagensController {
             String conteudo,
             String midiaUrl,
             String midiaMetadados,
+            String opcoes,
             String statusEntrega,
             Instant enviadoEm) {
 
@@ -165,6 +166,7 @@ class AtendimentoMensagensController {
                     mensagem.conteudo(),
                     midiaUrl,
                     mensagem.midiaMetadados(),
+                    mensagem.opcoes(),
                     mensagem.statusEntrega().name(),
                     mensagem.enviadoEm());
         }

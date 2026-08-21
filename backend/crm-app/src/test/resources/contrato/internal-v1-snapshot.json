@@ -372,28 +372,31 @@
       },
       "type" : "object"
     },
-    "MensagemEnviadaRequisicao" : {
-      "properties" : {
-        "conteudo" : {
-          "type" : "string"
+      "MensagemEnviadaRequisicao" : {
+        "properties" : {
+          "conteudo" : {
+            "type" : "string"
+          },
+          "midiaMetadados" : {
+            "type" : "string"
+          },
+          "midiaUrl" : {
+            "type" : "string"
+          },
+          "opcoes" : {
+            "type" : "string"
+          },
+          "tipo" : {
+            "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "BOTOES", "LISTA" ],
+            "type" : "string"
+          },
+          "wamid" : {
+            "type" : "string"
+          }
         },
-        "midiaMetadados" : {
-          "type" : "string"
-        },
-        "midiaUrl" : {
-          "type" : "string"
-        },
-        "tipo" : {
-          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO" ],
-          "type" : "string"
-        },
-        "wamid" : {
-          "type" : "string"
-        }
+        "required" : [ "tipo", "wamid" ],
+        "type" : "object"
       },
-      "required" : [ "tipo", "wamid" ],
-      "type" : "object"
-    },
     "TransferenciaResposta" : {
       "properties" : {
         "atendenteId" : {

@@ -75,6 +75,7 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
                 mensagem.conteudo(),
                 mensagem.midiaUrl(),
                 mensagem.midiaMetadados(),
+                mensagem.opcoes(),
                 mensagem.statusEntrega().name(),
                 mensagem.enviadoEm()));
         return new Resultado(atendimentoId, mensagem.id(), mensagem.statusEntrega(), mensagem.enviadoEm(), false);
@@ -92,8 +93,13 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             throw new MensagemAutomacaoInvalidaException("conteudo e obrigatorio para TEXTO");
         }
         if (requisicao.tipo() != TipoMensagem.TEXTO
+                && !requisicao.tipo().exigeOpcoes()
                 && (requisicao.midiaUrl() == null || requisicao.midiaUrl().isBlank())) {
             throw new MensagemAutomacaoInvalidaException("midiaUrl e obrigatorio para mensagens de midia");
+        }
+        if (requisicao.tipo().exigeOpcoes()
+                && (requisicao.opcoes() == null || requisicao.opcoes().isBlank())) {
+            throw new MensagemAutomacaoInvalidaException("opcoes e obrigatorio para mensagens interativas");
         }
     }
 
@@ -101,6 +107,16 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             Atendimento atendimento, Requisicao requisicao, UUID mensagemId, Instant agora) {
         if (requisicao.tipo() == TipoMensagem.TEXTO) {
             return Mensagem.texto(mensagemId, atendimento.id(), Remetente.ia(), requisicao.conteudo(), agora);
+        }
+        if (requisicao.tipo().exigeOpcoes()) {
+            return Mensagem.interativa(
+                    mensagemId,
+                    atendimento.id(),
+                    Remetente.ia(),
+                    requisicao.tipo(),
+                    requisicao.conteudo(),
+                    requisicao.opcoes(),
+                    agora);
         }
         return Mensagem.midia(
                 mensagemId,
@@ -117,7 +133,8 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             TipoMensagem tipo,
             String conteudo,
             String midiaUrl,
-            String midiaMetadados) {}
+            String midiaMetadados,
+            String opcoes) {}
 
     public record Resultado(
             UUID atendimentoId,

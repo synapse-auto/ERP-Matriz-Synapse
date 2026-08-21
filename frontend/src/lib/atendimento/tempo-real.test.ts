@@ -40,6 +40,7 @@ function mensagem(
     conteudo: "conteúdo",
     midiaUrl: null,
     midiaMetadados: null,
+    opcoes: null,
     statusEntrega,
     enviadoEm,
   };

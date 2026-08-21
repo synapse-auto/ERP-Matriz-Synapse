@@ -15,6 +15,12 @@ interface MidiaMetadados {
   legenda?: string;
 }
 
+interface OpcaoInterativa {
+  id?: string;
+  titulo?: string;
+  descricao?: string;
+}
+
 function metadadosDaMidia(json: string | null): MidiaMetadados {
   if (!json) {
     return {};
@@ -23,6 +29,22 @@ function metadadosDaMidia(json: string | null): MidiaMetadados {
     return JSON.parse(json) as MidiaMetadados;
   } catch {
     return {};
+  }
+}
+
+function opcoesInterativas(json: string | null): OpcaoInterativa[] {
+  if (!json) return [];
+  try {
+    const valor: unknown = JSON.parse(json);
+    if (!Array.isArray(valor)) return [];
+    return valor.filter(
+      (item): item is OpcaoInterativa =>
+        typeof item === "object" && item !== null &&
+        (typeof (item as OpcaoInterativa).titulo === "string" ||
+          typeof (item as OpcaoInterativa).id === "string"),
+    );
+  } catch {
+    return [];
   }
 }
 
@@ -41,6 +63,7 @@ export function BolhaMensagem({
   const textos = useTextos().atendimentos.media;
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
+  const opcoes = opcoesInterativas(mensagem.opcoes);
   const midiaUrl = urlSegura(mensagem.midiaUrl);
   const hora = new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -115,6 +138,25 @@ export function BolhaMensagem({
 
         {mensagem.tipo === "TEXTO" && (
           <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>
+        )}
+
+        {(mensagem.tipo === "BOTOES" || mensagem.tipo === "LISTA") && (
+          <div className="space-y-2">
+            {mensagem.conteudo && (
+              <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>
+            )}
+            <p className="text-xs font-semibold opacity-80">
+              {mensagem.tipo === "BOTOES" ? textos.botoes : textos.lista}
+            </p>
+            <div className="space-y-1.5" aria-label={mensagem.tipo === "BOTOES" ? textos.botoes : textos.lista}>
+              {opcoes.map((opcao, indice) => (
+                <div key={opcao.id ?? `${opcao.titulo}-${indice}`} className="rounded-md bg-background/10 px-2.5 py-1.5">
+                  <div className="font-medium">{opcao.titulo ?? opcao.id}</div>
+                  {opcao.descricao && <div className="text-xs opacity-75">{opcao.descricao}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         <div

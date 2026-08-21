@@ -240,6 +240,8 @@ export const TextosSchema = z.object({
       audio: z.string(),
       documento: z.string(),
       baixar: z.string(),
+      botoes: z.string(),
+      lista: z.string(),
     }),
     painel: z.object({
       titulo: z.string(),

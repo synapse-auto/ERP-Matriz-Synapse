@@ -25,5 +25,6 @@ public record MensagemParaTempoReal(
         String conteudo,
         String midiaUrl,
         String midiaMetadados,
+        String opcoes,
         String statusEntrega,
         Instant enviadoEm) {}

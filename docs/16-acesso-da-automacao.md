@@ -92,6 +92,23 @@ devolve a mesma mensagem e não cria outra linha. O endpoint atualiza a última
 interação do lead e publica a mensagem no WebSocket; não chama a Meta e não
 aceita um campo `enviarWhatsapp`.
 
+Para mensagens interativas, use `BOTOES` ou `LISTA` e envie `opcoes` como um
+array JSON normalizado. O CRM guarda os títulos e descrições para a ficha do
+atendimento:
+
+```json
+{
+  "wamid": "wamid.exemplo-sem-dado-real",
+  "tipo": "BOTOES",
+  "conteudo": "Como podemos ajudar?",
+  "opcoes": "[{\"id\":\"orcamento\",\"titulo\":\"Pedir orçamento\",\"descricao\":\"Receba uma estimativa\"}]"
+}
+```
+
+Quando o lead responde a um botão ou lista, o histórico registra o título
+visível da opção como uma mensagem de texto; o id técnico não aparece para o
+atendente.
+
 ## 4. Por que não acessar o banco direto
 
 Três motivos, em ordem de gravidade:

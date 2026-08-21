@@ -181,6 +181,7 @@ public class EnviarMensagemUseCase {
                 gravada.conteudo(),
                 gravada.midiaUrl(),
                 gravada.midiaMetadados(),
+                gravada.opcoes(),
                 gravada.statusEntrega().name(),
                 agora));
 

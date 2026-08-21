@@ -29,7 +29,7 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
 
     private static final String COLUNAS =
             "m.id, m.atendimento_id, m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,"
-                    + " m.midia_url, m.midia_metadados, m.status_entrega, m.enviado_em,"
+                    + " m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,"
                     + " u.nome AS remetente_nome";
 
     private static final String SQL_ULTIMAS = "SELECT " + COLUNAS
@@ -86,7 +86,8 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                 linha.getString("midia_url"),
                 linha.getString("midia_metadados"),
                 StatusEntrega.valueOf(linha.getString("status_entrega")),
-                linha.getTimestamp("enviado_em").toInstant());
+                linha.getTimestamp("enviado_em").toInstant(),
+                linha.getString("opcoes"));
         return new MensagemDoHistorico(mensagem, linha.getString("remetente_nome"));
     }
 }

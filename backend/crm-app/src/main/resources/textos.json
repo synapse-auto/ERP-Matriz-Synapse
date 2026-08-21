@@ -171,7 +171,9 @@
       "imagem": "Imagem",
       "audio": "Áudio",
       "documento": "Documento",
-      "baixar": "Baixar"
+      "baixar": "Baixar",
+      "botoes": "Opções",
+      "lista": "Lista"
     },
     "painel": {
       "titulo": "Detalhes do lead",

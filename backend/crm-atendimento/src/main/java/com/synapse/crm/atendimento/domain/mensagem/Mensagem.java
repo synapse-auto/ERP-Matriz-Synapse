@@ -24,7 +24,21 @@ public record Mensagem(
         String midiaUrl,
         String midiaMetadados,
         StatusEntrega statusEntrega,
-        Instant enviadoEm) {
+        Instant enviadoEm,
+        String opcoes) {
+
+    public Mensagem(
+            UUID id,
+            UUID atendimentoId,
+            Remetente remetente,
+            TipoMensagem tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            StatusEntrega statusEntrega,
+            Instant enviadoEm) {
+        this(id, atendimentoId, remetente, tipo, conteudo, midiaUrl, midiaMetadados, statusEntrega, enviadoEm, null);
+    }
 
     public Mensagem {
         Objects.requireNonNull(id, "id da mensagem e obrigatorio");
@@ -37,8 +51,11 @@ public record Mensagem(
         if (tipo.exigeMidia() && (midiaUrl == null || midiaUrl.isBlank())) {
             throw new IllegalArgumentException("mensagem do tipo " + tipo + " exige midiaUrl");
         }
-        if (!tipo.exigeMidia() && (conteudo == null || conteudo.isBlank())) {
+        if (!tipo.exigeMidia() && !tipo.exigeOpcoes() && (conteudo == null || conteudo.isBlank())) {
             throw new IllegalArgumentException("mensagem de texto exige conteudo");
+        }
+        if (tipo.exigeOpcoes() && (opcoes == null || opcoes.isBlank())) {
+            throw new IllegalArgumentException("mensagem interativa exige opcoes normalizadas");
         }
     }
 
@@ -54,7 +71,8 @@ public record Mensagem(
                 null,
                 null,
                 StatusEntrega.ENVIADO,
-                quando);
+                quando,
+                null);
     }
 
     /** Midia — imagem, audio ou documento. {@code conteudo} fica nulo; o invariante ja permite. */
@@ -68,7 +86,20 @@ public record Mensagem(
             Instant quando) {
         return new Mensagem(
                 id, atendimentoId, remetente, tipo, null, midiaUrl, midiaMetadados,
-                StatusEntrega.ENVIADO, quando);
+                StatusEntrega.ENVIADO, quando, null);
+    }
+
+    public static Mensagem interativa(
+            UUID id,
+            UUID atendimentoId,
+            Remetente remetente,
+            TipoMensagem tipo,
+            String conteudo,
+            String opcoes,
+            Instant quando) {
+        return new Mensagem(
+                id, atendimentoId, remetente, tipo, conteudo, null, null,
+                StatusEntrega.ENVIADO, quando, opcoes);
     }
 
     public boolean ehRecebida() {

@@ -69,6 +69,7 @@ class RelayDeTempoRealListener {
                         : armazenamento.urlAssinada(
                                 evento.midiaUrl(), midiaPropriedades.expiracaoLeitura()));
         dados.put("midiaMetadados", evento.midiaMetadados());
+        dados.put("opcoes", evento.opcoes());
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
         publicar(evento.atendimentoId(), "MENSAGEM", dados);
