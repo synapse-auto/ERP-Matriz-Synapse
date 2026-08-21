@@ -4,7 +4,11 @@ import { Check, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { OpcaoDoSeletor } from "@/components/ui/seletor";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 interface SeletorMultiploProps {
@@ -47,14 +51,21 @@ export function SeletorMultiplo({
             variant="outline"
             role="combobox"
             aria-label={ariaLabel}
-            className={cn("justify-between font-normal", className)}
+            className={cn(
+              "h-10 justify-between rounded-lg border-input bg-card px-3 text-xs font-medium",
+              className,
+            )}
           />
         }
       >
         <span className="truncate">{rotulo}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-h-72 w-(--anchor-width) overflow-y-auto p-1">
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="max-h-72 min-w-44 w-(--anchor-width) overflow-y-auto rounded-lg border border-border bg-popover p-1.5 shadow-lg"
+      >
         <div role="listbox" aria-multiselectable="true">
           {opcoes.map((opcao) => {
             const marcada = valores.includes(opcao.valor);
@@ -65,10 +76,13 @@ export function SeletorMultiplo({
                 role="option"
                 aria-selected={marcada}
                 disabled={opcao.desabilitada}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+                className={cn(
+                  "flex min-h-9 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs outline-none transition-colors hover:bg-accent focus-visible:bg-accent disabled:opacity-50",
+                  marcada && "bg-accent/70 text-accent-foreground",
+                )}
                 onClick={() => alternar(opcao.valor)}
               >
-                <span className="flex size-4 items-center justify-center rounded border border-input">
+                <span className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-input bg-card">
                   {marcada && <Check className="size-3" />}
                 </span>
                 <span className="truncate">{opcao.rotulo}</span>

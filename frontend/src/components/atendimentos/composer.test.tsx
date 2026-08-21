@@ -6,14 +6,21 @@ import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
-const estadoTexto: { isError: boolean; error: Error | null } = { isError: false, error: null };
+const estadoTexto: { isError: boolean; error: Error | null } = {
+  isError: false,
+  error: null,
+};
 const configuracaoComposer = {
   tamanhoMaximoAudioBytes: 1024,
   duracaoMaximaAudioSegundos: 120,
 };
 
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
-  useEnviarMensagem: () => ({ mutate: mutateTexto, isPending: false, ...estadoTexto }),
+  useEnviarMensagem: () => ({
+    mutate: mutateTexto,
+    isPending: false,
+    ...estadoTexto,
+  }),
 }));
 
 vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
@@ -34,9 +41,17 @@ vi.mock("@/lib/atendimento/janela-24h", () => ({
 }));
 
 vi.mock("@/lib/suporte/api", () => ({
-  listarMensagensRapidas: () => Promise.resolve([
-    { id: "rapida-1", atendenteId: "ana", atendenteNome: "Ana", palavraChave: "saudacao", conteudo: "Olá! Como posso ajudar?", tipoMidia: null },
-  ]),
+  listarMensagensRapidas: () =>
+    Promise.resolve([
+      {
+        id: "rapida-1",
+        atendenteId: "ana",
+        atendenteNome: "Ana",
+        palavraChave: "saudacao",
+        conteudo: "Olá! Como posso ajudar?",
+        tipoMidia: null,
+      },
+    ]),
   criarMensagemProgramada: vi.fn(),
   editarMensagemProgramada: vi.fn(),
 }));
@@ -105,8 +120,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
 import { Composer } from "./composer";
 
 function renderizar() {
-  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={cliente}><Composer conversa={conversa} /></QueryClientProvider>);
+  const cliente = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={cliente}>
+      <Composer conversa={conversa} />
+    </QueryClientProvider>,
+  );
 }
 
 const conversa: CartaoAtendimento = {
@@ -141,28 +162,45 @@ describe("Composer — anexo", () => {
     configuracaoComposer.tamanhoMaximoAudioBytes = 1024;
     configuracaoComposer.duracaoMaximaAudioSegundos = 120;
     vi.stubGlobal("MediaRecorder", undefined);
-    Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
-    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: undefined });
+    Object.defineProperty(window, "isSecureContext", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: undefined,
+    });
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:gravacao"),
     });
-    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   it("mostra o chip de preview com nome e tamanho ao selecionar um arquivo", () => {
     renderizar();
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
 
-    fireEvent.change(input, { target: { files: [arquivoFake("foto.png", "image/png")] } });
+    fireEvent.change(input, {
+      target: { files: [arquivoFake("foto.png", "image/png")] },
+    });
 
     expect(screen.getByText("foto.png")).toBeInTheDocument();
   });
 
   it("remove o arquivo selecionado ao clicar em remover", () => {
     renderizar();
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [arquivoFake("foto.png", "image/png")] } });
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [arquivoFake("foto.png", "image/png")] },
+    });
     expect(screen.getByText("foto.png")).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("Remover anexo"));
@@ -172,12 +210,19 @@ describe("Composer — anexo", () => {
 
   it("envia o arquivo selecionado com a legenda digitada ao clicar em enviar", () => {
     renderizar();
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [arquivoFake("orcamento.pdf", "application/pdf")] } });
-
-    fireEvent.change(screen.getByPlaceholderText("Adicionar legenda (opcional)"), {
-      target: { value: "segue o orçamento" },
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [arquivoFake("orcamento.pdf", "application/pdf")] },
     });
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Adicionar legenda (opcional)"),
+      {
+        target: { value: "segue o orçamento" },
+      },
+    );
     fireEvent.click(screen.getByLabelText("Enviar"));
 
     expect(mutateMidia).toHaveBeenCalledWith(
@@ -200,6 +245,20 @@ describe("Composer — anexo", () => {
     fireEvent.keyDown(composer, { key: "Enter" });
 
     expect(composer).toHaveValue("Olá! Como posso ajudar?");
+    expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("abre respostas rápidas reais e preenche o textarea sem enviar", async () => {
+    renderizar();
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Mensagens rápidas" }),
+    );
+    fireEvent.click(await screen.findByText("Olá! Como posso ajudar?"));
+
+    expect(screen.getByPlaceholderText("Digite uma mensagem...")).toHaveValue(
+      "Olá! Como posso ajudar?",
+    );
     expect(mutateTexto).not.toHaveBeenCalled();
   });
 
@@ -226,7 +285,9 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByLabelText("Gravar áudio"));
     fireEvent.click(await screen.findByLabelText("Parar gravação"));
 
-    expect(await screen.findByLabelText("Pré-visualização da gravação")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Pré-visualização da gravação"),
+    ).toBeInTheDocument();
     expect(mutateMidia).not.toHaveBeenCalled();
     fireEvent.click(screen.getByLabelText("Enviar gravação"));
 
@@ -244,7 +305,9 @@ describe("Composer — anexo", () => {
     await screen.findByLabelText("Pré-visualização da gravação");
     fireEvent.click(screen.getByLabelText("Descartar gravação"));
 
-    expect(screen.queryByLabelText("Pré-visualização da gravação")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Pré-visualização da gravação"),
+    ).not.toBeInTheDocument();
     expect(mutateMidia).not.toHaveBeenCalled();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:gravacao");
   });
@@ -259,7 +322,9 @@ describe("Composer — anexo", () => {
 
     fireEvent.click(await screen.findByLabelText("Gravar áudio"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Permissão de microfone negada");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Permissão de microfone negada",
+    );
     expect(campo).toHaveValue("texto preservado");
     expect(campo).toBeEnabled();
   });
@@ -272,9 +337,15 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByLabelText("Gravar áudio"));
 
     expect(
-      await screen.findByLabelText("Pré-visualização da gravação", {}, { timeout: 1000 }),
+      await screen.findByLabelText(
+        "Pré-visualização da gravação",
+        {},
+        { timeout: 1000 },
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Duração máxima atingida");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Duração máxima atingida",
+    );
   });
 
   it("recusa gravacao acima do limite antes de chamar o upload", async () => {
@@ -285,7 +356,9 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByLabelText("Gravar áudio"));
     fireEvent.click(await screen.findByLabelText("Parar gravação"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Áudio excedeu o limite");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Áudio excedeu o limite",
+    );
     expect(screen.getByLabelText("Enviar gravação")).toBeDisabled();
     expect(mutateMidia).not.toHaveBeenCalled();
   });
@@ -293,14 +366,19 @@ describe("Composer — anexo", () => {
   it.each([
     ["NotFoundError", "Nenhum microfone disponível."],
     ["NotReadableError", "Microfone em uso."],
-  ])("informa o motivo quando a captura falha com %s", async (nome, mensagem) => {
-    habilitarGravacao(vi.fn().mockRejectedValue(new DOMException("falha", nome)));
-    renderizar();
+  ])(
+    "informa o motivo quando a captura falha com %s",
+    async (nome, mensagem) => {
+      habilitarGravacao(
+        vi.fn().mockRejectedValue(new DOMException("falha", nome)),
+      );
+      renderizar();
 
-    fireEvent.click(await screen.findByLabelText("Gravar áudio"));
+      fireEvent.click(await screen.findByLabelText("Gravar áudio"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(mensagem);
-  });
+      expect(await screen.findByRole("alert")).toHaveTextContent(mensagem);
+    },
+  );
 });
 
 function habilitarGravacao(

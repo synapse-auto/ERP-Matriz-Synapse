@@ -10,7 +10,12 @@ import { useEquipe } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCanais, useEtapas } from "@/lib/lead/use-painel-lead";
-import { useCamposFiltraveis, useCatalogosDeFiltro, useContagemDeLeads, useLeadsDaAgenda } from "@/lib/agenda/use-agenda";
+import {
+  useCamposFiltraveis,
+  useCatalogosDeFiltro,
+  useContagemDeLeads,
+  useLeadsDaAgenda,
+} from "@/lib/agenda/use-agenda";
 import {
   FILTROS_RAPIDOS_VAZIOS,
   type FiltroAtivo,
@@ -50,8 +55,17 @@ export function PaginaAgenda() {
   const catalogos = useCatalogosDeFiltro();
   const equipe = useEquipe();
   const tagsDisponiveis = catalogos.data?.tags ?? [];
-  const paginaDeLeads = useLeadsDaAgenda(filtrosRapidos, filtrosAtivos, tagsDisponiveis, pagina);
-  const contagem = useContagemDeLeads(filtrosRapidos, filtrosAtivos, tagsDisponiveis);
+  const paginaDeLeads = useLeadsDaAgenda(
+    filtrosRapidos,
+    filtrosAtivos,
+    tagsDisponiveis,
+    pagina,
+  );
+  const contagem = useContagemDeLeads(
+    filtrosRapidos,
+    filtrosAtivos,
+    tagsDisponiveis,
+  );
 
   function adicionarFiltro(filtro: FiltroAtivo) {
     setFiltrosAtivos((atuais) => [...atuais, filtro]);
@@ -80,8 +94,11 @@ export function PaginaAgenda() {
 
   function abrirAtendimento(lead: LeadDaAgenda) {
     const papelAmplo = papel && papel !== "ATENDENTE";
-    const visao: VisaoAtendimento = lead.status === "IA" ? "POTENCIAIS" : papelAmplo ? "TODOS" : "ATIVOS";
-    router.push(`/atendimentos?leadId=${encodeURIComponent(lead.id)}&visao=${visao}`);
+    const visao: VisaoAtendimento =
+      lead.status === "IA" ? "POTENCIAIS" : papelAmplo ? "TODOS" : "ATIVOS";
+    router.push(
+      `/atendimentos?leadId=${encodeURIComponent(lead.id)}&visao=${visao}`,
+    );
   }
 
   const leads = paginaDeLeads.data?.leads ?? [];
@@ -91,8 +108,8 @@ export function PaginaAgenda() {
     .replace("{total}", String(totalExibido));
 
   return (
-    <div className="flex h-full flex-col overflow-hidden p-6">
-      <header className="mb-4 flex-none">
+    <div className="flex h-full flex-col overflow-hidden bg-background p-6">
+      <header className="-mx-6 -mt-6 mb-4 flex-none border-b border-border bg-card px-6 py-4">
         <h1 className="text-xl font-semibold text-foreground">{t.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
       </header>
@@ -116,7 +133,9 @@ export function PaginaAgenda() {
           textosStatus={t.status}
           textoSemResponsavel={t.semResponsavel}
           contador={
-            <p className="text-sm whitespace-nowrap text-muted-foreground">{textoContador}</p>
+            <p className="text-sm whitespace-nowrap text-muted-foreground">
+              {textoContador}
+            </p>
           }
           onAdicionar={adicionarFiltro}
           onFiltrosRapidosChange={atualizarFiltrosRapidos}
@@ -167,7 +186,10 @@ export function PaginaAgenda() {
       </div>
 
       {leadNoPainel && (
-        <PainelLateralLead leadId={leadNoPainel} onFechar={() => setLeadNoPainel(null)} />
+        <PainelLateralLead
+          leadId={leadNoPainel}
+          onFechar={() => setLeadNoPainel(null)}
+        />
       )}
     </div>
   );

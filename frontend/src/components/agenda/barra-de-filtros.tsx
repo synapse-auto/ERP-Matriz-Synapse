@@ -10,7 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { SeletorMultiplo } from "@/components/ui/seletor-multiplo";
-import type { EtapaAtendimento, CanalResumo, TagDoLead } from "@/lib/lead/types";
+import type {
+  EtapaAtendimento,
+  CanalResumo,
+  TagDoLead,
+} from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import type {
   CampoFiltravel,
@@ -42,7 +46,10 @@ interface Referencias {
 }
 
 /** Opções conhecidas (id + rótulo) para um campo de referência — vazio quando o apelido é desconhecido. */
-function opcoesDeReferencia(apelido: string, refs: Referencias): { id: string; rotulo: string }[] {
+function opcoesDeReferencia(
+  apelido: string,
+  refs: Referencias,
+): { id: string; rotulo: string }[] {
   switch (apelido) {
     case "etapa":
       return refs.etapas.map((e) => ({ id: e.id, rotulo: e.nome }));
@@ -97,17 +104,29 @@ export function BarraDeFiltros({
 }: Props) {
   const [avancadosAbertos, setAvancadosAbertos] = useState(false);
   const cidadesConhecidas = useMemo(
-    () => [...new Set([...filtrosRapidos.cidades, ...cidades])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    () =>
+      [...new Set([...filtrosRapidos.cidades, ...cidades])].sort((a, b) =>
+        a.localeCompare(b, "pt-BR"),
+      ),
     [filtrosRapidos.cidades, cidades],
   );
 
   const opcoesRapidas = {
-    etapas: referencias.etapas.map((etapa) => ({ valor: etapa.id, rotulo: etapa.nome })),
+    etapas: referencias.etapas.map((etapa) => ({
+      valor: etapa.id,
+      rotulo: etapa.nome,
+    })),
     atendentes: [
-      ...referencias.equipe.map((usuario) => ({ valor: usuario.id, rotulo: usuario.nome })),
+      ...referencias.equipe.map((usuario) => ({
+        valor: usuario.id,
+        rotulo: usuario.nome,
+      })),
       { valor: SEM_RESPONSAVEL, rotulo: textoSemResponsavel },
     ],
-    cidades: cidadesConhecidas.map((cidade) => ({ valor: cidade, rotulo: cidade })),
+    cidades: cidadesConhecidas.map((cidade) => ({
+      valor: cidade,
+      rotulo: cidade,
+    })),
     tags: referencias.tags.map((tag) => ({ valor: tag.id, rotulo: tag.nome })),
   };
 
@@ -120,7 +139,13 @@ export function BarraDeFiltros({
 
   const chipsRapidos = [
     ...(filtrosRapidos.busca
-      ? [{ chave: "busca" as const, valor: filtrosRapidos.busca, rotulo: `${textos.busca}: ${filtrosRapidos.busca}` }]
+      ? [
+          {
+            chave: "busca" as const,
+            valor: filtrosRapidos.busca,
+            rotulo: `${textos.busca}: ${filtrosRapidos.busca}`,
+          },
+        ]
       : []),
     ...(["etapas", "atendentes", "cidades", "tags"] as const).flatMap((chave) =>
       filtrosRapidos[chave].map((valor) => {
@@ -136,28 +161,37 @@ export function BarraDeFiltros({
     ),
   ];
 
-  function removerRapido(chave: (typeof chipsRapidos)[number]["chave"], valor: string) {
+  function removerRapido(
+    chave: (typeof chipsRapidos)[number]["chave"],
+    valor: string,
+  ) {
     if (chave === "busca") {
       onFiltrosRapidosChange({ ...filtrosRapidos, busca: "" });
       return;
     }
-    atualizarRapido(chave, filtrosRapidos[chave].filter((atual) => atual !== valor));
+    atualizarRapido(
+      chave,
+      filtrosRapidos[chave].filter((atual) => atual !== valor),
+    );
   }
 
   const haFiltros = chipsRapidos.length > 0 || filtrosAtivos.length > 0;
 
   return (
-    <div className="mb-4 space-y-3 rounded-lg border border-border bg-card p-3.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-72 flex-1">
+    <div className="mb-3 space-y-2 border-b border-border pb-3">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-72 max-w-[380px] flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={filtrosRapidos.busca}
             aria-label={textos.busca}
             placeholder={textos.buscaPlaceholder}
-            className="pl-9"
+            className="h-10 rounded-lg pl-9"
             onChange={(evento) =>
-              onFiltrosRapidosChange({ ...filtrosRapidos, busca: evento.target.value })
+              onFiltrosRapidosChange({
+                ...filtrosRapidos,
+                busca: evento.target.value,
+              })
             }
           />
         </div>
@@ -205,7 +239,13 @@ export function BarraDeFiltros({
           onClick={() => setAvancadosAbertos((abertos) => !abertos)}
         >
           {textos.avancados}
-          <ChevronDown className={avancadosAbertos ? "rotate-180 transition-transform" : "transition-transform"} />
+          <ChevronDown
+            className={
+              avancadosAbertos
+                ? "rotate-180 transition-transform"
+                : "transition-transform"
+            }
+          />
         </Button>
         {avancadosAbertos && (
           <div className="mt-2 border-t border-border pt-3">
@@ -224,7 +264,7 @@ export function BarraDeFiltros({
       </div>
 
       {haFiltros && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
           {chipsRapidos.map((filtro) => (
             <ChipDeFiltro
               key={`${filtro.chave}-${filtro.valor}`}
@@ -241,7 +281,12 @@ export function BarraDeFiltros({
               onRemover={() => onRemover(filtro.id)}
             />
           ))}
-          <Button type="button" variant="ghost" size="sm" onClick={onLimparTudo}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onLimparTudo}
+          >
             {textos.limparTudo}
           </Button>
         </div>
@@ -260,12 +305,12 @@ function ChipDeFiltro({
   onRemover: () => void;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 py-1 pr-1.5 pl-2.5 text-xs font-semibold text-primary">
+    <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-primary/20 bg-primary/10 py-0.5 pr-1 pl-2 text-xs font-semibold text-primary">
       {rotulo}
       <button
         type="button"
         aria-label={`${textoRemover}: ${rotulo}`}
-        className="rounded-sm text-primary/70 hover:text-primary"
+        className="rounded-sm p-0.5 text-primary/70 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={onRemover}
       >
         <X className="size-3.5" />
@@ -274,7 +319,10 @@ function ChipDeFiltro({
   );
 }
 
-const ROTULOS_DE_OPERADOR: Record<OperadorDeFiltro, keyof TextosFiltros["operadores"]> = {
+const ROTULOS_DE_OPERADOR: Record<
+  OperadorDeFiltro,
+  keyof TextosFiltros["operadores"]
+> = {
   IGUAL: "igual",
   DIFERENTE: "diferente",
   CONTEM: "contem",
@@ -320,7 +368,9 @@ function FormularioDeNovoFiltro({
 
   const campo = campos.find((c) => c.apelido === apelido) ?? null;
   const aridade = operador ? aridadeDoOperador(operador) : null;
-  const opcoesReferencia = campo ? opcoesDeReferencia(campo.apelido, referencias) : [];
+  const opcoesReferencia = campo
+    ? opcoesDeReferencia(campo.apelido, referencias)
+    : [];
 
   function limparValores() {
     setValor("");
@@ -342,14 +392,16 @@ function FormularioDeNovoFiltro({
   function rotuloDoValorUnico(bruto: string): string {
     const opcao = opcoesReferencia.find((o) => o.id === bruto);
     if (opcao) return opcao.rotulo;
-    if (campo?.tipo === "STATUS") return textosStatus[ROTULOS_DE_STATUS[bruto as StatusBasicoLead]];
+    if (campo?.tipo === "STATUS")
+      return textosStatus[ROTULOS_DE_STATUS[bruto as StatusBasicoLead]];
     return bruto;
   }
 
   function podeAdicionar(): boolean {
     if (!campo || !operador) return false;
     if (aridade === "NENHUM") return true;
-    if (aridade === "DOIS") return valor.trim() !== "" && valorAte.trim() !== "";
+    if (aridade === "DOIS")
+      return valor.trim() !== "" && valorAte.trim() !== "";
     if (aridade === "LISTA") return valoresLista.length > 0;
     return valor.trim() !== "";
   }
@@ -401,10 +453,17 @@ function FormularioDeNovoFiltro({
   );
 
   if (carregandoCampos) {
-    return <p className="text-sm text-muted-foreground">{textos.carregandoCampos}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{textos.carregandoCampos}</p>
+    );
   }
   if (erroCampos) {
-    return <ErroDeCarregamento mensagem={textos.erroCampos} onTentarNovamente={onTentarNovamente} />;
+    return (
+      <ErroDeCarregamento
+        mensagem={textos.erroCampos}
+        onTentarNovamente={onTentarNovamente}
+      />
+    );
   }
 
   return (
@@ -416,7 +475,10 @@ function FormularioDeNovoFiltro({
           valor={apelido}
           ariaLabel={textos.campo}
           placeholder={textos.selecionarCampo}
-          opcoes={campoOrdenados.map((c) => ({ valor: c.apelido, rotulo: c.rotulo }))}
+          opcoes={campoOrdenados.map((c) => ({
+            valor: c.apelido,
+            rotulo: c.rotulo,
+          }))}
           onChange={selecionarCampo}
         />
       </label>
@@ -433,13 +495,22 @@ function FormularioDeNovoFiltro({
               valor: op,
               rotulo: textos.operadores[ROTULOS_DE_OPERADOR[op]],
             }))}
-            onChange={(valor) => selecionarOperador(valor as OperadorDeFiltro | "")}
+            onChange={(valor) =>
+              selecionarOperador(valor as OperadorDeFiltro | "")
+            }
           />
         </label>
       )}
 
       {campo && operador && aridade === "UM" && (
-        <ValorUnico campo={campo} valor={valor} onChange={setValor} opcoes={opcoesReferencia} textos={textos} textosStatus={textosStatus} />
+        <ValorUnico
+          campo={campo}
+          valor={valor}
+          onChange={setValor}
+          opcoes={opcoesReferencia}
+          textos={textos}
+          textosStatus={textosStatus}
+        />
       )}
 
       {campo && operador && aridade === "DOIS" && (
@@ -447,17 +518,37 @@ function FormularioDeNovoFiltro({
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             {textos.valorInicial}
             {campo.tipo === "DATA" ? (
-              <SeletorData className="w-40" valor={valor} placeholder={textos.valorInicial} onChange={setValor} />
+              <SeletorData
+                className="w-40"
+                valor={valor}
+                placeholder={textos.valorInicial}
+                onChange={setValor}
+              />
             ) : (
-              <Input className="h-8 w-32" type={campo.tipo === "NUMERO" ? "number" : "text"} value={valor} onChange={(e) => setValor(e.target.value)} />
+              <Input
+                className="h-8 w-32"
+                type={campo.tipo === "NUMERO" ? "number" : "text"}
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+              />
             )}
           </label>
           <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             {textos.valorFinal}
             {campo.tipo === "DATA" ? (
-              <SeletorData className="w-40" valor={valorAte} placeholder={textos.valorFinal} onChange={setValorAte} />
+              <SeletorData
+                className="w-40"
+                valor={valorAte}
+                placeholder={textos.valorFinal}
+                onChange={setValorAte}
+              />
             ) : (
-              <Input className="h-8 w-32" type={campo.tipo === "NUMERO" ? "number" : "text"} value={valorAte} onChange={(e) => setValorAte(e.target.value)} />
+              <Input
+                className="h-8 w-32"
+                type={campo.tipo === "NUMERO" ? "number" : "text"}
+                value={valorAte}
+                onChange={(e) => setValorAte(e.target.value)}
+              />
             )}
           </label>
         </>
@@ -474,7 +565,12 @@ function FormularioDeNovoFiltro({
         />
       )}
 
-      <Button type="button" size="sm" disabled={!podeAdicionar()} onClick={adicionar}>
+      <Button
+        type="button"
+        size="sm"
+        disabled={!podeAdicionar()}
+        onClick={adicionar}
+      >
         {textos.adicionar}
       </Button>
     </div>
@@ -498,7 +594,12 @@ function ValorUnico({
 }) {
   if (campo.tipo === "REFERENCIA" && opcoes.length > 0) {
     return (
-      <SeletorUnico valor={valor} onChange={onChange} opcoes={opcoes} textos={textos} />
+      <SeletorUnico
+        valor={valor}
+        onChange={onChange}
+        opcoes={opcoes}
+        textos={textos}
+      />
     );
   }
   if (campo.tipo === "STATUS") {
@@ -506,10 +607,12 @@ function ValorUnico({
       <SeletorUnico
         valor={valor}
         onChange={onChange}
-        opcoes={(Object.keys(ROTULOS_DE_STATUS) as StatusBasicoLead[]).map((s) => ({
-          id: s,
-          rotulo: textosStatus[ROTULOS_DE_STATUS[s]],
-        }))}
+        opcoes={(Object.keys(ROTULOS_DE_STATUS) as StatusBasicoLead[]).map(
+          (s) => ({
+            id: s,
+            rotulo: textosStatus[ROTULOS_DE_STATUS[s]],
+          }),
+        )}
         textos={textos}
       />
     );
@@ -541,7 +644,12 @@ function ValorUnico({
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {textos.valor}
       {campo.tipo === "DATA" ? (
-        <SeletorData className="w-40" valor={valor} placeholder={textos.valor} onChange={onChange} />
+        <SeletorData
+          className="w-40"
+          valor={valor}
+          placeholder={textos.valor}
+          onChange={onChange}
+        />
       ) : (
         <Input
           className="h-8 w-40"
@@ -573,7 +681,10 @@ function SeletorUnico({
         valor={valor}
         ariaLabel={textos.valor}
         placeholder={textos.selecionarValor}
-        opcoes={opcoes.map((opcao) => ({ valor: opcao.id, rotulo: opcao.rotulo }))}
+        opcoes={opcoes.map((opcao) => ({
+          valor: opcao.id,
+          rotulo: opcao.rotulo,
+        }))}
         onChange={onChange}
       />
     </label>
