@@ -64,6 +64,7 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
     @DisplayName("registra saída da IA sem chamar o adaptador da Meta")
     void registraSemReenviar() {
         UUID atendimento = criarAtendimento("REGISTRO");
+        long outboxAntes = jdbc.queryForObject("SELECT count(*) FROM outbox_evento", Long.class);
 
         ResponseEntity<String> resposta = chamar(TOKEN, atendimento, corpo("wamid.E30-1"));
 
@@ -75,9 +76,8 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
         assertThat(jdbc.queryForObject(
                         "SELECT remetente_tipo::text FROM mensagem WHERE atendimento_id = ?", String.class, atendimento))
                 .isEqualTo("IA");
-        assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM outbox_evento", Long.class))
-                .isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento", Long.class))
+                .isEqualTo(outboxAntes);
         assertThat(canal.enviados()).isEmpty();
     }
 
@@ -162,7 +162,7 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
                 "INSERT INTO lead(id,nome,telefone,status_basico) VALUES (?,?,?,?::status_basico_lead)",
                 lead,
                 PREFIXO + marcador,
-                "556199999" + marcador.hashCode() % 10000,
+                "556199999" + Math.abs(marcador.hashCode() % 10000),
                 "IA");
         jdbc.update(
                 "INSERT INTO atendimento(id,lead_id,atendente_id,status) VALUES (?,?,NULL,'EM_IA')",
