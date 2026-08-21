@@ -196,6 +196,48 @@ O script foi escrito para **falhar com erro explícito** se um atendente enxerga
 
 ## Fase 4 — WhatsApp (30 minutos)
 
+### 4.8 — Passivo de mensagens agrupadas (E32)
+
+Desde a correção da E32, a entrada percorre todas as `entry[].changes[].value.messages[]` e
+deduplica cada `wamid` na tabela estreita `mensagem_recebida_idempotencia`. O payload original
+continua inteiro em `webhook_entrada`; não se deve alterar nem fatiar essa linha.
+
+Antes de decidir qualquer reprocessamento, medir no banco da instância:
+
+```sql
+WITH por_post AS (
+    SELECT w.id_externo, w.recebido_em,
+           coalesce(sum(
+               CASE WHEN jsonb_typeof(mudanca->'value'->'messages') = 'array'
+                    THEN jsonb_array_length(mudanca->'value'->'messages') ELSE 0 END), 0) AS total_mensagens
+    FROM webhook_entrada w
+    CROSS JOIN LATERAL jsonb_array_elements(w.payload::jsonb->'entry') AS entrada
+    CROSS JOIN LATERAL jsonb_array_elements(entrada->'changes') AS mudanca
+    GROUP BY w.id_externo, w.recebido_em
+)
+SELECT count(*) FILTER (WHERE total_mensagens > 1) AS posts_com_varias_mensagens,
+       coalesce(sum(total_mensagens - 1) FILTER (WHERE total_mensagens > 1), 0) AS mensagens_para_traz,
+       min(recebido_em) FILTER (WHERE total_mensagens > 1) AS primeira_data,
+       max(recebido_em) FILTER (WHERE total_mensagens > 1) AS ultima_data
+FROM por_post;
+```
+
+O resultado desta medição **não foi executado neste checkout**: não há `psql`, credencial de
+produção nem Docker disponível localmente. Portanto, a quantidade e o intervalo históricos ainda
+precisam ser obtidos na instância antes de qualquer reprocessamento.
+
+Procedimento seguro, somente após decisão do arquiteto:
+
+1. Exportar os `payload` e `id_externo` do intervalo aprovado, preservando o corpo original.
+2. Confirmar HMAC e `phone_number_id` de cada payload; não reprocessar o período contaminado sem
+   separar os eventos do incidente de 16/08.
+3. Recolocar cada payload aprovado na fila de processamento sem inserir uma nova linha em
+   `webhook_entrada`; a reserva por `wamid` impede duplicatas.
+4. Drenar a fila sob observação e conferir leads, mensagens e a tabela
+   `mensagem_recebida_idempotencia`.
+
+Não execute este procedimento automaticamente: ele traz conversas antigas para a operação.
+
 **4.1 — Token permanente**
 
 O token da tela de "Configuração da API" **expira em 24 horas**. Gere o permanente:
