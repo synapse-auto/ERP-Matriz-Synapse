@@ -13,8 +13,8 @@
 ### ADR-002 — Integração da Automação sem bloquear o caminho humano
 
 **Contexto:** RNF-CRM-01 é a "ultra-regra": a aba Atendimentos não pode parar entre 08:00–18:30, mesmo que a Automação/IA falhe.
-**Decisão:** envio e recebimento humanos não chamam a Automação. A entrega de uma conversa da IA para um humano é a exceção síncrona: `POST /internal/v1/atendimentos/{id}/transferir`, implementado por `TransferenciaAutomacaoInternalController` e coberto por `TransferenciaAutomacaoIT`, pela rede interna e com `X-Synapse-Token`, porque a própria ação perde o sentido quando o CRM está indisponível e o cliente espera confirmação imediata. O destinatário é escolhido pelo CRM entre atendentes online e disponíveis, priorizando a menor carga aberta; não existe destinatário no corpo. Telemetria e invalidação de configuração permanecem desacopladas.
-**Consequências:** falha ou lentidão da IA não bloqueia o atendimento humano. A Automação recebe sucesso ou falha da transferência na mesma chamada, não pode distribuir comissão escolhendo usuário e é registrada como `ator_tipo = AUTOMACAO`, com `ator_id` nulo.
+**Decisão:** envio e recebimento humanos não chamam a Automação. Os comandos síncronos do n8n ficam em `/internal/v1`, autenticados por `X-Synapse-Token`/`ROLE_SERVICO`: `responder`, `transferir`, `modo-ia` e `transferir-proximo-humano`. A resposta da IA grava `Remetente.IA` e a intenção na outbox na mesma transação, sem chamada ao provedor durante o request; transferência explícita aceita apenas usuário ativo com papel `ATENDENTE`, e a rota de próximo humano escolhe por nome e id. Cada escrita exige `Idempotency-Key` persistida. Telemetria e invalidação de configuração permanecem desacopladas.
+**Consequências:** falha ou lentidão da IA não bloqueia o atendimento humano. A Automação recebe sucesso ou falha imediata, não pode distribuir comissão por um UUID arbitrário e suas ações aparecem na timeline/auditoria como `ator_tipo = AUTOMACAO`, com `ator_id` nulo.
 
 ### ADR-003 — Filtros modulares como JSONB genérico
 
@@ -98,7 +98,10 @@
 | GET | `/internal/v1/regras/fidelizacao` | Snapshot das regras de fidelização | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |
 | POST | `/internal/v1/eventos` | Recebe telemetria idempotente da Automação | Serviço de Automação | `AutomationConfigInternalController` · `ContratoAutomacaoIT` |
 | GET | `/internal/v1/atendentes/disponiveis` | Lista atendentes elegíveis à distribuição | Serviço de Automação | `AtendentesDisponiveisInternalController` · `ContratoInternalV1IT` |
-| POST | `/internal/v1/atendimentos/{id}/transferir` | Entrega conversa ao atendente elegível de menor carga; sem destinatário no corpo | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `TransferenciaAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/responder` | Responde como IA, grava mensagem e outbox sem transferir o lead | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/transferir` | Transfere da IA para atendente ativo informado no corpo | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
+| PATCH | `/internal/v1/atendimentos/{id}/modo-ia` | Devolve atendimento e lead para a IA | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/transferir-proximo-humano` | Escolhe o primeiro atendente disponível por nome e id | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro e invalida o cache | Gestor/Subgestor | `ConfiguracaoAutomacaoController` · `ContratoAutomacaoIT` |
 | GET | `/api/v1/automacao/telemetria` | Snapshot cumulativo do estado da Automação | Gestor/Subgestor | `StatusAutomacaoTelemetriaController` · `StatusAutomacaoTelemetriaControllerIT` |
 

@@ -60,7 +60,7 @@ class TransferenciaAutomacaoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("servidor ignora destinatario arbitrario, escolhe menor carga e registra AUTOMACAO")
+    @DisplayName("servidor valida destinatario ATENDENTE e registra AUTOMACAO")
     void distribuiSemAceitarDestinatarioERegistraAtorTecnico() {
         UUID menorCarga = criarAtendenteDisponivel("B-MENOR-CARGA");
         UUID maiorCarga = criarAtendenteDisponivel("A-MAIOR-CARGA");
@@ -68,7 +68,7 @@ class TransferenciaAutomacaoIT extends PostgresIT {
         UUID atendimento = criarAtendimentoDaIa("ALVO");
 
         ResponseEntity<String> resposta = chamarComToken(
-                TOKEN, atendimento, Map.of("paraAtendenteId", maiorCarga.toString()));
+                TOKEN, atendimento, Map.of("atendenteId", menorCarga.toString()));
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains(menorCarga.toString()).doesNotContain(maiorCarga.toString());
@@ -126,6 +126,7 @@ class TransferenciaAutomacaoIT extends PostgresIT {
     private ResponseEntity<String> chamarComToken(String token, UUID atendimento, Object corpo) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.set("X-Synapse-Token", token);
+        cabecalhos.set("Idempotency-Key", PREFIXO + atendimento);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
         return http.exchange(
                 url(atendimento), HttpMethod.POST, new HttpEntity<>(corpo, cabecalhos), String.class);

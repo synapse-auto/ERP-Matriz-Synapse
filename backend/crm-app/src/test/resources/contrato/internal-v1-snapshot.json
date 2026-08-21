@@ -1,5 +1,65 @@
 {
   "paths" : {
+    "/internal/v1/atendimentos/{id}/responder" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResponderRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resposta"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Conteúdo ou Idempotency-Key ausente."
+          },
+          "401" : {
+            "description" : "Credencial ausente, inválida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial válida sem permissão para a operação."
+          },
+          "404" : {
+            "description" : "Atendimento inexistente."
+          },
+          "409" : {
+            "description" : "Atendimento não está sob responsabilidade da IA ou chave reutilizada."
+          },
+          "422" : {
+            "description" : "Canal fora da janela de texto livre."
+          }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/mensagens-enviadas" : {
       "post" : {
         "parameters" : [ {
@@ -60,7 +120,24 @@
             "format" : "uuid",
             "type" : "string"
           }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TransferirRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "200" : {
             "content" : {
@@ -83,6 +160,113 @@
           },
           "409" : {
             "description" : "Transferencia indisponivel."
+          },
+          "422" : {
+            "description" : "Destino inexistente, inativo ou com papel diferente de ATENDENTE."
+          }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/{id}/modo-ia" : {
+      "patch" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ModoIaRequisicao"
+              }
+            }
+          },
+          "required" : false
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferenciaResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Idempotency-Key ausente ou inválido."
+          },
+          "401" : {
+            "description" : "Credencial ausente, inválida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial válida sem permissão para a operação."
+          },
+          "404" : {
+            "description" : "Atendimento inexistente."
+          },
+          "409" : {
+            "description" : "Atendimento finalizado ou chave reutilizada."
+          }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/{id}/transferir-proximo-humano" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferenciaResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Idempotency-Key ausente ou inválido."
+          },
+          "401" : {
+            "description" : "Credencial ausente, inválida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial válida sem permissão para a operação."
+          },
+          "404" : {
+            "description" : "Atendimento inexistente."
+          },
+          "409" : {
+            "description" : "Nenhum atendente elegível, atendimento inválido ou chave reutilizada."
           }
         }
       }
@@ -244,6 +428,49 @@
     }
   },
   "schemas" : {
+    "ModoIaRequisicao" : {
+      "type" : "object"
+    },
+    "Resposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "statusEntrega" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResponderRequisicao" : {
+      "properties" : {
+        "conteudo" : {
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "conteudo" ],
+      "type" : "object"
+    },
+    "TransferirRequisicao" : {
+      "properties" : {
+        "atendenteId" : {
+          "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "required" : [ "atendenteId" ],
+      "type" : "object"
+    },
     "AtendenteResposta" : {
       "properties" : {
         "email" : {

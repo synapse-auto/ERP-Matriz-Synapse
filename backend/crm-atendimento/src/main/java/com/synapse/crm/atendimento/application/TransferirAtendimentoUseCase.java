@@ -59,7 +59,17 @@ public class TransferirAtendimentoUseCase {
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento executarPelaAutomacao(UUID atendimentoId, UUID paraAtendenteId) {
+        if (paraAtendenteId == null) {
+            throw new IllegalArgumentException("transferencia da Automacao exige atendente destino");
+        }
         return transferir(atendimentoId, paraAtendenteId, null, OrigemEvento.AUTOMACAO, true);
+    }
+
+    /** A Automação pode devolver uma conversa humana para a IA, sem fabricar um usuário. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento devolverParaIaPelaAutomacao(UUID atendimentoId) {
+        return transferir(atendimentoId, null, null, OrigemEvento.AUTOMACAO, false);
     }
 
     private Atendimento transferir(

@@ -23,14 +23,17 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
 
     private final ListarAtendentesDisponiveisUseCase listarDisponiveis;
     private final AtendimentoRepositorio atendimentos;
+    private final AtendenteParaTransferenciaRepositorio destinos;
     private final TransferirAtendimentoUseCase transferir;
 
     public TransferirAtendimentoDaAutomacaoUseCase(
             ListarAtendentesDisponiveisUseCase listarDisponiveis,
             AtendimentoRepositorio atendimentos,
+            AtendenteParaTransferenciaRepositorio destinos,
             TransferirAtendimentoUseCase transferir) {
         this.listarDisponiveis = listarDisponiveis;
         this.atendimentos = atendimentos;
+        this.destinos = destinos;
         this.transferir = transferir;
     }
 
@@ -40,12 +43,19 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
         atendimentos.bloquearDistribuicaoDaAutomacao();
 
         AtendenteDisponivelParaIa destino = listarDisponiveis.executar().stream()
-                .min(Comparator.comparingLong((AtendenteDisponivelParaIa candidato) ->
-                                atendimentos.contarAbertosDoAtendente(candidato.usuarioId()))
-                        .thenComparing(AtendenteDisponivelParaIa::nome)
+                .min(Comparator.comparing(AtendenteDisponivelParaIa::nome)
                         .thenComparing(AtendenteDisponivelParaIa::usuarioId))
                 .orElseThrow(NenhumAtendenteDisponivelException::new);
 
         return transferir.executarPelaAutomacao(atendimentoId, destino.usuarioId());
+    }
+
+    /** Transferência explícita: o destino é validado no banco e nunca aceito como UUID arbitrário. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento executar(UUID atendimentoId, UUID atendenteId) {
+        destinos.ativoAtendente(atendenteId)
+                .orElseThrow(() -> new AtendenteDestinoInvalidoException(atendenteId));
+        return transferir.executarPelaAutomacao(atendimentoId, atendenteId);
     }
 }

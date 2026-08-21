@@ -64,50 +64,44 @@ antes de liberar a inscrição/tráfego desse número. Não deduza o destino pel
 WABA ID, pelo telefone exibido nem por variável lida diretamente no webhook: a
 fonte de verdade é a credencial ativa no banco da instância.
 
-### 3.2 Registrar uma mensagem que a Automação já enviou
+### 3.2 Comandos de atendimento
 
-Quando um workflow envia uma mensagem diretamente pela Meta, ele registra o
-resultado no CRM — o CRM não reenvia. Use:
+Toda escrita exige `X-Synapse-Token` e um `Idempotency-Key` único. Repetir a
+mesma chave e o mesmo comando devolve a resposta original; usar a chave em
+outra operação ou atendimento responde `409`. Sem chave, responde `400`.
+
+Responder pela IA grava a mensagem como `Remetente.IA` e a intenção na outbox;
+o n8n não chama a Meta diretamente e não precisa enviar `wamid`:
 
 ```text
-POST /internal/v1/atendimentos/{atendimentoId}/mensagens-enviadas
+POST /internal/v1/atendimentos/{atendimentoId}/responder
 X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Idempotency-Key: workflow-123-resposta-1
 Content-Type: application/json
 ```
 
-Corpo normalizado (sem o JSON da Meta):
-
 ```json
-{
-  "wamid": "wamid.exemplo-sem-dado-real",
-  "tipo": "TEXTO",
-  "conteudo": "Mensagem enviada pela Automação"
-}
+{ "conteudo": "Mensagem da automação" }
 ```
 
-Para mídia, use `tipo` como `AUDIO`, `IMAGEM` ou `DOCUMENTO`, informe a
-`midiaUrl` como referência opaca já armazenada no CRM e, se necessário,
-`midiaMetadados`. O `wamid` é a chave de idempotência: repetir a chamada
-devolve a mesma mensagem e não cria outra linha. O endpoint atualiza a última
-interação do lead e publica a mensagem no WebSocket; não chama a Meta e não
-aceita um campo `enviarWhatsapp`.
+Para entregar a conversa a uma pessoa, informe somente um usuário ativo com
+papel `ATENDENTE`; gestor, subgestor, IA e UUID inexistente são recusados:
 
-Para mensagens interativas, use `BOTOES` ou `LISTA` e envie `opcoes` como um
-array JSON normalizado. O CRM guarda os títulos e descrições para a ficha do
-atendimento:
-
-```json
-{
-  "wamid": "wamid.exemplo-sem-dado-real",
-  "tipo": "BOTOES",
-  "conteudo": "Como podemos ajudar?",
-  "opcoes": "[{\"id\":\"orcamento\",\"titulo\":\"Pedir orçamento\",\"descricao\":\"Receba uma estimativa\"}]"
-}
+```text
+POST /internal/v1/atendimentos/{atendimentoId}/transferir
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Idempotency-Key: workflow-123-transferencia-1
 ```
 
-Quando o lead responde a um botão ou lista, o histórico registra o título
-visível da opção como uma mensagem de texto; o id técnico não aparece para o
-atendente.
+```json
+{ "atendenteId": "00000000-0000-0000-0000-000000000000" }
+```
+
+Para devolver ao robô, use `PATCH /internal/v1/atendimentos/{id}/modo-ia` com
+corpo `{}`. Para distribuição automática, use
+`POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` sem corpo: o
+CRM escolhe o primeiro disponível por nome e id. Ambas as ações registram
+`AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
 ## 4. Por que não acessar o banco direto
 

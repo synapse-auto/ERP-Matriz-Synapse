@@ -69,6 +69,9 @@ class AuditoriaDeAtendimentoListener {
                     "USUARIO",
                     enviada.transferiu() ? "ENVIO_COM_TRANSFERENCIA_DE_LEAD" : "MENSAGEM_ENVIADA");
 
+            case EventoDeAtendimento.MensagemEnviadaPelaAutomacao ignorada ->
+                new Registro(null, "AUTOMACAO", "MENSAGEM_ENVIADA");
+
             case EventoDeAtendimento.AtendimentoTransferido transferido ->
                 new Registro(
                         transferido.atorId(),

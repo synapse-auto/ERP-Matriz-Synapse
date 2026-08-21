@@ -88,6 +88,14 @@ class TimelineDeAtendimentoListener {
                         dados);
             }
 
+            case EventoDeAtendimento.MensagemEnviadaPelaAutomacao enviada ->
+                new Anotacao(
+                        "MENSAGEM_ENVIADA",
+                        "Automacao enviou uma mensagem pela IA.",
+                        "AUTOMACAO",
+                        null,
+                        Map.of("ator", "AUTOMACAO", "mensagemId", enviada.mensagemId().toString()));
+
             case EventoDeAtendimento.AtendimentoTransferido transferido -> {
                 Map<String, Object> dados = new LinkedHashMap<>();
                 dados.put("deIa", transferido.deAtendenteId() == null);

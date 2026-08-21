@@ -55,6 +55,11 @@ public sealed interface EventoDeAtendimento {
             Instant ocorridoEm)
             implements EventoDeAtendimento {}
 
+    /** A Automação respondeu pela IA; não é uma mensagem de atendente e não transfere o lead. */
+    record MensagemEnviadaPelaAutomacao(
+            UUID leadId, UUID atendimentoId, UUID mensagemId, Instant ocorridoEm)
+            implements EventoDeAtendimento {}
+
     /**
      * O atendimento mudou de responsavel.
      *
