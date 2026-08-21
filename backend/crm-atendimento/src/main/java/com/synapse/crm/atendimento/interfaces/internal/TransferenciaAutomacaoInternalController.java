@@ -61,7 +61,7 @@ class TransferenciaAutomacaoInternalController {
                 @ApiResponse(responseCode = "422", description = "Canal fora da janela de texto livre.")
             })
     @PostMapping("/{id}/responder")
-    ComandosAutomacaoUseCase.Resposta responder(
+    ComandosAutomacaoUseCase.RespostaComandoAutomacao responder(
             @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
             @Parameter(description = "Chave única da operação; repetições devolvem a mesma resposta.", required = true)
                     @RequestHeader("Idempotency-Key") String chave,

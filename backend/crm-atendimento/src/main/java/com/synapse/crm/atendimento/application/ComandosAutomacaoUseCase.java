@@ -41,14 +41,14 @@ public class ComandosAutomacaoUseCase {
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
-    public Resposta resposta(UUID atendimentoId, String chave, String conteudo) {
+    public RespostaComandoAutomacao resposta(UUID atendimentoId, String chave, String conteudo) {
         return executar(
                 chave,
                 "RESPONDER",
                 atendimentoId,
                 conteudo,
-                Resposta.class,
-                () -> Resposta.de(responder.executar(atendimentoId, conteudo)));
+                RespostaComandoAutomacao.class,
+                () -> RespostaComandoAutomacao.de(responder.executar(atendimentoId, conteudo)));
     }
 
     @PreAuthorize("hasRole('SERVICO')")
@@ -151,10 +151,10 @@ public class ComandosAutomacaoUseCase {
         }
     }
 
-    public record Resposta(
+    public record RespostaComandoAutomacao(
             UUID atendimentoId, UUID mensagemId, String statusEntrega, Instant enviadoEm) {
-        static Resposta de(ResponderAtendimentoDaAutomacaoUseCase.Resultado resultado) {
-            return new Resposta(
+        static RespostaComandoAutomacao de(ResponderAtendimentoDaAutomacaoUseCase.Resultado resultado) {
+            return new RespostaComandoAutomacao(
                     resultado.atendimentoId(),
                     resultado.mensagemId(),
                     resultado.statusEntrega().name(),

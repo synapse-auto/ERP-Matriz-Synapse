@@ -33,7 +33,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Resposta"
+                  "$ref" : "#/components/schemas/RespostaComandoAutomacao"
                 }
               }
             },
@@ -193,7 +193,6 @@
               }
             }
           },
-          "required" : false
         },
         "responses" : {
           "200" : {
@@ -433,6 +432,31 @@
     },
     "Resposta" : {
       "properties" : {
+        "atendenteId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "atendenteNome" : {
+          "type" : "string"
+        },
+        "conteudo" : {
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "palavraChave" : {
+          "type" : "string"
+        },
+        "tipoMidia" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "RespostaComandoAutomacao" : {
+      "properties" : {
         "atendimentoId" : {
           "format" : "uuid",
           "type" : "string"
@@ -454,6 +478,7 @@
     "ResponderRequisicao" : {
       "properties" : {
         "conteudo" : {
+          "example" : "Posso ajudar com seu orçamento?",
           "minLength" : 1,
           "type" : "string"
         }
