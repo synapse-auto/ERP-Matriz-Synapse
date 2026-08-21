@@ -1,5 +1,55 @@
 {
   "paths" : {
+    "/internal/v1/atendimentos/{id}/mensagens-enviadas" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MensagemEnviadaRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MensagemEnviadaResposta"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Mensagem normalizada inválida."
+          },
+          "401" : {
+            "description" : "Credencial ausente, inválida ou expirada."
+          },
+          "403" : {
+            "description" : "Credencial válida sem permissão para a operação."
+          },
+          "404" : {
+            "description" : "Atendimento inexistente."
+          },
+          "409" : {
+            "description" : "wamid já pertence a outro atendimento."
+          }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/transferir" : {
       "post" : {
         "parameters" : [ {
@@ -264,6 +314,29 @@
       },
       "type" : "object"
     },
+    "MensagemEnviadaResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "idempotente" : {
+          "type" : "boolean"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "statusEntrega" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "RegraFidelizacaoResposta" : {
       "properties" : {
         "diasSemContato" : {
@@ -297,6 +370,28 @@
           "type" : "string"
         }
       },
+      "type" : "object"
+    },
+    "MensagemEnviadaRequisicao" : {
+      "properties" : {
+        "conteudo" : {
+          "type" : "string"
+        },
+        "midiaMetadados" : {
+          "type" : "string"
+        },
+        "midiaUrl" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO" ],
+          "type" : "string"
+        },
+        "wamid" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "tipo", "wamid" ],
       "type" : "object"
     },
     "TransferenciaResposta" : {
