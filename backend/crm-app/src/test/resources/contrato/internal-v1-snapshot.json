@@ -430,31 +430,6 @@
     "ModoIaRequisicao" : {
       "type" : "object"
     },
-    "Resposta" : {
-      "properties" : {
-        "atendenteId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "atendenteNome" : {
-          "type" : "string"
-        },
-        "conteudo" : {
-          "type" : "string"
-        },
-        "id" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "palavraChave" : {
-          "type" : "string"
-        },
-        "tipoMidia" : {
-          "type" : "string"
-        }
-      },
-      "type" : "object"
-    },
     "RespostaComandoAutomacao" : {
       "properties" : {
         "atendimentoId" : {
