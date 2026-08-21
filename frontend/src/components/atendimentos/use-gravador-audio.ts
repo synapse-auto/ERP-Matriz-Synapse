@@ -13,7 +13,6 @@ import type { ConfiguracaoComposer } from "@/lib/atendimento/types";
 const FORMATOS_ACEITOS_PELA_META = [
   "audio/mp4;codecs=mp4a.40.2",
   "audio/mp4",
-  "audio/ogg;codecs=opus",
 ] as const;
 const semAssinatura = () => () => {};
 const semFormatoNoServidor = () => null;
@@ -132,10 +131,9 @@ export function useGravadorAudio(
         const blob = new Blob(partesRef.current, {
           type: recorder.mimeType || mimeType,
         });
-        const extensao = mimeType.startsWith("audio/mp4") ? "m4a" : "ogg";
         const gravacao = new File(
           [blob],
-          `gravacao-${Date.now()}.${extensao}`,
+          `gravacao-${Date.now()}.m4a`,
           {
             type: blob.type,
           },

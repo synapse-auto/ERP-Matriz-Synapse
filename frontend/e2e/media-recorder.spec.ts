@@ -10,7 +10,6 @@ test("o Chrome entrega M4A/AAC gravavel sem conversao", async ({ page }) => {
     const candidatos = [
       "audio/mp4;codecs=mp4a.40.2",
       "audio/mp4",
-      "audio/ogg;codecs=opus",
       "audio/webm;codecs=opus",
     ];
     const suportados = candidatos.filter((tipo) =>
