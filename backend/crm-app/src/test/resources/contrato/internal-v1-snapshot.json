@@ -192,7 +192,7 @@
                 "$ref" : "#/components/schemas/ModoIaRequisicao"
               }
             }
-          },
+          }
         },
         "responses" : {
           "200" : {
