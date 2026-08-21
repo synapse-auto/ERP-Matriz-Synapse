@@ -17,7 +17,8 @@ import java.util.List;
 public interface WebhookEntrada {
 
     /**
-     * Registra o payload. <b>Idempotente por {@code idExterno}</b>.
+     * Registra o payload. <b>Idempotente pela chave do POST</b>; a idempotência de cada mensagem
+     * fica em {@code mensagem_recebida_idempotencia}, no processador.
      *
      * @return {@code true} se era novo; {@code false} se ja tinhamos — reentrega do provedor, que e
      *     rotina e nao erro

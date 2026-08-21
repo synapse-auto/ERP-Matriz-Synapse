@@ -3,17 +3,20 @@ package com.synapse.crm.atendimento.infrastructure.webhook;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
@@ -25,7 +28,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Drena a fila de entrada: traduz o payload cru e registra a mensagem.
+ * Drena a fila de entrada: traduz o payload cru e registra todas as mensagens contidas nele.
  *
  * <p>Espelho do publisher da outbox, no sentido oposto. Fica fora do ciclo de request de proposito:
  * assim uma falha de traducao, um lead que precisa ser criado ou um pico de carga nao viram timeout
@@ -50,6 +53,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
     private final WebhookEntrada entrada;
     private final TradutorDeCanal tradutor;
+    private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
@@ -58,20 +62,24 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Clock relogio;
     private final int lote;
     private final int maximoDeTentativas;
+    private final TransactionTemplate transacoes;
 
     public ProcessadorDeWebhookEntradaOperacoes(
             WebhookEntrada entrada,
             TradutorDeCanal tradutor,
+            IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             ArmazenamentoDeMidia armazenamento,
             ObjectMapper json,
             Clock relogio,
+            @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager chatTransactionManager,
             @Value("${synapse.canal.webhook.lote:50}") int lote,
             @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas) {
         this.entrada = entrada;
         this.tradutor = tradutor;
+        this.idempotencia = idempotencia;
         this.registrar = registrar;
         this.leads = leads;
         this.canal = canal;
@@ -80,11 +88,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.relogio = relogio;
         this.lote = lote;
         this.maximoDeTentativas = maximoDeTentativas;
+        this.transacoes = new TransactionTemplate(chatTransactionManager);
+        this.transacoes.setName("processar webhook de entrada");
     }
 
-    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public int rodada() {
-        List<WebhookEntrada.Pendente> pendentes = entrada.reservarPendentes(lote);
+        List<WebhookEntrada.Pendente> pendentes = transacoes.execute(status -> entrada.reservarPendentes(lote));
         for (WebhookEntrada.Pendente pendente : pendentes) {
             processar(pendente);
         }
@@ -94,30 +103,35 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private void processar(WebhookEntrada.Pendente pendente) {
         Instant agora = Instant.now(relogio);
         try {
-            Optional<TradutorDeCanal.MensagemRecebidaDoCanal> traduzida =
-                    tradutor.traduzir(pendente.payloadCru());
+            transacoes.executeWithoutResult(status -> processarEmTransacao(pendente, agora));
 
-            if (traduzida.isEmpty()) {
-                // Nao e mensagem de cliente (status, midia ainda nao suportada). Marcar
-                // processado e o certo: reagendar faria a linha girar para sempre.
-                entrada.marcarProcessado(pendente.idExterno(), agora);
-                return;
+        } catch (RuntimeException e) {
+            // O estado de retry precisa de uma transação própria: a transação da mensagem foi
+            // desfeita inteira, inclusive a reserva de idempotência, quando algo falhou.
+            transacoes.executeWithoutResult(status -> falhar(pendente, agora, e));
+        }
+    }
+
+    private void processarEmTransacao(WebhookEntrada.Pendente pendente, Instant agora) {
+        List<TradutorDeCanal.MensagemRecebidaDoCanal> traduzidas =
+                tradutor.traduzir(pendente.payloadCru());
+
+        for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
+            if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()
+                    || !idempotencia.reservarSeNova(mensagem.idExterno())) {
+                continue;
             }
 
-            TradutorDeCanal.MensagemRecebidaDoCanal mensagem = traduzida.get();
             UUID leadId =
                     leads.resolverPorTelefone(mensagem.telefoneRemetente(), mensagem.nomeExibicao());
-
             registrar.executar(mensagem.ehMidia()
                     ? mensagemRecebidaDeMidia(leadId, mensagem)
                     : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                             leadId, null, null, mensagem.texto()));
-
-            entrada.marcarProcessado(pendente.idExterno(), agora);
-
-        } catch (RuntimeException e) {
-            falhar(pendente, agora, e);
         }
+
+        // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
+        entrada.marcarProcessado(pendente.idExterno(), agora);
     }
 
     /**

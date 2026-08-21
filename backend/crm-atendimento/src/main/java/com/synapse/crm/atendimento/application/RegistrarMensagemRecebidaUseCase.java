@@ -143,5 +143,17 @@ public class RegistrarMensagemRecebidaUseCase {
     }
 
     /** @param abriuAtendimento se esta mensagem comecou uma conversa nova */
-    public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean abriuAtendimento) {}
+    public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean abriuAtendimento) {
+        public Atendimento atendimento() {
+            return atendimento;
+        }
+
+        public Mensagem mensagem() {
+            return mensagem;
+        }
+
+        public boolean abriuAtendimento() {
+            return abriuAtendimento;
+        }
+    }
 }

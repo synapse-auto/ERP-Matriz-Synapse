@@ -201,5 +201,17 @@ public class EnviarMensagemUseCase {
     }
 
     /** @param transferiuOLead se a RN-CRM-06 mudou o dono de fato */
-    public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean transferiuOLead) {}
+    public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean transferiuOLead) {
+        public Atendimento atendimento() {
+            return atendimento;
+        }
+
+        public Mensagem mensagem() {
+            return mensagem;
+        }
+
+        public boolean transferiuOLead() {
+            return transferiuOLead;
+        }
+    }
 }

@@ -84,6 +84,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lembrete",
                     "mensagem",
                     "mensagem_automacao_idempotencia",
+                    "mensagem_recebida_idempotencia",
                     // Rede de seguranca: recebe o que chegar fora da janela de particoes.
                     "mensagem_default",
                     "mensagem_festiva",

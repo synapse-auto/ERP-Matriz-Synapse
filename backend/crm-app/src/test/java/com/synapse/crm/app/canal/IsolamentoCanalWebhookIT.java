@@ -116,6 +116,124 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("ponto de entrada drena todas as mensagens de uma change na ordem")
+    void pontoEntrada_variasMensagensNaMesmaChange_gravaTodas() {
+        String telefone = PREFIXO_TELEFONE + "10";
+        String payload = payload(mudancaComMensagens(
+                PHONE_NUMBER_ID,
+                "{\"wa_id\":\"%s\",\"profile\":{\"name\":\"Cliente dez\"}}".formatted(telefone),
+                mensagem(telefone, PREFIXO_ID + "10-a", "a") + ","
+                        + mensagem(telefone, PREFIXO_ID + "10-b", "b") + ","
+                        + mensagem(telefone, PREFIXO_ID + "10-c", "c")));
+
+        assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id"
+                                + " JOIN lead l ON l.id = a.lead_id WHERE l.telefone = ?",
+                        Integer.class,
+                        telefone))
+                .isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("ponto de entrada percorre duas entries do mesmo canal")
+    void pontoEntrada_duasEntriesDoMesmoCanal_gravaAmbas() {
+        String telefoneA = PREFIXO_TELEFONE + "11";
+        String telefoneB = PREFIXO_TELEFONE + "12";
+        String payload = payload(
+                mudanca(PHONE_NUMBER_ID, PREFIXO_ID + "11", telefoneA, "a"),
+                mudanca(PHONE_NUMBER_ID, PREFIXO_ID + "12", telefoneB, "b"));
+
+        assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+
+        assertThat(mensagensDoTelefone(telefoneA)).isEqualTo(1);
+        assertThat(mensagensDoTelefone(telefoneB)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("cada remetente recebe o nome do próprio contato")
+    void pontoEntrada_contatosDiferentes_resolveNomePorWaId() {
+        String telefoneA = PREFIXO_TELEFONE + "15";
+        String telefoneB = PREFIXO_TELEFONE + "16";
+        String contatos = "{\"wa_id\":\"%s\",\"profile\":{\"name\":\"Ana quinze\"}},"
+                .formatted(telefoneA)
+                + "{\"wa_id\":\"%s\",\"profile\":{\"name\":\"Bruno dezesseis\"}}"
+                        .formatted(telefoneB);
+        String mensagens = mensagem(telefoneB, PREFIXO_ID + "16", "b") + ","
+                + mensagem(telefoneA, PREFIXO_ID + "15", "a");
+
+        assertThat(postar(payload(mudancaComMensagens(PHONE_NUMBER_ID, contatos, mensagens)))
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT nome FROM lead WHERE telefone = ?", String.class, telefoneA))
+                .isEqualTo("Ana quinze");
+        assertThat(jdbc.queryForObject(
+                        "SELECT nome FROM lead WHERE telefone = ?", String.class, telefoneB))
+                .isEqualTo("Bruno dezesseis");
+    }
+
+    @Test
+    @DisplayName("status na primeira posição não impede a mensagem seguinte")
+    void pontoEntrada_statusAntesDaMensagem_naoDescartaPayload() {
+        String telefone = PREFIXO_TELEFONE + "13";
+        String status = "{\"from\":\"%s\",\"id\":\"%s-status\",\"type\":\"status\"}"
+                .formatted(telefone, PREFIXO_ID + "13");
+        String payload = payload(mudancaComMensagens(
+                PHONE_NUMBER_ID,
+                "{\"wa_id\":\"%s\",\"profile\":{\"name\":\"Cliente treze\"}}".formatted(telefone),
+                status + "," + mensagem(telefone, PREFIXO_ID + "13-msg", "mensagem")));
+
+        assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+
+        assertThat(mensagensDoTelefone(telefone)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("reentrega reagrupada não duplica a mensagem B")
+    void pontoEntrada_reentregaReagrupada_deduplicaPorWamid() {
+        String telefone = PREFIXO_TELEFONE + "14";
+        String a = mensagem(telefone, PREFIXO_ID + "14-a", "a");
+        String b = mensagem(telefone, PREFIXO_ID + "14-b", "b");
+        String contatos = "{\"wa_id\":\"%s\",\"profile\":{\"name\":\"Cliente quatorze\"}}".formatted(telefone);
+
+        assertThat(postar(payload(mudancaComMensagens(PHONE_NUMBER_ID, contatos, a + "," + b)))
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(postar(payload(mudancaComMensagens(PHONE_NUMBER_ID, contatos, b)))
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        processador.processarPendentes();
+
+        assertThat(mensagensDoTelefone(telefone)).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem_recebida_idempotencia WHERE wamid = ?",
+                        Integer.class,
+                        PREFIXO_ID + "14-b"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("reentrega do mesmo POST não duplica a mensagem")
+    void pontoEntrada_reentregaDoMesmoPost_deduplica() {
+        String telefone = PREFIXO_TELEFONE + "17";
+        String payload = payload(mudanca(PHONE_NUMBER_ID, PREFIXO_ID + "17", telefone, "uma vez"));
+
+        assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+
+        assertThat(mensagensDoTelefone(telefone)).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("payload misto e descartado inteiro e produz ERROR sem corpo")
     void payloadMisto_descartaTudo(CapturedOutput log) {
         String payload = payload(
@@ -175,6 +293,21 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
                 .strip();
     }
 
+    private static String mudancaComMensagens(String destino, String contatos, String mensagens) {
+        return """
+                {"value":{"metadata":{"phone_number_id":"%s"},"contacts":[%s],"messages":[%s]}}
+                """
+                .formatted(destino, contatos, mensagens)
+                .strip();
+    }
+
+    private static String mensagem(String telefone, String id, String texto) {
+        return ""
+                + "{\"from\":\"" + telefone + "\",\"id\":\"" + id
+                + "\",\"timestamp\":\"1786842000\",\"text\":{\"body\":\""
+                + texto + "\"},\"type\":\"text\"}";
+    }
+
     private static String assinatura(String payload) {
         try {
             Mac hmac = Mac.getInstance("HmacSHA256");
@@ -221,6 +354,9 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
                 "%" + PREFIXO_ID + "%");
         jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE ?", PREFIXO_ID + "%");
         jdbc.update(
+                "DELETE FROM mensagem_recebida_idempotencia WHERE wamid LIKE ?",
+                PREFIXO_ID + "%");
+        jdbc.update(
                 "DELETE FROM mensagem WHERE atendimento_id IN (SELECT a.id FROM atendimento a"
                         + " JOIN lead l ON l.id = a.lead_id WHERE l.telefone LIKE ?)",
                 PREFIXO_TELEFONE + "%");
@@ -228,6 +364,14 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
                 "DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE telefone LIKE ?)",
                 PREFIXO_TELEFONE + "%");
         jdbc.update("DELETE FROM lead WHERE telefone LIKE ?", PREFIXO_TELEFONE + "%");
+    }
+
+    private int mensagensDoTelefone(String telefone) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id"
+                        + " JOIN lead l ON l.id = a.lead_id WHERE l.telefone = ?",
+                Integer.class,
+                telefone);
     }
 
 }
