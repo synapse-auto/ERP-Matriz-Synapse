@@ -142,6 +142,8 @@ INSERT INTO configuracao_automacao
      'Intervalo padrao entre mensagens de uma campanha.'),
     ('automacao.habilitada', 'true', NULL, 'BOOLEAN', NULL, NULL,
      'Chave geral da automacao. Desligar pausa toda a operacao automatica.'),
+    ('ia.preenchimento_automatico', 'false', NULL, 'BOOLEAN', NULL, NULL,
+     'Permite que a automacao preencha dados do cliente a partir da conversa.'),
     ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
      NULL, NULL, 'Primeira mensagem enviada pela IA.'),
     -- Teto da propria Meta Cloud API como valor_max: o admin pode apertar,

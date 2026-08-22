@@ -52,6 +52,7 @@
     "campoConfirmarSenha": "Confirmar nova senha",
     "botaoSalvar": "Salvar nova senha",
     "salvando": "Salvando...",
+    "recursosIa": { "titulo": "Recursos de IA", "resumo": "Resumo por IA", "preenchimento": "Preenchimento automático", "ativado": "Ativado", "desativado": "Desativado", "gatilho": "Gatilho do resumo", "quantidade": "Mensagens" },
     "abas": { "geral": "Geral", "followUp": "Follow-up", "fidelizacao": "Fidelização" },
     "regras": { "novo": "Nova regra", "editar": "Editar", "excluir": "Excluir", "confirmarExclusao": "Excluir esta regra?", "cancelar": "Cancelar", "ativo": "Ativa", "inativo": "Inativa", "vazio": "Nenhuma regra cadastrada.", "erro": "Não foi possível carregar as regras.", "unidadeHoras": "Horas", "unidadeDias": "Dias", "tempo": "Tempo sem resposta", "dias": "Dias sem contato", "mensagem": "Mensagem", "preview": "Prévia", "previewNome": "Marcos", "placeholderAjuda": "Use o placeholder {nome} para personalizar a mensagem." },
     "erroSenhaAtual": "Senha atual incorreta.",

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Database, Link2, MessageSquareText, UserRoundCheck, Plus, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,7 @@ import {
   useTelemetriaAutomacao,
   useRegrasFollowUp, useRegrasFidelizacao, useMutacaoRegraFollowUp, useMutacaoRegraFidelizacao,
   useAlternarRegraFollowUp, useAlternarRegraFidelizacao, useExcluirRegraFollowUp, useExcluirRegraFidelizacao,
+  useRecursosIa, useAtualizarResumoIa,
 } from "@/lib/automacao/use-automacao";
 import type { ParametroAutomacao, RegraFidelizacao, RegraFollowUp, StatusAutomacaoTelemetria } from "@/lib/automacao/types";
 import type { Textos } from "@/lib/config/schema";
@@ -61,6 +63,10 @@ function normalizarAba(valor: string | null): Aba {
 function GeralAutomacao({ t }: { t: ReturnType<typeof useTextos>["automacao"] }) {
   const parametros = useConfiguracaoAutomacao();
   const telemetria = useTelemetriaAutomacao();
+  const recursos = useRecursosIa();
+  const atualizarResumo = useAtualizarResumoIa();
+  const atualizarParametro = useAtualizarParametroAutomacao();
+  const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
   return <>
       <CardsDeTelemetria
         dados={telemetria.data}
@@ -68,6 +74,20 @@ function GeralAutomacao({ t }: { t: ReturnType<typeof useTextos>["automacao"] })
         comErro={telemetria.isError}
         onTentarNovamente={() => telemetria.refetch()}
       />
+
+      {!recursos.isLoading && !recursos.isError && recursos.data && <section className="rounded-lg border bg-card p-4">
+        <h2 className="font-medium">{t.recursosIa.titulo}</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+            <span>{t.recursosIa.resumo}</span>
+            <Switch checked={recursos.data.resumo.ativo} aria-label={t.recursosIa.resumo} onCheckedChange={(ativo) => atualizarResumo.mutate({ ...recursos.data!.resumo, ativo })} />
+          </label>
+          {preenchimento && <label className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+            <span>{t.recursosIa.preenchimento}</span>
+            <Switch checked={recursos.data.preenchimentoAutomatico} aria-label={t.recursosIa.preenchimento} onCheckedChange={(ativo) => atualizarParametro.mutate({ chave: preenchimento.chave, valor: String(ativo) })} />
+          </label>}
+        </div>
+      </section>}
 
       {parametros.isLoading ? (
         <p>{t.carregando}</p>

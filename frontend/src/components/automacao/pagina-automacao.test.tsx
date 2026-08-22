@@ -52,6 +52,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       desativado: "Desativado",
       salvar: "Salvar",
       salvando: "Salvando...",
+      recursosIa: { titulo: "Recursos de IA", resumo: "Resumo por IA", preenchimento: "Preenchimento automático", ativado: "Ativado", desativado: "Desativado", gatilho: "Gatilho", quantidade: "Mensagens" },
       abas: { geral: "Geral", followUp: "Follow-up", fidelizacao: "Fidelização" },
       regras: { novo: "Nova regra", editar: "Editar", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativa", inativo: "Inativa", vazio: "Nenhuma regra cadastrada.", erro: "Erro", unidadeHoras: "Horas", unidadeDias: "Dias", tempo: "Tempo", dias: "Dias", mensagem: "Mensagem", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}" },
       telemetria: {
@@ -77,6 +78,8 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
     isError: false,
   }),
   useTelemetriaAutomacao: () => ({ data: TELEMETRIA, isLoading: false, isError: false }),
+  useRecursosIa: () => ({ data: { resumo: { ativo: true, gatilho: "AMBOS", quantidadeMensagens: 20 }, preenchimentoAutomatico: false }, isLoading: false, isError: false }),
+  useAtualizarResumoIa: () => ({ mutate: vi.fn(), isPending: false }),
   useRegrasFollowUp: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
   useRegrasFidelizacao: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
   useMutacaoRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),

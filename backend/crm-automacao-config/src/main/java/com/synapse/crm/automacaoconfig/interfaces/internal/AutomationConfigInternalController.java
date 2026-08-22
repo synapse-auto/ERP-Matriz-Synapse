@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.automacaoconfig.application.ConfiguracaoResumoIaRepositorio;
 import com.synapse.crm.automacaoconfig.application.ListarConfiguracoesAutomacaoUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterConfiguracaoAutomacaoUseCase;
 import com.synapse.crm.automacaoconfig.application.regras.ListarRegrasFidelizacaoUseCase;
@@ -56,6 +57,7 @@ class AutomationConfigInternalController {
     private final ListarRegrasFidelizacaoUseCase listarFidelizacao;
     private final RegistrarEventoDeAutomacaoUseCase registrarEvento;
     private final CanalGateway canal;
+    private final ConfiguracaoResumoIaRepositorio resumoIa;
 
     AutomationConfigInternalController(
             ListarConfiguracoesAutomacaoUseCase listarConfiguracoes,
@@ -63,13 +65,15 @@ class AutomationConfigInternalController {
             ListarRegrasFollowUpUseCase listarFollowUp,
             ListarRegrasFidelizacaoUseCase listarFidelizacao,
             RegistrarEventoDeAutomacaoUseCase registrarEvento,
-            CanalGateway canal) {
+            CanalGateway canal,
+            ConfiguracaoResumoIaRepositorio resumoIa) {
         this.listarConfiguracoes = listarConfiguracoes;
         this.obterConfiguracao = obterConfiguracao;
         this.listarFollowUp = listarFollowUp;
         this.listarFidelizacao = listarFidelizacao;
         this.registrarEvento = registrarEvento;
         this.canal = canal;
+        this.resumoIa = resumoIa;
     }
 
     @Operation(
@@ -130,9 +134,31 @@ class AutomationConfigInternalController {
         registrarEvento.executar(requisicao.tipo());
     }
 
+    @Operation(
+            summary = "Consultar recursos de IA",
+            description = "Retorna as capacidades configuradas para o resumo e preenchimento automático.",
+            responses = @ApiResponse(responseCode = "200", description = "Recursos de IA."))
+    @GetMapping("/automation-config/recursos-ia")
+    RecursosIaResposta recursosIa() {
+        boolean preenchimento = obterConfiguracao
+                .executar("ia.preenchimento_automatico")
+                .map(config -> "true".equalsIgnoreCase(config.valor()))
+                .orElse(false);
+        var resumo = resumoIa.obter();
+        return new RecursosIaResposta(
+                new ResumoIaResposta(resumo.ativo(), resumo.gatilho(), resumo.quantidadeMensagens()), preenchimento);
+    }
+
     // --- DTOs -------------------------------------------------------------
 
     record AutomationConfigResposta(List<ParametroResposta> parametros, boolean exigeTemplateForaDaJanela) {}
+
+    record RecursosIaResposta(ResumoIaResposta resumo, boolean preenchimentoAutomatico) {}
+
+    record ResumoIaResposta(
+            boolean ativo,
+            com.synapse.crm.automacaoconfig.domain.GatilhoResumo gatilho,
+            Integer quantidadeMensagens) {}
 
     record ParametroResposta(
             String chave,

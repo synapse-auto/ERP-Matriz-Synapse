@@ -119,7 +119,7 @@ class ContratoAutomacaoIT extends PostgresIT {
         void valorForaDaFaixa_rejeitadoComMensagemClara() {
             ResponseEntity<String> resposta = putComoGestor(CHAVE_TESTE, "999");
 
-            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
             assertThat(resposta.getBody()).contains("nao pode ser maior que");
         }
 

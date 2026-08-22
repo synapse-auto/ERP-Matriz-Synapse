@@ -10,6 +10,9 @@ export interface ParametroAutomacao {
   descricao: string | null;
   atualizadoEm: string;
 }
+export type GatilhoResumo = "A_CADA_X_MENSAGENS" | "AO_FINALIZAR" | "AMBOS";
+export interface ConfiguracaoResumoIa { ativo: boolean; gatilho: GatilhoResumo; quantidadeMensagens: number | null }
+export interface RecursosIa { resumo: ConfiguracaoResumoIa; preenchimentoAutomatico: boolean }
 
 /** Espelha StatusAutomacaoTelemetriaController.StatusAutomacaoTelemetriaResposta — GET /api/v1/automacao/telemetria. */
 export interface StatusAutomacaoTelemetria {

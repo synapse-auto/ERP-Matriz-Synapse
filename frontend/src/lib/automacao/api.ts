@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api/http-client";
 
-import type { ParametroAutomacao, RegraFidelizacao, RegraFollowUp, StatusAutomacaoTelemetria } from "./types";
+import type { ConfiguracaoResumoIa, ParametroAutomacao, RegraFidelizacao, RegraFollowUp, RecursosIa, StatusAutomacaoTelemetria } from "./types";
 
 export function listarConfiguracaoAutomacao(): Promise<ParametroAutomacao[]> {
   return apiFetch<ParametroAutomacao[]>("/api/v1/automacao/config");
@@ -20,6 +20,8 @@ export function atualizarParametroAutomacao(
     body: JSON.stringify({ valor }),
   });
 }
+export function obterRecursosIa(): Promise<RecursosIa> { return apiFetch("/api/v1/automacao/config/recursos-ia"); }
+export function atualizarResumoIa(body: ConfiguracaoResumoIa): Promise<ConfiguracaoResumoIa> { return apiFetch("/api/v1/automacao/config/resumo-ia", { method: "PUT", body: JSON.stringify(body) }); }
 
 export function listarRegrasFollowUp(): Promise<RegraFollowUp[]> { return apiFetch("/api/v1/automacao/follow-ups"); }
 export function criarRegraFollowUp(body: Omit<RegraFollowUp, "id" | "nome">): Promise<RegraFollowUp> { return apiFetch("/api/v1/automacao/follow-ups", { method: "POST", body: JSON.stringify(body) }); }

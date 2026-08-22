@@ -320,6 +320,23 @@
         }
       }
     },
+    "/internal/v1/automation-config/recursos-ia" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecursosIaResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/automation-config/{chave}" : {
       "get" : {
         "parameters" : [ {
@@ -538,6 +555,33 @@
         },
         "valorMin" : {
           "type" : "number"
+        }
+      },
+      "type" : "object"
+    },
+    "RecursosIaResposta" : {
+      "properties" : {
+        "preenchimentoAutomatico" : {
+          "type" : "boolean"
+        },
+        "resumo" : {
+          "$ref" : "#/components/schemas/ResumoIaResposta"
+        }
+      },
+      "type" : "object"
+    },
+    "ResumoIaResposta" : {
+      "properties" : {
+        "ativo" : {
+          "type" : "boolean"
+        },
+        "gatilho" : {
+          "enum" : [ "A_CADA_X_MENSAGENS", "AO_FINALIZAR", "AMBOS" ],
+          "type" : "string"
+        },
+        "quantidadeMensagens" : {
+          "format" : "int32",
+          "type" : "integer"
         }
       },
       "type" : "object"

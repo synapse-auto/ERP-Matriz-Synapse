@@ -6,13 +6,17 @@ import {
   atualizarParametroAutomacao,
   listarConfiguracaoAutomacao,
   obterTelemetriaAutomacao,
+  obterRecursosIa, atualizarResumoIa,
   listarRegrasFollowUp, criarRegraFollowUp, atualizarRegraFollowUp, alternarRegraFollowUp, excluirRegraFollowUp,
   listarRegrasFidelizacao, criarRegraFidelizacao, atualizarRegraFidelizacao, alternarRegraFidelizacao, excluirRegraFidelizacao,
 } from "./api";
-import type { FidelizacaoPayload, FollowUpPayload } from "./types";
+import type { ConfiguracaoResumoIa, FidelizacaoPayload, FollowUpPayload } from "./types";
 
 const CHAVE_CONFIGURACAO_AUTOMACAO = ["automacao", "config"] as const;
 const CHAVE_TELEMETRIA_AUTOMACAO = ["automacao", "telemetria"] as const;
+const CHAVE_RECURSOS_IA = ["automacao", "recursos-ia"] as const;
+export function useRecursosIa() { return useQuery({ queryKey: CHAVE_RECURSOS_IA, queryFn: obterRecursosIa }); }
+export function useAtualizarResumoIa() { const cache = useQueryClient(); return useMutation({ mutationFn: (body: ConfiguracaoResumoIa) => atualizarResumoIa(body), onSuccess: () => cache.invalidateQueries({ queryKey: CHAVE_RECURSOS_IA }) }); }
 
 export function useConfiguracaoAutomacao() {
   return useQuery({
