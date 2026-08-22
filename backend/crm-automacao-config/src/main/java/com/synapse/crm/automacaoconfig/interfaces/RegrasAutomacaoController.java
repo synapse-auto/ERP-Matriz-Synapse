@@ -50,47 +50,47 @@ class RegrasAutomacaoController {
     }
 
     @GetMapping("/follow-ups")
-    @Operation(summary = "Listar regras de follow-up", responses = @ApiResponse(responseCode = "200", description = "Todas as regras, inclusive inativas."))
+    @Operation(summary = "Listar regras de follow-up", description = "Lista todas as regras de follow-up, inclusive inativas.", responses = @ApiResponse(responseCode = "200", description = "Todas as regras, inclusive inativas."))
     List<FollowUpResposta> followUps() { return listarFollowUp.executar().stream().map(FollowUpResposta::de).toList(); }
 
     @PostMapping("/follow-ups")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Criar regra de follow-up", responses = @ApiResponse(responseCode = "201", description = "Regra criada."))
+    @Operation(summary = "Criar regra de follow-up", description = "Cria uma regra de contato após ausência de resposta.", responses = @ApiResponse(responseCode = "201", description = "Regra criada."))
     FollowUpResposta criarFollowUp(@Valid @RequestBody FollowUpRequisicao r) { return FollowUpResposta.de(salvarFollowUp.criar(r.tempoMinutos(), r.texto(), r.ativo())); }
 
     @PutMapping("/follow-ups/{id}")
-    @Operation(summary = "Atualizar regra de follow-up")
+    @Operation(summary = "Atualizar regra de follow-up", description = "Atualiza tempo e mensagem da regra.")
     FollowUpResposta atualizarFollowUp(@Parameter @PathVariable UUID id, @Valid @RequestBody FollowUpRequisicao r) { return FollowUpResposta.de(salvarFollowUp.atualizar(id, r.tempoMinutos(), r.texto(), r.ativo())); }
 
     @PatchMapping("/follow-ups/{id}/ativo")
-    @Operation(summary = "Ativar ou desativar regra de follow-up")
+    @Operation(summary = "Ativar ou desativar regra de follow-up", description = "Altera somente o estado ativo da regra.")
     FollowUpResposta alternarFollowUp(@Parameter @PathVariable UUID id, @Valid @RequestBody AtivoRequisicao r) { return FollowUpResposta.de(alternarFollowUp.executar(id, r.ativo())); }
 
     @DeleteMapping("/follow-ups/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Excluir regra de follow-up")
+    @Operation(summary = "Excluir regra de follow-up", description = "Remove uma regra de follow-up cadastrada.")
     void excluirFollowUp(@Parameter @PathVariable UUID id) { salvarFollowUp.excluir(id); }
 
     @GetMapping("/fidelizacao")
-    @Operation(summary = "Listar regras de fidelização", responses = @ApiResponse(responseCode = "200", description = "Todas as regras, inclusive inativas."))
+    @Operation(summary = "Listar regras de fidelização", description = "Lista todas as regras de fidelização, inclusive inativas.", responses = @ApiResponse(responseCode = "200", description = "Todas as regras, inclusive inativas."))
     List<FidelizacaoResposta> fidelizacao() { return listarFidelizacao.executar().stream().map(FidelizacaoResposta::de).toList(); }
 
     @PostMapping("/fidelizacao")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Criar regra de fidelização")
+    @Operation(summary = "Criar regra de fidelização", description = "Cria uma regra de reativação por dias sem contato.")
     FidelizacaoResposta criarFidelizacao(@Valid @RequestBody FidelizacaoRequisicao r) { return FidelizacaoResposta.de(salvarFidelizacao.criar(r.diasSemContato(), r.mensagem(), r.ativo())); }
 
     @PutMapping("/fidelizacao/{id}")
-    @Operation(summary = "Atualizar regra de fidelização")
+    @Operation(summary = "Atualizar regra de fidelização", description = "Atualiza dias e mensagem da regra.")
     FidelizacaoResposta atualizarFidelizacao(@Parameter @PathVariable UUID id, @Valid @RequestBody FidelizacaoRequisicao r) { return FidelizacaoResposta.de(salvarFidelizacao.atualizar(id, r.diasSemContato(), r.mensagem(), r.ativo())); }
 
     @PatchMapping("/fidelizacao/{id}/ativo")
-    @Operation(summary = "Ativar ou desativar regra de fidelização")
+    @Operation(summary = "Ativar ou desativar regra de fidelização", description = "Altera somente o estado ativo da regra.")
     FidelizacaoResposta alternarFidelizacao(@Parameter @PathVariable UUID id, @Valid @RequestBody AtivoRequisicao r) { return FidelizacaoResposta.de(alternarFidelizacao.executar(id, r.ativo())); }
 
     @DeleteMapping("/fidelizacao/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Excluir regra de fidelização")
+    @Operation(summary = "Excluir regra de fidelização", description = "Remove uma regra de fidelização cadastrada.")
     void excluirFidelizacao(@Parameter @PathVariable UUID id) { salvarFidelizacao.excluir(id); }
 
     @ExceptionHandler(RegraAutomacaoInvalidaException.class)
