@@ -103,6 +103,32 @@ corpo `{}`. Para distribuição automática, use
 CRM escolhe o primeiro disponível por nome e id. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
+### 3.3 Regras de follow-up e fidelização
+
+O gestor configura as regras na API administrativa, protegida por JWT e pelos
+papéis `GESTOR`, `SUBGESTOR` ou `ADMINISTRADOR`:
+
+```text
+GET|POST       /api/v1/automacao/follow-ups
+PUT|DELETE     /api/v1/automacao/follow-ups/{id}
+PATCH          /api/v1/automacao/follow-ups/{id}/ativo
+GET|POST       /api/v1/automacao/fidelizacao
+PUT|DELETE     /api/v1/automacao/fidelizacao/{id}
+PATCH          /api/v1/automacao/fidelizacao/{id}/ativo
+```
+
+As rotas internas já existentes para o n8n continuam sendo somente de leitura
+e somente de regras ativas: `GET /internal/v1/regras/follow-up` e
+`GET /internal/v1/regras/fidelizacao`. O armazenamento usa minutos para
+follow-up; a interface converte para horas quando o valor não é múltiplo de
+1440 e para dias quando é. Fidelização usa dias sem contato.
+
+Mensagens aceitam somente o placeholder `{nome}`. Placeholder desconhecido ou
+mensagem vazia é recusado no cadastro com `422` (RFC 7807), antes de chegar ao
+banco. O CRM apenas configura e expõe as regras; não há executor ou scheduler
+no backend. A execução continua sendo responsabilidade do n8n, conforme
+`RN-CRM-07`.
+
 ## 4. Por que não acessar o banco direto
 
 Três motivos, em ordem de gravidade:
