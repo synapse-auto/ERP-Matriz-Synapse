@@ -148,15 +148,20 @@ describe("pagina de automacao", () => {
   });
 
   it("persiste a aba selecionada na URL e a recupera depois da recarga", () => {
-    window.history.replaceState(null, "", "/automacao");
-    const primeiraRenderizacao = render(<PaginaAutomacao />);
+    for (const aba of ["Follow-up", "Fidelização"] as const) {
+      window.history.replaceState(null, "", "/automacao");
+      navigation.replace.mockClear();
+      const primeiraRenderizacao = render(<PaginaAutomacao />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Follow-up" }));
-    expect(navigation.replace).toHaveBeenCalledWith("/automacao?aba=followUp", { scroll: false });
+      fireEvent.click(screen.getByRole("tab", { name: aba }));
+      const parametro = aba === "Follow-up" ? "followUp" : "fidelizacao";
+      expect(navigation.replace).toHaveBeenCalledWith(`/automacao?aba=${parametro}`, { scroll: false });
 
-    primeiraRenderizacao.unmount();
-    render(<PaginaAutomacao />);
-    expect(screen.getByRole("tab", { name: "Follow-up" })).toHaveAttribute("aria-selected", "true");
+      primeiraRenderizacao.unmount();
+      const segundaRenderizacao = render(<PaginaAutomacao />);
+      expect(screen.getByRole("tab", { name: aba })).toHaveAttribute("aria-selected", "true");
+      segundaRenderizacao.unmount();
+    }
 
     window.history.replaceState(null, "", "/automacao");
     navigation.replace.mockClear();
