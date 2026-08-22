@@ -529,7 +529,7 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
   }),
-  automacao: z.object({
+    automacao: z.object({
     titulo: z.string(),
     descricao: z.string(),
     carregando: z.string(),
@@ -541,7 +541,9 @@ export const TextosSchema = z.object({
     ativado: z.string(),
     desativado: z.string(),
     salvar: z.string(),
-    salvando: z.string(),
+      salvando: z.string(),
+      abas: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
+      regras: z.object({ novo: z.string(), editar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), erro: z.string(), unidadeHoras: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string() }),
     telemetria: z.object({
       mensagensEnviadas: z.string(),
       clientesTransferidos: z.string(),

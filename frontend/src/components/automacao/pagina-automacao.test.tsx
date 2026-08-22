@@ -49,6 +49,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       desativado: "Desativado",
       salvar: "Salvar",
       salvando: "Salvando...",
+      abas: { geral: "Geral", followUp: "Follow-up", fidelizacao: "Fidelização" },
+      regras: { novo: "Nova regra", editar: "Editar", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativa", inativo: "Inativa", vazio: "Nenhuma regra cadastrada.", erro: "Erro", unidadeHoras: "Horas", unidadeDias: "Dias", tempo: "Tempo", dias: "Dias", mensagem: "Mensagem", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}" },
       telemetria: {
         mensagensEnviadas: "Mensagens Enviadas",
         clientesTransferidos: "Clientes Transferidos",

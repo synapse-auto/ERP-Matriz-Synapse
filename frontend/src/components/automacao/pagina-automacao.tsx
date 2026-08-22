@@ -3,24 +3,28 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
-import { Database, Link2, MessageSquareText, UserRoundCheck } from "lucide-react";
+import { Database, Link2, MessageSquareText, UserRoundCheck, Plus, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAtualizarParametroAutomacao,
   useConfiguracaoAutomacao,
   useTelemetriaAutomacao,
+  useRegrasFollowUp, useRegrasFidelizacao, useMutacaoRegraFollowUp, useMutacaoRegraFidelizacao,
+  useAlternarRegraFollowUp, useAlternarRegraFidelizacao, useExcluirRegraFollowUp, useExcluirRegraFidelizacao,
 } from "@/lib/automacao/use-automacao";
-import type { ParametroAutomacao, StatusAutomacaoTelemetria } from "@/lib/automacao/types";
+import type { ParametroAutomacao, RegraFidelizacao, RegraFollowUp, StatusAutomacaoTelemetria } from "@/lib/automacao/types";
+import type { Textos } from "@/lib/config/schema";
 
 export function PaginaAutomacao() {
   const t = useTextos().automacao;
-  const parametros = useConfiguracaoAutomacao();
-  const telemetria = useTelemetriaAutomacao();
+  const [aba, setAba] = useState<"geral" | "followUp" | "fidelizacao">("geral");
 
   return (
     <div className="space-y-5 p-6">
@@ -29,6 +33,16 @@ export function PaginaAutomacao() {
         <p className="text-sm text-muted-foreground">{t.descricao}</p>
       </header>
 
+      <nav className="flex gap-1 border-b" role="tablist">{(["geral", "followUp", "fidelizacao"] as const).map((id) => <button key={id} role="tab" aria-selected={aba === id} className={`border-b-2 px-3 py-2 text-sm ${aba === id ? "border-primary font-medium" : "border-transparent text-muted-foreground"}`} onClick={() => setAba(id)}>{t.abas[id]}</button>)}</nav>
+      {aba === "geral" ? <GeralAutomacao t={t} /> : aba === "followUp" ? <PainelFollowUp /> : <PainelFidelizacao />}
+    </div>
+  );
+}
+
+function GeralAutomacao({ t }: { t: ReturnType<typeof useTextos>["automacao"] }) {
+  const parametros = useConfiguracaoAutomacao();
+  const telemetria = useTelemetriaAutomacao();
+  return <>
       <CardsDeTelemetria
         dados={telemetria.data}
         carregando={telemetria.isLoading}
@@ -52,8 +66,44 @@ export function PaginaAutomacao() {
           ))}
         </div>
       )}
-    </div>
-  );
+  </>;
+}
+
+function PainelFollowUp() {
+  const t = useTextos().automacao;
+  const query = useRegrasFollowUp(); const mutacao = useMutacaoRegraFollowUp(); const alternar = useAlternarRegraFollowUp(); const excluir = useExcluirRegraFollowUp();
+  const [editando, setEditando] = useState<RegraFollowUp | null>(null); const [novo, setNovo] = useState(false); const [remover, setRemover] = useState<RegraFollowUp | null>(null);
+  return <PainelDeRegras tipo="follow" dados={query.data ?? []} carregando={query.isLoading} erro={query.isError} onRetry={() => query.refetch()} onNovo={() => setNovo(true)} onEditar={setEditando} onAlternar={(r: RegraFollowUp) => alternar.mutate({ id: r.id, ativo: !r.ativo })} onExcluir={setRemover} t={t}>
+    {(novo || editando) && <FormularioFollowUp existente={editando ?? undefined} onFechar={() => { setNovo(false); setEditando(null); }} onSalvar={(dados) => mutacao.mutate({ id: editando?.id, dados }, { onSuccess: () => { setNovo(false); setEditando(null); } })} />}
+    <Dialog open={!!remover} onOpenChange={(v) => !v && setRemover(null)}><DialogContent><DialogHeader><DialogTitle>{t.regras.confirmarExclusao}</DialogTitle><DialogDescription>{remover?.nome}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setRemover(null)}>{t.regras.cancelar}</Button><Button variant="destructive" onClick={() => { if (remover) excluir.mutate(remover.id, { onSuccess: () => setRemover(null) }); }}>{t.regras.excluir}</Button></DialogFooter></DialogContent></Dialog>
+  </PainelDeRegras>;
+}
+
+function PainelFidelizacao() {
+  const t = useTextos().automacao; const query = useRegrasFidelizacao(); const mutacao = useMutacaoRegraFidelizacao(); const alternar = useAlternarRegraFidelizacao(); const excluir = useExcluirRegraFidelizacao();
+  const [editando, setEditando] = useState<RegraFidelizacao | null>(null); const [novo, setNovo] = useState(false); const [remover, setRemover] = useState<RegraFidelizacao | null>(null);
+  return <PainelDeRegras tipo="fidelizacao" dados={query.data ?? []} carregando={query.isLoading} erro={query.isError} onRetry={() => query.refetch()} onNovo={() => setNovo(true)} onEditar={setEditando} onAlternar={(r: RegraFidelizacao) => alternar.mutate({ id: r.id, ativo: !r.ativo })} onExcluir={setRemover} t={t}>
+    {(novo || editando) && <FormularioFidelizacao existente={editando ?? undefined} onFechar={() => { setNovo(false); setEditando(null); }} onSalvar={(dados) => mutacao.mutate({ id: editando?.id, dados }, { onSuccess: () => { setNovo(false); setEditando(null); } })} />}
+    <Dialog open={!!remover} onOpenChange={(v) => !v && setRemover(null)}><DialogContent><DialogHeader><DialogTitle>{t.regras.confirmarExclusao}</DialogTitle></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setRemover(null)}>{t.regras.cancelar}</Button><Button variant="destructive" onClick={() => { if (remover) excluir.mutate(remover.id, { onSuccess: () => setRemover(null) }); }}>{t.regras.excluir}</Button></DialogFooter></DialogContent></Dialog>
+  </PainelDeRegras>;
+}
+
+type RegraCard = RegraFollowUp | RegraFidelizacao;
+function PainelDeRegras({ tipo, dados, carregando, erro, onRetry, onNovo, onEditar, onAlternar, onExcluir, children, t }: { tipo: "follow" | "fidelizacao"; dados: RegraCard[]; carregando: boolean; erro: boolean; onRetry: () => void; onNovo: () => void; onEditar: (r: RegraCard) => void; onAlternar: (r: RegraCard) => void; onExcluir: (r: RegraCard) => void; children: ReactNode; t: Textos["automacao"] }) {
+  if (carregando) return <p>{t.carregando}</p>; if (erro) return <ErroDeCarregamento mensagem={t.regras.erro} onTentarNovamente={onRetry} />;
+  return <section className="space-y-3"><div className="flex justify-end"><Button onClick={onNovo}><Plus className="mr-2 size-4" />{t.regras.novo}</Button></div>{children}<div className="grid gap-3 md:grid-cols-2">{dados.length ? dados.map((r) => <article key={r.id} className="rounded-lg border bg-card p-4"><div className="flex items-start justify-between"><div><h2 className="font-medium">{tipo === "follow" && "tempoMinutos" in r ? labelTempo(r.tempoMinutos, t.regras) : "diasSemContato" in r ? `${r.diasSemContato} ${t.regras.dias}` : ""}</h2><p className="mt-1 text-sm text-muted-foreground">{tipo === "follow" && "texto" in r ? r.texto : "mensagem" in r ? r.mensagem : ""}</p></div><span className={r.ativo ? "text-cor-sucesso" : "text-muted-foreground"}>{r.ativo ? t.regras.ativo : t.regras.inativo}</span></div><div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => onEditar(r)}><Pencil className="mr-1 size-3" />{t.regras.editar}</Button><Button size="sm" variant="outline" onClick={() => onAlternar(r)}>{r.ativo ? t.desativado : t.ativado}</Button><Button size="sm" variant="ghost" onClick={() => onExcluir(r)}><Trash2 className="size-4" /></Button></div></article>) : <p className="text-muted-foreground">{t.regras.vazio}</p>}</div></section>;
+}
+
+function labelTempo(minutos: number, t: Textos["automacao"]["regras"]) { return minutos % 1440 === 0 ? `${minutos / 1440} ${t.unidadeDias}` : `${minutos / 60} ${t.unidadeHoras}`; }
+
+function FormularioFollowUp({ existente, onFechar, onSalvar }: { existente?: RegraFollowUp; onFechar: () => void; onSalvar: (x: { tempoMinutos: number; texto: string; ativo: boolean }) => void }) {
+  const t = useTextos().automacao; const [valor, setValor] = useState(String(existente ? (existente.tempoMinutos % 1440 === 0 ? existente.tempoMinutos / 1440 : existente.tempoMinutos / 60) : 1)); const [unidade, setUnidade] = useState(existente && existente.tempoMinutos % 1440 === 0 ? "DIAS" : "HORAS"); const [texto, setTexto] = useState(existente?.texto ?? "");
+  return <div className="rounded-lg border bg-muted/30 p-4"><div className="grid gap-3 sm:grid-cols-3"><Input type="number" min="1" value={valor} onChange={(e) => setValor(e.target.value)} /><Select value={unidade} onValueChange={(v) => setUnidade(v ?? "HORAS")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="HORAS">{t.regras.unidadeHoras}</SelectItem><SelectItem value="DIAS">{t.regras.unidadeDias}</SelectItem></SelectContent></Select><Textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={2} /></div><p className="mt-2 text-xs text-muted-foreground">{t.regras.placeholderAjuda}</p><div className="mt-3 flex justify-end gap-2"><Button variant="outline" onClick={onFechar}>{t.regras.cancelar}</Button><Button onClick={() => onSalvar({ tempoMinutos: Number(valor) * (unidade === "DIAS" ? 1440 : 60), texto, ativo: existente?.ativo ?? true })}>{t.salvar}</Button></div></div>;
+}
+
+function FormularioFidelizacao({ existente, onFechar, onSalvar }: { existente?: RegraFidelizacao; onFechar: () => void; onSalvar: (x: { diasSemContato: number; mensagem: string; ativo: boolean }) => void }) {
+  const t = useTextos().automacao; const [dias, setDias] = useState(String(existente?.diasSemContato ?? 30)); const [mensagem, setMensagem] = useState(existente?.mensagem ?? "");
+  return <div className="rounded-lg border bg-muted/30 p-4"><div className="grid gap-3 sm:grid-cols-2"><Input type="number" min="1" value={dias} onChange={(e) => setDias(e.target.value)} /><Textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={2} /></div><p className="mt-2 text-xs text-muted-foreground">{t.regras.placeholderAjuda}</p><div className="mt-3 flex justify-end gap-2"><Button variant="outline" onClick={onFechar}>{t.regras.cancelar}</Button><Button onClick={() => onSalvar({ diasSemContato: Number(dias), mensagem, ativo: existente?.ativo ?? true })}>{t.salvar}</Button></div></div>;
 }
 
 /**

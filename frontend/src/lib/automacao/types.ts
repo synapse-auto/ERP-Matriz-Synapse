@@ -19,3 +19,8 @@ export interface StatusAutomacaoTelemetria {
   crmOnline: boolean;
   atualizadoEm: string;
 }
+
+export interface RegraFollowUp { id: string; nome: string; tempoMinutos: number; texto: string; ativo: boolean }
+export interface RegraFidelizacao { id: string; diasSemContato: number; mensagem: string; ativo: boolean }
+export type FollowUpPayload = Omit<RegraFollowUp, "id" | "nome">;
+export type FidelizacaoPayload = Omit<RegraFidelizacao, "id">;
