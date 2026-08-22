@@ -228,6 +228,41 @@ class RegrasAutomacaoIT extends PostgresIT {
                 .contains(mensagem).contains("\"diasSemContato\":10");
     }
 
+    @Test
+    void regraAtivaApareceNoContratoInternoInativaSomeEMantemListaAdministrativa() {
+        String followTexto = PREFIXO + "interno-follow";
+        String fidelizacaoMensagem = PREFIXO + "interno-fidelizacao";
+        UUID followId = UUID.fromString(json(comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                Map.of("tempoMinutos", 60, "texto", followTexto, "ativo", true))).get("id").asText());
+        UUID fidelizacaoId = UUID.fromString(json(comoGestor(HttpMethod.POST, "/api/v1/automacao/fidelizacao",
+                Map.of("diasSemContato", 10, "mensagem", fidelizacaoMensagem, "ativo", true))).get("id").asText());
+
+        assertThat(comTokenInterno("/internal/v1/regras/follow-up").getBody()).contains(followTexto);
+        assertThat(comTokenInterno("/internal/v1/regras/fidelizacao").getBody()).contains(fidelizacaoMensagem);
+
+        assertThat(comoGestor(HttpMethod.PATCH, "/api/v1/automacao/follow-ups/" + followId + "/ativo",
+                Map.of("ativo", false)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(comoGestor(HttpMethod.PATCH, "/api/v1/automacao/fidelizacao/" + fidelizacaoId + "/ativo",
+                Map.of("ativo", false)).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        assertThat(comTokenInterno("/internal/v1/regras/follow-up").getBody()).doesNotContain(followTexto);
+        assertThat(comTokenInterno("/internal/v1/regras/fidelizacao").getBody()).doesNotContain(fidelizacaoMensagem);
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/follow-ups", null).getBody())
+                .contains(followTexto).contains("\"ativo\":false");
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao", null).getBody())
+                .contains(fidelizacaoMensagem).contains("\"ativo\":false");
+    }
+
+    @Test
+    void rotasInternasSemOuComTokenInvalido_devolvem401() {
+        for (String rota : new String[] {"/internal/v1/regras/follow-up", "/internal/v1/regras/fidelizacao"}) {
+            ResponseEntity<String> semToken = http.exchange(rota, HttpMethod.GET, HttpEntity.EMPTY, String.class);
+            ResponseEntity<String> tokenInvalido = comTokenInterno(rota, "token-invalido");
+            assertThat(semToken.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(tokenInvalido.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+    }
+
     private ResponseEntity<String> comoGestor(HttpMethod metodo, String rota, Map<String, ?> corpo) {
         return chamar(metodo, rota, corpo, ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken());
     }
@@ -241,6 +276,16 @@ class RegrasAutomacaoIT extends PostgresIT {
         headers.setBearerAuth(token);
         headers.setContentType(MediaType.APPLICATION_JSON);
         return http.exchange(rota, metodo, new HttpEntity<>(corpo, headers), String.class);
+    }
+
+    private ResponseEntity<String> comTokenInterno(String rota) {
+        return comTokenInterno(rota, "segredo-de-teste-do-internal-v1");
+    }
+
+    private ResponseEntity<String> comTokenInterno(String rota, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Synapse-Token", token);
+        return http.exchange(rota, HttpMethod.GET, new HttpEntity<>(headers), String.class);
     }
 
     private JsonNode json(ResponseEntity<String> resposta) {

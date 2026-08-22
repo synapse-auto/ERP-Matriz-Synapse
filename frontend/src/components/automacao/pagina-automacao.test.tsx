@@ -2,6 +2,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const atualizarMutate = vi.fn();
+const navigation = vi.hoisted(() => ({
+  replace: vi.fn((href: string) => window.history.replaceState(null, "", href)),
+}));
 
 const PARAMETROS = [
   {
@@ -74,6 +77,19 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
     isError: false,
   }),
   useTelemetriaAutomacao: () => ({ data: TELEMETRIA, isLoading: false, isError: false }),
+  useRegrasFollowUp: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useRegrasFidelizacao: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
+  useMutacaoRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
+  useMutacaoRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
+  useAlternarRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
+  useAlternarRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
+  useExcluirRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
+  useExcluirRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation,
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 import { PaginaAutomacao } from "./pagina-automacao";
@@ -129,5 +145,20 @@ describe("pagina de automacao", () => {
     fireEvent.click(screen.getByLabelText("Ativado"));
 
     expect(screen.getByLabelText("Desativado")).toBeInTheDocument();
+  });
+
+  it("persiste a aba selecionada na URL e a recupera depois da recarga", () => {
+    window.history.replaceState(null, "", "/automacao");
+    const primeiraRenderizacao = render(<PaginaAutomacao />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Follow-up" }));
+    expect(navigation.replace).toHaveBeenCalledWith("/automacao?aba=followUp", { scroll: false });
+
+    primeiraRenderizacao.unmount();
+    render(<PaginaAutomacao />);
+    expect(screen.getByRole("tab", { name: "Follow-up" })).toHaveAttribute("aria-selected", "true");
+
+    window.history.replaceState(null, "", "/automacao");
+    navigation.replace.mockClear();
   });
 });

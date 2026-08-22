@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { Database, Link2, MessageSquareText, UserRoundCheck, Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -24,7 +25,18 @@ import type { Textos } from "@/lib/config/schema";
 
 export function PaginaAutomacao() {
   const t = useTextos().automacao;
-  const [aba, setAba] = useState<"geral" | "followUp" | "fidelizacao">("geral");
+  const router = useRouter();
+  const parametrosDaUrl = useSearchParams();
+  const [aba, setAba] = useState<Aba>(() => normalizarAba(parametrosDaUrl.get("aba")));
+
+  function selecionarAba(novaAba: Aba) {
+    setAba(novaAba);
+    const parametros = new URLSearchParams(parametrosDaUrl.toString());
+    if (novaAba === "geral") parametros.delete("aba");
+    else parametros.set("aba", novaAba);
+    const query = parametros.toString();
+    router.replace(query ? `/automacao?${query}` : "/automacao", { scroll: false });
+  }
 
   return (
     <div className="space-y-5 p-6">
@@ -33,10 +45,17 @@ export function PaginaAutomacao() {
         <p className="text-sm text-muted-foreground">{t.descricao}</p>
       </header>
 
-      <nav className="flex gap-1 border-b" role="tablist">{(["geral", "followUp", "fidelizacao"] as const).map((id) => <button key={id} role="tab" aria-selected={aba === id} className={`border-b-2 px-3 py-2 text-sm ${aba === id ? "border-primary font-medium" : "border-transparent text-muted-foreground"}`} onClick={() => setAba(id)}>{t.abas[id]}</button>)}</nav>
+      <nav className="flex gap-1 border-b" role="tablist">{ABAS.map((id) => <button key={id} role="tab" aria-selected={aba === id} className={`border-b-2 px-3 py-2 text-sm ${aba === id ? "border-primary font-medium" : "border-transparent text-muted-foreground"}`} onClick={() => selecionarAba(id)}>{t.abas[id]}</button>)}</nav>
       {aba === "geral" ? <GeralAutomacao t={t} /> : aba === "followUp" ? <PainelFollowUp /> : <PainelFidelizacao />}
     </div>
   );
+}
+
+type Aba = "geral" | "followUp" | "fidelizacao";
+const ABAS: readonly Aba[] = ["geral", "followUp", "fidelizacao"];
+
+function normalizarAba(valor: string | null): Aba {
+  return valor === "followUp" || valor === "fidelizacao" ? valor : "geral";
 }
 
 function GeralAutomacao({ t }: { t: ReturnType<typeof useTextos>["automacao"] }) {
