@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -98,8 +97,8 @@ class RegrasAutomacaoController {
     @ExceptionHandler(RegraAutomacaoNaoEncontradaException.class)
     ProblemDetail regraNaoEncontrada(RegraAutomacaoNaoEncontradaException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
 
-    record FollowUpRequisicao(@Schema(description = "Tempo em minutos, convertido pela interface para horas ou dias.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull Integer tempoMinutos, @NotBlank String texto, boolean ativo) {}
-    record FidelizacaoRequisicao(@NotNull Integer diasSemContato, @NotBlank String mensagem, boolean ativo) {}
+    record FollowUpRequisicao(@Schema(description = "Tempo em minutos, convertido pela interface para horas ou dias.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull Integer tempoMinutos, String texto, boolean ativo) {}
+    record FidelizacaoRequisicao(@NotNull Integer diasSemContato, String mensagem, boolean ativo) {}
     record AtivoRequisicao(boolean ativo) {}
     record FollowUpResposta(UUID id, String nome, int tempoMinutos, String texto, boolean ativo) { static FollowUpResposta de(RegraFollowUp r) { return new FollowUpResposta(r.id(), r.nome(), r.tempoMinutos(), r.texto(), r.ativo()); } }
     record FidelizacaoResposta(UUID id, int diasSemContato, String mensagem, boolean ativo) { static FidelizacaoResposta de(RegraFidelizacao r) { return new FidelizacaoResposta(r.id(), r.diasSemContato(), r.mensagem(), r.ativo()); } }

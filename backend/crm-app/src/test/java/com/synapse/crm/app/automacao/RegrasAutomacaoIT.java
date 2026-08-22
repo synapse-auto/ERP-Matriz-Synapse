@@ -9,6 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,8 +27,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 
@@ -148,6 +148,84 @@ class RegrasAutomacaoIT extends PostgresIT {
         String fidelizacaoBody = comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao", null).getBody();
         assertThat(followBody.indexOf(followMenor)).isLessThan(followBody.indexOf(followMaior));
         assertThat(fidelizacaoBody.indexOf(fidelizacaoMenor)).isLessThan(fidelizacaoBody.indexOf(fidelizacaoMaior));
+    }
+
+    @Test
+    void placeholderTelefone_devolve422NomeiaRecusadoEVálidoENaoGrava() {
+        String texto = PREFIXO + "placeholder-telefone-" + UUID.randomUUID();
+        ResponseEntity<String> resposta = comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                Map.of("tempoMinutos", 60, "texto", texto + " {telefone}", "ativo", true));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(resposta.getBody()).contains("{telefone}").contains("{nome}");
+        assertThat(contarFollowUps(texto + " {telefone}")).isZero();
+
+        ResponseEntity<String> aceito = comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                Map.of("tempoMinutos", 60, "texto", texto + " {nome}", "ativo", true));
+        assertThat(aceito.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(contarFollowUps(texto + " {nome}")).isEqualTo(1);
+    }
+
+    @Test
+    void mensagensVaziaOuComEspacos_devolve422ENaoGrava() {
+        for (String mensagem : new String[] {"", "   "}) {
+            ResponseEntity<String> follow = comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                    Map.of("tempoMinutos", 60, "texto", mensagem, "ativo", true));
+            ResponseEntity<String> fidelizacao = comoGestor(HttpMethod.POST, "/api/v1/automacao/fidelizacao",
+                    Map.of("diasSemContato", 10, "mensagem", mensagem, "ativo", true));
+            assertThat(follow.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(fidelizacao.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(contarFollowUps(mensagem)).isZero();
+            assertThat(contarFidelizacoes(mensagem)).isZero();
+        }
+    }
+
+    @Test
+    void tempoZeroOuNegativo_devolve422DaAplicacaoENaoGrava() {
+        for (int tempo : new int[] {0, -1}) {
+            String texto = PREFIXO + "tempo-invalido-" + tempo;
+            ResponseEntity<String> resposta = comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                    Map.of("tempoMinutos", tempo, "texto", texto, "ativo", true));
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(resposta.getBody()).contains("maior que zero").doesNotContain("constraint");
+            assertThat(contarFollowUps(texto)).isZero();
+        }
+    }
+
+    @Test
+    void diasSemContatoZeroOuNegativos_devolve422ENaoGrava() {
+        for (int dias : new int[] {0, -1}) {
+            String mensagem = PREFIXO + "dias-invalidos-" + dias;
+            ResponseEntity<String> resposta = comoGestor(HttpMethod.POST, "/api/v1/automacao/fidelizacao",
+                    Map.of("diasSemContato", dias, "mensagem", mensagem, "ativo", true));
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            assertThat(resposta.getBody()).contains("maiores que zero");
+            assertThat(contarFidelizacoes(mensagem)).isZero();
+        }
+    }
+
+    @Test
+    void atualizacaoInvalida_devolve422EConservaValorAnterior() {
+        String texto = PREFIXO + "update-invalido-follow";
+        ResponseEntity<String> criado = comoGestor(HttpMethod.POST, "/api/v1/automacao/follow-ups",
+                Map.of("tempoMinutos", 60, "texto", texto, "ativo", true));
+        UUID followId = UUID.fromString(json(criado).get("id").asText());
+        ResponseEntity<String> followInvalido = comoGestor(HttpMethod.PUT, "/api/v1/automacao/follow-ups/" + followId,
+                Map.of("tempoMinutos", 0, "texto", texto + " {telefone}", "ativo", true));
+        assertThat(followInvalido.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/follow-ups", null).getBody())
+                .contains(texto).contains("\"tempoMinutos\":60");
+
+        String mensagem = PREFIXO + "update-invalido-fidelizacao";
+        ResponseEntity<String> fidelizacao = comoGestor(HttpMethod.POST, "/api/v1/automacao/fidelizacao",
+                Map.of("diasSemContato", 10, "mensagem", mensagem, "ativo", true));
+        UUID fidelizacaoId = UUID.fromString(json(fidelizacao).get("id").asText());
+        ResponseEntity<String> fidelizacaoInvalida = comoGestor(HttpMethod.PUT,
+                "/api/v1/automacao/fidelizacao/" + fidelizacaoId,
+                Map.of("diasSemContato", -1, "mensagem", mensagem + " {telefone}", "ativo", true));
+        assertThat(fidelizacaoInvalida.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao", null).getBody())
+                .contains(mensagem).contains("\"diasSemContato\":10");
     }
 
     private ResponseEntity<String> comoGestor(HttpMethod metodo, String rota, Map<String, ?> corpo) {
