@@ -89,20 +89,20 @@ class ConfiguracaoAutomacaoController {
         return ParametroAutomacaoResposta.de(atualizar.executar(chave, requisicao.valor()));
     }
 
-    @Operation(summary = "Obter configuração do resumo por IA")
+    @Operation(summary = "Obter configuração do resumo por IA", description = "Retorna o gatilho e o intervalo configurados para o resumo automático.")
     @GetMapping("/resumo-ia")
     ConfiguracaoResumoIaResposta resumoIa() {
         return ConfiguracaoResumoIaResposta.de(obterResumo.executar());
     }
 
-    @Operation(summary = "Atualizar configuração do resumo por IA")
+    @Operation(summary = "Atualizar configuração do resumo por IA", description = "Atualiza a configuração singleton usada pelo assistente.")
     @PutMapping("/resumo-ia")
     ConfiguracaoResumoIaResposta atualizarResumoIa(@Valid @RequestBody AtualizacaoResumoIaRequisicao requisicao) {
         return ConfiguracaoResumoIaResposta.de(atualizarResumo.executar(
                 new ConfiguracaoResumoIa(requisicao.ativo(), requisicao.gatilho(), requisicao.quantidadeMensagens())));
     }
 
-    @Operation(summary = "Obter recursos de IA")
+    @Operation(summary = "Obter recursos de IA", description = "Retorna os recursos de IA disponíveis para a instância.")
     @GetMapping("/recursos-ia")
     RecursosIaResposta recursosIa() {
         boolean preenchimento = obterParametro.executar("ia.preenchimento_automatico")
