@@ -129,6 +129,21 @@ banco. O CRM apenas configura e expõe as regras; não há executor ou scheduler
 no backend. A execução continua sendo responsabilidade do n8n, conforme
 `RN-CRM-07`.
 
+### 3.4 Recursos do assistente de IA
+
+O painel administrativo expõe a configuração singleton do resumo por IA em
+`GET|PUT /api/v1/automacao/config/resumo-ia`, protegido por JWT de gestão. O
+contrato interno de leitura para o n8n é
+`GET /internal/v1/automation-config/recursos-ia` e também informa se o recurso
+`ia.preenchimento_automatico` está ligado. A escrita desse parâmetro continua
+no CRUD administrativo de `configuracao_automacao`.
+
+Não existe scheduler, rotina de varredura ou disparo no backend. O snapshot
+`status_automacao_telemetria` é atualizado exclusivamente pelo caso de uso
+`RegistrarEventoDeAutomacaoUseCase`, chamado pelo n8n através de
+`POST /internal/v1/eventos`; portanto a frequência é a frequência dos eventos
+que o workflow envia, e não um job periódico do CRM.
+
 ## 4. Por que não acessar o banco direto
 
 Três motivos, em ordem de gravidade:
