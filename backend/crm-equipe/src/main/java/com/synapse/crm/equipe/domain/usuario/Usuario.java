@@ -10,7 +10,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 /** Usuario do CRM. Java puro: sem JPA, sem Spring. */
 public record Usuario(
         UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
-        StatusPresenca statusPresenca, boolean ativo,
+        StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
         /**
          * {@code null} = senha provisoria, nunca trocada pelo dono (E29). Usuario recem-criado ou
          * que teve a senha redefinida por um gestor comeca assim, de proposito.

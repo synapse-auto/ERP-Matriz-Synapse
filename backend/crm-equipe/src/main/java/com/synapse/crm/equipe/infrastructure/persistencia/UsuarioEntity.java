@@ -57,6 +57,6 @@ class UsuarioEntity {
     }
 
     Usuario paraDominio() {
-        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, senhaAlteradaEm);
+        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, false, senhaAlteradaEm);
     }
 }

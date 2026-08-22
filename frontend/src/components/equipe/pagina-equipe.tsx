@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
+import { Switch } from "@/components/ui/switch";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useAvaliacoesEquipe,
@@ -28,6 +29,7 @@ import {
   useEditarUsuario,
   useEquipe,
   useGerarSenhaProvisoria,
+  useAtualizarDisponibilidadeParaIa,
 } from "@/lib/equipe/use-equipe";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
 
@@ -44,6 +46,7 @@ export function PaginaEquipe() {
   const desempenho = useDesempenhoEquipe();
   const desativar = useDesativarUsuario();
   const gerarSenha = useGerarSenhaProvisoria();
+  const disponibilidadeIa = useAtualizarDisponibilidadeParaIa();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<UsuarioEquipe | null>(null);
   const [paraDesativar, setParaDesativar] = useState<UsuarioEquipe | null>(null);
@@ -119,6 +122,9 @@ export function PaginaEquipe() {
                   onSuccess: (resposta) => setSenhaGerada(resposta.senha),
                 });
               }}
+              onAlternarDisponibilidade={(usuario, disponivelParaIa) =>
+                disponibilidadeIa.mutate({ id: usuario.id, disponivelParaIa })
+              }
             />
           </div>
         </>
@@ -294,6 +300,7 @@ function TabelaDeUsuarios({
   onEditar,
   onDesativar,
   onGerarSenhaProvisoria,
+  onAlternarDisponibilidade,
 }: {
   usuarios: UsuarioEquipe[];
   avaliacoes: LinhaRanking[];
@@ -302,6 +309,7 @@ function TabelaDeUsuarios({
   onEditar: (usuario: UsuarioEquipe) => void;
   onDesativar: (usuario: UsuarioEquipe) => void;
   onGerarSenhaProvisoria: (usuario: UsuarioEquipe) => void;
+  onAlternarDisponibilidade: (usuario: UsuarioEquipe, disponivelParaIa: boolean) => void;
 }) {
   const avaliacaoPorId = new Map(avaliacoes.map((a) => [a.atendenteId, a]));
   const desempenhoPorId = new Map(desempenho.map((item) => [item.atendenteId, item]));
@@ -319,6 +327,9 @@ function TabelaDeUsuarios({
             </th>
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               {textos.colunas.presenca}
+            </th>
+            <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              {textos.disponibilidadeIa.rotulo}
             </th>
             <th className="px-4 py-3 text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               {textos.colunas.avaliacao}
@@ -381,6 +392,26 @@ function TabelaDeUsuarios({
                       ]
                     }
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {usuario.papel === "ATENDENTE" ? (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={usuario.disponivelParaIa ?? false}
+                        aria-label={`${textos.disponibilidadeIa.rotulo} ${usuario.nome}`}
+                        onCheckedChange={(checked) => onAlternarDisponibilidade(usuario, checked)}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {usuario.disponivelParaIa
+                          ? textos.disponibilidadeIa.disponivel
+                          : textos.disponibilidadeIa.indisponivel}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {textos.disponibilidadeIa.naoAplicavel}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center gap-1 text-xs font-bold">

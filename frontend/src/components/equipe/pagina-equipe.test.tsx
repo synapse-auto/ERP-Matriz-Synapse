@@ -14,6 +14,7 @@ const USUARIOS = [
     papel: "ATENDENTE",
     statusPresenca: "ONLINE",
     ativo: true,
+    disponivelParaIa: true,
   },
   {
     id: "u2",
@@ -22,6 +23,7 @@ const USUARIOS = [
     papel: "SUBGESTOR",
     statusPresenca: "OFFLINE",
     ativo: false,
+    disponivelParaIa: false,
   },
 ];
 
@@ -68,6 +70,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       grade: { titulo: "USUÁRIOS" },
       papeis: { atendente: "Atendente", subgestor: "Subgestor" },
       presenca: { online: "Online", ausente: "Ausente", offline: "Offline" },
+      disponibilidadeIa: { rotulo: "Disponibilidade IA", disponivel: "Disponível", indisponivel: "Fora do rodízio", naoAplicavel: "Não aplicável" },
       avaliacoes: { media: "Média geral", total: "Total de avaliações", semDados: "Sem avaliações" },
       formulario: {
         criarTitulo: "Criar usuário",
@@ -109,6 +112,7 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
   useEditarUsuario: () => ({ mutate: editarMutate, isPending: false, isError: false }),
   useDesativarUsuario: () => ({ mutate: desativarMutate, isPending: false, isError: false }),
   useGerarSenhaProvisoria: () => ({ mutate: gerarSenhaMutate, isPending: false, isError: false }),
+  useAtualizarDisponibilidadeParaIa: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
 import { PaginaEquipe } from "./pagina-equipe";

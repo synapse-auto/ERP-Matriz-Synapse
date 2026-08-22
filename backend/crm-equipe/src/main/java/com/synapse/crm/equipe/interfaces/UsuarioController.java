@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.synapse.crm.equipe.application.usuario.AtualizarDisponibilidadeParaIaUseCase;
 import com.synapse.crm.equipe.application.usuario.AtualizarMinhaPresencaUseCase;
 import com.synapse.crm.equipe.application.usuario.AtualizarUsuarioUseCase;
 import com.synapse.crm.equipe.application.usuario.CriarUsuarioUseCase;
@@ -57,11 +58,13 @@ class UsuarioController {
     private final ObterMinhaPresencaUseCase obterPresenca;
     private final AtualizarMinhaPresencaUseCase atualizarPresenca;
     private final DefinirSenhaProvisoriaUseCase definirSenhaProvisoria;
+    private final AtualizarDisponibilidadeParaIaUseCase atualizarDisponibilidadeParaIa;
 
     UsuarioController(ListarUsuariosUseCase listar, CriarUsuarioUseCase criar,
             AtualizarUsuarioUseCase atualizar, DesativarUsuarioUseCase desativar,
             ObterMinhaPresencaUseCase obterPresenca, AtualizarMinhaPresencaUseCase atualizarPresenca,
-            DefinirSenhaProvisoriaUseCase definirSenhaProvisoria) {
+            DefinirSenhaProvisoriaUseCase definirSenhaProvisoria,
+            AtualizarDisponibilidadeParaIaUseCase atualizarDisponibilidadeParaIa) {
         this.listar = listar;
         this.criar = criar;
         this.atualizar = atualizar;
@@ -69,6 +72,7 @@ class UsuarioController {
         this.obterPresenca = obterPresenca;
         this.atualizarPresenca = atualizarPresenca;
         this.definirSenhaProvisoria = definirSenhaProvisoria;
+        this.atualizarDisponibilidadeParaIa = atualizarDisponibilidadeParaIa;
     }
 
     @Operation(summary = "Listar usuários", description = "Lista a equipe sem expor hashes ou credenciais; restrito aos papéis de gestão.", responses = @ApiResponse(responseCode = "200", description = "Usuários da equipe."))
@@ -97,6 +101,13 @@ class UsuarioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void desativar(@Parameter(description = "Identificador do usuário.", required = true) @PathVariable UUID id) {
         if (!desativar.executar(id)) throw naoEncontrado();
+    }
+
+    @Operation(summary = "Alternar disponibilidade para IA", description = "Inclui ou remove um atendente do rodízio da IA sem alterar sua presença. Apenas atendentes podem ser marcados.", responses = {@ApiResponse(responseCode = "200", description = "Disponibilidade atualizada."), @ApiResponse(responseCode = "404", description = "Atendente não encontrado ou papel não elegível.")})
+    @PatchMapping("/{id}/disponibilidade-ia")
+    DisponibilidadeIaResposta disponibilidadeParaIa(@Parameter(description = "Identificador do atendente.", required = true) @PathVariable UUID id, @Valid @RequestBody DisponibilidadeIaRequisicao requisicao) {
+        return atualizarDisponibilidadeParaIa.executar(id, requisicao.disponivelParaIa())
+                .map(DisponibilidadeIaResposta::new).orElseThrow(UsuarioController::naoEncontrado);
     }
 
     @Operation(summary = "Gerar senha provisória", description = "O gestor devolve o acesso de quem esqueceu a senha: gera uma senha aleatória, revoga as sessões do alvo e devolve a senha em claro uma única vez.", responses = {@ApiResponse(responseCode = "200", description = "Senha provisória gerada."), @ApiResponse(responseCode = "404", description = "Usuário não encontrado.")})
@@ -138,11 +149,11 @@ class UsuarioController {
 
     /** Sem senha_hash: nunca sai da camada de persistencia. */
     record UsuarioResposta(UUID id, String nome, String email, PapelUsuario papel,
-            StatusPresenca statusPresenca, boolean ativo) {
+            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa) {
         static UsuarioResposta de(Usuario usuario) {
             return new UsuarioResposta(
                     usuario.id(), usuario.nome(), usuario.email(), usuario.papel(),
-                    usuario.statusPresenca(), usuario.ativo());
+                    usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa());
         }
     }
 
@@ -159,6 +170,8 @@ class UsuarioController {
             @Schema(description = "Novo estado de presença.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull StatusPresenca status) {}
     record PresencaResposta(StatusPresenca status) {}
+    record DisponibilidadeIaRequisicao(@Schema(description = "Se o atendente pode receber leads distribuídos pela IA.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull Boolean disponivelParaIa) {}
+    record DisponibilidadeIaResposta(boolean disponivelParaIa) {}
     /** A senha em claro sai daqui uma unica vez; nunca e persistida em claro nem logada. */
     record SenhaProvisoriaResposta(
             @Schema(description = "Senha gerada; mostrada uma única vez, para o gestor repassar.", format = "password") String senha) {}

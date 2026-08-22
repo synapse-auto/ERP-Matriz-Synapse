@@ -10,6 +10,7 @@ import {
   editarUsuario,
   gerarSenhaProvisoria,
   listarEquipe,
+  atualizarDisponibilidadeParaIa,
   obterMeuUsuario,
 } from "./api";
 import type { PapelGerenciavel } from "./types";
@@ -77,5 +78,14 @@ export function useDesativarUsuario() {
 export function useGerarSenhaProvisoria() {
   return useMutation({
     mutationFn: (id: string) => gerarSenhaProvisoria(id),
+  });
+}
+
+export function useAtualizarDisponibilidadeParaIa() {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, disponivelParaIa }: { id: string; disponivelParaIa: boolean }) =>
+      atualizarDisponibilidadeParaIa(id, disponivelParaIa),
+    onSuccess: () => cache.invalidateQueries({ queryKey: CHAVE_EQUIPE }),
   });
 }
