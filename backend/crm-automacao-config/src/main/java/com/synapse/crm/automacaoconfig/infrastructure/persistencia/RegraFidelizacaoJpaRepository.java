@@ -6,5 +6,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface RegraFidelizacaoJpaRepository extends JpaRepository<RegraFidelizacaoEntity, UUID> {
-    List<RegraFidelizacaoEntity> findByAtivoTrue();
+    List<RegraFidelizacaoEntity> findByAtivoTrueOrderByDiasSemContatoAsc();
+    List<RegraFidelizacaoEntity> findAllByOrderByDiasSemContatoAsc();
 }

@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import com.synapse.crm.automacaoconfig.domain.regras.RegraFollowUp;
 
-/** Mapeamento JPA de {@code regra_follow_up} (V7). Somente leitura nesta etapa. */
+/** Mapeamento JPA de {@code regra_follow_up} (V7). */
 @Entity
 @Table(name = "regra_follow_up")
 class RegraFollowUpEntity {
@@ -32,6 +32,15 @@ class RegraFollowUpEntity {
 
     protected RegraFollowUpEntity() {
         // exigido pelo JPA
+    }
+
+    RegraFollowUpEntity(RegraFollowUp regra) {
+        this.id = regra.id(); this.nome = regra.nome(); this.tempoMinutos = regra.tempoMinutos();
+        this.texto = regra.texto(); this.ativo = regra.ativo();
+    }
+
+    void atualizar(RegraFollowUp regra) {
+        this.nome = regra.nome(); this.tempoMinutos = regra.tempoMinutos(); this.texto = regra.texto(); this.ativo = regra.ativo();
     }
 
     RegraFollowUp paraDominio() {

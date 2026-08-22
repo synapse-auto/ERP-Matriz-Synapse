@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import com.synapse.crm.automacaoconfig.domain.regras.RegraFidelizacao;
 
-/** Mapeamento JPA de {@code regra_fidelizacao} (V7). Somente leitura nesta etapa. */
+/** Mapeamento JPA de {@code regra_fidelizacao} (V7). */
 @Entity
 @Table(name = "regra_fidelizacao")
 class RegraFidelizacaoEntity {
@@ -29,6 +29,14 @@ class RegraFidelizacaoEntity {
 
     protected RegraFidelizacaoEntity() {
         // exigido pelo JPA
+    }
+
+    RegraFidelizacaoEntity(RegraFidelizacao regra) {
+        this.id = regra.id(); this.diasSemContato = regra.diasSemContato(); this.mensagem = regra.mensagem(); this.ativo = regra.ativo();
+    }
+
+    void atualizar(RegraFidelizacao regra) {
+        this.diasSemContato = regra.diasSemContato(); this.mensagem = regra.mensagem(); this.ativo = regra.ativo();
     }
 
     RegraFidelizacao paraDominio() {

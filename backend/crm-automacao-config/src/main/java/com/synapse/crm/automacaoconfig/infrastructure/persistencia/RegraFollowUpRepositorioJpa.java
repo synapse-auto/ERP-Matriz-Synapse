@@ -1,6 +1,8 @@
 package com.synapse.crm.automacaoconfig.infrastructure.persistencia;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 
@@ -18,6 +20,15 @@ class RegraFollowUpRepositorioJpa implements RegraFollowUpRepositorio {
 
     @Override
     public List<RegraFollowUp> listarAtivas() {
-        return jpa.findByAtivoTrue().stream().map(RegraFollowUpEntity::paraDominio).toList();
+        return jpa.findByAtivoTrueOrderByTempoMinutosAsc().stream().map(RegraFollowUpEntity::paraDominio).toList();
     }
+
+    @Override public List<RegraFollowUp> listarTodas() { return jpa.findAllByOrderByTempoMinutosAsc().stream().map(RegraFollowUpEntity::paraDominio).toList(); }
+    @Override public Optional<RegraFollowUp> porId(UUID id) { return jpa.findById(id).map(RegraFollowUpEntity::paraDominio); }
+    @Override public RegraFollowUp salvar(RegraFollowUp regra) {
+        RegraFollowUpEntity entidade = jpa.findById(regra.id()).orElse(null);
+        if (entidade == null) entidade = new RegraFollowUpEntity(regra); else entidade.atualizar(regra);
+        return jpa.save(entidade).paraDominio();
+    }
+    @Override public void excluir(UUID id) { jpa.deleteById(id); }
 }

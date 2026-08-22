@@ -6,5 +6,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface RegraFollowUpJpaRepository extends JpaRepository<RegraFollowUpEntity, UUID> {
-    List<RegraFollowUpEntity> findByAtivoTrue();
+    List<RegraFollowUpEntity> findByAtivoTrueOrderByTempoMinutosAsc();
+    List<RegraFollowUpEntity> findAllByOrderByTempoMinutosAsc();
 }
