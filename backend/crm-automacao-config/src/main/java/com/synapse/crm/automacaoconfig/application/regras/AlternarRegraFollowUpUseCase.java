@@ -1,9 +1,11 @@
 package com.synapse.crm.automacaoconfig.application.regras;
 
 import java.util.UUID;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import com.synapse.crm.automacaoconfig.domain.regras.*;
 
 @Service
