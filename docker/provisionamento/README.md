@@ -94,19 +94,21 @@ na configuracao da instancia.
 
 `seed-demonstracao.sql` e `limpar-demonstracao.sql` sao um par separado de
 `provisionar-instancia.sql` — servem para popular um ambiente de
-**homologacao ou demonstracao** com leads, atendimentos, mensagens,
-lembretes e mensagens programadas, para as telas terem conteudo real para
-avaliar. Nao sao dado mockado: sao registros gravados no banco, lidos pelo
-caminho normal da aplicacao — a diferenca e a origem, nao o tratamento.
+**homologacao ou demonstracao** com quatro atendentes, leads, atendimentos,
+mensagens, lembretes e mensagens programadas, para as telas terem conteudo
+real para avaliar. Nao sao dado mockado: sao registros gravados no banco,
+lidos pelo caminho normal da aplicacao — a diferenca e a origem, nao o
+tratamento.
 
-Todo nome e obviamente falso ("Cliente Teste 1", "Obra Exemplo — Asa
-Norte"). Os ids usam os prefixos fixos `de`/`da`/`dm`/`db`/`dp`
-(leads/atendimentos/mensagens/lembretes/mensagens programadas), exclusivos
-deste seed — e o que permite `limpar-demonstracao.sql` remover exatamente o
-que foi criado, sem tocar em nada real.
+Todo nome e obviamente falso ("Cliente Teste 1", "Obra Exemplo - Asa
+Norte", "Zelia Demonstracao"). Os ids usam prefixos UUID hexadecimais fixos
+e exclusivos (`de`, `da`, `d1`, `db`, `d3`, `d4`, `d5`, `d6`), permitindo
+que `limpar-demonstracao.sql` remova exatamente o que foi criado, sem tocar
+em nada real. A senha publica das contas de atendente e `atendente123`.
 
-Executar (depois do `R__seed_dev.sql`/seed de dev, do qual dependem os ids
-fixos de etapa/usuario/canal/tag):
+Execute depois do provisionamento. O script resolve o canal, a credencial e
+as etapas existentes por seus dados, sem depender do `R__seed_dev.sql` nem
+dos UUIDs de desenvolvimento:
 
 ```bash
 container="$(./docker/operacoes/resolver-postgres.sh)"
