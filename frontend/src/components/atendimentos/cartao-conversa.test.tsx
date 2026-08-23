@@ -57,4 +57,36 @@ describe("CartaoConversa — RN-CRM-05", () => {
       "3 mensagens não lidas",
     );
   });
+
+  it("mostra empresa, canal e etapa no rodapé, com neutro quando a etapa não tem cor", () => {
+    render(
+      <CartaoConversa
+        cartao={{
+          ...cartao,
+          leadEmpresa: "Vidraçaria Cristal Clara",
+          etapaNome: "Orçamento",
+          etapaCor: null,
+        }}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Vidraçaria Cristal Clara")).toBeInTheDocument();
+    expect(screen.getByText("Orçamento")).toHaveClass("bg-muted");
+    expect(screen.getByTitle("WhatsApp")).toBeInTheDocument();
+  });
+
+  it("não cria empresa, etapa ou canal quando o backend não fornece os dados", () => {
+    render(
+      <CartaoConversa
+        cartao={{ ...cartao, canalTipo: null }}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Vidraçaria Cristal Clara")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("WhatsApp")).not.toBeInTheDocument();
+  });
 });

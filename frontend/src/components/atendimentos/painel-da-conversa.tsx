@@ -152,6 +152,12 @@ export function PainelDaConversa({ leadId, responsavelNome }: Props) {
                 />
               ))}
             </div>
+            <div className="mt-1 flex justify-between gap-2 text-[0.65rem] text-muted-foreground">
+              <span>{etapasOrdenadas[0]?.nome ?? textosLead.etapa.semEtapa}</span>
+              {etapasOrdenadas.length > 1 && (
+                <span>{etapasOrdenadas.at(-1)?.nome}</span>
+              )}
+            </div>
             <span
               className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
               style={

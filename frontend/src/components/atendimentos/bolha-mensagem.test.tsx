@@ -41,6 +41,25 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
 }
 
 describe("BolhaMensagem", () => {
+  it("mostra balão recebido com presença visual e sem autoria inventada", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
+          conteudo: "Preciso de um orçamento.",
+        })}
+        nomeDoRemetente="Nome que não deve aparecer"
+      />,
+    );
+
+    expect(screen.getByText("Preciso de um orçamento.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Nome que não deve aparecer"),
+    ).not.toBeInTheDocument();
+  });
+
   it("mostra o nome conhecido do atendente dentro da bolha enviada", () => {
     render(
       <BolhaMensagem mensagem={mensagem({})} nomeDoRemetente="Jardel Lima" />,

@@ -74,10 +74,10 @@ export function BolhaMensagem({
     <div className={cn("flex", doAtendente ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[70%] rounded-lg px-3 py-2 text-sm",
+          "max-w-[70%] rounded-lg px-3.5 py-3 text-sm",
           doAtendente
             ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+            : "min-w-[12rem] bg-muted text-foreground shadow-sm",
         )}
       >
         {doAtendente && nomeDoRemetente && (
@@ -87,13 +87,13 @@ export function BolhaMensagem({
         )}
 
         {mensagem.tipo === "IMAGEM" && (
-          <div className="space-y-1">
+          <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
             {midiaUrl && (
               // eslint-disable-next-line @next/next/no-img-element -- mídia externa do provedor, sem domínio fixo para o loader do Next
               <img
                 src={midiaUrl}
                 alt={metadados.legenda ?? textos.imagem}
-                className="max-h-64 rounded-md object-cover"
+                className="max-h-64 w-full rounded-md object-cover"
               />
             )}
             {metadados.legenda && <p>{metadados.legenda}</p>}
@@ -112,6 +112,8 @@ export function BolhaMensagem({
             href={midiaUrl ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
+            title={textos.baixar}
+            aria-label={`${textos.baixar}: ${metadados.nome ?? textos.documento}`}
             className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 no-underline"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/15">

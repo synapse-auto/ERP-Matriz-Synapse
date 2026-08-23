@@ -47,14 +47,6 @@ export function CartaoConversa({
             {iniciaisDoNome(cartao.leadNome)}
           </AvatarFallback>
         </Avatar>
-        {canal && (
-          <span
-            className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border-2 border-background bg-cor-sucesso text-background"
-            title={canal}
-          >
-            <MessageCircleMore className="size-2.5" aria-hidden />
-          </span>
-        )}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -93,9 +85,17 @@ export function CartaoConversa({
         )}
 
         <div className="mt-2 flex min-h-5 items-center gap-1.5">
+          {canal && (
+            <span
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-cor-sucesso/10 text-cor-sucesso"
+              title={canal}
+            >
+              <MessageCircleMore className="size-3" aria-hidden />
+            </span>
+          )}
           {cartao.etapaNome && (
             <span
-              className="max-w-[11rem] truncate rounded-full px-2 py-0.5 text-[0.65rem] font-semibold"
+              className="max-w-[11rem] truncate rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground"
               style={
                 cartao.etapaCor
                   ? {

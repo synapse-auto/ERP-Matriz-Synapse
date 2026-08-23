@@ -1,6 +1,47 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { EtapaAtendimento } from "@/lib/lead/types";
+
+type LeadTeste = {
+  id: string;
+  nome: string;
+  fotoUrl: string | null;
+  empresa: string | null;
+  telefone: string | null;
+  email: string | null;
+  localizacao: string | null;
+  etapaAtendimentoId: string | null;
+  numAtendimentos: number;
+  numMensagens: number;
+  resumoIa: string | null;
+  notas: string | null;
+};
+
+const leadState = vi.hoisted(() => ({
+  data: {
+    id: "lead-1",
+    nome: "Marcos Vinícius",
+    fotoUrl: null,
+    empresa: "Vidraçaria Cristal",
+    telefone: "(61) 99999-0000",
+    email: "marcos@cliente.com",
+    localizacao: "Taguatinga · DF",
+    etapaAtendimentoId: "etapa-1",
+    numAtendimentos: 3,
+    numMensagens: 20,
+    resumoIa: "Cliente pediu orçamento de box.",
+    notas: "",
+  } as LeadTeste,
+}));
+const etapasState = vi.hoisted(() => ({
+  data: [
+    { id: "etapa-0", nome: "Novo contato", ordem: 1, corVisual: "var(--muted)" },
+    { id: "etapa-1", nome: "Orçamento", ordem: 2, corVisual: "var(--primary)" },
+    { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
+  ] as EtapaAtendimento[],
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
@@ -39,29 +80,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
-  useLead: () => ({
-    data: {
-      id: "lead-1",
-      nome: "Marcos Vinícius",
-      fotoUrl: null,
-      empresa: "Vidraçaria Cristal",
-      telefone: "(61) 99999-0000",
-      email: "marcos@cliente.com",
-      localizacao: "Taguatinga · DF",
-      etapaAtendimentoId: "etapa-1",
-      numAtendimentos: 3,
-      numMensagens: 20,
-      resumoIa: "Cliente pediu orçamento de box.",
-      notas: "",
-    },
-  }),
-  useEtapas: () => ({
-    data: [
-      { id: "etapa-0", nome: "Novo contato", ordem: 1, corVisual: "#64748B" },
-      { id: "etapa-1", nome: "Orçamento", ordem: 2, corVisual: "#1F74E0" },
-      { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "#7C3AED" },
-    ],
-  }),
+  useLead: () => leadState,
+  useEtapas: () => etapasState,
   useTagsDoLead: () => ({
     data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
   }),
@@ -111,5 +131,27 @@ describe("painel da conversa", () => {
 
     fireEvent.click(screen.getByText("Lembretes"));
     expect(screen.getByText("Nenhum lembrete")).toBeInTheDocument();
+  });
+
+  it("mantém o painel estável quando a etapa, o e-mail e a localidade estão ausentes", () => {
+    leadState.data = {
+      ...leadState.data,
+      id: "lead-2",
+      nome: "Lead sem dados opcionais",
+      empresa: null,
+      email: null,
+      localizacao: null,
+      etapaAtendimentoId: null,
+      resumoIa: null,
+      notas: null,
+    };
+    etapasState.data = [];
+
+    render(<PainelDaConversa leadId="lead-2" responsavelNome={null} />);
+
+    expect(screen.getByText("Lead sem dados opcionais")).toBeInTheDocument();
+    expect(screen.queryByText("E-mail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Localização")).not.toBeInTheDocument();
+    expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Search } from "lucide-react";
+import { Search, ShieldCheck } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -227,7 +227,11 @@ function LinhaDeInicio({
     );
   }
   return (
-    <p className="mb-3 text-center text-xs text-muted-foreground">
+    <p
+      className="mb-3 inline-flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground"
+      data-slot="linha-atendimento-recebido"
+    >
+      <ShieldCheck className="size-3.5" aria-hidden />
       {partes.filter(Boolean).join(" · ")}
     </p>
   );
