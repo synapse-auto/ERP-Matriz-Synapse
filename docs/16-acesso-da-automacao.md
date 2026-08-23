@@ -100,7 +100,12 @@ Idempotency-Key: workflow-123-transferencia-1
 Para devolver ao robô, use `PATCH /internal/v1/atendimentos/{id}/modo-ia` com
 corpo `{}`. Para distribuição automática, use
 `POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` sem corpo: o
-CRM escolhe o primeiro disponível por nome e id. Ambas as ações registram
+CRM escolhe o primeiro disponível na ordem recomendada: menor quantidade de
+atendimentos abertos (`status = EM_ATENDIMENTO`), depois quem está há mais tempo
+sem receber e, por fim, o `id` para desempate determinístico. Atendentes que
+nunca receberam vêm antes de quem já recebeu. Ao consultar
+`GET /internal/v1/atendentes/disponiveis`, o primeiro item é portanto o destino
+recomendado; não reordene a lista no workflow. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
 ### 3.3 Regras de follow-up e fidelização
