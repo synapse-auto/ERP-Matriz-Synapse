@@ -18,6 +18,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
+import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
@@ -55,6 +57,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final TradutorDeCanal tradutor;
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
+    private final AtendimentoRepositorio atendimentos;
+    private final TransferirAtendimentoUseCase transferirAtendimento;
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
     private final ArmazenamentoDeMidia armazenamento;
@@ -69,6 +73,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal tradutor,
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
+            AtendimentoRepositorio atendimentos,
+            TransferirAtendimentoUseCase transferirAtendimento,
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             ArmazenamentoDeMidia armazenamento,
@@ -81,6 +87,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
         this.registrar = registrar;
+        this.atendimentos = atendimentos;
+        this.transferirAtendimento = transferirAtendimento;
         this.leads = leads;
         this.canal = canal;
         this.armazenamento = armazenamento;
@@ -124,6 +132,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
             UUID leadId =
                     leads.resolverPorTelefone(mensagem.telefoneRemetente(), mensagem.nomeExibicao());
+            if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto())) {
+                atendimentos.abertoDoLead(leadId)
+                        .filter(atendimento -> atendimento.status().estaAberto())
+                        .ifPresent(atendimento -> transferirAtendimento.devolverParaIaPeloSistema(atendimento.id()));
+                continue;
+            }
             registrar.executar(mensagem.ehMidia()
                     ? mensagemRecebidaDeMidia(leadId, mensagem)
                     : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
@@ -132,6 +146,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
         // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
         entrada.marcarProcessado(pendente.idExterno(), agora);
+    }
+
+    static boolean ehComandoReset(String texto) {
+        return texto != null && texto.trim().equalsIgnoreCase("#reset");
     }
 
     /**

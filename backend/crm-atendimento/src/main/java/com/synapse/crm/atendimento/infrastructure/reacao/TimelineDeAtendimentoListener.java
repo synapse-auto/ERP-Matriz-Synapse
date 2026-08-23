@@ -130,7 +130,14 @@ class TimelineDeAtendimentoListener {
     }
 
     private String rotuloDoAtor(EventoDeAtendimento.AtendimentoTransferido evento) {
-        return evento.atorId() == null ? "Automacao" : nome(evento.atorId());
+        if (evento.atorId() != null) {
+            return nome(evento.atorId());
+        }
+        return switch (evento.atorTipo()) {
+            case SISTEMA -> "Sistema";
+            case AUTOMACAO -> "Automacao";
+            case USUARIO -> "Usuario";
+        };
     }
 
     private String nome(UUID usuarioId) {

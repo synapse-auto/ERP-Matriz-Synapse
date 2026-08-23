@@ -72,6 +72,13 @@ public class TransferirAtendimentoUseCase {
         return transferir(atendimentoId, null, null, OrigemEvento.AUTOMACAO, false);
     }
 
+    /** Devolve uma conversa por comando do sistema, sem fabricar um usuario para a auditoria. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento devolverParaIaPeloSistema(UUID atendimentoId) {
+        return transferir(atendimentoId, null, null, OrigemEvento.SISTEMA, false);
+    }
+
     private Atendimento transferir(
             UUID atendimentoId,
             UUID paraAtendenteId,
@@ -87,6 +94,10 @@ public class TransferirAtendimentoUseCase {
 
         if (exigirOrigemIa && antes.status() != StatusAtendimento.EM_IA) {
             throw new TransferenciaDaAutomacaoInvalidaException(atendimentoId);
+        }
+
+        if (paraAtendenteId == null && antes.status() == StatusAtendimento.EM_IA) {
+            return antes;
         }
 
         Atendimento depois =
