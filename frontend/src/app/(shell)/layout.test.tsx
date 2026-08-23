@@ -14,14 +14,16 @@ vi.mock("@/components/shell/sidebar", () => ({
 import ShellLayout from "./layout";
 
 describe("superfície compartilhada do shell", () => {
-  it("envolve todas as páginas em painel temático com margem de 20px e raio de 16px", async () => {
+  it("mantém a superfície sem moldura e o scroll interno do shell", async () => {
     render(await ShellLayout({ children: <div>Conteúdo</div> }));
 
     const superficie = screen.getByText("Conteúdo").closest("main");
-    expect(superficie).toHaveClass("bg-card", "rounded-lg", "shadow-sm");
-    expect(superficie?.parentElement).toHaveClass("p-5");
+    expect(superficie).toHaveClass("overflow-y-auto");
+    expect(superficie).not.toHaveClass("bg-card", "rounded-lg", "shadow-sm");
+    expect(superficie?.parentElement).not.toHaveClass("p-5");
     expect(superficie?.closest('[data-slot="page-canvas"]')).toHaveClass(
       "bg-[var(--fundo-canvas)]",
+      "overflow-hidden",
     );
   });
 });
