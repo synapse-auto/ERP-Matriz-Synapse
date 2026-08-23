@@ -16,9 +16,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
-import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
