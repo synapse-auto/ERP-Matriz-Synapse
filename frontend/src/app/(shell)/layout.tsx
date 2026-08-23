@@ -20,9 +20,9 @@ export default async function ShellLayout({ children }: { children: React.ReactN
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]" data-slot="page-canvas">
       <Sidebar />
-      <div className="min-w-0 flex-1 p-5">
+      <div className="min-w-0 flex-1">
         <main
-          className="flex h-full flex-col overflow-y-auto rounded-lg bg-card shadow-sm"
+          className="flex h-full flex-col overflow-y-auto"
           data-slot="page-surface"
         >
           {children}

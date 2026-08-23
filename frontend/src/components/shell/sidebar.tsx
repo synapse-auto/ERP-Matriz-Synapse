@@ -142,7 +142,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="m-3 flex w-[260px] shrink-0 flex-col overflow-hidden rounded-xl bg-sidebar text-texto-sidebar-item"
+      className="flex w-[260px] shrink-0 flex-col overflow-hidden bg-sidebar text-texto-sidebar-item"
       data-slot="sidebar"
     >
       <div className="flex items-center gap-3 px-[18px] py-5">
