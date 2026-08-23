@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const criarMutate = vi.fn();
@@ -126,6 +126,22 @@ describe("pagina de tags", () => {
       { nome: "Obra", cor: "var(--chart-3)", icone: "Crown" },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("oferece exatamente os 22 ícones aprovados no protótipo", () => {
+    render(<PaginaTags />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nova tag" }));
+
+    expect(within(screen.getByRole("group", { name: "Ícone" })).getAllByRole("button")).toHaveLength(
+      22,
+    );
+  });
+
+  it("continua renderizando ícone legado de tag já cadastrada", () => {
+    const { container } = render(<PaginaTags />);
+
+    expect(container.querySelector(".lucide-flag")).toBeInTheDocument();
   });
 
   it("remove uma tag existente", () => {

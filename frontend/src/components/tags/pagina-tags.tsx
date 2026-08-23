@@ -7,19 +7,28 @@ import {
   Briefcase,
   Building2,
   Crown,
+  DoorOpen,
+  Droplet,
   Flag,
+  Flashlight,
   Flame,
+  Hammer,
   Heart,
   Layers,
   Pencil,
   Percent,
+  RectangleHorizontal,
+  RefreshCw,
   Repeat,
+  Rows3,
+  Shapes,
   ShieldCheck,
   Star,
   Store,
   Tag as TagIcon,
   Trash2,
   UserPlus,
+  UserRoundCheck,
   Wrench,
 } from "lucide-react";
 
@@ -61,6 +70,16 @@ const CORES = [
 /** lucide-react continua a biblioteca de ícones do projeto — sem introduzir Remix Icon. */
 const ICONES: Record<string, ComponentType<{ className?: string; style?: CSSProperties }>> = {
   Tag: TagIcon,
+  Droplet,
+  RectangleHorizontal,
+  Shapes,
+  Rows3,
+  DoorOpen,
+  Hammer,
+  RefreshCw,
+  UserRoundCheck,
+  Flashlight,
+  // Compatibilidade de leitura: existia no seletor anterior, mas não faz parte do protótipo.
   Flag,
   Star,
   Heart,
@@ -75,6 +94,32 @@ const ICONES: Record<string, ComponentType<{ className?: string; style?: CSSProp
   Flame,
   Layers,
 };
+
+/** Mesma ordem das 22 opções aprovadas em design/componentes/Tags.html. */
+const ICONES_DO_MODAL = [
+  "Droplet",
+  "ShieldCheck",
+  "RectangleHorizontal",
+  "Shapes",
+  "Building2",
+  "Rows3",
+  "DoorOpen",
+  "Layers",
+  "Store",
+  "Briefcase",
+  "Hammer",
+  "Repeat",
+  "UserPlus",
+  "RefreshCw",
+  "UserRoundCheck",
+  "Wrench",
+  "Crown",
+  "Tag",
+  "Star",
+  "Flame",
+  "Flashlight",
+  "Heart",
+] as const;
 
 const ICONE_PADRAO = "Tag";
 
@@ -405,8 +450,14 @@ function Formulario({
 
           <div className="space-y-1">
             <span className="text-sm">{t.icone}</span>
-            <div className="grid grid-cols-7 gap-1.5">
-              {Object.entries(ICONES).map(([nomeIcone, Icone]) => (
+            <div
+              role="group"
+              aria-label={t.icone}
+              className="grid grid-cols-11 gap-1.5"
+            >
+              {ICONES_DO_MODAL.map((nomeIcone) => {
+                const Icone = ICONES[nomeIcone];
+                return (
                 <button
                   key={nomeIcone}
                   type="button"
@@ -421,7 +472,8 @@ function Formulario({
                 >
                   <Icone className="size-4" />
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
