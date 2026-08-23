@@ -1,6 +1,5 @@
 package com.synapse.crm.atendimento.application;
 
-import java.util.Comparator;
 import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -43,8 +42,7 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
         atendimentos.bloquearDistribuicaoDaAutomacao();
 
         AtendenteDisponivelParaIa destino = listarDisponiveis.executar().stream()
-                .min(Comparator.comparing(AtendenteDisponivelParaIa::nome)
-                        .thenComparing(AtendenteDisponivelParaIa::usuarioId))
+                .findFirst()
                 .orElseThrow(NenhumAtendenteDisponivelException::new);
 
         return transferir.executarPelaAutomacao(atendimentoId, destino.usuarioId());

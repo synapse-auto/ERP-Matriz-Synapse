@@ -112,7 +112,7 @@ class TransferenciaAutomacaoInternalController {
 
     @Operation(
             summary = "Transferir para o próximo humano",
-            description = "Seleciona no servidor o primeiro atendente disponível pelo critério de carga, nome e id; não aceita destinatário no corpo.",
+            description = "Seleciona no servidor o primeiro atendente disponível por menor carga, maior tempo desde o último recebimento e id; não aceita destinatário no corpo.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "400", description = "Idempotency-Key ausente ou inválido."),
