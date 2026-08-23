@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.equipe.application.disponibilidade.ListarAtendentesDisponiveisUseCase;
 import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** {@code /internal/v1/atendentes/disponiveis} — parte do contrato da Automacao (E07 §1). */
 @RestController
@@ -29,11 +30,13 @@ class AtendentesDisponiveisInternalController {
 
     @Operation(
             summary = "Listar atendentes disponíveis",
-            description = "Retorna os atendentes ativos e disponíveis que a automação pode considerar na distribuição.",
+            description = "Retorna os atendentes ativos e disponíveis na ordem recomendada de distribuição: menor carga, maior tempo desde o último recebimento e id.",
             responses = @ApiResponse(responseCode = "200", description = "Atendentes disponíveis."))
     @GetMapping("/disponiveis")
     List<AtendenteResposta> disponiveis() {
-        return listar.executar().stream().map(AtendenteResposta::de).toList();
+        return ContextoDeServico.buscarComo(
+                        "listar-atendentes-disponiveis",
+                        () -> listar.executar().stream().map(AtendenteResposta::de).toList());
     }
 
     record AtendenteResposta(UUID usuarioId, String nome, String email) {

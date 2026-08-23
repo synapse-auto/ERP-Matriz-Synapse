@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
+import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
  * {@code GET /internal/v1/atendentes/disponiveis} — roteamento da IA. So a Automacao chama isto: nao
@@ -22,7 +23,7 @@ public class ListarAtendentesDisponiveisUseCase {
     }
 
     @PreAuthorize("hasRole('SERVICO')")
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<AtendenteDisponivelParaIa> executar() {
         return disponibilidade.listarDisponiveisParaIa();
     }
