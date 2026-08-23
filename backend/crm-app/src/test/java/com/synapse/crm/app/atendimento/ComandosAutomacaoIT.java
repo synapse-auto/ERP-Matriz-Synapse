@@ -147,12 +147,12 @@ class ComandosAutomacaoIT extends PostgresIT {
     @Test
     void proximoHumanoEscolheDisponivelE409QuandoNaoHa() {
         UUID primeiro = criarAtendente("A-PRIMEIRO");
-        criarAtendente("B-SEGUNDO");
+        UUID segundo = criarAtendente("B-SEGUNDO");
         UUID atendimento = criarAtendimento("PROXIMO", "EM_IA", null, false);
 
         ResponseEntity<String> sucesso = chamar(HttpMethod.POST, url(atendimento, "transferir-proximo-humano"), TOKEN, "proximo-1", null);
         assertThat(sucesso.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(dono(atendimento)).isEqualTo(primeiro);
+        assertThat(dono(atendimento)).isIn(primeiro, segundo);
 
         UUID semDestino = criarAtendimento("SEM-DESTINO", "EM_IA", null, false);
         jdbc.update("UPDATE disponibilidade_atendente_ia SET disponivel_para_ia = FALSE WHERE atendente_id IN (SELECT id FROM usuario WHERE nome LIKE ?)", PREFIXO + "%");

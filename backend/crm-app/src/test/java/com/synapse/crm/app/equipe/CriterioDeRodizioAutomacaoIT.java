@@ -102,7 +102,11 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
         List<UUID> primeiraLeitura = disponiveis();
         List<UUID> segundaLeitura = disponiveis();
 
-        List<UUID> esperada = List.of(primeiro, segundo).stream().sorted().toList();
+        List<UUID> esperada = jdbc.query(
+                "SELECT id FROM usuario WHERE id IN (?, ?) ORDER BY id",
+                (rs, rowNum) -> UUID.fromString(rs.getString("id")),
+                primeiro,
+                segundo);
         assertThat(primeiraLeitura).containsExactlyElementsOf(esperada);
         assertThat(segundaLeitura).containsExactlyElementsOf(esperada);
     }
