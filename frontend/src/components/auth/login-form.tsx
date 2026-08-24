@@ -2,11 +2,10 @@
 
 import { FormEvent, useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LockKeyhole } from "lucide-react";
+import { Mail, LockKeyhole } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MarcaSynapse } from "@/components/auth/marca-synapse";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -59,7 +58,10 @@ export function LoginForm() {
 
   return (
     <div className="synapse-login__cartao">
-      <MarcaSynapse alt={textos.marcaSynapse} className="synapse-login__marca-formulario" />
+      <p className="synapse-login__seguro">
+        <LockKeyhole aria-hidden="true" size={14} />
+        {textos.ambienteSeguro}
+      </p>
       <div className="synapse-login__cabecalho">
         <h2 className="synapse-login__titulo-formulario">{textos.titulo}</h2>
         <p className="synapse-login__descricao-formulario">{textos.subtitulo}</p>
@@ -69,32 +71,40 @@ export function LoginForm() {
           <Label className="synapse-login__rotulo" htmlFor="email">
             {textos.campoEmail}
           </Label>
-          <Input
-            id="email"
-            className="synapse-login__input"
-            type="email"
-            autoComplete="email"
-            required
-            aria-invalid={Boolean(erro)}
-            aria-describedby={erro ? erroId : undefined}
-            value={email}
-            onChange={(evento) => setEmail(evento.target.value)}
-          />
+          <div className="synapse-login__campo-controle">
+            <Mail aria-hidden="true" className="synapse-login__icone-campo" size={17} />
+            <Input
+              id="email"
+              className="synapse-login__input"
+              type="email"
+              autoComplete="email"
+              placeholder={textos.placeholderEmail}
+              required
+              aria-invalid={Boolean(erro)}
+              aria-describedby={erro ? erroId : undefined}
+              value={email}
+              onChange={(evento) => setEmail(evento.target.value)}
+            />
+          </div>
         </div>
         <div className="synapse-login__campo">
           <Label className="synapse-login__rotulo" htmlFor="senha">
             {textos.campoSenha}
           </Label>
-          <PasswordInput
-            id="senha"
-            className="synapse-login__input"
-            autoComplete="current-password"
-            required
-            aria-invalid={Boolean(erro)}
-            aria-describedby={erro ? erroId : undefined}
-            value={senha}
-            onChange={(evento) => setSenha(evento.target.value)}
-          />
+          <div className="synapse-login__campo-controle">
+            <LockKeyhole aria-hidden="true" className="synapse-login__icone-campo" size={17} />
+            <PasswordInput
+              id="senha"
+              className="synapse-login__input"
+              autoComplete="current-password"
+              placeholder={textos.placeholderSenha}
+              required
+              aria-invalid={Boolean(erro)}
+              aria-describedby={erro ? erroId : undefined}
+              value={senha}
+              onChange={(evento) => setSenha(evento.target.value)}
+            />
+          </div>
         </div>
         <div className="synapse-login__opcoes">
           <label className="synapse-login__lembrar">
@@ -116,10 +126,8 @@ export function LoginForm() {
           {enviando ? textos.entrando : textos.botaoEntrar}
         </Button>
       </form>
-      <p className="synapse-login__seguro">
-        <LockKeyhole aria-hidden="true" size={14} />
-        {textos.ambienteSeguro}
-      </p>
+      <p className="synapse-login__ajuda">{textos.semAcesso}</p>
+      <p className="synapse-login__rodape">{textos.rodape}</p>
     </div>
   );
 }

@@ -85,6 +85,8 @@
  * existir — build estático sem backend no ar, por exemplo (já mordeu esse caminho antes).
  */
 :root {
+  --fonte-base: "Hanken Grotesk", system-ui, sans-serif;
+  --fonte-mono: "JetBrains Mono", ui-monospace, monospace;
   --background: var(--fundo-app, #F4F7FB);
   --foreground: var(--texto-padrao, #33475B);
   --card: var(--fundo-superficie, #FFFFFF);

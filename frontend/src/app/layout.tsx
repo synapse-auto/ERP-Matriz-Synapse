@@ -3,10 +3,11 @@ import localFont from "next/font/local";
 
 import { TransicaoDeAbertura } from "@/components/auth/transicao-de-abertura";
 import { AuthProvider } from "@/lib/auth/auth-provider";
-import { buscarTextos } from "@/lib/config/fetch-config";
+import { buscarTema, buscarTextos } from "@/lib/config/fetch-config";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryProvider } from "@/lib/query/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { montarMetadata } from "./metadata";
 
 import "./globals.css";
 import "./identidade-synapse.css";
@@ -36,11 +37,10 @@ const jetBrainsMono = localFont({
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const textos = await buscarTextos();
-  return {
-    title: textos.app.nome,
-    description: textos.app.subtitulo,
-  };
+  const [textos, tema] = await Promise.all([buscarTextos(), buscarTema()]);
+  // O favicon identifica a instância na aba do navegador; não reintroduza tema/logo visível no
+  // /login. A identidade visual da tela continua fixa na marca Synapse.
+  return montarMetadata(textos, tema);
 }
 
 /**

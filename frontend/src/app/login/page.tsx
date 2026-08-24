@@ -7,15 +7,19 @@ import { buscarTextos } from "@/lib/config/fetch-config";
 export default async function LoginPage() {
   const textos = (await buscarTextos()).login;
   const destaques = [
-    { icone: BriefcaseBusiness, texto: textos.destaqueAtendimentos },
-    { icone: Bot, texto: textos.destaqueAutomacao },
-    { icone: ChartNoAxesCombined, texto: textos.destaqueEquipe },
+    { icone: BriefcaseBusiness, ...textos.destaques.crm },
+    { icone: Bot, ...textos.destaques.atendimento },
+    { icone: ChartNoAxesCombined, ...textos.destaques.iaAssistente },
   ];
 
   return (
     <main className="synapse-login">
       <section className="synapse-login__apresentacao" aria-labelledby="apresentacao-login-titulo">
-        <MarcaSynapse alt={textos.marcaSynapse} className="synapse-login__marca" />
+        <div className="synapse-login__marca-lockup">
+          <MarcaSynapse alt={textos.marcaSynapse} className="synapse-login__marca" />
+          <span className="synapse-login__marca-nome">{textos.marcaSynapse}</span>
+          <span className="synapse-login__marca-pill">CRM</span>
+        </div>
         <div className="synapse-login__conteudo">
           <h1 id="apresentacao-login-titulo" className="synapse-login__titulo">
             {textos.apresentacaoTitulo}
@@ -23,12 +27,15 @@ export default async function LoginPage() {
           <p className="synapse-login__subtitulo">{textos.apresentacaoSubtitulo}</p>
         </div>
         <ul className="synapse-login__destaques">
-          {destaques.map(({ icone: Icone, texto }) => (
-            <li key={texto} className="synapse-login__destaque">
+          {destaques.map(({ icone: Icone, titulo, descricao }) => (
+            <li key={titulo} className="synapse-login__destaque">
               <span className="synapse-login__icone-destaque">
                 <Icone aria-hidden="true" size={18} />
               </span>
-              {texto}
+              <span>
+                <strong>{titulo}</strong>
+                <small>{descricao}</small>
+              </span>
             </li>
           ))}
         </ul>

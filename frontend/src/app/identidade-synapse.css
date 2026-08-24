@@ -21,7 +21,7 @@
 .synapse-login {
   display: grid;
   min-height: 100%;
-  grid-template-columns: minmax(460px, 1.08fr) minmax(480px, 0.92fr);
+  grid-template-columns: 1.08fr 1fr;
   background: var(--synapse-login-fundo);
 }
 
@@ -32,7 +32,7 @@
   overflow: hidden;
   flex-direction: column;
   justify-content: space-between;
-  padding: clamp(2.5rem, 6vw, 5.75rem);
+  padding: 3rem clamp(2.5rem, 5vw, 3.5rem);
   color: var(--synapse-login-superficie);
   background: linear-gradient(
     135deg,
@@ -43,24 +43,60 @@
   );
 }
 
-/* O véu garante contraste AA (branco sobre o ponto claro do gradiente = 7.51:1 medido). */
 .synapse-login__apresentacao::before {
   position: absolute;
-  inset: 0;
+  inset: -18% -12%;
   content: "";
-  background: rgb(31 19 63 / 64%);
+  background:
+    radial-gradient(46% 42% at 22% 18%, rgb(255 255 255 / 30%), transparent 62%),
+    radial-gradient(40% 38% at 82% 30%, rgb(196 178 253 / 55%), transparent 65%),
+    radial-gradient(52% 46% at 62% 92%, rgb(46 26 102 / 42%), transparent 66%);
 }
 
-.synapse-login__marca,
+.synapse-login__apresentacao::after {
+  position: absolute;
+  left: -14%;
+  top: 12%;
+  width: 128%;
+  height: 62%;
+  content: "";
+  border-radius: 48% 52% 44% 56% / 62% 58% 42% 38%;
+  background: linear-gradient(180deg, rgb(255 255 255 / 16%), rgb(255 255 255 / 2%));
+  filter: blur(2px);
+}
+
+.synapse-login__marca-lockup,
 .synapse-login__conteudo,
 .synapse-login__destaques {
   position: relative;
   z-index: 1;
 }
 
+.synapse-login__marca-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .synapse-login__marca {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.synapse-login__marca-nome {
+  font-size: 1.25rem;
+  font-weight: 760;
+  letter-spacing: -0.035em;
+}
+
+.synapse-login__marca-pill {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 16%);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
 }
 
 .synapse-login__conteudo {
@@ -69,10 +105,10 @@
 }
 
 .synapse-login__titulo {
-  max-width: 10ch;
+  max-width: 14ch;
   margin: 0;
   color: inherit;
-  font-size: clamp(2.9rem, 5vw, 5.25rem);
+  font-size: clamp(2.8rem, 4.8vw, 3.35rem);
   font-weight: 720;
   line-height: 0.96;
   letter-spacing: -0.06em;
@@ -89,20 +125,38 @@
 
 .synapse-login__destaques {
   display: grid;
-  gap: 0.875rem;
-  max-width: 35rem;
-  padding: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 42rem;
+  padding: 1.25rem 0 0;
   margin: 0;
+  border-top: 1px solid rgb(255 255 255 / 28%);
   list-style: none;
 }
 
 .synapse-login__destaque {
   display: flex;
-  align-items: center;
-  gap: 0.875rem;
+  align-items: flex-start;
+  gap: 0.65rem;
   color: inherit;
-  font-size: 0.9375rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.synapse-login__destaque > span:last-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.synapse-login__destaque strong {
+  font-size: 0.88rem;
+  font-weight: 720;
+}
+
+.synapse-login__destaque small {
+  color: rgb(255 255 255 / 84%);
+  font-size: inherit;
 }
 
 .synapse-login__icone-destaque {
@@ -121,8 +175,8 @@
   min-height: 100vh;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  background: var(--synapse-login-superficie);
+  padding: 3rem clamp(2rem, 5vw, 3rem);
+  background: linear-gradient(180deg, #ffffff 0%, #faf9fe 100%);
 }
 
 .synapse-login__cartao {
@@ -130,15 +184,8 @@
   max-width: 25rem;
 }
 
-.synapse-login__marca-formulario {
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-bottom: 2.5rem;
-  filter: drop-shadow(0 8px 16px rgb(77 48 164 / 28%));
-}
-
 .synapse-login__cabecalho {
-  margin-bottom: 2rem;
+  margin: 1.25rem 0 2rem;
 }
 
 .synapse-login__titulo-formulario {
@@ -177,6 +224,28 @@
   border-color: var(--synapse-login-borda);
   color: var(--synapse-login-texto);
   background: var(--synapse-login-superficie);
+}
+
+.synapse-login__campo-controle {
+  position: relative;
+}
+
+.synapse-login__campo-controle > .synapse-login__input {
+  padding-left: 2.45rem;
+}
+
+.synapse-login__campo-controle > div > .synapse-login__input {
+  padding-left: 2.45rem;
+}
+
+.synapse-login__icone-campo {
+  position: absolute;
+  z-index: 1;
+  left: 0.75rem;
+  top: 50%;
+  color: var(--synapse-login-texto-suave);
+  pointer-events: none;
+  transform: translateY(-50%);
 }
 
 .synapse-login__input:focus-visible {
@@ -233,11 +302,32 @@
 .synapse-login__seguro {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.45rem;
+  width: fit-content;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--synapse-login-borda);
+  border-radius: 999px;
+  background: rgb(124 92 224 / 6%);
+  margin: 0;
+  color: var(--synapse-login-foco);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.synapse-login__ajuda {
   margin: 1.75rem 0 0;
   color: var(--synapse-login-texto-suave);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.synapse-login__rodape {
+  margin: 2.25rem 0 0;
+  color: var(--synapse-login-texto-suave);
+  font-size: 0.72rem;
+  text-align: center;
 }
 
 .synapse-transicao {
@@ -305,5 +395,9 @@
   .synapse-login__formulario {
     min-height: 100vh;
     padding: 1.5rem;
+  }
+
+  .synapse-login__destaques {
+    grid-template-columns: 1fr;
   }
 }
