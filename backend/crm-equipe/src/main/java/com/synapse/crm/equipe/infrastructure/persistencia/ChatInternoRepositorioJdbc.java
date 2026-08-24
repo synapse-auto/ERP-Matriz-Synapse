@@ -67,14 +67,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
 
     @Override
     public UUID criarConversaDireta(UUID primeiroUsuario, UUID segundoUsuario) {
-        jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtext('synapse:chat-interno:direta'))", Object.class);
-        Optional<UUID> existente = conversaDireta(primeiroUsuario, segundoUsuario);
-        if (existente.isPresent()) return existente.get();
-        UUID conversa = UUID.randomUUID();
-        jdbc.update("INSERT INTO chat_interno_conversa(id,tipo) VALUES (?, 'DIRETA')", conversa);
-        jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?), (?,?)",
-                conversa, primeiroUsuario, conversa, segundoUsuario);
-        return conversa;
+        return jdbc.queryForObject("SELECT app_criar_conversa_direta(?, ?)", UUID.class,
+                primeiroUsuario, segundoUsuario);
     }
 
     @Override

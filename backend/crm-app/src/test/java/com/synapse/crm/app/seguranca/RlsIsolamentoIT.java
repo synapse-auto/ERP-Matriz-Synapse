@@ -1,6 +1,7 @@
 package com.synapse.crm.app.seguranca;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -246,6 +248,27 @@ class RlsIsolamentoIT extends PostgresIT {
         assertThat(carteiraDaAna)
                 .as("a lista operacional continua sendo a carteira do atendente")
                 .isEmpty();
+    }
+
+    @Test
+    @DisplayName("RLS impede que nao participante se insira no chat alheio")
+    void chat_naoParticipante_naoConsegueEntrarNemLerMensagens() {
+        UUID conversa = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_conversa(id, tipo) VALUES (?, 'DIRETA')", conversa);
+        jdbc.update("INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)", conversa, bruno);
+        jdbc.update("INSERT INTO chat_interno_mensagem(id, conversa_id, remetente_id, tipo, conteudo) VALUES (?, ?, ?, 'TEXTO', 'segredo')",
+                mensagem, conversa, bruno);
+
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        assertThatThrownBy(() -> transacao.execute(status -> {
+            jdbc.update("INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)", conversa, ana);
+            return null;
+        })).isInstanceOf(DataAccessException.class);
+
+        List<UUID> mensagensVisiveis = transacao.execute(status -> jdbc.queryForList(
+                "SELECT id FROM chat_interno_mensagem WHERE conversa_id = ?", UUID.class, conversa));
+        assertThat(mensagensVisiveis).isEmpty();
     }
 
     private String contagemDeLeads() {

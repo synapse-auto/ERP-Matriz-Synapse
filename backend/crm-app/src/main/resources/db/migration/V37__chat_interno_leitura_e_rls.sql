@@ -28,12 +28,50 @@ BEGIN
 END
 $$;
 
+GRANT SELECT, INSERT ON chat_interno_conversa, chat_interno_participante TO synapse_chat_rls;
+GRANT SELECT ON usuario TO synapse_chat_rls;
+
 CREATE OR REPLACE FUNCTION app_chat_participa(conversa UUID)
-RETURNS BOOLEAN LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
+RETURNS BOOLEAN STABLE LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
     SELECT EXISTS (SELECT 1 FROM chat_interno_participante
                    WHERE conversa_id = $1 AND usuario_id = app_usuario_id());
 $$;
 ALTER FUNCTION app_chat_participa(UUID) OWNER TO synapse_chat_rls;
+
+-- A criação direta é a única operação que insere os dois participantes de uma
+-- vez. SECURITY DEFINER mantém o bootstrap fora da política genérica de INSERT:
+-- ela não pode ser usada para entrar numa conversa já iniciada.
+CREATE OR REPLACE FUNCTION app_criar_conversa_direta(primeiro UUID, segundo UUID)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+    conversa UUID;
+BEGIN
+    IF app_usuario_id() IS NULL OR (app_usuario_id() <> primeiro AND app_usuario_id() <> segundo) THEN
+        RAISE EXCEPTION 'usuario corrente nao pertence ao par da conversa';
+    END IF;
+    IF primeiro = segundo OR NOT EXISTS (SELECT 1 FROM usuario WHERE id = primeiro AND ativo)
+            OR NOT EXISTS (SELECT 1 FROM usuario WHERE id = segundo AND ativo) THEN
+        RAISE EXCEPTION 'par de usuarios invalido';
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(hashtext('synapse:chat-interno:direta'));
+    SELECT c.id INTO conversa
+      FROM chat_interno_conversa c
+      JOIN chat_interno_participante p1 ON p1.conversa_id = c.id AND p1.usuario_id = primeiro
+      JOIN chat_interno_participante p2 ON p2.conversa_id = c.id AND p2.usuario_id = segundo
+     WHERE c.tipo = 'DIRETA' LIMIT 1;
+    IF conversa IS NOT NULL THEN
+        RETURN conversa;
+    END IF;
+
+    conversa := gen_random_uuid();
+    INSERT INTO chat_interno_conversa(id, tipo) VALUES (conversa, 'DIRETA');
+    INSERT INTO chat_interno_participante(conversa_id, usuario_id)
+        VALUES (conversa, primeiro), (conversa, segundo);
+    RETURN conversa;
+END;
+$$;
+ALTER FUNCTION app_criar_conversa_direta(UUID, UUID) OWNER TO synapse_chat_rls;
 
 CREATE POLICY rls_chat_conversa ON chat_interno_conversa
     FOR ALL
@@ -41,11 +79,38 @@ CREATE POLICY rls_chat_conversa ON chat_interno_conversa
     WITH CHECK (app_usuario_id() IS NOT NULL);
 
 CREATE POLICY rls_chat_participante ON chat_interno_participante
-    FOR ALL
+    FOR INSERT
+    -- Participantes só entram pela função SECURITY DEFINER acima, que valida o
+    -- par e insere os dois lados atomicamente. INSERT direto nunca faz bootstrap.
+    WITH CHECK (FALSE);
+
+CREATE POLICY rls_chat_participante_leitura ON chat_interno_participante
+    FOR SELECT
+    USING (usuario_id = app_usuario_id() OR app_chat_participa(conversa_id));
+
+CREATE POLICY rls_chat_participante_atualizacao ON chat_interno_participante
+    FOR UPDATE
     USING (usuario_id = app_usuario_id() OR app_chat_participa(conversa_id))
-    WITH CHECK (usuario_id = app_usuario_id() OR app_chat_participa(conversa_id));
+    WITH CHECK (usuario_id = app_usuario_id() AND app_chat_participa(conversa_id));
+
+CREATE POLICY rls_chat_participante_remocao ON chat_interno_participante
+    FOR DELETE
+    USING (usuario_id = app_usuario_id() OR app_chat_participa(conversa_id));
 
 CREATE POLICY rls_chat_mensagem ON chat_interno_mensagem
     FOR ALL
     USING (app_chat_participa(conversa_id))
     WITH CHECK (remetente_id = app_usuario_id() AND app_chat_participa(conversa_id));
+
+REVOKE EXECUTE ON FUNCTION app_chat_participa(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION app_criar_conversa_direta(UUID, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_chat_participa(UUID) TO synapse_app;
+GRANT EXECUTE ON FUNCTION app_criar_conversa_direta(UUID, UUID) TO synapse_app;
+
+-- A função já tem o owner correto; não deixe o usuário da migration manter
+-- membership em uma role BYPASSRLS depois que o deploy terminar.
+DO $$
+BEGIN
+    EXECUTE format('REVOKE synapse_chat_rls FROM %I', current_user);
+END
+$$;
