@@ -90,6 +90,31 @@ Os limites de midia do exemplo sao 5 MB (imagem), 16 MB (audio) e 100 MB
 Meta antes do primeiro dado real; o script exige que os tres sejam declarados
 na configuracao da instancia.
 
+## Corrigir so o funil (`funil-padrao.sql`)
+
+O funil e montado por `SYNAPSE_ETAPAS_JSON` dentro do provisionamento. Ate
+23/08 o arquivo de exemplo entregava tres etapas, enquanto o seed exige no
+minimo cinco — uma instancia provisionada pelo exemplo nascia incapaz de
+receber o seed, e o erro so aparecia la na frente:
+
+```
+ERROR:  funil incompleto; provisione pelo menos cinco etapas antes do seed
+```
+
+O exemplo foi corrigido. Para uma instancia **ja provisionada** com o funil
+curto, `funil-padrao.sql` aplica exatamente o mesmo bloco de etapas do
+provisionamento, sem tocar em canal, credencial, tags ou configuracao:
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  < docker/provisionamento/funil-padrao.sql
+```
+
+`ON CONFLICT (ordem) DO UPDATE` **renomeia** as etapas que ja ocupam as
+ordens 1..6: um lead que estava na ordem 2 passa a exibir o nome novo da
+ordem 2. Em homologacao isso e o desejado. Contra dados de cliente real,
+confira antes qual nome ocupa cada ordem.
+
 ## Seed de demonstracao (E17b)
 
 `seed-demonstracao.sql` e `limpar-demonstracao.sql` sao um par separado de
