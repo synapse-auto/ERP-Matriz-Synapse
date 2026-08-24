@@ -271,6 +271,18 @@ class RlsIsolamentoIT extends PostgresIT {
         assertThat(mensagensVisiveis).isEmpty();
     }
 
+    @Test
+    @DisplayName("funcao de conversa direta recusa chamador fora do par")
+    void criarConversaDireta_chamadorForaDoPar_ehRecusado() {
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+
+        assertThatThrownBy(() -> transacao.execute(status -> {
+                    jdbc.queryForObject("SELECT app_criar_conversa_direta(?, ?)", UUID.class, bruno, gestor);
+                    return null;
+                }))
+                .isInstanceOf(DataAccessException.class);
+    }
+
     private String contagemDeLeads() {
         return "SELECT count(*) FROM lead WHERE nome LIKE '" + marcador + "%'";
     }

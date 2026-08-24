@@ -53,13 +53,13 @@ class ChatInternoController {
         this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.ler = ler;
     }
 
-    @Operation(summary = "Listar conversas", responses = @ApiResponse(responseCode = "200", description = "Conversas das quais o usuário participa."))
+    @Operation(summary = "Listar conversas", description = "Lista as conversas internas das quais o usuário autenticado participa, com última mensagem e contador individual de não lidas.", responses = @ApiResponse(responseCode = "200", description = "Conversas das quais o usuário participa."))
     @GetMapping("/conversas")
     List<ConversaResposta> listar() {
         return listar.executar().stream().map(ConversaResposta::de).toList();
     }
 
-    @Operation(summary = "Listar contatos do chat", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
+    @Operation(summary = "Listar contatos do chat", description = "Lista integrantes ativos disponíveis para iniciar uma conversa direta, sem expor credenciais ou dados pessoais desnecessários.", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
     @GetMapping("/contatos")
     List<ContatoResposta> contatos() {
         return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome())).toList();
@@ -72,7 +72,7 @@ class ChatInternoController {
         return new ConversaCriada(abrir.executar(requisicao.usuarioId()));
     }
 
-    @Operation(summary = "Listar mensagens", responses = {
+    @Operation(summary = "Listar mensagens", description = "Consulta o histórico paginado da conversa em ordem cronológica; o cursor permite buscar mensagens anteriores sem acessar conversas alheias.", responses = {
             @ApiResponse(responseCode = "200", description = "Mensagens em ordem cronológica."),
             @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
     @GetMapping("/conversas/{id}/mensagens")
@@ -82,7 +82,7 @@ class ChatInternoController {
         return PaginaResposta.de(mensagens.executar(id, antesDe, limite));
     }
 
-    @Operation(summary = "Enviar mensagem de texto", responses = {
+    @Operation(summary = "Enviar mensagem de texto", description = "Persiste uma mensagem textual para os participantes da conversa e publica a notificação em tempo real.", responses = {
             @ApiResponse(responseCode = "201", description = "Mensagem persistida."),
             @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
     @PostMapping("/conversas/{id}/mensagens")
@@ -91,7 +91,7 @@ class ChatInternoController {
         return MensagemResposta.de(enviar.executar(id, requisicao.conteudo()));
     }
 
-    @Operation(summary = "Marcar conversa como lida", responses = @ApiResponse(responseCode = "204", description = "Leitura individual atualizada."))
+    @Operation(summary = "Marcar conversa como lida", description = "Atualiza somente o marcador de leitura do usuário autenticado; a leitura é individual e não altera a fila de outro participante.", responses = @ApiResponse(responseCode = "204", description = "Leitura individual atualizada."))
     @PostMapping("/conversas/{id}/leitura")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void marcarComoLida(@PathVariable UUID id) { ler.executar(id); }

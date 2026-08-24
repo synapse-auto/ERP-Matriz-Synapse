@@ -207,39 +207,61 @@ class AtendimentoAcoesController {
         return AtendimentoResumo.de(atualizado);
     }
 
-    @Operation(summary = "Pedir entrada em atendimento", description = "Solicita ao responsável acesso colaborativo sem mudar o dono comercial.")
+    @Operation(summary = "Pedir entrada em atendimento", description = "Solicita ao responsável acesso colaborativo sem mudar o dono comercial. O pedido não libera histórico nem altera o atendente.", responses = {
+            @ApiResponse(responseCode = "200", description = "Pedido criado ou pedido pendente já existente."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente, finalizado ou não visível.")})
     @PostMapping("/{id}/pedir-entrada")
     PedidoEntradaResposta pedirEntrada(@PathVariable UUID id) { return new PedidoEntradaResposta(participacao.solicitar(id)); }
 
-    @Operation(summary = "Pedir entrada pelo contato da Agenda")
+    @Operation(summary = "Pedir entrada pelo contato da Agenda", description = "Localiza o atendimento aberto do lead e cria um pedido estreito, sem expor histórico, ficha ou etapa ao solicitante.", responses = {
+            @ApiResponse(responseCode = "200", description = "Pedido criado ou pedido pendente já existente."),
+            @ApiResponse(responseCode = "404", description = "Lead sem atendimento aberto ou não visível.")})
     @PostMapping("/pedir-entrada")
     PedidoEntradaResposta pedirEntradaPorLead(@RequestParam UUID leadId) { return new PedidoEntradaResposta(participacao.solicitarPorLead(leadId)); }
 
-    @Operation(summary = "Entrar diretamente em atendimento", description = "Disponível somente para papéis com alçada ampla; não altera o responsável.")
+    @Operation(summary = "Entrar diretamente em atendimento", description = "Disponível somente para papéis com alçada ampla; não altera o responsável comercial e registra a entrada colaborativa.", responses = {
+            @ApiResponse(responseCode = "204", description = "Usuário entrou ou já estava no atendimento."),
+            @ApiResponse(responseCode = "403", description = "Papel sem alçada para entrada direta."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")})
     @PostMapping("/{id}/entrar")
     void entrar(@PathVariable UUID id) { participacao.entrar(id); }
 
-    @Operation(summary = "Sair de atendimento colaborativo")
+    @Operation(summary = "Sair de atendimento colaborativo", description = "Encerra a participação do usuário autenticado sem alterar o responsável comercial.", responses = {
+            @ApiResponse(responseCode = "204", description = "Participação encerrada ou já encerrada."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")})
     @PostMapping("/{id}/sair")
     void sair(@PathVariable UUID id) { participacao.sair(id); }
 
-    @Operation(summary = "Aprovar pedido de entrada")
+    @Operation(summary = "Aprovar pedido de entrada", description = "O responsável aprova o pedido e adiciona o solicitante como participante, sem transferir a propriedade do atendimento.", responses = {
+            @ApiResponse(responseCode = "204", description = "Pedido aprovado."),
+            @ApiResponse(responseCode = "403", description = "Somente o responsável pode aprovar."),
+            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou expirado.")})
     @PostMapping("/pedidos-entrada/{pedidoId}/aprovar")
     void aprovar(@PathVariable UUID pedidoId) { participacao.aprovar(pedidoId); }
 
-    @Operation(summary = "Recusar pedido de entrada")
+    @Operation(summary = "Recusar pedido de entrada", description = "O responsável recusa o pedido sem alterar o responsável nem conceder acesso ao atendimento.", responses = {
+            @ApiResponse(responseCode = "204", description = "Pedido recusado."),
+            @ApiResponse(responseCode = "403", description = "Somente o responsável pode recusar."),
+            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou expirado.")})
     @PostMapping("/pedidos-entrada/{pedidoId}/recusar")
     void recusar(@PathVariable UUID pedidoId) { participacao.recusar(pedidoId); }
 
-    @Operation(summary = "Listar participantes do atendimento")
+    @Operation(summary = "Listar participantes do atendimento", description = "Lista participantes ativos e históricos conforme a autorização do atendimento; não altera a propriedade comercial.", responses = {
+            @ApiResponse(responseCode = "200", description = "Participantes do atendimento."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")})
     @GetMapping("/{id}/participantes")
     java.util.List<ParticipanteAtendimento> participantes(@PathVariable UUID id) { return participacao.participantes(id); }
 
-    @Operation(summary = "Listar pedidos de entrada pendentes")
+    @Operation(summary = "Listar pedidos de entrada pendentes", description = "Lista pedidos pendentes que o responsável pode avaliar, sem expor dados de histórico ao solicitante.", responses = {
+            @ApiResponse(responseCode = "200", description = "Pedidos pendentes."),
+            @ApiResponse(responseCode = "403", description = "Usuário não pode administrar pedidos deste atendimento."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")})
     @GetMapping("/{id}/pedidos-entrada")
     java.util.List<PedidoEntradaAtendimento> pedidos(@PathVariable UUID id) { return participacao.pendentes(id); }
 
-    @Operation(summary = "Consultar meu pedido de entrada")
+    @Operation(summary = "Consultar meu pedido de entrada", description = "Retorna somente o pedido do usuário autenticado para o atendimento informado.", responses = {
+            @ApiResponse(responseCode = "200", description = "Pedido atual ou resposta vazia quando não existe."),
+            @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")})
     @GetMapping("/{id}/pedido-entrada/meu")
     java.util.Optional<PedidoEntradaAtendimento> meuPedido(@PathVariable UUID id) { return participacao.meuPedido(id); }
 

@@ -71,6 +71,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "chat_interno_conversa",
                     "chat_interno_mensagem",
                     "chat_interno_participante",
+                    "atendimento_participante",
+                    "pedido_entrada_atendimento",
                     "configuracao_automacao",
                     "configuracao_resumo_ia",
                     "disponibilidade_atendente_ia",
@@ -175,6 +177,12 @@ class SchemaMigracoesIT extends PostgresIT {
                             "idx_evento_timeline_tipo_criado_em",
                             "idx_msg_rapida_atendente_chave",
                             "idx_mensagem_atendimento");
+            assertThat(existentes)
+                    .contains(
+                            "uq_atendimento_participante_ativo",
+                            "uq_pedido_entrada_pendente",
+                            "idx_pedido_entrada_atendimento",
+                            "idx_chat_interno_msg_conversa");
         }
 
         @Test
