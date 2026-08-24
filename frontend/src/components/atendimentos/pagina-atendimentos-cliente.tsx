@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -14,6 +14,7 @@ import { marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   MensagemResposta,
+  TransferenciaRecebidaTempoReal,
   VisaoAtendimento,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -38,6 +39,8 @@ export function PaginaAtendimentosCliente({
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
+  const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
+  const [notificacao, setNotificacao] = useState<TransferenciaRecebidaTempoReal | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
 
@@ -52,7 +55,17 @@ export function PaginaAtendimentosCliente({
         return null;
       });
     },
+    (evento) => {
+      setNotificacao(evento.dados);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
   );
+
+  useEffect(() => {
+    if (estado === "conectado") {
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    }
+  }, [cache, estado]);
 
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
@@ -87,13 +100,39 @@ export function PaginaAtendimentosCliente({
     <div
       className={
         conversa
-          ? "grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
-          : "grid h-full grid-cols-[346px_1fr] overflow-hidden"
+          ? "relative grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
+          : "relative grid h-full grid-cols-[346px_1fr] overflow-hidden"
       }
     >
+      {notificacao && (
+        <div
+          className="pointer-events-auto absolute right-4 top-4 z-30 w-80 rounded-xl border border-border bg-background p-4 shadow-lg"
+          role="status"
+        >
+          <p className="font-semibold text-foreground">
+            {textos.tempoReal.transferenciaRecebida}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {textos.tempoReal.transferenciaRecebidaDescricao.replace(
+              "{nome}",
+              notificacao.leadNome,
+            )}
+          </p>
+          <button
+            type="button"
+            className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline"
+            onClick={() => {
+              setLeadParaAbrir(notificacao.leadId);
+              setNotificacao(null);
+            }}
+          >
+            {textos.tempoReal.abrirTransferencia}
+          </button>
+        </div>
+      )}
       <ListaConversas
         selecionadoId={conversa?.atendimentoId ?? null}
-        leadInicialId={leadInicialId}
+        leadInicialId={leadParaAbrir}
         visaoInicial={visaoInicial}
         onAbrirAtendimento={abrirAtendimento}
       />

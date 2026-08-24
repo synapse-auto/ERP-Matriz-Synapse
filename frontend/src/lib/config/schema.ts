@@ -235,6 +235,9 @@ export const TextosSchema = z.object({
     tempoReal: z.object({
       reconectando: z.string(),
       conversaEncerrada: z.string(),
+      transferenciaRecebida: z.string(),
+      transferenciaRecebidaDescricao: z.string(),
+      abrirTransferencia: z.string(),
     }),
     media: z.object({
       imagem: z.string(),

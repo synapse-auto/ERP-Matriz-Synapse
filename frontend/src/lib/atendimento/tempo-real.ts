@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 
-import type { EventoTempoReal, MensagemResposta, RevogacaoTempoReal } from "./types";
+import type {
+  EventoTempoReal,
+  MensagemResposta,
+  NotificacaoTempoReal,
+  RevogacaoTempoReal,
+} from "./types";
 
 export type EstadoConexao = "conectando" | "conectado" | "reconectando" | "desconectado";
 
@@ -25,11 +30,13 @@ export interface OpcoesConexaoTempoReal {
   onEstadoMudou?: (estado: EstadoConexao) => void;
   /** A conversa aberta foi revogada (ex.: transferência) — quem chama decide o que mostrar. */
   onRevogacao?: (atendimentoId: string) => void;
+  onNotificacao?: (notificacao: NotificacaoTempoReal) => void;
   /** Injeção para teste — por padrão cria um Client real do @stomp/stompjs. */
   criarCliente?: (opcoes: { brokerUrl: string; accessToken: string | null }) => ClienteStompLike;
 }
 
 const DESTINO_REVOGACOES = "/user/queue/revogacoes";
+export const DESTINO_NOTIFICACOES = "/user/queue/notificacoes";
 const destinoAtendimento = (id: string) => `/user/queue/atendimento.${id}`;
 
 function clienteStompPadrao(opcoes: {
@@ -100,6 +107,7 @@ export function mesclarMensagens(
 export class ConexaoTempoReal {
   private cliente: ClienteStompLike | null = null;
   private assinaturaAtendimento: StompSubscription | null = null;
+  private assinaturaNotificacoes: StompSubscription | null = null;
   private atendimentoAberto: string | null = null;
   private onEventoAtual: ((evento: EventoTempoReal) => void) | null = null;
   private tentativas = 0;
@@ -120,6 +128,7 @@ export class ConexaoTempoReal {
       this.timerReconexao = null;
     }
     this.assinaturaAtendimento = null;
+    this.assinaturaNotificacoes = null;
     this.atendimentoAberto = null;
     this.onEventoAtual = null;
     this.cliente?.deactivate();
@@ -174,6 +183,12 @@ export class ConexaoTempoReal {
           this.opcoes.onRevogacao?.(revogacao.atendimentoId);
         }
       });
+      this.assinaturaNotificacoes = cliente.subscribe(DESTINO_NOTIFICACOES, (mensagem) => {
+        const notificacao = JSON.parse(mensagem.body) as NotificacaoTempoReal;
+        if (notificacao.tipo === "TRANSFERENCIA_RECEBIDA") {
+          this.opcoes.onNotificacao?.(notificacao);
+        }
+      });
       if (this.atendimentoAberto && this.onEventoAtual) {
         this.assinaturaAtendimento = this.assinar(this.atendimentoAberto, this.onEventoAtual) ?? null;
       }
@@ -209,6 +224,7 @@ export class ConexaoTempoReal {
 export function useConexaoTempoReal(
   obterAccessToken: () => string | null,
   onRevogacao?: (atendimentoId: string) => void,
+  onNotificacao?: (notificacao: NotificacaoTempoReal) => void,
 ): { conexao: ConexaoTempoReal; estado: EstadoConexao } {
   const [estado, setEstado] = useState<EstadoConexao>("desconectado");
   const [conexao] = useState(
@@ -218,6 +234,7 @@ export function useConexaoTempoReal(
         obterAccessToken,
         onEstadoMudou: setEstado,
         onRevogacao,
+        onNotificacao,
       }),
   );
 

@@ -75,6 +75,8 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     private static final String SQL_CONTATO =
             "SELECT telefone, ultima_interacao_em FROM lead WHERE id = ?";
 
+    private static final String SQL_NOME = "SELECT nome FROM lead WHERE id = ?";
+
     private static final String SQL_POR_TELEFONE =
             "SELECT id FROM lead WHERE telefone = ? ORDER BY criado_em LIMIT 1";
 
@@ -178,6 +180,17 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                                 linha.getString("telefone"),
                                 Optional.ofNullable(linha.getTimestamp("ultima_interacao_em"))
                                         .map(Timestamp::toInstant)),
+                        leadId)
+                .stream()
+                .findFirst();
+    }
+
+    @Override
+    public Optional<String> nomeParaTempoReal(UUID leadId) {
+        TransacaoObrigatoria.exigir("nomeParaTempoReal");
+        return chat.query(
+                        SQL_NOME,
+                        (linha, indice) -> linha.getString("nome"),
                         leadId)
                 .stream()
                 .findFirst();

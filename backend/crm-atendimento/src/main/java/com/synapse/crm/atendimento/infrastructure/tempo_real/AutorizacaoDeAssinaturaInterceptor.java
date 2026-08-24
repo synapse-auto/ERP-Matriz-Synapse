@@ -40,6 +40,7 @@ class AutorizacaoDeAssinaturaInterceptor implements ChannelInterceptor {
      * de broadcast nativo, que entregaria a QUALQUER assinante sem checar nada.
      */
     static final String PREFIXO_DESTINO = "/user/queue/atendimento.";
+    static final String DESTINO_NOTIFICACOES = "/user" + RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES;
 
     private final AutorizarAssinaturaAtendimentoUseCase autorizar;
     private final RegistroDeAssinaturas registro;
@@ -63,6 +64,13 @@ class AutorizacaoDeAssinaturaInterceptor implements ChannelInterceptor {
         }
 
         String destino = acessor.getDestination();
+        if (DESTINO_NOTIFICACOES.equals(destino)) {
+            return autenticado(acessor) ? mensagem : null;
+        }
+        if (destino != null && destino.startsWith("/user/") && destino.endsWith("/queue/notificacoes")) {
+            log.warn("SUBSCRIBE direcionado a outro usuario recusado: {}", destino);
+            return null;
+        }
         if (destino == null || !destino.startsWith(PREFIXO_DESTINO)) {
             // Outras filas pessoais (ex.: /user/queue/atendimento.revogado) nao
             // precisam de autorizacao adicional: o mecanismo de destino-por-usuario
@@ -100,6 +108,11 @@ class AutorizacaoDeAssinaturaInterceptor implements ChannelInterceptor {
                 UUID.fromString(jwt.getSubject()),
                 PapelUsuario.valueOf(jwt.getClaimAsString(ClaimsJwt.PAPEL))));
         return mensagem;
+    }
+
+    private static boolean autenticado(StompHeaderAccessor acessor) {
+        return acessor.getUser() instanceof Authentication autenticacao
+                && autenticacao.getPrincipal() instanceof Jwt;
     }
 
     private static UUID extrairAtendimentoId(String destino) {

@@ -83,7 +83,13 @@ const TEXTOS_FIXTURE = {
       agendar: "",
       mensagensRapidas: "",
     },
-    tempoReal: { reconectando: "", conversaEncerrada: "" },
+    tempoReal: {
+      reconectando: "",
+      conversaEncerrada: "",
+      transferenciaRecebida: "",
+      transferenciaRecebidaDescricao: "",
+      abrirTransferencia: "",
+    },
     media: { imagem: "", audio: "", documento: "", baixar: "" },
   },
 } satisfies ParcialProfundo<Textos>;

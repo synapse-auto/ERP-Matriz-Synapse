@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.Message;
@@ -41,6 +42,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     // com o prefixo faria a PROPRIA assinatura de revogacao ser cancelada como
     // "destino malformado" — o aviso nunca chegaria a quem mais precisa dele.
     private static final String DESTINO_REVOGACAO = "/queue/revogacoes";
+    static final String DESTINO_NOTIFICACOES = "/queue/notificacoes";
 
     private final RegistroDeAssinaturas registro;
     private final SimpMessagingTemplate template;
@@ -80,6 +82,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
 
         if ("TRANSFERENCIA".equals(tipo)) {
             revogarQuemPerdeuAcesso(atendimentoId, dados);
+            avisarRecebedor(dados);
         }
 
         // Um usuario pode ter mais de uma sessao (duas abas) autorizadas ao mesmo
@@ -94,6 +97,37 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                 enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpo);
             }
         }
+    }
+
+    private void avisarRecebedor(JsonNode dados) {
+        JsonNode paraNo = dados.path("paraAtendenteId");
+        if (paraNo.isMissingNode() || paraNo.isNull() || paraNo.asText().isBlank()) {
+            return;
+        }
+        UUID paraAtendenteId;
+        try {
+            paraAtendenteId = UUID.fromString(paraNo.asText());
+        } catch (IllegalArgumentException e) {
+            log.warn("Transferencia com destinatario invalido no evento de tempo real.", e);
+            return;
+        }
+
+        JsonNode atorNo = dados.path("quemTransferiu");
+        if (!atorNo.isNull() && !atorNo.isMissingNode() && paraAtendenteId.toString().equals(atorNo.asText())) {
+            return;
+        }
+
+        ObjectNode envelope = json.createObjectNode();
+        envelope.put("tipo", "TRANSFERENCIA_RECEBIDA");
+        ObjectNode aviso = json.createObjectNode();
+        aviso.set("atendimentoId", dados.path("atendimentoId"));
+        aviso.set("leadId", dados.path("leadId"));
+        aviso.set("leadNome", dados.path("leadNome"));
+        aviso.set("quemTransferiu", dados.path("quemTransferiu"));
+        aviso.set("atorTipo", dados.path("atorTipo"));
+        aviso.set("ocorridoEm", dados.path("ocorridoEm"));
+        envelope.set("dados", aviso);
+        enviarParaUsuario(paraAtendenteId, DESTINO_NOTIFICACOES, envelope.toString());
     }
 
     /**

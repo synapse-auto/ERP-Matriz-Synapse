@@ -130,11 +130,48 @@ describe("ConexaoTempoReal", () => {
     expect(indiceConectado).toBeGreaterThan(indiceAtendimento);
   });
 
+  it("assina a fila pessoal e encaminha avisos de transferência", () => {
+    const { cliente, chamadas } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onNotificacao,
+      criarCliente: () => cliente,
+    });
+
+    conexao.conectar();
+
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    callback?.({
+      body: JSON.stringify({
+        tipo: "TRANSFERENCIA_RECEBIDA",
+        dados: {
+          atendimentoId: "a",
+          leadId: "l",
+          leadNome: "Lead",
+          quemTransferiu: null,
+          atorTipo: "AUTOMACAO",
+          ocorridoEm: "2026-08-23T12:00:00Z",
+        },
+      }),
+    });
+
+    expect(chamadas).toContain("subscribe:/user/queue/notificacoes");
+    expect(onNotificacao).toHaveBeenCalledOnce();
+  });
+
   it("trocar de conversa desassina a anterior antes de assinar a nova", () => {
     const { cliente } = clienteStompFalso();
     const unsubscribeConversa1 = vi.fn();
     (cliente.subscribe as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
       id: "revogacoes",
+      unsubscribe: vi.fn(),
+    }));
+    (cliente.subscribe as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({
+      id: "notificacoes",
       unsubscribe: vi.fn(),
     }));
     (cliente.subscribe as ReturnType<typeof vi.fn>).mockImplementationOnce(() => ({

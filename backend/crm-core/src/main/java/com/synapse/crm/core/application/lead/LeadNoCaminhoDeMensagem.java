@@ -18,10 +18,14 @@ import com.synapse.crm.core.domain.lead.StatusBasicoLead;
  * <p>Quem implementa mora em crm-core, e nao em crm-atendimento, porque a tabela {@code lead} e deste
  * modulo. crm-atendimento pede; crm-core decide como escreve.
  *
- * <p>Repare no que esta porta <b>nao</b> tem: nenhum metodo de leitura de ficha. Consultar lead
- * continua sendo assunto do {@link LeadRepositorio}, que nao sabe consultar sem a visibilidade.
+ * <p>Repare no que esta porta <b>nao</b> tem: nenhum metodo de leitura de ficha. A unica excecao e o
+ * nome curto usado no envelope de tempo real, lido na mesma conexao do caminho critico; consultar a
+ * ficha continua sendo assunto do {@link LeadRepositorio}, que nao sabe consultar sem a visibilidade.
  */
 public interface LeadNoCaminhoDeMensagem {
+
+    /** Nome curto para eventos publicados depois do commit, sem carregar a ficha completa. */
+    Optional<String> nomeParaTempoReal(UUID leadId);
 
     /**
      * Paga a divida da E03b: contadores e {@code ultima_interacao_em} numa tacada so.

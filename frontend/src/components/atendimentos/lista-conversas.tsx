@@ -75,6 +75,10 @@ export function ListaConversas({
   const abriuLeadInicial = useRef(false);
 
   useEffect(() => {
+    abriuLeadInicial.current = false;
+  }, [leadInicialId]);
+
+  useEffect(() => {
     if (!leadInicialId || abriuLeadInicial.current || !data) return;
     const cartao = data.find((item) => item.leadId === leadInicialId);
     if (cartao) {

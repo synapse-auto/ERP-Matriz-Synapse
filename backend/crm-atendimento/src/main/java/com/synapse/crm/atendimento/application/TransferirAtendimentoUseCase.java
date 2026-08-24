@@ -113,6 +113,7 @@ public class TransferirAtendimentoUseCase {
 
         eventos.publishEvent(new EventoDeAtendimento.AtendimentoTransferido(
                 antes.leadId(),
+                leads.nomeParaTempoReal(antes.leadId()).orElse(""),
                 antes.id(),
                 antes.atendenteId(),
                 paraAtendenteId,

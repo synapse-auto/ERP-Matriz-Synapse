@@ -127,9 +127,20 @@ export interface StatusTempoReal {
 export interface TransferenciaTempoReal {
   atendimentoId: string;
   leadId: string;
+  leadNome: string;
   deAtendenteId: string | null;
   paraAtendenteId: string | null;
-  quemTransferiu: string;
+  quemTransferiu: string | null;
+  atorTipo: "USUARIO" | "AUTOMACAO" | "SISTEMA";
+  ocorridoEm: string;
+}
+
+export interface TransferenciaRecebidaTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  leadNome: string;
+  quemTransferiu: string | null;
+  atorTipo: "USUARIO" | "AUTOMACAO" | "SISTEMA";
   ocorridoEm: string;
 }
 
@@ -145,6 +156,11 @@ export type EventoTempoReal =
   | { tipo: "STATUS"; dados: StatusTempoReal }
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
   | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal };
+
+export type NotificacaoTempoReal = {
+  tipo: "TRANSFERENCIA_RECEBIDA";
+  dados: TransferenciaRecebidaTempoReal;
+};
 
 /** Payload de /user/queue/revogacoes. */
 export interface RevogacaoTempoReal {

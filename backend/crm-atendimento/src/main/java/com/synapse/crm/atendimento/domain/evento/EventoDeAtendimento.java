@@ -68,6 +68,7 @@ public sealed interface EventoDeAtendimento {
      */
     record AtendimentoTransferido(
             UUID leadId,
+            String leadNome,
             UUID atendimentoId,
             UUID deAtendenteId,
             UUID paraAtendenteId,

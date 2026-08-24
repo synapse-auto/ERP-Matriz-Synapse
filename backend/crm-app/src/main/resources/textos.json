@@ -166,7 +166,10 @@
     },
     "tempoReal": {
       "reconectando": "Reconectando...",
-      "conversaEncerrada": "Esta conversa não está mais disponível para você."
+      "conversaEncerrada": "Esta conversa não está mais disponível para você.",
+      "transferenciaRecebida": "Novo atendimento recebido",
+      "transferenciaRecebidaDescricao": "{nome} foi transferido para você.",
+      "abrirTransferencia": "Abrir atendimento"
     },
     "media": {
       "imagem": "Imagem",

@@ -91,6 +91,7 @@ class RelayDeTempoRealListener {
         ObjectNode dados = json.createObjectNode();
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("leadId", evento.leadId().toString());
+        dados.put("leadNome", evento.leadNome());
         dados.put(
                 "deAtendenteId", evento.deAtendenteId() == null ? null : evento.deAtendenteId().toString());
         dados.put(
