@@ -110,10 +110,7 @@ ON CONFLICT (id) DO UPDATE
 -- deixa a Base PAI ligar essas abas para um filho futuro sem deploy de codigo novo.
 INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
     ('campanhas',        FALSE, 'Aba de campanhas e motor de envio.'),
-    -- E16 §Bloco 2: so a V8__chat_interno.sql existe — nenhum modulo crm-chat-interno
-    -- (domain/application/repository/controller) foi construido. Flag mentindo TRUE
-    -- treinaria todo mundo a ignorar flag; ver docs/09 §1.2.
-    ('chat_interno',     FALSE, 'Chat entre atendentes e gestores.'),
+    ('chat_interno',     TRUE, 'Chat direto de texto entre integrantes da equipe.'),
     ('fidelizacao',      TRUE, 'Regras de fidelizacao e reengajamento.'),
     ('relatorios',       FALSE, 'Aba de relatorios.'),
     ('banco_arquivos',   FALSE, 'Aba de banco de arquivos.'),

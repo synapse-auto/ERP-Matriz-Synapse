@@ -13,12 +13,14 @@ import java.util.UUID;
 final class CanaisRedis {
 
     private static final String PREFIXO = "synapse:atendimento:";
+    private static final String PREFIXO_CHAT = "synapse:chat-interno:";
 
     /** Padrao de assinatura do container: casa com {@link #doAtendimento(UUID)} de qualquer id. */
     static final String PADRAO = PREFIXO + "*";
 
     /** Presenca e transversal: um canal so, sem dado de lead nenhum dentro. */
     static final String PRESENCA = "synapse:presenca";
+    static final String PADRAO_CHAT = PREFIXO_CHAT + "*";
 
     static String doAtendimento(UUID atendimentoId) {
         return PREFIXO + atendimentoId;
@@ -35,6 +37,8 @@ final class CanaisRedis {
             return null;
         }
     }
+
+    static boolean eChatInterno(String canal) { return canal != null && canal.startsWith(PREFIXO_CHAT); }
 
     private CanaisRedis() {}
 }

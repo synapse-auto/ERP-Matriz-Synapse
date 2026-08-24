@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 22 migrations · 39 tabelas · 17 tipos enumerados · 36 índices · 4 políticas RLS · 9 funções
-**Última migration:** `V22__indice_historico_etapa.sql`
+**Estado:** 37 migrations · 39 tabelas · 17 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V37__chat_interno_leitura_e_rls.sql`
 
 ---
 
@@ -33,6 +33,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V20__ator_estruturado_timeline` | `evento_timeline.ator_id` + `dados` JSONB |
 | `V21__resultado_etapa` | ENUM `resultado_etapa`, coluna em etapa e unicidade parcial de `GANHO` |
 | `V22__indice_historico_etapa` | Índice `(tipo, criado_em)` para métricas e início explícito do histórico de transições |
+| `V37__chat_interno_leitura_e_rls` | `lido_ate`, índice temporal e RLS do chat interno |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -114,9 +115,9 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 
 `configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva`, `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton)
 
-### 3.7 Chat interno *(fora da primeira entrega)*
+### 3.7 Chat interno *(E44 — fase direta de texto)*
 
-`chat_interno_conversa`, `chat_interno_participante`, `chat_interno_mensagem`
+`chat_interno_conversa`, `chat_interno_participante` (com `lido_ate`), `chat_interno_mensagem`. A V37 aplica RLS por participação e mantém o índice temporal da V10 de forma idempotente. A função booleana de participação usa a role `synapse_chat_rls` (NOLOGIN/BYPASSRLS) apenas para evitar recursão da própria política; a aplicação continua assumindo `synapse_app`.
 
 ### 3.8 Infraestrutura transversal
 

@@ -133,6 +133,21 @@ export const TextosSchema = z.object({
     emConstrucao: z.string(),
     sessaoExpirada: z.string(),
   }),
+  chatInterno: z.object({
+    titulo: z.string(),
+    novaConversa: z.string(),
+    selecionarPessoa: z.string(),
+    conversas: z.string(),
+    semConversas: z.string(),
+    selecioneConversa: z.string(),
+    semMensagens: z.string(),
+    placeholder: z.string(),
+    enviar: z.string(),
+    carregando: z.string(),
+    erro: z.string(),
+    erroEnviar: z.string(),
+    naoLidas: z.string(),
+  }),
   atendimentos: z.object({
     canais: z.object({
       whatsapp: z.string(),

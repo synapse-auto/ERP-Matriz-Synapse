@@ -30,6 +30,7 @@ class RedisConfig {
         container.setConnectionFactory(conexao);
         container.setTaskExecutor(executorDoRedis(propriedades));
         container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO));
+        container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO_CHAT));
         return container;
     }
 

@@ -63,12 +63,16 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     @Override
     public void onMessage(Message mensagem, byte[] padrao) {
         String canal = new String(mensagem.getChannel(), StandardCharsets.UTF_8);
+        String corpo = new String(mensagem.getBody(), StandardCharsets.UTF_8);
+        if (CanaisRedis.eChatInterno(canal)) {
+            entregarChatInterno(corpo);
+            return;
+        }
         UUID atendimentoId = CanaisRedis.atendimentoDoCanal(canal);
         if (atendimentoId == null) {
             return;
         }
 
-        String corpo = new String(mensagem.getBody(), StandardCharsets.UTF_8);
         JsonNode envelope;
         try {
             envelope = json.readTree(corpo);
@@ -102,6 +106,26 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             if (usuariosEntregues.add(assinatura.usuarioId())) {
                 enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpo);
             }
+        }
+    }
+
+    private void entregarChatInterno(String corpo) {
+        try {
+            JsonNode envelope = json.readTree(corpo);
+            for (JsonNode destinatario : envelope.path("destinatarios")) {
+                ObjectNode notificacao = json.createObjectNode();
+                notificacao.put("tipo", "CHAT_INTERNO_MENSAGEM");
+                ObjectNode dados = json.createObjectNode();
+                dados.set("conversaId", envelope.path("conversaId"));
+                dados.set("mensagemId", envelope.path("mensagemId"));
+                dados.set("remetenteId", envelope.path("remetenteId"));
+                dados.set("conteudo", envelope.path("conteudo"));
+                dados.set("enviadoEm", envelope.path("enviadoEm"));
+                notificacao.set("dados", dados);
+                enviarParaUsuario(UUID.fromString(destinatario.asText()), DESTINO_NOTIFICACOES, notificacao.toString());
+            }
+        } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.warn("Envelope de chat interno ilegivel.", e);
         }
     }
 

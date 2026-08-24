@@ -56,7 +56,7 @@ export function PaginaAtendimentosCliente({
       });
     },
     (evento) => {
-      setNotificacao(evento.dados);
+      if (evento.tipo === "TRANSFERENCIA_RECEBIDA") setNotificacao(evento.dados);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   );

@@ -79,7 +79,7 @@
 
 | Requisito | Status | Implementação | Teste |
 |---|---|---|---|
-| RF-CRM-45/78 | ❌ **rebaixado de ✅** | `chat_interno_conversa/participante/mensagem` e `status_presenca` existem só na migration (`V8__chat_interno.sql`). Nenhum controller, use case ou WebSocket handler usa essas tabelas. **A flag `chat_interno` está `TRUE`** no seed — mais grave que Automação/Horários: o frontend recebe essa flag como habilitada sem ter nada para mostrar. Ver "Bugs encontrados" | Nenhum |
+| RF-CRM-45/78 | ⚠️ **parcial — E44** | Conversas diretas de texto, API autenticada, RLS, leitura individual e entrega pela fila pessoal (`crm-equipe`, `V37`). Grupos, mídia, busca, reações e links para atendimento continuam fora do escopo. | `ChatInternoUseCaseTest` (6), `RedisSubscriberDeAtendimentoTest.chat_interno_entrega_apenas_aos_participantes_destinatarios` |
 
 ## Equipe, Tags, Mensagens Rápidas, Horários, Arquivos, Lembretes, Mensagens Programadas
 
@@ -149,7 +149,7 @@ Esta seção mistura decisões de arquitetura (verificáveis por código) com na
 
 **23 linhas rebaixadas de ✅** para ❌ ou ⚠️ nesta rodada (contagem no relatório da tarefa). Os achados mais graves, em ordem de gravidade:
 
-1. **`chat_interno` está com a flag `TRUE`** e zero código por trás — o único caso desta auditoria em que uma flag *habilitada* promete algo que não existe, não apenas uma flag desligada sem tela.
+1. **`chat_interno` esteve com a flag `TRUE`** e zero código por trás; a E44 corrigiu o contrato e entregou a fase direta de texto.
 2. **`dashboard` também está com a flag `TRUE`**, sem controller nem rota de frontend — mesmo problema que motivou a E15 para Tags/Automação/Horários, não corrigido para Dashboard.
 3. **Follow-up, Fidelização, Festivas, Aniversário, Rotinas** (RF-CRM-34-38, 72/73, 75) — toda a "Central de Automação" do documento de requisitos original é schema sem aplicação. Só a configuração geral (`configuracao_automacao`) tem código real, e só nesta rodada ganhou leitura por JWT.
 4. **Campanhas** — módulo inteiro vazio, mas isso já era esperado e está registrado em `docs/09`.

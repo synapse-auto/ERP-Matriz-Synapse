@@ -176,7 +176,18 @@ export type EventoTempoReal =
 export type NotificacaoTempoReal = {
   tipo: "TRANSFERENCIA_RECEBIDA";
   dados: TransferenciaRecebidaTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_MENSAGEM";
+  dados: ChatInternoMensagemTempoReal;
 };
+
+export interface ChatInternoMensagemTempoReal {
+  conversaId: string;
+  mensagemId: string;
+  remetenteId: string;
+  conteudo: string;
+  enviadoEm: string;
+}
 
 /** Payload de /user/queue/revogacoes. */
 export interface RevogacaoTempoReal {

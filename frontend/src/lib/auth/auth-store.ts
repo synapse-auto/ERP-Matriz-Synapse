@@ -13,6 +13,7 @@ interface AuthState {
   expiraEm: number | null;
   email: string | null;
   papel: string | null;
+  usuarioId: string | null;
   /** true enquanto a senha for provisória (E29) — decidido pelo backend, só lido aqui. */
   precisaTrocarSenha: boolean;
   status: "carregando" | "autenticado" | "nao-autenticado";
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   expiraEm: null,
   email: null,
   papel: null,
+  usuarioId: null,
   precisaTrocarSenha: false,
   status: "carregando",
   definirSessao: ({ accessToken, expiraEmSegundos, email }) =>
@@ -50,6 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         expiraEm: Date.now() + expiraEmSegundos * 1000,
         email: email ?? estadoAtual.email,
         papel: typeof payload.papel === "string" ? payload.papel : null,
+        usuarioId: typeof payload.sub === "string" ? payload.sub : null,
         precisaTrocarSenha: payload.senha_provisoria === true,
         status: "autenticado",
       };
@@ -60,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       expiraEm: null,
       email: null,
       papel: null,
+      usuarioId: null,
       precisaTrocarSenha: false,
       status: "nao-autenticado",
     }),

@@ -70,6 +70,25 @@ class RedisSubscriberDeAtendimentoTest {
     }
 
     @Test
+    void chat_interno_entrega_apenas_aos_participantes_destinatarios() {
+        String corpo = "{\"tipo\":\"CHAT_INTERNO_MENSAGEM\",\"destinatarios\":[\"" + destinatarioId
+                + "\"],\"conversaId\":\"" + UUID.randomUUID() + "\",\"mensagemId\":\""
+                + UUID.randomUUID() + "\",\"remetenteId\":\"" + transferidorId
+                + "\",\"conteudo\":\"texto\",\"enviadoEm\":\"2026-08-23T12:00:00Z\"}";
+        Message mensagem = mock(Message.class);
+        org.mockito.Mockito.when(mensagem.getChannel()).thenReturn(
+                ("synapse:chat-interno:" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+        org.mockito.Mockito.when(mensagem.getBody()).thenReturn(corpo.getBytes(StandardCharsets.UTF_8));
+
+        subscriber.onMessage(mensagem, null);
+
+        verify(template).convertAndSendToUser(eq(destinatarioId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
+        verify(template, never()).convertAndSendToUser(eq(transferidorId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
+    }
+
+    @Test
     void revogacao_do_dono_anterior_continua_sendo_entregue() {
         registro.registrar(new AssinaturaAutorizada(
                 "sessao", "sub", atendimentoId, donoAnteriorId, PapelUsuario.ATENDENTE));

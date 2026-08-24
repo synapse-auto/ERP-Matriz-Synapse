@@ -23,14 +23,14 @@ A E15b (verificação de código) encontrou que `horario_trabalho` e `rotina_dis
 
 **Isto precisa ser dito à subgestora na homologação.** Não é detalhe técnico: muda a rotina de quem usa — hoje, cobertura fora do horário combinado depende de alguém lembrar de marcar presença como ausente/offline, não de uma janela configurada previamente.
 
-### 1.2 `chat_interno` e `dashboard` — flags que anunciavam o que não existia
+### 1.2 `chat_interno` e `dashboard` — flags e escopo efetivo
 
-A E15b (`docs/05` §Resumo da revisão, itens 1 e 2) encontrou as duas flags com `habilitado = TRUE` no seed sem nenhum código por trás:
+A E15b (`docs/05` §Resumo da revisão, itens 1 e 2) encontrou as duas flags com `habilitado = TRUE` no seed sem nenhum código por trás. A situação foi corrigida:
 
-- **`chat_interno`**: só a migration `V8__chat_interno.sql` existe (`chat_interno_conversa/participante/mensagem`, `status_presenca`). Nenhum domain, application, repository, controller ou handler WebSocket usa essas tabelas. Diferente das demais flags desligadas desta lista, esta é mais grave — não é uma flag `false` sem tela por trás, é uma flag `true` anunciando uma tela que não existe.
+- **`chat_interno`**: a E44 entregou conversas diretas de texto, leitura individual, RLS, API e entrega pela fila pessoal. Grupos, mídia, edição, reações, menções, busca e links para atendimento continuam fora desta etapa.
 - **`dashboard` (situação encontrada na E15b):** tinha o mesmo problema. A afirmação anterior deste documento (§2) de que "a aba existe, sem as três sub-abas" **estava errada** naquele momento — não havia controller nem rota de frontend. A E20 corrigiu a lacuna após o cliente recolocar a Visão Geral no escopo.
 
-A E16 (`docker/dokploy-stack.yml`, `.env.example`, `R__seed_dev.sql`) corrigiu o default de `FEATURE_CHAT_INTERNO` para `false` nos arquivos de deploy e as duas flags para `false` no seed de desenvolvimento. A E20 voltou `dashboard` para `true` porque agora há read model, autorização e tela reais; `chat_interno` permanece `false`. `fidelizacao` não foi tocada: tem domínio, repositório, entity e um caso de uso de listagem real, exposto no `AutomationConfigInternalController` — falta CRUD humano, não o módulo em si.
+A E16 corrigiu defaults de deploy. A E20 voltou `dashboard` para `true`; a E44 habilitou `chat_interno` no seed porque agora há implementação real. Instâncias existentes devem conferir a flag no banco antes de expor o menu. `fidelizacao` não foi tocada: tem domínio, repositório, entity e um caso de uso de listagem real, exposto no `AutomationConfigInternalController` — falta CRUD humano, não o módulo em si.
 
 ## 2. O que permanece, com ajuste
 
