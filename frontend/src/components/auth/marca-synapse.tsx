@@ -2,14 +2,14 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
-/** Logo vetorial da identidade fixa da Synapse; não é a logo configurável de cada instância. */
+/** Marca fixa da Synapse, derivada da referência com fundo removido; não é configurável por instância. */
 export function MarcaSynapse({ className, alt }: { className?: string; alt: string }) {
   return (
     <Image
-      src="/synapse-logo.svg"
+      src="/logo-synapse.png"
       alt={alt}
-      width={96}
-      height={96}
+      width={80}
+      height={80}
       priority
       className={cn(className)}
     />

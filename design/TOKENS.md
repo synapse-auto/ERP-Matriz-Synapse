@@ -127,6 +127,12 @@ O protótipo usa muitos valores próximos (16, 11, 9, 12, 10, 20, 8, 14…). **C
 | `--raio-xl` | 20px | Modal, contêiner grande |
 | `--raio-pill` | 999px | Pílula, avatar |
 
+### Login Synapse
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--raio-login` | 10px | Campos de e-mail/senha e botão da tela de login; medido no protótipo |
+
 ---
 
 ## 4. Sombras

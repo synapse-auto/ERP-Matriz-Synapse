@@ -3,7 +3,7 @@
 > Leia `AGENTS.md`, `CLAUDE.md`, `frontend/AGENTS.md` e `design/TOKENS.md`.
 > **Pode commitar localmente a qualquer momento.** Não execute `git push` sem autorização explícita
 > do Marcondes.
-> Referência visual: `design/login-synapse.jpg` (captura de tela do protótipo do Claude Design).
+> Referência visual: `design/logo-synapse.jpg` (captura de tela do protótipo do Claude Design).
 > Extraia hierarquia, proporção, paleta e estados; a implementação continua em React, Tailwind,
 > `lucide-react`, catálogo de textos e tokens.
 

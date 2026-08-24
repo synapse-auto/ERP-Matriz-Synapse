@@ -15,6 +15,7 @@
   --synapse-login-borda: #ded9ee;
   --synapse-login-erro: #9f1239;
   --synapse-login-foco: #5835c2;
+  --raio-login: 10px;
   --synapse-login-sombra: 0 28px 70px -35px rgb(47 28 101 / 45%);
 }
 
@@ -221,6 +222,7 @@
 
 .synapse-login__input {
   height: 2.9rem;
+  border-radius: var(--raio-login);
   border-color: var(--synapse-login-borda);
   color: var(--synapse-login-texto);
   background: var(--synapse-login-superficie);
@@ -290,6 +292,7 @@
   width: 100%;
   min-height: 3rem;
   margin-top: 0.25rem;
+  border-radius: var(--raio-login);
   color: var(--synapse-login-superficie);
   background: var(--synapse-login-primaria);
   box-shadow: var(--synapse-login-sombra);
