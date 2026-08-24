@@ -47,6 +47,7 @@ public sealed interface EventoDeAtendimento {
      */
     record MensagemEnviada(
             UUID leadId,
+            String leadNome,
             UUID atendimentoId,
             UUID mensagemId,
             UUID remetenteId,
@@ -90,4 +91,16 @@ public sealed interface EventoDeAtendimento {
     record AtendimentoFinalizado(
             UUID leadId, UUID atendimentoId, UUID quemFinalizou, Instant ocorridoEm)
             implements EventoDeAtendimento {}
+
+    record PedidoEntradaSolicitado(UUID leadId, UUID atendimentoId, UUID solicitanteId,
+            String solicitanteNome, UUID donoId, Instant ocorridoEm) implements EventoDeAtendimento {}
+
+    record PedidoEntradaRespondido(UUID leadId, UUID atendimentoId, UUID solicitanteId,
+            UUID donoId, boolean aprovado, Instant ocorridoEm) implements EventoDeAtendimento {}
+
+    record ParticipanteSaiu(UUID leadId, UUID atendimentoId, UUID participanteId,
+            Instant ocorridoEm) implements EventoDeAtendimento {}
+
+    record ParticipanteEntrou(UUID leadId, UUID atendimentoId, UUID participanteId,
+            Instant ocorridoEm) implements EventoDeAtendimento {}
 }

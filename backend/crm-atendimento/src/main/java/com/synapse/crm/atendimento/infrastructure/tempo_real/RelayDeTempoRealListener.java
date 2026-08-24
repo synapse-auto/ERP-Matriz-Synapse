@@ -108,6 +108,21 @@ class RelayDeTempoRealListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoEnviarComTransferencia(EventoDeAtendimento.MensagemEnviada evento) {
+        if (!evento.transferiu() || evento.donoAnterior().isEmpty()) return;
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("leadId", evento.leadId().toString());
+        dados.put("leadNome", evento.leadNome());
+        dados.put("deAtendenteId", evento.donoAnterior().get().toString());
+        dados.put("paraAtendenteId", evento.remetenteId().toString());
+        dados.put("quemTransferiu", evento.remetenteId().toString());
+        dados.put("atorTipo", "USUARIO");
+        dados.put("ocorridoEm", evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "TRANSFERENCIA", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoFinalizar(EventoDeAtendimento.AtendimentoFinalizado evento) {
         ObjectNode dados = json.createObjectNode();
         dados.put("atendimentoId", evento.atendimentoId().toString());
@@ -115,6 +130,29 @@ class RelayDeTempoRealListener {
         dados.put("quemFinalizou", evento.quemFinalizou().toString());
         dados.put("ocorridoEm", evento.ocorridoEm().toString());
         publicar(evento.atendimentoId(), "FINALIZACAO", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoPedirEntrada(EventoDeAtendimento.PedidoEntradaSolicitado evento) {
+        ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
+        dados.put("leadId",evento.leadId().toString()); dados.put("solicitanteId",evento.solicitanteId().toString());
+        dados.put("solicitanteNome",evento.solicitanteNome()); dados.put("donoId",evento.donoId().toString()); dados.put("ocorridoEm",evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "PEDIDO_ENTRADA", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoResponderPedido(EventoDeAtendimento.PedidoEntradaRespondido evento) {
+        ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
+        dados.put("leadId",evento.leadId().toString()); dados.put("solicitanteId",evento.solicitanteId().toString());
+        dados.put("donoId",evento.donoId().toString()); dados.put("aprovado",evento.aprovado()); dados.put("ocorridoEm",evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "RESPOSTA_PEDIDO_ENTRADA", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoSair(EventoDeAtendimento.ParticipanteSaiu evento) {
+        ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
+        dados.put("participanteId",evento.participanteId().toString()); dados.put("ocorridoEm",evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "PARTICIPANTE_SAIU", dados);
     }
 
     private void publicar(UUID atendimentoId, String tipo, ObjectNode dados) {

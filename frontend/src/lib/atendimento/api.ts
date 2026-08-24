@@ -10,6 +10,8 @@ import type {
   EnvioResposta,
   MensagemResposta,
   PaginaMensagens,
+  ParticipanteAtendimento,
+  PedidoEntradaAtendimento,
   TagResposta,
   UsuarioResposta,
   VisaoAtendimento,
@@ -127,6 +129,24 @@ export function finalizarAtendimento(atendimentoId: string): Promise<Atendimento
     method: "POST",
   });
 }
+
+export function listarParticipantes(atendimentoId: string): Promise<ParticipanteAtendimento[]> {
+  return apiFetch<ParticipanteAtendimento[]>(`/api/v1/atendimentos/${atendimentoId}/participantes`);
+}
+
+export function obterMeuPedido(atendimentoId: string): Promise<PedidoEntradaAtendimento | null> {
+  return apiFetch<PedidoEntradaAtendimento | null>(`/api/v1/atendimentos/${atendimentoId}/pedido-entrada/meu`);
+}
+
+export function listarPedidosPendentes(atendimentoId: string): Promise<PedidoEntradaAtendimento[]> {
+  return apiFetch<PedidoEntradaAtendimento[]>(`/api/v1/atendimentos/${atendimentoId}/pedidos-entrada`);
+}
+
+export function pedirEntrada(atendimentoId: string) { return apiFetch(`/api/v1/atendimentos/${atendimentoId}/pedir-entrada`, { method: "POST" }); }
+export function entrarAtendimento(atendimentoId: string) { return apiFetch(`/api/v1/atendimentos/${atendimentoId}/entrar`, { method: "POST" }); }
+export function sairAtendimento(atendimentoId: string) { return apiFetch(`/api/v1/atendimentos/${atendimentoId}/sair`, { method: "POST" }); }
+export function aprovarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/aprovar`, { method: "POST" }); }
+export function recusarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/recusar`, { method: "POST" }); }
 
 export function listarUsuarios(): Promise<UsuarioResposta[]> {
   return apiFetch<UsuarioResposta[]>("/api/v1/usuarios");

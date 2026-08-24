@@ -217,6 +217,37 @@ class RlsIsolamentoIT extends PostgresIT {
         }
     }
 
+    @Test
+    @DisplayName("participante convidado enxerga apenas o atendimento explicitamente compartilhado")
+    void participante_convidado_veAtendimentoELeadSemAbrirCarteiraDoColega() {
+        UUID lead = UUID.randomUUID();
+        UUID atendimento = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico) VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead)",
+                lead, marcador + " lead compartilhado", bruno);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_atendimento)",
+                atendimento, lead, bruno);
+
+        assertThat(lidosComo(ana, PapelUsuario.ATENDENTE)).doesNotContain(lead);
+        ApoioRls.sair();
+        jdbc.update("INSERT INTO atendimento_participante (atendimento_id, usuario_id) VALUES (?, ?)", atendimento, ana);
+
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        List<UUID> atendimentosVisiveis = transacao.execute(status ->
+                jdbc.queryForList("SELECT id FROM atendimento WHERE id = ?", UUID.class, atendimento));
+        List<UUID> leadsVisiveis = transacao.execute(status ->
+                jdbc.queryForList("SELECT id FROM lead WHERE id = ?", UUID.class, lead));
+
+        assertThat(atendimentosVisiveis).containsExactly(atendimento);
+        assertThat(leadsVisiveis).containsExactly(lead);
+        List<UUID> carteiraDaAna = transacao.execute(status -> jdbc.queryForList(
+                "SELECT id FROM atendimento WHERE atendente_id = ?", UUID.class, ana));
+        assertThat(carteiraDaAna)
+                .as("a lista operacional continua sendo a carteira do atendente")
+                .isEmpty();
+    }
+
     private String contagemDeLeads() {
         return "SELECT count(*) FROM lead WHERE nome LIKE '" + marcador + "%'";
     }

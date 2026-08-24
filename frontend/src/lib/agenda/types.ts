@@ -49,6 +49,14 @@ export interface LeadDaAgenda {
   tags: TagDaLista[];
 }
 
+export interface LeadParaEntrada {
+  id: string;
+  nome: string;
+  empresa: string | null;
+  responsavelId: string;
+  responsavelNome: string;
+}
+
 export interface PaginaDeLeads {
   leads: LeadDaAgenda[];
   pagina: number;

@@ -80,6 +80,22 @@ export interface AtendimentoResumo {
   atendenteId: string | null;
 }
 
+export interface ParticipanteAtendimento {
+  usuarioId: string;
+  nome: string;
+  entrouEm: string;
+}
+
+export type StatusPedidoEntrada = "PENDENTE" | "APROVADO" | "RECUSADO" | "EXPIRADO";
+export interface PedidoEntradaAtendimento {
+  id: string;
+  atendimentoId: string;
+  solicitanteId: string;
+  solicitanteNome: string;
+  status: StatusPedidoEntrada;
+  solicitadoEm: string;
+}
+
 /** Espelha UsuarioController.UsuarioResposta — GET /api/v1/usuarios. */
 export interface UsuarioResposta {
   id: string;

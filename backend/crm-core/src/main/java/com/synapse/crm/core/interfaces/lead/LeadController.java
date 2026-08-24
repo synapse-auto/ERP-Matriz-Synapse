@@ -28,8 +28,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.core.application.etapa.EtapaNaoEncontradaException;
 import com.synapse.crm.core.application.lead.AtualizarLeadUseCase;
+import com.synapse.crm.core.application.lead.BuscarLeadParaEntradaUseCase;
 import com.synapse.crm.core.application.lead.DadosDeAtualizacaoLead;
 import com.synapse.crm.core.application.lead.FiltroLead;
+import com.synapse.crm.core.application.lead.LeadParaEntrada;
 import com.synapse.crm.core.application.lead.ListarLeadsUseCase;
 import com.synapse.crm.core.application.lead.ObterLeadUseCase;
 import com.synapse.crm.core.domain.campocustomizado.DadosCustomizadosInvalidosException;
@@ -52,12 +54,18 @@ class LeadController {
     private final ListarLeadsUseCase listar;
     private final ObterLeadUseCase obter;
     private final AtualizarLeadUseCase atualizar;
+    private final BuscarLeadParaEntradaUseCase buscarParaEntrada;
 
-    LeadController(ListarLeadsUseCase listar, ObterLeadUseCase obter, AtualizarLeadUseCase atualizar) {
+    LeadController(ListarLeadsUseCase listar, ObterLeadUseCase obter, AtualizarLeadUseCase atualizar, BuscarLeadParaEntradaUseCase buscarParaEntrada) {
         this.listar = listar;
         this.obter = obter;
         this.atualizar = atualizar;
+        this.buscarParaEntrada = buscarParaEntrada;
     }
+
+    @Operation(summary="Buscar contato para pedir entrada", description="Retorna somente nome, empresa e responsável de contatos de colegas; não expõe ficha, histórico ou etapa.")
+    @GetMapping("/busca-entrada")
+    List<LeadParaEntrada> buscarParaEntrada(@RequestParam String termo) { return buscarParaEntrada.executar(termo); }
 
     /** Listagem: devolve o resumo, que nao carrega notas nem resumo de IA. */
     @Operation(

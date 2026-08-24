@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useEquipe } from "@/lib/equipe/use-equipe";
@@ -26,6 +27,8 @@ import type { VisaoAtendimento } from "@/lib/atendimento/types";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
 import { TabelaDeLeads } from "./tabela-de-leads";
+import { useBuscaLeadsParaEntrada } from "@/lib/agenda/use-busca-entrada";
+import { apiFetch } from "@/lib/api/http-client";
 
 /**
  * Agenda como tabela sobre o filtro modular (E16 §Bloco 1) — substitui a lista de cards que
@@ -39,6 +42,11 @@ import { TabelaDeLeads } from "./tabela-de-leads";
 export function PaginaAgenda() {
   const textosGerais = useTextos();
   const t = textosGerais.agenda;
+  const entrada = t.entrada ?? {
+    placeholder: t.filtros.titulo,
+    pedir: t.filtros.adicionar,
+    responsavel: `${t.semResponsavel}: {nome}`,
+  };
   const router = useRouter();
   const papel = useAuthStore((estado) => estado.papel);
 
@@ -48,6 +56,10 @@ export function PaginaAgenda() {
   });
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
+  const [buscaEntrada, setBuscaEntrada] = useState("");
+  const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
+  const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
+  async function pedirEntrada(id: string) { setPedidoEmAndamento(id); try { await apiFetch(`/api/v1/atendimentos/pedir-entrada?leadId=${encodeURIComponent(id)}`, { method: "POST" }); } finally { setPedidoEmAndamento(null); } }
 
   const campos = useCamposFiltraveis();
   const etapas = useEtapas();
@@ -115,6 +127,10 @@ export function PaginaAgenda() {
       </header>
 
       <div className="flex-none">
+        <div className="mb-3 flex items-center gap-2">
+          <Input value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)} placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
+          {buscaColega.data?.map((lead) => <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"><span>{lead.nome}{lead.empresa ? ` · ${lead.empresa}` : ""}</span><span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span><Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)} disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button></div>)}
+        </div>
         <BarraDeFiltros
           campos={campos.data ?? []}
           carregandoCampos={campos.isLoading}

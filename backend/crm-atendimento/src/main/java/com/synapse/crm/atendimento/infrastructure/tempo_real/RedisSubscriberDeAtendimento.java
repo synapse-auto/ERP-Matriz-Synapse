@@ -84,6 +84,12 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             revogarQuemPerdeuAcesso(atendimentoId, dados);
             avisarRecebedor(dados);
         }
+        if ("PEDIDO_ENTRADA".equals(tipo)) avisarPedidoAoDono(dados);
+        if ("RESPOSTA_PEDIDO_ENTRADA".equals(tipo)) avisarRespostaAoSolicitante(dados);
+        if ("PARTICIPANTE_SAIU".equals(tipo)) {
+            JsonNode p=dados.path("participanteId");
+            if (!p.isMissingNode() && !p.isNull()) registro.removerUsuarioDoAtendimento(atendimentoId, UUID.fromString(p.asText()));
+        }
 
         // Um usuario pode ter mais de uma sessao (duas abas) autorizadas ao mesmo
         // atendimento; convertAndSendToUser ja entrega a TODAS as sessoes daquele
@@ -128,6 +134,18 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         aviso.set("ocorridoEm", dados.path("ocorridoEm"));
         envelope.set("dados", aviso);
         enviarParaUsuario(paraAtendenteId, DESTINO_NOTIFICACOES, envelope.toString());
+    }
+
+    private void avisarPedidoAoDono(JsonNode dados) {
+        JsonNode dono=dados.path("donoId"); if(dono.isMissingNode()||dono.isNull()) return;
+        ObjectNode e=json.createObjectNode(); e.put("tipo","PEDIDO_ENTRADA_ATENDIMENTO"); ObjectNode d=json.createObjectNode();
+        d.set("atendimentoId",dados.path("atendimentoId")); d.set("leadId",dados.path("leadId")); d.set("solicitanteId",dados.path("solicitanteId")); d.set("solicitanteNome",dados.path("solicitanteNome")); e.set("dados",d);
+        enviarParaUsuario(UUID.fromString(dono.asText()), DESTINO_NOTIFICACOES, e.toString());
+    }
+    private void avisarRespostaAoSolicitante(JsonNode dados) {
+        JsonNode solicitante=dados.path("solicitanteId"); if(solicitante.isMissingNode()||solicitante.isNull()) return;
+        ObjectNode e=json.createObjectNode(); e.put("tipo","PEDIDO_ENTRADA_RESPONDIDO"); ObjectNode d=json.createObjectNode(); d.set("atendimentoId",dados.path("atendimentoId")); d.set("aprovado",dados.path("aprovado")); e.set("dados",d);
+        enviarParaUsuario(UUID.fromString(solicitante.asText()), DESTINO_NOTIFICACOES, e.toString());
     }
 
     /**

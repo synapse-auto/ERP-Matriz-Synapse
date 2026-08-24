@@ -162,6 +162,7 @@ public class EnviarMensagemUseCase {
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemEnviada(
                 leadId,
+                leads.nomeParaTempoReal(leadId).orElse(""),
                 aberto.id(),
                 gravada.id(),
                 remetenteId,

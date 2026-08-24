@@ -80,6 +80,19 @@ class AuditoriaDeAtendimentoListener {
 
             case EventoDeAtendimento.AtendimentoFinalizado finalizado ->
                 new Registro(finalizado.quemFinalizou(), "USUARIO", "ATENDIMENTO_FINALIZADO");
+
+            case EventoDeAtendimento.PedidoEntradaSolicitado pedido ->
+                new Registro(pedido.solicitanteId(), "USUARIO", "PEDIDO_ENTRADA_ATENDIMENTO");
+
+            case EventoDeAtendimento.PedidoEntradaRespondido resposta ->
+                new Registro(resposta.donoId(), "USUARIO", resposta.aprovado()
+                        ? "ENTRADA_ATENDIMENTO_APROVADA" : "ENTRADA_ATENDIMENTO_RECUSADA");
+
+            case EventoDeAtendimento.ParticipanteSaiu saiu ->
+                new Registro(saiu.participanteId(), "USUARIO", "PARTICIPANTE_SAIU");
+
+            case EventoDeAtendimento.ParticipanteEntrou entrou ->
+                new Registro(entrou.participanteId(), "USUARIO", "PARTICIPANTE_ENTROU");
         };
     }
 

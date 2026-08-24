@@ -68,6 +68,10 @@ class RegistroDeAssinaturas {
         assinaturas.remove(assinatura);
     }
 
+    void removerUsuarioDoAtendimento(UUID atendimentoId, UUID usuarioId) {
+        assinaturas.keySet().removeIf(a -> a.atendimentoId().equals(atendimentoId) && a.usuarioId().equals(usuarioId));
+    }
+
     /**
      * UNSUBSCRIBE de uma assinatura especifica — a sessao pode ter outras abertas, para outros
      * atendimentos.

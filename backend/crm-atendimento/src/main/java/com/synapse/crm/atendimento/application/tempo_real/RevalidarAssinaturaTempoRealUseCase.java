@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -38,9 +39,10 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 public class RevalidarAssinaturaTempoRealUseCase {
 
     private final AtendimentoRepositorio atendimentos;
+    private final ParticipacaoAtendimentoRepositorio participacoes;
 
-    public RevalidarAssinaturaTempoRealUseCase(AtendimentoRepositorio atendimentos) {
-        this.atendimentos = atendimentos;
+    public RevalidarAssinaturaTempoRealUseCase(AtendimentoRepositorio atendimentos, ParticipacaoAtendimentoRepositorio participacoes) {
+        this.atendimentos = atendimentos; this.participacoes = participacoes;
     }
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
@@ -48,6 +50,6 @@ public class RevalidarAssinaturaTempoRealUseCase {
         return atendimentos
                 .porId(atendimentoId)
                 .map(atendimento -> atendimento.visivelPara(usuarioId, papel))
-                .orElse(false);
+                .orElseGet(() -> participacoes.eParticipanteAtivo(atendimentoId, usuarioId));
     }
 }

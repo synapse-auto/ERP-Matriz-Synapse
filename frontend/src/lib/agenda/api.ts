@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api/http-client";
 
-import type { CatalogosDeFiltro, CampoFiltravel, CriterioRequisicao, PaginaDeLeads } from "./types";
+import type { CatalogosDeFiltro, CampoFiltravel, CriterioRequisicao, LeadParaEntrada, PaginaDeLeads } from "./types";
 
 /** Único critério sempre-verdadeiro: `criadoEm` nunca é nulo, então "sem filtro" vira isto. */
 export const CRITERIO_SEM_FILTRO: CriterioRequisicao = {
@@ -34,4 +34,8 @@ export async function contarLeads(criterio: CriterioRequisicao): Promise<number>
     body: JSON.stringify({ criterio }),
   });
   return resposta.total;
+}
+
+export function buscarLeadsParaEntrada(termo: string): Promise<LeadParaEntrada[]> {
+  return apiFetch<LeadParaEntrada[]>(`/api/v1/leads/busca-entrada?termo=${encodeURIComponent(termo)}`);
 }

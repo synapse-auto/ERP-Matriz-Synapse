@@ -165,6 +165,13 @@ export const TextosSchema = z.object({
       transferir: z.string(),
       finalizar: z.string(),
       buscar: z.string(),
+      pedirEntrada: z.string(),
+      pedidoPendente: z.string(),
+      entrar: z.string(),
+      sair: z.string(),
+      recusado: z.string(),
+      aprovarEntrada: z.string(),
+      recusarEntrada: z.string(),
     }),
     transferir: z.object({
       titulo: z.string(),
@@ -452,6 +459,7 @@ export const TextosSchema = z.object({
     erro: z.string(),
     semResponsavel: z.string(),
     contador: z.string(),
+    entrada: z.object({ placeholder: z.string(), pedir: z.string(), responsavel: z.string() }),
     colunas: z.object({
       lead: z.string(),
       telefone: z.string(),

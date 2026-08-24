@@ -122,6 +122,23 @@ class TimelineDeAtendimentoListener {
                     "USUARIO",
                     finalizado.quemFinalizou(),
                     Map.of());
+
+            case EventoDeAtendimento.PedidoEntradaSolicitado pedido -> new Anotacao(
+                    "PEDIDO_ENTRADA_ATENDIMENTO", pedido.solicitanteNome() + " pediu para entrar no atendimento.",
+                    "USUARIO", pedido.solicitanteId(), Map.of("status", "PENDENTE"));
+
+            case EventoDeAtendimento.PedidoEntradaRespondido resposta -> new Anotacao(
+                    resposta.aprovado() ? "ENTRADA_ATENDIMENTO_APROVADA" : "ENTRADA_ATENDIMENTO_RECUSADA",
+                    resposta.aprovado() ? "Pedido de entrada aprovado." : "Pedido de entrada recusado.",
+                    "USUARIO", resposta.donoId(), Map.of("solicitanteId", resposta.solicitanteId().toString()));
+
+            case EventoDeAtendimento.ParticipanteSaiu saiu -> new Anotacao(
+                    "PARTICIPANTE_SAIU", "Participante saiu do atendimento.", "USUARIO",
+                    saiu.participanteId(), Map.of());
+
+            case EventoDeAtendimento.ParticipanteEntrou entrou -> new Anotacao(
+                    "PARTICIPANTE_ENTROU", "Participante entrou no atendimento.", "USUARIO",
+                    entrou.participanteId(), Map.of());
         };
     }
 

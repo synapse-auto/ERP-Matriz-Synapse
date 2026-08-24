@@ -38,6 +38,9 @@ import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
 import com.synapse.crm.atendimento.application.midia.ObterConfiguracaoComposerUseCase;
 import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
+import com.synapse.crm.atendimento.application.participacao.GerenciarParticipacaoAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento;
+import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
@@ -65,6 +68,7 @@ class AtendimentoAcoesController {
     private final TransferirAtendimentoUseCase transferir;
     private final FinalizarAtendimentoUseCase finalizar;
     private final UsuarioContext usuarioContext;
+    private final GerenciarParticipacaoAtendimentoUseCase participacao;
 
     AtendimentoAcoesController(
             EnviarMensagemUseCase enviar,
@@ -73,7 +77,8 @@ class AtendimentoAcoesController {
             ResolverLeadDoAtendimentoUseCase resolverLead,
             TransferirAtendimentoUseCase transferir,
             FinalizarAtendimentoUseCase finalizar,
-            UsuarioContext usuarioContext) {
+            UsuarioContext usuarioContext,
+            GerenciarParticipacaoAtendimentoUseCase participacao) {
         this.enviar = enviar;
         this.enviarMidia = enviarMidia;
         this.obterConfiguracaoComposer = obterConfiguracaoComposer;
@@ -81,6 +86,7 @@ class AtendimentoAcoesController {
         this.transferir = transferir;
         this.finalizar = finalizar;
         this.usuarioContext = usuarioContext;
+        this.participacao = participacao;
     }
 
     @Operation(
@@ -200,6 +206,44 @@ class AtendimentoAcoesController {
         Atendimento atualizado = finalizar.executar(id, usuarioContext.atual().id());
         return AtendimentoResumo.de(atualizado);
     }
+
+    @Operation(summary = "Pedir entrada em atendimento", description = "Solicita ao responsável acesso colaborativo sem mudar o dono comercial.")
+    @PostMapping("/{id}/pedir-entrada")
+    PedidoEntradaResposta pedirEntrada(@PathVariable UUID id) { return new PedidoEntradaResposta(participacao.solicitar(id)); }
+
+    @Operation(summary = "Pedir entrada pelo contato da Agenda")
+    @PostMapping("/pedir-entrada")
+    PedidoEntradaResposta pedirEntradaPorLead(@RequestParam UUID leadId) { return new PedidoEntradaResposta(participacao.solicitarPorLead(leadId)); }
+
+    @Operation(summary = "Entrar diretamente em atendimento", description = "Disponível somente para papéis com alçada ampla; não altera o responsável.")
+    @PostMapping("/{id}/entrar")
+    void entrar(@PathVariable UUID id) { participacao.entrar(id); }
+
+    @Operation(summary = "Sair de atendimento colaborativo")
+    @PostMapping("/{id}/sair")
+    void sair(@PathVariable UUID id) { participacao.sair(id); }
+
+    @Operation(summary = "Aprovar pedido de entrada")
+    @PostMapping("/pedidos-entrada/{pedidoId}/aprovar")
+    void aprovar(@PathVariable UUID pedidoId) { participacao.aprovar(pedidoId); }
+
+    @Operation(summary = "Recusar pedido de entrada")
+    @PostMapping("/pedidos-entrada/{pedidoId}/recusar")
+    void recusar(@PathVariable UUID pedidoId) { participacao.recusar(pedidoId); }
+
+    @Operation(summary = "Listar participantes do atendimento")
+    @GetMapping("/{id}/participantes")
+    java.util.List<ParticipanteAtendimento> participantes(@PathVariable UUID id) { return participacao.participantes(id); }
+
+    @Operation(summary = "Listar pedidos de entrada pendentes")
+    @GetMapping("/{id}/pedidos-entrada")
+    java.util.List<PedidoEntradaAtendimento> pedidos(@PathVariable UUID id) { return participacao.pendentes(id); }
+
+    @Operation(summary = "Consultar meu pedido de entrada")
+    @GetMapping("/{id}/pedido-entrada/meu")
+    java.util.Optional<PedidoEntradaAtendimento> meuPedido(@PathVariable UUID id) { return participacao.meuPedido(id); }
+
+    record PedidoEntradaResposta(UUID pedidoId) {}
 
     @ExceptionHandler(RecursoDeAtendimentoIndisponivelException.class)
     ProblemDetail aoNaoEncontrar(RecursoDeAtendimentoIndisponivelException e) {

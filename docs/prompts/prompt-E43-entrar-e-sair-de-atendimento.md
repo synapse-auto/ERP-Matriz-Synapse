@@ -3,7 +3,8 @@
 > Leia `AGENTS.md`, `CLAUDE.md`, `frontend/AGENTS.md`, `docs/01-arquitetura-geral.md` e
 > `docs/05-rastreabilidade-requisitos.md`.
 > **Depende da E42** (canal pessoal de notificação). Não comece antes de a E42 estar entregue.
-> **Não faça commit nem push sem autorização explícita do Marcondes.**
+> **Pode commitar localmente a qualquer momento** — trabalho solto no working tree já se perdeu
+> neste projeto. **Não execute `git push` sem autorização explícita do Marcondes.**
 
 ---
 
@@ -33,16 +34,44 @@ Disso decorrem três exigências:
    já avisa o novo dono pela E42. Confira que isso continua valendo quando a troca acontece por
    resposta de convidado, e não por transferência explícita — é o caminho novo que esta etapa cria.
 
-Um segundo ponto **continua em aberto** e não deve ser inventado: pela `RN-CRM-01`, um `ATENDENTE` só
-enxerga os leads dele. Se ele não vê a conversa dos outros, ele não tem como pedir para entrar. Até
-que exista decisão em contrário, valha o menor escopo possível:
+### Como o atendente alcança uma conversa que não é dele
 
-- `GESTOR`, `SUBGESTOR` e `ADMINISTRADOR` enxergam tudo e **entram sem pedir**;
-- `ATENDENTE` só pode pedir para entrar em conversa que ele **já enxerga** hoje.
+**Decidido: a `RN-CRM-01` se mantém, inteira. O caminho é a Agenda de Contatos.**
 
-Nada nesta etapa pode ampliar a visibilidade que o servidor concede hoje. Se essa limitação tornar a
-funcionalidade inútil na prática para o papel `ATENDENTE`, **diga isso no relatório** em vez de
-resolver por conta própria.
+Leia `VisibilidadeLead.java` antes de mexer em qualquer coisa perto disso. A regra está em Java puro,
+num tipo **selado**, e o comentário dela diz por que existe: *"Os atendentes trabalham por comissão e
+disputam leads entre si. Um atendente enxergar o lead de outro não é bug de tela, é problema
+comercial na casa do cliente."* Hoje um `ATENDENTE` enxerga os leads dele **mais os que ainda não têm
+dono** — e nada além disso.
+
+Nada nesta etapa amplia isso. Em particular:
+
+- **A lista de Atendimentos continua exatamente como está.** Nenhuma conversa de colega aparece nela.
+- **A Agenda não vira vitrine da carteira alheia.** O atendente não ganha uma lista navegável dos
+  contatos dos outros; ele **procura por nome ou telefone** um cliente específico.
+- O que a busca devolve, para um contato que é de outro atendente, é o **mínimo para pedir entrada**:
+  nome, empresa e quem é o responsável. **Não** o histórico, **não** as mensagens, **não** a ficha
+  completa, **não** a etapa. A partir daí o botão disponível é "pedir para entrar" — nada mais.
+
+A diferença que sustenta isso: procurar um cliente que acabou de te ligar não é a mesma coisa que
+folhear a carteira do colega. A primeira é socorro pontual; a segunda é o que a RN-CRM-01 existe para
+impedir.
+
+Se a implementação disso exigir alargar `VisibilidadeLead`, **pare e relate** — esse tipo é selado de
+propósito, e o compilador quebra o build justamente para que uma variante nova não escape em silêncio
+para o banco como "sem filtro". Uma alternativa nova ali é decisão de arquitetura, não detalhe de
+implementação desta etapa.
+
+---
+
+## Bloco 0.5 — Um conserto de uma linha, para não voltar em deploy separado
+
+O badge de pendentes que a E41 colocou ao lado de "Atendimentos" em `sidebar.tsx` aparece mesmo
+quando a contagem é zero — a guarda ficou `contagemPendentes !== undefined`. Contador que mostra `0`
+o tempo todo vira ruído, e o usuário aprende a ignorar o badge exatamente quando ele passar a
+importar.
+
+Troque para só renderizar acima de zero, e ajuste o teste que cobre esse caso.
 
 ---
 
@@ -104,7 +133,7 @@ Use **a fila pessoal da E42**. Não crie um terceiro transporte.
 ## Bloco 5 — O que NÃO entra
 
 - Não mexa em transferência, finalização ou rodízio.
-- Não amplie a visibilidade da `RN-CRM-01`.
+- Não amplie a visibilidade da `RN-CRM-01`, nem acrescente alternativa em `VisibilidadeLead`.
 - Não implemente chat interno (é a E44), mesmo que pareça natural conversar sobre o atendimento.
 
 ---
@@ -119,6 +148,11 @@ Use **a fila pessoal da E42**. Não crie um terceiro transporte.
 - Teste de que dois pedidos simultâneos do mesmo solicitante não criam duas linhas.
 - Teste de que sair revoga a assinatura de tempo real.
 - Teste de expiração por leitura, sem relógio de produção: injete o tempo, não use `now()` solto.
+- **Teste de que a busca da Agenda não vaza a conversa alheia:** para um contato de outro atendente,
+  a resposta traz nome, empresa e responsável — e nenhuma mensagem, histórico, etapa ou ficha. Este é
+  o teste que protege a regra que o cliente mais preza.
+- Teste de que a lista de Atendimentos de um `ATENDENTE` continua idêntica ao que era antes desta
+  etapa.
 - Backend: `./mvnw -pl crm-atendimento -am verify` **com testes**.
 - Frontend: `npm test -- --run`, `npm run lint`, `npm run build`.
 - Verificação visual com o seed aplicado, com dois usuários diferentes. Se não conseguir, **diga**.

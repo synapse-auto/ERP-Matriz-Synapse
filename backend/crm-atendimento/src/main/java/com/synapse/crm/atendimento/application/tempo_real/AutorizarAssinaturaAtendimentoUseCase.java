@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -26,14 +28,17 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 public class AutorizarAssinaturaAtendimentoUseCase {
 
     private final AtendimentoRepositorio atendimentos;
+    private final ParticipacaoAtendimentoRepositorio participacoes;
+    private final UsuarioContext usuarioContext;
 
-    public AutorizarAssinaturaAtendimentoUseCase(AtendimentoRepositorio atendimentos) {
-        this.atendimentos = atendimentos;
+    public AutorizarAssinaturaAtendimentoUseCase(AtendimentoRepositorio atendimentos, ParticipacaoAtendimentoRepositorio participacoes, UsuarioContext usuarioContext) {
+        this.atendimentos = atendimentos; this.participacoes = participacoes; this.usuarioContext = usuarioContext;
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public boolean autorizar(UUID atendimentoId) {
-        return atendimentos.porId(atendimentoId).isPresent();
+        return atendimentos.porId(atendimentoId).isPresent()
+                || participacoes.eParticipanteAtivo(atendimentoId, usuarioContext.atual().id());
     }
 }
