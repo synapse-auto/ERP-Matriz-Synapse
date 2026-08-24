@@ -2,7 +2,28 @@
 
 > Leia `AGENTS.md`, `CLAUDE.md` e `frontend/AGENTS.md`.
 > **Depende da E42** (canal pessoal de notificação). Não comece antes de a E42 estar entregue.
-> **Não faça commit nem push sem autorização explícita do Marcondes.**
+> **Pode commitar localmente a qualquer momento** — trabalho solto no working tree já se perdeu
+> neste projeto. **Não execute `git push` sem autorização explícita do Marcondes.**
+
+---
+
+## Antes de tudo — a `main` está vermelha, e não é você
+
+A E43 (`f9bc8d8`) foi empurrada e o CI falhou no módulo **`crm-app`**, na fase failsafe: os testes de
+integração dela (Testcontainers) não passaram. Todos os outros módulos passaram.
+
+Isso significa três coisas para você:
+
+- **`./mvnw clean verify` no reator inteiro vai falhar, e a falha não é sua.** Verifique o seu
+  trabalho com `./mvnw -pl crm-equipe -am verify`, que é o módulo desta etapa.
+- **Não toque nos testes de integração da E43, nem no código dela.** Não "conserte" o build vermelho,
+  não afrouxe asserção, não marque teste como `@Disabled`. Aqueles testes existem para proteger
+  isolamento de carteira e comissão; um deles falhando é informação, não obstáculo.
+- **Nada será publicado enquanto a `main` estiver vermelha** — o job `imagens` depende do `backend`.
+  Entregue a etapa mesmo assim: o conserto da E43 vem em paralelo, por outro caminho.
+
+Se algum teste seu falhar junto, **separe no relatório** o que quebrou por causa da E44 e o que já
+estava quebrado antes de você começar.
 
 ---
 
