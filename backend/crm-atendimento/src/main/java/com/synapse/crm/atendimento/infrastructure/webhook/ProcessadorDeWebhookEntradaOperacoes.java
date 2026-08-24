@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetRepositorio;
 import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
@@ -60,6 +61,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
     private final AtendimentoRepositorio atendimentos;
+    private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset;
     private final TransferirAtendimentoUseCase transferirAtendimento;
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
@@ -77,6 +79,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
             AtendimentoRepositorio atendimentos,
+            ConfiguracaoDoComandoResetRepositorio configuracaoDoReset,
             TransferirAtendimentoUseCase transferirAtendimento,
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
@@ -92,6 +95,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.idempotencia = idempotencia;
         this.registrar = registrar;
         this.atendimentos = atendimentos;
+        this.configuracaoDoReset = configuracaoDoReset;
         this.transferirAtendimento = transferirAtendimento;
         this.leads = leads;
         this.canal = canal;
@@ -128,6 +132,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private void processarEmTransacao(WebhookEntrada.Pendente pendente, Instant agora) {
         List<TradutorDeCanal.MensagemRecebidaDoCanal> traduzidas =
                 tradutor.traduzir(pendente.payloadCru());
+        String comandoReset = configuracaoDoReset.valor().orElse("");
 
         for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
             if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()
@@ -137,23 +142,26 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
             UUID leadId =
                     leads.resolverPorTelefone(mensagem.telefoneRemetente(), mensagem.nomeExibicao());
-            if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto())) {
-                atendimentos.abertoDoLead(leadId)
-                        .filter(atendimento -> atendimento.status().estaAberto())
-                        .ifPresent(atendimento -> transferirAtendimento.devolverParaIaPeloSistema(atendimento.id()));
-                continue;
-            }
             CanalEntradaAtiva canalEntrada = canaisAtivos
                     .porIdentificadorExterno(mensagem.identificadorDestino())
                     .orElseThrow(() -> new IllegalStateException(
                             "canal de entrada nao configurado: " + mensagem.identificadorDestino()));
-            registrar.executar(mensagem.ehMidia()
+            RegistrarMensagemRecebidaUseCase.Resultado resultado = registrar.executar(mensagem.ehMidia()
                     ? mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada)
                     : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                             leadId,
                             canalEntrada.canalId(),
                             canalEntrada.canalCredencialId(),
                             mensagem.texto()));
+
+            // A mensagem fica gravada e seus eventos de mensagem seguem normalmente. So depois
+            // disso o CRM aplica a metade que lhe cabe do #reset: devolver um atendimento humano
+            // para a IA. A Automacao limpa o proprio contexto ao observar o mesmo literal.
+            if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto(), comandoReset)) {
+                if (resultado.atendimento().status().estaAberto()) {
+                    transferirAtendimento.devolverParaIaPeloSistema(resultado.atendimento().id());
+                }
+            }
         }
 
         // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
@@ -161,7 +169,14 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     }
 
     static boolean ehComandoReset(String texto) {
-        return texto != null && texto.trim().equalsIgnoreCase("#reset");
+        return ehComandoReset(texto, "#reset");
+    }
+
+    static boolean ehComandoReset(String texto, String comando) {
+        return texto != null
+                && comando != null
+                && !comando.isBlank()
+                && texto.trim().equalsIgnoreCase(comando.trim());
     }
 
     /**

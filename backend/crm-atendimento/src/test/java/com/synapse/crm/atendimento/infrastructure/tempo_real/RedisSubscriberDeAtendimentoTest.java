@@ -62,6 +62,15 @@ class RedisSubscriberDeAtendimentoTest {
     }
 
     @Test
+    void transferencia_para_ia_avisa_o_dono_anterior_no_canal_pessoal() {
+        subscriber.onMessage(mensagem(transferenciaParaIa(donoAnteriorId)), null);
+
+        verify(template).convertAndSendToUser(
+                eq(donoAnteriorId.toString()), eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES),
+                contains("ATENDIMENTO_DEVOLVIDO_PARA_IA"));
+    }
+
+    @Test
     void automacao_entrega_aviso_com_a_mesma_rota() {
         subscriber.onMessage(mensagem(transferencia(destinatarioId, null, "AUTOMACAO")), null);
 
@@ -117,6 +126,18 @@ class RedisSubscriberDeAtendimentoTest {
                 + "\"paraAtendenteId\":" + paraJson + ","
                 + "\"quemTransferiu\":" + atorJson + ","
                 + "\"atorTipo\":\"" + atorTipo + "\","
+                + "\"ocorridoEm\":\"2026-08-23T12:00:00Z\"}}";
+    }
+
+    private String transferenciaParaIa(UUID de) {
+        return "{\"tipo\":\"TRANSFERENCIA\",\"dados\":{"
+                + "\"atendimentoId\":\"" + atendimentoId + "\","
+                + "\"leadId\":\"" + UUID.randomUUID() + "\","
+                + "\"leadNome\":\"Lead de teste\","
+                + "\"deAtendenteId\":\"" + de + "\","
+                + "\"paraAtendenteId\":null,"
+                + "\"quemTransferiu\":null,"
+                + "\"atorTipo\":\"SISTEMA\","
                 + "\"ocorridoEm\":\"2026-08-23T12:00:00Z\"}}";
     }
 }

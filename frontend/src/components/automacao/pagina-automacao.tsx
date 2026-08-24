@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import {
   useAtualizarParametroAutomacao,
   useConfiguracaoAutomacao,
@@ -27,6 +28,8 @@ import type { Textos } from "@/lib/config/schema";
 
 export function PaginaAutomacao() {
   const t = useTextos().automacao;
+  const papel = useAuthStore((estado) => estado.papel);
+  const podeAcessar = papel === "GESTOR" || papel === "SUBGESTOR" || papel === "ADMINISTRADOR";
   const router = useRouter();
   const parametrosDaUrl = useSearchParams();
   const [aba, setAba] = useState<Aba>(() => normalizarAba(parametrosDaUrl.get("aba")));
@@ -40,6 +43,15 @@ export function PaginaAutomacao() {
     router.replace(query ? `/automacao?${query}` : "/automacao", { scroll: false });
   }
 
+  if (!podeAcessar) {
+    return (
+      <section className="m-6 rounded-lg border border-destructive/30 bg-destructive/5 p-6" role="alert">
+        <h1 className="text-lg font-semibold">{t.titulo}</h1>
+        <p className="mt-2 text-sm text-destructive">{t.semPermissao}</p>
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-5 p-6">
       <header>
@@ -47,7 +59,21 @@ export function PaginaAutomacao() {
         <p className="text-sm text-muted-foreground">{t.descricao}</p>
       </header>
 
-      <nav className="flex gap-1 border-b" role="tablist">{ABAS.map((id) => <button key={id} role="tab" aria-selected={aba === id} className={`border-b-2 px-3 py-2 text-sm ${aba === id ? "border-primary font-medium" : "border-transparent text-muted-foreground"}`} onClick={() => selecionarAba(id)}>{t.abas[id]}</button>)}</nav>
+      <nav className="flex gap-1 border-b" role="tablist">
+        {ABAS.map((id) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={aba === id}
+            data-active={aba === id ? "" : undefined}
+            className={`border-b-2 px-3 py-2 text-sm ${aba === id ? "border-primary font-medium" : "border-transparent text-muted-foreground"}`}
+            onClick={() => selecionarAba(id)}
+          >
+            {t.abas[id]}
+          </button>
+        ))}
+      </nav>
       {aba === "geral" ? <GeralAutomacao t={t} /> : aba === "followUp" ? <PainelFollowUp /> : <PainelFidelizacao />}
     </div>
   );
@@ -97,7 +123,9 @@ function GeralAutomacao({ t }: { t: ReturnType<typeof useTextos>["automacao"] })
           onTentarNovamente={() => parametros.refetch()}
         />
       ) : !parametros.data?.length ? (
-        <p className="text-muted-foreground">{t.vazio}</p>
+        <section className="rounded-lg border border-dashed bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">{t.vazio}</p>
+        </section>
       ) : (
         <div className="space-y-3">
           {parametros.data.map((parametro) => (
@@ -129,8 +157,68 @@ function PainelFidelizacao() {
 
 type RegraCard = RegraFollowUp | RegraFidelizacao;
 function PainelDeRegras({ tipo, dados, carregando, erro, onRetry, onNovo, onEditar, onAlternar, onExcluir, children, t }: { tipo: "follow" | "fidelizacao"; dados: RegraCard[]; carregando: boolean; erro: boolean; onRetry: () => void; onNovo: () => void; onEditar: (r: RegraCard) => void; onAlternar: (r: RegraCard) => void; onExcluir: (r: RegraCard) => void; children: ReactNode; t: Textos["automacao"] }) {
-  if (carregando) return <p>{t.carregando}</p>; if (erro) return <ErroDeCarregamento mensagem={t.regras.erro} onTentarNovamente={onRetry} />;
-  return <section className="space-y-3"><div className="flex justify-end"><Button onClick={onNovo}><Plus className="mr-2 size-4" />{t.regras.novo}</Button></div>{children}<div className="grid gap-3 md:grid-cols-2">{dados.length ? dados.map((r) => <article key={r.id} className="rounded-lg border bg-card p-4"><div className="flex items-start justify-between"><div><h2 className="font-medium">{tipo === "follow" && "tempoMinutos" in r ? labelTempo(r.tempoMinutos, t.regras) : "diasSemContato" in r ? `${r.diasSemContato} ${t.regras.dias}` : ""}</h2><p className="mt-1 text-sm text-muted-foreground">{tipo === "follow" && "texto" in r ? r.texto : "mensagem" in r ? r.mensagem : ""}</p></div><span className={r.ativo ? "text-cor-sucesso" : "text-muted-foreground"}>{r.ativo ? t.regras.ativo : t.regras.inativo}</span></div><div className="mt-3 flex gap-2"><Button size="sm" variant="outline" onClick={() => onEditar(r)}><Pencil className="mr-1 size-3" />{t.regras.editar}</Button><Button size="sm" variant="outline" onClick={() => onAlternar(r)}>{r.ativo ? t.desativado : t.ativado}</Button><Button size="sm" variant="ghost" onClick={() => onExcluir(r)}><Trash2 className="size-4" /></Button></div></article>) : <p className="text-muted-foreground">{t.regras.vazio}</p>}</div></section>;
+  if (carregando) return <p>{t.carregando}</p>;
+  if (erro) return <ErroDeCarregamento mensagem={t.regras.erro} onTentarNovamente={onRetry} />;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex justify-end">
+        <Button onClick={onNovo}>
+          <Plus className="mr-2 size-4" />
+          {t.regras.novo}
+        </Button>
+      </div>
+      {children}
+      <div className="grid gap-3 md:grid-cols-2">
+        {dados.length ? (
+          dados.map((r) => (
+            <article key={r.id} className="rounded-lg border bg-card p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="font-medium">
+                    {tipo === "follow" && "tempoMinutos" in r
+                      ? labelTempo(r.tempoMinutos, t.regras)
+                      : "diasSemContato" in r
+                        ? `${r.diasSemContato} ${t.regras.dias}`
+                        : ""}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {tipo === "follow" && "texto" in r ? r.texto : "mensagem" in r ? r.mensagem : ""}
+                  </p>
+                </div>
+                <span className={r.ativo ? "text-cor-sucesso" : "text-muted-foreground"}>
+                  {r.ativo ? t.regras.ativo : t.regras.inativo}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => onEditar(r)}>
+                  <Pencil className="mr-1 size-3" />
+                  {t.regras.editar}
+                </Button>
+                <Switch
+                  checked={r.ativo}
+                  aria-label={r.ativo ? t.regras.desativar : t.regras.ativar}
+                  onCheckedChange={() => onAlternar(r)}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={t.regras.excluir}
+                  onClick={() => onExcluir(r)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <section className="col-span-full rounded-lg border border-dashed bg-card p-6 text-center">
+            <p className="text-sm text-muted-foreground">{t.regras.vazio}</p>
+          </section>
+        )}
+      </div>
+    </section>
+  );
 }
 
 function labelTempo(minutos: number, t: Textos["automacao"]["regras"]) { return minutos % 1440 === 0 ? `${minutos / 1440} ${t.unidadeDias}` : `${minutos / 60} ${t.unidadeHoras}`; }

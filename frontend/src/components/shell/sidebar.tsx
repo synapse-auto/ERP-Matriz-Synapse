@@ -127,6 +127,13 @@ export function Sidebar() {
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
     if (
+      item.chave === "automacao" &&
+      papel !== "GESTOR" &&
+      papel !== "SUBGESTOR" &&
+      papel !== "ADMINISTRADOR"
+    )
+      return false;
+    if (
       item.chave === "dashboard" &&
       papel !== "GESTOR" &&
       papel !== "SUBGESTOR" &&

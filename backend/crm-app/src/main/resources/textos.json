@@ -194,6 +194,8 @@
       "conversaEncerrada": "Esta conversa não está mais disponível para você.",
       "transferenciaRecebida": "Novo atendimento recebido",
       "transferenciaRecebidaDescricao": "{nome} foi transferido para você.",
+      "atendimentoDevolvidoParaIa": "Atendimento devolvido para a Automação",
+      "atendimentoDevolvidoParaIaDescricao": "{nome} voltou para a Automação.",
       "abrirTransferencia": "Abrir atendimento"
     },
     "media": {
@@ -405,8 +407,9 @@
   "automacao": {
     "titulo": "Automação",
     "descricao": "Parâmetros gerais que controlam o comportamento da automação.",
-    "carregando": "Carregando parâmetros...",
-    "vazio": "Nenhum parâmetro cadastrado.",
+      "carregando": "Carregando parâmetros...",
+      "semPermissao": "Você não tem permissão para acessar a Automação.",
+      "vazio": "Nenhum parâmetro cadastrado.",
     "erro": "Não foi possível carregar os parâmetros da automação.",
     "erroSalvar": "Não foi possível salvar o parâmetro.",
     "erroFaixa": "Valor fora da faixa permitida.",
@@ -417,7 +420,7 @@
     "salvando": "Salvando...",
     "recursosIa": { "titulo": "Recursos de IA", "resumo": "Resumo por IA", "preenchimento": "Preenchimento automático", "ativado": "Ativado", "desativado": "Desativado", "gatilho": "Gatilho do resumo", "quantidade": "Mensagens" },
     "abas": { "geral": "Geral", "followUp": "Follow-up", "fidelizacao": "Fidelização" },
-    "regras": { "novo": "Nova regra", "editar": "Editar", "excluir": "Excluir", "confirmarExclusao": "Excluir esta regra?", "cancelar": "Cancelar", "ativo": "Ativa", "inativo": "Inativa", "vazio": "Nenhuma regra cadastrada.", "erro": "Não foi possível carregar as regras.", "unidadeHoras": "Horas", "unidadeDias": "Dias", "tempo": "Tempo sem resposta", "dias": "Dias sem contato", "mensagem": "Mensagem", "preview": "Prévia", "previewNome": "Marcos", "placeholderAjuda": "Use o placeholder {nome} para personalizar a mensagem." },
+    "regras": { "novo": "Nova regra", "editar": "Editar", "ativar": "Ativar regra", "desativar": "Desativar regra", "excluir": "Excluir", "confirmarExclusao": "Excluir esta regra?", "cancelar": "Cancelar", "ativo": "Ativa", "inativo": "Inativa", "vazio": "Nenhuma regra cadastrada.", "erro": "Não foi possível carregar as regras.", "unidadeHoras": "Horas", "unidadeDias": "Dias", "tempo": "Tempo sem resposta", "dias": "Dias sem contato", "mensagem": "Mensagem", "preview": "Prévia", "previewNome": "Marcos", "placeholderAjuda": "Use o placeholder {nome} para personalizar a mensagem." },
     "telemetria": {
       "mensagensEnviadas": "Mensagens Enviadas",
       "clientesTransferidos": "Clientes Transferidos",

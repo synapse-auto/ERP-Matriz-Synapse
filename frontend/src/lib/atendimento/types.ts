@@ -160,6 +160,13 @@ export interface TransferenciaRecebidaTempoReal {
   ocorridoEm: string;
 }
 
+export interface AtendimentoDevolvidoParaIaTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  leadNome: string;
+  ocorridoEm: string;
+}
+
 export interface FinalizacaoTempoReal {
   atendimentoId: string;
   leadId: string;
@@ -176,6 +183,9 @@ export type EventoTempoReal =
 export type NotificacaoTempoReal = {
   tipo: "TRANSFERENCIA_RECEBIDA";
   dados: TransferenciaRecebidaTempoReal;
+} | {
+  tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA";
+  dados: AtendimentoDevolvidoParaIaTempoReal;
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM";
   dados: ChatInternoMensagemTempoReal;

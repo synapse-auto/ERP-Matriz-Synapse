@@ -153,8 +153,10 @@ INSERT INTO configuracao_automacao
      'Chave geral da automacao. Desligar pausa toda a operacao automatica.'),
     ('ia.preenchimento_automatico', 'false', NULL, 'BOOLEAN', NULL, NULL,
      'Permite que a automacao preencha dados do cliente a partir da conversa.'),
-    ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
-     NULL, NULL, 'Primeira mensagem enviada pela IA.'),
+                 ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
+                  NULL, NULL, 'Primeira mensagem enviada pela IA.'),
+                 ('automacao.comando_reset', '#reset', NULL, 'TEXT',
+                  NULL, NULL, 'Mensagem exata que devolve o atendimento humano para a Automacao.'),
     -- Teto da propria Meta Cloud API como valor_max: o admin pode apertar,
     -- nunca alargar alem do que o provedor aceita (E11b). Confirmar estes
     -- numeros contra a documentacao atual da Meta antes de producao.

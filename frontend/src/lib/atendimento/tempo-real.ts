@@ -185,7 +185,11 @@ export class ConexaoTempoReal {
       });
       this.assinaturaNotificacoes = cliente.subscribe(DESTINO_NOTIFICACOES, (mensagem) => {
         const notificacao = JSON.parse(mensagem.body) as NotificacaoTempoReal;
-        if (notificacao.tipo === "TRANSFERENCIA_RECEBIDA" || notificacao.tipo === "CHAT_INTERNO_MENSAGEM") {
+        if (
+          notificacao.tipo === "TRANSFERENCIA_RECEBIDA" ||
+          notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA" ||
+          notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
+        ) {
           this.opcoes.onNotificacao?.(notificacao);
         }
       });

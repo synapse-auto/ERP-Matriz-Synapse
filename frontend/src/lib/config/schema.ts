@@ -276,6 +276,8 @@ export const TextosSchema = z.object({
       conversaEncerrada: z.string(),
       transferenciaRecebida: z.string(),
       transferenciaRecebidaDescricao: z.string(),
+      atendimentoDevolvidoParaIa: z.string(),
+      atendimentoDevolvidoParaIaDescricao: z.string(),
       abrirTransferencia: z.string(),
     }),
     media: z.object({
@@ -578,6 +580,7 @@ export const TextosSchema = z.object({
     titulo: z.string(),
     descricao: z.string(),
     carregando: z.string(),
+    semPermissao: z.string(),
     vazio: z.string(),
     erro: z.string(),
     erroSalvar: z.string(),
@@ -589,7 +592,7 @@ export const TextosSchema = z.object({
       salvando: z.string(),
       recursosIa: z.object({ titulo: z.string(), resumo: z.string(), preenchimento: z.string(), ativado: z.string(), desativado: z.string(), gatilho: z.string(), quantidade: z.string() }),
       abas: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
-      regras: z.object({ novo: z.string(), editar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), erro: z.string(), unidadeHoras: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string() }),
+      regras: z.object({ novo: z.string(), editar: z.string(), ativar: z.string(), desativar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), erro: z.string(), unidadeHoras: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string() }),
     telemetria: z.object({
       mensagensEnviadas: z.string(),
       clientesTransferidos: z.string(),

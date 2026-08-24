@@ -328,6 +328,7 @@ class CanalWhatsAppIT extends PostgresIT {
                                 TELEFONE))
                         .isEqualTo(1);
             });
+
         }
 
         @Test
@@ -355,6 +356,64 @@ class CanalWhatsAppIT extends PostgresIT {
                 assertThat(mensagensDoLead()).isEqualTo(1);
                 assertThat(jdbc.queryForObject(
                                 "SELECT count(*) FROM atendimento WHERE lead_id = ?",
+                                Integer.class,
+                                leadDaAna))
+                        .isEqualTo(1);
+            });
+        }
+
+        @Test
+        @DisplayName("#reset exato grava a mensagem, devolve para IA e registra os fatos")
+        void webhook_resetExato_devolveParaIaComTimelineEAuditoria() {
+            postarWebhook(payload("ext-reset-inicial", "bom dia"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "vou verificar");
+            ApoioRls.sair();
+
+            assertThat(jdbc.queryForObject(
+                            "SELECT status::text FROM atendimento WHERE lead_id = ?", String.class, leadDaAna))
+                    .isEqualTo("EM_ATENDIMENTO");
+
+            postarWebhook(payload("ext-reset-parecido", "quero #reset do orçamento"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(3));
+            assertThat(jdbc.queryForObject(
+                            "SELECT status::text FROM atendimento WHERE lead_id = ?", String.class, leadDaAna))
+                    .isEqualTo("EM_ATENDIMENTO");
+
+            postarWebhook(payload("ext-reset-exato", " #RESET "), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(jdbc.queryForObject(
+                                "SELECT status::text FROM atendimento WHERE lead_id = ?", String.class, leadDaAna))
+                        .isEqualTo("EM_IA");
+                assertThat(jdbc.queryForObject(
+                                "SELECT atendente_id FROM atendimento WHERE lead_id = ?", UUID.class, leadDaAna))
+                        .isNull();
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM evento_timeline WHERE lead_id = ? AND tipo = 'ATENDIMENTO_TRANSFERIDO'",
+                                Integer.class,
+                                leadDaAna))
+                        .isEqualTo(1);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM audit_log WHERE lead_id = ? AND acao = 'ATENDIMENTO_TRANSFERIDO'",
+                                Integer.class,
+                                leadDaAna))
+                        .isEqualTo(1);
+            });
+
+            postarWebhook(payload("ext-reset-ja-ia", "#reset"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> {
+                assertThat(jdbc.queryForObject(
+                                "SELECT status::text FROM atendimento WHERE lead_id = ?", String.class, leadDaAna))
+                        .isEqualTo("EM_IA");
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM evento_timeline WHERE lead_id = ? AND tipo = 'ATENDIMENTO_TRANSFERIDO'",
                                 Integer.class,
                                 leadDaAna))
                         .isEqualTo(1);

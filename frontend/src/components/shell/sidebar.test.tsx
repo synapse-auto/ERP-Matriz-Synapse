@@ -98,7 +98,7 @@ describe("sidebar", () => {
 
     expect(screen.getByText("Estrutural Vidros")).toBeInTheDocument();
     expect(await screen.findByText("Menu")).toBeInTheDocument();
-    expect(screen.getByText("Gestão")).toBeInTheDocument();
+    expect(screen.queryByText("Gestão")).not.toBeInTheDocument();
 
     // dashboard/banco_arquivos vieram habilitados no mock de features; campanhas/horarios/relatorios não.
     expect(await screen.findByText("Agenda de Contatos")).toBeInTheDocument();
@@ -111,6 +111,13 @@ describe("sidebar", () => {
 
     await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Equipe")).not.toBeInTheDocument();
+  });
+
+  it("esconde Automação para ATENDENTE", async () => {
+    renderSidebar();
+
+    await screen.findByText("Agenda de Contatos");
+    expect(screen.queryByText("Automação")).not.toBeInTheDocument();
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {

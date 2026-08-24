@@ -22,11 +22,25 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto)).isFalse();
     }
 
+    @ParameterizedTest
+    @MethodSource("comandosConfigurados")
+    void compara_com_o_literal_configurado_sem_aceitar_texto_parecido(String texto, boolean esperado) {
+        assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto, "#voltar"))
+                .isEqualTo(esperado);
+    }
+
     private static Stream<Arguments> comandosReset() {
         return Stream.of(Arguments.of("#reset"), Arguments.of(" #RESET "), Arguments.of("\t#ReSeT\n"));
     }
 
     private static Stream<Arguments> naoComandosReset() {
         return Stream.of(Arguments.of((String) null), Arguments.of("reset"), Arguments.of("#resetar"), Arguments.of("texto #reset"));
+    }
+
+    private static Stream<Arguments> comandosConfigurados() {
+        return Stream.of(
+                Arguments.of(" #VOLTAR ", true),
+                Arguments.of("#reset", false),
+                Arguments.of("quero #voltar", false));
     }
 }

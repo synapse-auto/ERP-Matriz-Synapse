@@ -14,7 +14,7 @@ import { marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   MensagemResposta,
-  TransferenciaRecebidaTempoReal,
+  NotificacaoTempoReal,
   VisaoAtendimento,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -40,7 +40,7 @@ export function PaginaAtendimentosCliente({
   const cache = useQueryClient();
   const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
-  const [notificacao, setNotificacao] = useState<TransferenciaRecebidaTempoReal | null>(null);
+  const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
 
@@ -56,7 +56,11 @@ export function PaginaAtendimentosCliente({
       });
     },
     (evento) => {
-      if (evento.tipo === "TRANSFERENCIA_RECEBIDA") setNotificacao(evento.dados);
+      if (
+        evento.tipo === "TRANSFERENCIA_RECEBIDA" ||
+        evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+      )
+        setNotificacao(evento);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   );
@@ -110,24 +114,35 @@ export function PaginaAtendimentosCliente({
           role="status"
         >
           <p className="font-semibold text-foreground">
-            {textos.tempoReal.transferenciaRecebida}
+            {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+              ? textos.tempoReal.atendimentoDevolvidoParaIa
+              : textos.tempoReal.transferenciaRecebida}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {textos.tempoReal.transferenciaRecebidaDescricao.replace(
-              "{nome}",
-              notificacao.leadNome,
-            )}
+            {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+              ? textos.tempoReal.atendimentoDevolvidoParaIaDescricao.replace(
+                  "{nome}",
+                  notificacao.dados.leadNome,
+                )
+              : notificacao.tipo === "TRANSFERENCIA_RECEBIDA"
+                ? textos.tempoReal.transferenciaRecebidaDescricao.replace(
+                    "{nome}",
+                    notificacao.dados.leadNome,
+                  )
+                : null}
           </p>
-          <button
-            type="button"
-            className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline"
-            onClick={() => {
-              setLeadParaAbrir(notificacao.leadId);
-              setNotificacao(null);
-            }}
-          >
-            {textos.tempoReal.abrirTransferencia}
-          </button>
+          {notificacao.tipo === "TRANSFERENCIA_RECEBIDA" && (
+            <button
+              type="button"
+              className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline"
+              onClick={() => {
+                setLeadParaAbrir(notificacao.dados.leadId);
+                setNotificacao(null);
+              }}
+            >
+              {textos.tempoReal.abrirTransferencia}
+            </button>
+          )}
         </div>
       )}
       <ListaConversas

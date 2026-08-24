@@ -87,6 +87,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         if ("TRANSFERENCIA".equals(tipo)) {
             revogarQuemPerdeuAcesso(atendimentoId, dados);
             avisarRecebedor(dados);
+            avisarDonoAnteriorQuandoVoltaParaIa(dados);
         }
         if ("PEDIDO_ENTRADA".equals(tipo)) avisarPedidoAoDono(dados);
         if ("RESPOSTA_PEDIDO_ENTRADA".equals(tipo)) avisarRespostaAoSolicitante(dados);
@@ -158,6 +159,27 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         aviso.set("ocorridoEm", dados.path("ocorridoEm"));
         envelope.set("dados", aviso);
         enviarParaUsuario(paraAtendenteId, DESTINO_NOTIFICACOES, envelope.toString());
+    }
+
+    private void avisarDonoAnteriorQuandoVoltaParaIa(JsonNode dados) {
+        JsonNode paraNo = dados.path("paraAtendenteId");
+        JsonNode deNo = dados.path("deAtendenteId");
+        if (!paraNo.isNull() && !paraNo.isMissingNode()) return;
+        if (deNo.isNull() || deNo.isMissingNode() || deNo.asText().isBlank()) return;
+
+        ObjectNode envelope = json.createObjectNode();
+        envelope.put("tipo", "ATENDIMENTO_DEVOLVIDO_PARA_IA");
+        ObjectNode aviso = json.createObjectNode();
+        aviso.set("atendimentoId", dados.path("atendimentoId"));
+        aviso.set("leadId", dados.path("leadId"));
+        aviso.set("leadNome", dados.path("leadNome"));
+        aviso.set("ocorridoEm", dados.path("ocorridoEm"));
+        envelope.set("dados", aviso);
+        try {
+            enviarParaUsuario(UUID.fromString(deNo.asText()), DESTINO_NOTIFICACOES, envelope.toString());
+        } catch (IllegalArgumentException erro) {
+            log.warn("Transferencia para IA com dono anterior invalido.", erro);
+        }
     }
 
     private void avisarPedidoAoDono(JsonNode dados) {

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const atualizarMutate = vi.fn();
+const authMock = vi.hoisted(() => ({ papel: "GESTOR" }));
 const navigation = vi.hoisted(() => ({
   replace: vi.fn((href: string) => window.history.replaceState(null, "", href)),
 }));
@@ -42,6 +43,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     automacao: {
       titulo: "Automação",
       descricao: "Parâmetros gerais que controlam o comportamento da automação.",
+      semPermissao: "Você não tem permissão para acessar a Automação.",
       carregando: "Carregando parâmetros...",
       vazio: "Nenhum parâmetro cadastrado.",
       erro: "Não foi possível carregar os parâmetros da automação.",
@@ -54,7 +56,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       salvando: "Salvando...",
       recursosIa: { titulo: "Recursos de IA", resumo: "Resumo por IA", preenchimento: "Preenchimento automático", ativado: "Ativado", desativado: "Desativado", gatilho: "Gatilho", quantidade: "Mensagens" },
       abas: { geral: "Geral", followUp: "Follow-up", fidelizacao: "Fidelização" },
-      regras: { novo: "Nova regra", editar: "Editar", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativa", inativo: "Inativa", vazio: "Nenhuma regra cadastrada.", erro: "Erro", unidadeHoras: "Horas", unidadeDias: "Dias", tempo: "Tempo", dias: "Dias", mensagem: "Mensagem", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}" },
+      regras: { novo: "Nova regra", editar: "Editar", ativar: "Ativar regra", desativar: "Desativar regra", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativa", inativo: "Inativa", vazio: "Nenhuma regra cadastrada.", erro: "Erro", unidadeHoras: "Horas", unidadeDias: "Dias", tempo: "Tempo", dias: "Dias", mensagem: "Mensagem", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}" },
       telemetria: {
         mensagensEnviadas: "Mensagens Enviadas",
         clientesTransferidos: "Clientes Transferidos",
@@ -68,6 +70,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
       },
     },
   }),
+}));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor(authMock),
 }));
 
 vi.mock("@/lib/automacao/use-automacao", () => ({
@@ -98,6 +104,18 @@ vi.mock("next/navigation", () => ({
 import { PaginaAutomacao } from "./pagina-automacao";
 
 describe("pagina de automacao", () => {
+  it("mostra permissão insuficiente quando ATENDENTE acessa a rota diretamente", () => {
+    authMock.papel = "ATENDENTE";
+
+    render(<PaginaAutomacao />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Você não tem permissão para acessar a Automação.",
+    );
+    expect(screen.queryByText("Mensagens Enviadas")).not.toBeInTheDocument();
+    authMock.papel = "GESTOR";
+  });
+
   it("mostra os quatro cards de telemetria com os valores do backend", () => {
     render(<PaginaAutomacao />);
 
