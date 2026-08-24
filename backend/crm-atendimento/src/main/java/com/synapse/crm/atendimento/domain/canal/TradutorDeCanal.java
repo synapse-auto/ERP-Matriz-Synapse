@@ -80,6 +80,7 @@ public interface TradutorDeCanal {
      *     bytes depois de baixar, este e so o valor que veio no webhook
      * @param nomeArquivo so preenchido para documento
      * @param legenda caption enviada junto com a midia, se houver
+     * @param identificadorDestino identificador externo do numero que recebeu a mensagem
      */
     record MensagemRecebidaDoCanal(
             String idExterno,
@@ -91,7 +92,8 @@ public interface TradutorDeCanal {
             String mimetype,
             String nomeArquivo,
             String legenda,
-            Instant enviadoEm) {
+            Instant enviadoEm,
+            String identificadorDestino) {
 
         /** Atalho para o caso comum: mensagem de texto, sem nenhum campo de midia. */
         public static MensagemRecebidaDoCanal texto(
@@ -99,7 +101,19 @@ public interface TradutorDeCanal {
                 Instant enviadoEm) {
             return new MensagemRecebidaDoCanal(
                     idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
-                    enviadoEm);
+                    enviadoEm, null);
+        }
+
+        public static MensagemRecebidaDoCanal texto(
+                String idExterno,
+                String identificadorDestino,
+                String telefoneRemetente,
+                String nomeExibicao,
+                String texto,
+                Instant enviadoEm) {
+            return new MensagemRecebidaDoCanal(
+                    idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
+                    enviadoEm, identificadorDestino);
         }
 
         public boolean ehMidia() {

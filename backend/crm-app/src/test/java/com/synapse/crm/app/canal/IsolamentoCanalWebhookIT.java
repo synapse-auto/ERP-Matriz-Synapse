@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
+import java.util.UUID;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -113,6 +114,15 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
 
         assertThat(leads()).isEqualTo(1);
         assertThat(atendimentos()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT a.canal_id FROM atendimento a JOIN lead l ON l.id = a.lead_id"
+                                + " WHERE l.telefone = ?",
+                        UUID.class,
+                        PREFIXO_TELEFONE + "02"))
+                .isEqualTo(jdbc.queryForObject(
+                        "SELECT canal_id FROM canal_credencial WHERE id = ?::uuid",
+                        UUID.class,
+                        CREDENCIAL_ID));
     }
 
     @Test

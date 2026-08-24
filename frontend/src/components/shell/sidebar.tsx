@@ -25,6 +25,8 @@ import {
 
 import { apiFetch } from "@/lib/api/http-client";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
+import { Badge } from "@/components/ui/badge";
+import { useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
 import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
@@ -105,6 +107,7 @@ export function Sidebar() {
   const { data: tema } = useTemaConfig();
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
+  const { data: contagens } = useContagemDeAtendimentos();
   const cache = useQueryClient();
   const mudarPresenca = useMutation({
     mutationFn: atualizarPresenca,
@@ -194,6 +197,7 @@ export function Sidebar() {
           visivel={itemVisivel}
           rotulos={textos.menu.itens}
           pathname={pathname}
+          contagemPendentes={contagens?.PENDENTES}
         />
         <MenuGrupo
           titulo={textos.menu.grupoGestao}
@@ -201,6 +205,7 @@ export function Sidebar() {
           visivel={itemVisivel}
           rotulos={textos.menu.itens}
           pathname={pathname}
+          contagemPendentes={contagens?.PENDENTES}
         />
       </nav>
 
@@ -286,9 +291,10 @@ interface MenuGrupoProps {
   visivel: (item: ItemDeMenu) => boolean;
   rotulos: Record<string, string>;
   pathname: string;
+  contagemPendentes?: number;
 }
 
-function MenuGrupo({ titulo, itens, visivel, rotulos, pathname }: MenuGrupoProps) {
+function MenuGrupo({ titulo, itens, visivel, rotulos, pathname, contagemPendentes }: MenuGrupoProps) {
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
 
@@ -315,6 +321,11 @@ function MenuGrupo({ titulo, itens, visivel, rotulos, pathname }: MenuGrupoProps
                   className={ativo ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo" : "size-[21px] shrink-0"}
                 />
                 <span className="flex-1">{rotulos[item.chave] ?? item.chave}</span>
+                {item.chave === "atendimentos" && contagemPendentes !== undefined && (
+                  <Badge className="h-5 min-w-5 rounded-full px-1 text-[0.625rem]">
+                    {contagemPendentes}
+                  </Badge>
+                )}
               </Link>
             </li>
           );

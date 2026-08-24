@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
@@ -67,7 +68,12 @@ export function CabecalhoConversa({
               alt={conversa.leadNome}
             />
           )}
-          <AvatarFallback>{iniciaisDoNome(conversa.leadNome)}</AvatarFallback>
+          <AvatarFallback
+            className="text-white"
+            style={{ backgroundColor: tomDoAvatar(conversa.leadId) }}
+          >
+            {iniciaisDoNome(conversa.leadNome)}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
           <div className="flex items-center gap-2">

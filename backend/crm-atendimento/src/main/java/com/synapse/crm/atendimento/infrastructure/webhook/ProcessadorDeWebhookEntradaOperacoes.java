@@ -21,6 +21,8 @@ import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRep
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
+import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
+import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -62,6 +64,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
     private final ArmazenamentoDeMidia armazenamento;
+    private final CanalCredencialAtivaRepositorio canaisAtivos;
     private final ObjectMapper json;
     private final Clock relogio;
     private final int lote;
@@ -78,6 +81,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             ArmazenamentoDeMidia armazenamento,
+            CanalCredencialAtivaRepositorio canaisAtivos,
             ObjectMapper json,
             Clock relogio,
             @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager chatTransactionManager,
@@ -92,6 +96,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.leads = leads;
         this.canal = canal;
         this.armazenamento = armazenamento;
+        this.canaisAtivos = canaisAtivos;
         this.json = json;
         this.relogio = relogio;
         this.lote = lote;
@@ -138,10 +143,17 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                         .ifPresent(atendimento -> transferirAtendimento.devolverParaIaPeloSistema(atendimento.id()));
                 continue;
             }
+            CanalEntradaAtiva canalEntrada = canaisAtivos
+                    .porIdentificadorExterno(mensagem.identificadorDestino())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "canal de entrada nao configurado: " + mensagem.identificadorDestino()));
             registrar.executar(mensagem.ehMidia()
-                    ? mensagemRecebidaDeMidia(leadId, mensagem)
+                    ? mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada)
                     : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
-                            leadId, null, null, mensagem.texto()));
+                            leadId,
+                            canalEntrada.canalId(),
+                            canalEntrada.canalCredencialId(),
+                            mensagem.texto()));
         }
 
         // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
@@ -158,7 +170,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
      * do cliente continuar acessivel depois disso (E11b, secao 3 do prompt).
      */
     private RegistrarMensagemRecebidaUseCase.MensagemRecebida mensagemRecebidaDeMidia(
-            UUID leadId, TradutorDeCanal.MensagemRecebidaDoCanal mensagem) {
+            UUID leadId,
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem,
+            CanalEntradaAtiva canalEntrada) {
         CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
         TipoMensagem tipo = TipoMensagem.valueOf(mensagem.tipo());
         String referencia = armazenamento.salvar(baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
@@ -174,7 +188,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         }
 
         return new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
-                leadId, null, null, null, tipo, referencia, metadados.toString());
+                leadId,
+                canalEntrada.canalId(),
+                canalEntrada.canalCredencialId(),
+                null,
+                tipo,
+                referencia,
+                metadados.toString());
     }
 
     private void falhar(WebhookEntrada.Pendente pendente, Instant agora, RuntimeException e) {

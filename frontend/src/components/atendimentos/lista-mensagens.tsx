@@ -139,6 +139,7 @@ export function ListaMensagens({
                   mensagem,
                   atendenteId,
                   atendenteNome,
+                  textos.atendimentos.mensagem.ia,
                 );
                 return (
                   <div
@@ -188,7 +189,10 @@ export function nomeDaAutoria(
   mensagem: MensagemResposta,
   atendenteId: string | null,
   atendenteNome: string | null,
+  rotuloIa: string | null = null,
 ): string | null {
+  if (mensagem.remetenteTipo === "IA") return rotuloIa;
+  if (mensagem.remetenteTipo !== "ATENDENTE") return null;
   return (
     mensagem.remetenteNome ??
     (mensagem.remetenteId && mensagem.remetenteId === atendenteId

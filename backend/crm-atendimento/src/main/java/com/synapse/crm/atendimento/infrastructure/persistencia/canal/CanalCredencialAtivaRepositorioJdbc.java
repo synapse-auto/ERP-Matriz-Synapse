@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.persistencia.canal;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.sql.DataSource;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
+import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.application.canal.ConfiguracaoCanalAtivo;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -26,6 +28,18 @@ class CanalCredencialAtivaRepositorioJdbc implements CanalCredencialAtivaReposit
                AND cc.vigente_desde <= now()
                AND (cc.vigente_ate IS NULL OR cc.vigente_ate > now())
              WHERE c.ativo
+            """;
+
+    private static final String SQL_POR_IDENTIFICADOR =
+            """
+            SELECT c.id AS canal_id, cc.id AS canal_credencial_id
+              FROM canal c
+              JOIN canal_credencial cc ON cc.canal_id = c.id
+             WHERE c.ativo
+               AND cc.ativo
+               AND cc.identificador_externo = ?
+               AND cc.vigente_desde <= now()
+               AND (cc.vigente_ate IS NULL OR cc.vigente_ate > now())
             """;
 
     private final JdbcTemplate chat;
@@ -50,5 +64,18 @@ class CanalCredencialAtivaRepositorioJdbc implements CanalCredencialAtivaReposit
             }
         });
         return new ConfiguracaoCanalAtivo(canais[0], semIdentificador[0], identificadores);
+    }
+
+    @Override
+    public Optional<CanalEntradaAtiva> porIdentificadorExterno(String identificadorExterno) {
+        if (identificadorExterno == null || identificadorExterno.isBlank()) return Optional.empty();
+        return chat.query(
+                        SQL_POR_IDENTIFICADOR,
+                        resultado -> resultado.next()
+                                ? Optional.of(new CanalEntradaAtiva(
+                                        resultado.getObject("canal_id", java.util.UUID.class),
+                                        resultado.getObject("canal_credencial_id", java.util.UUID.class)))
+                                : Optional.empty(),
+                        identificadorExterno);
     }
 }

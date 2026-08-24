@@ -56,4 +56,28 @@ describe("nomeDaAutoria", () => {
       ),
     ).toBe("Ana Atendente");
   });
+
+  it("rotula mensagens da automacao como IA", () => {
+    expect(
+      nomeDaAutoria(
+        mensagem({ remetenteTipo: "IA", remetenteId: null, remetenteNome: null }),
+        null,
+        null,
+        "IA",
+      ),
+    ).toBe("IA");
+  });
+
+  it("nao inventa autoria para lead, sistema ou tipo desconhecido", () => {
+    expect(nomeDaAutoria(mensagem({ remetenteTipo: "LEAD" }), null, null, "IA")).toBeNull();
+    expect(nomeDaAutoria(mensagem({ remetenteTipo: "SISTEMA" }), null, null, "IA")).toBeNull();
+    expect(
+      nomeDaAutoria(
+        mensagem({ remetenteTipo: "DESCONHECIDO" as MensagemResposta["remetenteTipo"] }),
+        null,
+        null,
+        "IA",
+      ),
+    ).toBeNull();
+  });
 });

@@ -20,6 +20,7 @@ class MetaCloudWebhookTradutorTest {
         assertThat(mensagem).hasSize(1);
         assertThat(mensagem.get(0).tipo()).isEqualTo("TEXTO");
         assertThat(mensagem.get(0).texto()).isEqualTo("Agendar consulta");
+        assertThat(mensagem.get(0).identificadorDestino()).isNull();
     }
 
     @Test
@@ -83,6 +84,16 @@ class MetaCloudWebhookTradutorTest {
 
         assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
                 .containsExactly("A", "B");
+    }
+
+    @Test
+    void preservaONumeroDeDestinoDaMeta() {
+        var mensagens = tradutor.traduzir("""
+                {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"999999999999999"},
+                  "messages":[{"from":"1","id":"A","type":"text","text":{"body":"a"}}]}}]}]}
+                """);
+
+        assertThat(mensagens.get(0).identificadorDestino()).isEqualTo("999999999999999");
     }
 
     private static String payload(String tipo, String titulo, String id) {

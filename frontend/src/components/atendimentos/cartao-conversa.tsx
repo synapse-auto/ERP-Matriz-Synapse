@@ -4,6 +4,7 @@ import { MessageCircleMore } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
@@ -43,7 +44,10 @@ export function CartaoConversa({
               alt={cartao.leadNome}
             />
           )}
-          <AvatarFallback className="rounded-xl">
+          <AvatarFallback
+            className="rounded-xl text-white"
+            style={{ backgroundColor: tomDoAvatar(cartao.leadId) }}
+          >
             {iniciaisDoNome(cartao.leadNome)}
           </AvatarFallback>
         </Avatar>
@@ -108,12 +112,11 @@ export function CartaoConversa({
               {cartao.etapaNome}
             </span>
           )}
-          <span
-            className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[0.6rem] font-bold text-muted-foreground"
-            title={cartao.atendenteNome ?? textos.cartao.semAtendente}
-          >
-            {cartao.atendenteNome ? iniciaisDoNome(cartao.atendenteNome) : "—"}
-          </span>
+          {cartao.atendenteNome && (
+            <span className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[0.6rem] font-bold text-muted-foreground">
+              {iniciaisDoNome(cartao.atendenteNome)}
+            </span>
+          )}
         </div>
       </div>
     </button>

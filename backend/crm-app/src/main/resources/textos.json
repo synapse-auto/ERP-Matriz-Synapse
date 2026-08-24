@@ -120,6 +120,7 @@
       "hoje": "Hoje",
       "ontem": "Ontem",
       "atendimentoRecebido": "Atendimento recebido",
+      "ia": "IA",
       "responsavelAtual": "Responsável atual: {nome}",
       "status": {
         "pendente": "Enviando",

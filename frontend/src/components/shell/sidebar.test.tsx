@@ -9,6 +9,7 @@ const authMock = vi.hoisted(() => ({
   definirSessao: vi.fn(),
 }));
 const fetchMock = vi.hoisted(() => vi.fn());
+const contagemMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/atendimentos",
@@ -30,6 +31,10 @@ vi.mock("@/lib/equipe/api", () => ({
 
 vi.mock("@/lib/equipe/use-equipe", () => ({
   useMeuUsuario: () => ({ data: { nome: "Ana Beatriz", papel: "ATENDENTE", presenca: "ONLINE" } }),
+}));
+
+vi.mock("@/lib/atendimento/use-atendimentos", () => ({
+  useContagemDeAtendimentos: () => contagemMock(),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -84,6 +89,7 @@ describe("sidebar", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
+    contagemMock.mockReturnValue({ data: { PENDENTES: 7 } });
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -140,10 +146,25 @@ describe("sidebar", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Erro.");
     const agenda = screen.getByRole("link", { name: "Agenda de Contatos" });
     expect(agenda).toHaveAttribute("href", "/agenda");
-    expect(screen.getByRole("link", { name: "Atendimentos" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Atendimentos/ })).toHaveAttribute(
       "href",
       "/atendimentos",
     );
     expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+  });
+
+  it("mostra no menu somente a contagem de pendentes", async () => {
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: /Atendimentos/ })).toHaveTextContent("7");
+  });
+
+  it("omite o badge quando a contagem falha", async () => {
+    contagemMock.mockReturnValue({ data: undefined, isError: true });
+
+    renderSidebar();
+
+    const link = await screen.findByRole("link", { name: "Atendimentos" });
+    expect(link).not.toHaveTextContent("7");
   });
 });

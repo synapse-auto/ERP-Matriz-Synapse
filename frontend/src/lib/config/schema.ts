@@ -188,6 +188,7 @@ export const TextosSchema = z.object({
       hoje: z.string(),
       ontem: z.string(),
       atendimentoRecebido: z.string(),
+      ia: z.string(),
       responsavelAtual: z.string(),
       status: z.object({
         pendente: z.string(),

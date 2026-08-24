@@ -140,6 +140,7 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             Instant enviadoEm =
                     Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()));
             String idExterno = no.path("id").asText();
+            String identificadorDestino = mensagemDoPayload.valor().path("metadata").path("phone_number_id").asText(null);
             String telefoneRemetente = no.path("from").asText();
             String nomeExibicao = nomeDeExibicao(mensagemDoPayload.valor(), telefoneRemetente);
 
@@ -151,14 +152,14 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
                 // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
                 traduzidas.add(MensagemRecebidaDoCanal.texto(
-                        idExterno, telefoneRemetente, nomeExibicao, titulo, enviadoEm));
+                        idExterno, identificadorDestino, telefoneRemetente, nomeExibicao, titulo, enviadoEm));
                 continue;
             }
 
             if ("text".equals(tipoMeta)) {
                 traduzidas.add(MensagemRecebidaDoCanal.texto(
-                        idExterno, telefoneRemetente, nomeExibicao, no.path("text").path("body").asText(),
-                        enviadoEm));
+                        idExterno, identificadorDestino, telefoneRemetente, nomeExibicao,
+                        no.path("text").path("body").asText(), enviadoEm));
                 continue;
             }
 
@@ -180,7 +181,8 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                     midiaNo.path("mime_type").asText(null),
                     midiaNo.path("filename").asText(null),
                     midiaNo.path("caption").asText(null),
-                    enviadoEm));
+                    enviadoEm,
+                    identificadorDestino));
         }
         return traduzidas;
     }

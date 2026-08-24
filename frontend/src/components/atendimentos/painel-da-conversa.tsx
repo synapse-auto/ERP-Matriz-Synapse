@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEtapas, useLead } from "@/lib/lead/use-painel-lead";
 import {
@@ -71,7 +72,12 @@ export function PainelDaConversa({ leadId, responsavelNome }: Props) {
                 alt={lead.data.nome}
               />
             )}
-            <AvatarFallback>{iniciaisDoNome(lead.data.nome)}</AvatarFallback>
+            <AvatarFallback
+              className="text-white"
+              style={{ backgroundColor: tomDoAvatar(lead.data.id) }}
+            >
+              {iniciaisDoNome(lead.data.nome)}
+            </AvatarFallback>
           </Avatar>
           <div>
             <p className="text-base font-extrabold text-foreground">

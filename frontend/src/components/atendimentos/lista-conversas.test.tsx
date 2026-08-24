@@ -97,10 +97,10 @@ describe("ListaConversas", () => {
     expect(screen.getByRole("tab", { name: /Ativos/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Pendentes/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Potenciais/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Todos/ })).toHaveAttribute(
-      "data-active",
-    );
-    expect(screen.getByRole("tab", { name: /Todos/ })).toHaveTextContent("2");
+    const todos = screen.getByRole("tab", { name: /Todos/ });
+    expect(todos).toHaveAttribute("data-active");
+    expect(todos.className).not.toContain("border-b-2");
+    expect(todos).toHaveTextContent("2");
 
     fireEvent.change(
       screen.getByPlaceholderText("Buscar cliente ou protocolo..."),

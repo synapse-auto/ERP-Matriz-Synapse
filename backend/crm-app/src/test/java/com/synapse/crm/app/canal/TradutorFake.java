@@ -70,7 +70,8 @@ public class TradutorFake implements TradutorDeCanal {
         Optional<String> tipo = campo(payloadCru, "\"tipo\":");
         if (tipo.isEmpty() || "TEXTO".equals(tipo.get())) {
             return List.of(MensagemRecebidaDoCanal.texto(
-                    ids.get(0), telefone, nome, campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
+                    ids.get(0), IDENTIFICADOR_DESTINO, telefone, nome,
+                    campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
         }
         return List.of(new MensagemRecebidaDoCanal(
                 ids.get(0),
@@ -82,7 +83,8 @@ public class TradutorFake implements TradutorDeCanal {
                 campo(payloadCru, "\"mimetype\":").orElse(null),
                 campo(payloadCru, "\"nomeArquivo\":").orElse(null),
                 campo(payloadCru, "\"legenda\":").orElse(null),
-                Instant.now()));
+                Instant.now(),
+                IDENTIFICADOR_DESTINO));
     }
 
     /**

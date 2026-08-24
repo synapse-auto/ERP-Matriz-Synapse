@@ -1,7 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
+
+vi.mock("@/components/ui/avatar", () => {
+  const Container = ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
+    <div {...props}>{children}</div>
+  );
+  return {
+    Avatar: Container,
+    AvatarFallback: Container,
+    // eslint-disable-next-line @next/next/no-img-element
+    AvatarImage: (props: { [key: string]: unknown }) => <img alt="" {...props} />,
+  };
+});
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
@@ -88,5 +102,30 @@ describe("CartaoConversa — RN-CRM-05", () => {
 
     expect(screen.queryByText("Vidraçaria Cristal Clara")).not.toBeInTheDocument();
     expect(screen.queryByTitle("WhatsApp")).not.toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("usa tom determinístico pelo id do lead e deixa a foto vencer", () => {
+    const { rerender } = render(
+      <CartaoConversa
+        cartao={cartao}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+    const fallback = screen.getByText("CE");
+    expect(fallback).toHaveStyle({ backgroundColor: tomDoAvatar("lead-1") });
+
+    rerender(
+      <CartaoConversa
+        cartao={{ ...cartao, leadFotoUrl: "https://cdn.example/foto.webp" }}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Cliente E12" })).toHaveAttribute(
+      "src",
+      "https://cdn.example/foto.webp",
+    );
   });
 });
