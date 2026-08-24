@@ -65,6 +65,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       sair: "Sair",
       presenca: { rotulo: "Status de presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
+    configuracoes: { abrir: "Abrir configurações" },
   }),
 }));
 
@@ -118,6 +119,16 @@ describe("sidebar", () => {
 
     await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Automação")).not.toBeInTheDocument();
+  });
+
+  it("oferece engrenagem de configurações separada do popup de presença", async () => {
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Abrir configurações" })).toHaveAttribute(
+      "href",
+      "/configuracoes",
+    );
+    expect(screen.getByRole("button", { name: /Ana Beatriz/ })).toBeInTheDocument();
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {

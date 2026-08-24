@@ -4,7 +4,22 @@ Tudo que está no protótipo aprovado pelo cliente e **não** está no sistema. 
 
 Distinto do `docs/09`, que define o recorte da primeira entrega. Este documento existe para que nenhuma dessas pendências dependa de alguém lembrar.
 
-Atualizado em 23/08/2026, depois da E39.
+Atualizado em 24/08/2026, depois da E49.
+
+## E49 — Configurações ainda fora da entrega
+
+A aba **Configurações** entrega nesta etapa apenas o perfil do usuário: nome editável pelo próprio
+usuário, e-mail somente leitura, telefone/cargo de exibição, papel somente leitura e o link para o
+fluxo existente de troca de senha. Os itens abaixo continuam pendentes e não são simulados na tela:
+
+| Item | O que falta | Por que não entrou |
+|---|---|---|
+| **Alterar foto** | upload de avatar, limites, recorte, remoção e autorização | não existe contrato de foto de usuário; o MinIO atual é mídia de conversa |
+| **Preferências gerais** | idioma, notificações, densidade e persistência por usuário | o catálogo de textos é por instância e não existe modelo de preferências |
+| **Aparência** | sobrescrita de tema por usuário | o tema é da instância; tema individual exige uma decisão de precedência e um segundo nível de configuração |
+| **Ajuda e suporte** | conteúdo, links e canal real de suporte | não há conteúdo nem integração de suporte definida |
+| **Novidades & Em Breve / Administração** | módulo de publicação e administração da matriz | não fazem parte desta etapa nem têm contrato de produto |
+| **Versão exibida na tela** | valor vindo do build | não foi criado um contrato de versão; não será usado texto fixo |
 
 ---
 

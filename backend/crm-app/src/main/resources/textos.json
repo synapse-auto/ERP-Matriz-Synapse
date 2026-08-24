@@ -30,6 +30,31 @@
     "sair": "Sair",
     "presenca":{"rotulo":"Presença","online":"Online","ausente":"Ausente","offline":"Offline"}
   },
+  "configuracoes": {
+    "titulo": "Configurações",
+    "descricao": "Conta e sistema · a automação da IA é configurada na aba Automação",
+    "abrir": "Abrir configurações",
+    "perfil": "Perfil do usuário",
+    "perfilDescricao": "Nome, e-mail e senha",
+    "nome": "Nome",
+    "email": "E-mail",
+    "emailAjuda": "A troca do e-mail deve ser solicitada ao administrador.",
+    "telefone": "Telefone",
+    "cargo": "Cargo",
+    "papel": "Papel",
+    "senha": "Senha",
+    "senhaAjuda": "Altere sua senha usando o fluxo seguro de troca de senha.",
+    "alterarSenha": "Alterar senha",
+    "ultimaAlteracaoSenha": "Última alteração",
+    "senhaProvisoria": "Ainda não alterada",
+    "naoInformado": "Não informado",
+    "salvarPerfil": "Salvar perfil",
+    "salvando": "Salvando...",
+    "salvo": "Perfil salvo.",
+    "carregando": "Carregando perfil...",
+    "erro": "Não foi possível carregar ou salvar seu perfil.",
+    "erroNome": "Informe um nome válido."
+  },
   "auth": {
     "mostrarSenha": "Mostrar senha",
     "ocultarSenha": "Ocultar senha"

@@ -12,6 +12,7 @@ import {
   listarEquipe,
   atualizarDisponibilidadeParaIa,
   obterMeuUsuario,
+  atualizarMeuUsuario,
 } from "./api";
 import type { PapelGerenciavel } from "./types";
 
@@ -41,6 +42,14 @@ export function useDesempenhoEquipe() {
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */
 export function useMeuUsuario() {
   return useQuery({ queryKey: ["me"], queryFn: obterMeuUsuario });
+}
+
+export function useAtualizarMeuUsuario() {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: (dados: { nome: string }) => atualizarMeuUsuario(dados),
+    onSuccess: (dados) => cache.setQueryData(["me"], dados),
+  });
 }
 
 export function useCriarUsuario() {

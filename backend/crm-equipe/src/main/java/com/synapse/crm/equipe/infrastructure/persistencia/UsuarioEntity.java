@@ -48,6 +48,12 @@ class UsuarioEntity {
     @Column(name = "ativo", nullable = false)
     private boolean ativo;
 
+    @Column(name = "telefone")
+    private String telefone;
+
+    @Column(name = "cargo")
+    private String cargo;
+
     /** {@code null} = senha provisoria, nunca trocada pelo dono (E29). */
     @Column(name = "senha_alterada_em")
     private Instant senhaAlteradaEm;
@@ -57,6 +63,7 @@ class UsuarioEntity {
     }
 
     Usuario paraDominio() {
-        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, false, senhaAlteradaEm);
+        return new Usuario(id, nome, email, senhaHash, papel, statusPresenca, ativo, false, telefone, cargo,
+                senhaAlteradaEm);
     }
 }

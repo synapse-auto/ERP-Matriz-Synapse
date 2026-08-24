@@ -11,11 +11,21 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 public record Usuario(
         UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
         StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
+        String telefone, String cargo,
         /**
          * {@code null} = senha provisoria, nunca trocada pelo dono (E29). Usuario recem-criado ou
          * que teve a senha redefinida por um gestor comeca assim, de proposito.
          */
         Instant senhaAlteradaEm) {
+
+    /** Compatibilidade para os casos que só precisam de identidade e autenticação. */
+    public Usuario(
+            UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
+            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
+            Instant senhaAlteradaEm) {
+        this(id, nome, email, senhaHash, papel, statusPresenca, ativo, disponivelParaIa,
+                null, null, senhaAlteradaEm);
+    }
 
     public Usuario {
         Objects.requireNonNull(id, "id e obrigatorio");

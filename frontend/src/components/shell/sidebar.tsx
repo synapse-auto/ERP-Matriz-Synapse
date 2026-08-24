@@ -20,6 +20,7 @@ import {
   Megaphone,
   MessageSquareText,
   MessagesSquare,
+  Settings,
   Tag,
   Users,
 } from "lucide-react";
@@ -266,11 +267,12 @@ export function Sidebar() {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setPopupAberto((atual) => !atual)}
-          className="flex w-full min-w-0 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
-        >
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPopupAberto((atual) => !atual)}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
+          >
           <span className="relative flex size-[38px] flex-none items-center justify-center rounded-[11px] bg-primary text-sm font-bold text-white">
             {meuUsuario.data ? iniciaisDoNome(meuUsuario.data.nome) : "?"}
             <span
@@ -288,7 +290,16 @@ export function Sidebar() {
               {meuUsuario.data?.papel ?? papel} · {rotuloDaPresenca(statusAtual)}
             </span>
           </span>
-        </button>
+          </button>
+          <Link
+            href="/configuracoes"
+            aria-label={textos.configuracoes.abrir}
+            title={textos.configuracoes.abrir}
+            className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+          >
+            <Settings className="size-4" />
+          </Link>
+        </div>
       </div>
     </aside>
   );

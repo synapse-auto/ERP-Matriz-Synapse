@@ -17,7 +17,7 @@ vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
 
 vi.mock("@/lib/config/fetch-config", () => ({
   buscarTema: async () => ({}),
-  temaParaCssVariaveis: () => ":root{}",
+  temaParaCssVariaveis: () => ":root{--primary:#123456}",
 }));
 
 import ShellLayout from "./layout";
@@ -34,5 +34,11 @@ describe("superfície compartilhada do shell", () => {
       "bg-[var(--fundo-canvas)]",
       "overflow-hidden",
     );
+  });
+
+  it("injeta o tema da instância também na rota de troca de senha do shell", async () => {
+    render(await ShellLayout({ children: <div>Trocar senha</div> }));
+
+    expect(document.querySelector("style")).toHaveTextContent("--primary:#123456");
   });
 });

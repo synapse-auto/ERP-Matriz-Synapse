@@ -97,6 +97,14 @@ export const TextosSchema = z.object({
     sair: z.string(),
     presenca:z.object({rotulo:z.string(),online:z.string(),ausente:z.string(),offline:z.string()}),
   }),
+  configuracoes: z.object({
+    titulo: z.string(), descricao: z.string(), abrir: z.string(), perfil: z.string(), perfilDescricao: z.string(),
+    nome: z.string(), email: z.string(), emailAjuda: z.string(), telefone: z.string(), cargo: z.string(),
+    papel: z.string(), senha: z.string(), senhaAjuda: z.string(), alterarSenha: z.string(),
+    ultimaAlteracaoSenha: z.string(), senhaProvisoria: z.string(), naoInformado: z.string(),
+    salvarPerfil: z.string(), salvando: z.string(), salvo: z.string(), carregando: z.string(),
+    erro: z.string(), erroNome: z.string(),
+  }),
   auth: z.object({
     mostrarSenha: z.string(),
     ocultarSenha: z.string(),
