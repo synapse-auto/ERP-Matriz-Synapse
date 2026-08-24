@@ -2,10 +2,10 @@ import { Tema, TemaSchema, Textos, TextosSchema } from "./schema";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
- * `/api/v1/config/tema` e `/api/v1/config/textos` são públicos (SecurityConfig, E10): a própria
- * tela de login precisa deles antes de existir qualquer sessão. `cache: "no-store"` é proposital —
- * é o que faz "trocar tema.json muda a aparência" ser verdade a cada carregamento, sem precisar de
- * rebuild nem de invalidação manual de cache.
+ * `/api/v1/config/tema` e `/api/v1/config/textos` são públicos (SecurityConfig, E10). O catálogo
+ * atende também o login antes da sessão; o tema é buscado somente pelo shell, pois a identidade da
+ * tela de login é fixa da Synapse. `cache: "no-store"` mantém "trocar tema.json muda a aparência"
+ * verdadeiro para o CRM, sem rebuild nem invalidação manual de cache.
  */
 async function buscarConfig<T>(caminho: string): Promise<unknown> {
   const resposta = await fetch(`${obterUrlApiServidor()}${caminho}`, { cache: "no-store" });

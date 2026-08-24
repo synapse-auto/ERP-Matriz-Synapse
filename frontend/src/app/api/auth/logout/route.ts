@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import { NOME_COOKIE_PERSISTENCIA_SESSAO, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 export async function POST() {
@@ -19,5 +19,6 @@ export async function POST() {
   }
 
   cookieStore.delete(NOME_COOKIE_REFRESH);
+  cookieStore.delete(NOME_COOKIE_PERSISTENCIA_SESSAO);
   return new NextResponse(null, { status: 204 });
 }

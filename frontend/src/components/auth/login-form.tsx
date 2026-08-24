@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LockKeyhole } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MarcaSynapse } from "@/components/auth/marca-synapse";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -15,11 +16,14 @@ export function LoginForm() {
   const textos = useTextos().login;
   const router = useRouter();
   const definirSessao = useAuthStore((estado) => estado.definirSessao);
+  const iniciarAberturaDoPainel = useAuthStore((estado) => estado.iniciarAberturaDoPainel);
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [manterSessaoAtiva, setManterSessaoAtiva] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const erroId = useId();
 
   async function handleSubmit(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -30,7 +34,7 @@ export function LoginForm() {
       const resposta = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ email, senha, manterSessaoAtiva }),
       });
 
       if (!resposta.ok) {
@@ -40,6 +44,11 @@ export function LoginForm() {
 
       const sessao = (await resposta.json()) as { accessToken: string; expiraEmSegundos: number };
       definirSessao({ ...sessao, email });
+      if (useAuthStore.getState().precisaTrocarSenha) {
+        router.push("/trocar-senha");
+        return;
+      }
+      iniciarAberturaDoPainel();
       router.push("/");
     } catch {
       setErro(textos.erroGenerico);
@@ -49,44 +58,68 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>{textos.titulo}</CardTitle>
-        <CardDescription>{textos.subtitulo}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">{textos.campoEmail}</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(evento) => setEmail(evento.target.value)}
+    <div className="synapse-login__cartao">
+      <MarcaSynapse alt={textos.marcaSynapse} className="synapse-login__marca-formulario" />
+      <div className="synapse-login__cabecalho">
+        <h2 className="synapse-login__titulo-formulario">{textos.titulo}</h2>
+        <p className="synapse-login__descricao-formulario">{textos.subtitulo}</p>
+      </div>
+      <form onSubmit={handleSubmit} className="synapse-login__campos">
+        <div className="synapse-login__campo">
+          <Label className="synapse-login__rotulo" htmlFor="email">
+            {textos.campoEmail}
+          </Label>
+          <Input
+            id="email"
+            className="synapse-login__input"
+            type="email"
+            autoComplete="email"
+            required
+            aria-invalid={Boolean(erro)}
+            aria-describedby={erro ? erroId : undefined}
+            value={email}
+            onChange={(evento) => setEmail(evento.target.value)}
+          />
+        </div>
+        <div className="synapse-login__campo">
+          <Label className="synapse-login__rotulo" htmlFor="senha">
+            {textos.campoSenha}
+          </Label>
+          <PasswordInput
+            id="senha"
+            className="synapse-login__input"
+            autoComplete="current-password"
+            required
+            aria-invalid={Boolean(erro)}
+            aria-describedby={erro ? erroId : undefined}
+            value={senha}
+            onChange={(evento) => setSenha(evento.target.value)}
+          />
+        </div>
+        <div className="synapse-login__opcoes">
+          <label className="synapse-login__lembrar">
+            <input
+              className="synapse-login__checkbox"
+              type="checkbox"
+              checked={manterSessaoAtiva}
+              onChange={(evento) => setManterSessaoAtiva(evento.target.checked)}
             />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="senha">{textos.campoSenha}</Label>
-            <PasswordInput
-              id="senha"
-              autoComplete="current-password"
-              required
-              value={senha}
-              onChange={(evento) => setSenha(evento.target.value)}
-            />
-          </div>
-          {erro && (
-            <p role="alert" className="text-sm text-cor-erro">
-              {erro}
-            </p>
-          )}
-          <Button type="submit" disabled={enviando} className="w-full">
-            {enviando ? textos.entrando : textos.botaoEntrar}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+            {textos.manterSessaoAtiva}
+          </label>
+        </div>
+        {erro && (
+          <p id={erroId} role="alert" aria-live="assertive" className="synapse-login__erro">
+            {erro}
+          </p>
+        )}
+        <Button type="submit" disabled={enviando} className="synapse-login__botao">
+          {enviando ? textos.entrando : textos.botaoEntrar}
+        </Button>
+      </form>
+      <p className="synapse-login__seguro">
+        <LockKeyhole aria-hidden="true" size={14} />
+        {textos.ambienteSeguro}
+      </p>
+    </div>
   );
 }

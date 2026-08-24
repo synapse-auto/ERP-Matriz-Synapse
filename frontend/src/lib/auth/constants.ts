@@ -8,5 +8,13 @@
  */
 export const NOME_COOKIE_REFRESH = "synapse_refresh";
 
+/**
+ * Registra, no servidor, se o refresh token pode sobreviver ao fechamento do navegador. É um
+ * cookie httpOnly separado porque o browser não devolve ao Route Handler os atributos (`maxAge` /
+ * `expires`) com que o cookie de refresh original foi criado. Sem esta informação, uma rotação
+ * poderia transformar silenciosamente um cookie de sessão em um cookie persistente.
+ */
+export const NOME_COOKIE_PERSISTENCIA_SESSAO = "synapse_sessao_persistente";
+
 /** 7 dias — mesmo default de synapse.seguranca.validade-refresh-token no backend. */
 export const MAX_AGE_COOKIE_REFRESH_SEGUNDOS = 60 * 60 * 24 * 7;

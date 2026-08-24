@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
 import { Sidebar } from "@/components/shell/sidebar";
 import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import { buscarTema, temaParaCssVariaveis } from "@/lib/config/fetch-config";
 
 /**
  * Proteção de rota no servidor: só confere a PRESENÇA do cookie httpOnly (leitura, não consome),
@@ -16,18 +18,23 @@ export default async function ShellLayout({ children }: { children: React.ReactN
   if (!cookieStore.has(NOME_COOKIE_REFRESH)) {
     redirect("/login");
   }
+  const tema = await buscarTema();
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]" data-slot="page-canvas">
-      <Sidebar />
-      <div className="min-w-0 flex-1">
-        <main
-          className="flex h-full flex-col overflow-y-auto"
-          data-slot="page-surface"
-        >
-          {children}
-        </main>
+    <>
+      <style>{temaParaCssVariaveis(tema)}</style>
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]" data-slot="page-canvas">
+        <Sidebar />
+        <div className="min-w-0 flex-1">
+          <main
+            className="flex h-full flex-col overflow-y-auto"
+            data-slot="page-surface"
+          >
+            {children}
+          </main>
+          <SinalizadorShellPronto />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

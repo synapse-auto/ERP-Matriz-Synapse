@@ -1,0 +1,309 @@
+/*
+ * Identidade do PRODUTO Synapse, deliberadamente fixa para o portão de entrada. O login não lê
+ * tema.json nem a logo da instância: a personalização do cliente começa somente dentro do shell.
+ * Estes são tokens de produto, separados dos tokens configuráveis de design/TOKENS.md.
+ */
+:root {
+  --synapse-login-primaria: #7c5ce0;
+  --synapse-login-gradiente-inicio: #6a47c7;
+  --synapse-login-gradiente-meio: #a78bfa;
+  --synapse-login-gradiente-fim: #c4b2fd;
+  --synapse-login-fundo: #f8f7fc;
+  --synapse-login-superficie: #ffffff;
+  --synapse-login-texto: #241b3d;
+  --synapse-login-texto-suave: #615a75;
+  --synapse-login-borda: #ded9ee;
+  --synapse-login-erro: #9f1239;
+  --synapse-login-foco: #5835c2;
+  --synapse-login-sombra: 0 28px 70px -35px rgb(47 28 101 / 45%);
+}
+
+.synapse-login {
+  display: grid;
+  min-height: 100%;
+  grid-template-columns: minmax(460px, 1.08fr) minmax(480px, 0.92fr);
+  background: var(--synapse-login-fundo);
+}
+
+.synapse-login__apresentacao {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(2.5rem, 6vw, 5.75rem);
+  color: var(--synapse-login-superficie);
+  background: linear-gradient(
+    135deg,
+    var(--synapse-login-gradiente-inicio) 0%,
+    var(--synapse-login-primaria) 42%,
+    var(--synapse-login-gradiente-meio) 74%,
+    var(--synapse-login-gradiente-fim) 100%
+  );
+}
+
+/* O véu garante contraste AA (branco sobre o ponto claro do gradiente = 7.51:1 medido). */
+.synapse-login__apresentacao::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: rgb(31 19 63 / 64%);
+}
+
+.synapse-login__marca,
+.synapse-login__conteudo,
+.synapse-login__destaques {
+  position: relative;
+  z-index: 1;
+}
+
+.synapse-login__marca {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.synapse-login__conteudo {
+  max-width: 36rem;
+  margin: auto 0;
+}
+
+.synapse-login__titulo {
+  max-width: 10ch;
+  margin: 0;
+  color: inherit;
+  font-size: clamp(2.9rem, 5vw, 5.25rem);
+  font-weight: 720;
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+}
+
+.synapse-login__subtitulo {
+  max-width: 32rem;
+  margin: 1.5rem 0 0;
+  color: inherit;
+  font-size: clamp(1rem, 1.6vw, 1.1875rem);
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.synapse-login__destaques {
+  display: grid;
+  gap: 0.875rem;
+  max-width: 35rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.synapse-login__destaque {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  color: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.synapse-login__icone-destaque {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 36%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 15%);
+}
+
+.synapse-login__formulario {
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--synapse-login-superficie);
+}
+
+.synapse-login__cartao {
+  width: 100%;
+  max-width: 25rem;
+}
+
+.synapse-login__marca-formulario {
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 2.5rem;
+  filter: drop-shadow(0 8px 16px rgb(77 48 164 / 28%));
+}
+
+.synapse-login__cabecalho {
+  margin-bottom: 2rem;
+}
+
+.synapse-login__titulo-formulario {
+  margin: 0;
+  color: var(--synapse-login-texto);
+  font-size: 1.875rem;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+}
+
+.synapse-login__descricao-formulario {
+  margin: 0.5rem 0 0;
+  color: var(--synapse-login-texto-suave);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.synapse-login__campos {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.synapse-login__campo {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.synapse-login__rotulo {
+  color: var(--synapse-login-texto);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.synapse-login__input {
+  height: 2.9rem;
+  border-color: var(--synapse-login-borda);
+  color: var(--synapse-login-texto);
+  background: var(--synapse-login-superficie);
+}
+
+.synapse-login__input:focus-visible {
+  border-color: var(--synapse-login-foco);
+  box-shadow: 0 0 0 3px rgb(124 92 224 / 22%);
+}
+
+.synapse-login__opcoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.synapse-login__lembrar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--synapse-login-texto-suave);
+  font-size: 0.8125rem;
+  font-weight: 560;
+}
+
+.synapse-login__checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--synapse-login-primaria);
+}
+
+.synapse-login__checkbox:focus-visible {
+  outline: 3px solid rgb(124 92 224 / 32%);
+  outline-offset: 2px;
+}
+
+.synapse-login__erro {
+  margin: 0;
+  color: var(--synapse-login-erro);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.synapse-login__botao {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.25rem;
+  color: var(--synapse-login-superficie);
+  background: var(--synapse-login-primaria);
+  box-shadow: var(--synapse-login-sombra);
+}
+
+.synapse-login__botao:hover {
+  background: var(--synapse-login-foco);
+}
+
+.synapse-login__seguro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 1.75rem 0 0;
+  color: var(--synapse-login-texto-suave);
+  font-size: 0.75rem;
+}
+
+.synapse-transicao {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  color: var(--synapse-login-superficie);
+  background: linear-gradient(
+    135deg,
+    var(--synapse-login-gradiente-inicio),
+    var(--synapse-login-primaria),
+    var(--synapse-login-gradiente-meio)
+  );
+}
+
+.synapse-transicao__conteudo {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.synapse-transicao__marca {
+  width: 4rem;
+  height: 4rem;
+}
+
+.synapse-transicao__icone {
+  width: 1.5rem;
+  height: 1.5rem;
+  animation: synapse-girar 0.9s linear infinite;
+}
+
+.synapse-transicao__texto,
+.synapse-transicao__erro {
+  max-width: 24rem;
+  margin: 0;
+  color: inherit;
+  font-weight: 650;
+}
+
+.synapse-transicao__botao {
+  color: var(--synapse-login-primaria);
+  background: var(--synapse-login-superficie);
+}
+
+@keyframes synapse-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 880px) {
+  .synapse-login {
+    display: block;
+  }
+
+  .synapse-login__apresentacao {
+    display: none;
+  }
+
+  .synapse-login__formulario {
+    min-height: 100vh;
+    padding: 1.5rem;
+  }
+}

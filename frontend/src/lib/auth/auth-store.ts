@@ -17,8 +17,12 @@ interface AuthState {
   /** true enquanto a senha for provisória (E29) — decidido pelo backend, só lido aqui. */
   precisaTrocarSenha: boolean;
   status: "carregando" | "autenticado" | "nao-autenticado";
+  aberturaDoPainel: "ociosa" | "em-andamento" | "erro";
   definirSessao: (sessao: SessaoIniciada) => void;
   limparSessao: () => void;
+  iniciarAberturaDoPainel: () => void;
+  concluirAberturaDoPainel: () => void;
+  falharAberturaDoPainel: () => void;
 }
 
 /**
@@ -44,6 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   usuarioId: null,
   precisaTrocarSenha: false,
   status: "carregando",
+  aberturaDoPainel: "ociosa",
   definirSessao: ({ accessToken, expiraEmSegundos, email }) =>
     set((estadoAtual) => {
       const payload = decodificarPayload(accessToken);
@@ -57,6 +62,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         status: "autenticado",
       };
     }),
+  iniciarAberturaDoPainel: () => set({ aberturaDoPainel: "em-andamento" }),
+  concluirAberturaDoPainel: () => set({ aberturaDoPainel: "ociosa" }),
+  falharAberturaDoPainel: () => set({ aberturaDoPainel: "erro" }),
   limparSessao: () =>
     set({
       accessToken: null,
@@ -66,5 +74,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       usuarioId: null,
       precisaTrocarSenha: false,
       status: "nao-autenticado",
+      aberturaDoPainel: "ociosa",
     }),
 }));

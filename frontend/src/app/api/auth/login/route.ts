@@ -1,7 +1,11 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import { MAX_AGE_COOKIE_REFRESH_SEGUNDOS, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import {
+  NOME_COOKIE_PERSISTENCIA_SESSAO,
+  NOME_COOKIE_REFRESH,
+} from "@/lib/auth/constants";
+import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
@@ -11,12 +15,14 @@ import { obterUrlApiServidor } from "@/lib/api/server-api-url";
  * voltam na resposta, para o Zustand guardar em memória.
  */
 export async function POST(requisicao: NextRequest) {
-  const corpo = await requisicao.json();
+  const corpo = (await requisicao.json()) as Record<string, unknown>;
+  const { manterSessaoAtiva, ...credenciais } = corpo;
+  const sessaoPersistente = manterSessaoAtiva === true;
 
   const respostaBackend = await fetch(`${obterUrlApiServidor()}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(corpo),
+    body: JSON.stringify(credenciais),
   });
 
   if (!respostaBackend.ok) {
@@ -33,13 +39,12 @@ export async function POST(requisicao: NextRequest) {
   };
 
   const cookieStore = await cookies();
-  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE_COOKIE_REFRESH_SEGUNDOS,
-  });
+  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, opcoesCookieRefresh(sessaoPersistente));
+  cookieStore.set(
+    NOME_COOKIE_PERSISTENCIA_SESSAO,
+    sessaoPersistente ? "1" : "0",
+    opcoesCookieRefresh(sessaoPersistente),
+  );
 
   return NextResponse.json({
     accessToken: sessao.accessToken,

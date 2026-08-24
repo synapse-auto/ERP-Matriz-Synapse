@@ -21,7 +21,7 @@ function PasswordInput({ className, ...props }: React.ComponentProps<"input">) {
       />
       <button
         type="button"
-        className="absolute right-0 top-0 flex h-full items-center justify-center px-2.5 text-muted-foreground hover:text-foreground outline-none focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="absolute right-0 top-0 flex h-full items-center justify-center px-2.5 text-muted-foreground hover:text-foreground outline-none focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => setMostrar((prev) => !prev)}
         aria-label={mostrar ? authTextos.ocultarSenha : authTextos.mostrarSenha}
         title={mostrar ? authTextos.ocultarSenha : authTextos.mostrarSenha}

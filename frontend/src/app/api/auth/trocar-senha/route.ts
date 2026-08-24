@@ -1,7 +1,11 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-import { MAX_AGE_COOKIE_REFRESH_SEGUNDOS, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import {
+  NOME_COOKIE_PERSISTENCIA_SESSAO,
+  NOME_COOKIE_REFRESH,
+} from "@/lib/auth/constants";
+import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
@@ -41,13 +45,13 @@ export async function POST(requisicao: NextRequest) {
   };
 
   const cookieStore = await cookies();
-  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE_COOKIE_REFRESH_SEGUNDOS,
-  });
+  const manterSessaoAtiva = cookieStore.get(NOME_COOKIE_PERSISTENCIA_SESSAO)?.value !== "0";
+  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, opcoesCookieRefresh(manterSessaoAtiva));
+  cookieStore.set(
+    NOME_COOKIE_PERSISTENCIA_SESSAO,
+    manterSessaoAtiva ? "1" : "0",
+    opcoesCookieRefresh(manterSessaoAtiva),
+  );
 
   return NextResponse.json({
     accessToken: sessao.accessToken,

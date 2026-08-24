@@ -1,7 +1,11 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { MAX_AGE_COOKIE_REFRESH_SEGUNDOS, NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
+import {
+  NOME_COOKIE_PERSISTENCIA_SESSAO,
+  NOME_COOKIE_REFRESH,
+} from "@/lib/auth/constants";
+import { opcoesCookieRefresh } from "@/lib/auth/cookie-refresh";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 
 /**
@@ -13,6 +17,9 @@ import { obterUrlApiServidor } from "@/lib/api/server-api-url";
 export async function POST() {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get(NOME_COOKIE_REFRESH)?.value;
+  // Cookies emitidos antes da E45 não tinham a preferência auxiliar e eram sempre persistentes;
+  // preservamos esse comportamento legado. Todo login novo grava a preferência explicitamente.
+  const manterSessaoAtiva = cookieStore.get(NOME_COOKIE_PERSISTENCIA_SESSAO)?.value !== "0";
 
   if (!refreshToken) {
     return NextResponse.json({ detail: "Sem sessão para renovar" }, { status: 401 });
@@ -26,6 +33,7 @@ export async function POST() {
 
   if (!respostaBackend.ok) {
     cookieStore.delete(NOME_COOKIE_REFRESH);
+    cookieStore.delete(NOME_COOKIE_PERSISTENCIA_SESSAO);
     const problema = await respostaBackend.json().catch(() => null);
     return NextResponse.json(problema ?? { detail: "Sessão expirada" }, {
       status: respostaBackend.status,
@@ -38,13 +46,12 @@ export async function POST() {
     expiraEmSegundos: number;
   };
 
-  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE_COOKIE_REFRESH_SEGUNDOS,
-  });
+  cookieStore.set(NOME_COOKIE_REFRESH, sessao.refreshToken, opcoesCookieRefresh(manterSessaoAtiva));
+  cookieStore.set(
+    NOME_COOKIE_PERSISTENCIA_SESSAO,
+    manterSessaoAtiva ? "1" : "0",
+    opcoesCookieRefresh(manterSessaoAtiva),
+  );
 
   return NextResponse.json({
     accessToken: sessao.accessToken,

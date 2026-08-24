@@ -35,14 +35,25 @@
     "ocultarSenha": "Ocultar senha"
   },
   "login": {
-    "titulo": "Entrar",
-    "subtitulo": "Acesse sua conta para continuar",
+    "marcaSynapse": "Synapse",
+    "titulo": "Entrar no painel",
+    "subtitulo": "Acesse sua conta para continuar.",
+    "apresentacaoTitulo": "Relacionamentos que movem negócios.",
+    "apresentacaoSubtitulo": "Organize atendimentos, fortaleça conexões e faça cada conversa avançar.",
+    "destaqueAtendimentos": "Atendimentos organizados em um só lugar",
+    "destaqueAutomacao": "Automação que acompanha seu ritmo",
+    "destaqueEquipe": "Visão clara para toda a equipe",
     "campoEmail": "E-mail",
     "campoSenha": "Senha",
-    "botaoEntrar": "Entrar",
+    "manterSessaoAtiva": "Manter sessão ativa neste dispositivo",
+    "botaoEntrar": "Entrar no painel",
     "entrando": "Entrando...",
     "erroCredenciais": "E-mail ou senha inválidos.",
-    "erroGenerico": "Não foi possível entrar. Tente novamente."
+    "erroGenerico": "Não foi possível entrar. Tente novamente.",
+    "ambienteSeguro": "Ambiente seguro",
+    "abrindoPainel": "Abrindo seu painel…",
+    "erroAbrirPainel": "Não foi possível abrir o painel. Tente novamente.",
+    "tentarAbrirPainel": "Tentar abrir o painel"
   },
   "trocarSenha": {
     "titulo": "Trocar senha",

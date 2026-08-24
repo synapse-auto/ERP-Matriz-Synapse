@@ -11,6 +11,15 @@ vi.mock("@/components/shell/sidebar", () => ({
   Sidebar: () => <aside>Menu</aside>,
 }));
 
+vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
+  SinalizadorShellPronto: () => null,
+}));
+
+vi.mock("@/lib/config/fetch-config", () => ({
+  buscarTema: async () => ({}),
+  temaParaCssVariaveis: () => ":root{}",
+}));
+
 import ShellLayout from "./layout";
 
 describe("superfície compartilhada do shell", () => {

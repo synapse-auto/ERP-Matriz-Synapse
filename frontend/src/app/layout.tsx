@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 
+import { TransicaoDeAbertura } from "@/components/auth/transicao-de-abertura";
 import { AuthProvider } from "@/lib/auth/auth-provider";
-import { buscarTema, buscarTextos, temaParaCssVariaveis } from "@/lib/config/fetch-config";
+import { buscarTextos } from "@/lib/config/fetch-config";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryProvider } from "@/lib/query/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
+import "./identidade-synapse.css";
 
 /**
  * As duas fontes do protótipo ficam versionadas junto da aplicação. Além de evitar o fallback
@@ -28,44 +30,40 @@ const jetBrainsMono = localFont({
   variable: "--fonte-mono-carregada",
 });
 
-// Tema e textos sao arquivos da instancia lidos pelo backend no runtime; nunca devem ser
-// congelados na imagem durante `next build`.
+// Os textos são arquivos da instância lidos pelo backend no runtime; nunca devem ser congelados na
+// imagem durante `next build`. O tema, por sua vez, é buscado somente no layout do shell: a tela
+// de login é a identidade fixa do produto Synapse, não a marca de cada cliente.
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [tema, textos] = await Promise.all([buscarTema(), buscarTextos()]);
-  const metadata: Metadata = {
+  const textos = await buscarTextos();
+  return {
     title: textos.app.nome,
     description: textos.app.subtitulo,
   };
-  if (tema.logoUrl) {
-    metadata.icons = { icon: tema.logoUrl };
-  }
-  return metadata;
 }
 
 /**
- * Server Component: busca tema.json/textos.json a cada carregamento (E10 — "trocar tema.json muda
- * a aparência sem tocar em nenhum .tsx") e injeta as CSS variables direto no <head>, antes de
- * qualquer componente renderizar. É o que faz a tela de login já nascer themeada, sem flash de
- * estilo padrão do shadcn.
+ * Server Component raiz: fornece o catálogo de textos a toda a aplicação. As variáveis do tema da
+ * instância vivem no layout `(shell)`, para que `/login` não consulte `tema.json` nem use a logo
+ * do cliente.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [tema, textos] = await Promise.all([buscarTema(), buscarTextos()]);
+  const textos = await buscarTextos();
 
   return (
     <html
       lang="pt-BR"
       className={`h-full antialiased ${hankenGrotesk.variable} ${jetBrainsMono.variable}`}
     >
-      <head>
-        <style>{temaParaCssVariaveis(tema)}</style>
-      </head>
       <body className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
         <QueryProvider>
           <TextosProvider textos={textos}>
             <AuthProvider>
-              <TooltipProvider>{children}</TooltipProvider>
+              <TooltipProvider>
+                {children}
+                <TransicaoDeAbertura />
+              </TooltipProvider>
             </AuthProvider>
           </TextosProvider>
         </QueryProvider>
