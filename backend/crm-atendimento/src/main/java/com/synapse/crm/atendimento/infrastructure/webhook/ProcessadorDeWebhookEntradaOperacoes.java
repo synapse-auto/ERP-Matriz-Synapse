@@ -134,6 +134,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         List<TradutorDeCanal.MensagemRecebidaDoCanal> traduzidas =
                 tradutor.traduzir(pendente.payloadCru());
         String comandoReset = configuracaoDoReset.valor().orElse("");
+        if (comandoReset.isBlank()) {
+            log.warn(
+                    "Comando de reset da Automacao indisponivel; mensagens de reset nao serao reconhecidas.");
+        }
 
         for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
             if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()
