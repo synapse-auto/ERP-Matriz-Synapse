@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.webhook;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -168,15 +169,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         entrada.marcarProcessado(pendente.idExterno(), agora);
     }
 
-    static boolean ehComandoReset(String texto) {
-        return ehComandoReset(texto, "#reset");
-    }
-
     static boolean ehComandoReset(String texto, String comando) {
-        return texto != null
-                && comando != null
-                && !comando.isBlank()
-                && texto.trim().equalsIgnoreCase(comando.trim());
+        if (texto == null || comando == null) {
+            return false;
+        }
+        String mensagemNormalizada = texto.trim().toLowerCase(Locale.ROOT);
+        String comandoNormalizado = comando.trim().toLowerCase(Locale.ROOT);
+        return !comandoNormalizado.isBlank() && mensagemNormalizada.equals(comandoNormalizado);
     }
 
     /**

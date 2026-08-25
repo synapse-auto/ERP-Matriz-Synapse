@@ -13,13 +13,13 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     @ParameterizedTest
     @MethodSource("comandosReset")
     void reconhece_reset_sem_diferenciar_caixa_ou_espacos(String texto) {
-        assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto)).isTrue();
+        assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto, "#reset")).isTrue();
     }
 
     @ParameterizedTest
     @MethodSource("naoComandosReset")
     void nao_confunde_texto_parecido_com_reset(String texto) {
-        assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto)).isFalse();
+        assertThat(ProcessadorDeWebhookEntradaOperacoes.ehComandoReset(texto, "#reset")).isFalse();
     }
 
     @ParameterizedTest
