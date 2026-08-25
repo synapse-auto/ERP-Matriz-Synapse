@@ -122,7 +122,9 @@ public class AuditoriaAspect {
 
         Optional<UsuarioAutenticado> usuario = usuarioContext.atualSeHouver();
         UUID atorId = usuario.map(UsuarioAutenticado::id).orElse(null);
-        String atorTipo = usuario.isPresent() || !ContextoDeServico.ativo() ? "USUARIO" : "SISTEMA";
+        String atorTipo = auditable.atorTipo().isBlank()
+                ? (usuario.isPresent() || !ContextoDeServico.ativo() ? "USUARIO" : "SISTEMA")
+                : auditable.atorTipo();
 
         RegistroDeAuditoria registro = new RegistroDeAuditoria(
                 atorId,

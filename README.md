@@ -358,6 +358,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `MINIO_ROOT_PASSWORD` | Secret key forte do MinIO e do adaptador S3 do backend. |
 | `SYNAPSE_JWT_SEGREDO` | Segredo HMAC dos tokens de usuário, com no mínimo 32 caracteres. |
 | `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
+| `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
 | `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
 | `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |

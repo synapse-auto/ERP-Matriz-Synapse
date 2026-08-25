@@ -120,15 +120,20 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
 <table>
   <tr><th style="width:60px">Método</th><th>Caminho</th><th>Para quê</th></tr>
   <tr><td class="metodo get">GET</td><td><code>/atendentes/disponiveis</code></td><td>quem pode receber atendimento agora</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/atendimentos/em-andamento</code></td><td>atendimentos não encerrados, por última atividade e sem histórico</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/automation-config</code></td><td>todos os parâmetros de configuração</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/automation-config/{chave}</code></td><td>um parâmetro específico</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/regras/follow-up</code></td><td>regras de follow-up cadastradas</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/regras/fidelizacao</code></td><td>regras de fidelização cadastradas</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/eventos</code></td><td>registrar telemetria da Automação</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/transferir</code></td><td>passar o atendimento da IA para um humano</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/lembretes</code></td><td>criar lembrete idempotente para o responsável atual</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/resumo</code></td><td>sobrescrever o resumo atual da IA</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/tags</code></td><td>consultar o catálogo de tags existente</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/leads/{id}/tags</code></td><td>aplicar uma tag existente ao lead</td></tr>
 </table>
 
-<p>O Swagger é a fonte da verdade para formato de requisição e resposta. Se algo aqui divergir dele, o Swagger está certo.</p>
+<p>O Swagger é a fonte da verdade para formato de requisição, resposta, paginação, filtros e <code>Idempotency-Key</code>. Se algo aqui divergir dele, o Swagger está certo. Não use <code>GET /api/v1/atendimentos?visao=TODOS</code>: essa rota exige JWT de uma pessoa e a visão é um recorte da tela por papel e dono, não um conceito da Automação.</p>
 
 <div class="alerta">
   <strong>A transferência não aceita destinatário escolhido.</strong> O endpoint de transferência

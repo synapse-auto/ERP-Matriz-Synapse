@@ -13,7 +13,7 @@
 ### ADR-002 — Integração da Automação sem bloquear o caminho humano
 
 **Contexto:** RNF-CRM-01 é a "ultra-regra": a aba Atendimentos não pode parar entre 08:00–18:30, mesmo que a Automação/IA falhe.
-**Decisão:** envio e recebimento humanos não chamam a Automação. Os comandos síncronos do n8n ficam em `/internal/v1`, autenticados por `X-Synapse-Token`/`ROLE_SERVICO`: `responder`, `transferir`, `modo-ia` e `transferir-proximo-humano`. A resposta da IA grava `Remetente.IA` e a intenção na outbox na mesma transação, sem chamada ao provedor durante o request; transferência explícita aceita apenas usuário ativo com papel `ATENDENTE`, e a rota de próximo humano escolhe por nome e id. Cada escrita exige `Idempotency-Key` persistida. Telemetria e invalidação de configuração permanecem desacopladas.
+**Decisão:** envio e recebimento humanos não chamam a Automação. Consultas e comandos síncronos do n8n ficam em `/internal/v1`, autenticados por `X-Synapse-Token`/`ROLE_SERVICO`. O serviço lista atendimentos não encerrados por última atividade, sem usar a visão de usuário e sem devolver conversa; pode responder, transferir, devolver para IA, criar lembrete para o responsável, sobrescrever o resumo atual e aplicar tags do catálogo. A resposta da IA grava `Remetente.IA` e a intenção na outbox na mesma transação, sem chamada ao provedor durante o request; transferência explícita aceita apenas usuário ativo com papel `ATENDENTE`, e a rota de próximo humano escolhe por nome e id. Escritas sujeitas a retry usam `Idempotency-Key` persistida. Telemetria e invalidação de configuração permanecem desacopladas.
 **Consequências:** falha ou lentidão da IA não bloqueia o atendimento humano. A Automação recebe sucesso ou falha imediata, não pode distribuir comissão por um UUID arbitrário e suas ações aparecem na timeline/auditoria como `ator_tipo = AUTOMACAO`, com `ator_id` nulo.
 
 ### ADR-003 — Filtros modulares como JSONB genérico
@@ -98,14 +98,19 @@
 | GET | `/internal/v1/regras/fidelizacao` | Snapshot das regras de fidelização | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |
 | POST | `/internal/v1/eventos` | Recebe telemetria idempotente da Automação | Serviço de Automação | `AutomationConfigInternalController` · `ContratoAutomacaoIT` |
 | GET | `/internal/v1/atendentes/disponiveis` | Lista atendentes elegíveis à distribuição | Serviço de Automação | `AtendentesDisponiveisInternalController` · `ContratoInternalV1IT` |
+| GET | `/internal/v1/atendimentos/em-andamento` | Página de atendimentos não encerrados, filtrável por última atividade, sem conteúdo ou histórico | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/responder` | Responde como IA, grava mensagem e outbox sem transferir o lead | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/transferir` | Transfere da IA para atendente ativo informado no corpo | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | PATCH | `/internal/v1/atendimentos/{id}/modo-ia` | Devolve atendimento e lead para a IA | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/transferir-proximo-humano` | Escolhe o primeiro atendente disponível por nome e id | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/lembretes` | Cria, com `Idempotency-Key`, lembrete para o responsável humano atual | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/resumo` | Sobrescreve o resumo atual da IA, limitado por configuração | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
+| GET | `/internal/v1/tags` | Lista o catálogo fechado de tags da instância | Serviço de Automação | `TagsAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
+| POST | `/internal/v1/leads/{id}/tags` | Aplica idempotentemente tag existente, auditada como Automação | Serviço de Automação | `TagsAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro e invalida o cache | Gestor/Subgestor | `ConfiguracaoAutomacaoController` · `ContratoAutomacaoIT` |
 | GET | `/api/v1/automacao/telemetria` | Snapshot cumulativo do estado da Automação | Gestor/Subgestor | `StatusAutomacaoTelemetriaController` · `StatusAutomacaoTelemetriaControllerIT` |
 
-Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token permanente da instância (`SynapseTokenAuthenticationFilter`, `ContratoInternalV1IT`). Namespace e formato são idênticos em todos os filhos — só URL e token mudam. O OpenAPI é exposto em runtime e seu contrato interno reduzido é coberto por `OpenApiIT` e `ContratoInternalV1IT`.
+Autenticação das rotas `/internal/v1`: header `X-Synapse-Token` com o token permanente da instância (`SynapseTokenAuthenticationFilter`, `ContratoInternalV1IT`). Namespace e formato são idênticos em todos os filhos — só URL e token mudam. A Automação não usa `/api/v1/atendimentos?visao=TODOS`: essa é uma rota JWT de usuário e `visao` representa propriedade/papel humano. O OpenAPI é exposto em runtime e seu contrato interno reduzido é coberto por `OpenApiIT` e `ContratoInternalV1IT`.
 
 ### Configuração da instância (consumida pelo frontend)
 

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarConfiguracaoAutomacaoUseCase;
+import com.synapse.crm.core.application.tag.GerenciarTagsDaAutomacaoUseCase;
 import com.synapse.crm.core.application.tag.GestaoDeTagsUseCases;
 import com.synapse.crm.equipe.application.autenticacao.AlterarSenhaUseCase;
 import com.synapse.crm.equipe.application.usuario.DefinirSenhaProvisoriaUseCase;
@@ -68,6 +69,8 @@ class AuditoriaDeAcoesSensiveisTest {
                     String.class,
                     String.class),
             AcaoSensivel.viaAuditable(GestaoDeTagsUseCases.class, "remover", UUID.class),
+            AcaoSensivel.viaAuditable(
+                    GerenciarTagsDaAutomacaoUseCase.class, "aplicar", UUID.class, UUID.class),
             AcaoSensivel.viaDomainEvent(
                     TransferirAtendimentoUseCase.class,
                     "executar",

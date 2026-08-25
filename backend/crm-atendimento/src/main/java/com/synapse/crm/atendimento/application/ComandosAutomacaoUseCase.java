@@ -13,7 +13,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.internal.CriarLembreteDaAutomacaoUseCase;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.core.domain.lembrete.Lembrete;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Fachada única dos comandos do n8n, com reserva transacional de Idempotency-Key. */
@@ -23,6 +25,7 @@ public class ComandosAutomacaoUseCase {
     private final ResponderAtendimentoDaAutomacaoUseCase responder;
     private final TransferirAtendimentoDaAutomacaoUseCase transferir;
     private final TransferirAtendimentoUseCase transferirAtendimento;
+    private final CriarLembreteDaAutomacaoUseCase criarLembrete;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
 
@@ -30,11 +33,13 @@ public class ComandosAutomacaoUseCase {
             ResponderAtendimentoDaAutomacaoUseCase responder,
             TransferirAtendimentoDaAutomacaoUseCase transferir,
             TransferirAtendimentoUseCase transferirAtendimento,
+            CriarLembreteDaAutomacaoUseCase criarLembrete,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
         this.responder = responder;
         this.transferir = transferir;
         this.transferirAtendimento = transferirAtendimento;
+        this.criarLembrete = criarLembrete;
         this.idempotencia = idempotencia;
         this.json = json;
     }
@@ -85,6 +90,20 @@ public class ComandosAutomacaoUseCase {
                 "",
                 TransferenciaResposta.class,
                 () -> TransferenciaResposta.de(transferir.executar(atendimentoId)));
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public LembreteResposta criarLembrete(
+            UUID atendimentoId, String chave, String texto, Instant dataHora) {
+        return executar(
+                chave,
+                "CRIAR_LEMBRETE",
+                atendimentoId,
+                texto.trim() + "\n" + dataHora,
+                LembreteResposta.class,
+                () -> LembreteResposta.de(
+                        atendimentoId, criarLembrete.executar(atendimentoId, texto, dataHora)));
     }
 
     private <T> T executar(
@@ -166,6 +185,29 @@ public class ComandosAutomacaoUseCase {
         static TransferenciaResposta de(Atendimento atendimento) {
             return new TransferenciaResposta(
                     atendimento.id(), atendimento.atendenteId(), atendimento.status().name());
+        }
+    }
+
+    public record LembreteResposta(
+            UUID id,
+            UUID atendimentoId,
+            UUID leadId,
+            UUID atendenteId,
+            String texto,
+            Instant dataHora,
+            boolean origemAutomatica,
+            String status) {
+
+        static LembreteResposta de(UUID atendimentoId, Lembrete lembrete) {
+            return new LembreteResposta(
+                    lembrete.id(),
+                    atendimentoId,
+                    lembrete.leadId(),
+                    lembrete.atendenteId(),
+                    lembrete.texto(),
+                    lembrete.dataHora(),
+                    lembrete.origemAutomatica(),
+                    lembrete.status().name());
         }
     }
 }

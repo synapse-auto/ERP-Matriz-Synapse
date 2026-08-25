@@ -160,6 +160,8 @@ synapse:
   automacao:
     url-base: ${AUTOMACAO_URL:}
     token-permanente: ${AUTOMACAO_TOKEN:}
+    # Protege a ficha do lead e o contrato com o n8n de respostas sem limite operacional.
+    resumo-ia-tamanho-maximo: ${AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO:8000}
     repasse-webhook:
       url: ${AUTOMACAO_WEBHOOK_EVENTOS_URL:}
       timeout: ${AUTOMACAO_WEBHOOK_TIMEOUT:5s}

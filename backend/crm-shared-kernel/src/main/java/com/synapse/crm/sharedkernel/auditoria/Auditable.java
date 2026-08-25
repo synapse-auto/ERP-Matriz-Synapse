@@ -39,4 +39,11 @@ public @interface Auditable {
 
     /** Se {@code false}, nao captura {@code dados_antes}/{@code dados_depois}. */
     boolean capturarDados() default true;
+
+    /**
+     * Origem tecnica explicita quando a acao nao e executada por usuario. Vazio preserva a
+     * inferencia padrao ({@code USUARIO} ou {@code SISTEMA}); contratos da Automacao declaram
+     * {@code AUTOMACAO} para nao serem confundidos com jobs internos.
+     */
+    String atorTipo() default "";
 }

@@ -1,5 +1,212 @@
 {
   "paths" : {
+    "/internal/v1/atendentes/disponiveis" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AtendenteResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/em-andamento" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "atividadeDesde",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "atividadeAte",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "example" : 0,
+          "in" : "query",
+          "name" : "pagina",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "example" : 20,
+          "in" : "query",
+          "name" : "tamanho",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaginaResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/{id}/lembretes" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LembreteRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LembreteResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/{id}/mensagens-enviadas" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MensagemEnviadaRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MensagemEnviadaResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
+    "/internal/v1/atendimentos/{id}/modo-ia" : {
+      "patch" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ModoIaRequisicao"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferenciaResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/responder" : {
       "post" : {
         "parameters" : [ {
@@ -36,31 +243,18 @@
                   "$ref" : "#/components/schemas/RespostaComandoAutomacao"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "400" : {
-            "description" : "Conteúdo ou Idempotency-Key ausente."
-          },
-          "401" : {
-            "description" : "Credencial ausente, inválida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial válida sem permissão para a operação."
-          },
-          "404" : {
-            "description" : "Atendimento inexistente."
-          },
-          "409" : {
-            "description" : "Atendimento não está sob responsabilidade da IA ou chave reutilizada."
-          },
-          "422" : {
-            "description" : "Canal fora da janela de texto livre."
-          }
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
         }
       }
     },
-    "/internal/v1/atendimentos/{id}/mensagens-enviadas" : {
+    "/internal/v1/atendimentos/{id}/resumo" : {
       "post" : {
         "parameters" : [ {
           "in" : "path",
@@ -75,7 +269,7 @@
           "content" : {
             "application/json" : {
               "schema" : {
-                "$ref" : "#/components/schemas/MensagemEnviadaRequisicao"
+                "$ref" : "#/components/schemas/ResumoRequisicao"
               }
             }
           },
@@ -86,27 +280,16 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/MensagemEnviadaResposta"
+                  "$ref" : "#/components/schemas/Resultado"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "400" : {
-            "description" : "Mensagem normalizada inválida."
-          },
-          "401" : {
-            "description" : "Credencial ausente, inválida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial válida sem permissão para a operação."
-          },
-          "404" : {
-            "description" : "Atendimento inexistente."
-          },
-          "409" : {
-            "description" : "wamid já pertence a outro atendimento."
-          }
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "422" : { }
         }
       }
     },
@@ -146,83 +329,14 @@
                   "$ref" : "#/components/schemas/TransferenciaResposta"
                 }
               }
-            },
-            "description" : "OK"
-          },
-          "400" : {
-            "description" : "Idempotency-Key ausente ou inválido."
-          },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          },
-          "404" : {
-            "description" : "Atendimento inexistente."
-          },
-          "409" : {
-            "description" : "Transferencia indisponivel."
-          },
-          "422" : {
-            "description" : "Destino inexistente, inativo ou com papel diferente de ATENDENTE."
-          }
-        }
-      }
-    },
-    "/internal/v1/atendimentos/{id}/modo-ia" : {
-      "patch" : {
-        "parameters" : [ {
-          "in" : "path",
-          "name" : "id",
-          "required" : true,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
-          "in" : "header",
-          "name" : "Idempotency-Key",
-          "required" : true,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/ModoIaRequisicao"
-              }
             }
-          }
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/TransferenciaResposta"
-                }
-              }
-            },
-            "description" : "OK"
           },
-          "400" : {
-            "description" : "Idempotency-Key ausente ou inválido."
-          },
-          "401" : {
-            "description" : "Credencial ausente, inválida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial válida sem permissão para a operação."
-          },
-          "404" : {
-            "description" : "Atendimento inexistente."
-          },
-          "409" : {
-            "description" : "Atendimento finalizado ou chave reutilizada."
-          }
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
         }
       }
     },
@@ -252,49 +366,13 @@
                   "$ref" : "#/components/schemas/TransferenciaResposta"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "400" : {
-            "description" : "Idempotency-Key ausente ou inválido."
-          },
-          "401" : {
-            "description" : "Credencial ausente, inválida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial válida sem permissão para a operação."
-          },
-          "404" : {
-            "description" : "Atendimento inexistente."
-          },
-          "409" : {
-            "description" : "Nenhum atendente elegível, atendimento inválido ou chave reutilizada."
-          }
-        }
-      }
-    },
-    "/internal/v1/atendentes/disponiveis" : {
-      "get" : {
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/AtendenteResposta"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          }
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
         }
       }
     },
@@ -308,15 +386,10 @@
                   "$ref" : "#/components/schemas/AutomationConfigResposta"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          }
+          "401" : { },
+          "403" : { }
         }
       }
     },
@@ -355,18 +428,11 @@
                   "$ref" : "#/components/schemas/ParametroResposta"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          },
-          "404" : {
-            "description" : "Chave nao encontrada."
-          }
+          "401" : { },
+          "403" : { },
+          "404" : { }
         }
       }
     },
@@ -383,15 +449,48 @@
           "required" : true
         },
         "responses" : {
-          "204" : {
-            "description" : "No Content"
-          },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
+          "204" : { },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/leads/{id}/tags" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
           }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AplicacaoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TagAplicadaResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "422" : { }
         }
       }
     },
@@ -408,15 +507,10 @@
                   "type" : "array"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
-          },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          }
+          "401" : { },
+          "403" : { }
         }
       }
     },
@@ -433,60 +527,43 @@
                   "type" : "array"
                 }
               }
-            },
-            "description" : "OK"
+            }
           },
-          "401" : {
-            "description" : "Credencial ausente, invalida ou expirada."
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/tags" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TagResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
           },
-          "403" : {
-            "description" : "Credencial valida sem permissao para a operacao."
-          }
+          "401" : { },
+          "403" : { }
         }
       }
     }
   },
   "schemas" : {
-    "ModoIaRequisicao" : { },
-    "RespostaComandoAutomacao" : {
+    "AplicacaoRequisicao" : {
       "properties" : {
-        "atendimentoId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "enviadoEm" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "mensagemId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "statusEntrega" : {
-          "type" : "string"
-        }
-      },
-      "type" : "object"
-    },
-    "ResponderRequisicao" : {
-      "properties" : {
-        "conteudo" : {
-          "example" : "Posso ajudar com seu orçamento?",
-          "minLength" : 1,
-          "type" : "string"
-        }
-      },
-      "required" : [ "conteudo" ],
-      "type" : "object"
-    },
-    "TransferirRequisicao" : {
-      "properties" : {
-        "atendenteId" : {
+        "tagId" : {
           "format" : "uuid",
           "type" : "string"
         }
       },
-      "required" : [ "atendenteId" ],
+      "required" : [ "tagId" ],
       "type" : "object"
     },
     "AtendenteResposta" : {
@@ -499,6 +576,30 @@
         },
         "usuarioId" : {
           "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "AtendimentoResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "responsavel" : {
+          "$ref" : "#/components/schemas/ResponsavelResposta"
+        },
+        "status" : {
+          "enum" : [ "EM_IA", "EM_ATENDIMENTO", "FINALIZADO" ],
+          "type" : "string"
+        },
+        "ultimaMensagemEm" : {
+          "format" : "date-time",
           "type" : "string"
         }
       },
@@ -526,6 +627,128 @@
         }
       },
       "required" : [ "tipo" ],
+      "type" : "object"
+    },
+    "LembreteRequisicao" : {
+      "properties" : {
+        "dataHora" : {
+          "example" : "2026-08-26T13:00:00Z",
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "texto" : {
+          "example" : "Retornar com o orçamento",
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "dataHora", "texto" ],
+      "type" : "object"
+    },
+    "LembreteResposta" : {
+      "properties" : {
+        "atendenteId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "dataHora" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "origemAutomatica" : {
+          "type" : "boolean"
+        },
+        "status" : {
+          "type" : "string"
+        },
+        "texto" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "MensagemEnviadaRequisicao" : {
+      "properties" : {
+        "conteudo" : {
+          "type" : "string"
+        },
+        "midiaMetadados" : {
+          "type" : "string"
+        },
+        "midiaUrl" : {
+          "type" : "string"
+        },
+        "opcoes" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "BOTOES", "LISTA" ],
+          "type" : "string"
+        },
+        "wamid" : {
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "tipo", "wamid" ],
+      "type" : "object"
+    },
+    "MensagemEnviadaResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "idempotente" : {
+          "type" : "boolean"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "statusEntrega" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ModoIaRequisicao" : { },
+    "PaginaResposta" : {
+      "properties" : {
+        "atendimentos" : {
+          "items" : {
+            "$ref" : "#/components/schemas/AtendimentoResposta"
+          },
+          "type" : "array"
+        },
+        "pagina" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "tamanho" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "temMais" : {
+          "type" : "boolean"
+        }
+      },
       "type" : "object"
     },
     "ParametroResposta" : {
@@ -570,45 +793,6 @@
       },
       "type" : "object"
     },
-    "ResumoIaResposta" : {
-      "properties" : {
-        "ativo" : {
-          "type" : "boolean"
-        },
-        "gatilho" : {
-          "enum" : [ "A_CADA_X_MENSAGENS", "AO_FINALIZAR", "AMBOS" ],
-          "type" : "string"
-        },
-        "quantidadeMensagens" : {
-          "format" : "int32",
-          "type" : "integer"
-        }
-      },
-      "type" : "object"
-    },
-    "MensagemEnviadaResposta" : {
-      "properties" : {
-        "atendimentoId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "enviadoEm" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "idempotente" : {
-          "type" : "boolean"
-        },
-        "mensagemId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "statusEntrega" : {
-          "type" : "string"
-        }
-      },
-      "type" : "object"
-    },
     "RegraFidelizacaoResposta" : {
       "properties" : {
         "diasSemContato" : {
@@ -644,32 +828,122 @@
       },
       "type" : "object"
     },
-      "MensagemEnviadaRequisicao" : {
-        "properties" : {
-          "conteudo" : {
-            "type" : "string"
-          },
-          "midiaMetadados" : {
-            "type" : "string"
-          },
-          "midiaUrl" : {
-            "type" : "string"
-          },
-          "opcoes" : {
-            "type" : "string"
-          },
-          "tipo" : {
-            "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "BOTOES", "LISTA" ],
-            "type" : "string"
-          },
-          "wamid" : {
-            "minLength" : 1,
-            "type" : "string"
-          }
-        },
-        "required" : [ "tipo", "wamid" ],
-        "type" : "object"
+    "ResponderRequisicao" : {
+      "properties" : {
+        "conteudo" : {
+          "example" : "Posso ajudar com seu orçamento?",
+          "minLength" : 1,
+          "type" : "string"
+        }
       },
+      "required" : [ "conteudo" ],
+      "type" : "object"
+    },
+    "ResponsavelResposta" : {
+      "properties" : {
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "RespostaComandoAutomacao" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "statusEntrega" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "Resultado" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "resumo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResumoIaResposta" : {
+      "properties" : {
+        "ativo" : {
+          "type" : "boolean"
+        },
+        "gatilho" : {
+          "enum" : [ "A_CADA_X_MENSAGENS", "AO_FINALIZAR", "AMBOS" ],
+          "type" : "string"
+        },
+        "quantidadeMensagens" : {
+          "format" : "int32",
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "ResumoRequisicao" : {
+      "properties" : {
+        "resumo" : {
+          "example" : "Cliente solicitou orçamento e aguarda medidas.",
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "resumo" ],
+      "type" : "object"
+    },
+    "TagAplicadaResposta" : {
+      "properties" : {
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "tag" : {
+          "$ref" : "#/components/schemas/TagResposta"
+        }
+      },
+      "type" : "object"
+    },
+    "TagResposta" : {
+      "properties" : {
+        "cor" : {
+          "type" : "string"
+        },
+        "icone" : {
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "TransferenciaResposta" : {
       "properties" : {
         "atendenteId" : {
@@ -684,6 +958,16 @@
           "type" : "string"
         }
       },
+      "type" : "object"
+    },
+    "TransferirRequisicao" : {
+      "properties" : {
+        "atendenteId" : {
+          "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "required" : [ "atendenteId" ],
       "type" : "object"
     }
   }
