@@ -14,13 +14,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
       ultimaAlteracaoSenha: "Última alteração", senhaProvisoria: "Ainda não alterada", naoInformado: "Não informado",
       salvarPerfil: "Salvar perfil", salvando: "Salvando...", salvo: "Perfil salvo.", carregando: "Carregando perfil...",
       erro: "Não foi possível carregar ou salvar seu perfil.", erroNome: "Informe um nome válido.",
+      senhaAtual: "Senha atual", senhaAtualAjuda: "Necessária somente para trocar o e-mail",
+      alterarFoto: "Alterar foto", removerFoto: "Remover foto", fotoErro: "Não foi possível atualizar a foto.",
     },
   }),
 }));
 
 vi.mock("@/lib/equipe/use-equipe", () => ({
-  useMeuUsuario: () => ({ data: { id: "ana", nome: "Ana Atendente", email: "ana@example.invalid", papel: "ATENDENTE", presenca: "ONLINE", telefone: null, cargo: "Consultora", senhaAlteradaEm: "2026-05-01T00:00:00Z" }, isLoading: false, isError: false }),
+  useMeuUsuario: () => ({ data: { id: "ana", nome: "Ana Atendente", email: "ana@example.invalid", papel: "ATENDENTE", presenca: "ONLINE", telefone: null, cargo: "Consultora", fotoUrl: null, senhaAlteradaEm: "2026-05-01T00:00:00Z" }, isLoading: false, isError: false }),
   useAtualizarMeuUsuario: () => ({ mutate, isPending: false, isError: false }),
+  useAtualizarMinhaFoto: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+  useRemoverMinhaFoto: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
 
 vi.mock("next/link", () => ({ default: ({ children, ...props }: { children: ReactNode; href: string }) => <a {...props}>{children}</a> }));
@@ -28,17 +32,20 @@ vi.mock("next/link", () => ({ default: ({ children, ...props }: { children: Reac
 import { PaginaConfiguracoes } from "./pagina-configuracoes";
 
 describe("pagina de configurações", () => {
-  it("edita somente nome e mantém e-mail, papel e senha como leitura/fluxo existente", () => {
+  it("edita os dados do perfil em uma única submissão", () => {
     render(<PaginaConfiguracoes />);
 
-    expect(screen.getByDisplayValue("ana@example.invalid")).toBeDisabled();
-    expect(screen.getByDisplayValue("Consultora")).toBeDisabled();
+    expect(screen.getByDisplayValue("ana@example.invalid")).not.toBeDisabled();
+    expect(screen.getByDisplayValue("Consultora")).not.toBeDisabled();
     expect(screen.getByText("ATENDENTE")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alterar senha" })).toHaveAttribute("href", "/trocar-senha");
 
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana Atualizada" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar perfil" }));
 
-    expect(mutate).toHaveBeenCalledWith({ nome: "Ana Atualizada" }, expect.any(Object));
+    expect(mutate).toHaveBeenCalledWith(
+      { nome: "Ana Atualizada", email: "ana@example.invalid", telefone: null, cargo: "Consultora", senhaAtual: null },
+      expect.any(Object),
+    );
   });
 });

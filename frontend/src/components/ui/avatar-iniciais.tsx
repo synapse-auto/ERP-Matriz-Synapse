@@ -1,3 +1,7 @@
+import { useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { apiFetchBlob } from "@/lib/api/http-client";
 import { iniciaisDoNome } from "@/lib/utils";
 
 /**
@@ -28,17 +32,36 @@ export function tomDoAvatar(id: string): string {
 type Props = {
   id: string;
   nome: string;
+  fotoUrl?: string | null;
   className?: string;
 };
 
-export function AvatarIniciais({ id, nome, className }: Props) {
+export function AvatarIniciais({ id, nome, fotoUrl, className }: Props) {
+  const classe = `${className ?? "flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"} relative overflow-hidden`;
+
   return (
     <span
-      className={className ?? "flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"}
+      className={classe}
       style={{ backgroundColor: tomDoAvatar(id) }}
       title={nome}
     >
-      {iniciaisDoNome(nome)}
+      {fotoUrl ? <FotoCarregada fotoUrl={fotoUrl} fallback={iniciaisDoNome(nome)} /> : iniciaisDoNome(nome)}
     </span>
   );
+}
+
+function FotoCarregada({ fotoUrl, fallback }: { fotoUrl: string; fallback: string }) {
+  const foto = useQuery({
+    queryKey: ["avatar", fotoUrl],
+    queryFn: () => apiFetchBlob(fotoUrl),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const url = useMemo(() => (foto.data ? URL.createObjectURL(foto.data) : null), [foto.data]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+
+  if (!url) return <>{fallback}</>;
+  // A URL e um blob criado pelo cliente a partir do endpoint autenticado; nao e URL assinada.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="" className="absolute inset-0 size-full object-cover" />;
 }

@@ -13,6 +13,8 @@ import {
   atualizarDisponibilidadeParaIa,
   obterMeuUsuario,
   atualizarMeuUsuario,
+  atualizarMinhaFoto,
+  removerMinhaFoto,
 } from "./api";
 import type { PapelGerenciavel } from "./types";
 
@@ -47,7 +49,23 @@ export function useMeuUsuario() {
 export function useAtualizarMeuUsuario() {
   const cache = useQueryClient();
   return useMutation({
-    mutationFn: (dados: { nome: string }) => atualizarMeuUsuario(dados),
+    mutationFn: (dados: { nome: string; email: string; telefone: string | null; cargo: string | null; senhaAtual: string | null }) => atualizarMeuUsuario(dados),
+    onSuccess: (dados) => cache.setQueryData(["me"], dados),
+  });
+}
+
+export function useAtualizarMinhaFoto() {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: atualizarMinhaFoto,
+    onSuccess: (dados) => cache.setQueryData(["me"], dados),
+  });
+}
+
+export function useRemoverMinhaFoto() {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: removerMinhaFoto,
     onSuccess: (dados) => cache.setQueryData(["me"], dados),
   });
 }

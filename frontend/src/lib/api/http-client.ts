@@ -59,7 +59,7 @@ export async function apiFetch<T>(caminho: string, opcoes: OpcoesRequisicao = {}
   async function chamar(): Promise<Response> {
     const accessToken = useAuthStore.getState().accessToken;
     const cabecalhos = new Headers(headers);
-    if (!cabecalhos.has("Content-Type") && resto.body) {
+    if (!cabecalhos.has("Content-Type") && resto.body && !(resto.body instanceof FormData)) {
       cabecalhos.set("Content-Type", "application/json");
     }
     if (!semAutorizacao && accessToken) {
@@ -88,4 +88,25 @@ export async function apiFetch<T>(caminho: string, opcoes: OpcoesRequisicao = {}
     return undefined as T;
   }
   return (await resposta.json()) as T;
+}
+
+/** Mesmo fluxo de autorização/refresh para respostas binárias (fotos e outros arquivos). */
+export async function apiFetchBlob(caminho: string): Promise<Blob> {
+  const accessToken = useAuthStore.getState().accessToken;
+  const cabecalhos = new Headers();
+  if (accessToken) cabecalhos.set("Authorization", `Bearer ${accessToken}`);
+  let resposta = await fetch(`${API_URL}${caminho}`, { headers: cabecalhos });
+  if (resposta.status === 401) {
+    const renovou = await renovarAccessToken();
+    if (renovou) {
+      const novoToken = useAuthStore.getState().accessToken;
+      const novosCabecalhos = new Headers();
+      if (novoToken) novosCabecalhos.set("Authorization", `Bearer ${novoToken}`);
+      resposta = await fetch(`${API_URL}${caminho}`, { headers: novosCabecalhos });
+    } else {
+      irParaLoginSemLoop();
+    }
+  }
+  if (!resposta.ok) throw new ErroDeApi(resposta.status, null, `Erro ${resposta.status} ao chamar ${caminho}`);
+  return resposta.blob();
 }

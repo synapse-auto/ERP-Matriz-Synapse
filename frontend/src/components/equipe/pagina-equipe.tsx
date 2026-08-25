@@ -100,6 +100,7 @@ export function PaginaEquipe() {
               mediaGeral={avaliacoes.data?.mediaGeral}
               rankingAvaliacao={rankingAvaliacao}
               rankingVendas={rankingVendas}
+              fotoPorId={new Map(usuarios.map((usuario) => [usuario.id, usuario.fotoUrl]))}
               textos={t}
             />
           ) : null}
@@ -189,6 +190,7 @@ function MiniDashboard({
   mediaGeral,
   rankingAvaliacao,
   rankingVendas,
+  fotoPorId,
   textos,
 }: {
   totalUsuarios: number;
@@ -197,6 +199,7 @@ function MiniDashboard({
   mediaGeral: number | undefined;
   rankingAvaliacao: LinhaRanking[];
   rankingVendas: LinhaDesempenho[];
+  fotoPorId: Map<string, string | null | undefined>;
   textos: TextosEquipe;
 }) {
   return (
@@ -246,6 +249,7 @@ function MiniDashboard({
                 <AvatarIniciais
                   id={item.atendenteId}
                   nome={item.atendenteNome}
+                  fotoUrl={fotoPorId.get(item.atendenteId)}
                   className="flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
                 />
                 <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
@@ -273,6 +277,7 @@ function MiniDashboard({
                 <AvatarIniciais
                   id={item.atendenteId}
                   nome={item.atendenteNome}
+                  fotoUrl={fotoPorId.get(item.atendenteId)}
                   className="flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white"
                 />
                 <span className="flex-1 truncate text-xs font-medium">{item.atendenteNome}</span>
@@ -360,6 +365,7 @@ function TabelaDeUsuarios({
                     <AvatarIniciais
                       id={usuario.id}
                       nome={usuario.nome}
+                      fotoUrl={usuario.fotoUrl}
                       className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
                     />
                     <div className="min-w-0">

@@ -12,6 +12,7 @@ public record Usuario(
         UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
         StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
         String telefone, String cargo,
+        String fotoReferencia,
         /**
          * {@code null} = senha provisoria, nunca trocada pelo dono (E29). Usuario recem-criado ou
          * que teve a senha redefinida por um gestor comeca assim, de proposito.
@@ -24,7 +25,16 @@ public record Usuario(
             StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
             Instant senhaAlteradaEm) {
         this(id, nome, email, senhaHash, papel, statusPresenca, ativo, disponivelParaIa,
-                null, null, senhaAlteradaEm);
+                null, null, null, senhaAlteradaEm);
+    }
+
+    /** Compatibilidade para os adaptadores que ainda nao precisam da referencia da foto. */
+    public Usuario(
+            UUID id, String nome, String email, String senhaHash, PapelUsuario papel,
+            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa,
+            String telefone, String cargo, Instant senhaAlteradaEm) {
+        this(id, nome, email, senhaHash, papel, statusPresenca, ativo, disponivelParaIa,
+                telefone, cargo, null, senhaAlteradaEm);
     }
 
     public Usuario {

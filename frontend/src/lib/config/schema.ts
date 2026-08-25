@@ -103,7 +103,8 @@ export const TextosSchema = z.object({
     papel: z.string(), senha: z.string(), senhaAjuda: z.string(), alterarSenha: z.string(),
     ultimaAlteracaoSenha: z.string(), senhaProvisoria: z.string(), naoInformado: z.string(),
     salvarPerfil: z.string(), salvando: z.string(), salvo: z.string(), carregando: z.string(),
-    erro: z.string(), erroNome: z.string(),
+    erro: z.string(), erroNome: z.string(), senhaAtual: z.string(), senhaAtualAjuda: z.string(),
+    alterarFoto: z.string(), removerFoto: z.string(), fotoErro: z.string(),
   }),
   auth: z.object({
     mostrarSenha: z.string(),

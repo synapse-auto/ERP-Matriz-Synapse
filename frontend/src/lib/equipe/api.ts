@@ -1,6 +1,8 @@
 import{apiFetch}from"@/lib/api/http-client";import type{AvaliacoesEquipe,DesempenhoEquipe,MeuUsuario,PapelGerenciavel,StatusPresenca,UsuarioEquipe}from"./types";
 export const listarEquipe=()=>apiFetch<UsuarioEquipe[]>("/api/v1/usuarios");export const avaliacoesEquipe=()=>apiFetch<AvaliacoesEquipe>("/api/v1/equipe/avaliacoes");export const desempenhoEquipe=()=>apiFetch<DesempenhoEquipe>("/api/v1/equipe/desempenho");export const obterMeuUsuario=()=>apiFetch<MeuUsuario>("/api/v1/me");
-export function atualizarMeuUsuario(d:{nome:string}){return apiFetch<MeuUsuario>("/api/v1/me",{method:"PATCH",body:JSON.stringify(d)})}
+export function atualizarMeuUsuario(d:{nome:string;email:string;telefone:string|null;cargo:string|null;senhaAtual:string|null}){return apiFetch<MeuUsuario>("/api/v1/me",{method:"PATCH",body:JSON.stringify(d)})}
+export function atualizarMinhaFoto(arquivo:File){const corpo=new FormData();corpo.append("arquivo",arquivo);return apiFetch<MeuUsuario>("/api/v1/me/foto",{method:"POST",body:corpo})}
+export function removerMinhaFoto(){return apiFetch<MeuUsuario>("/api/v1/me/foto",{method:"DELETE"})}
 export function criarUsuario(d:{nome:string;email:string;senha:string;papel:PapelGerenciavel}){return apiFetch<UsuarioEquipe>("/api/v1/usuarios",{method:"POST",body:JSON.stringify(d)})}
 export function editarUsuario(id:string,d:{nome:string;email:string;papel:PapelGerenciavel}){return apiFetch<UsuarioEquipe>(`/api/v1/usuarios/${id}`,{method:"PUT",body:JSON.stringify(d)})}
 export const desativarUsuario=(id:string)=>apiFetch<void>(`/api/v1/usuarios/${id}/desativar`,{method:"PATCH"});

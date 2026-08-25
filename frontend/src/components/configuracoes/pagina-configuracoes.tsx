@@ -2,16 +2,18 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { KeyRound, Save, UserRound } from "lucide-react";
+import { Camera, KeyRound, Save, Trash2, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useAtualizarMeuUsuario, useMeuUsuario } from "@/lib/equipe/use-equipe";
+import { useAtualizarMeuUsuario, useAtualizarMinhaFoto, useMeuUsuario, useRemoverMinhaFoto } from "@/lib/equipe/use-equipe";
 
 function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["configuracoes"]) {
   if (!valor) return t.senhaProvisoria;
@@ -23,7 +25,13 @@ export function PaginaConfiguracoes() {
   const t = textos.configuracoes;
   const usuario = useMeuUsuario();
   const atualizar = useAtualizarMeuUsuario();
+  const atualizarFoto = useAtualizarMinhaFoto();
+  const removerFoto = useRemoverMinhaFoto();
   const [nomeEditado, setNomeEditado] = useState<string | null>(null);
+  const [emailEditado, setEmailEditado] = useState<string | null>(null);
+  const [telefoneEditado, setTelefoneEditado] = useState<string | null>(null);
+  const [cargoEditado, setCargoEditado] = useState<string | null>(null);
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [erroNome, setErroNome] = useState(false);
   const [salvo, setSalvo] = useState(false);
 
@@ -36,6 +44,9 @@ export function PaginaConfiguracoes() {
 
   const dados = usuario.data;
   const nome = nomeEditado ?? dados.nome;
+  const email = emailEditado ?? dados.email;
+  const telefone = telefoneEditado ?? dados.telefone ?? "";
+  const cargo = cargoEditado ?? dados.cargo ?? "";
 
   function salvar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -46,7 +57,10 @@ export function PaginaConfiguracoes() {
       return;
     }
     setErroNome(false);
-    atualizar.mutate({ nome: normalizado }, { onSuccess: () => { setNomeEditado(normalizado); setSalvo(true); } });
+    atualizar.mutate(
+      { nome: normalizado, email: email.trim(), telefone: telefone || null, cargo: cargo || null, senhaAtual: senhaAtual || null },
+      { onSuccess: (novo) => { setNomeEditado(novo.nome); setEmailEditado(novo.email); setTelefoneEditado(novo.telefone); setCargoEditado(novo.cargo); setSenhaAtual(""); setSalvo(true); } },
+    );
   }
 
   return (
@@ -60,13 +74,18 @@ export function PaginaConfiguracoes() {
           <h2 className="mb-4 text-lg font-extrabold tracking-tight">{t.perfil}</h2>
           <Card>
             <CardHeader className="border-b">
-              <div className="flex items-center gap-4">
-                <div className="flex size-16 items-center justify-center rounded-xl bg-primary text-xl font-bold text-primary-foreground">
-                  {dados.nome.split(/\s+/).map((parte) => parte[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
+                <div className="flex items-center gap-4">
+                <AvatarIniciais id={dados.id} nome={dados.nome} fotoUrl={dados.fotoUrl} className="flex size-16 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-primary-foreground" />
                 <div>
                   <CardTitle>{dados.nome}</CardTitle>
                   <CardDescription>{t.perfilDescricao}</CardDescription>
+                </div>
+                <div className="ml-auto flex flex-wrap justify-end gap-2">
+                  <label className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium ${atualizarFoto.isPending ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-muted"}`} aria-busy={atualizarFoto.isPending}>
+                    <Camera className="size-4" />{atualizarFoto.isPending ? t.salvando : t.alterarFoto}
+                    <input type="file" className="sr-only" disabled={atualizarFoto.isPending} accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(evento) => { const arquivo = evento.target.files?.[0]; if (arquivo) atualizarFoto.mutate(arquivo); evento.currentTarget.value = ""; }} />
+                  </label>
+                  {dados.fotoUrl && <Button type="button" variant="outline" size="sm" onClick={() => removerFoto.mutate()} disabled={removerFoto.isPending}><Trash2 className="size-4" />{t.removerFoto}</Button>}
                 </div>
               </div>
             </CardHeader>
@@ -80,17 +99,21 @@ export function PaginaConfiguracoes() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="perfil-email">{t.email}</Label>
-                    <Input id="perfil-email" value={dados.email} disabled />
+                    <Input id="perfil-email" value={email} onChange={(evento) => { setEmailEditado(evento.target.value); setSalvo(false); }} />
                     <p className="text-xs text-muted-foreground">{t.emailAjuda}</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="perfil-telefone">{t.telefone}</Label>
-                    <Input id="perfil-telefone" value={dados.telefone ?? t.naoInformado} disabled />
+                    <Input id="perfil-telefone" value={telefone} placeholder={t.naoInformado} onChange={(evento) => { setTelefoneEditado(evento.target.value); setSalvo(false); }} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="perfil-cargo">{t.cargo}</Label>
-                    <Input id="perfil-cargo" value={dados.cargo ?? t.naoInformado} disabled />
+                    <Input id="perfil-cargo" value={cargo} placeholder={t.naoInformado} onChange={(evento) => { setCargoEditado(evento.target.value); setSalvo(false); }} />
                   </div>
+                </div>
+                <div className="max-w-md space-y-2">
+                  <Label htmlFor="perfil-senha-atual">{t.senhaAtual}</Label>
+                  <PasswordInput id="perfil-senha-atual" value={senhaAtual} onChange={(evento) => { setSenhaAtual(evento.target.value); setSalvo(false); }} placeholder={t.senhaAtualAjuda} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium">{t.papel}</span>
@@ -108,6 +131,7 @@ export function PaginaConfiguracoes() {
                 <div className="flex items-center justify-end gap-3">
                   {salvo && <span role="status" className="text-sm text-cor-sucesso">{t.salvo}</span>}
                   {atualizar.isError && <span role="alert" className="text-sm text-destructive">{t.erro}</span>}
+                  {(atualizarFoto.isError || removerFoto.isError) && <span role="alert" className="text-sm text-destructive">{t.fotoErro}</span>}
                   <Button type="submit" disabled={atualizar.isPending}>
                     <Save className="size-4" />{atualizar.isPending ? t.salvando : t.salvarPerfil}
                   </Button>

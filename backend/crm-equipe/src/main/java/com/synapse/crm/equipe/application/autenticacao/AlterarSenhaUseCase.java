@@ -80,7 +80,8 @@ public class AlterarSenhaUseCase {
 
         Usuario atualizado = new Usuario(
                 usuario.id(), usuario.nome(), usuario.email(), novoHash, usuario.papel(),
-                usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa(), agora);
+                usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa(), usuario.telefone(),
+                usuario.cargo(), usuario.fotoReferencia(), agora);
         return emissor.emitir(atualizado, UUID.randomUUID());
     }
 }

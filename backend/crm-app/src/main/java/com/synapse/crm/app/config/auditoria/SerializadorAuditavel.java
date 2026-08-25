@@ -32,7 +32,8 @@ public class SerializadorAuditavel {
      * exatamente aqui que um segredo deixa de vazar.
      */
     private static final Map<String, Set<String>> ALLOWLIST = Map.of(
-            "TAG", Set.of("id", "nome", "cor", "icone"));
+            "TAG", Set.of("id", "nome", "cor", "icone"),
+            "USUARIO", Set.of("id", "nome", "email", "telefone", "cargo", "fotoReferencia"));
 
     private final ObjectMapper mapper;
 

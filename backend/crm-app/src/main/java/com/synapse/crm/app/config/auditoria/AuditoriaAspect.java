@@ -97,6 +97,9 @@ public class AuditoriaAspect {
                 .getAnnotation(Auditable.class);
 
         UUID idDoArgumento = extrairPrimeiroUuid(pontoDeJuncao.getArgs());
+        if (idDoArgumento == null && "USUARIO".equals(auditable.entidadeTipo())) {
+            idDoArgumento = usuarioContext.atualSeHouver().map(UsuarioAutenticado::id).orElse(null);
+        }
         Object antes = carregarAntes(auditable.entidadeTipo(), idDoArgumento);
 
         Object retorno = pontoDeJuncao.proceed();

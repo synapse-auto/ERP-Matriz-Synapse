@@ -53,7 +53,12 @@
     "salvo": "Perfil salvo.",
     "carregando": "Carregando perfil...",
     "erro": "Não foi possível carregar ou salvar seu perfil.",
-    "erroNome": "Informe um nome válido."
+    "erroNome": "Informe um nome válido.",
+    "senhaAtual": "Senha atual",
+    "senhaAtualAjuda": "Necessária somente para trocar o e-mail",
+    "alterarFoto": "Alterar foto",
+    "removerFoto": "Remover foto",
+    "fotoErro": "Não foi possível atualizar a foto. A anterior continua valendo."
   },
   "auth": {
     "mostrarSenha": "Mostrar senha",

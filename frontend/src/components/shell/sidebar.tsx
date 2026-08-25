@@ -34,7 +34,7 @@ import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
-import { iniciaisDoNome } from "@/lib/utils";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 
 interface ItemDeMenu {
   chave: string;
@@ -273,8 +273,8 @@ export function Sidebar() {
             onClick={() => setPopupAberto((atual) => !atual)}
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
           >
-          <span className="relative flex size-[38px] flex-none items-center justify-center rounded-[11px] bg-primary text-sm font-bold text-white">
-            {meuUsuario.data ? iniciaisDoNome(meuUsuario.data.nome) : "?"}
+          <span className="relative flex size-[38px] flex-none items-center justify-center">
+            {meuUsuario.data ? <AvatarIniciais id={meuUsuario.data.id ?? "me"} nome={meuUsuario.data.nome} fotoUrl={meuUsuario.data.fotoUrl} className="flex size-[38px] items-center justify-center rounded-[11px] text-sm font-bold text-white" /> : "?"}
             <span
               className="absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-sidebar"
               style={{ backgroundColor: COR_PRESENCA[statusAtual] }}
