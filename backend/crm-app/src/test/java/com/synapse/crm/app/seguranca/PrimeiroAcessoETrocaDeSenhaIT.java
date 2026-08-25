@@ -217,6 +217,28 @@ class PrimeiroAcessoETrocaDeSenhaIT extends PostgresIT {
         assertThat(linhas.get(0).get("dados_depois")).isNull();
     }
 
+    @Test
+    @DisplayName("reset por gestor audita o gestor como ator e o outro usuario como alvo")
+    void resetPorGestor_auditaAtorEAlvoDistintos() {
+        var alvo = criarProvisorio();
+        UUID gestor = jdbc.queryForObject(
+                "SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_GESTOR);
+        String tokenGestor = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+
+        var resposta = comBearer(
+                tokenGestor, HttpMethod.POST, "/api/v1/usuarios/" + alvo.id() + "/senha-provisoria", null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var auditoria = jdbc.queryForMap(
+                "SELECT ator_id, entidade_id FROM audit_log "
+                        + "WHERE acao = 'GERAR_SENHA_PROVISORIA' AND entidade_id = ? "
+                        + "ORDER BY criado_em DESC LIMIT 1",
+                alvo.id());
+        assertThat(auditoria.get("ator_id")).isEqualTo(gestor);
+        assertThat(auditoria.get("entidade_id")).isEqualTo(alvo.id());
+        assertThat(auditoria.get("ator_id")).isNotEqualTo(auditoria.get("entidade_id"));
+    }
+
     // --- apoio ---------------------------------------------------------------
 
     private record ProvisorioCriado(UUID id, String email) {}

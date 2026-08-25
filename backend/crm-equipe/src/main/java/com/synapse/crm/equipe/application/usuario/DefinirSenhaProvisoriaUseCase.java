@@ -51,7 +51,10 @@ public class DefinirSenhaProvisoriaUseCase {
 
     @PreAuthorize("hasAnyRole('GESTOR','ADMINISTRADOR')")
     @Transactional
-    @Auditable(acao = "GERAR_SENHA_PROVISORIA", entidadeTipo = "USUARIO")
+    @Auditable(
+            acao = "GERAR_SENHA_PROVISORIA",
+            entidadeTipo = "USUARIO",
+            capturarDados = false)
     public Optional<String> executar(UUID usuarioId) {
         String senha = GeradorDeSenhaAleatoria.gerar(Math.max(politica.tamanhoMinimo(), TAMANHO_MINIMO_GERADO));
         boolean encontrado = equipe.definirSenhaProvisoria(usuarioId, senhas.codificar(senha));

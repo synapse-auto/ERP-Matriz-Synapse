@@ -2,6 +2,7 @@ package com.synapse.crm.equipe.application.usuario;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -38,9 +39,24 @@ class AtualizarMeuUsuarioUseCaseTest {
                 .thenReturn(Optional.of(atual));
 
         new AtualizarMeuUsuarioUseCase(equipe, contexto, usuarios, senhas)
-                .executar("Ana nova", "ana@example.invalid", "+55 (61) 99999-9999", "Consultora", null);
+                .executar(ana, "Ana nova", "ana@example.invalid", "+55 (61) 99999-9999", "Consultora", null);
 
         verify(equipe).atualizarMeuPerfil(ana, "Ana nova", "ana@example.invalid", "+55 (61) 99999-9999", "Consultora");
+        verifyNoInteractions(senhas);
+    }
+
+    @Test
+    void emailOmitidoPreservaOAtualSemExigirSenha() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
+        when(usuarios.porId(ana)).thenReturn(Optional.of(atual));
+        when(equipe.atualizarMeuPerfil(ana, "Ana nova", "ana@example.invalid", null, null))
+                .thenReturn(Optional.of(atual));
+
+        new AtualizarMeuUsuarioUseCase(equipe, contexto, usuarios, senhas)
+                .executar(ana, "Ana nova", null, null, null, null);
+
+        verify(equipe).atualizarMeuPerfil(ana, "Ana nova", "ana@example.invalid", null, null);
+        verifyNoInteractions(senhas);
     }
 
     @Test
@@ -50,7 +66,7 @@ class AtualizarMeuUsuarioUseCaseTest {
         when(senhas.confere(null, "hash")).thenReturn(false);
 
         assertThatThrownBy(() -> new AtualizarMeuUsuarioUseCase(equipe, contexto, usuarios, senhas)
-                .executar("Ana", "novo@example.invalid", null, null, null))
+                .executar(ana, "Ana", "novo@example.invalid", null, null, null))
                 .isInstanceOf(SenhaInvalidaException.class);
     }
 }

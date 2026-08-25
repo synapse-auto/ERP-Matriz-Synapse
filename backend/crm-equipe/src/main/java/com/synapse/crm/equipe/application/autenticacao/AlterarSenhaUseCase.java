@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +19,9 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
  * fluxo e identico, so muda o motivo pelo qual o usuario chegou aqui.
  *
  * <p>Exige a senha atual mesmo no primeiro acesso: e o que impede que um token vazado troque a
- * senha do dono sem saber a senha original. O alvo e sempre {@code usuarioContext.atual()} — nunca
- * um id vindo de fora — porque esta rota nao e de administracao, e de autoatendimento.
+ * senha do dono sem saber a senha original. O controller deriva o alvo do contexto autenticado, e
+ * este caso de uso confere a correspondencia antes de executar: o UUID existe como argumento
+ * explicito para a auditoria, nao como alvo selecionavel pela requisicao.
  *
  * <p>Revoga todas as demais sessoes (a familia de refresh token) porque trocar a senha sem derrubar
  * as outras deixaria em pe exatamente a sessao de quem o dono quer excluir. A sessao que fez a
@@ -59,8 +61,10 @@ public class AlterarSenhaUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional
     @Auditable(acao = "TROCAR_SENHA", entidadeTipo = "USUARIO")
-    public Sessao executar(String senhaAtual, String novaSenha) {
-        UUID usuarioId = usuarioContext.atual().id();
+    public Sessao executar(UUID usuarioId, String senhaAtual, String novaSenha) {
+        if (!usuarioContext.atual().id().equals(usuarioId)) {
+            throw new AccessDeniedException("usuario autenticado nao corresponde ao alvo da troca de senha");
+        }
         Usuario usuario = usuarios.porId(usuarioId).orElseThrow(SenhaInvalidaException::atualIncorreta);
 
         if (!senhas.confere(senhaAtual, usuario.senhaHash())) {

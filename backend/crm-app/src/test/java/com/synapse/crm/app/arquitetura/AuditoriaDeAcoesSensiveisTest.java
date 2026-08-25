@@ -82,7 +82,7 @@ class AuditoriaDeAcoesSensiveisTest {
                     String.class,
                     String.class),
             AcaoSensivel.viaAuditable(
-                    AlterarSenhaUseCase.class, "executar", String.class, String.class),
+                    AlterarSenhaUseCase.class, "executar", UUID.class, String.class, String.class),
             AcaoSensivel.viaAuditable(
                     DefinirSenhaProvisoriaUseCase.class, "executar", UUID.class));
 

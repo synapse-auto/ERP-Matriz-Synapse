@@ -97,10 +97,9 @@ public class AuditoriaAspect {
                 .getAnnotation(Auditable.class);
 
         UUID idDoArgumento = extrairPrimeiroUuid(pontoDeJuncao.getArgs());
-        if (idDoArgumento == null && "USUARIO".equals(auditable.entidadeTipo())) {
-            idDoArgumento = usuarioContext.atualSeHouver().map(UsuarioAutenticado::id).orElse(null);
-        }
-        Object antes = carregarAntes(auditable.entidadeTipo(), idDoArgumento);
+        Object antes = auditable.capturarDados()
+                ? carregarAntes(auditable.entidadeTipo(), idDoArgumento)
+                : null;
 
         Object retorno = pontoDeJuncao.proceed();
 
@@ -117,7 +116,7 @@ public class AuditoriaAspect {
     }
 
     private void registrar(Auditable auditable, UUID idDoArgumento, Object antes, Object retornoCru) {
-        Object depois = desembrulhar(retornoCru);
+        Object depois = auditable.capturarDados() ? desembrulhar(retornoCru) : null;
         UUID entidadeId = idDoArgumento != null ? idDoArgumento : extrairUuid(depois, "id");
         UUID leadId = extrairUuid(depois != null ? depois : antes, "leadId");
 

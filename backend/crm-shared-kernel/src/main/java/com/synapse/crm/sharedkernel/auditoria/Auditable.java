@@ -23,6 +23,9 @@ import java.lang.annotation.Target;
  * da linha de auditoria. O "depois" e o valor de retorno do metodo (desembrulhando
  * {@code Optional}); metodos que devolvem {@code boolean} ou {@code void} (ex.: remocao) nao tem
  * "depois".
+ *
+ * <p>Operacoes cujo retorno ou estado contenha segredo podem desabilitar a captura de dados com
+ * {@link #capturarDados()}; ator, acao e alvo continuam obrigatoriamente registrados.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -33,4 +36,7 @@ public @interface Auditable {
 
     /** Tipo de entidade gravado em {@code audit_log.entidade_tipo}, ex.: {@code "TAG"}. */
     String entidadeTipo();
+
+    /** Se {@code false}, nao captura {@code dados_antes}/{@code dados_depois}. */
+    boolean capturarDados() default true;
 }

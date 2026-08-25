@@ -2,7 +2,9 @@ package com.synapse.crm.equipe.application.usuario;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,16 +40,21 @@ public class AtualizarMeuUsuarioUseCase {
     @Transactional
     @Auditable(acao = "ATUALIZAR_PERFIL", entidadeTipo = "USUARIO")
     public Optional<Usuario> executar(
-            String nome, String email, String telefone, String cargo, String senhaAtual) {
+            UUID usuarioId, String nome, String email, String telefone, String cargo, String senhaAtual) {
         var autenticado = usuario.atual();
-        Usuario antes = usuarios.porId(autenticado.id()).orElseThrow(SenhaInvalidaException::atualIncorreta);
-        String emailNormalizado = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (!autenticado.id().equals(usuarioId)) {
+            throw new AccessDeniedException("usuario autenticado nao corresponde ao perfil informado");
+        }
+        Usuario antes = usuarios.porId(usuarioId).orElseThrow(SenhaInvalidaException::atualIncorreta);
+        String emailNormalizado = email == null
+                ? antes.email()
+                : email.trim().toLowerCase(Locale.ROOT);
         if (!antes.email().equalsIgnoreCase(emailNormalizado)
                 && !senhas.confere(senhaAtual, antes.senhaHash())) {
             throw SenhaInvalidaException.atualIncorreta();
         }
         return equipe.atualizarMeuPerfil(
-                autenticado.id(),
+                usuarioId,
                 nome.trim(),
                 emailNormalizado,
                 telefone,

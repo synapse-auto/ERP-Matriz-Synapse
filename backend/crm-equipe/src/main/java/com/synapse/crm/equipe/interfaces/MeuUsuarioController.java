@@ -30,6 +30,7 @@ import com.synapse.crm.equipe.domain.usuario.SenhaInvalidaException;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.equipe.domain.usuario.Usuario;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
  * {@code GET /api/v1/me} (E17): nome, papel e presença de quem está autenticado.
@@ -48,16 +49,19 @@ class MeuUsuarioController {
     private final AtualizarMeuUsuarioUseCase atualizarMeuUsuario;
     private final AtualizarMinhaFotoUseCase atualizarMinhaFoto;
     private final ObterFotoDeUsuarioUseCase obterFoto;
+    private final UsuarioContext usuarioContext;
 
     MeuUsuarioController(
             ObterMeuUsuarioUseCase obterMeuUsuario,
             AtualizarMeuUsuarioUseCase atualizarMeuUsuario,
             AtualizarMinhaFotoUseCase atualizarMinhaFoto,
-            ObterFotoDeUsuarioUseCase obterFoto) {
+            ObterFotoDeUsuarioUseCase obterFoto,
+            UsuarioContext usuarioContext) {
         this.obterMeuUsuario = obterMeuUsuario;
         this.atualizarMeuUsuario = atualizarMeuUsuario;
         this.atualizarMinhaFoto = atualizarMinhaFoto;
         this.obterFoto = obterFoto;
+        this.usuarioContext = usuarioContext;
     }
 
     @Operation(
@@ -82,7 +86,7 @@ class MeuUsuarioController {
     @org.springframework.web.bind.annotation.PatchMapping
     MeuUsuarioResposta atualizar(@Valid @org.springframework.web.bind.annotation.RequestBody AtualizacaoDoMeuPerfil requisicao) {
         return atualizarMeuUsuario.executar(
-                        requisicao.nome(), requisicao.email(), requisicao.telefone(), requisicao.cargo(),
+                        usuarioContext.atual().id(), requisicao.nome(), requisicao.email(), requisicao.telefone(), requisicao.cargo(),
                         requisicao.senhaAtual())
                 .map(MeuUsuarioResposta::de).orElseThrow(MeuUsuarioController::naoEncontrado);
     }
@@ -168,8 +172,8 @@ class MeuUsuarioController {
     record AtualizacaoDoMeuPerfil(
             @Schema(description = "Nome de exibição do usuário autenticado.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank @Size(max = 150) String nome,
-            @Schema(description = "E-mail de login. Se for alterado, senhaAtual é obrigatória.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotBlank @jakarta.validation.constraints.Email @Size(max = 200) String email,
+            @Schema(description = "E-mail de login. Se omitido ou inalterado, senhaAtual não é exigida.")
+                    @jakarta.validation.constraints.Email @Size(min = 1, max = 200) String email,
             @Schema(description = "Telefone de exibição, sem normalização de operadora.")
                     @Size(max = 30) String telefone,
             @Schema(description = "Cargo de exibição na equipe.") @Size(max = 120) String cargo,

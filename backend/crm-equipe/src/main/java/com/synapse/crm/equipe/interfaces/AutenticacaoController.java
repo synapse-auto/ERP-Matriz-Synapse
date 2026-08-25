@@ -26,6 +26,7 @@ import com.synapse.crm.equipe.application.autenticacao.RenovarSessaoUseCase;
 import com.synapse.crm.equipe.application.autenticacao.Sessao;
 import com.synapse.crm.equipe.domain.usuario.AutenticacaoInvalidaException;
 import com.synapse.crm.equipe.domain.usuario.SenhaInvalidaException;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /** Login, renovacao, troca de senha e logout. Unica rota fechada do grupo: POST /senha. */
 @RestController
@@ -37,16 +38,19 @@ class AutenticacaoController {
     private final RenovarSessaoUseCase renovar;
     private final EncerrarSessaoUseCase encerrar;
     private final AlterarSenhaUseCase alterarSenha;
+    private final UsuarioContext usuarioContext;
 
     AutenticacaoController(
             AutenticarUsuarioUseCase autenticar,
             RenovarSessaoUseCase renovar,
             EncerrarSessaoUseCase encerrar,
-            AlterarSenhaUseCase alterarSenha) {
+            AlterarSenhaUseCase alterarSenha,
+            UsuarioContext usuarioContext) {
         this.autenticar = autenticar;
         this.renovar = renovar;
         this.encerrar = encerrar;
         this.alterarSenha = alterarSenha;
+        this.usuarioContext = usuarioContext;
     }
 
     @Operation(
@@ -104,7 +108,8 @@ class AutenticacaoController {
             })
     @PostMapping("/senha")
     SessaoResposta trocarSenha(@Valid @RequestBody TrocarSenhaRequisicao requisicao) {
-        return SessaoResposta.de(alterarSenha.executar(requisicao.senhaAtual(), requisicao.novaSenha()));
+        return SessaoResposta.de(alterarSenha.executar(
+                usuarioContext.atual().id(), requisicao.senhaAtual(), requisicao.novaSenha()));
     }
 
     /**
