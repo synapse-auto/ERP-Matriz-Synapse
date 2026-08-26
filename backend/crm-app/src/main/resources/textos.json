@@ -169,7 +169,15 @@
       "confirmar": "Finalizar",
       "cancelar": "Cancelar",
       "sucesso": "Atendimento finalizado.",
-      "erro": "Não foi possível finalizar."
+      "erro": "Não foi possível finalizar.",
+      "todosMenu": "Mais ações",
+      "todos": "Finalizar todos os atendimentos visíveis",
+      "todosTitulo": "Finalizar atendimentos",
+      "todosDescricao": "Esta ação encerrará {quantidade} atendimento(s) aberto(s) que você pode visualizar. O estado é definitivo.",
+      "todosConfirmar": "Finalizar {quantidade}",
+      "todosCancelar": "Cancelar",
+      "todosResultado": "{finalizados} atendimento(s) finalizado(s); {recusados} recusado(s).",
+      "todosErro": "Não foi possível finalizar os atendimentos visíveis."
     },
     "mensagem": {
       "hoje": "Hoje",
@@ -241,6 +249,12 @@
       "titulo": "Detalhes do lead",
       "informacoesGerais": "Informações gerais",
       "notasInternas": "Notas internas",
+      "adicionar": "Adicionar",
+      "editar": "Editar",
+      "remover": "Remover",
+      "confirmarRemocao": "Remover {item}?",
+      "cancelarRemocao": "Cancelar",
+      "erroOperacao": "Não foi possível concluir a operação.",
       "secoes": {
         "resumo": "Resumo por IA e notas",
         "programadas": "Mensagens programadas",
@@ -275,7 +289,7 @@
     },
     "tags": {
       "titulo": "Tags",
-      "botao": "+ Tag",
+      "botao": "Tag",
       "selecionar": "Selecionar tag",
       "adicionar": "Adicionar tag",
       "remover": "Remover tag {nome}",
@@ -320,10 +334,10 @@
     "semVinculo": "Sem vínculo",
     "colunas": { "texto": "Lembrete", "lead": "Lead vinculado", "dataHora": "Data e hora", "status": "Status", "atendente": "Atendente", "acoes": "Ações" },
     "paginacao": { "anterior": "Anterior", "proxima": "Próxima" },
-    "formulario": { "titulo": "Criar lembrete", "lead": "Lead", "selecionarLead": "Selecione um lead", "dataHora": "Data e hora", "selecionarData": "Selecione a data", "hora": "Hora", "minuto": "Minuto", "texto": "Texto", "salvar": "Salvar", "cancelar": "Cancelar", "erro": "Não foi possível criar o lembrete." }
+    "formulario": { "titulo": "Criar lembrete", "tituloEditar": "Editar lembrete", "lead": "Lead", "selecionarLead": "Selecione um lead", "dataHora": "Data e hora", "selecionarData": "Selecione a data", "hora": "Hora", "minuto": "Minuto", "texto": "Texto", "salvar": "Salvar", "cancelar": "Cancelar", "erro": "Não foi possível criar o lembrete.", "erroOperacao": "Não foi possível salvar o lembrete." }
   },
   "mensagensProgramadas": {
-    "titulo":"Mensagens programadas","descricao":"Mensagens que a Automação enviará no horário escolhido.","nova":"Programar mensagem","carregando":"Carregando mensagens...","vazio":"Nenhuma mensagem neste período.","erro":"Não foi possível carregar as mensagens programadas.","editar":"Editar","cancelar":"Cancelar",
+    "titulo":"Mensagens programadas","descricao":"Mensagens que a Automação enviará no horário escolhido.","nova":"Programar mensagem","carregando":"Carregando mensagens...","vazio":"Nenhuma mensagem neste período.","erro":"Não foi possível carregar as mensagens programadas.","editar":"Editar","cancelar":"Cancelar","remover":"Remover","confirmarRemocao":"Remover a mensagem programada para {data}?",
     "status":{"agendada":"Agendada","enviada":"Enviada","cancelada":"Cancelada"},
     "filtros":{"inicio":"De","fim":"Até","status":"Status","todos":"Todos"},
     "colunas":{"lead":"Lead","conteudo":"Mensagem","data":"Envio","status":"Status","atendente":"Atendente","acoes":"Ações"},

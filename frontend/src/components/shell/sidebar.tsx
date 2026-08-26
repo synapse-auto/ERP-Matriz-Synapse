@@ -15,13 +15,13 @@ import {
   Folder,
   Headset,
   KeyRound,
-  LayoutDashboard,
   LogOut,
   Megaphone,
   MessageSquareText,
   MessagesSquare,
   Settings,
   Tag,
+  TrendingUp,
   Users,
 } from "lucide-react";
 
@@ -46,7 +46,7 @@ interface ItemDeMenu {
 
 const ITENS_MENU: ItemDeMenu[] = [
   { chave: "atendimentos", rota: "/atendimentos", icone: Headset },
-  { chave: "dashboard", rota: "/dashboard", icone: LayoutDashboard, flag: "dashboard" },
+  { chave: "dashboard", rota: "/dashboard", icone: TrendingUp, flag: "dashboard" },
   { chave: "agenda", rota: "/agenda", icone: BookUser },
   { chave: "tags", rota: "/tags", icone: Tag },
   { chave: "mensagensRapidas", rota: "/mensagens-rapidas", icone: MessageSquareText },

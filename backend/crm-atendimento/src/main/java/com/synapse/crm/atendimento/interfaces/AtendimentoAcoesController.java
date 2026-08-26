@@ -32,6 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.FinalizarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
@@ -68,6 +69,7 @@ class AtendimentoAcoesController {
     private final ResolverLeadDoAtendimentoUseCase resolverLead;
     private final TransferirAtendimentoUseCase transferir;
     private final FinalizarAtendimentoUseCase finalizar;
+    private final FinalizarAtendimentosVisiveisUseCase finalizarLote;
     private final UsuarioContext usuarioContext;
     private final GerenciarParticipacaoAtendimentoUseCase participacao;
 
@@ -78,6 +80,7 @@ class AtendimentoAcoesController {
             ResolverLeadDoAtendimentoUseCase resolverLead,
             TransferirAtendimentoUseCase transferir,
             FinalizarAtendimentoUseCase finalizar,
+            FinalizarAtendimentosVisiveisUseCase finalizarLote,
             UsuarioContext usuarioContext,
             GerenciarParticipacaoAtendimentoUseCase participacao) {
         this.enviar = enviar;
@@ -86,6 +89,7 @@ class AtendimentoAcoesController {
         this.resolverLead = resolverLead;
         this.transferir = transferir;
         this.finalizar = finalizar;
+        this.finalizarLote = finalizarLote;
         this.usuarioContext = usuarioContext;
         this.participacao = participacao;
     }
@@ -207,6 +211,29 @@ class AtendimentoAcoesController {
             @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id) {
         Atendimento atualizado = finalizar.executar(id, usuarioContext.atual().id());
         return AtendimentoResumo.de(atualizado);
+    }
+
+    @Operation(
+            summary = "Contar atendimentos abertos finalizáveis",
+            description = "Retorna quantos atendimentos abertos o usuário autenticado alcança; a contagem serve para confirmação da finalização em lote.",
+            responses = @ApiResponse(responseCode = "200", description = "Quantidade de atendimentos visíveis."))
+    @GetMapping("/finalizar-lote")
+    FinalizacaoEmLotePrevia contarFinalizacaoEmLote() {
+        return new FinalizacaoEmLotePrevia(finalizarLote.quantidade());
+    }
+
+    @Operation(
+            summary = "Finalizar atendimentos visíveis em lote",
+            description = "Finaliza todos os atendimentos abertos visíveis ao usuário autenticado. Cada item reaproveita a mesma autorização, regra de estado terminal e evento da finalização individual.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resultado com itens finalizados e recusados."),
+                @ApiResponse(responseCode = "401", description = "Usuário não autenticado.")
+            })
+    @PostMapping("/finalizar-lote")
+    FinalizacaoEmLoteResposta finalizarEmLote() {
+        FinalizarAtendimentosVisiveisUseCase.Resultado resultado = finalizarLote.executar();
+        return new FinalizacaoEmLoteResposta(
+                resultado.solicitados(), resultado.finalizados(), resultado.recusados());
     }
 
     @Operation(summary = "Pedir entrada em atendimento", description = "Solicita ao responsável acesso colaborativo sem mudar o dono comercial. O pedido não libera histórico nem altera o atendente.", responses = {
@@ -352,4 +379,8 @@ class AtendimentoAcoesController {
                     atendimento.id(), atendimento.status().name(), atendimento.atendenteId());
         }
     }
+
+    record FinalizacaoEmLotePrevia(int quantidade) {}
+
+    record FinalizacaoEmLoteResposta(int solicitados, int finalizados, int recusados) {}
 }

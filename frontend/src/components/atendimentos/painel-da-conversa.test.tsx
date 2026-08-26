@@ -1,7 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import type { EtapaAtendimento } from "@/lib/lead/types";
+import type { Lembrete, MensagemProgramada } from "@/lib/suporte/types";
 
 type LeadTeste = {
   id: string;
@@ -41,6 +43,10 @@ const etapasState = vi.hoisted(() => ({
     { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
   ] as EtapaAtendimento[],
 }));
+const suporteState = vi.hoisted(() => ({
+  mensagens: [] as MensagemProgramada[],
+  lembretes: [] as Lembrete[],
+}));
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
@@ -49,6 +55,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         titulo: "Detalhes do lead",
         informacoesGerais: "Informações gerais",
         notasInternas: "Notas internas",
+        adicionar: "Adicionar",
+        editar: "Editar",
+        remover: "Remover",
+        confirmarRemocao: "Remover {item}?",
+        cancelarRemocao: "Cancelar",
+        erroOperacao: "Erro",
         secoes: {
           resumo: "Resumo por IA e notas",
           programadas: "Mensagens programadas",
@@ -69,7 +81,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       contadores: { atendimentos: "Atendimentos", mensagens: "Mensagens" },
       tags: {
         titulo: "Etiquetas",
-        botao: "+ Tag",
+        botao: "Tag",
         adicionar: "Adicionar tag",
         remover: "Remover tag {nome}",
         erroReversao: "Estado anterior restaurado",
@@ -94,18 +106,28 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
 
 vi.mock("@/lib/suporte/use-suporte", () => ({
   useMensagensProgramadasDoLead: () => ({
-    data: { mensagens: [], pagina: 0, temMais: false },
+    data: { mensagens: suporteState.mensagens, pagina: 0, temMais: false },
   }),
   useLembretesDoLead: () => ({
-    data: { lembretes: [], pagina: 0, temMais: false },
+    data: { lembretes: suporteState.lembretes, pagina: 0, temMais: false },
   }),
+}));
+
+vi.mock("../lembretes/formulario-lembrete", () => ({
+  FormularioLembrete: ({ aberto }: { aberto: boolean }) =>
+    aberto ? <div data-testid="formulario-lembrete" /> : null,
+}));
+
+vi.mock("../mensagens-programadas/formulario-mensagem-programada", () => ({
+  FormularioMensagemProgramada: ({ aberto }: { aberto: boolean }) =>
+    aberto ? <div data-testid="formulario-mensagem-programada" /> : null,
 }));
 
 import { PainelDaConversa } from "./painel-da-conversa";
 
 describe("painel da conversa", () => {
   it("mostra contadores, etapa e resumo por IA aberto por padrão — sem seção de arquivos", () => {
-    render(<PainelDaConversa leadId="lead-1" responsavelNome="Jardel Lima" />);
+    renderizarPainel("lead-1", "Jardel Lima");
 
     expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
     expect(screen.getByText("Informações gerais")).toBeInTheDocument();
@@ -113,7 +135,7 @@ describe("painel da conversa", () => {
     expect(screen.getByText("Orçamento")).toBeInTheDocument();
     expect(screen.getByText("2 de 3")).toBeInTheDocument();
     expect(screen.getByText("Prioridade")).toBeInTheDocument();
-    expect(screen.getByText("+ Tag")).toBeInTheDocument();
+    expect(screen.getByText("Tag")).toBeInTheDocument();
     expect(
       screen.getByText("Cliente pediu orçamento de box."),
     ).toBeInTheDocument();
@@ -121,7 +143,7 @@ describe("painel da conversa", () => {
   });
 
   it("mensagens programadas e lembretes começam fechados e abrem com o estado vazio real", () => {
-    render(<PainelDaConversa leadId="lead-1" responsavelNome="Jardel Lima" />);
+    renderizarPainel("lead-1", "Jardel Lima");
 
     expect(
       screen.queryByText("Nenhuma mensagem programada"),
@@ -147,11 +169,62 @@ describe("painel da conversa", () => {
     };
     etapasState.data = [];
 
-    render(<PainelDaConversa leadId="lead-2" responsavelNome={null} />);
+    renderizarPainel("lead-2", null);
 
     expect(screen.getByText("Lead sem dados opcionais")).toBeInTheDocument();
     expect(screen.queryByText("E-mail")).not.toBeInTheDocument();
     expect(screen.queryByText("Localização")).not.toBeInTheDocument();
     expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
   });
+
+  it("oferece criar, editar e remover itens nas duas seções", () => {
+    suporteState.mensagens = [{
+      id: "mensagem-1",
+      leadId: "lead-1",
+      leadNome: "Marcos Vinícius",
+      atendenteId: "atendente-1",
+      atendenteNome: "Jardel Lima",
+      conteudo: "Follow-up",
+      dataEnvio: "2030-01-01T12:00:00Z",
+      status: "AGENDADA",
+    }];
+    suporteState.lembretes = [{
+      id: "lembrete-1",
+      leadId: "lead-1",
+      leadNome: "Marcos Vinícius",
+      atendenteId: "atendente-1",
+      atendenteNome: "Jardel Lima",
+      texto: "Ligar",
+      dataHora: "2030-01-01T12:00:00Z",
+      origemAutomatica: false,
+      status: "PENDENTE",
+    }];
+
+    renderizarPainel("lead-1", "Jardel Lima");
+    fireEvent.click(screen.getByText("Mensagens programadas"));
+    expect(screen.getByRole("button", { name: "Adicionar" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
+    expect(screen.getByTestId("formulario-mensagem-programada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Editar Follow-up" }));
+    expect(screen.getByTestId("formulario-mensagem-programada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remover Follow-up" }));
+    expect(screen.getByText("Remover Follow-up?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    fireEvent.click(screen.getByText("Lembretes"));
+    expect(screen.getAllByRole("button", { name: "Adicionar" })).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Editar Ligar" }));
+    expect(screen.getByTestId("formulario-lembrete")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remover Ligar" }));
+    expect(screen.getByText("Remover Ligar?")).toBeInTheDocument();
+  });
 });
+
+function renderizarPainel(leadId: string, responsavelNome: string | null) {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={cliente}>
+      <PainelDaConversa leadId={leadId} responsavelNome={responsavelNome} />
+    </QueryClientProvider>,
+  );
+}

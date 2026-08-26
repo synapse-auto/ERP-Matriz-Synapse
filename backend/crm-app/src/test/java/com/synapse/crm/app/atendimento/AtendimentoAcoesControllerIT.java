@@ -57,6 +57,9 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
     @BeforeEach
     void prepararUsuarios() {
+        // O container de integracao e compartilhado entre execucoes da suite; remova
+        // sobras de uma JVM interrompida antes de medir a visibilidade do lote.
+        limpar();
         idAna = idDoUsuario(EMAIL_ANA);
         idBruno = idDoUsuario(EMAIL_BRUNO);
     }
@@ -275,10 +278,51 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
         assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
+    @Test
+    @DisplayName("finalizar em lote respeita a visibilidade do atendente")
+    void finalizarEmLote_finalizaSomenteAtendimentosVisiveis() {
+        UUID leadDaAna = criarLead("lead lote ana " + sufixo(), idAna, Instant.now());
+        UUID atendimentoDaAna = criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadDaAna);
+        UUID leadDoBruno = criarLead("lead lote bruno " + sufixo(), idBruno, Instant.now());
+        UUID atendimentoDoBruno = criarAtendimentoViaEnvioComo(EMAIL_BRUNO, SENHA_ATENDENTE, leadDoBruno);
+
+        var previa = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.GET,
+                "/api/v1/atendimentos/finalizar-lote",
+                null);
+        assertThat(previa.getStatusCode()).isEqualTo(HttpStatus.OK);
+        int quantidadeVisivel = extrairInt(previa.getBody(), "quantidade");
+        assertThat(quantidadeVisivel).isGreaterThanOrEqualTo(1);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/finalizar-lote",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody())
+                .contains(
+                        "\"solicitados\":" + quantidadeVisivel,
+                        "\"finalizados\":" + quantidadeVisivel,
+                        "\"recusados\":0");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDaAna))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDoBruno))
+                .isEqualTo("EM_ATENDIMENTO");
+    }
+
     // --- apoio ------------------------------------------------------------
 
     private UUID criarAtendimentoViaEnvio(UUID leadId) {
-        var resposta = enviarComo(EMAIL_ANA, SENHA_ATENDENTE, leadId, "mensagem inicial");
+        return criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadId);
+    }
+
+    private UUID criarAtendimentoViaEnvioComo(String email, String senha, UUID leadId) {
+        var resposta = enviarComo(email, senha, leadId, "mensagem inicial");
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return extrairUuid(resposta.getBody(), "atendimentoId");
     }
@@ -323,6 +367,10 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
     private static UUID extrairUuid(String json, String campo) {
         return UUID.fromString(json.replaceAll(".*\"" + campo + "\":\"([^\"]+)\".*", "$1"));
+    }
+
+    private static int extrairInt(String json, String campo) {
+        return Integer.parseInt(json.replaceAll(".*\"" + campo + "\":([0-9]+).*", "$1"));
     }
 
     private static String sufixo() {

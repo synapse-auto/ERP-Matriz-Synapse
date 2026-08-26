@@ -49,6 +49,9 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String SQL_POR_ID = "SELECT " + COLUNAS + " FROM atendimento WHERE id = ?";
 
+    private static final String SQL_ABERTOS_VISIVEIS = "SELECT " + COLUNAS
+            + " FROM atendimento WHERE status <> 'FINALIZADO' ORDER BY iniciado_em, id";
+
     private static final String SQL_MARCAR_COMO_LIDO =
             """
             INSERT INTO atendimento_leitura (atendimento_id, usuario_id, lido_ate)
@@ -87,6 +90,12 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     public Optional<Atendimento> porId(UUID atendimentoId) {
         TransacaoObrigatoria.exigir("porId");
         return primeiro(chat.query(SQL_POR_ID, MAPEADOR, atendimentoId));
+    }
+
+    @Override
+    public List<Atendimento> abertosVisiveis() {
+        TransacaoObrigatoria.exigir("abertosVisiveis");
+        return chat.query(SQL_ABERTOS_VISIVEIS, MAPEADOR);
     }
 
     @Override

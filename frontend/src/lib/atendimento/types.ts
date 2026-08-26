@@ -87,6 +87,16 @@ export interface AtendimentoResumo {
   atendenteId: string | null;
 }
 
+export interface FinalizacaoEmLotePrevia {
+  quantidade: number;
+}
+
+export interface FinalizacaoEmLoteResposta {
+  solicitados: number;
+  finalizados: number;
+  recusados: number;
+}
+
 export interface ParticipanteAtendimento {
   usuarioId: string;
   nome: string;

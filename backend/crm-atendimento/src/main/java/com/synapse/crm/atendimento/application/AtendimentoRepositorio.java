@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +31,9 @@ public interface AtendimentoRepositorio {
 
     /** Este atendimento, se quem pede o alcanca. */
     Optional<Atendimento> porId(UUID atendimentoId);
+
+    /** Atendimentos ainda abertos que o contexto RLS do usuario atual alcanca. */
+    List<Atendimento> abertosVisiveis();
 
     /**
      * Serializa a escolha de destino feita pela Automacao.

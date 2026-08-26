@@ -36,6 +36,16 @@ export function atualizarLembrete(
   });
 }
 
+export function editarLembrete(
+  id: string,
+  dados: { texto: string; dataHora: string; status: StatusLembrete },
+): Promise<Lembrete> {
+  return apiFetch<Lembrete>(`/api/v1/lembretes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(dados),
+  });
+}
+
 export function removerLembrete(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/lembretes/${id}`, { method: "DELETE" });
 }

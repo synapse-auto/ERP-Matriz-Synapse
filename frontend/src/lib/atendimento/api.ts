@@ -8,6 +8,8 @@ import type {
   ConfiguracaoComposer,
   ContagemPorVisao,
   EnvioResposta,
+  FinalizacaoEmLotePrevia,
+  FinalizacaoEmLoteResposta,
   MensagemResposta,
   PaginaMensagens,
   ParticipanteAtendimento,
@@ -126,6 +128,16 @@ export function transferirAtendimento(
 
 export function finalizarAtendimento(atendimentoId: string): Promise<AtendimentoResumo> {
   return apiFetch<AtendimentoResumo>(`/api/v1/atendimentos/${atendimentoId}/finalizar`, {
+    method: "POST",
+  });
+}
+
+export function contarAtendimentosFinalizaveis(): Promise<FinalizacaoEmLotePrevia> {
+  return apiFetch<FinalizacaoEmLotePrevia>("/api/v1/atendimentos/finalizar-lote");
+}
+
+export function finalizarAtendimentosVisiveis(): Promise<FinalizacaoEmLoteResposta> {
+  return apiFetch<FinalizacaoEmLoteResposta>("/api/v1/atendimentos/finalizar-lote", {
     method: "POST",
   });
 }

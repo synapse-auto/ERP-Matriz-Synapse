@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   CalendarClock,
@@ -8,23 +9,47 @@ import {
   ChevronUp,
   Mail,
   MapPin,
+  Pencil,
   Phone,
+  Plus,
   Sparkles,
   StickyNote,
+  Trash2,
   UserRound,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEtapas, useLead } from "@/lib/lead/use-painel-lead";
+import {
+  cancelarMensagemProgramada,
+  removerLembrete,
+} from "@/lib/suporte/api";
 import {
   useLembretesDoLead,
   useMensagensProgramadasDoLead,
 } from "@/lib/suporte/use-suporte";
+import type {
+  Lembrete,
+  MensagemProgramada,
+  PaginaLembretes,
+  PaginaMensagensProgramadas,
+} from "@/lib/suporte/types";
 import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 import { AtalhoTags } from "./atalho-tags";
+import { FormularioLembrete } from "../lembretes/formulario-lembrete";
+import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 
 type Props = {
   leadId: string;
@@ -211,11 +236,13 @@ export function PainelDaConversa({ leadId, responsavelNome }: Props) {
 
         <SecaoDeProgramadas
           leadId={leadId}
+          leadNome={lead.data.nome}
           titulo={textos.secoes.programadas}
           vazio={textos.vazioProgramadas}
         />
         <SecaoDeLembretes
           leadId={leadId}
+          leadNome={lead.data.nome}
           titulo={textos.secoes.lembretes}
           vazio={textos.vazioLembretes}
         />
@@ -302,86 +329,294 @@ function SecaoColapsavel({
 
 function SecaoDeProgramadas({
   leadId,
+  leadNome,
   titulo,
   vazio,
 }: {
   leadId: string;
+  leadNome: string;
   titulo: string;
   vazio: string;
 }) {
+  const textos = useTextos();
+  const cache = useQueryClient();
   const programadas = useMensagensProgramadasDoLead(leadId);
-  const itens = programadas.data?.mensagens ?? [];
+  const [formulario, setFormulario] = useState<"novo" | MensagemProgramada | null>(null);
+  const [itemParaRemover, setItemParaRemover] = useState<MensagemProgramada | null>(null);
+  const [erro, setErro] = useState(false);
+  const chave = ["mensagens-programadas", "lead", leadId] as const;
+  const remover = useMutation({
+    mutationFn: cancelarMensagemProgramada,
+    onMutate: async (id) => {
+      await cache.cancelQueries({ queryKey: chave });
+      const anterior = cache.getQueryData<PaginaMensagensProgramadas>(chave);
+      cache.setQueryData<PaginaMensagensProgramadas>(chave, (atual) =>
+        atual
+          ? { ...atual, mensagens: atual.mensagens.filter((item) => item.id !== id) }
+          : atual,
+      );
+      return { anterior };
+    },
+    onError: (_erro, _id, contexto) => {
+      if (contexto?.anterior) cache.setQueryData(chave, contexto.anterior);
+      setErro(true);
+    },
+    onSuccess: () => {
+      setErro(false);
+      setItemParaRemover(null);
+    },
+    onSettled: () => cache.invalidateQueries({ queryKey: chave }),
+  });
+  const itens = (programadas.data?.mensagens ?? []).filter(
+    (item) => item.status === "AGENDADA",
+  );
   return (
     <SecaoColapsavel
       icone={<CalendarClock className="size-4 text-primary" />}
       titulo={titulo}
       contagem={itens.length}
     >
-      {itens.length === 0 ? (
-        <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
-      ) : (
-        <div className="space-y-1.5">
-          {itens.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-border bg-muted/30 p-2.5"
-            >
-              <p className="text-xs font-medium text-foreground">
-                {item.conteudo}
-              </p>
-              <p className="mt-1 text-[0.7rem] text-muted-foreground">
-                {new Intl.DateTimeFormat(undefined, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                }).format(new Date(item.dataEnvio))}
-              </p>
-            </div>
-          ))}
-        </div>
+      <div className="space-y-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={() => setFormulario("novo")}
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {textos.atendimentos.painel.adicionar}
+        </Button>
+        {itens.length === 0 ? (
+          <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {itens.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-lg border border-border bg-muted/30 p-2.5"
+              >
+                <p className="text-xs font-medium text-foreground">{item.conteudo}</p>
+                <p className="mt-1 text-[0.7rem] text-muted-foreground">
+                  {new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(new Date(item.dataEnvio))}
+                </p>
+                <div className="mt-2 flex justify-end gap-1">
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`${textos.atendimentos.painel.editar} ${item.conteudo}`}
+                    onClick={() => setFormulario(item)}
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    aria-label={`${textos.atendimentos.painel.remover} ${item.conteudo}`}
+                    onClick={() => {
+                      setErro(false);
+                      setItemParaRemover(item);
+                    }}
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {formulario !== null && (
+        <FormularioMensagemProgramada
+          key={formulario === "novo" ? "nova" : formulario.id}
+          aberto
+          leadId={leadId}
+          leadNome={leadNome}
+          existente={formulario === "novo" ? undefined : formulario}
+          onFechar={() => setFormulario(null)}
+        />
       )}
+      <DialogConfirmarRemocao
+        aberto={Boolean(itemParaRemover)}
+        item={itemParaRemover?.conteudo ?? ""}
+        textos={textos.atendimentos.painel}
+        processando={remover.isPending}
+        erro={erro}
+        onFechar={() => setItemParaRemover(null)}
+        onConfirmar={() => itemParaRemover && remover.mutate(itemParaRemover.id)}
+      />
     </SecaoColapsavel>
   );
 }
 
 function SecaoDeLembretes({
   leadId,
+  leadNome,
   titulo,
   vazio,
 }: {
   leadId: string;
+  leadNome: string;
   titulo: string;
   vazio: string;
 }) {
+  const textos = useTextos();
+  const cache = useQueryClient();
   const lembretes = useLembretesDoLead(leadId);
   const itens = lembretes.data?.lembretes ?? [];
+  const [formulario, setFormulario] = useState<"novo" | Lembrete | null>(null);
+  const [itemParaRemover, setItemParaRemover] = useState<Lembrete | null>(null);
+  const [erro, setErro] = useState(false);
+  const chave = ["lembretes", "lead", leadId] as const;
+  const remover = useMutation({
+    mutationFn: removerLembrete,
+    onMutate: async (id) => {
+      await cache.cancelQueries({ queryKey: chave });
+      const anterior = cache.getQueryData<PaginaLembretes>(chave);
+      cache.setQueryData<PaginaLembretes>(chave, (atual) =>
+        atual
+          ? { ...atual, lembretes: atual.lembretes.filter((item) => item.id !== id) }
+          : atual,
+      );
+      return { anterior };
+    },
+    onError: (_erro, _id, contexto) => {
+      if (contexto?.anterior) cache.setQueryData(chave, contexto.anterior);
+      setErro(true);
+    },
+    onSuccess: () => {
+      setErro(false);
+      setItemParaRemover(null);
+    },
+    onSettled: () => cache.invalidateQueries({ queryKey: chave }),
+  });
   return (
     <SecaoColapsavel
       icone={<Bell className="size-4 text-cor-atencao" />}
       titulo={titulo}
       contagem={itens.length}
     >
-      {itens.length === 0 ? (
-        <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
-      ) : (
-        <div className="space-y-1.5">
-          {itens.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-border bg-muted/30 p-2.5"
-            >
-              <p className="text-xs font-medium text-foreground">
-                {item.texto}
-              </p>
-              <p className="mt-1 text-[0.7rem] text-muted-foreground">
-                {new Intl.DateTimeFormat(undefined, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                }).format(new Date(item.dataHora))}
-              </p>
-            </div>
-          ))}
-        </div>
+      <div className="space-y-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={() => setFormulario("novo")}
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {textos.atendimentos.painel.adicionar}
+        </Button>
+        {itens.length === 0 ? (
+          <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {itens.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-lg border border-border bg-muted/30 p-2.5"
+              >
+                <p className="text-xs font-medium text-foreground">{item.texto}</p>
+                <p className="mt-1 text-[0.7rem] text-muted-foreground">
+                  {new Intl.DateTimeFormat("pt-BR", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  }).format(new Date(item.dataHora))}
+                </p>
+                <div className="mt-2 flex justify-end gap-1">
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`${textos.atendimentos.painel.editar} ${item.texto}`}
+                    onClick={() => setFormulario(item)}
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    aria-label={`${textos.atendimentos.painel.remover} ${item.texto}`}
+                    onClick={() => {
+                      setErro(false);
+                      setItemParaRemover(item);
+                    }}
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {formulario !== null && (
+        <FormularioLembrete
+          key={formulario === "novo" ? "novo" : formulario.id}
+          aberto
+          leadId={leadId}
+          leadNome={leadNome}
+          existente={formulario === "novo" ? undefined : formulario}
+          onFechar={() => setFormulario(null)}
+        />
       )}
+      <DialogConfirmarRemocao
+        aberto={Boolean(itemParaRemover)}
+        item={itemParaRemover?.texto ?? ""}
+        textos={textos.atendimentos.painel}
+        processando={remover.isPending}
+        erro={erro}
+        onFechar={() => setItemParaRemover(null)}
+        onConfirmar={() => itemParaRemover && remover.mutate(itemParaRemover.id)}
+      />
     </SecaoColapsavel>
+  );
+}
+
+function DialogConfirmarRemocao({
+  aberto,
+  item,
+  textos,
+  processando,
+  erro,
+  onFechar,
+  onConfirmar,
+}: {
+  aberto: boolean;
+  item: string;
+  textos: ReturnType<typeof useTextos>["atendimentos"]["painel"];
+  processando: boolean;
+  erro: boolean;
+  onFechar: () => void;
+  onConfirmar: () => void;
+}) {
+  return (
+    <Dialog open={aberto} onOpenChange={(novo) => !novo && onFechar()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{textos.remover}</DialogTitle>
+          <DialogDescription>
+            {textos.confirmarRemocao.replace("{item}", item)}
+          </DialogDescription>
+        </DialogHeader>
+        {erro && <p role="alert" className="text-sm text-destructive">{textos.erroOperacao}</p>}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onFechar} disabled={processando}>
+            {textos.cancelarRemocao}
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirmar} disabled={processando}>
+            {textos.remover}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

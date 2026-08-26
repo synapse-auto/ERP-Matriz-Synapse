@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
@@ -42,7 +43,11 @@ public class FinalizarAtendimentoUseCase {
     }
 
     @PreAuthorize("isAuthenticated()")
-    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+            })
     public Atendimento executar(UUID atendimentoId, UUID quemFinalizou) {
         Instant agora = Instant.now(relogio);
 

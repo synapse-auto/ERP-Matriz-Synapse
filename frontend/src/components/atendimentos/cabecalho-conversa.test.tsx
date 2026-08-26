@@ -4,9 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const finalizar = vi.fn();
+const finalizarTodos = vi.fn();
+const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
+  useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: quantidadeFinalizavel.valor }, isLoading: false }),
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
@@ -25,6 +29,22 @@ vi.mock("@/lib/config/textos-provider", () => ({
         transferir: "Transferir",
         finalizar: "Finalizar",
         buscar: "Buscar na conversa",
+      },
+      finalizar: {
+        titulo: "Finalizar atendimento",
+        descricao: "",
+        confirmar: "Finalizar",
+        cancelar: "Cancelar",
+        sucesso: "Finalizado",
+        erro: "Erro",
+        todosMenu: "Mais ações",
+        todos: "Finalizar todos",
+        todosTitulo: "Finalizar atendimentos",
+        todosDescricao: "Encerrar {quantidade}",
+        todosConfirmar: "Finalizar {quantidade}",
+        todosCancelar: "Cancelar",
+        todosResultado: "{finalizados} finalizados; {recusados} recusados",
+        todosErro: "Erro",
       },
     },
     painelLead: { dados: { telefone: "Telefone" } },
@@ -88,5 +108,22 @@ describe("CabecalhoConversa", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+  });
+
+  it("pede confirmação com a quantidade de atendimentos visíveis", () => {
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByText("Finalizar todos"));
+
+    expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
+    expect(finalizarTodos).toHaveBeenCalledWith(undefined, expect.anything());
   });
 });

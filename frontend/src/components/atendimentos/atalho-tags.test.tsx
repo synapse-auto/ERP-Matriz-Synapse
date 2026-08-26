@@ -9,7 +9,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     painelLead: {
       tags: {
         titulo: "Tags",
-        botao: "+ Tag",
+        botao: "Tag",
         selecionar: "Selecionar tag",
         adicionar: "Adicionar tag",
         remover: "Remover tag {nome}",
@@ -49,5 +49,13 @@ describe("atalho de tags no cabecalho", () => {
       expect.objectContaining({ onError: expect.any(Function) }),
     );
     expect(desvincular).not.toHaveBeenCalled();
+  });
+
+  it("mostra um unico simbolo de adicao no modo painel", () => {
+    render(<AtalhoTags leadId="lead-1" modo="painel" />);
+
+    const botao = screen.getByLabelText("Tags");
+    expect(botao).toHaveTextContent("Tag");
+    expect(botao.textContent).not.toContain("+ Tag");
   });
 });

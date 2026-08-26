@@ -1,8 +1,13 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { finalizarAtendimento, transferirAtendimento } from "./api";
+import {
+  contarAtendimentosFinalizaveis,
+  finalizarAtendimento,
+  finalizarAtendimentosVisiveis,
+  transferirAtendimento,
+} from "./api";
 
 export function useTransferirAtendimento() {
   const queryClient = useQueryClient();
@@ -27,5 +32,22 @@ export function useFinalizarAtendimento() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
     },
+  });
+}
+
+export function useFinalizarAtendimentosVisiveis() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: finalizarAtendimentosVisiveis,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+  });
+}
+
+export function useQuantidadeAtendimentosFinalizaveis() {
+  return useQuery({
+    queryKey: ["atendimentos", "finalizar-lote"],
+    queryFn: contarAtendimentosFinalizaveis,
   });
 }

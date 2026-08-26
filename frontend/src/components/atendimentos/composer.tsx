@@ -453,7 +453,7 @@ export function Composer({ conversa }: Props) {
             </div>
           )}
 
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <Textarea
               value={texto}
               onChange={(evento) => {
@@ -465,7 +465,7 @@ export function Composer({ conversa }: Props) {
                 arquivo ? textos.anexoLegendaPlaceholder : textos.placeholder
               }
               rows={1}
-              className="min-h-11 max-h-32 resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:border-0 focus-visible:ring-2"
+              className="min-h-11 max-h-32 w-full min-w-0 resize-none break-words border-0 bg-transparent px-2 py-2 shadow-none focus-visible:border-0 focus-visible:ring-2"
               disabled={gravador.fase !== "INATIVO"}
             />
             {sugestoes.length > 0 && (
