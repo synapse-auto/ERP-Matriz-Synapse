@@ -12,16 +12,26 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param backoffInicial primeira espera; dobra a cada tentativa
  * @param backoffMaximo teto do backoff, para uma indisponibilidade longa nao empurrar a proxima
  *     tentativa para daqui a dias
+ * @param concorrencia quantidade maxima de chamadas simultaneas ao provedor
+ * @param reservaExpiracao tempo que uma reserva persistida fica protegida antes de voltar para a
+ *     fila
  */
 @ConfigurationProperties("synapse.canal.outbox")
 public record OutboxProperties(
-        int lote, int maximoDeTentativas, Duration backoffInicial, Duration backoffMaximo) {
+        int lote,
+        int maximoDeTentativas,
+        Duration backoffInicial,
+        Duration backoffMaximo,
+        int concorrencia,
+        Duration reservaExpiracao) {
 
     public OutboxProperties {
         lote = lote <= 0 ? 50 : lote;
         maximoDeTentativas = maximoDeTentativas <= 0 ? 8 : maximoDeTentativas;
         backoffInicial = backoffInicial == null ? Duration.ofSeconds(5) : backoffInicial;
         backoffMaximo = backoffMaximo == null ? Duration.ofMinutes(30) : backoffMaximo;
+        concorrencia = concorrencia <= 0 ? 4 : concorrencia;
+        reservaExpiracao = reservaExpiracao == null ? Duration.ofSeconds(30) : reservaExpiracao;
     }
 
     /**

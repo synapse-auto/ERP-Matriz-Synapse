@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -233,6 +235,36 @@ class CanalWhatsAppIT extends PostgresIT {
             rodarPublisher();
 
             esperar().untilAsserted(() -> assertThat(esgotadasNaOutbox()).isEqualTo(1));
+        }
+
+        @Test
+        @DisplayName("reserva expirada volta para a fila e a mensagem sai uma vez")
+        void reservaExpirada_voltaParaFila_eEnviaUmaVez() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "mensagem com reserva orfa").mensagem().id();
+            UUID outboxId = jdbc.queryForObject(
+                    "SELECT id FROM outbox_evento WHERE publicado_em IS NULL AND esgotado_em IS NULL",
+                    UUID.class);
+
+            jdbc.update(
+                    "UPDATE outbox_evento SET proxima_tentativa_em = ? WHERE id = ?",
+                    Timestamp.from(Instant.now().plusSeconds(30)),
+                    outboxId);
+            rodarPublisher();
+            assertThat(canal.enviados()).isEmpty();
+
+            jdbc.update(
+                    "UPDATE outbox_evento SET proxima_tentativa_em = ? WHERE id = ?",
+                    Timestamp.from(Instant.now().minusSeconds(1)),
+                    outboxId);
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+            });
+            rodarPublisher();
+            assertThat(canal.enviados()).hasSize(1);
         }
 
         /**

@@ -136,6 +136,11 @@ synapse:
       maximo-de-tentativas: ${OUTBOX_MAX_TENTATIVAS:8}
       backoff-inicial: ${OUTBOX_BACKOFF_INICIAL:5s}
       backoff-maximo: ${OUTBOX_BACKOFF_MAXIMO:30m}
+      # Reserva persistida antes da chamada externa. Deve ser maior que o timeout
+      # do provedor; se o processo morrer, a linha volta depois deste prazo.
+      reserva-expiracao: ${OUTBOX_RESERVA_EXPIRACAO:30s}
+      # Chamadas independentes ao provedor nao ocupam a fila inteira por uma linha lenta.
+      concorrencia: ${OUTBOX_CONCORRENCIA:4}
 
     webhook:
       intervalo-ms: ${WEBHOOK_INTERVALO_MS:1000}

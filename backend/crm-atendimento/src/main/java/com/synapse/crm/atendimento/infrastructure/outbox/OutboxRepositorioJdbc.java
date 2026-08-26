@@ -52,11 +52,32 @@ class OutboxRepositorioJdbc implements Outbox {
     private static final String SQL_ENFILEIRAR_IDEMPOTENTE = SQL_ENFILEIRAR + " ON CONFLICT (id) DO NOTHING";
 
     /**
-     * {@code SKIP LOCKED} e o que permite duas instancias rodarem o mesmo job sem coordenacao
-     * externa: cada uma pega linhas que a outra nao travou. Sem ele, ou as instancias se bloqueiam em
-     * fila, ou — pior — a mesma mensagem sai duas vezes para o cliente.
+     * Seleciona e persiste a reserva na mesma transacao curta. {@code proxima_tentativa_em} ja e a
+     * marca duravel que governa a fila: enquanto aponta para o futuro, nenhuma outra instancia
+     * seleciona a linha; depois da expiracao, uma reserva orfa volta a ser elegivel.
      */
-    private static final String SQL_RESERVAR =
+    private static final String SQL_RESERVAR_ENVIO =
+            """
+            WITH candidatos AS (
+                SELECT id
+                  FROM outbox_evento
+                 WHERE tipo = ?
+                   AND publicado_em IS NULL
+                   AND esgotado_em IS NULL
+                   AND proxima_tentativa_em <= ?
+                 ORDER BY proxima_tentativa_em
+                 LIMIT ?
+                   FOR UPDATE SKIP LOCKED
+            )
+            UPDATE outbox_evento o
+               SET proxima_tentativa_em = ?
+              FROM candidatos c
+             WHERE o.id = c.id
+            RETURNING o.id, o.payload, o.tentativas
+            """;
+
+    /** O repasse de webhook permanece no ciclo existente; esta etapa so muda o envio ao canal. */
+    private static final String SQL_RESERVAR_REPASSE =
             """
             SELECT id, payload, tentativas
               FROM outbox_evento
@@ -132,9 +153,15 @@ class OutboxRepositorioJdbc implements Outbox {
     }
 
     @Override
-    public List<EnvioPendente> reservarPendentes(int limite, Instant agora) {
+    public List<EnvioPendente> reservarPendentes(int limite, Instant agora, Instant reservaAte) {
         TransacaoObrigatoria.exigir("reservarPendentes");
-        return chat.query(SQL_RESERVAR, this::desserializar, TIPO_ENVIO, Timestamp.from(agora), limite);
+        return chat.query(
+                SQL_RESERVAR_ENVIO,
+                this::desserializar,
+                TIPO_ENVIO,
+                Timestamp.from(agora),
+                limite,
+                Timestamp.from(reservaAte));
     }
 
     @Override
@@ -142,7 +169,7 @@ class OutboxRepositorioJdbc implements Outbox {
             int limite, Instant agora) {
         TransacaoObrigatoria.exigir("reservarRepassesWebhookPendentes");
         return chat.query(
-                SQL_RESERVAR,
+                SQL_RESERVAR_REPASSE,
                 this::desserializarRepasseWebhook,
                 TIPO_REPASSE_WEBHOOK,
                 Timestamp.from(agora),

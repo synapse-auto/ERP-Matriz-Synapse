@@ -43,12 +43,13 @@ public interface Outbox {
     void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm);
 
     /**
-     * Pendentes cuja hora de tentar ja chegou, travadas para este publisher.
+     * Reserva de forma persistida os pendentes cuja hora de tentar ja chegou.
      *
-     * <p>Trava porque duas instancias da aplicacao rodam o mesmo job: sem isso, a mesma mensagem
-     * sairia duas vezes para o cliente.
+     * <p>A reserva e gravada antes de qualquer chamada externa. Enquanto o instante de expiracao
+     * nao chega, outra instancia nao pode selecionar a linha; se o processo morrer, a linha volta
+     * para a fila depois desse instante.
      */
-    List<EnvioPendente> reservarPendentes(int limite, Instant agora);
+    List<EnvioPendente> reservarPendentes(int limite, Instant agora, Instant reservaAte);
 
     /** Repasses de webhook cuja proxima tentativa ja chegou. */
     List<RepasseWebhookPendente> reservarRepassesWebhookPendentes(int limite, Instant agora);
