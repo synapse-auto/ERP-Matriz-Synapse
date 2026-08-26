@@ -136,6 +136,7 @@ export function ListaMensagens({
                   !anterior ||
                   diaDaMensagem(anterior.enviadoEm) !==
                     diaDaMensagem(mensagem.enviadoEm);
+                const mudouAtendimento = mudouDeAtendimento(anterior, mensagem);
                 const nomeDoRemetente = nomeDaAutoria(
                   mensagem,
                   atendenteId,
@@ -159,10 +160,14 @@ export function ListaMensagens({
                     {mostrarData && (
                       <SeparadorDeData enviadoEm={mensagem.enviadoEm} />
                     )}
-                    {item.index === 0 && (
+                    {(item.index === 0 || mudouAtendimento) && (
                       <LinhaDeInicio
                         canalTipo={canalTipo}
-                        atendenteNome={atendenteNome}
+                        atendenteNome={
+                          mensagem.atendimentoResponsavelNome ??
+                          (item.index === 0 ? atendenteNome : null)
+                        }
+                        troca={mudouAtendimento}
                       />
                     )}
                     <BolhaMensagem
@@ -188,6 +193,16 @@ export function ListaMensagens({
 /** A altura medida acompanha a mensagem, mesmo quando uma página antiga entra no topo da lista. */
 export function chaveDaMensagem(mensagens: MensagemResposta[], indice: number): string | number {
   return mensagens[indice]?.id ?? indice;
+}
+
+/** O marcador aparece apenas quando a ordem cronologica cruza a fronteira de dois atendimentos. */
+export function mudouDeAtendimento(
+  anterior: MensagemResposta | undefined,
+  atual: MensagemResposta,
+): boolean {
+  return Boolean(anterior?.atendimentoId)
+    && Boolean(atual.atendimentoId)
+    && anterior?.atendimentoId !== atual.atendimentoId;
 }
 
 /** O dado persistido prevalece; o responsavel atual e so fallback para eventos em tempo real. */
@@ -221,14 +236,16 @@ function SeparadorDeData({ enviadoEm }: { enviadoEm: string }) {
 function LinhaDeInicio({
   canalTipo,
   atendenteNome,
+  troca = false,
 }: {
   canalTipo: string | null;
   atendenteNome: string | null;
+  troca?: boolean;
 }) {
   const textos = useTextos().atendimentos;
   const canal = canalTipo === "WHATSAPP" ? textos.canais.whatsapp : canalTipo;
   const partes: Array<string | null> = [
-    textos.mensagem.atendimentoRecebido,
+    troca ? textos.mensagem.trocaAtendimento : textos.mensagem.atendimentoRecebido,
     canal,
   ];
   if (atendenteNome) {
@@ -240,6 +257,7 @@ function LinhaDeInicio({
     <p
       className="mb-3 inline-flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground"
       data-slot="linha-atendimento-recebido"
+      data-troca-atendimento={troca ? "true" : undefined}
     >
       <ShieldCheck className="size-3.5" aria-hidden />
       {partes.filter(Boolean).join(" · ")}

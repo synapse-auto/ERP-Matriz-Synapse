@@ -226,9 +226,9 @@ export function ListaConversas({
         ) : (
           filtrados.map((cartao) => (
             <CartaoConversa
-              key={cartao.atendimentoId}
+              key={cartao.leadId}
               cartao={cartao}
-              selecionado={cartao.atendimentoId === selecionadoId}
+              selecionado={cartao.leadId === selecionadoId}
               onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
             />
           ))

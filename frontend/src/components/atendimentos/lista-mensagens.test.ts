@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
-import { chaveDaMensagem, nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
+import { chaveDaMensagem, mudouDeAtendimento, nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
 
 function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
   return {
@@ -48,6 +48,17 @@ describe("chaveDaMensagem", () => {
     expect(chaveDaMensagem(paginaInicial, 0)).toBe("nova");
     expect(chaveDaMensagem(depoisDoBackfill, 1)).toBe("nova");
     expect(chaveDaMensagem(depoisDoBackfill, 2)).toBe("mais-nova");
+  });
+});
+
+describe("mudouDeAtendimento", () => {
+  it("detecta a fronteira entre atendimentos sem criar marcador no primeiro item", () => {
+    const primeiro = mensagem({ id: "primeira", atendimentoId: "atendimento-1" });
+    const segundo = mensagem({ id: "segunda", atendimentoId: "atendimento-2" });
+
+    expect(mudouDeAtendimento(undefined, primeiro)).toBe(false);
+    expect(mudouDeAtendimento(primeiro, primeiro)).toBe(false);
+    expect(mudouDeAtendimento(primeiro, segundo)).toBe(true);
   });
 });
 

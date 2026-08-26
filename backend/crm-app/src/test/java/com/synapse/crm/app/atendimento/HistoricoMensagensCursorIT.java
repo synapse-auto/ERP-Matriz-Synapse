@@ -7,7 +7,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,6 +43,7 @@ class HistoricoMensagensCursorIT extends PostgresIT {
     @Autowired private ObjectMapper json;
 
     private UUID atendimentoId;
+    private UUID leadId;
     private UUID anaId;
     private UUID brunoId;
     private Instant inicio;
@@ -59,7 +62,7 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 "SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_ANA);
         brunoId = jdbc.queryForObject(
                 "SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_BRUNO);
-        UUID leadId = UUID.randomUUID();
+        leadId = UUID.randomUUID();
         atendimentoId = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico) VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
@@ -110,6 +113,62 @@ class HistoricoMensagensCursorIT extends PostgresIT {
         assertThat(segunda.path("proximoCursor").isNull()).isTrue();
     }
 
+    @Test
+    @DisplayName("historico atravessa os tres atendimentos do lead em ordem e marca a troca")
+    void historicoAgrupaAtendimentosDoMesmoLead() throws Exception {
+        UUID atendimentoAntigo = criarAtendimento("FINALIZADO", inicio.minusSeconds(100));
+        UUID atendimentoIntermediario = criarAtendimento("FINALIZADO", inicio.minusSeconds(50));
+        inserir(atendimentoAntigo, "historico-antigo", inicio.minusSeconds(10));
+        inserir(atendimentoIntermediario, "historico-intermediario", inicio.plusSeconds(5));
+        inserir(atendimentoId, "historico-atual", inicio.plusSeconds(25));
+
+        List<JsonNode> paginas = new ArrayList<>();
+        String cursor = null;
+        do {
+            JsonNode pagina = pagina(cursor);
+            paginas.add(pagina);
+            cursor = pagina.path("proximoCursor").isNull()
+                    ? null
+                    : pagina.path("proximoCursor").asText();
+        } while (cursor != null);
+
+        // A API devolve páginas do mais recente para o mais antigo; a conversa
+        // monta a ordem cronológica invertendo as páginas, como o cliente faz.
+        List<JsonNode> mensagens = paginas.reversed().stream()
+                .flatMap(pagina -> {
+                    List<JsonNode> itens = new ArrayList<>();
+                    pagina.path("mensagens").forEach(itens::add);
+                    return itens.stream();
+                })
+                .toList();
+        List<String> textos = mensagens.stream()
+                .map(item -> item.path("conteudo").asText())
+                .toList();
+
+        assertThat(textos).contains("historico-antigo", "historico-intermediario", "historico-atual");
+        assertThat(textos.stream()
+                        .filter(texto -> texto.startsWith("historico-"))
+                        .toList())
+                .containsExactly("historico-antigo", "historico-intermediario", "historico-atual");
+        assertThat(textos.indexOf("historico-intermediario"))
+                .isGreaterThan(textos.indexOf("historico-antigo"));
+        assertThat(textos.indexOf("historico-atual"))
+                .isGreaterThan(textos.indexOf("historico-intermediario"));
+        JsonNode antigo = mensagens.stream()
+                .filter(item -> "historico-antigo".equals(item.path("conteudo").asText()))
+                .findFirst()
+                .orElseThrow();
+        JsonNode intermediario = mensagens.stream()
+                .filter(item -> "historico-intermediario".equals(item.path("conteudo").asText()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(antigo.path("atendimentoId").asText()).isEqualTo(atendimentoAntigo.toString());
+        assertThat(intermediario.path("atendimentoId").asText())
+                .isEqualTo(atendimentoIntermediario.toString());
+        assertThat(antigo.path("atendimentoResponsavelNome").asText())
+                .isEqualTo(nomeDoUsuario(anaId));
+    }
+
     private JsonNode pagina(String cursor) throws Exception {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
         HttpHeaders headers = new HttpHeaders();
@@ -139,6 +198,10 @@ class HistoricoMensagensCursorIT extends PostgresIT {
     }
 
     private void inserir(String conteudo, Instant enviadoEm) {
+        inserir(atendimentoId, conteudo, enviadoEm);
+    }
+
+    private void inserir(UUID idAtendimento, String conteudo, Instant enviadoEm) {
         jdbc.update(
                 """
                 INSERT INTO mensagem
@@ -146,9 +209,21 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 VALUES (?, ?, 'LEAD', 'TEXTO', ?, 'ENTREGUE', ?)
                 """,
                 UUID.randomUUID(),
-                atendimentoId,
+                idAtendimento,
                 conteudo,
                 Timestamp.from(enviadoEm));
+    }
+
+    private UUID criarAtendimento(String status, Instant iniciadoEm) {
+        UUID id = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em) VALUES (?, ?, ?, ?::status_atendimento, ?)",
+                id,
+                leadId,
+                anaId,
+                status,
+                Timestamp.from(iniciadoEm));
+        return id;
     }
 
     private void inserirDoAtendente(String conteudo, Instant enviadoEm, UUID remetenteId) {

@@ -38,7 +38,7 @@ export function PaginaAtendimentosCliente({
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
-  const [conversaId, setConversaId] = useState<string | null>(null);
+  const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<CartaoAtendimento[]>([]);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
@@ -49,8 +49,11 @@ export function PaginaAtendimentosCliente({
   const { conexao, estado } = useConexaoTempoReal(
     () => useAuthStore.getState().accessToken,
     (atendimentoRevogado) => {
-      setConversaId((atual) => {
-        if (atual !== atendimentoRevogado) {
+      setLeadSelecionadoId((atual) => {
+        const selecionado = atendimentos.find((item) => item.leadId === atual);
+        const ativoId = selecionado?.atendimentoAtivoId
+          ?? (selecionado?.status !== "FINALIZADO" ? selecionado?.atendimentoId : null);
+        if (ativoId !== atendimentoRevogado) {
           return atual;
         }
         setAvisoRevogacao(true);
@@ -73,30 +76,43 @@ export function PaginaAtendimentosCliente({
     }
   }, [cache, estado]);
 
-  const conversa = atendimentos.find((atendimento) => atendimento.atendimentoId === conversaId) ?? null;
+  const conversa = atendimentos.find((atendimento) => atendimento.leadId === leadSelecionadoId) ?? null;
+  /** Atendimento operacional do lead; histórico e cartão continuam ancorados no cartão mais recente. */
+  const atendimentoAtivoId = conversa
+    ? conversa.atendimentoAtivoId
+      ?? (conversa.status !== "FINALIZADO" ? conversa.atendimentoId : null)
+    : null;
+  const atendimentoAtivo = atendimentoAtivoId
+    ? { ...conversa!, atendimentoId: atendimentoAtivoId, status: "EM_ATENDIMENTO" as const }
+    : null;
+  const atendimentoAtivoIdParaLeitura = atendimentoAtivo?.atendimentoId ?? null;
   const marcarConversaAbertaComoLida = useCallback(() => {
-    if (!conversaId) return;
-    void marcarAtendimentoComoLido(conversaId)
+    if (!atendimentoAtivoIdParaLeitura) return;
+    void marcarAtendimentoComoLido(atendimentoAtivoIdParaLeitura)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode interromper o fluxo de mensagens.
       })
       .finally(() => {
         void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       });
-  }, [cache, conversaId]);
+  }, [atendimentoAtivoIdParaLeitura, cache]);
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
     estado,
     marcarConversaAbertaComoLida,
+    atendimentoAtivo?.atendimentoId ?? null,
   );
   const enviar = useEnviarMensagem();
 
   function abrirAtendimento(cartao: CartaoAtendimento) {
     setAvisoRevogacao(false);
     setBuscaAberta(false);
-    setConversaId(cartao.atendimentoId);
-    void marcarAtendimentoComoLido(cartao.atendimentoId)
+    setLeadSelecionadoId(cartao.leadId);
+    const ativoId = cartao.atendimentoAtivoId
+      ?? (cartao.status !== "FINALIZADO" ? cartao.atendimentoId : null);
+    if (!ativoId) return;
+    void marcarAtendimentoComoLido(ativoId)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
       })
@@ -106,10 +122,10 @@ export function PaginaAtendimentosCliente({
   }
 
   function reenviar(mensagem: MensagemResposta) {
-    if (!conversa || !mensagem.conteudo) return;
+    if (!atendimentoAtivo || !mensagem.conteudo) return;
     enviar.mutate({
-      atendimentoId: conversa.atendimentoId,
-      leadId: conversa.leadId,
+      atendimentoId: atendimentoAtivo.atendimentoId,
+      leadId: atendimentoAtivo.leadId,
       conteudo: mensagem.conteudo,
     });
   }
@@ -161,7 +177,7 @@ export function PaginaAtendimentosCliente({
         </div>
       )}
       <ListaConversas
-        selecionadoId={conversa?.atendimentoId ?? null}
+        selecionadoId={conversa?.leadId ?? null}
         leadInicialId={leadParaAbrir}
         leadInicialGatilho={leadParaAbrirGatilho}
         visaoInicial={visaoInicial}
@@ -184,7 +200,7 @@ export function PaginaAtendimentosCliente({
         {conversa ? (
           <>
             <CabecalhoConversa
-              conversa={conversa}
+              conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}
               buscaAberta={buscaAberta}
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
             />
@@ -200,7 +216,15 @@ export function PaginaAtendimentosCliente({
               atendenteId={conversa.atendenteId}
               atendenteNome={conversa.atendenteNome}
             />
-            <Composer conversa={conversa} />
+            {atendimentoAtivo ? (
+              <Composer conversa={atendimentoAtivo} />
+            ) : (
+              <div className="bg-background px-4 pb-4 pt-3">
+                <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
+                  {textos.finalizar.sucesso}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">

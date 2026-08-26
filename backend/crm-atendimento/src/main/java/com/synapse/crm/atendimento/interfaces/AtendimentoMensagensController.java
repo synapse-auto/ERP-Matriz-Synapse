@@ -138,6 +138,10 @@ class AtendimentoMensagensController {
 
     record MensagemResposta(
             UUID id,
+            UUID atendimentoId,
+            Instant atendimentoIniciadoEm,
+            Instant atendimentoFinalizadoEm,
+            String atendimentoResponsavelNome,
             String remetenteTipo,
             UUID remetenteId,
             String remetenteNome,
@@ -159,6 +163,10 @@ class AtendimentoMensagensController {
                     : armazenamento.urlAssinada(mensagem.midiaUrl(), midiaPropriedades.expiracaoLeitura());
             return new MensagemResposta(
                     mensagem.id(),
+                    item.atendimentoId(),
+                    item.atendimentoIniciadoEm(),
+                    item.atendimentoFinalizadoEm(),
+                    item.atendimentoResponsavelNome(),
                     mensagem.remetente().tipo().name(),
                     mensagem.remetente().id(),
                     item.remetenteNome(),

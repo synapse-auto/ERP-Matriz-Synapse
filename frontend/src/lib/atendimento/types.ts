@@ -36,6 +36,8 @@ export interface CartaoAtendimento {
   status: StatusAtendimento;
   atendenteId: string | null;
   atendenteNome: string | null;
+  /** Atendimento aberto do lead; nulo quando todo o histórico está finalizado. */
+  atendimentoAtivoId?: string | null;
   ultimaMensagemPreview: string | null;
   ultimaMensagemRemetenteTipo: RemetenteTipo | null;
   ultimaMensagemEm: string | null;
@@ -47,6 +49,11 @@ export interface CartaoAtendimento {
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {
   id: string;
+  /** Atendimento de origem; permite desenhar marcos ao atravessar o histórico do lead. */
+  atendimentoId?: string;
+  atendimentoIniciadoEm?: string | null;
+  atendimentoFinalizadoEm?: string | null;
+  atendimentoResponsavelNome?: string | null;
   remetenteTipo: RemetenteTipo;
   remetenteId: string | null;
   remetenteNome: string | null;

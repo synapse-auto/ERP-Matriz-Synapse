@@ -15,6 +15,7 @@ export function useMensagens(
   conexao: ConexaoTempoReal,
   estadoConexao: EstadoConexao,
   onMensagemRecebida?: () => void,
+  atendimentoParaAssinar: string | null = atendimentoId,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
@@ -43,14 +44,15 @@ export function useMensagens(
 
   useEffect(() => {
     ultimoInstanteRef.current = null;
-    if (!atendimentoId) {
+    if (!atendimentoParaAssinar) {
       conexao.fecharConversa();
       return;
     }
-    conexao.abrirConversa(atendimentoId, (evento) => {
+    conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
       if (evento.tipo === "MENSAGEM") {
         const nova: MensagemResposta = {
           id: evento.dados.mensagemId,
+          atendimentoId: evento.dados.atendimentoId,
           remetenteTipo: evento.dados.remetenteTipo,
           remetenteId: evento.dados.remetenteId,
           remetenteNome: null,
@@ -87,7 +89,7 @@ export function useMensagens(
     });
     return () => conexao.fecharConversa();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a assinatura muda somente com a conversa
-  }, [atendimentoId]);
+  }, [atendimentoParaAssinar]);
 
   useEffect(() => {
     if (mensagens.length === 0) return;
@@ -98,14 +100,14 @@ export function useMensagens(
   }, [mensagens]);
 
   useEffect(() => {
-    if (estadoConexao !== "conectado" || !atendimentoId || !ultimoInstanteRef.current) return;
-    mensagensDesde(atendimentoId, ultimoInstanteRef.current).then((novas) => {
+    if (estadoConexao !== "conectado" || !atendimentoParaAssinar || !ultimoInstanteRef.current) return;
+    mensagensDesde(atendimentoParaAssinar, ultimoInstanteRef.current).then((novas) => {
       if (novas.length > 0) {
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, novas));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reage somente a transicao da conexao
-  }, [estadoConexao]);
+  }, [estadoConexao, atendimentoParaAssinar]);
 
   return { ...query, data: mensagens };
 }

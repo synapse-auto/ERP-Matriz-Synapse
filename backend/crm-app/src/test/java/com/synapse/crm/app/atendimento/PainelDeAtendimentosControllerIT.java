@@ -7,6 +7,9 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -162,6 +165,47 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         assertThat(comoAna).doesNotContain(atendimentoPendenteDoBruno.toString());
     }
 
+    @Test
+    @DisplayName("um lead com tres atendimentos ocupa uma linha e a contagem acompanha a listagem")
+    void umLeadComTresAtendimentosTemUmCartao() throws Exception {
+        UUID lead = criarLead("Lead com tres atendimentos", idAna, "EM_ATENDIMENTO");
+        UUID antigo = criarAtendimento(lead, idAna, "FINALIZADO");
+        UUID intermediario = criarAtendimento(lead, idAna, "FINALIZADO");
+        UUID ativo = criarAtendimento(lead, idAna, "EM_ATENDIMENTO");
+        Instant base = Instant.parse("2026-08-20T10:00:00Z");
+        definirInicio(antigo, base);
+        definirInicio(intermediario, base.plusSeconds(10));
+        definirInicio(ativo, base.plusSeconds(20));
+        inserirMensagem(antigo, "LEAD", null, "historico antigo");
+        inserirMensagem(intermediario, "LEAD", null, "historico intermediario");
+        inserirMensagem(ativo, "LEAD", null, "historico atual");
+        definirUltimaMensagem(antigo, base.plusSeconds(1));
+        definirUltimaMensagem(intermediario, base.plusSeconds(11));
+        definirUltimaMensagem(ativo, base.plusSeconds(21));
+
+        JsonNode lista = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"));
+        List<JsonNode> cartoesDoLead = new java.util.ArrayList<>();
+        lista.forEach(cartao -> {
+            if (lead.toString().equals(cartao.path("leadId").asText())) {
+                cartoesDoLead.add(cartao);
+            }
+        });
+
+        assertThat(cartoesDoLead).hasSize(1);
+        assertThat(cartoesDoLead.getFirst().path("atendimentoId").asText())
+                .isEqualTo(ativo.toString());
+        assertThat(cartoesDoLead.getFirst().path("atendimentoAtivoId").asText())
+                .isEqualTo(ativo.toString());
+        String contagemJson = ApoioAutenticacao.comToken(
+                        http,
+                        ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken(),
+                        HttpMethod.GET,
+                        "/api/v1/atendimentos/contagem",
+                        String.class)
+                .getBody();
+        assertThat(json.readTree(contagemJson).path("TODOS").asLong()).isEqualTo(lista.size());
+    }
+
     @Nested
     @DisplayName("nao lidas")
     class NaoLidas {
@@ -303,16 +347,18 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("a contagem por visao bate com o tamanho da listagem da mesma visao")
+        @DisplayName("a contagem de cada visao bate com o tamanho da listagem")
         void contagem_bateComOTamanhoDaListagem() {
             String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
 
-            long contagem = contarComToken(token, "PENDENTES");
-            String listagem = ApoioAutenticacao.comToken(
-                            http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=PENDENTES", String.class)
-                    .getBody();
+            for (String visao : List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "TODOS")) {
+                long contagem = contarComToken(token, visao);
+                String listagem = ApoioAutenticacao.comToken(
+                                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
+                        .getBody();
 
-            assertThat(contagem).isEqualTo(quantidadeDeCartoes(listagem));
+                assertThat(contagem).as("visao %s", visao).isEqualTo(quantidadeDeCartoes(listagem));
+            }
         }
 
         @Test
@@ -396,6 +442,17 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                 atendenteId,
                 status);
         return id;
+    }
+
+    private void definirInicio(UUID atendimentoId, Instant instante) {
+        jdbc.update("UPDATE atendimento SET iniciado_em = ? WHERE id = ?", Timestamp.from(instante), atendimentoId);
+    }
+
+    private void definirUltimaMensagem(UUID atendimentoId, Instant instante) {
+        jdbc.update(
+                "UPDATE mensagem SET enviado_em = ? WHERE atendimento_id = ?",
+                Timestamp.from(instante),
+                atendimentoId);
     }
 
     private void inserirMensagem(

@@ -27,6 +27,7 @@ public record CartaoAtendimento(
         StatusAtendimento status,
         UUID atendenteId,
         String atendenteNome,
+        UUID atendimentoAtivoId,
         String ultimaMensagemPreview,
         String ultimaMensagemRemetenteTipo,
         Instant ultimaMensagemEm,

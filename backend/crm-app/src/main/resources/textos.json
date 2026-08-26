@@ -175,6 +175,7 @@
       "hoje": "Hoje",
       "ontem": "Ontem",
       "atendimentoRecebido": "Atendimento recebido",
+      "trocaAtendimento": "Novo atendimento iniciado",
       "ia": "IA",
       "responsavelAtual": "Responsável atual: {nome}",
       "status": {

@@ -9,6 +9,7 @@ const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: CartaoAtendimento) => void) | undefined,
   atualizarLista: undefined as ((cartoes: CartaoAtendimento[]) => void) | undefined,
   notificar: undefined as ((notificacao: NotificacaoTempoReal) => void) | undefined,
+  mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
 }));
 
 const cartaoInicial: CartaoAtendimento = {
@@ -63,10 +64,16 @@ vi.mock("./painel-da-conversa", () => ({
   ),
 }));
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
-vi.mock("./composer", () => ({ Composer: () => null }));
+vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> }));
 vi.mock("@/lib/atendimento/api", () => ({ marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()) }));
 vi.mock("@/lib/atendimento/use-mensagens", () => ({
-  useMensagens: () => ({ data: [], isLoading: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
+  useMensagens: (...args: unknown[]) => {
+    callbacks.mensagens = {
+      historico: (args[0] as string | null) ?? null,
+      assinatura: (args[4] as string | null) ?? null,
+    };
+    return { data: [], isLoading: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() };
+  },
 }));
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
   useEnviarMensagem: () => ({ mutate: vi.fn() }),
@@ -84,6 +91,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { vazio: "Nenhuma conversa" },
     atendimentos: {
+      finalizar: { sucesso: "Atendimento finalizado." },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",
@@ -113,6 +121,7 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.abrir = undefined;
     callbacks.atualizarLista = undefined;
     callbacks.notificar = undefined;
+    callbacks.mensagens = undefined;
   });
 
   it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
@@ -164,5 +173,38 @@ describe("PaginaAtendimentosCliente", () => {
     await waitFor(() =>
       expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente"),
     );
+  });
+
+  it("assina somente o atendimento ativo e deixa o historico do lead navegavel", () => {
+    const finalizadoComNovoAtivo: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: "atendimento-ativo",
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([finalizadoComNovoAtivo]));
+    act(() => callbacks.abrir?.(finalizadoComNovoAtivo));
+
+    expect(callbacks.mensagens).toEqual({
+      historico: "atendimento-finalizado",
+      assinatura: "atendimento-ativo",
+    });
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
+  it("não renderiza composer quando o lead não tem atendimento ativo", () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
   });
 });
