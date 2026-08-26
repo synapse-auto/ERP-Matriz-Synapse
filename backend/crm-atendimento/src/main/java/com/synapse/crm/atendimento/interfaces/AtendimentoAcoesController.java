@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
@@ -160,6 +161,7 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "403", description = "Destino não permitido para atendente comum."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE."),
                 @ApiResponse(responseCode = "409", description = "Atendimento já finalizado.")
             })
     @PostMapping("/{id}/transferir")
@@ -271,6 +273,15 @@ class AtendimentoAcoesController {
     ProblemDetail aoNaoEncontrar(RecursoDeAtendimentoIndisponivelException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problema.setTitle("Nao encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(AtendenteDestinoInvalidoException.class)
+    ProblemDetail aoRecusarDestino(AtendenteDestinoInvalidoException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Destino invalido");
+        problema.setProperty("atendenteId", e.atendenteId());
+        problema.setProperty("motivo", e.motivo().descricao());
         return problema;
     }
 

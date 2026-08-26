@@ -26,6 +26,7 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
   const textos = useTextos().atendimentos.transferir;
   const email = useAuthStore((estado) => estado.email);
   const papel = useAuthStore((estado) => estado.papel);
+  const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const transferir = useTransferirAtendimento();
   // GET /api/v1/usuarios é restrito a quem enxerga toda a equipe — um ATENDENTE toma 403 nele. Para
   // esse papel a trava de autorização do backend só permite devolver pra IA de qualquer forma, então
@@ -38,7 +39,11 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
   });
 
   const candidatos = (usuarios ?? []).filter((usuario) => usuario.papel === "ATENDENTE" && usuario.ativo);
-  const eu = usuarios?.find((usuario) => usuario.email === email);
+  const eu = papel === "ATENDENTE"
+    ? usuarioId
+      ? { id: usuarioId }
+      : usuarios?.find((usuario) => usuario.email === email && usuario.papel === "ATENDENTE" && usuario.ativo)
+    : undefined;
 
   function transferirPara(paraAtendenteId: string | null) {
     transferir.mutate({ atendimentoId, paraAtendenteId }, { onSuccess: onFechar });
@@ -87,7 +92,11 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
           ))}
         </div>
 
-        {transferir.isError && <p className="text-sm text-destructive">{textos.erro}</p>}
+        {transferir.isError && (
+          <p className="text-sm text-destructive">
+            {transferir.error instanceof Error ? transferir.error.message : textos.erro}
+          </p>
+        )}
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={onFechar}>

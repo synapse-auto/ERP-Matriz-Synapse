@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException.Motivo;
 import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -17,6 +18,13 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
 
     private static final String SQL =
             "SELECT id, nome FROM usuario WHERE id = ? AND ativo = TRUE AND papel = 'ATENDENTE'";
+    private static final String SQL_MOTIVO = """
+            SELECT CASE
+                WHEN NOT EXISTS (SELECT 1 FROM usuario WHERE id = ?) THEN 'INEXISTENTE'
+                WHEN EXISTS (SELECT 1 FROM usuario WHERE id = ? AND ativo = FALSE) THEN 'INATIVO'
+                ELSE 'PAPEL_NAO_ELEGIVEL'
+            END
+            """;
 
     private final JdbcTemplate chat;
 
@@ -31,5 +39,11 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
                         linha.getObject("id", UUID.class), linha.getString("nome")), atendenteId)
                 .stream()
                 .findFirst();
+    }
+
+    @Override
+    public Motivo motivoDaRecusa(UUID atendenteId) {
+        String motivo = chat.queryForObject(SQL_MOTIVO, String.class, atendenteId, atendenteId);
+        return Motivo.valueOf(motivo);
     }
 }

@@ -1,8 +1,10 @@
 package com.synapse.crm.app.atendimento;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,6 +123,70 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains(idBruno.toString());
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idBruno);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = (SELECT lead_id FROM atendimento WHERE id = ?)",
+                        UUID.class,
+                        atendimentoId))
+                .isEqualTo(idBruno);
+    }
+
+    @Test
+    @DisplayName("transferir: destino gestor e recusado antes de alterar atendimento ou lead")
+    void transferir_destinoGestor_retorna422SemEscritas() {
+        assertDestinoInvalido(idDoUsuario(EMAIL_GESTOR), "papel nao elegivel", EMAIL_GESTOR, SENHA_GESTOR);
+    }
+
+    @Test
+    @DisplayName("transferir: destino subgestor e recusado antes de alterar atendimento ou lead")
+    void transferir_destinoSubgestor_retorna422SemEscritas() {
+        assertDestinoInvalido(idDoUsuario(EMAIL_SUBGESTOR), "papel nao elegivel", EMAIL_GESTOR, SENHA_GESTOR);
+    }
+
+    @Test
+    @DisplayName("transferir: destino administrador e recusado antes de alterar atendimento ou lead")
+    void transferir_destinoAdministrador_retorna422SemEscritas() {
+        assertDestinoInvalido(idDoUsuario(EMAIL_ADMINISTRADOR), "papel nao elegivel", EMAIL_GESTOR, SENHA_GESTOR);
+    }
+
+    @Test
+    @DisplayName("transferir: destino inativo e recusado antes de alterar atendimento ou lead")
+    void transferir_destinoInativo_retorna422SemEscritas() {
+        UUID destino = idDoUsuario(EMAIL_BRUNO);
+        jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", destino);
+        try {
+            assertDestinoInvalido(destino, "inativo", EMAIL_GESTOR, SENHA_GESTOR);
+        } finally {
+            jdbc.update("UPDATE usuario SET ativo = TRUE WHERE id = ?", destino);
+        }
+    }
+
+    @Test
+    @DisplayName("transferir: destino inexistente e recusado antes de alterar atendimento ou lead")
+    void transferir_destinoInexistente_retorna422SemEscritas() {
+        assertDestinoInvalido(UUID.randomUUID(), "inexistente", EMAIL_GESTOR, SENHA_GESTOR);
+    }
+
+    @Test
+    @DisplayName("transferir: destino nulo devolve atendimento e lead para a IA")
+    void transferir_destinoNulo_devolveParaIa() {
+        UUID lead = criarLead("lead devolver ia " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        var resposta = chamar(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isNull();
+        assertThat(jdbc.queryForObject(
+                        "SELECT status_basico FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("IA");
     }
 
     @Test
@@ -215,6 +281,26 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
         var resposta = enviarComo(EMAIL_ANA, SENHA_ATENDENTE, leadId, "mensagem inicial");
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         return extrairUuid(resposta.getBody(), "atendimentoId");
+    }
+
+    private void assertDestinoInvalido(UUID destino, String motivo, String email, String senha) {
+        UUID lead = criarLead("lead destino invalido " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        var resposta = chamar(
+                email,
+                senha,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                Map.of("paraAtendenteId", destino.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(resposta.getBody()).contains(destino.toString()).contains(motivo);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(idAna);
     }
 
     private ResponseEntity<String> enviarComo(String email, String senha, UUID leadId, String conteudo) {

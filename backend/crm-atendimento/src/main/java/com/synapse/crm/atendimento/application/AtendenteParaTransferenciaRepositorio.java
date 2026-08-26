@@ -8,5 +8,12 @@ public interface AtendenteParaTransferenciaRepositorio {
 
     Optional<Destino> ativoAtendente(UUID atendenteId);
 
+    AtendenteDestinoInvalidoException.Motivo motivoDaRecusa(UUID atendenteId);
+
+    default Destino exigirAtendenteAtivo(UUID atendenteId) {
+        return ativoAtendente(atendenteId)
+                .orElseThrow(() -> new AtendenteDestinoInvalidoException(atendenteId, motivoDaRecusa(atendenteId)));
+    }
+
     record Destino(UUID id, String nome) {}
 }

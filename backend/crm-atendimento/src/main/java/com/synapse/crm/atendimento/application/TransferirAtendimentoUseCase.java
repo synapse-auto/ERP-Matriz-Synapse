@@ -31,16 +31,19 @@ public class TransferirAtendimentoUseCase {
 
     private final AtendimentoRepositorio atendimentos;
     private final LeadNoCaminhoDeMensagem leads;
+    private final AtendenteParaTransferenciaRepositorio destinos;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
 
     public TransferirAtendimentoUseCase(
             AtendimentoRepositorio atendimentos,
             LeadNoCaminhoDeMensagem leads,
+            AtendenteParaTransferenciaRepositorio destinos,
             ApplicationEventPublisher eventos,
             Clock relogio) {
         this.atendimentos = atendimentos;
         this.leads = leads;
+        this.destinos = destinos;
         this.eventos = eventos;
         this.relogio = relogio;
     }
@@ -98,6 +101,10 @@ public class TransferirAtendimentoUseCase {
 
         if (paraAtendenteId == null && antes.status() == StatusAtendimento.EM_IA) {
             return antes;
+        }
+
+        if (paraAtendenteId != null) {
+            destinos.exigirAtendenteAtivo(paraAtendenteId);
         }
 
         Atendimento depois =
