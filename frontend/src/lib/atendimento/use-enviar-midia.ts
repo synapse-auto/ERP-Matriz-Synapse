@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { enviarMidia } from "./api";
-import { atualizarPaginaRecente } from "./cache-mensagens";
+import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
+import { mesclarMensagens } from "./tempo-real";
 import type { MensagemResposta, TipoMensagem } from "./types";
 
 interface VariaveisEnvioMidia {
@@ -44,12 +45,13 @@ export function useEnviarMidia() {
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
       const idOtimista = idTemporario();
+      const identidade = identidadeAutenticada(queryClient);
       const previewUrl = URL.createObjectURL(variaveis.arquivo);
       const otimista: MensagemResposta = {
         id: idOtimista,
         remetenteTipo: "ATENDENTE",
-        remetenteId: null,
-        remetenteNome: null,
+        remetenteId: identidade.id,
+        remetenteNome: identidade.nome,
         tipo: tipoDoArquivo(variaveis.arquivo.type),
         conteudo: null,
         midiaUrl: previewUrl,
@@ -82,18 +84,23 @@ export function useEnviarMidia() {
       if (!contexto) {
         return;
       }
-      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
-        atual.map((mensagem) =>
-          mensagem.id === contexto.idOtimista
-            ? {
-                ...mensagem,
-                id: resposta.mensagemId,
-                statusEntrega: resposta.statusEntrega,
-                enviadoEm: resposta.enviadoEm,
-              }
-            : mensagem,
-        ),
-      );
+      const identidade = identidadeAutenticada(queryClient);
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
+        const otimista = atual.find((mensagem) => mensagem.id === contexto.idOtimista);
+        if (!otimista) return mesclarMensagens(atual, []);
+        const real: MensagemResposta = {
+          ...otimista,
+          id: resposta.mensagemId,
+          remetenteId: identidade.id ?? otimista.remetenteId,
+          remetenteNome: identidade.nome ?? otimista.remetenteNome,
+          statusEntrega: resposta.statusEntrega,
+          enviadoEm: resposta.enviadoEm,
+        };
+        return mesclarMensagens(
+          atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
+          [real],
+        );
+      });
       if (resposta.transferiuOLead) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }

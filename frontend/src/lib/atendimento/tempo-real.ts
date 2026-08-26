@@ -89,9 +89,20 @@ export function mesclarMensagens(
   existentes: MensagemResposta[],
   novas: MensagemResposta[],
 ): MensagemResposta[] {
-  const porId = new Map(existentes.map((mensagem) => [mensagem.id, mensagem]));
-  for (const mensagem of novas) {
-    porId.set(mensagem.id, mensagem);
+  const porId = new Map<string, MensagemResposta>();
+  for (const mensagem of [...existentes, ...novas]) {
+    const anterior = porId.get(mensagem.id);
+    porId.set(
+      mensagem.id,
+      anterior
+        ? {
+            ...anterior,
+            ...mensagem,
+            remetenteId: mensagem.remetenteId ?? anterior.remetenteId,
+            remetenteNome: mensagem.remetenteNome ?? anterior.remetenteNome,
+          }
+        : mensagem,
+    );
   }
   return Array.from(porId.values()).sort(
     (a, b) => new Date(a.enviadoEm).getTime() - new Date(b.enviadoEm).getTime(),

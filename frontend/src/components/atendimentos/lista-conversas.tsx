@@ -25,7 +25,9 @@ import { CartaoConversa } from "./cartao-conversa";
 type Props = {
   selecionadoId: string | null;
   leadInicialId?: string | null;
+  leadInicialGatilho?: number;
   visaoInicial?: VisaoAtendimento | null;
+  onAtendimentosAtualizados?: (atendimentos: CartaoAtendimento[]) => void;
   onAbrirAtendimento: (cartao: CartaoAtendimento) => void;
 };
 
@@ -53,7 +55,9 @@ const ROTULO_VISAO: Record<
 export function ListaConversas({
   selecionadoId,
   leadInicialId,
+  leadInicialGatilho = 0,
   visaoInicial,
+  onAtendimentosAtualizados,
   onAbrirAtendimento,
 }: Props) {
   const catalogo = useTextos();
@@ -75,8 +79,12 @@ export function ListaConversas({
   const abriuLeadInicial = useRef(false);
 
   useEffect(() => {
+    onAtendimentosAtualizados?.(data ?? []);
+  }, [data, onAtendimentosAtualizados]);
+
+  useEffect(() => {
     abriuLeadInicial.current = false;
-  }, [leadInicialId]);
+  }, [leadInicialGatilho, leadInicialId]);
 
   useEffect(() => {
     if (!leadInicialId || abriuLeadInicial.current || !data) return;
@@ -85,7 +93,7 @@ export function ListaConversas({
       abriuLeadInicial.current = true;
       onAbrirAtendimento(cartao);
     }
-  }, [data, leadInicialId, onAbrirAtendimento]);
+  }, [data, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
 
   const etapas = useMemo(() => {
     const mapa = new Map<string, string>();

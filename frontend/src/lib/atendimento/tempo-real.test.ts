@@ -65,6 +65,27 @@ describe("mesclarMensagens", () => {
 
     expect(resultado.map((m) => m.id)).toEqual(["1", "2"]);
   });
+
+  it("mantem uma única mensagem quando otimista, WebSocket e backfill trazem o mesmo id", () => {
+    const otimista = mensagem("temp-1", "2026-01-01T00:00:00Z", "PENDENTE");
+    const websocket = mensagem("real-1", "2026-01-01T00:00:01Z", "ENVIADO");
+    websocket.remetenteId = "atendente-1";
+    websocket.remetenteNome = "Ana Atendente";
+    const backfill = { ...websocket, statusEntrega: "ENTREGUE" as const };
+
+    const reconciliada = mesclarMensagens(
+      [{ ...otimista, id: "real-1" }, websocket],
+      [backfill, { ...backfill }],
+    );
+
+    expect(reconciliada).toHaveLength(1);
+    expect(new Set(reconciliada.map((mensagem) => mensagem.id)).size).toBe(1);
+    expect(reconciliada.find((mensagem) => mensagem.id === "real-1")).toMatchObject({
+      statusEntrega: "ENTREGUE",
+      remetenteId: "atendente-1",
+      remetenteNome: "Ana Atendente",
+    });
+  });
 });
 
 function clienteStompFalso() {

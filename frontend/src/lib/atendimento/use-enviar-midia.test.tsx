@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroDeApi } from "@/lib/api/errors";
 
 import type { DadosDoHistorico } from "./cache-mensagens";
+import { mesclarMensagens } from "./tempo-real";
 import { useEnviarMidia } from "./use-enviar-midia";
+import type { MensagemResposta } from "./types";
 
 vi.mock("./api", () => ({
   enviarMidia: vi.fn(),
@@ -128,5 +130,55 @@ describe("useEnviarMidia", () => {
     await waitFor(() => expect(progressoCapturado).toBeDefined());
     progressoCapturado?.(42);
     expect(onProgresso).toHaveBeenCalledWith(42);
+  });
+
+  it("concilia upload de mídia com WebSocket sem duplicar a mensagem", async () => {
+    let resolver!: (resposta: Awaited<ReturnType<typeof enviarMidia>>) => void;
+    vi.mocked(enviarMidia).mockImplementation(() => new Promise((resolve) => (resolver = resolve)));
+    const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-midia-corrida");
+    queryClient.setQueryData(["me"], { id: "atendente-midia", nome: "Cris Atendente" });
+    const { result } = renderHook(() => useEnviarMidia(), { wrapper: wrapper(queryClient) });
+
+    result.current.mutate({
+      atendimentoId: "at-midia-corrida",
+      leadId: "lead-midia",
+      arquivo: arquivoFake("audio.ogg", "audio/ogg"),
+    });
+    await waitFor(() => expect(resolver).toBeDefined());
+    const temporaria = mensagensDoHistorico(queryClient, "at-midia-corrida")?.[0];
+    expect(temporaria).toBeDefined();
+    queryClient.setQueryData<DadosDoHistorico>(["mensagens", "at-midia-corrida"], (atual) =>
+      atual
+        ? {
+            ...atual,
+            pages: [{
+              ...atual.pages[0],
+              mensagens: mesclarMensagens(atual.pages[0].mensagens, [{
+                ...temporaria!,
+                id: "msg-midia-real",
+                remetenteId: "atendente-midia",
+                remetenteNome: "Cris Atendente",
+              } as MensagemResposta]),
+            }],
+          }
+        : atual,
+    );
+    resolver({
+      atendimentoId: "at-midia-corrida",
+      mensagemId: "msg-midia-real",
+      statusEntrega: "ENVIADO",
+      enviadoEm: "2026-01-01T00:00:03Z",
+      transferiuOLead: false,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const mensagens = mensagensDoHistorico(queryClient, "at-midia-corrida");
+    expect(mensagens).toHaveLength(1);
+    expect(mensagens?.[0]).toMatchObject({
+      id: "msg-midia-real",
+      remetenteId: "atendente-midia",
+      remetenteNome: "Cris Atendente",
+    });
   });
 });

@@ -38,8 +38,10 @@ export function PaginaAtendimentosCliente({
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
-  const [conversa, setConversa] = useState<CartaoAtendimento | null>(null);
+  const [conversaId, setConversaId] = useState<string | null>(null);
+  const [atendimentos, setAtendimentos] = useState<CartaoAtendimento[]>([]);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
+  const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
@@ -47,8 +49,8 @@ export function PaginaAtendimentosCliente({
   const { conexao, estado } = useConexaoTempoReal(
     () => useAuthStore.getState().accessToken,
     (atendimentoRevogado) => {
-      setConversa((atual) => {
-        if (atual?.atendimentoId !== atendimentoRevogado) {
+      setConversaId((atual) => {
+        if (atual !== atendimentoRevogado) {
           return atual;
         }
         setAvisoRevogacao(true);
@@ -71,6 +73,7 @@ export function PaginaAtendimentosCliente({
     }
   }, [cache, estado]);
 
+  const conversa = atendimentos.find((atendimento) => atendimento.atendimentoId === conversaId) ?? null;
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
@@ -81,7 +84,7 @@ export function PaginaAtendimentosCliente({
   function abrirAtendimento(cartao: CartaoAtendimento) {
     setAvisoRevogacao(false);
     setBuscaAberta(false);
-    setConversa(cartao);
+    setConversaId(cartao.atendimentoId);
     void marcarAtendimentoComoLido(cartao.atendimentoId)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
@@ -137,6 +140,7 @@ export function PaginaAtendimentosCliente({
               className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline"
               onClick={() => {
                 setLeadParaAbrir(notificacao.dados.leadId);
+                setLeadParaAbrirGatilho((atual) => atual + 1);
                 setNotificacao(null);
               }}
             >
@@ -148,7 +152,9 @@ export function PaginaAtendimentosCliente({
       <ListaConversas
         selecionadoId={conversa?.atendimentoId ?? null}
         leadInicialId={leadParaAbrir}
+        leadInicialGatilho={leadParaAbrirGatilho}
         visaoInicial={visaoInicial}
+        onAtendimentosAtualizados={setAtendimentos}
         onAbrirAtendimento={abrirAtendimento}
       />
 

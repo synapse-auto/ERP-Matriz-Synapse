@@ -59,7 +59,8 @@ export function ListaMensagens({
   const virtualizador = useVirtualizer({
     count: filtradas.length,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => 64,
+    getItemKey: (indice) => chaveDaMensagem(filtradas, indice),
+    estimateSize: () => 48,
     overscan: 8,
   });
 
@@ -182,6 +183,11 @@ export function ListaMensagens({
       </div>
     </div>
   );
+}
+
+/** A altura medida acompanha a mensagem, mesmo quando uma página antiga entra no topo da lista. */
+export function chaveDaMensagem(mensagens: MensagemResposta[], indice: number): string | number {
+  return mensagens[indice]?.id ?? indice;
 }
 
 /** O dado persistido prevalece; o responsavel atual e so fallback para eventos em tempo real. */

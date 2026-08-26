@@ -1,9 +1,26 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 
+import { useAuthStore } from "@/lib/auth/auth-store";
+
 import type { MensagemResposta, PaginaMensagens } from "./types";
 
 export type DadosDoHistorico = InfiniteData<PaginaMensagens, string | null>;
 export type ChaveDoHistorico = readonly ["mensagens", string | null];
+
+export interface IdentidadeAutenticada {
+  id: string | null;
+  nome: string | null;
+}
+
+/** A resposta do envio não traz autoria; usa a identidade autenticada já carregada pela sessão. */
+export function identidadeAutenticada(queryClient: QueryClient): IdentidadeAutenticada {
+  const id = useAuthStore.getState().usuarioId;
+  const meuUsuario = queryClient.getQueryData<{ id?: string; nome?: string }>(["me"]);
+  return {
+    id: id ?? meuUsuario?.id ?? null,
+    nome: meuUsuario?.nome ?? null,
+  };
+}
 
 /**
  * Atualiza a página mais recente do histórico paginado por cursor.

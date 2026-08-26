@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
-import { nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
+import { chaveDaMensagem, nomeDaAutoria, rotuloDaData } from "./lista-mensagens";
 
 function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
   return {
@@ -37,6 +37,17 @@ describe("rotuloDaData", () => {
     expect(
       rotuloDaData(new Date(2026, 6, 10, 8).toISOString(), "Hoje", "Ontem"),
     ).toContain("julho");
+  });
+});
+
+describe("chaveDaMensagem", () => {
+  it("mantem a altura associada ao id quando uma pagina anterior entra no topo", () => {
+    const paginaInicial = [mensagem({ id: "nova" }), mensagem({ id: "mais-nova" })];
+    const depoisDoBackfill = [mensagem({ id: "antiga" }), ...paginaInicial];
+
+    expect(chaveDaMensagem(paginaInicial, 0)).toBe("nova");
+    expect(chaveDaMensagem(depoisDoBackfill, 1)).toBe("nova");
+    expect(chaveDaMensagem(depoisDoBackfill, 2)).toBe("mais-nova");
   });
 });
 
