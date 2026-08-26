@@ -2,7 +2,7 @@
 
 Documento de continuidade. **Este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
 
-Atualizado em 19/08/2026, depois da E30.
+Atualizado em 26/08/2026, depois da E58.
 
 ---
 
@@ -24,7 +24,15 @@ O CRM está **no ar em homologação**, com WhatsApp funcionando ponta a ponta e
 | E30 | áudio AAC/M4A, `POST /internal/v1/atendimentos/{id}/mensagens-enviadas`, botões e listas | feita — `066a5c1`, run 32443306178 |
 | **E32** | **próxima** — payload da Meta com várias mensagens | prompt escrito, não despachada |
 
-**HEAD atual: `1dfe7cd`.** Último commit de código: `066a5c1` (E30).
+**HEAD de código da publicação: `8d59cbe`.** A publicação reúne as correções E53–E57 e o ajuste
+de autosize da E58; o commit de documentação desta etapa vem em seguida.
+
+### Estado após E58
+
+- A transferência humana valida destino existente, ativo e com papel `ATENDENTE`, antes de gravar.
+- O chat apresenta uma conversa por cliente, unificando o histórico dos atendimentos do lead.
+- A leitura de atendimento é por usuário desde a V41; `atendimento.lido_ate` permanece como legado.
+- A outbox reserva por lease, envia fora de transação e grava o resultado em transação curta.
 
 ## 2. O que já foi provado no ambiente real
 

@@ -87,3 +87,8 @@ coverage/
 /.playwright-cli/
 **/test-results/
 **/playwright-report/
+
+# Diretórios de trabalho locais
+/_to_delete/
+/output/
+/tmp/

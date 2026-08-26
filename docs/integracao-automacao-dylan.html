@@ -126,7 +126,11 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
   <tr><td class="metodo get">GET</td><td><code>/regras/follow-up</code></td><td>regras de follow-up cadastradas</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/regras/fidelizacao</code></td><td>regras de fidelização cadastradas</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/eventos</code></td><td>registrar telemetria da Automação</td></tr>
-  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/transferir</code></td><td>passar o atendimento da IA para um humano</td></tr>
+  <tr><td class="metodo get">GET</td><td><code>/automation-config/recursos-ia</code></td><td>quais recursos de IA estão ligados nesta instância</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/responder</code></td><td>gravar uma mensagem da IA e enfileirar o envio</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/transferir</code></td><td>passar o atendimento para um atendente escolhido</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/transferir-proximo-humano</code></td><td>passar para quem o rodízio do CRM escolher</td></tr>
+  <tr><td class="metodo post">PATCH</td><td><code>/atendimentos/{id}/modo-ia</code></td><td>devolver o atendimento para a IA</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/lembretes</code></td><td>criar lembrete idempotente para o responsável atual</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/resumo</code></td><td>sobrescrever o resumo atual da IA</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/tags</code></td><td>consultar o catálogo de tags existente</td></tr>
@@ -136,10 +140,13 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
 <p>O Swagger é a fonte da verdade para formato de requisição, resposta, paginação, filtros e <code>Idempotency-Key</code>. Se algo aqui divergir dele, o Swagger está certo. Não use <code>GET /api/v1/atendimentos?visao=TODOS</code>: essa rota exige JWT de uma pessoa e a visão é um recorte da tela por papel e dono, não um conceito da Automação.</p>
 
 <div class="alerta">
-  <strong>A transferência não aceita destinatário escolhido.</strong> O endpoint de transferência
-  distribui pela regra de roteamento do CRM, ignorando qualquer atendente informado no corpo.
-  Os atendentes trabalham por comissão, e escolher a dedo quem recebe um lead é um caminho lateral
-  que a regra de negócio proíbe.
+  <strong>São duas transferências, e elas não são intercambiáveis.</strong>
+  <code>POST /atendimentos/{id}/transferir</code> exige <code>atendenteId</code> no corpo e só aceita
+  usuário <em>ativo</em> com papel <code>ATENDENTE</code> — gestor, subgestor, IA e UUID inexistente
+  respondem <code>422</code>. <code>POST /atendimentos/{id}/transferir-proximo-humano</code> não aceita
+  destinatário: o CRM escolhe pelo rodízio (menor carga, depois quem está há mais tempo sem receber,
+  depois o <code>id</code>). Os atendentes trabalham por comissão; se o workflow não tem um motivo de
+  negócio para apontar a pessoa, use a segunda e deixe o rodízio decidir.
 </div>
 
 <div class="quebra"></div>
