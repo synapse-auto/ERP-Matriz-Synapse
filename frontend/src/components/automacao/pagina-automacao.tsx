@@ -225,7 +225,7 @@ function PainelFollowUp({ textos }: { textos: Textos }) {
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,45rem)_23.75rem]">
         <section className="min-w-0 space-y-4">
           <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.followUpContagemSingular : t.regras.followUpsContagem, { quantidade: String(dados.length) })} botao={t.regras.novoFollowUp} pendente={mutacao.isPending} onNovo={() => mutacao.mutate(
-            { dados: { tempoMinutos: 60, texto: t.regras.mensagemNovaFollowUp, ativo: true } },
+            { dados: { tempoMinutos: 60, texto: t.regras.mensagemNovaFollowUp, ativo: false } },
             { onSuccess: (criada) => { setNovoId(criada.id); setAtivoId(criada.id); setPreview(previewFollowUp(criada, t)); } },
           )} />
           {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFollowUp} /> : dados.map((regra) => (
@@ -263,7 +263,7 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,45rem)_23.75rem]">
         <section className="min-w-0 space-y-4">
           <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.mensagemContagemSingular : t.regras.mensagensContagem, { quantidade: String(dados.length) })} botao={t.regras.novaMensagem} pendente={mutacao.isPending} onNovo={() => mutacao.mutate(
-            { dados: { diasSemContato: 30, mensagem: t.regras.mensagemNovaFidelizacao, ativo: true } },
+            { dados: { diasSemContato: 30, mensagem: t.regras.mensagemNovaFidelizacao, ativo: false } },
             { onSuccess: (criada) => { setNovoId(criada.id); setAtivoId(criada.id); setPreview(previewFidelizacao(criada, t)); } },
           )} />
           {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFidelizacao} /> : dados.map((regra) => (

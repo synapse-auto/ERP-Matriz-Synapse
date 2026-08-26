@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const atualizarParametro = vi.fn();
 const atualizarDisponibilidade = vi.fn();
 const atualizarFollowUp = vi.fn();
+const atualizarFidelizacao = vi.fn();
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn((href: string) => window.history.replaceState(null, "", href)) }));
 
@@ -57,7 +58,7 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
   useRegrasFollowUp: () => ({ data: FOLLOW_UPS, isLoading: false, isError: false, refetch: vi.fn() }),
   useRegrasFidelizacao: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
   useMutacaoRegraFollowUp: () => ({ mutate: atualizarFollowUp, isPending: false }),
-  useMutacaoRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
+  useMutacaoRegraFidelizacao: () => ({ mutate: atualizarFidelizacao, isPending: false }),
   useAlternarRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
   useAlternarRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
   useExcluirRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
@@ -125,6 +126,25 @@ describe("pagina de automacao", () => {
     expect(atualizarFollowUp).toHaveBeenCalledWith(
       { id: "fu-1", dados: { tempoMinutos: 120, texto: "Novo texto para {nome}", ativo: true } },
       expect.objectContaining({ onError: expect.any(Function) }),
+    );
+  });
+
+  it("cria regras de follow-up e fidelizacao inativas para revisao", () => {
+    window.history.replaceState(null, "", "/automacao?aba=followUp");
+    const { unmount } = render(<PaginaAutomacao />);
+    fireEvent.click(screen.getByRole("button", { name: "Novo follow-up" }));
+    expect(atualizarFollowUp).toHaveBeenCalledWith(
+      { dados: { tempoMinutos: 60, texto: "Olá, {nome}!", ativo: false } },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+
+    unmount();
+    window.history.replaceState(null, "", "/automacao?aba=fidelizacao");
+    render(<PaginaAutomacao />);
+    fireEvent.click(screen.getByRole("button", { name: "Nova mensagem" }));
+    expect(atualizarFidelizacao).toHaveBeenCalledWith(
+      { dados: { diasSemContato: 30, mensagem: "Olá novamente, {nome}!", ativo: false } },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
