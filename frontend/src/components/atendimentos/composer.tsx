@@ -155,7 +155,10 @@ export function Composer({ conversa }: Props) {
           gravador.descartar();
           setProgresso(null);
         },
-        onError: () => setProgresso(null),
+        onError: () => {
+          gravador.descartar();
+          setProgresso(null);
+        },
       },
     );
   }
@@ -526,6 +529,7 @@ export function Composer({ conversa }: Props) {
           </p>
         )}
         <FormularioMensagemProgramada
+          key={agendamentoAberto ? "agendamento-aberto" : "agendamento-fechado"}
           aberto={agendamentoAberto}
           leadId={conversa.leadId}
           leadNome={conversa.leadNome}

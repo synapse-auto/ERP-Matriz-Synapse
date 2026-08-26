@@ -102,7 +102,8 @@ class AtendimentoAcoesController {
     ConfiguracaoComposerResposta obterConfiguracaoComposer() {
         ObterConfiguracaoComposerUseCase.Resultado resultado = obterConfiguracaoComposer.executar();
         return new ConfiguracaoComposerResposta(
-                resultado.tamanhoMaximoAudioBytes(), resultado.duracaoMaximaAudioSegundos());
+                resultado.tamanhoMaximoAudioBytes(), resultado.duracaoMaximaAudioSegundos(),
+                resultado.tempoNotificacaoSegundos());
     }
 
     @Operation(
@@ -350,7 +351,8 @@ class AtendimentoAcoesController {
                     @NotBlank String conteudo) {}
 
     record ConfiguracaoComposerResposta(
-            long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos) {}
+            long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos,
+            long tempoNotificacaoSegundos) {}
 
     record TransferenciaRequisicao(
             @Schema(description = "Destino; nulo devolve o atendimento para a IA.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)

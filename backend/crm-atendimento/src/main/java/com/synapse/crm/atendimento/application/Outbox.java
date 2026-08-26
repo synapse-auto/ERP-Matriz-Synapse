@@ -36,6 +36,19 @@ public interface Outbox {
             UUID credencialId,
             ConteudoDeEnvio conteudo);
 
+    /** Enfileira envio originado por mensagem programada, preservando a origem no payload. */
+    default void enfileirarEnvioProgramado(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId) {
+        enfileirarEnvio(mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId, conteudo);
+    }
+
     /**
      * Agenda o repasse do webhook cru para a Automacao na mesma transacao que reconhece a entrada.
      * Reentregas byte a byte identicas sao idempotentes.

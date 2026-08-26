@@ -14,6 +14,7 @@ export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO" | "BOTOES"
 export interface ConfiguracaoComposer {
   tamanhoMaximoAudioBytes: number;
   duracaoMaximaAudioSegundos: number;
+  tempoNotificacaoSegundos: number;
 }
 
 /** Espelha RemetenteTipo.java. */

@@ -126,4 +126,21 @@ describe("CabecalhoConversa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
     expect(finalizarTodos).toHaveBeenCalledWith(undefined, expect.anything());
   });
+
+  it("renderiza o menu de ações antes de transferir e finalizar", () => {
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+      />,
+    );
+    const acoes = screen.getByRole("button", { name: "Mais ações" });
+    const transferir = screen.getAllByRole("button", { name: "Transferir" });
+    const finalizar = screen.getByRole("button", { name: "Finalizar" });
+    for (const botao of transferir) {
+      expect(acoes.compareDocumentPosition(botao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(botao.compareDocumentPosition(finalizar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
 });

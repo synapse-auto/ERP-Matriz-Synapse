@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -18,11 +21,17 @@ import com.synapse.crm.core.application.mensagemprogramada.PaginaMensagensProgra
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 import com.synapse.crm.core.domain.mensagemprogramada.StatusMensagemProgramada;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
+import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 @Repository
 class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio {
     private final JdbcTemplate jdbc;
-    MensagemProgramadaRepositorioJdbc(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final JdbcTemplate chat;
+    MensagemProgramadaRepositorioJdbc(
+            JdbcTemplate jdbc, @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
+        this.jdbc = jdbc;
+        this.chat = new JdbcTemplate(chatDataSource);
+    }
 
     @Override public PaginaMensagensProgramadas listar(FiltroMensagensProgramadas filtro) {
         TransacaoObrigatoria.exigir("listar mensagens programadas");
@@ -61,6 +70,32 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
         int n=jdbc.update("UPDATE mensagem_programada SET status='CANCELADA' WHERE id=? AND status='AGENDADA'",id);
         return n==0?Optional.empty():porIdVisivel(id);
     }
+
+    @Override
+    public List<UUID> idsVencidos(Instant agora, int limite) {
+        TransacaoObrigatoria.exigir("listar mensagens programadas vencidas");
+        return chat.query(
+                "SELECT id FROM mensagem_programada WHERE status='AGENDADA' AND data_envio<=? ORDER BY data_envio,id LIMIT ?",
+                (r, i) -> r.getObject(1, UUID.class), Timestamp.from(agora), limite);
+    }
+
+    @Override
+    public Optional<MensagemProgramada> reservarVencida(UUID id, Instant agora) {
+        TransacaoObrigatoria.exigir("reservar mensagem programada");
+        return chat.query(
+                        """
+                        UPDATE mensagem_programada
+                           SET status='ENVIADA'
+                         WHERE id=? AND status='AGENDADA' AND data_envio<=?
+                        RETURNING id,lead_id,atendente_id,conteudo,data_envio,status::text
+                        """,
+                        MensagemProgramadaRepositorioJdbc::mapearReservada,
+                        id,
+                        Timestamp.from(agora))
+                .stream()
+                .findFirst();
+    }
+
     private static final String BASE="""
             SELECT m.id,m.lead_id,l.nome lead_nome,m.atendente_id,u.nome atendente_nome,
                    m.conteudo,m.data_envio,m.status::text
@@ -70,4 +105,16 @@ class MensagemProgramadaRepositorioJdbc implements MensagemProgramadaRepositorio
             r.getObject("id",UUID.class),r.getObject("lead_id",UUID.class),r.getString("lead_nome"),
             r.getObject("atendente_id",UUID.class),r.getString("atendente_nome"),r.getString("conteudo"),
             r.getTimestamp("data_envio").toInstant(),StatusMensagemProgramada.valueOf(r.getString("status")));}
+
+    private static MensagemProgramada mapearReservada(ResultSet r, int i) throws SQLException {
+        return new MensagemProgramada(
+                r.getObject("id", UUID.class),
+                r.getObject("lead_id", UUID.class),
+                null,
+                r.getObject("atendente_id", UUID.class),
+                null,
+                r.getString("conteudo"),
+                r.getTimestamp("data_envio").toInstant(),
+                StatusMensagemProgramada.valueOf(r.getString("status")));
+    }
 }

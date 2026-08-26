@@ -66,6 +66,9 @@ vi.mock("./painel-da-conversa", () => ({
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
 vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> }));
 vi.mock("@/lib/atendimento/api", () => ({ marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()) }));
+vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
+  useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
+}));
 vi.mock("@/lib/atendimento/use-mensagens", () => ({
   useMensagens: (...args: unknown[]) => {
     callbacks.mensagens = {
@@ -100,6 +103,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         atendimentoDevolvidoParaIaDescricao: "{nome}",
         reconectando: "Reconectando",
         conversaEncerrada: "Conversa encerrada",
+        fechar: "Fechar aviso",
       },
     },
   }),
@@ -173,6 +177,54 @@ describe("PaginaAtendimentosCliente", () => {
     await waitFor(() =>
       expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente"),
     );
+  });
+
+  it("dispensa aviso de devolução e o remove automaticamente", () => {
+    vi.useFakeTimers();
+    try {
+      renderPagina();
+      const notificacao: NotificacaoTempoReal = {
+        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          ocorridoEm: "2026-01-01T00:00:00Z",
+        },
+      };
+      act(() => callbacks.notificar?.(notificacao));
+      expect(screen.getByRole("status")).toHaveTextContent("Devolvido para IA");
+
+      fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      act(() => callbacks.notificar?.(notificacao));
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(8_000));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("não ressuscita aviso antigo depois de desmontar e montar a tela", () => {
+    const primeira = renderPagina();
+    act(() =>
+      callbacks.notificar?.({
+        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          ocorridoEm: "2026-01-01T00:00:00Z",
+        },
+      }),
+    );
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    primeira.unmount();
+
+    renderPagina();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("assina somente o atendimento ativo e deixa o historico do lead navegavel", () => {

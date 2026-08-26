@@ -2,11 +2,14 @@ package com.synapse.crm.app.core;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +23,22 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.synapse.crm.app.PostgresIT;
+import com.synapse.crm.app.canal.CanalFake;
+import com.synapse.crm.app.mensagemprogramada.AgendadorDeMensagensProgramadas;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
+@org.springframework.test.context.TestPropertySource(properties = {
+        "synapse.canal.whatsapp.provedor=fake",
+        "synapse.suporte.mensagens-programadas.intervalo-ms=3600000"
+})
 class MensagensProgramadasIT extends PostgresIT {
     @Autowired TestRestTemplate http; @Autowired JdbcTemplate jdbc; @Autowired ObjectMapper json;
+    @Autowired AgendadorDeMensagensProgramadas agendador;
+    @Autowired PublicadorDaOutbox publicador;
+    @Autowired CanalFake canal;
     UUID ana,bruno,leadAna,leadBruno,mensagemBruno; Instant futuro;
     @BeforeEach void preparar(){
         ana=usuario(EMAIL_ANA);bruno=usuario(EMAIL_BRUNO);futuro=Instant.now().plusSeconds(86_400);
@@ -50,6 +63,62 @@ class MensagensProgramadasIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?",String.class,mensagemBruno)).isEqualTo("AGENDADA");
     }
     @Test @DisplayName("gestor ve mensagens de todos com coluna do atendente") void gestor(){String corpo=chamar(EMAIL_GESTOR,SENHA_GESTOR,HttpMethod.GET,"/api/v1/mensagens-programadas",null).getBody();assertThat(corpo).contains(mensagemBruno.toString()).contains("Bruno Atendente");}
+    @Test @DisplayName("programada vencida entra uma vez na outbox e chega ao canal") void vencidaProcessadaUmaVez(){
+        canal.limpar();
+        UUID lead = UUID.randomUUID();
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO lead(id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em) VALUES(?,?,?,?,'EM_ATENDIMENTO',now())", lead, "E60 agendada", "5561999888777", ana);
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, lead, ana, "Lembrete vencido", Timestamp.from(Instant.now().minusSeconds(30)));
+
+        agendador.processarPendentes();
+        assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("ENVIADA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload->>'mensagemProgramadaId'=?", Integer.class, id.toString())).isOne();
+
+        publicador.publicarPendentes();
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(canal.enviados()).hasSize(1));
+        agendador.processarPendentes();
+        assertThat(canal.enviados()).hasSize(1);
+    }
+    @Test @DisplayName("programada futura e cancelada nunca entram no pipeline") void futuraOuCanceladaNaoProcessa(){
+        UUID futura = UUID.randomUUID();
+        UUID cancelada = UUID.randomUUID();
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", futura, leadAna, ana, "Ainda nao", Timestamp.from(Instant.now().plusSeconds(3600)));
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio,status) VALUES(?,?,?,?,?,'CANCELADA')", cancelada, leadAna, ana, "Cancelada", Timestamp.from(Instant.now().minusSeconds(30)));
+
+        canal.limpar();
+        agendador.processarPendentes();
+
+        assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, futura)).isEqualTo("AGENDADA");
+        assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, cancelada)).isEqualTo("CANCELADA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload->>'mensagemProgramadaId' IN (?,?)", Integer.class, futura.toString(), cancelada.toString())).isZero();
+        assertThat(canal.enviados()).isEmpty();
+    }
+
+    @Test @DisplayName("falha durante a materializacao faz rollback e mantem AGENDADA") void falhaMantemAgendada(){
+        canal.fecharJanela();
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, leadAna, ana, "Falha", Timestamp.from(Instant.now().minusSeconds(30)));
+
+        agendador.processarPendentes();
+
+        assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("AGENDADA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload->>'mensagemProgramadaId'=?", Integer.class, id.toString())).isZero();
+        canal.abrirJanela();
+    }
+
+
+    @Test @DisplayName("duas execucoes concorrentes reservam a mesma programada uma unica vez") void concorrenciaNaoDuplica(){
+        canal.limpar();
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, leadAna, ana, "Uma vez", Timestamp.from(Instant.now().minusSeconds(30)));
+
+        CompletableFuture<Void> primeira = CompletableFuture.runAsync(agendador::processarPendentes);
+        CompletableFuture<Void> segunda = CompletableFuture.runAsync(agendador::processarPendentes);
+        CompletableFuture.allOf(primeira, segunda).join();
+
+        assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("ENVIADA");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload->>'mensagemProgramadaId'=?", Integer.class, id.toString())).isOne();
+    }
     ResponseEntity<String> chamar(String email,String senha,HttpMethod metodo,String url,Object corpo){String token=ApoioAutenticacao.login(http,email,senha).accessToken();HttpHeaders h=new HttpHeaders();h.setBearerAuth(token);h.setContentType(MediaType.APPLICATION_JSON);return http.exchange(url,metodo,new HttpEntity<>(corpo,h),String.class);}
     UUID usuario(String email){return jdbc.queryForObject("SELECT id FROM usuario WHERE email=?",UUID.class,email);}
     UUID lead(String nome,UUID dono){UUID id=UUID.randomUUID();jdbc.update("INSERT INTO lead(id,nome,atendente_responsavel_id,status_basico) VALUES(?,?,?,'EM_ATENDIMENTO')",id,nome,dono);return id;}

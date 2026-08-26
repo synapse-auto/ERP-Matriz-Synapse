@@ -6,6 +6,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -35,6 +36,7 @@ import com.synapse.crm.app.canal.CanalFake;
 import com.synapse.crm.app.midia.ArmazenamentoDeMidiaFake;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 
@@ -85,6 +87,11 @@ class AnexoMidiaIT extends PostgresIT {
         0, 0, 0, 8, 0x6D, 0x6F, 0x6F, 0x76,
         0, 0, 0, 12, 0x6D, 0x64, 0x61, 0x74, 0, 0, 0, 0
     };
+
+    /** QuickTime ISO-BMFF com uma trilha soun e sem trilha vide, semelhante ao MediaRecorder afetado. */
+    private static final byte[] AUDIO_ONLY_QUICKTIME = concatenar(
+            box("ftyp", concatenar("qt  ".getBytes(StandardCharsets.US_ASCII), "qt  ".getBytes(StandardCharsets.US_ASCII))),
+            box("moov", box("trak", box("mdia", box("hdlr", concatenar(new byte[8], "soun".getBytes(StandardCharsets.US_ASCII)))))));
 
     @Autowired
     private TestRestTemplate http;
@@ -162,9 +169,35 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("QuickTime audio-only e normalizado para audio/mp4 sem aceitar video")
+    void upload_quicktimeAudioOnly_eAceito() {
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, AUDIO_ONLY_QUICKTIME, "gravacao.m4a", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(armazenamento.ultimoMimetype()).isEqualTo("audio/mp4");
+        publicador.publicarPendentes();
+        esperar().untilAsserted(() -> {
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(canal.enviados().get(0).conteudo())
+                    .isInstanceOfSatisfying(
+                            ConteudoDeEnvio.MensagemMidia.class,
+                            midia -> assertThat(midia.tipo()).isEqualTo(TipoMensagem.AUDIO));
+        });
+    }
+
+    @Test
     @DisplayName("vídeo MP4 real continua recusado pela allowlist")
     void upload_videoReal_continuaRecusado() {
         ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_REAL, "video.mp4", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(armazenamento.contagemDeObjetos()).isZero();
+    }
+
+    @Test
+    @DisplayName("vídeo ISO-BMFF disfarçado de M4A continua recusado")
+    void upload_videoDisfarcado_continuaRecusado() {
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_REAL, "gravacao.m4a", null);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(armazenamento.contagemDeObjetos()).isZero();
@@ -223,16 +256,14 @@ class AnexoMidiaIT extends PostgresIT {
 
     @Test
     @DisplayName("URL assinada expira e para de entregar o conteudo")
-    void urlAssinada_expira_paraDeFuncionar() throws InterruptedException {
+    void urlAssinada_expira_paraDeFuncionar() {
         enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
         String corpo = mensagensComo(EMAIL_ANA, atendimentoDoLead()).getBody();
         String midiaUrl = extrairMidiaUrl(corpo);
 
         assertThat(armazenamento.baixarPelaUrlAssinada(midiaUrl)).isPresent();
 
-        Thread.sleep(700); // MIDIA_S3_EXPIRACAO_LEITURA=500ms nesta suite.
-
-        assertThat(armazenamento.baixarPelaUrlAssinada(midiaUrl)).isEmpty();
+        esperar().untilAsserted(() -> assertThat(armazenamento.baixarPelaUrlAssinada(midiaUrl)).isEmpty());
     }
 
     /**
@@ -369,6 +400,19 @@ class AnexoMidiaIT extends PostgresIT {
         byte[] resultado = new byte[a.length + b.length];
         System.arraycopy(a, 0, resultado, 0, a.length);
         System.arraycopy(b, 0, resultado, a.length, b.length);
+        return resultado;
+    }
+
+    private static byte[] box(String tipo, byte[] payload) {
+        byte[] resultado = new byte[8 + payload.length];
+        int tamanho = resultado.length;
+        resultado[0] = (byte) (tamanho >>> 24);
+        resultado[1] = (byte) (tamanho >>> 16);
+        resultado[2] = (byte) (tamanho >>> 8);
+        resultado[3] = (byte) tamanho;
+        byte[] nome = tipo.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(nome, 0, resultado, 4, 4);
+        System.arraycopy(payload, 0, resultado, 8, payload.length);
         return resultado;
     }
 

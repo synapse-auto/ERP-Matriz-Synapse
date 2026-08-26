@@ -87,7 +87,23 @@ public class EnviarMensagemUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
-        UUID remetenteId = usuarioContext.atual().id();
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null);
+    }
+
+    /**
+     * Envio disparado por um job de serviço em nome do responsável da mensagem programada. A
+     * autoridade de serviço fica restrita ao escopo transacional pelo {@code ContextoDeServico}; o
+     * remetente da mensagem continua sendo o atendente que era dono do agendamento.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executarComoServico(
+            UUID leadId, UUID remetenteId, ConteudoDeEnvio conteudo, UUID mensagemProgramadaId) {
+        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId);
+    }
+
+    private Resultado executarInterno(
+            UUID leadId, ConteudoDeEnvio conteudo, UUID remetenteId, UUID mensagemProgramadaId) {
         Instant agora = Instant.now(relogio);
 
         // Alcanca o lead? Telefone e janela vem juntos, numa consulta so.
@@ -149,14 +165,26 @@ public class EnviarMensagemUseCase {
         // A intencao de enviar entra na MESMA transacao que a mensagem. Ou as duas
         // gravam, ou nenhuma: nao existe conversa mostrando mensagem que ninguem tentou
         // enviar, nem envio de mensagem que nao esta na conversa.
-        outbox.enfileirarEnvio(
-                gravada.id(),
-                agora,
-                aberto.id(),
-                leadId,
-                contato.telefone(),
-                aberto.canalCredencialId(),
-                conteudo);
+        if (mensagemProgramadaId == null) {
+            outbox.enfileirarEnvio(
+                    gravada.id(),
+                    agora,
+                    aberto.id(),
+                    leadId,
+                    contato.telefone(),
+                    aberto.canalCredencialId(),
+                    conteudo);
+        } else {
+            outbox.enfileirarEnvioProgramado(
+                    gravada.id(),
+                    agora,
+                    aberto.id(),
+                    leadId,
+                    contato.telefone(),
+                    aberto.canalCredencialId(),
+                    conteudo,
+                    mensagemProgramadaId);
+        }
 
         leads.registrarInteracao(leadId, agora, 0, 1);
 

@@ -235,7 +235,8 @@
       "transferenciaRecebidaDescricao": "{nome} foi transferido para você.",
       "atendimentoDevolvidoParaIa": "Atendimento devolvido para a Automação",
       "atendimentoDevolvidoParaIaDescricao": "{nome} voltou para a Automação.",
-      "abrirTransferencia": "Abrir atendimento"
+      "abrirTransferencia": "Abrir atendimento",
+      "fechar": "Fechar aviso"
     },
     "media": {
       "imagem": "Imagem",

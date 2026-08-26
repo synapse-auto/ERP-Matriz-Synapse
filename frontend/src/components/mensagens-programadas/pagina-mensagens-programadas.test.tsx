@@ -123,4 +123,13 @@ describe("pagina de mensagens programadas", () => {
 
     await waitFor(() => expect(cancelarMutate).toHaveBeenCalledWith("p1", expect.anything()));
   });
+
+  it("abre o formulário pela rota própria sem substituir a página", async () => {
+    renderComQuery();
+
+    fireEvent.click(screen.getByRole("button", { name: "Programar mensagem" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Programar mensagem" })).toBeInTheDocument();
+  });
 });

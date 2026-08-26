@@ -128,6 +128,14 @@ export function useGravadorAudio(
           setFase("INATIVO");
           return;
         }
+        // A validação do contêiner pertence ao backend: alguns navegadores declaram
+        // video/quicktime mesmo quando os bytes contêm somente áudio. Não descarte a
+        // gravação apenas pelo MIME informado pelo MediaRecorder.
+        if (partesRef.current.length === 0 || partesRef.current.every((parte) => parte.size === 0)) {
+          setErro("CAPTURA");
+          setFase("INATIVO");
+          return;
+        }
         const blob = new Blob(partesRef.current, {
           type: recorder.mimeType || mimeType,
         });

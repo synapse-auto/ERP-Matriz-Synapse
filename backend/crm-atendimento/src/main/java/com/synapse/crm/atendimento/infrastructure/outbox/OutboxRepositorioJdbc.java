@@ -122,6 +122,40 @@ class OutboxRepositorioJdbc implements Outbox {
             String telefoneDestino,
             UUID credencialId,
             ConteudoDeEnvio conteudo) {
+        enfileirarEnvioInterno(
+                mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId, conteudo, null);
+    }
+
+    @Override
+    public void enfileirarEnvioProgramado(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId) {
+        enfileirarEnvioInterno(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                mensagemProgramadaId);
+    }
+
+    private void enfileirarEnvioInterno(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId) {
         TransacaoObrigatoria.exigir("enfileirarEnvio");
 
         Instant agora = Instant.now();
@@ -131,7 +165,7 @@ class OutboxRepositorioJdbc implements Outbox {
                 TIPO_ENVIO,
                 serializar(
                         mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId,
-                        conteudo),
+                        conteudo, mensagemProgramadaId),
                 Timestamp.from(agora),
                 Timestamp.from(agora));
     }
@@ -217,7 +251,8 @@ class OutboxRepositorioJdbc implements Outbox {
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
-            ConteudoDeEnvio conteudo) {
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId) {
 
         ObjectNode raiz = json.createObjectNode();
         raiz.put("mensagemId", mensagemId.toString());
@@ -226,6 +261,9 @@ class OutboxRepositorioJdbc implements Outbox {
         raiz.put("leadId", leadId.toString());
         raiz.put("telefoneDestino", telefoneDestino);
         raiz.put("credencialId", credencialId == null ? null : credencialId.toString());
+        if (mensagemProgramadaId != null) {
+            raiz.put("mensagemProgramadaId", mensagemProgramadaId.toString());
+        }
 
         ObjectNode conteudoNo = raiz.putObject("conteudo");
         switch (conteudo) {

@@ -6,6 +6,10 @@ import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
+const estadoMidia: { isError: boolean; error: Error | null } = {
+  isError: false,
+  error: null,
+};
 const estadoTexto: { isError: boolean; error: Error | null } = {
   isError: false,
   error: null,
@@ -13,6 +17,7 @@ const estadoTexto: { isError: boolean; error: Error | null } = {
 const configuracaoComposer = {
   tamanhoMaximoAudioBytes: 1024,
   duracaoMaximaAudioSegundos: 120,
+  tempoNotificacaoSegundos: 8,
 };
 
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
@@ -27,8 +32,7 @@ vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
   useEnviarMidia: () => ({
     mutate: mutateMidia,
     isPending: false,
-    isError: false,
-    error: null,
+    ...estadoMidia,
   }),
 }));
 
@@ -157,6 +161,8 @@ function arquivoFake(nome: string, tipo: string): File {
 describe("Composer — anexo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    estadoMidia.isError = false;
+    estadoMidia.error = null;
     estadoTexto.isError = false;
     estadoTexto.error = null;
     configuracaoComposer.tamanhoMaximoAudioBytes = 1024;
@@ -178,6 +184,16 @@ describe("Composer — anexo", () => {
       configurable: true,
       value: vi.fn(),
     });
+  });
+
+  it("abre o formulário de mensagem programada sem desmontar o composer", async () => {
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Agendar mensagem" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Programar mensagem" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Digite uma mensagem...")).toBeInTheDocument();
   });
 
   it("mostra o chip de preview com nome e tamanho ao selecionar um arquivo", () => {
@@ -363,6 +379,63 @@ describe("Composer — anexo", () => {
     expect(mutateMidia).not.toHaveBeenCalled();
   });
 
+  it("não descarta áudio-only quando o navegador declara video/quicktime", async () => {
+    habilitarGravacao(vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }), "video/quicktime");
+    renderizar();
+
+    fireEvent.click(await screen.findByLabelText("Gravar áudio"));
+    fireEvent.click(await screen.findByLabelText("Parar gravação"));
+
+    expect(await screen.findByLabelText("Pré-visualização da gravação")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Enviar gravação"));
+
+    expect(mutateMidia).toHaveBeenCalledWith(
+      expect.objectContaining({ arquivo: expect.any(File) }),
+      expect.anything(),
+    );
+    expect((mutateMidia.mock.calls[0]?.[0] as { arquivo: File }).arquivo.type).toBe(
+      "video/quicktime",
+    );
+  });
+
+  it("não cria preview nem envia gravação vazia", async () => {
+    habilitarGravacao(
+      vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }),
+      "audio/mp4;codecs=mp4a.40.2",
+      "",
+    );
+    renderizar();
+
+    fireEvent.click(await screen.findByLabelText("Gravar áudio"));
+    fireEvent.click(await screen.findByLabelText("Parar gravação"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao gravar.");
+    expect(screen.queryByLabelText("Pré-visualização da gravação")).not.toBeInTheDocument();
+    expect(mutateMidia).not.toHaveBeenCalled();
+  });
+
+  it("limpa preview e controles quando o upload da gravação falha", async () => {
+    habilitarGravacao();
+    estadoMidia.isError = true;
+    estadoMidia.error = new Error("falha de rede");
+    renderizar();
+
+    fireEvent.click(await screen.findByLabelText("Gravar áudio"));
+    fireEvent.click(await screen.findByLabelText("Parar gravação"));
+    await screen.findByLabelText("Pré-visualização da gravação");
+
+    mutateMidia.mockImplementationOnce(
+      (_variaveis: unknown, opcoes: { onError?: () => void }) => {
+        opcoes.onError?.();
+      },
+    );
+    fireEvent.click(screen.getByLabelText("Enviar gravação"));
+
+    expect(screen.queryByLabelText("Pré-visualização da gravação")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Gravar áudio")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha ao enviar o anexo.");
+  });
+
   it.each([
     ["NotFoundError", "Nenhum microfone disponível."],
     ["NotReadableError", "Microfone em uso."],
@@ -385,6 +458,8 @@ function habilitarGravacao(
   getUserMedia = vi.fn().mockResolvedValue({
     getTracks: () => [{ stop: vi.fn() }],
   }),
+  mimeResult = "audio/mp4;codecs=mp4a.40.2",
+  dados = "audio gravado",
 ) {
   class MediaRecorderFake {
     static isTypeSupported(tipo: string) {
@@ -398,7 +473,7 @@ function habilitarGravacao(
     onerror: ((evento: Event) => void) | null = null;
 
     constructor(_stream: MediaStream, opcoes?: MediaRecorderOptions) {
-      this.mimeType = opcoes?.mimeType ?? "";
+      this.mimeType = mimeResult || opcoes?.mimeType || "";
     }
 
     start() {
@@ -408,7 +483,7 @@ function habilitarGravacao(
     stop() {
       this.state = "inactive";
       this.ondataavailable?.({
-        data: new Blob(["audio gravado"], { type: this.mimeType }),
+        data: new Blob([dados], { type: this.mimeType }),
       } as BlobEvent);
       this.onstop?.(new Event("stop"));
     }

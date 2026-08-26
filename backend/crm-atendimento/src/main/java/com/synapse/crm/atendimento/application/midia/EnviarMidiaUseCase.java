@@ -12,6 +12,7 @@ import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.atendimento.domain.midia.DetectorDeTipoReal;
+import com.synapse.crm.atendimento.domain.midia.IsoBmffAudioOnly;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
 
 /**
@@ -49,8 +50,14 @@ public class EnviarMidiaUseCase {
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId, byte[] conteudo, String nomeArquivoOriginal, String legenda) {
         String mimetypeReal = detector.detectar(conteudo);
-        TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal)
-                .orElseThrow(() -> new TipoDeMidiaNaoPermitidoException(mimetypeReal));
+        if (("video/quicktime".equals(mimetypeReal) || "video/mp4".equals(mimetypeReal))
+                && IsoBmffAudioOnly.ehAudioSemVideo(conteudo)) {
+            mimetypeReal = "audio/mp4";
+        }
+        TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
+        if (tipo == null) {
+            throw new TipoDeMidiaNaoPermitidoException(mimetypeReal);
+        }
 
         long limite = limites.limiteEmBytes(tipo).orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(tipo));
         if (conteudo.length > limite) {

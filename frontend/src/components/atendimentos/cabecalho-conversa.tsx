@@ -176,6 +176,27 @@ export function CabecalhoConversa({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        {!finalizado && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={buttonVariants({ variant: "ghost", size: "icon" })}
+              aria-label={textosFinalizar.todosMenu}
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onClick={() => {
+                  setResultadoFinalizacao(null);
+                  setFinalizarTodosAberto(true);
+                }}
+                disabled={quantidadeFinalizavel.isLoading || quantidadeFinalizavel.data?.quantidade === 0}
+              >
+                {textosFinalizar.todos}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {!finalizado && estadoPersistido === "SEM_PEDIDO" && (
           <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => podeEntrarDireto ? entrarAtendimento(conversa.atendimentoId) : pedirEntrada(conversa.atendimentoId), podeEntrarDireto ? "DENTRO" : "PENDENTE")} disabled={processandoParticipacao}>
             {podeEntrarDireto ? textos.entrar : textos.pedirEntrada}
@@ -216,25 +237,6 @@ export function CabecalhoConversa({
               <CheckCheck className="size-3.5" aria-hidden />
               {textos.finalizar}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={buttonVariants({ variant: "ghost", size: "icon" })}
-                aria-label={textosFinalizar.todosMenu}
-              >
-                <MoreHorizontal className="size-4" aria-hidden />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setResultadoFinalizacao(null);
-                    setFinalizarTodosAberto(true);
-                  }}
-                  disabled={quantidadeFinalizavel.isLoading || quantidadeFinalizavel.data?.quantidade === 0}
-                >
-                  {textosFinalizar.todos}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </>
         )}
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />

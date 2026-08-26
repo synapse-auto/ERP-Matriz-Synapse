@@ -377,6 +377,8 @@ lugar do outro.
 | `SYNAPSE_ACCESS_TOKEN_VALIDADE` | `15m` | Curto de propósito — um token vazado tem pouca janela de uso. |
 | `SYNAPSE_REFRESH_TOKEN_VALIDADE` | `7d` | Revogável e rotativo a cada uso; ver `RenovarSessaoUseCase`. |
 | `SYNAPSE_SENHA_TAMANHO_MINIMO` | `8` | Política de senha (E29): vale na troca, na criação de usuário e na senha provisória gerada pelo gestor. |
+| `MENSAGENS_PROGRAMADAS_LOTE` | `50` | Quantidade máxima de mensagens programadas vencidas reservadas por rodada do scheduler. |
+| `ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS` | `8` | Duração do aviso visual de transferência/devolução; aceita valores de 1 a 60 segundos. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |

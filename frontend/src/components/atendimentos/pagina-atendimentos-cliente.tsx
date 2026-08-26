@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { X } from "lucide-react";
+
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
@@ -18,6 +20,7 @@ import type {
   VisaoAtendimento,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
+import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -45,6 +48,17 @@ export function PaginaAtendimentosCliente({
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
+  const { data: configuracao } = useConfiguracaoComposer();
+
+  // Notificações são efêmeras: o evento continua persistido no backend, mas o aviso de trabalho
+  // não pode ocupar a tela indefinidamente. O timer é apenas apresentação (não regra de negócio)
+  // e é cancelado quando chega um evento novo ou quando a tela desmonta.
+  useEffect(() => {
+    if (!notificacao) return;
+    const segundos = configuracao?.tempoNotificacaoSegundos ?? 8;
+    const timer = window.setTimeout(() => setNotificacao(null), segundos * 1000);
+    return () => window.clearTimeout(timer);
+  }, [notificacao, configuracao?.tempoNotificacaoSegundos]);
 
   const { conexao, estado } = useConexaoTempoReal(
     () => useAuthStore.getState().accessToken,
@@ -143,6 +157,14 @@ export function PaginaAtendimentosCliente({
           className="pointer-events-auto absolute right-4 top-4 z-30 w-80 rounded-xl border border-border bg-background p-4 shadow-lg"
           role="status"
         >
+          <button
+            type="button"
+            className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={textos.tempoReal.fechar}
+            onClick={() => setNotificacao(null)}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
           <p className="font-semibold text-foreground">
             {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
               ? textos.tempoReal.atendimentoDevolvidoParaIa

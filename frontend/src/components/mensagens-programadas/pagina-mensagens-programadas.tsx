@@ -130,9 +130,18 @@ export function PaginaMensagensProgramadas() {
         </Button>
       </div>
 
-      <FormularioMensagemProgramada aberto={novo} onFechar={() => setNovo(false)} />
+      <FormularioMensagemProgramada
+        key={novo ? "novo-aberto" : "novo-fechado"}
+        aberto={novo}
+        onFechar={() => setNovo(false)}
+      />
       {edicao && (
-        <FormularioMensagemProgramada aberto existente={edicao} onFechar={() => setEdicao(null)} />
+        <FormularioMensagemProgramada
+          key={edicao.id}
+          aberto
+          existente={edicao}
+          onFechar={() => setEdicao(null)}
+        />
       )}
     </div>
   );

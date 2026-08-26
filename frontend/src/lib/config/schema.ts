@@ -297,6 +297,7 @@ export const TextosSchema = z.object({
       atendimentoDevolvidoParaIa: z.string(),
       atendimentoDevolvidoParaIaDescricao: z.string(),
       abrirTransferencia: z.string(),
+      fechar: z.string(),
     }),
     media: z.object({
       imagem: z.string(),

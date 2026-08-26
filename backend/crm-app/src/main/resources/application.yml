@@ -95,6 +95,11 @@ synapse:
 
   suporte:
     tamanho-pagina: ${SUPORTE_TAMANHO_PAGINA:20}
+    mensagens-programadas:
+      lote: ${MENSAGENS_PROGRAMADAS_LOTE:50}
+
+  atendimentos:
+    tempo-notificacao-segundos: ${ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS:8}
 
   leads:
     # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global

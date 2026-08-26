@@ -27,7 +27,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
         <Sidebar />
         <div className="min-w-0 flex-1">
           <main
-            className="flex h-full flex-col overflow-y-auto"
+            className="flex h-full min-h-0 flex-col overflow-y-auto"
             data-slot="page-surface"
           >
             {children}
