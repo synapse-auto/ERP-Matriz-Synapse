@@ -437,6 +437,11 @@
   "automacao": {
     "titulo": "Automação",
     "descricao": "Parâmetros gerais que controlam o comportamento da automação.",
+    "descricaoPorAba": {
+      "geral": "Configurações gerais do assistente de IA.",
+      "followUp": "Mensagens automáticas enviadas quando o cliente demora para responder.",
+      "fidelizacao": "Mensagens automáticas para reativar clientes sem contato recente."
+    },
       "carregando": "Carregando parâmetros...",
       "semPermissao": "Você não tem permissão para acessar a Automação.",
       "vazio": "Nenhum parâmetro cadastrado.",
@@ -448,9 +453,11 @@
     "desativado": "Desativado",
     "salvar": "Salvar",
     "salvando": "Salvando...",
-    "recursosIa": { "titulo": "Recursos de IA", "resumo": "Resumo por IA", "preenchimento": "Preenchimento automático", "ativado": "Ativado", "desativado": "Desativado", "gatilho": "Gatilho do resumo", "quantidade": "Mensagens" },
+    "disponibilidade": { "titulo": "Atendentes Disponíveis", "descricao": "Defina quais atendentes estão disponíveis agora para a IA direcionar clientes.", "rotuloAtual": "DISPONIBILIDADE ATUAL", "contagem": "{disponiveis} de {total} disponíveis", "vazio": "Nenhum atendente ativo cadastrado.", "erro": "Não foi possível carregar os atendentes." },
+    "recursosIa": { "titulo": "Recursos de IA", "resumo": "Resumo automático por IA", "resumoDescricao": "Gera um resumo do atendimento ao finalizar.", "preenchimento": "Preenchimento automático", "preenchimentoDescricao": "Preenche dados do cliente (nome, empresa, endereço) a partir da conversa.", "ativado": "Ativado", "desativado": "Desativado", "gatilho": "Gatilho do resumo", "quantidade": "Mensagens" },
+    "avancado": { "titulo": "Parâmetros avançados", "descricao": "Valores operacionais lidos diretamente pela Automação.", "abrir": "Abrir parâmetros avançados", "fechar": "Fechar parâmetros avançados" },
     "abas": { "geral": "Geral", "followUp": "Follow-up", "fidelizacao": "Fidelização" },
-    "regras": { "novo": "Nova regra", "editar": "Editar", "ativar": "Ativar regra", "desativar": "Desativar regra", "excluir": "Excluir", "confirmarExclusao": "Excluir esta regra?", "cancelar": "Cancelar", "ativo": "Ativa", "inativo": "Inativa", "vazio": "Nenhuma regra cadastrada.", "erro": "Não foi possível carregar as regras.", "unidadeHoras": "Horas", "unidadeDias": "Dias", "tempo": "Tempo sem resposta", "dias": "Dias sem contato", "mensagem": "Mensagem", "preview": "Prévia", "previewNome": "Marcos", "placeholderAjuda": "Use o placeholder {nome} para personalizar a mensagem." },
+    "regras": { "novo": "Nova regra", "novoFollowUp": "Novo follow-up", "novaMensagem": "Nova mensagem", "followUpContagemSingular": "{quantidade} follow-up", "followUpsContagem": "{quantidade} follow-ups", "mensagemContagemSingular": "{quantidade} mensagem", "mensagensContagem": "{quantidade} mensagens", "editar": "Editar", "ativar": "Ativar regra", "desativar": "Desativar regra", "excluir": "Excluir", "confirmarExclusao": "Excluir esta regra?", "cancelar": "Cancelar", "ativo": "Ativo", "inativo": "Inativo", "vazio": "Nenhuma regra cadastrada.", "vazioFollowUp": "Nenhum follow-up cadastrado.", "vazioFidelizacao": "Nenhuma mensagem cadastrada.", "erro": "Não foi possível carregar as regras.", "erroSalvar": "Não foi possível salvar. O valor anterior foi restaurado.", "unidadeHora": "hora", "unidadeHoras": "Horas", "unidadeDia": "dia", "unidadeDias": "Dias", "tempo": "TEMPO SEM RESPOSTA PARA ENVIAR", "dias": "DIAS SEM ENTRAR EM CONTATO", "diasSemContato": "dias sem contato", "mensagem": "MENSAGEM", "preview": "Prévia", "previewNome": "Marcos", "placeholderAjuda": "Use o placeholder {nome} para personalizar a mensagem.", "mensagemNovaFollowUp": "Olá, {nome}! Posso ajudar com mais alguma informação?", "mensagemNovaFidelizacao": "Olá, {nome}! Faz algum tempo desde nosso último contato. Como podemos ajudar?", "visualizacaoWhatsapp": "VISUALIZAÇÃO NO WHATSAPP", "online": "online", "hoje": "HOJE", "horario": "09:14", "composer": "Mensagem", "previewVazio": "Sua mensagem aparecerá aqui…", "badgeFollowUp": "{tempo} sem resposta", "badgeFidelizacao": "{dias} sem contato", "gatilhoFollowUp": "Enviado após {tempo} sem resposta", "gatilhoFidelizacao": "Enviado após {dias} sem contato" },
     "telemetria": {
       "mensagensEnviadas": "Mensagens Enviadas",
       "clientesTransferidos": "Clientes Transferidos",

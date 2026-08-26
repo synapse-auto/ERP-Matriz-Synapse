@@ -585,9 +585,10 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
   }),
-    automacao: z.object({
+  automacao: z.object({
     titulo: z.string(),
     descricao: z.string(),
+    descricaoPorAba: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
     carregando: z.string(),
     semPermissao: z.string(),
     vazio: z.string(),
@@ -599,9 +600,11 @@ export const TextosSchema = z.object({
     desativado: z.string(),
     salvar: z.string(),
       salvando: z.string(),
-      recursosIa: z.object({ titulo: z.string(), resumo: z.string(), preenchimento: z.string(), ativado: z.string(), desativado: z.string(), gatilho: z.string(), quantidade: z.string() }),
+      disponibilidade: z.object({ titulo: z.string(), descricao: z.string(), rotuloAtual: z.string(), contagem: z.string(), vazio: z.string(), erro: z.string() }),
+      recursosIa: z.object({ titulo: z.string(), resumo: z.string(), resumoDescricao: z.string(), preenchimento: z.string(), preenchimentoDescricao: z.string(), ativado: z.string(), desativado: z.string(), gatilho: z.string(), quantidade: z.string() }),
+      avancado: z.object({ titulo: z.string(), descricao: z.string(), abrir: z.string(), fechar: z.string() }),
       abas: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
-      regras: z.object({ novo: z.string(), editar: z.string(), ativar: z.string(), desativar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), erro: z.string(), unidadeHoras: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string() }),
+      regras: z.object({ novo: z.string(), novoFollowUp: z.string(), novaMensagem: z.string(), followUpContagemSingular: z.string(), followUpsContagem: z.string(), mensagemContagemSingular: z.string(), mensagensContagem: z.string(), editar: z.string(), ativar: z.string(), desativar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), vazioFollowUp: z.string(), vazioFidelizacao: z.string(), erro: z.string(), erroSalvar: z.string(), unidadeHora: z.string(), unidadeHoras: z.string(), unidadeDia: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), diasSemContato: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string(), mensagemNovaFollowUp: z.string(), mensagemNovaFidelizacao: z.string(), visualizacaoWhatsapp: z.string(), online: z.string(), hoje: z.string(), horario: z.string(), composer: z.string(), previewVazio: z.string(), badgeFollowUp: z.string(), badgeFidelizacao: z.string(), gatilhoFollowUp: z.string(), gatilhoFidelizacao: z.string() }),
     telemetria: z.object({
       mensagensEnviadas: z.string(),
       clientesTransferidos: z.string(),

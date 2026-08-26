@@ -149,12 +149,14 @@ class UsuarioController {
 
     /** Sem senha_hash: nunca sai da camada de persistencia. */
     record UsuarioResposta(UUID id, String nome, String email, PapelUsuario papel,
-            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa, String fotoUrl) {
+            StatusPresenca statusPresenca, boolean ativo, boolean disponivelParaIa, String cargo,
+            String fotoUrl) {
         static UsuarioResposta de(Usuario usuario) {
             String fotoUrl = usuario.fotoReferencia() == null ? null : "/api/v1/me/foto/" + usuario.id();
             return new UsuarioResposta(
                     usuario.id(), usuario.nome(), usuario.email(), usuario.papel(),
-                    usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa(), fotoUrl);
+                    usuario.statusPresenca(), usuario.ativo(), usuario.disponivelParaIa(),
+                    usuario.cargo(), fotoUrl);
         }
     }
 

@@ -16,7 +16,9 @@ describe("TextosSchema", () => {
     const textos = TextosSchema.parse(catalogo);
 
     expect(textos.automacao.abas.followUp).toBe("Follow-up");
-    expect(textos.automacao.recursosIa.resumo).toBe("Resumo por IA");
+    expect(textos.automacao.recursosIa.resumo).toBe("Resumo automático por IA");
     expect(textos.automacao.regras.novo).toBe("Nova regra");
+    expect(textos.automacao.disponibilidade.contagem).toContain("{disponiveis}");
+    expect(textos.automacao.regras.visualizacaoWhatsapp).toBe("VISUALIZAÇÃO NO WHATSAPP");
   });
 });
