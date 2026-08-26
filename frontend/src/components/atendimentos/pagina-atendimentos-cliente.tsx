@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -74,10 +74,21 @@ export function PaginaAtendimentosCliente({
   }, [cache, estado]);
 
   const conversa = atendimentos.find((atendimento) => atendimento.atendimentoId === conversaId) ?? null;
+  const marcarConversaAbertaComoLida = useCallback(() => {
+    if (!conversaId) return;
+    void marcarAtendimentoComoLido(conversaId)
+      .catch(() => {
+        // Leitura e auxiliar: falhar nao pode interromper o fluxo de mensagens.
+      })
+      .finally(() => {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      });
+  }, [cache, conversaId]);
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
     estado,
+    marcarConversaAbertaComoLida,
   );
   const enviar = useEnviarMensagem();
 

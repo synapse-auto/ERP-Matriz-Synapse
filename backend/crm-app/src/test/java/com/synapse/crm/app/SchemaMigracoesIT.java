@@ -60,6 +60,7 @@ class SchemaMigracoesIT extends PostgresIT {
             List<String> esperadas = List.of(
                     "arquivo_banco",
                     "atendimento",
+                    "atendimento_leitura",
                     "audit_log",
                     "avaliacao",
                     "campanha",

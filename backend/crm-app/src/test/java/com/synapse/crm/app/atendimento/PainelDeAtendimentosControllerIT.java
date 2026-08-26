@@ -181,17 +181,37 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("gestor abre conversa alheia e NAO altera lido_ate")
-        void gestor_abreConversaAlheia_naoMarcaComoLida() throws Exception {
+        @DisplayName("gestor abre conversa alheia e marca somente a propria leitura")
+        void gestor_abreConversaAlheia_marcaSomenteSuaLeitura() throws Exception {
             ResponseEntity<String> resposta = marcarComoLidoComo(
                     EMAIL_GESTOR, SENHA_GESTOR, atendimentoPendenteDaAna);
 
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
             assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM atendimento_leitura"
+                                    + " WHERE atendimento_id = ? AND usuario_id = ?",
+                            Integer.class,
+                            atendimentoPendenteDaAna,
+                            idDoUsuario(EMAIL_GESTOR)))
+                    .isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM atendimento_leitura"
+                                    + " WHERE atendimento_id = ? AND usuario_id = ?",
+                            Integer.class,
+                            atendimentoPendenteDaAna,
+                            idAna))
+                    .isZero();
+            assertThat(jdbc.queryForObject(
                             "SELECT lido_ate IS NULL FROM atendimento WHERE id = ?",
                             Boolean.class,
                             atendimentoPendenteDaAna))
                     .isTrue();
+            assertThat(cartao(
+                                    listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
             assertThat(cartao(
                                     listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
                                     atendimentoPendenteDaAna)
@@ -208,10 +228,12 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
             assertThat(jdbc.queryForObject(
-                            "SELECT lido_ate IS NOT NULL FROM atendimento WHERE id = ?",
-                            Boolean.class,
-                            atendimentoPendenteDaAna))
-                    .isTrue();
+                            "SELECT count(*) FROM atendimento_leitura"
+                                    + " WHERE atendimento_id = ? AND usuario_id = ?",
+                            Integer.class,
+                            atendimentoPendenteDaAna,
+                            idAna))
+                    .isEqualTo(1);
             assertThat(cartao(
                                     listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
                                     atendimentoPendenteDaAna)
@@ -226,6 +248,28 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                             .path("naoLidas")
                             .asLong())
                     .isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("usuario pode marcar atendimento em IA sem responsavel")
+        void atendimentoEmIa_podeSerMarcadoPorQuemAbre() throws Exception {
+            ResponseEntity<String> resposta = marcarComoLidoComo(
+                    EMAIL_BRUNO, SENHA_ATENDENTE, atendimentoPotencial);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM atendimento_leitura"
+                                    + " WHERE atendimento_id = ? AND usuario_id = ?",
+                            Integer.class,
+                            atendimentoPotencial,
+                            idBruno))
+                    .isEqualTo(1);
+            assertThat(cartao(
+                                    listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "POTENCIAIS"),
+                                    atendimentoPotencial)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
         }
     }
 

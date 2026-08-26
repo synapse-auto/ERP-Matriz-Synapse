@@ -45,10 +45,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ultima.enviado_em AS ultima_mensagem_em,
             ultima_lead.enviado_em AS ultima_mensagem_do_lead_em,
             (
-                SELECT count(*) FROM mensagem nao_lida
+                   SELECT count(*) FROM mensagem nao_lida
                  WHERE nao_lida.atendimento_id = a.id
                    AND nao_lida.remetente_tipo = 'LEAD'
-                   AND nao_lida.enviado_em > COALESCE(a.lido_ate, 'epoch'::timestamptz)
+                   AND nao_lida.enviado_em > COALESCE(leitura.lido_ate, 'epoch'::timestamptz)
             ) AS nao_lidas
             """;
 
@@ -59,6 +59,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             LEFT JOIN canal c ON c.id = a.canal_id
             LEFT JOIN etapa_atendimento et ON et.id = l.etapa_atendimento_id
             LEFT JOIN usuario u ON u.id = a.atendente_id
+            LEFT JOIN atendimento_leitura leitura
+                   ON leitura.atendimento_id = a.id AND leitura.usuario_id = ?
             LEFT JOIN LATERAL (
                 SELECT conteudo, remetente_tipo, enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
@@ -125,12 +127,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
         TransacaoObrigatoria.exigir("listar");
         return switch (visao) {
-            case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId);
+            case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId, usuarioId);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId)
-                    : chat.query(SQL_PENDENTES_TODOS, MAPEADOR);
-            case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR);
-            case TODOS -> chat.query(SQL_TODOS, MAPEADOR);
+                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId)
+                    : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
+            case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
+            case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
         };
     }
 
@@ -138,12 +140,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     public long contar(VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
         TransacaoObrigatoria.exigir("contar");
         return switch (visao) {
-            case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId);
+            case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId, usuarioId);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId)
-                    : queryForCount(SQL_CONTAR_PENDENTES_TODOS);
-            case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS);
-            case TODOS -> queryForCount(SQL_CONTAR_TODOS);
+                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId)
+                    : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
+            case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
+            case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);
         };
     }
 

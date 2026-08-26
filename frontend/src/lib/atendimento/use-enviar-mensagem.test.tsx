@@ -227,4 +227,42 @@ describe("useEnviarMensagem", () => {
     expect(mensagens).toHaveLength(1);
     expect(mensagens?.[0].remetenteNome).toBe("Bruno Atendente");
   });
+
+  it("avanca a leitura quando chega mensagem com a conversa aberta", async () => {
+    vi.mocked(api.paginaMensagens).mockResolvedValue({ mensagens: [], proximoCursor: null });
+    const { Wrapper } = criarWrapper();
+    let receber!: (evento: EventoTempoReal) => void;
+    const conexao = {
+      abrirConversa: vi.fn((_id: string, callback: (evento: EventoTempoReal) => void) => {
+        receber = callback;
+      }),
+      fecharConversa: vi.fn(),
+    } as unknown as ConexaoTempoReal;
+    const leitura = vi.fn();
+
+    renderHook(() => useMensagens("at-leitura", conexao, "desconectado", leitura), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(receber).toBeDefined());
+
+    act(() => receber({
+      tipo: "MENSAGEM",
+      dados: {
+        atendimentoId: "at-leitura",
+        leadId: "lead-leitura",
+        mensagemId: "msg-leitura",
+        remetenteTipo: "LEAD",
+        remetenteId: null,
+        tipo: "TEXTO",
+        conteudo: "nova mensagem",
+        midiaUrl: null,
+        midiaMetadados: null,
+        opcoes: null,
+        statusEntrega: "ENVIADO",
+        enviadoEm: "2026-01-01T00:00:00Z",
+      },
+    }));
+
+    expect(leitura).toHaveBeenCalledOnce();
+  });
 });

@@ -14,10 +14,16 @@ export function useMensagens(
   atendimentoId: string | null,
   conexao: ConexaoTempoReal,
   estadoConexao: EstadoConexao,
+  onMensagemRecebida?: () => void,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
   const ultimoInstanteRef = useRef<string | null>(null);
+  const onMensagemRecebidaRef = useRef(onMensagemRecebida);
+
+  useEffect(() => {
+    onMensagemRecebidaRef.current = onMensagemRecebida;
+  }, [onMensagemRecebida]);
 
   const query = useInfiniteQuery({
     queryKey,
@@ -58,6 +64,7 @@ export function useMensagens(
         };
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;
+        onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
         queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
           atual

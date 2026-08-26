@@ -51,10 +51,10 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String SQL_MARCAR_COMO_LIDO =
             """
-            UPDATE atendimento
-               SET lido_ate = GREATEST(COALESCE(lido_ate, 'epoch'::timestamptz), ?)
-             WHERE id = ?
-               AND atendente_id = ?
+            INSERT INTO atendimento_leitura (atendimento_id, usuario_id, lido_ate)
+                 VALUES (?, ?, ?)
+            ON CONFLICT (atendimento_id, usuario_id) DO UPDATE
+                    SET lido_ate = GREATEST(atendimento_leitura.lido_ate, EXCLUDED.lido_ate)
             """;
 
     // Upsert: o caso de uso nao precisa saber se esta abrindo ou atualizando.
@@ -108,9 +108,9 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     }
 
     @Override
-    public void marcarComoLido(UUID atendimentoId, UUID responsavelId, Instant quando) {
+    public void marcarComoLido(UUID atendimentoId, UUID usuarioId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarComoLido");
-        chat.update(SQL_MARCAR_COMO_LIDO, Timestamp.from(quando), atendimentoId, responsavelId);
+        chat.update(SQL_MARCAR_COMO_LIDO, atendimentoId, usuarioId, Timestamp.from(quando));
     }
 
     @Override

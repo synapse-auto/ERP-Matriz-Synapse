@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
-/** Registra a abertura da conversa sem permitir que a leitura de um gestor apague a fila do dono. */
+/** Registra a abertura da conversa para o usuario autenticado. */
 @Service
 public class MarcarAtendimentoComoLidoUseCase {
 
