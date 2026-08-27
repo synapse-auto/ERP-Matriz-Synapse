@@ -119,6 +119,12 @@ describe("sidebar", () => {
     expect(screen.queryByText("Campanhas")).not.toBeInTheDocument();
   });
 
+  it("mantém o conteúdo da barra lateral sem overflow horizontal", () => {
+    renderSidebar();
+
+    expect(screen.getByRole("complementary")).toHaveClass("overflow-x-hidden");
+  });
+
   it("esconde Equipe para quem não é GESTOR/ADMINISTRADOR", async () => {
     renderSidebar();
 
@@ -155,7 +161,7 @@ describe("sidebar", () => {
       "href",
       "/administracao",
     );
-    expect(screen.getByText("Acesso restrito")).toBeInTheDocument();
+    expect(screen.getByText("Acesso restrito")).toHaveClass("text-cor-ia");
   });
 
   it("oferece engrenagem de configurações separada do popup de presença", async () => {

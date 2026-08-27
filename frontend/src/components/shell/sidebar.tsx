@@ -120,7 +120,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
   const pathname = usePathname();
   const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
   const { data: tema } = useTemaConfig();
-    const [novidadesAberto, setNovidadesAberto] = useState(false);
+  const [novidadesAberto, setNovidadesAberto] = useState(false);
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
   const { data: contagens } = useContagemDeAtendimentos();
@@ -169,15 +169,15 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
 
   return (
     <>
-    <aside
-      className={
-        retraida
-          ? "flex w-[76px] shrink-0 flex-col bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
-          : "flex w-[260px] shrink-0 flex-col bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
-      }
-      data-slot="sidebar"
-      data-state={retraida ? "collapsed" : "expanded"}
-    >
+      <aside
+        className={
+          retraida
+            ? "flex w-[76px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+            : "flex w-[260px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+        }
+        data-slot="sidebar"
+        data-state={retraida ? "collapsed" : "expanded"}
+      >
       <div
         className={
           retraida
@@ -230,7 +230,13 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
         </button>
       </div>
 
-      <nav className={retraida ? "flex-1 overflow-y-auto px-2" : "flex-1 overflow-y-auto px-3.5"}>
+      <nav
+        className={
+          retraida
+            ? "flex-1 overflow-x-hidden overflow-y-auto px-2"
+            : "flex-1 overflow-x-hidden overflow-y-auto px-3.5"
+        }
+      >
         {isLoading && (
           <p className="px-2 py-4 text-sm text-texto-sidebar-sub">{textos.estados.carregando}</p>
         )}
@@ -442,7 +448,13 @@ function MenuGrupo({
                 }
               >
                 <Icone
-                  className={ativo ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo" : "size-[21px] shrink-0"}
+                  className={
+                    ativo && item.chave === "administracao"
+                      ? "size-[21px] shrink-0 text-cor-ia"
+                      : ativo
+                        ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo"
+                        : "size-[21px] shrink-0"
+                  }
                 />
                 <span className={retraida ? "sr-only" : "flex-1"}>{rotulo}</span>
                 {item.chave === "atendimentos" && contagemPendentes !== undefined && (
@@ -457,7 +469,10 @@ function MenuGrupo({
                   </Badge>
                 )}
                 {item.restrito && !retraida && (
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[0.55rem] uppercase">
+                  <Badge
+                    variant="secondary"
+                    className="h-5 border-cor-ia/20 bg-cor-ia/10 px-1.5 text-[0.55rem] text-cor-ia uppercase"
+                  >
                     {rotuloRestrito}
                   </Badge>
                 )}

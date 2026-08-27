@@ -27,7 +27,13 @@ describe("LayoutAdministracao", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "Áreas da Administração" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Feedbacks" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("main")).toHaveClass("bg-[var(--fundo-canvas)]");
+    expect(screen.getByRole("navigation", { name: "Áreas da Administração" })).toHaveClass(
+      "sm:w-64",
+    );
+    const feedbacks = screen.getByRole("link", { name: "Feedbacks" });
+    expect(feedbacks).toHaveAttribute("aria-current", "page");
+    expect(feedbacks).toHaveClass("sm:bg-cor-ia/10");
     expect(screen.getByRole("link", { name: "Acessos" })).toHaveAttribute(
       "href",
       "/administracao/acessos",

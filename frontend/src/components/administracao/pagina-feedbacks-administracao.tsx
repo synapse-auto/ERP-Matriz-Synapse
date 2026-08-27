@@ -40,13 +40,13 @@ export function PaginaFeedbacksAdministracao() {
   ];
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-6">
       <header>
-        <h2 className="text-xl font-bold">{t.titulo}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
+        <h2 className="text-xl font-bold tracking-tight">{t.titulo}</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">{t.descricao}</p>
       </header>
 
-      <div className="inline-flex rounded-lg border bg-card p-1" role="group" aria-label={t.filtro}>
+      <div className="inline-flex rounded-lg border border-border bg-card p-1 shadow-sm" role="group" aria-label={t.filtro}>
         {filtros.map((filtro) => (
           <Button
             key={filtro.valor ?? "TODOS"}
@@ -66,7 +66,7 @@ export function PaginaFeedbacksAdministracao() {
       ) : consulta.isError ? (
         <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
       ) : itens.length === 0 ? (
-        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-md">
           {t.vazio}
         </div>
       ) : (
@@ -76,7 +76,10 @@ export function PaginaFeedbacksAdministracao() {
             const tipoTexto = sugestao ? textos.feedbacks.tipos.sugestao : textos.feedbacks.tipos.erro;
             const areaTexto = textos.feedbacks.areas[AREA_PARA_TEXTO[feedback.areaChave]];
             return (
-              <article key={feedback.id} className="rounded-xl border bg-card p-5 shadow-sm">
+              <article
+                key={feedback.id}
+                className="rounded-lg border border-border bg-card p-5 shadow-md transition-shadow hover:shadow-lg"
+              >
                 <div className="flex items-start gap-3">
                   <AvatarIniciais
                     id={feedback.autorId}

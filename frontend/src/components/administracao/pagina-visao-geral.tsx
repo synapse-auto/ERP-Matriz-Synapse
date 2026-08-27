@@ -31,34 +31,53 @@ export function PaginaVisaoGeralAdministracao() {
 
   const usuarios = equipe.data ?? [];
   const cartoes = [
-    { rotulo: textos.usuarios, valor: usuarios.length, icone: CircleUserRound },
-    { rotulo: textos.ativos, valor: usuarios.filter((usuario) => usuario.ativo).length, icone: UserCheck },
+    {
+      rotulo: textos.usuarios,
+      valor: usuarios.length,
+      icone: CircleUserRound,
+      classeIcone: "bg-cor-ia/10 text-cor-ia",
+    },
+    {
+      rotulo: textos.ativos,
+      valor: usuarios.filter((usuario) => usuario.ativo).length,
+      icone: UserCheck,
+      classeIcone: "bg-cor-sucesso/10 text-cor-sucesso",
+    },
     {
       rotulo: textos.online,
       valor: usuarios.filter((usuario) => usuario.statusPresenca === "ONLINE").length,
       icone: Wifi,
+      classeIcone: "bg-cor-info/10 text-cor-info",
     },
-    { rotulo: textos.recursos, valor: features.data?.length ?? 0, icone: Boxes },
+    {
+      rotulo: textos.recursos,
+      valor: features.data?.length ?? 0,
+      icone: Boxes,
+      classeIcone: "bg-cor-atencao/10 text-cor-atencao",
+    },
   ];
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-6">
       <header>
-        <h2 className="text-xl font-bold">{textos.titulo}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
+        <h2 className="text-xl font-bold tracking-tight">{textos.titulo}</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">{textos.descricao}</p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cartoes.map((cartao) => {
           const Icone = cartao.icone;
           return (
-            <article key={cartao.rotulo} className="rounded-xl border bg-card p-5 shadow-sm">
+            <article
+              key={cartao.rotulo}
+              className="rounded-lg border border-border bg-card p-5 shadow-md transition-shadow hover:shadow-lg"
+            >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-muted-foreground">{cartao.rotulo}</p>
-                <span className="rounded-lg bg-primary/10 p-2 text-primary">
+                <span className={`rounded-full p-2 ${cartao.classeIcone}`}>
                   <Icone className="size-5" aria-hidden />
                 </span>
               </div>
-              <p className="mt-4 text-3xl font-bold tabular-nums">{cartao.valor}</p>
+              <p className="mt-5 text-3xl font-bold tracking-tight tabular-nums">{cartao.valor}</p>
             </article>
           );
         })}

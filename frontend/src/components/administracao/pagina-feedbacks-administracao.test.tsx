@@ -107,6 +107,7 @@ describe("PaginaFeedbacksAdministracao", () => {
     });
     const { rerender } = render(<PaginaFeedbacksAdministracao />);
     expect(screen.getByText("Nenhum feedback.")).toBeInTheDocument();
+    expect(screen.getByText("Nenhum feedback.").closest("div")).toHaveClass("border-dashed");
 
     consultar.mockReturnValue({
       data: undefined,
