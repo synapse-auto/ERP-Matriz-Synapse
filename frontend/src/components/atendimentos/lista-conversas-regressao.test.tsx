@@ -5,10 +5,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
 
+vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
+  useFinalizarAtendimentosVisiveis: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: 0 }, isLoading: false }),
+}));
+
 vi.mock("@/lib/atendimento/api", () => ({
   listarInboxUnificada: vi.fn(),
   listarAtendimentos: vi.fn(),
   contarAtendimentosPorVisao: vi.fn(),
+  finalizarAtendimentosVisiveis: vi.fn(),
+  contarAtendimentosFinalizaveis: vi.fn(),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -25,6 +32,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
       visoes: { todos: "Todos", ativos: "Ativos", pendentes: "Pendentes", potenciais: "Potenciais" },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       cartao: { semAtendente: "Sem atendente", vazio: "Nenhuma conversa", naoLidas: "{quantidade} mensagens não lidas" },
+      finalizar: {
+        todosMenu: "Mais ações",
+        todos: "Finalizar todos",
+        todosTitulo: "Finalizar atendimentos",
+        todosDescricao: "Encerrar {quantidade}",
+        todosConfirmar: "Finalizar {quantidade}",
+        todosCancelar: "Cancelar",
+        todosResultado: "{finalizados} finalizados; {recusados} recusados",
+        todosErro: "Erro",
+      },
     },
     chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
   }),

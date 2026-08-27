@@ -4,13 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const finalizar = vi.fn();
-const finalizarTodos = vi.fn();
-const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
-
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
-  useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
-  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: quantidadeFinalizavel.valor }, isLoading: false }),
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
@@ -115,7 +110,7 @@ describe("CabecalhoConversa", () => {
     expect(finalizar).toHaveBeenCalledWith("atendimento-1");
   });
 
-  it("pede confirmação com a quantidade de atendimentos visíveis", () => {
+  it("mantém somente as ações do atendimento selecionado no cabeçalho", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
@@ -125,30 +120,10 @@ describe("CabecalhoConversa", () => {
         onAlternarPainelDetalhes={vi.fn()}
       />,
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    fireEvent.click(screen.getByText("Finalizar todos"));
-
-    expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
-    expect(finalizarTodos).toHaveBeenCalledWith(undefined, expect.anything());
-  });
-
-  it("renderiza o menu de ações antes de transferir e finalizar", () => {
-    render(
-      <CabecalhoConversa
-        conversa={conversa}
-        buscaAberta={false}
-        onAlternarBusca={vi.fn()}
-        painelDetalhesAberto
-        onAlternarPainelDetalhes={vi.fn()}
-      />,
-    );
-    const acoes = screen.getByRole("button", { name: "Mais ações" });
+    expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
     const transferir = screen.getAllByRole("button", { name: "Transferir" });
     const finalizar = screen.getByRole("button", { name: "Finalizar" });
     for (const botao of transferir) {
-      expect(acoes.compareDocumentPosition(botao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(botao.compareDocumentPosition(finalizar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
   });
