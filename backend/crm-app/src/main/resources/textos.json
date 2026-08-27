@@ -7,6 +7,9 @@
   "menu": {
     "grupoMenu": "Menu",
     "grupoGestao": "Gestão",
+    "retrair": "Retrair menu lateral",
+    "reabrir": "Reabrir menu lateral",
+    "contagemPendentes": "Atendimentos, {quantidade} pendentes",
     "itens": {
       "atendimentos": "Atendimentos",
       "dashboard": "Dashboard",

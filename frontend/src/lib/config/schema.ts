@@ -89,6 +89,9 @@ export const TextosSchema = z.object({
   menu: z.object({
     grupoMenu: z.string(),
     grupoGestao: z.string(),
+    retrair: z.string(),
+    reabrir: z.string(),
+    contagemPendentes: z.string(),
     itens: z.record(z.string(), z.string()),
   }),
   rodape: z.object({

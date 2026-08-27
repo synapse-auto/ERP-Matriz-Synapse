@@ -1,8 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
-import { Sidebar } from "@/components/shell/sidebar";
+import { ShellComSidebar } from "@/components/shell/shell-com-sidebar";
 import { NOME_COOKIE_REFRESH } from "@/lib/auth/constants";
 import { buscarTema, temaParaCssVariaveis } from "@/lib/config/fetch-config";
 
@@ -23,18 +22,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
   return (
     <>
       <style>{temaParaCssVariaveis(tema)}</style>
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]" data-slot="page-canvas">
-        <Sidebar />
-        <div className="min-w-0 flex-1">
-          <main
-            className="flex h-full min-h-0 flex-col overflow-y-auto"
-            data-slot="page-surface"
-          >
-            {children}
-          </main>
-          <SinalizadorShellPronto />
-        </div>
-      </div>
+      <ShellComSidebar>{children}</ShellComSidebar>
     </>
   );
 }

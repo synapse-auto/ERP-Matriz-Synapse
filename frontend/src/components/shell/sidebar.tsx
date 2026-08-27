@@ -18,6 +18,8 @@ import {
   LogOut,
   Megaphone,
   MessageSquareText,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Tag,
   TrendingUp,
@@ -101,7 +103,12 @@ async function encerrarSessao() {
   window.location.href = "/login";
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  retraida: boolean;
+  onAlternar: () => void;
+}
+
+export function Sidebar({ retraida, onAlternar }: SidebarProps) {
   const textos = useTextos();
   const pathname = usePathname();
   const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
@@ -153,10 +160,21 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex w-[260px] shrink-0 flex-col overflow-hidden bg-sidebar text-texto-sidebar-item"
+      className={
+        retraida
+          ? "flex w-[76px] shrink-0 flex-col bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+          : "flex w-[260px] shrink-0 flex-col bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+      }
       data-slot="sidebar"
+      data-state={retraida ? "collapsed" : "expanded"}
     >
-      <div className="flex items-center gap-3 px-[18px] py-5">
+      <div
+        className={
+          retraida
+            ? "flex flex-col items-center gap-2 px-2 py-4"
+            : "flex items-center gap-3 px-[18px] py-5"
+        }
+      >
         {tema?.logoUrl && !logoFalhou ? (
           // logoUrl é dado de instância (tema.json), não um asset local — next/image exigiria
           // declarar o domínio em next.config a cada filho novo, o que quebraria "trocar de
@@ -178,7 +196,7 @@ export function Sidebar() {
             <div className="size-[17px] rotate-45 rounded-[3px] bg-white" />
           </div>
         )}
-        <div className="min-w-0">
+        <div className={retraida ? "sr-only" : "min-w-0 flex-1"}>
           <p className="text-[15px] leading-tight font-extrabold tracking-tight text-white">
             {textos.app.marca}
           </p>
@@ -186,9 +204,23 @@ export function Sidebar() {
             {textos.app.subtitulo}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={onAlternar}
+          aria-expanded={!retraida}
+          aria-label={retraida ? textos.menu.reabrir : textos.menu.retrair}
+          title={retraida ? textos.menu.reabrir : textos.menu.retrair}
+          className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+        >
+          {retraida ? (
+            <PanelLeftOpen className="size-[18px]" aria-hidden />
+          ) : (
+            <PanelLeftClose className="size-[18px]" aria-hidden />
+          )}
+        </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3.5">
+      <nav className={retraida ? "flex-1 overflow-y-auto px-2" : "flex-1 overflow-y-auto px-3.5"}>
         {isLoading && (
           <p className="px-2 py-4 text-sm text-texto-sidebar-sub">{textos.estados.carregando}</p>
         )}
@@ -206,6 +238,8 @@ export function Sidebar() {
           rotulos={textos.menu.itens}
           pathname={pathname}
           contagemPendentes={contagens?.PENDENTES}
+          retraida={retraida}
+          rotuloContagemPendentes={textos.menu.contagemPendentes}
         />
         <MenuGrupo
           titulo={textos.menu.grupoGestao}
@@ -214,12 +248,20 @@ export function Sidebar() {
           rotulos={textos.menu.itens}
           pathname={pathname}
           contagemPendentes={contagens?.PENDENTES}
+          retraida={retraida}
+          rotuloContagemPendentes={textos.menu.contagemPendentes}
         />
       </nav>
 
-      <div className="relative border-t border-white/8 px-3 py-3.5">
+      <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>
         {popupAberto && (
-          <div className="absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg">
+          <div
+            className={
+              retraida
+                ? "fixed bottom-3 left-[84px] z-40 w-56 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
+                : "absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
+            }
+          >
             <p className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.12em] text-texto-sidebar-sub">
               {textos.rodape.presenca.rotulo}
             </p>
@@ -265,11 +307,17 @@ export function Sidebar() {
           </div>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className={retraida ? "flex flex-col items-center gap-1" : "flex items-center gap-1"}>
           <button
             type="button"
             onClick={() => setPopupAberto((atual) => !atual)}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
+            aria-label={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
+            title={`${textos.rodape.presenca.rotulo}: ${rotuloDaPresenca(statusAtual)}`}
+            className={
+              retraida
+                ? "flex items-center justify-center rounded-xl p-1 hover:bg-sidebar-item-overlay-hover"
+                : "flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-2 hover:bg-sidebar-item-overlay-hover"
+            }
           >
           <span className="relative flex size-[38px] flex-none items-center justify-center">
             {meuUsuario.data ? <AvatarIniciais id={meuUsuario.data.id ?? "me"} nome={meuUsuario.data.nome} fotoUrl={meuUsuario.data.fotoUrl} className="flex size-[38px] items-center justify-center rounded-[11px] text-sm font-bold text-white" /> : "?"}
@@ -278,7 +326,7 @@ export function Sidebar() {
               style={{ backgroundColor: COR_PRESENCA[statusAtual] }}
             />
           </span>
-          <span className="min-w-0 flex-1 text-left">
+          <span className={retraida ? "sr-only" : "min-w-0 flex-1 text-left"}>
             {meuUsuario.data && (
               <span className="block truncate text-[13.5px] font-bold text-white">
                 {meuUsuario.data.nome}
@@ -310,27 +358,49 @@ interface MenuGrupoProps {
   rotulos: Record<string, string>;
   pathname: string;
   contagemPendentes?: number;
+  retraida: boolean;
+  rotuloContagemPendentes: string;
 }
 
-function MenuGrupo({ titulo, itens, visivel, rotulos, pathname, contagemPendentes }: MenuGrupoProps) {
+function MenuGrupo({
+  titulo,
+  itens,
+  visivel,
+  rotulos,
+  pathname,
+  contagemPendentes,
+  retraida,
+  rotuloContagemPendentes,
+}: MenuGrupoProps) {
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
 
   return (
     <div className="mb-2">
-      <p className="px-2.5 pt-3 pb-[7px] text-[10.5px] font-bold tracking-[.11em] text-texto-sidebar-titulo uppercase">
+      <p className={retraida ? "sr-only" : "px-2.5 pt-3 pb-[7px] text-[10.5px] font-bold tracking-[.11em] text-texto-sidebar-titulo uppercase"}>
         {titulo}
       </p>
       <ul className="flex flex-col gap-0.5">
         {itensVisiveis.map((item) => {
           const Icone = item.icone;
           const ativo = pathname.startsWith(item.rota);
+          const rotulo = rotulos[item.chave] ?? item.chave;
+          const rotuloAcessivel =
+            retraida && item.chave === "atendimentos" && contagemPendentes !== undefined
+              ? rotuloContagemPendentes.replace("{quantidade}", String(contagemPendentes))
+              : rotulo;
           return (
             <li key={item.chave}>
               <Link
                 href={item.rota}
+                aria-label={retraida ? rotuloAcessivel : undefined}
+                title={rotulo}
                 className={
-                  ativo
+                  retraida && ativo
+                    ? "relative flex items-center justify-center rounded-[10px] bg-sidebar-item-overlay-ativo px-2 py-2.5 text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
+                    : retraida
+                      ? "relative flex items-center justify-center rounded-[10px] px-2 py-2.5 text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+                      : ativo
                     ? "flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-semibold text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
                     : "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                 }
@@ -338,9 +408,15 @@ function MenuGrupo({ titulo, itens, visivel, rotulos, pathname, contagemPendente
                 <Icone
                   className={ativo ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo" : "size-[21px] shrink-0"}
                 />
-                <span className="flex-1">{rotulos[item.chave] ?? item.chave}</span>
+                <span className={retraida ? "sr-only" : "flex-1"}>{rotulo}</span>
                 {item.chave === "atendimentos" && contagemPendentes !== undefined && (
-                  <Badge className="h-5 min-w-5 rounded-full px-1 text-[0.625rem]">
+                  <Badge
+                    className={
+                      retraida
+                        ? "absolute right-0 top-0 h-4 min-w-4 rounded-full px-1 text-[0.55rem]"
+                        : "h-5 min-w-5 rounded-full px-1 text-[0.625rem]"
+                    }
+                  >
                     {contagemPendentes}
                   </Badge>
                 )}
