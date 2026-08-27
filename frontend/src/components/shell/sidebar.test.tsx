@@ -62,9 +62,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         lembretes: "Lembretes",
         equipe: "Equipe",
         automacao: "Automação",
+        feedbacks: "Feedbacks",
         administracao: "Administração",
       },
     },
+    administracao: { restrito: "Acesso restrito" },
     rodape: {
       trocarConta: "Trocar conta",
       trocarSenha: "Trocar senha",
@@ -129,6 +131,31 @@ describe("sidebar", () => {
 
     await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Automação")).not.toBeInTheDocument();
+  });
+
+  it("oferece Feedbacks para qualquer papel autenticado", async () => {
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Feedbacks" })).toHaveAttribute(
+      "href",
+      "/feedbacks",
+    );
+  });
+
+  it("mostra Administração somente ao ADMINISTRADOR", async () => {
+    authMock.papel = "GESTOR";
+    const tela = renderSidebar();
+    await screen.findByText("Feedbacks");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+
+    tela.unmount();
+    authMock.papel = "ADMINISTRADOR";
+    renderSidebar();
+    expect(await screen.findByRole("link", { name: /Administração/ })).toHaveAttribute(
+      "href",
+      "/administracao",
+    );
+    expect(screen.getByText("Acesso restrito")).toBeInTheDocument();
   });
 
   it("oferece engrenagem de configurações separada do popup de presença", async () => {
@@ -227,13 +254,4 @@ describe("sidebar", () => {
     expect(link).not.toHaveTextContent("7");
   });
 
-  it("esconde Administracao para ATENDENTE e mostra para GESTOR", async () => {
-    renderSidebar();
-    await screen.findByText("Agenda de Contatos");
-    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
-
-    authMock.papel = "GESTOR";
-    renderSidebar();
-    expect(await screen.findByText("Administração")).toBeInTheDocument();
-  });
 });

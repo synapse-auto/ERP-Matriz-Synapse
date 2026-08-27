@@ -17,12 +17,13 @@ import {
   KeyRound,
   LogOut,
   Megaphone,
+  MessageSquarePlus,
   MessageSquareText,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-    Sparkles,
-    Shield,
+  Sparkles,
+  ShieldCheck,
   Tag,
   TrendingUp,
   Users,
@@ -46,6 +47,7 @@ interface ItemDeMenu {
   icone: React.ComponentType<{ className?: string }>;
   /** Ausente = feature central, sempre visível. Presente = só some se a flag não vier habilitada. */
   flag?: string;
+  restrito?: boolean;
 }
 
 const ITENS_MENU: ItemDeMenu[] = [
@@ -57,6 +59,7 @@ const ITENS_MENU: ItemDeMenu[] = [
   { chave: "bancoArquivos", rota: "/banco-arquivos", icone: Folder, flag: "banco_arquivos" },
   { chave: "mensagensProgramadas", rota: "/mensagens-programadas", icone: Clock },
   { chave: "lembretes", rota: "/lembretes", icone: Bell },
+  { chave: "feedbacks", rota: "/feedbacks", icone: MessageSquarePlus },
 ];
 
 const ITENS_GESTAO: ItemDeMenu[] = [
@@ -65,7 +68,7 @@ const ITENS_GESTAO: ItemDeMenu[] = [
   { chave: "automacao", rota: "/automacao", icone: Bot },
   { chave: "horarios", rota: "/horarios", icone: CalendarClock, flag: "horarios" },
   { chave: "relatorios", rota: "/relatorios", icone: BarChart3, flag: "relatorios" },
-    { chave: "administracao", rota: "/administracao", icone: Shield },
+  { chave: "administracao", rota: "/administracao", icone: ShieldCheck, restrito: true },
 ];
 
 const OPCOES_PRESENCA: StatusPresenca[] = ["ONLINE", "AUSENTE", "OFFLINE"];
@@ -137,7 +140,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
 
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
-    if (item.chave === "administracao" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
+    if (item.chave === "administracao" && papel !== "ADMINISTRADOR") return false;
     if (
       item.chave === "automacao" &&
       papel !== "GESTOR" &&
@@ -247,6 +250,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           contagemPendentes={contagens?.PENDENTES}
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
+          rotuloRestrito={textos.administracao.restrito}
         />
         <MenuGrupo
           titulo={textos.menu.grupoGestao}
@@ -257,6 +261,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           contagemPendentes={contagens?.PENDENTES}
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
+          rotuloRestrito={textos.administracao.restrito}
         />
         <div className="mb-2 mt-2">
           <ul className="flex flex-col gap-0.5">
@@ -389,6 +394,7 @@ interface MenuGrupoProps {
   contagemPendentes?: number;
   retraida: boolean;
   rotuloContagemPendentes: string;
+  rotuloRestrito: string;
 }
 
 function MenuGrupo({
@@ -400,6 +406,7 @@ function MenuGrupo({
   contagemPendentes,
   retraida,
   rotuloContagemPendentes,
+  rotuloRestrito,
 }: MenuGrupoProps) {
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
@@ -423,7 +430,7 @@ function MenuGrupo({
               <Link
                 href={item.rota}
                 aria-label={retraida ? rotuloAcessivel : undefined}
-                title={rotulo}
+                title={item.restrito ? `${rotulo} — ${rotuloRestrito}` : rotulo}
                 className={
                   retraida && ativo
                     ? "relative flex items-center justify-center rounded-[10px] bg-sidebar-item-overlay-ativo px-2 py-2.5 text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
@@ -447,6 +454,11 @@ function MenuGrupo({
                     }
                   >
                     {contagemPendentes}
+                  </Badge>
+                )}
+                {item.restrito && !retraida && (
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[0.55rem] uppercase">
+                    {rotuloRestrito}
                   </Badge>
                 )}
               </Link>

@@ -1,10 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Search, SlidersHorizontal } from "lucide-react";
+import { MoreHorizontal, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Seletor } from "@/components/ui/seletor";
@@ -14,6 +28,10 @@ import {
   useAtendimentos,
   useContagemDeAtendimentos,
 } from "@/lib/atendimento/use-atendimentos";
+import {
+  useFinalizarAtendimentosVisiveis,
+  useQuantidadeAtendimentosFinalizaveis,
+} from "@/lib/atendimento/use-transferir-finalizar";
 import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -88,6 +106,13 @@ export function ListaConversas({
   const abriuLeadInicial = useRef(false);
   const [contatoSelecionado, setContatoSelecionado] = useState("");
   const [novaInternaAberta, setNovaInternaAberta] = useState(false);
+  const [finalizarTodosAberto, setFinalizarTodosAberto] = useState(false);
+  const [resultadoFinalizacao, setResultadoFinalizacao] = useState<{
+    finalizados: number;
+    recusados: number;
+  } | null>(null);
+  const finalizarTodos = useFinalizarAtendimentosVisiveis();
+  const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis();
 
   const fimDaLista = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -166,6 +191,28 @@ export function ListaConversas({
             {catalogo.menu.itens.atendimentos}
           </h1>
           <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={textos.finalizar.todosMenu}
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setResultadoFinalizacao(null);
+                    setFinalizarTodosAberto(true);
+                  }}
+                  disabled={
+                    quantidadeFinalizavel.isLoading ||
+                    quantidadeFinalizavel.data?.quantidade === 0
+                  }
+                >
+                  {textos.finalizar.todos}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {chatInternoHabilitado && (
               <div className="flex items-center gap-1">
                 <Button
@@ -300,6 +347,67 @@ export function ListaConversas({
           </div>
         )}
       </ScrollArea>
+
+      <Dialog
+        open={finalizarTodosAberto}
+        onOpenChange={(novo) => !novo && setFinalizarTodosAberto(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{textos.finalizar.todosTitulo}</DialogTitle>
+            <DialogDescription>
+              {textos.finalizar.todosDescricao.replace(
+                "{quantidade}",
+                String(quantidadeFinalizavel.data?.quantidade ?? 0),
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {resultadoFinalizacao ? (
+            <p role="status" className="text-sm text-foreground">
+              {textos.finalizar.todosResultado
+                .replace("{finalizados}", String(resultadoFinalizacao.finalizados))
+                .replace("{recusados}", String(resultadoFinalizacao.recusados))}
+            </p>
+          ) : finalizarTodos.isError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {textos.finalizar.todosErro}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFinalizarTodosAberto(false)}
+              disabled={finalizarTodos.isPending}
+            >
+              {textos.finalizar.todosCancelar}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() =>
+                finalizarTodos.mutate(undefined, {
+                  onSuccess: (resultado) =>
+                    setResultadoFinalizacao({
+                      finalizados: resultado.finalizados,
+                      recusados: resultado.recusados,
+                    }),
+                })
+              }
+              disabled={
+                finalizarTodos.isPending ||
+                quantidadeFinalizavel.isLoading ||
+                !quantidadeFinalizavel.data?.quantidade
+              }
+            >
+              {textos.finalizar.todosConfirmar.replace(
+                "{quantidade}",
+                String(quantidadeFinalizavel.data?.quantidade ?? 0),
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

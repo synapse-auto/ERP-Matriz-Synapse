@@ -479,7 +479,7 @@ function TabelaDeUsuarios({
  * A senha só existe em memória enquanto este diálogo estiver aberto (E29): não há como reabri-lo
  * com a mesma senha depois de fechado — o backend não a devolve de novo.
  */
-function SenhaProvisoriaDialog({
+export function SenhaProvisoriaDialog({
   usuario,
   senha,
   erro,
@@ -530,7 +530,7 @@ function SenhaProvisoriaDialog({
   );
 }
 
-function Formulario({
+export function Formulario({
   aberto,
   existente,
   onFechar,
