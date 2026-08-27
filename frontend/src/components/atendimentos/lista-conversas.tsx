@@ -19,7 +19,6 @@ import { useTextos } from "@/lib/config/textos-provider";
 
 import { CartaoConversa } from "./cartao-conversa";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type Props = {
   selecionadoId: string | null;
@@ -169,15 +168,41 @@ export function ListaConversas({
           <div className="flex items-center gap-1">
             {chatInternoHabilitado && (
               <div className="flex items-center gap-1">
-                <DropdownMenu open={novaInternaAberta} onOpenChange={setNovaInternaAberta}>
-                  <DropdownMenuTrigger render={<Button type="button" variant="outline" size="icon-sm" aria-label={catalogo.chatInterno.novaConversa} />}><Plus className="size-4" aria-hidden /></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setNovaInternaAberta(true)}>{catalogo.chatInterno.novaConversa}</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label={catalogo.chatInterno.novaConversa}
+                  aria-expanded={novaInternaAberta}
+                  onClick={() => {
+                    if (novaInternaAberta) {
+                      setNovaInternaAberta(false);
+                      setContatoSelecionado("");
+                      onContatoInternoChange?.("");
+                    } else {
+                      setNovaInternaAberta(true);
+                    }
+                  }}
+                >
+                  <Plus className="size-4" aria-hidden />
+                </Button>
                 {novaInternaAberta && <>
                   <SelectContato contatos={contatosInternos} valor={contatoInternoSelecionado || contatoSelecionado} onChange={onContatoInternoChange ?? setContatoSelecionado} placeholder={catalogo.chatInterno.selecionarPessoa} />
-                  <Button type="button" variant="outline" size="icon-sm" aria-label={catalogo.chatInterno.novaConversa} disabled={!(contatoInternoSelecionado || contatoSelecionado)} onClick={onCriarConversaInterna}><Plus className="size-4" aria-hidden /></Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={catalogo.chatInterno.novaConversa}
+                    disabled={!(contatoInternoSelecionado || contatoSelecionado)}
+                    onClick={() => {
+                      onCriarConversaInterna?.();
+                      setNovaInternaAberta(false);
+                      setContatoSelecionado("");
+                      onContatoInternoChange?.("");
+                    }}
+                  >
+                    <Plus className="size-4" aria-hidden />
+                  </Button>
                 </>}
               </div>
             )}
