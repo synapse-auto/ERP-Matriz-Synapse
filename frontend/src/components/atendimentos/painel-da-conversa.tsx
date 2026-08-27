@@ -435,7 +435,7 @@ function SecaoDeProgramadas({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
                     aria-label={`${textos.atendimentos.painel.remover} ${item.conteudo}`}
                     onClick={() => {
                       setErro(false);
@@ -561,7 +561,7 @@ function SecaoDeLembretes({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
                     aria-label={`${textos.atendimentos.painel.remover} ${item.texto}`}
                     onClick={() => {
                       setErro(false);

@@ -263,7 +263,7 @@ export function Composer({ conversa }: Props) {
             ) : (
               <button
                 type="button"
-                className="shrink-0 rounded p-0.5 hover:bg-muted"
+                className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
                 aria-label={textos.anexoRemover}
                 onClick={removerArquivo}
               >
@@ -286,6 +286,7 @@ export function Composer({ conversa }: Props) {
               type="button"
               size="icon-sm"
               variant="ghost"
+              className="hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
               onClick={gravador.descartar}
               aria-label={textos.audioDescartar}
             >
@@ -319,6 +320,7 @@ export function Composer({ conversa }: Props) {
               type="button"
               size="icon-sm"
               variant="ghost"
+              className="hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
               onClick={gravador.descartar}
               disabled={enviarMidia.isPending}
               aria-label={textos.audioDescartar}
