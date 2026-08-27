@@ -860,42 +860,50 @@
       {
         "titulo": "Mensagens Programadas",
         "descricao": "Agende mensagens para envio automático em uma data e hora específicas para qualquer lead, direto pelo chat de atendimento.",
-        "data": "2026-07-22"
+        "data": "2026-07-22",
+        "novo": true
       },
       {
         "titulo": "Múltiplos anexos no orçamento",
         "descricao": "Agora é possível anexar várias fotos e arquivos de uma vez ao montar o orçamento do lead, direto pelo chat.",
-        "data": "2026-07-22"
+        "data": "2026-07-22",
+        "novo": true
       },
       {
         "titulo": "Busca por telefone na Agenda",
         "descricao": "Encontre qualquer lead rapidamente buscando pelo número de telefone, além do nome, na Agenda de Contatos.",
-        "data": "2026-07-22"
+        "data": "2026-07-22",
+        "novo": true
       },
       {
         "titulo": "Banco de Arquivos reorganizado",
         "descricao": "Pastas, busca e envio direto de arquivos para o lead durante o atendimento.",
-        "data": "2026-07-13"
+        "data": "2026-07-13",
+        "novo": false
       },
       {
         "titulo": "Tags personalizadas",
         "descricao": "Crie e organize tags coloridas para classificar e filtrar seus leads.",
-        "data": "2026-06-30"
+        "data": "2026-06-30",
+        "novo": false
       },
       {
         "titulo": "Automação por IA",
         "descricao": "Regras de atendentes disponíveis e follow-ups automáticos configuráveis.",
-        "data": "2026-06-18"
+        "data": "2026-06-18",
+        "novo": false
       },
       {
         "titulo": "Status de presença da equipe",
         "descricao": "Veja quem está online, ausente ou offline direto no menu do perfil.",
-        "data": "2026-06-02"
+        "data": "2026-06-02",
+        "novo": false
       },
       {
         "titulo": "Central de Relatórios",
         "descricao": "Funil de conversão, tempos de atendimento e exportação de dados.",
-        "data": "2026-05-20"
+        "data": "2026-05-20",
+        "novo": false
       }
     ],
     "itensEmBreve": [
@@ -904,7 +912,7 @@
         "titulo": "Campanhas em Massa",
         "descricao": "Crie campanhas segmentadas e envie mensagens em massa via WhatsApp para grupos de leads.",
         "status": "Em desenvolvimento",
-        "tom": "warn",
+        "tom": "atencao",
         "previsao": "Previsão: agosto de 2026"
       },
       {
@@ -912,7 +920,7 @@
         "titulo": "Automação com IA Generativa",
         "descricao": "Respostas automáticas mais inteligentes, treinadas com o histórico de atendimentos.",
         "status": "Em desenvolvimento",
-        "tom": "warn",
+        "tom": "atencao",
         "previsao": "Previsão: setembro de 2026"
       },
       {
@@ -920,7 +928,7 @@
         "titulo": "Relatórios Avançados",
         "descricao": "Metas por atendente, funis comparativos e exportação avançada em PDF.",
         "status": "Planejado",
-        "tom": "sky",
+        "tom": "info",
         "previsao": ""
       },
       {
@@ -928,9 +936,10 @@
         "titulo": "Aplicativo Mobile",
         "descricao": "Atenda leads e acompanhe métricas direto do celular, no iOS e Android.",
         "status": "Planejado",
-        "tom": "sky",
+        "tom": "info",
         "previsao": ""
       }
-    ]
+    ],
+    "novoTag": "NOVO"
   }
 }

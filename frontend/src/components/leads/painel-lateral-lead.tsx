@@ -333,7 +333,7 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
           </Button>
         )}
         {lead.data?.telefone && (
-          <Button type="button" variant="outline" className="size-11 shrink-0 rounded-xl" title={textosGerais.painelLead.acoes?.ligar || "Ligar"}>
+          <Button render={<a href={`tel:${lead.data.telefone}`} />} variant="outline" className="size-11 shrink-0 rounded-xl" title={textos.acoes.ligar} aria-label={textos.acoes.ligar}>
             <Phone className="size-[18px]" />
           </Button>
         )}

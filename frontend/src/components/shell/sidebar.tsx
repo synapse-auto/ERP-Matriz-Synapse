@@ -137,7 +137,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
 
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
-    if (item.chave === "administracao" && papel !== "ADMINISTRADOR") return false;
+    if (item.chave === "administracao" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
     if (
       item.chave === "automacao" &&
       papel !== "GESTOR" &&
@@ -258,6 +258,26 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
         />
+        <div className="mb-2 mt-2">
+          <ul className="flex flex-col gap-0.5">
+            <li>
+              <button
+                type="button"
+                onClick={() => setNovidadesAberto(true)}
+                aria-label={retraida ? (textos.novidades?.titulo || "Novidades") : undefined}
+                title={textos.novidades?.titulo || "Novidades"}
+                className={
+                  retraida
+                    ? "relative w-full flex items-center justify-center rounded-[10px] px-2 py-2.5 text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+                    : "flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+                }
+              >
+                <Sparkles className="size-[21px] shrink-0" />
+                <span className={retraida ? "sr-only" : "flex-1 text-left"}>{textos.novidades?.titulo || "Novidades"}</span>
+              </button>
+            </li>
+          </ul>
+        </div>
       </nav>
 
       <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>

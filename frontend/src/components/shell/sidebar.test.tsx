@@ -62,6 +62,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         lembretes: "Lembretes",
         equipe: "Equipe",
         automacao: "Automação",
+        administracao: "Administração",
       },
     },
     rodape: {
@@ -224,5 +225,15 @@ describe("sidebar", () => {
 
     const link = await screen.findByRole("link", { name: "Atendimentos" });
     expect(link).not.toHaveTextContent("7");
+  });
+
+  it("esconde Administracao para ATENDENTE e mostra para GESTOR", async () => {
+    renderSidebar();
+    await screen.findByText("Agenda de Contatos");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+
+    authMock.papel = "GESTOR";
+    renderSidebar();
+    expect(await screen.findByText("Administração")).toBeInTheDocument();
   });
 });
