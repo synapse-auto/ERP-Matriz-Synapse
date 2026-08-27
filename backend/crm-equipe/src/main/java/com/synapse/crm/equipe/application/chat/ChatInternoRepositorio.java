@@ -10,6 +10,7 @@ import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
 /** Porta do read/write model do chat; nenhuma consulta ignora o participante corrente. */
 public interface ChatInternoRepositorio {
     List<ConversaResumo> listarConversas(UUID usuarioId);
+    List<ConversaResumo> listarConversasPaginado(UUID usuarioId, Instant depoisDe, UUID depoisDoId, int limite);
     List<ContatoResumo> listarContatos(UUID usuarioId);
     Optional<UUID> conversaDireta(UUID primeiroUsuario, UUID segundoUsuario);
     UUID criarConversaDireta(UUID primeiroUsuario, UUID segundoUsuario);

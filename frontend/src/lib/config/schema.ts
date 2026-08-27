@@ -181,6 +181,8 @@ export const TextosSchema = z.object({
     lista: z.object({
       busca: z.string(),
       filtros: z.string(),
+      carregarMais: z.string(),
+      carregandoMais: z.string(),
     }),
     visoes: z.object({
       ativos: z.string(),

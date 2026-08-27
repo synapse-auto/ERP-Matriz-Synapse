@@ -127,6 +127,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
 
+    private static final String COLUNAS_CARTAO =
+            "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, canal_tipo, "
+                    + "etapa_atendimento_id, etapa_nome, etapa_cor, status, atendente_id, atendente_nome, "
+                    + "iniciado_em, atendimento_ativo_id, ultima_mensagem_preview, ultima_mensagem_remetente_tipo, "
+                    + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, linha_do_lead";
+
     private static final String SQL_CONTAR_ATIVOS = contar(CAMPOS + ORIGEM + WHERE_ATIVOS);
 
     private static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS);
@@ -138,7 +144,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
 
     private static String agrupar(String consultaInterna) {
-        return "SELECT * FROM (SELECT " + consultaInterna + ") cartoes"
+        return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
                 + " WHERE linha_do_lead = 1" + ORDEM;
     }
 
@@ -168,6 +174,40 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
             case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
         };
+    }
+
+    @Override
+    public List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
+            boolean restritoAoProprioAtendente, Instant depoisDe, UUID depoisDoId, int limite) {
+        TransacaoObrigatoria.exigir("listarPaginado");
+        String filtro = switch (visao) {
+            case ATIVOS -> WHERE_ATIVOS;
+            case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
+            case POTENCIAIS -> WHERE_POTENCIAIS;
+            case TODOS -> "";
+        };
+        String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
+                + ") cartoes WHERE linha_do_lead = 1";
+        List<Object> parametros = new java.util.ArrayList<>();
+        parametros.add(usuarioId);
+        if (visao == VisaoAtendimento.ATIVOS || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)) {
+            parametros.add(usuarioId);
+        }
+        if (depoisDoId != null) {
+            if (depoisDe == null) {
+                consulta += " AND ultima_mensagem_em IS NULL AND atendimento_id < ?";
+                parametros.add(depoisDoId);
+            } else {
+                consulta += " AND (ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
+                        + " OR ultima_mensagem_em IS NULL)";
+                parametros.add(Timestamp.from(depoisDe));
+                parametros.add(Timestamp.from(depoisDe));
+                parametros.add(depoisDoId);
+            }
+        }
+        consulta += " ORDER BY ultima_mensagem_em DESC NULLS LAST, atendimento_id DESC LIMIT ?";
+        parametros.add(Math.min(101, Math.max(1, limite)));
+        return chat.query(consulta, MAPEADOR, parametros.toArray());
     }
 
     @Override

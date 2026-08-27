@@ -4,17 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 
 import { X } from "lucide-react";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
 import { Composer } from "@/components/atendimentos/composer";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
+import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
+  ItemInbox,
   MensagemResposta,
   NotificacaoTempoReal,
   VisaoAtendimento,
@@ -24,6 +26,8 @@ import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-comp
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { apiFetch } from "@/lib/api/http-client";
+import { listarContatosChat, abrirConversaDireta } from "@/lib/chat-interno/api";
 
 interface Props {
   leadInicialId: string | null;
@@ -42,13 +46,27 @@ export function PaginaAtendimentosCliente({
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
   const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
-  const [atendimentos, setAtendimentos] = useState<CartaoAtendimento[]>([]);
+  const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
+  const [conversaInternaId, setConversaInternaId] = useState<string | null>(null);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const { data: configuracao } = useConfiguracaoComposer();
+  const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
+  const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
+  const [contatoInternoId, setContatoInternoId] = useState("");
+  const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
+  const abrirConversaInterna = useMutation({
+    mutationFn: abrirConversaDireta,
+    onSuccess: (resposta) => {
+      setConversaInternaId(resposta.id);
+      setLeadSelecionadoId(null);
+      setContatoInternoId("");
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+  });
 
   // Notificações são efêmeras: o evento continua persistido no backend, mas o aviso de trabalho
   // não pode ocupar a tela indefinidamente. O timer é apenas apresentação (não regra de negócio)
@@ -64,7 +82,7 @@ export function PaginaAtendimentosCliente({
     () => useAuthStore.getState().accessToken,
     (atendimentoRevogado) => {
       setLeadSelecionadoId((atual) => {
-        const selecionado = atendimentos.find((item) => item.leadId === atual);
+        const selecionado = atendimentos.find((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === atual) as CartaoAtendimento | undefined;
         const ativoId = selecionado?.atendimentoAtivoId
           ?? (selecionado?.status !== "FINALIZADO" ? selecionado?.atendimentoId : null);
         if (ativoId !== atendimentoRevogado) {
@@ -81,6 +99,9 @@ export function PaginaAtendimentosCliente({
       )
         setNotificacao(evento);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
+        void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
+      }
     },
   );
 
@@ -90,7 +111,7 @@ export function PaginaAtendimentosCliente({
     }
   }, [cache, estado]);
 
-  const conversa = atendimentos.find((atendimento) => atendimento.leadId === leadSelecionadoId) ?? null;
+  const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
   /** Atendimento operacional do lead; histórico e cartão continuam ancorados no cartão mais recente. */
   const atendimentoAtivoId = conversa
     ? conversa.atendimentoAtivoId
@@ -119,8 +140,16 @@ export function PaginaAtendimentosCliente({
   );
   const enviar = useEnviarMensagem();
 
-  function abrirAtendimento(cartao: CartaoAtendimento) {
+  function abrirAtendimento(cartao: ItemInbox) {
+    if (cartao.tipo === "EQUIPE_INTERNA") {
+      setConversaInternaId(cartao.conversaId);
+      setLeadSelecionadoId(null);
+      setAvisoRevogacao(false);
+      setBuscaAberta(false);
+      return;
+    }
     setAvisoRevogacao(false);
+    setConversaInternaId(null);
     setBuscaAberta(false);
     setLeadSelecionadoId(cartao.leadId);
     const ativoId = cartao.atendimentoAtivoId
@@ -199,12 +228,17 @@ export function PaginaAtendimentosCliente({
         </div>
       )}
       <ListaConversas
-        selecionadoId={conversa?.leadId ?? null}
+        selecionadoId={conversa?.leadId ?? conversaInternaId}
         leadInicialId={leadParaAbrir}
         leadInicialGatilho={leadParaAbrirGatilho}
         visaoInicial={visaoInicial}
         onAtendimentosAtualizados={setAtendimentos}
         onAbrirAtendimento={abrirAtendimento}
+        chatInternoHabilitado={chatInternoHabilitado}
+        contatosInternos={contatosInternos.data ?? []}
+        contatoInternoSelecionado={contatoInternoId}
+        onContatoInternoChange={setContatoInternoId}
+        onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
       />
 
       <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -219,7 +253,9 @@ export function PaginaAtendimentosCliente({
           </div>
         )}
 
-        {conversa ? (
+        {conversaInternaId ? (
+          <PainelConversaInterna conversaId={conversaInternaId} />
+        ) : conversa ? (
           <>
             <CabecalhoConversa
               conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}

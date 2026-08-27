@@ -1,16 +1,16 @@
 "use client";
 
-import { MessageCircleMore } from "lucide-react";
+import { MessageCircleMore, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { ItemInbox } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 type Props = {
-  cartao: CartaoAtendimento;
+  cartao: ItemInbox;
   selecionado: boolean;
   onAbrirAtendimento: () => void;
 };
@@ -21,7 +21,40 @@ export function CartaoConversa({
   selecionado,
   onAbrirAtendimento,
 }: Props) {
-  const textos = useTextos().atendimentos;
+  const catalogo = useTextos();
+  const textos = catalogo.atendimentos;
+  if (cartao.tipo === "EQUIPE_INTERNA") {
+    const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
+    return (
+      <button
+        type="button"
+        onClick={onAbrirAtendimento}
+        className={cn(
+          "m-1.5 flex w-[calc(100%-0.75rem)] items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-muted",
+          selecionado && "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
+        )}
+      >
+        <Avatar className="size-11 rounded-xl">
+          <AvatarFallback className="rounded-xl text-white" style={{ backgroundColor: tomDoAvatar(cartao.conversaId) }}>
+            {iniciaisDoNome(cartao.nome)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-sm font-bold text-foreground">{cartao.nome}</p>
+            <span className="flex shrink-0 items-center gap-1.5">
+              {hora && <time className="text-[0.7rem] text-muted-foreground">{hora}</time>}
+              {cartao.naoLidas > 0 && <Badge className="h-5 min-w-5 justify-center rounded-full px-1 text-[0.625rem]">{cartao.naoLidas}</Badge>}
+            </span>
+          </div>
+          {cartao.ultimaMensagemPreview && <p className="mt-1 truncate text-xs text-foreground/70">{cartao.ultimaMensagemPreview}</p>}
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">
+            <Users className="size-3" aria-hidden />{catalogo.chatInterno.titulo}
+          </span>
+        </div>
+      </button>
+    );
+  }
   const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
   const canal =
     cartao.canalTipo === "WHATSAPP" ? textos.canais.whatsapp : cartao.canalTipo;

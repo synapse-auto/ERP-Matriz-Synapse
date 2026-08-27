@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { ItemInbox } from "@/lib/atendimento/types";
 
-const cartoes: CartaoAtendimento[] = [
+const cartoes: ItemInbox[] = [
   {
     atendimentoId: "protocolo-001",
     leadId: "lead-1",
@@ -42,6 +42,19 @@ const cartoes: CartaoAtendimento[] = [
     ultimaMensagemDoLeadEm: null,
     naoLidas: 0,
   },
+  {
+    tipo: "EQUIPE_INTERNA",
+    atendimentoId: null,
+    conversaId: "conversa-1",
+    nome: "Equipe comercial",
+    avatarUrl: null,
+    identificadorVisual: "conversa-1",
+    ultimaMensagemPreview: "Vamos revisar a proposta",
+    ultimaMensagemEm: "2026-08-16T12:45:00Z",
+    naoLidas: 2,
+    participantes: "Ana, Bruno",
+    tipoConversa: "GRUPO",
+  },
 ];
 
 vi.mock("@/lib/atendimento/use-atendimentos", () => ({
@@ -59,6 +72,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       lista: {
         busca: "Buscar cliente ou protocolo...",
         filtros: "Filtros da lista",
+        carregarMais: "Carregar mais conversas",
+        carregandoMais: "Carregando conversas...",
       },
       visoes: {
         todos: "Todos",
@@ -73,6 +88,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         naoLidas: "{quantidade} mensagens não lidas",
       },
     },
+    chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
   }),
 }));
 
@@ -112,5 +128,12 @@ describe("ListaConversas", () => {
     expect(screen.queryByText("Ana Vidros")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));
     expect(abrir).toHaveBeenCalledWith(cartoes[1]);
+  });
+
+  it("seleciona conversa interna pelo tipo e conversaId", () => {
+    const abrir = vi.fn();
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado />);
+    fireEvent.click(screen.getByRole("button", { name: /Equipe comercial/ }));
+    expect(abrir).toHaveBeenCalledWith(cartoes[2]);
   });
 });

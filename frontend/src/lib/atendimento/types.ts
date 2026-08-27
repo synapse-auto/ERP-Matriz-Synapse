@@ -25,6 +25,7 @@ export type ContagemPorVisao = Record<VisaoAtendimento, number>;
 
 /** Espelha PainelDeAtendimentosController.CartaoAtendimento — GET /api/v1/atendimentos?visao=. */
 export interface CartaoAtendimento {
+  tipo?: "CLIENTE";
   atendimentoId: string;
   leadId: string;
   leadNome: string;
@@ -46,6 +47,29 @@ export interface CartaoAtendimento {
   ultimaMensagemDoLeadEm: string | null;
   naoLidas: number;
 }
+
+export interface CartaoEquipeInterna {
+  tipo: "EQUIPE_INTERNA";
+  atendimentoId: null;
+  conversaId: string;
+  nome: string;
+  avatarUrl: null;
+  identificadorVisual: string;
+  ultimaMensagemPreview: string | null;
+  ultimaMensagemEm: string | null;
+  naoLidas: number;
+  participantes: string | null;
+  tipoConversa: "DIRETA" | "GRUPO";
+}
+
+export type ItemInbox = (CartaoAtendimento & {
+  conversaId?: null;
+  nome?: string;
+  avatarUrl?: string | null;
+  identificadorVisual?: string;
+  participantes?: null;
+  tipoConversa?: null;
+}) | CartaoEquipeInterna;
 
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {

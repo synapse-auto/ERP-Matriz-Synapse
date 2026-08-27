@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,21 +14,25 @@ import {
   useAtendimentos,
   useContagemDeAtendimentos,
 } from "@/lib/atendimento/use-atendimentos";
-import type {
-  CartaoAtendimento,
-  VisaoAtendimento,
-} from "@/lib/atendimento/types";
+import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { CartaoConversa } from "./cartao-conversa";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type Props = {
   selecionadoId: string | null;
   leadInicialId?: string | null;
   leadInicialGatilho?: number;
   visaoInicial?: VisaoAtendimento | null;
-  onAtendimentosAtualizados?: (atendimentos: CartaoAtendimento[]) => void;
-  onAbrirAtendimento: (cartao: CartaoAtendimento) => void;
+  onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
+  onAbrirAtendimento: (cartao: ItemInbox) => void;
+  chatInternoHabilitado?: boolean;
+  contatosInternos?: { id: string; nome: string }[];
+  contatoInternoSelecionado?: string;
+  onContatoInternoChange?: (valor: string) => void;
+  onCriarConversaInterna?: () => void;
 };
 
 const VISOES: VisaoAtendimento[] = [
@@ -59,6 +63,11 @@ export function ListaConversas({
   visaoInicial,
   onAtendimentosAtualizados,
   onAbrirAtendimento,
+  chatInternoHabilitado = false,
+  contatosInternos = [],
+  contatoInternoSelecionado = "",
+  onContatoInternoChange,
+  onCriarConversaInterna,
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
@@ -74,9 +83,25 @@ export function ListaConversas({
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
 
-  const { data, isLoading } = useAtendimentos(visao);
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(visao);
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
+  const [contatoSelecionado, setContatoSelecionado] = useState("");
+  const [novaInternaAberta, setNovaInternaAberta] = useState(false);
+
+  const fimDaLista = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const alvo = fimDaLista.current;
+    if (!alvo || visao !== "TODOS" || !hasNextPage) return;
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        if (entradas[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
+      },
+      { rootMargin: "240px" },
+    );
+    observador.observe(alvo);
+    return () => observador.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, visao]);
 
   useEffect(() => {
     onAtendimentosAtualizados?.(data ?? []);
@@ -88,7 +113,7 @@ export function ListaConversas({
 
   useEffect(() => {
     if (!leadInicialId || abriuLeadInicial.current || !data) return;
-    const cartao = data.find((item) => item.leadId === leadInicialId);
+    const cartao = data.find((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadInicialId);
     if (cartao) {
       abriuLeadInicial.current = true;
       onAbrirAtendimento(cartao);
@@ -98,7 +123,7 @@ export function ListaConversas({
   const etapas = useMemo(() => {
     const mapa = new Map<string, string>();
     for (const cartao of data ?? []) {
-      if (cartao.etapaId && cartao.etapaNome) {
+      if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.etapaId && cartao.etapaNome) {
         mapa.set(cartao.etapaId, cartao.etapaNome);
       }
     }
@@ -108,7 +133,7 @@ export function ListaConversas({
   const atendentes = useMemo(() => {
     const mapa = new Map<string, string>();
     for (const cartao of data ?? []) {
-      if (cartao.atendenteId && cartao.atendenteNome) {
+      if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.atendenteId && cartao.atendenteNome) {
         mapa.set(cartao.atendenteId, cartao.atendenteNome);
       }
     }
@@ -120,13 +145,15 @@ export function ListaConversas({
     return (data ?? []).filter((cartao) => {
       const correspondeABusca =
         !termo ||
-        [cartao.leadNome, cartao.leadEmpresa, cartao.atendimentoId].some(
+        [cartao.tipo === "EQUIPE_INTERNA" ? cartao.nome : cartao.leadNome,
+          cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId : cartao.leadEmpresa,
+          cartao.tipo === "EQUIPE_INTERNA" ? cartao.participantes : cartao.atendimentoId].some(
           (valor) => valor?.toLocaleLowerCase("pt-BR").includes(termo),
         );
       return (
         correspondeABusca &&
-        (!filtroEtapa || cartao.etapaId === filtroEtapa) &&
-        (!filtroAtendente || cartao.atendenteId === filtroAtendente)
+        (cartao.tipo === "EQUIPE_INTERNA" || !filtroEtapa || cartao.etapaId === filtroEtapa) &&
+        (cartao.tipo === "EQUIPE_INTERNA" || !filtroAtendente || cartao.atendenteId === filtroAtendente)
       );
     });
   }, [busca, data, filtroAtendente, filtroEtapa]);
@@ -138,17 +165,25 @@ export function ListaConversas({
           <h1 className="text-lg font-extrabold tracking-tight text-foreground">
             {catalogo.menu.itens.atendimentos}
           </h1>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            aria-label={textos.lista.filtros}
-            aria-pressed={filtrosAbertos}
-            disabled={etapas.length === 0 && atendentes.length <= 1}
-            onClick={() => setFiltrosAbertos((abertos) => !abertos)}
-          >
-            <SlidersHorizontal className="size-4" aria-hidden />
-          </Button>
+          <div className="flex items-center gap-1">
+            {chatInternoHabilitado && (
+              <div className="flex items-center gap-1">
+                <DropdownMenu open={novaInternaAberta} onOpenChange={setNovaInternaAberta}>
+                  <DropdownMenuTrigger render={<Button type="button" variant="outline" size="icon-sm" aria-label={catalogo.chatInterno.novaConversa} />}><Plus className="size-4" aria-hidden /></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setNovaInternaAberta(true)}>{catalogo.chatInterno.novaConversa}</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {novaInternaAberta && <>
+                  <SelectContato contatos={contatosInternos} valor={contatoInternoSelecionado || contatoSelecionado} onChange={onContatoInternoChange ?? setContatoSelecionado} placeholder={catalogo.chatInterno.selecionarPessoa} />
+                  <Button type="button" variant="outline" size="icon-sm" aria-label={catalogo.chatInterno.novaConversa} disabled={!(contatoInternoSelecionado || contatoSelecionado)} onClick={onCriarConversaInterna}><Plus className="size-4" aria-hidden /></Button>
+                </>}
+              </div>
+            )}
+            <Button type="button" variant="outline" size="icon-sm" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
+              <SlidersHorizontal className="size-4" aria-hidden />
+            </Button>
+          </div>
         </div>
         <div className="relative mt-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -226,14 +261,33 @@ export function ListaConversas({
         ) : (
           filtrados.map((cartao) => (
             <CartaoConversa
-              key={cartao.leadId}
+              key={cartao.tipo === "EQUIPE_INTERNA" ? `equipe-${cartao.conversaId}` : `cliente-${cartao.leadId}`}
               cartao={cartao}
-              selecionado={cartao.leadId === selecionadoId}
+              selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
               onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
             />
           ))
         )}
+        {visao === "TODOS" && hasNextPage && (
+          <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
+            {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
+          </div>
+        )}
       </ScrollArea>
     </div>
+  );
+}
+
+function SelectContato({
+  contatos,
+  valor,
+  onChange,
+  placeholder,
+}: { contatos: { id: string; nome: string }[]; valor: string; onChange: (valor: string) => void; placeholder: string }) {
+  return (
+    <Select value={valor} onValueChange={(novoValor) => onChange(novoValor ?? "")}>
+      <SelectTrigger className="h-9 w-32" aria-label={placeholder}><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>{contatos.map((contato) => <SelectItem key={contato.id} value={contato.id}>{contato.nome}</SelectItem>)}</SelectContent>
+    </Select>
   );
 }

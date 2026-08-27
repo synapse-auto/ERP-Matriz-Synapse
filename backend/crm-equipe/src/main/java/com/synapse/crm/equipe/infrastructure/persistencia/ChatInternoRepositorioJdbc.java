@@ -48,6 +48,47 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     }
 
     @Override
+    public List<ConversaResumo> listarConversasPaginado(UUID usuarioId, Instant depoisDe,
+            UUID depoisDoId, int limite) {
+        String base = """
+                SELECT c.id, c.tipo::text,
+                       COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '') AS participantes,
+                       ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
+                       COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
+                           WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
+                             AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas
+                  FROM chat_interno_conversa c
+                  JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
+                  LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
+                    AND outros.usuario_id <> ?
+                  LEFT JOIN usuario u ON u.id = outros.usuario_id
+                  LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
+                    WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
+                 GROUP BY c.id, c.tipo, ultima.conteudo, ultima.enviado_em, cp.lido_ate
+                """;
+        String filtro = "";
+        List<Object> parametros = new java.util.ArrayList<>(List.of(usuarioId, usuarioId, usuarioId));
+        if (depoisDoId != null && depoisDe == null) {
+            filtro = " WHERE ultima_mensagem_em IS NULL AND id < ?";
+            parametros.add(depoisDoId);
+        } else if (depoisDoId != null) {
+            filtro = " WHERE (ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND id < ?)"
+                    + " OR ultima_mensagem_em IS NULL)";
+            parametros.add(Timestamp.from(depoisDe));
+            parametros.add(Timestamp.from(depoisDe));
+            parametros.add(depoisDoId);
+        }
+        String sql = "SELECT id,tipo,participantes,ultima_mensagem,ultima_mensagem_em,nao_lidas FROM ("
+                + base + ") itens" + filtro
+                + " ORDER BY ultima_mensagem_em DESC NULLS LAST, id DESC LIMIT ?";
+        parametros.add(Math.min(101, Math.max(1, limite)));
+        return jdbc.query(sql, (r, i) -> new ConversaResumo(
+                r.getObject("id", UUID.class), TipoConversaChat.valueOf(r.getString("tipo")),
+                r.getString("participantes"), r.getString("ultima_mensagem"),
+                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas")), parametros.toArray());
+    }
+
+    @Override
     public List<ContatoResumo> listarContatos(UUID usuarioId) {
         return jdbc.query("SELECT id,nome FROM usuario WHERE ativo AND id<>? ORDER BY nome",
                 (r, i) -> new ContatoResumo(r.getObject("id", UUID.class), r.getString("nome")), usuarioId);

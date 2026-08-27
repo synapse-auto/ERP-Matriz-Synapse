@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.application.painel;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,10 @@ public interface PainelDeAtendimentosRepositorio {
      */
     List<CartaoAtendimento> listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
+
+    /** Leitura limitada para composição da inbox; a chave é (última mensagem, atendimento). */
+    List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
+            boolean restritoAoProprioAtendente, Instant depoisDe, UUID depoisDoId, int limite);
 
     /**
      * Quantos cartoes {@link #listar} devolveria para a mesma visao — os badges das abas (E17b §Bloco

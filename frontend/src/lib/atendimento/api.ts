@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
+  ItemInbox,
   ConfiguracaoComposer,
   ContagemPorVisao,
   EnvioResposta,
@@ -19,10 +20,25 @@ import type {
   VisaoAtendimento,
 } from "./types";
 
+export interface PaginaInbox {
+  itens: ItemInbox[];
+  proximoCursor: string | null;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export function listarAtendimentos(visao: VisaoAtendimento): Promise<CartaoAtendimento[]> {
   return apiFetch<CartaoAtendimento[]>(`/api/v1/atendimentos?visao=${visao}`);
+}
+
+export function listarInboxUnificada(
+  visao: VisaoAtendimento,
+  cursor?: string | null,
+  limite = 50,
+): Promise<PaginaInbox> {
+  const params = new URLSearchParams({ visao, limite: String(limite) });
+  if (cursor) params.set("cursor", cursor);
+  return apiFetch<PaginaInbox>(`/api/v1/atendimentos/inbox?${params.toString()}`);
 }
 
 /** Os badges das abas — uma contagem por visão, na mesma chamada (E17b §Bloco 6). */

@@ -72,6 +72,7 @@
 |---|---|---|---|---|
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` |
+| GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência, com clientes visíveis e equipe interna participante | Atendente | `InboxUnificadaController` |
 | POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
@@ -139,6 +140,20 @@ O componente `fila-outbox` mede a fila transacional que o backend realmente cons
 | GET | `/api/v1/equipe/avaliacoes` | Resumo de avaliações da equipe | Gestor | `AvaliacaoController` · `EquipeEPresencaIT` |
 
 ## Parte D — WebSocket (tempo real)
+
+### ADR — Inbox unificada (E62)
+
+A tela de Atendimentos usa `GET /api/v1/atendimentos/inbox` como read model discriminado:
+`tipo=CLIENTE` mantém os campos e regras de `Atendimento`, enquanto `tipo=EQUIPE_INTERNA`
+expõe somente a conversa interna da qual o usuário participa. A união, ordenação pela última
+mensagem e cursor são feitos no backend com consultas keyset limitadas por fonte (não há carga
+completa em memória), para não perder itens ao compor páginas. O contrato e a autorização HTTP
+são exercitados por `InboxUnificadaControllerIT` (Postgres/Testcontainers), incluindo participante,
+gestor não participante e 401. Conversas
+internas aparecem apenas em `TODOS`; os badges de status continuam contando apenas clientes.
+O endpoint específico de chat interno permanece para compatibilidade. O botão de novo contato
+WhatsApp não é exibido nesta etapa porque não existe caso de uso/contrato de criação de lead e a
+política de primeiro contato (template/opt-in) ainda não está definida.
 
 | Destino | Direção | Payload | Proteção | Evidência |
 |---|---|---|---|---|

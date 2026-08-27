@@ -119,7 +119,9 @@
     },
     "lista": {
       "busca": "Buscar cliente ou protocolo...",
-      "filtros": "Filtros da lista"
+      "filtros": "Filtros da lista",
+      "carregarMais": "Carregar mais conversas",
+      "carregandoMais": "Carregando conversas..."
     },
     "visoes": {
       "ativos": "Ativos",

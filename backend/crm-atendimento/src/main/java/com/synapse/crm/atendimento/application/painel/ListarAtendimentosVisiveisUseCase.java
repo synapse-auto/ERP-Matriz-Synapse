@@ -1,6 +1,8 @@
 package com.synapse.crm.atendimento.application.painel;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -34,5 +36,14 @@ public class ListarAtendimentosVisiveisUseCase {
         UsuarioAutenticado atual = usuarioContext.atual();
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
         return painel.listar(visao, atual.id(), restritoAoProprioAtendente);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
+    public List<CartaoAtendimento> executarPaginado(VisaoAtendimento visao, int limite,
+            Instant depoisDe, UUID depoisDoId) {
+        UsuarioAutenticado atual = usuarioContext.atual();
+        return painel.listarPaginado(visao, atual.id(), !atual.enxergaTodosOsLeads(), depoisDe,
+                depoisDoId, limite);
     }
 }

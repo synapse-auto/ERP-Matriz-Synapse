@@ -18,7 +18,6 @@ import {
   LogOut,
   Megaphone,
   MessageSquareText,
-  MessagesSquare,
   Settings,
   Tag,
   TrendingUp,
@@ -53,7 +52,6 @@ const ITENS_MENU: ItemDeMenu[] = [
   { chave: "bancoArquivos", rota: "/banco-arquivos", icone: Folder, flag: "banco_arquivos" },
   { chave: "mensagensProgramadas", rota: "/mensagens-programadas", icone: Clock },
   { chave: "lembretes", rota: "/lembretes", icone: Bell },
-  { chave: "chatInterno", rota: "/chat-interno", icone: MessagesSquare, flag: "chat_interno" },
 ];
 
 const ITENS_GESTAO: ItemDeMenu[] = [
