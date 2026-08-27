@@ -51,9 +51,18 @@ describe("NovidadesDialog", () => {
   it("agrupa itens por data e mostra a tag NOVO apenas onde configurado", () => {
     render(<NovidadesDialog aberto={true} onFechar={vi.fn()} />);
 
-    // Testa datas renderizadas (deve formatar as datas)
-    expect(screen.getByText(/22 de julho de 2026/i)).toBeInTheDocument();
-    expect(screen.getByText(/13 de julho de 2026/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "22 de julho de 2026",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "13 de julho de 2026",
+      }),
+    ).toBeInTheDocument();
 
     // Testa títulos dos itens
     expect(screen.getByText("Item Novo 1")).toBeInTheDocument();

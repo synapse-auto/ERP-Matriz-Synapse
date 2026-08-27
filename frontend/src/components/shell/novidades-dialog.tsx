@@ -79,7 +79,7 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
               {datasOrdenadas.map(data => (
                 <div key={data} className="space-y-4">
                   <h3 className="text-sm font-semibold text-muted-foreground border-b pb-2">{
-                    new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(data + "T12:00:00"))
+                    new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(data + "T12:00:00"))
                   }</h3>
                   <div className="flex flex-col gap-6">
                     {agrupadasPorData[data].map((item, i) => (
