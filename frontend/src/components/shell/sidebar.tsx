@@ -216,7 +216,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           aria-expanded={!retraida}
           aria-label={retraida ? textos.menu.reabrir : textos.menu.retrair}
           title={retraida ? textos.menu.reabrir : textos.menu.retrair}
-          className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+          className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover max-sm:hidden"
         >
           {retraida ? (
             <PanelLeftOpen className="size-[18px]" aria-hidden />
