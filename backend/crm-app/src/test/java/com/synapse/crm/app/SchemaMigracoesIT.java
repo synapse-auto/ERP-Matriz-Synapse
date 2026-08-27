@@ -80,6 +80,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "etapa_atendimento",
                     "evento_timeline",
                     "feature_flag",
+                    "feedback_usuario",
                     "filtro_modular",
                     "horario_trabalho",
                     "lead",
@@ -142,6 +143,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "status_msg_prog",
                     "status_presenca",
                     "tipo_conversa_chat",
+                    "tipo_feedback",
                     "tipo_mensagem",
                     "tipo_rotina");
 
@@ -176,6 +178,8 @@ class SchemaMigracoesIT extends PostgresIT {
                             "idx_etapa_ordem",
                             "idx_etapa_unica_ganha",
                             "idx_evento_timeline_tipo_criado_em",
+                            "idx_feedback_criacao",
+                            "idx_feedback_tipo_criacao",
                             "idx_msg_rapida_atendente_chave",
                             "idx_mensagem_atendimento");
             assertThat(existentes)

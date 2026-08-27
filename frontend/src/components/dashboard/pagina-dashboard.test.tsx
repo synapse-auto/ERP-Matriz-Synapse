@@ -46,6 +46,10 @@ describe("PaginaDashboard", () => {
 
     render(<PaginaDashboard />);
 
+    expect(screen.getByTestId("dashboard-conteudo")).toHaveClass("bg-background");
+    expect(screen.getByTestId("dashboard-conteudo")).toHaveClass("min-h-full");
+    expect(screen.getByLabelText("Filtros")).toHaveClass("bg-card/75");
+    expect(screen.getAllByText("Atendimentos")[0].closest('[data-slot="card"]')).toHaveClass("bg-card");
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("50,0%")).toBeInTheDocument();
     expect(screen.getByText("1h 30min")).toBeInTheDocument();

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, CartaoEquipeInterna } from "@/lib/atendimento/types";
 import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 
 vi.mock("@/components/ui/avatar", () => {
@@ -19,6 +19,7 @@ vi.mock("@/components/ui/avatar", () => {
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
+    chatInterno: { titulo: "Chat interno" },
     atendimentos: {
       canais: { whatsapp: "WhatsApp" },
       cartao: {
@@ -127,5 +128,26 @@ describe("CartaoConversa — RN-CRM-05", () => {
       "src",
       "https://cdn.example/foto.webp",
     );
+  });
+
+  it("mantém o card interno na mesma densidade, com indicador e sem dados de lead", () => {
+    const interno: CartaoEquipeInterna = {
+      tipo: "EQUIPE_INTERNA",
+      atendimentoId: null,
+      conversaId: "conversa-1",
+      nome: "Equipe comercial",
+      avatarUrl: null,
+      identificadorVisual: "conversa-1",
+      ultimaMensagemPreview: "Vamos revisar a proposta",
+      ultimaMensagemEm: "2026-08-16T12:45:00Z",
+      naoLidas: 2,
+      participantes: "Ana, Bruno",
+      tipoConversa: "GRUPO",
+    };
+    render(<CartaoConversa cartao={interno} selecionado onAbrirAtendimento={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Equipe comercial/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByText("Chat interno")).toBeInTheDocument();
+    expect(screen.getByText("Vamos revisar a proposta")).toBeInTheDocument();
+    expect(screen.queryByText("WhatsApp")).not.toBeInTheDocument();
   });
 });

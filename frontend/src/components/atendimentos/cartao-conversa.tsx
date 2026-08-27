@@ -29,6 +29,7 @@ export function CartaoConversa({
       <button
         type="button"
         onClick={onAbrirAtendimento}
+        aria-current={selecionado ? "true" : undefined}
         className={cn(
           "m-1.5 flex w-[calc(100%-0.75rem)] items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-muted",
           selecionado && "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
@@ -63,6 +64,7 @@ export function CartaoConversa({
     <button
       type="button"
       onClick={onAbrirAtendimento}
+      aria-current={selecionado ? "true" : undefined}
       className={cn(
         "m-1.5 flex w-[calc(100%-0.75rem)] items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-muted",
         selecionado &&

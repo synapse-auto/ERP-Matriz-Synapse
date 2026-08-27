@@ -6,6 +6,7 @@ import {
   CheckCheck,
   MessageCircleMore,
   MoreHorizontal,
+  PanelRightOpen,
   Phone,
   Search,
 } from "lucide-react";
@@ -57,6 +58,8 @@ type Props = {
   conversa: CartaoAtendimento;
   onAlternarBusca: () => void;
   buscaAberta: boolean;
+  painelDetalhesAberto: boolean;
+  onAlternarPainelDetalhes: () => void;
 };
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
@@ -64,6 +67,8 @@ export function CabecalhoConversa({
   conversa,
   onAlternarBusca,
   buscaAberta,
+  painelDetalhesAberto,
+  onAlternarPainelDetalhes,
 }: Props) {
   const catalogo = useTextos();
   const textosFinalizar = catalogo.atendimentos.finalizar;
@@ -259,6 +264,20 @@ export function CabecalhoConversa({
           >
             <Phone className="size-4" aria-hidden />
           </a>
+        )}
+        {!painelDetalhesAberto && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onAlternarPainelDetalhes}
+            aria-expanded="false"
+            aria-controls="painel-detalhes-lead"
+            aria-label={catalogo.atendimentos.painel.reabrir}
+            title={catalogo.atendimentos.painel.reabrir}
+          >
+            <PanelRightOpen className="size-4" aria-hidden />
+          </Button>
         )}
       </div>
 

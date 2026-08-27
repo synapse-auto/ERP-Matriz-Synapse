@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.hoisted(() => ({
@@ -48,6 +49,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
     menu: {
       grupoMenu: "Menu",
       grupoGestao: "Gestão",
+      retrair: "Retrair menu lateral",
+      reabrir: "Reabrir menu lateral",
+      contagemPendentes: "Atendimentos, {quantidade} pendentes",
       itens: {
         atendimentos: "Atendimentos",
         dashboard: "Dashboard",
@@ -58,10 +62,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
         lembretes: "Lembretes",
         equipe: "Equipe",
         automacao: "Automação",
+        feedbacks: "Feedbacks",
+        administracao: "Administração",
       },
     },
+    administracao: { restrito: "Acesso restrito" },
     rodape: {
       trocarConta: "Trocar conta",
+      trocarSenha: "Trocar senha",
       sair: "Sair",
       presenca: { rotulo: "Status de presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
@@ -73,9 +81,13 @@ import { Sidebar } from "./sidebar";
 
 function renderSidebar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  function SidebarControlada() {
+    const [retraida, setRetraida] = useState(false);
+    return <Sidebar retraida={retraida} onAlternar={() => setRetraida((atual) => !atual)} />;
+  }
   return render(
     <QueryClientProvider client={cliente}>
-      <Sidebar />
+      <SidebarControlada />
     </QueryClientProvider>,
   );
 }
@@ -107,6 +119,12 @@ describe("sidebar", () => {
     expect(screen.queryByText("Campanhas")).not.toBeInTheDocument();
   });
 
+  it("mantém o conteúdo da barra lateral sem overflow horizontal", () => {
+    renderSidebar();
+
+    expect(screen.getByRole("complementary")).toHaveClass("overflow-x-hidden");
+  });
+
   it("esconde Equipe para quem não é GESTOR/ADMINISTRADOR", async () => {
     renderSidebar();
 
@@ -121,6 +139,31 @@ describe("sidebar", () => {
     expect(screen.queryByText("Automação")).not.toBeInTheDocument();
   });
 
+  it("oferece Feedbacks para qualquer papel autenticado", async () => {
+    renderSidebar();
+
+    expect(await screen.findByRole("link", { name: "Feedbacks" })).toHaveAttribute(
+      "href",
+      "/feedbacks",
+    );
+  });
+
+  it("mostra Administração somente ao ADMINISTRADOR", async () => {
+    authMock.papel = "GESTOR";
+    const tela = renderSidebar();
+    await screen.findByText("Feedbacks");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+
+    tela.unmount();
+    authMock.papel = "ADMINISTRADOR";
+    renderSidebar();
+    expect(await screen.findByRole("link", { name: /Administração/ })).toHaveAttribute(
+      "href",
+      "/administracao",
+    );
+    expect(screen.getByText("Acesso restrito")).toHaveClass("text-cor-ia");
+  });
+
   it("oferece engrenagem de configurações separada do popup de presença", async () => {
     renderSidebar();
 
@@ -128,7 +171,39 @@ describe("sidebar", () => {
       "href",
       "/configuracoes",
     );
-    expect(screen.getByRole("button", { name: /Ana Beatriz/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Status de presença: Online" })).toBeInTheDocument();
+  });
+
+  it("retrai e reabre preservando links, badge, presença, configurações e logout", async () => {
+    renderSidebar();
+
+    const sidebar = screen.getByRole("complementary");
+    const retrair = await screen.findByRole("button", { name: "Retrair menu lateral" });
+    expect(sidebar).toHaveClass("w-[260px]");
+    expect(retrair).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
+
+    fireEvent.click(retrair);
+
+    expect(sidebar).toHaveClass("w-[76px]");
+    const reabrir = screen.getByRole("button", { name: "Reabrir menu lateral" });
+    expect(reabrir).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "Atendimentos, 7 pendentes" })).toHaveAttribute(
+      "href",
+      "/atendimentos",
+    );
+    expect(screen.getByRole("link", { name: "Agenda de Contatos" })).toHaveAttribute(
+      "title",
+      "Agenda de Contatos",
+    );
+    expect(screen.getByRole("link", { name: "Abrir configurações" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+    expect(await screen.findByRole("button", { name: "Sair" })).toBeInTheDocument();
+
+    fireEvent.click(reabrir);
+    expect(sidebar).toHaveClass("w-[260px]");
+    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {
@@ -142,8 +217,7 @@ describe("sidebar", () => {
   it("abre o popup de presença e troca o status, sem select nativo", async () => {
     renderSidebar();
 
-    const botaoConta = await screen.findByText("Ana Beatriz");
-    fireEvent.click(botaoConta.closest("button")!);
+    fireEvent.click(await screen.findByRole("button", { name: "Status de presença: Online" }));
 
     const opcaoAusente = await screen.findByText("Ausente");
     fireEvent.click(opcaoAusente);
@@ -185,4 +259,5 @@ describe("sidebar", () => {
     const link = await screen.findByRole("link", { name: "Atendimentos" });
     expect(link).not.toHaveTextContent("7");
   });
+
 });

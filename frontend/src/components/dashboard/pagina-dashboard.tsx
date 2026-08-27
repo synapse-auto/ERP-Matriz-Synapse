@@ -68,7 +68,10 @@ export function PaginaDashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 lg:p-8">
+    <div
+      data-testid="dashboard-conteudo"
+      className="flex min-h-full flex-col gap-6 bg-background p-6 lg:p-8"
+    >
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
@@ -85,7 +88,7 @@ export function PaginaDashboard() {
         ))}
       </nav>
 
-      <section className="rounded-xl border bg-muted/30 p-4" aria-label={textos.filtros.rotulo}>
+      <section className="rounded-xl border bg-card/75 p-4" aria-label={textos.filtros.rotulo}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-28">
             <label className="mb-1.5 block text-xs font-semibold text-muted-foreground" htmlFor="dashboard-ano">

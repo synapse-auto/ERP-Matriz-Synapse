@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
 
+const finalizarTodos = vi.fn();
+const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
+
+vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
+  useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: quantidadeFinalizavel.valor }, isLoading: false }),
+}));
+
 const cartoes: ItemInbox[] = [
   {
     atendimentoId: "protocolo-001",
@@ -82,6 +90,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         potenciais: "Potenciais",
       },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
+      finalizar: {
+        todosMenu: "Mais ações",
+        todos: "Finalizar todos",
+        todosTitulo: "Finalizar atendimentos",
+        todosDescricao: "Encerrar {quantidade}",
+        todosConfirmar: "Finalizar {quantidade}",
+        todosCancelar: "Cancelar",
+        todosResultado: "{finalizados} finalizados; {recusados} recusados",
+        todosErro: "Erro",
+      },
       cartao: {
         semAtendente: "Sem atendente",
         vazio: "Nenhuma conversa",
@@ -128,6 +146,17 @@ describe("ListaConversas", () => {
     expect(screen.queryByText("Ana Vidros")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));
     expect(abrir).toHaveBeenCalledWith(cartoes[1]);
+  });
+
+  it("abre a finalização global na barra da lista com a quantidade real", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar todos" }));
+
+    expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
+    expect(finalizarTodos).toHaveBeenCalledTimes(1);
   });
 
   it("seleciona conversa interna pelo tipo e conversaId", () => {

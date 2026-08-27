@@ -18,7 +18,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application uses the locally versioned [Hanken Grotesk](https://github.com/marcologous/Hanken-Grotesk)
+family through [`next/font/local`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts).
+The variable font is loaded from `src/app/fonts/HankenGrotesk-Variable.woff2`, so every route keeps
+the same typography without a Google Fonts or other CDN dependency. Technical values use the local
+JetBrains Mono font through the `font-mono` token.
+
+### WebSocket no desenvolvimento local
+
+O servidor Next local não encaminha upgrades WebSocket para o backend. Para testar o tempo real
+fora do proxy da stack, inicie o frontend com `NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws` e
+reinicie o processo após alterar a variável. Em homologação/produção, mantenha a variável vazia:
+o navegador usa a origem pública (`/ws`) e o proxy da stack encaminha a conexão para o backend.
 
 ## Learn More
 

@@ -205,6 +205,10 @@ export function PaginaAgenda() {
         <PainelLateralLead
           leadId={leadNoPainel}
           onFechar={() => setLeadNoPainel(null)}
+          onAbrirAtendimento={() => {
+            const lead = leads.find((l) => l.id === leadNoPainel);
+            if (lead) abrirAtendimento(lead);
+          }}
         />
       )}
     </div>
