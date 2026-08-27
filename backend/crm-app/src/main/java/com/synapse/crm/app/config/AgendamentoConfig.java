@@ -2,6 +2,7 @@ package com.synapse.crm.app.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
@@ -27,6 +28,11 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
  */
 @Configuration
 @EnableScheduling
+@ConditionalOnProperty(
+        prefix = "synapse.agendamento",
+        name = "habilitado",
+        havingValue = "true",
+        matchIfMissing = true)
 public class AgendamentoConfig implements SchedulingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(AgendamentoConfig.class);

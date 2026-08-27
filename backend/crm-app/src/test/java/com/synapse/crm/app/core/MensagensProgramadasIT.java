@@ -18,8 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.synapse.crm.app.PostgresIT;
@@ -36,6 +38,7 @@ import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 })
 class MensagensProgramadasIT extends PostgresIT {
     @Autowired TestRestTemplate http; @Autowired JdbcTemplate jdbc; @Autowired ObjectMapper json;
+    @Autowired ApplicationContext contexto;
     @Autowired AgendadorDeMensagensProgramadas agendador;
     @Autowired PublicadorDaOutbox publicador;
     @Autowired CanalFake canal;
@@ -78,6 +81,15 @@ class MensagensProgramadasIT extends PostgresIT {
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(canal.enviados()).hasSize(1));
         agendador.processarPendentes();
         assertThat(canal.enviados()).hasSize(1);
+    }
+    @Test @DisplayName("scheduler automatico fica desligado na integracao, mas o ponto manual continua disponivel") void schedulerNaoERegistradoNoContextoDeIntegracao(){
+        assertThat(contexto.getBeansOfType(ScheduledAnnotationBeanPostProcessor.class)).isEmpty();
+    }
+    @Test @DisplayName("job de fundo nao processa linha criada por outro cenario") void jobDeFundoNaoProcessaLinhaDoCenario(){
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, leadAna, ana, "Nao processar em segundo plano", Timestamp.from(Instant.now().minusSeconds(30)));
+
+        await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(2)).untilAsserted(() -> assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("AGENDADA"));
     }
     @Test @DisplayName("programada futura e cancelada nunca entram no pipeline") void futuraOuCanceladaNaoProcessa(){
         UUID futura = UUID.randomUUID();

@@ -85,6 +85,15 @@ public abstract class PostgresIT {
         // @Scheduled na mao (ver CanalWhatsAppIT, TempoRealIT), nunca espera o timer real.
         registro.add("synapse.canal.outbox.intervalo-ms", () -> "3600000");
         registro.add("synapse.canal.webhook.intervalo-ms", () -> "3600000");
+        // Frequencia curta apenas para que o teste de isolamento detecte imediatamente uma
+        // eventual reintroducao acidental do scheduler. Com synapse.agendamento.habilitado=false
+        // nenhum timer e registrado; em producao este valor nunca e aplicado.
+        registro.add("synapse.suporte.mensagens-programadas.intervalo-ms", () -> "100");
+        // Nenhum @Scheduled pode sobreviver ao contexto que o Spring devolve ao cache: os
+        // containers e o Postgres sao compartilhados por todas as suites. O ponto de entrada
+        // continua sendo exercitado explicitamente pelos testes, mas o scheduler de producao
+        // nao e registrado em nenhum contexto de integracao.
+        registro.add("synapse.agendamento.habilitado", () -> "false");
         // O monitor operacional tem testes que chamam seu caso de uso explicitamente. Deixa-lo
         // agendado em todos os ApplicationContexts publicaria alertas de suites alheias e repetiria
         // a mesma interferencia entre testes que ja ocorreu com o publisher da outbox.
