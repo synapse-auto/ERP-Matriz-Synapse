@@ -21,6 +21,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+    Sparkles,
+    Shield,
   Tag,
   TrendingUp,
   Users,
@@ -36,6 +38,7 @@ import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { NovidadesDialog } from "./novidades-dialog";
 
 interface ItemDeMenu {
   chave: string;
@@ -62,6 +65,7 @@ const ITENS_GESTAO: ItemDeMenu[] = [
   { chave: "automacao", rota: "/automacao", icone: Bot },
   { chave: "horarios", rota: "/horarios", icone: CalendarClock, flag: "horarios" },
   { chave: "relatorios", rota: "/relatorios", icone: BarChart3, flag: "relatorios" },
+    { chave: "administracao", rota: "/administracao", icone: Shield },
 ];
 
 const OPCOES_PRESENCA: StatusPresenca[] = ["ONLINE", "AUSENTE", "OFFLINE"];
@@ -113,6 +117,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
   const pathname = usePathname();
   const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
   const { data: tema } = useTemaConfig();
+    const [novidadesAberto, setNovidadesAberto] = useState(false);
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
   const { data: contagens } = useContagemDeAtendimentos();
@@ -132,6 +137,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
 
   function itemVisivel(item: ItemDeMenu): boolean {
     if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
+    if (item.chave === "administracao" && papel !== "ADMINISTRADOR") return false;
     if (
       item.chave === "automacao" &&
       papel !== "GESTOR" &&
@@ -159,6 +165,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
     })[status];
 
   return (
+    <>
     <aside
       className={
         retraida
@@ -210,7 +217,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           aria-expanded={!retraida}
           aria-label={retraida ? textos.menu.reabrir : textos.menu.retrair}
           title={retraida ? textos.menu.reabrir : textos.menu.retrair}
-          className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+          className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
         >
           {retraida ? (
             <PanelLeftOpen className="size-[18px]" aria-hidden />
@@ -341,13 +348,15 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
             href="/configuracoes"
             aria-label={textos.configuracoes.abrir}
             title={textos.configuracoes.abrir}
-            className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
+            className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
           >
             <Settings className="size-4" />
           </Link>
         </div>
       </div>
     </aside>
+      <NovidadesDialog aberto={novidadesAberto} onFechar={() => setNovidadesAberto(false)} />
+    </>
   );
 }
 

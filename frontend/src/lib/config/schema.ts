@@ -81,6 +81,14 @@ export type Tema = z.infer<typeof TemaSchema>;
 
 /** Espelha textos.json — catálogo de strings de UI. Cresce conforme novas telas nascem. */
 export const TextosSchema = z.object({
+  novidades: z.object({
+    titulo: z.string(),
+    subtituloNovidades: z.string(),
+    subtituloEmBreve: z.string(),
+    abas: z.object({ novidades: z.string(), embreve: z.string() }),
+    itensNovidades: z.array(z.object({ titulo: z.string(), descricao: z.string(), data: z.string() })),
+    itensEmBreve: z.array(z.object({ icone: z.string(), titulo: z.string(), descricao: z.string(), status: z.string(), tom: z.string(), previsao: z.string() })),
+  }),
   app: z.object({
     nome: z.string(),
     marca: z.string(),
@@ -392,7 +400,7 @@ export const TextosSchema = z.object({
         usuario: z.string(),
       }),
     }),
-    acoes: z.object({ lembrete: z.string(), mensagemProgramada: z.string() }),
+    acoes: z.object({ lembrete: z.string(), mensagemProgramada: z.string(), abrirAtendimento: z.string(), ligar: z.string() }),
   }),
   lembretes: z.object({
     titulo: z.string(), descricao: z.string(), novo: z.string(), carregando: z.string(),
