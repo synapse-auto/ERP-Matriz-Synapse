@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
+import com.synapse.crm.sharedkernel.midia.*;
+import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
+import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 
 /** Configuracao operacional minima que o composer precisa antes de iniciar uma gravacao. */
 @Service
@@ -28,7 +31,7 @@ public class ObterConfiguracaoComposerUseCase {
     @PreAuthorize("isAuthenticated()")
     public Resultado executar() {
         long tamanhoMaximoAudio = limites
-                .limiteEmBytes(TipoMensagem.AUDIO)
+                .limiteEmBytes(CategoriaDeMidia.AUDIO)
                 .orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(TipoMensagem.AUDIO));
         long duracaoMaximaAudio = limites
                 .duracaoMaximaAudioEmSegundos()

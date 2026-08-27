@@ -19,12 +19,13 @@ public interface ChatInternoRepositorio {
     List<UUID> participantes(UUID conversaId);
     PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite);
     MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo);
+    MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados);
     void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando);
 
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas) {}
     record ContatoResumo(UUID id, String nome) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
-            String conteudo, Instant enviadoEm) {}
+            String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {}
     record PaginaMensagens(List<MensagemResumo> mensagens, Instant proximoCursor) {}
 }

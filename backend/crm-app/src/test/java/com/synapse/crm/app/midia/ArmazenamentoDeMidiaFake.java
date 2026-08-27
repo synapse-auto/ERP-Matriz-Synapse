@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /**
  * Storage em memoria para teste — mesmo espirito de {@code CanalFake}: implementa a porta e entra
@@ -78,5 +78,9 @@ public class ArmazenamentoDeMidiaFake implements ArmazenamentoDeMidia {
 
     public String ultimoMimetype() {
         return objetos.values().stream().reduce((anterior, atual) -> atual).map(Objeto::mimetype).orElse(null);
+    }
+    @Override
+    public void remover(String urlAssinada) {
+        // No-op for the fake, or we could track removed ones
     }
 }

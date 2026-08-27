@@ -1,4 +1,4 @@
-package com.synapse.crm.atendimento.domain.midia;
+package com.synapse.crm.sharedkernel.midia;
 
 /**
  * Inspeção mínima e defensiva de trilhas ISO-BMFF (MP4/QuickTime). Não interpreta codecs nem executa

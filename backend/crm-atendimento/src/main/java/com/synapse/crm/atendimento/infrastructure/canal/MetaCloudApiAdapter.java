@@ -22,7 +22,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /**
  * Anti-Corruption Layer da Meta Cloud API.

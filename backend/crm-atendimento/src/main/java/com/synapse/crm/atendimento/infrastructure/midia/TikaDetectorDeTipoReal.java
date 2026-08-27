@@ -3,7 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.midia;
 import org.apache.tika.Tika;
 import org.springframework.stereotype.Component;
 
-import com.synapse.crm.atendimento.domain.midia.DetectorDeTipoReal;
+import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 
 /**
  * Deteccao por magic bytes com Apache Tika — nao le extensao nem {@code Content-Type} declarado.

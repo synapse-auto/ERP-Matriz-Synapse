@@ -44,7 +44,7 @@ class ChatInternoUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
         when(repositorio.participante(conversa, usuario)).thenReturn(true);
         Instant quando = Instant.parse("2026-08-24T03:00:00Z");
-        var salva = new ChatInternoRepositorio.MensagemResumo(UUID.randomUUID(), conversa, usuario, "Ana", "texto", quando);
+        var salva = new ChatInternoRepositorio.MensagemResumo(UUID.randomUUID(), conversa, usuario, "Ana", "TEXTO", "texto", null, null, quando);
         when(repositorio.salvarMensagem(conversa, usuario, "texto")).thenReturn(salva);
 
         new EnviarMensagemChatUseCase(repositorio, contexto, eventos).executar(conversa, " texto ");

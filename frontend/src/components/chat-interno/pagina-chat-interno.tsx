@@ -12,7 +12,7 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { listarContatosChat, listarConversasChat, listarMensagensChat, abrirConversaDireta, enviarMensagemChat, marcarChatComoLido } from "@/lib/chat-interno/api";
+import { listarContatosChat, listarConversasChat, listarMensagensChat, abrirConversaDireta, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido } from "@/lib/chat-interno/api";
 import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
 
 export function PaginaChatInterno() {
@@ -37,6 +37,7 @@ export function PaginaChatInterno() {
   useEffect(() => { if (conversaId) { void marcarChatComoLido(conversaId); } }, [conversaId]);
   const abrir = useMutation({ mutationFn: abrirConversaDireta, onSuccess: (r) => { setConversaId(r.id); setContatoId(""); atualizar(); } });
   const enviar = useMutation({ mutationFn: ({ id, conteudo }: { id: string; conteudo: string }) => enviarMensagemChat(id, conteudo), onSuccess: atualizar });
+  const enviarMidia = useMutation({ mutationFn: ({ id, arquivo, legenda }: { id: string; arquivo: File; legenda?: string }) => enviarMidiaChat(id, arquivo, legenda), onSuccess: atualizar });
   const conversaAtual = useMemo(() => conversas.data?.find((c) => c.id === conversaId), [conversas.data, conversaId]);
   if (conversas.isError) return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void conversas.refetch()} />;
   return <div className="flex h-full min-h-0 flex-col gap-5 p-6">
@@ -49,7 +50,7 @@ export function PaginaChatInterno() {
       </CardContent></Card>
       <Card className="min-h-0"><CardHeader className="p-0"><CardTitle className="sr-only">{conversaAtual?.participantes ?? textos.selecioneConversa}</CardTitle>{conversaAtual && <CabecalhoChatInterno conversa={conversaAtual} textos={textos} />}</CardHeader><CardContent className="flex min-h-0 flex-1 flex-col gap-3 p-0">
         {!conversaId && <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.selecioneConversa}</div>}
-        {conversaId && <>{mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} />}<ComposerChatInterno textos={textos} enviando={enviar.isPending} erro={enviar.isError} onEnviar={(conteudo) => enviar.mutateAsync({ id: conversaId, conteudo })} /></>}
+        {conversaId && <>{mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} />}<ComposerChatInterno textos={textos} enviando={enviar.isPending || enviarMidia.isPending} erro={enviar.isError || enviarMidia.isError} onEnviar={(conteudo) => enviar.mutateAsync({ id: conversaId, conteudo })} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ id: conversaId, arquivo, legenda })} /></>}
       </CardContent></Card>
     </div>
     {contatos.data && contatos.data.length > 0 && !conversaId && <div className="flex max-w-md gap-2"><Select value={contatoId} onValueChange={(v) => setContatoId(v ?? "")}><SelectTrigger className="flex-1"><SelectValue placeholder={textos.selecionarPessoa} /></SelectTrigger><SelectContent>{contatos.data.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select><Button disabled={!contatoId || abrir.isPending} onClick={() => abrir.mutate(contatoId)}>{textos.novaConversa}</Button></div>}

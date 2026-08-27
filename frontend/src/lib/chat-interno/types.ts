@@ -5,6 +5,6 @@ export interface ChatConversa {
 }
 export interface ChatMensagem {
   id: string; conversaId: string; remetenteId: string; remetenteNome: string;
-  conteudo: string; enviadoEm: string;
+  tipo?: string; conteudo: string | null; midiaUrl?: string | null; midiaMetadados?: unknown; enviadoEm: string;
 }
 export interface PaginaChatMensagens { mensagens: ChatMensagem[]; proximoCursor: string | null }

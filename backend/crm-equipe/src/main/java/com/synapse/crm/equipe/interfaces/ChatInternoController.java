@@ -1,5 +1,6 @@
 package com.synapse.crm.equipe.interfaces;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -30,27 +31,31 @@ import com.synapse.crm.equipe.application.chat.AbrirConversaDiretaUseCase;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
+import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 @RestController
 @RequestMapping("/api/v1/chat-interno")
 @Tag(name = "Chat interno", description = "Conversas diretas de texto entre integrantes da equipe.")
 @SecurityRequirement(name = "bearerAuth")
-class ChatInternoController {
+public class ChatInternoController {
     private final ListarConversasChatUseCase listar;
     private final ListarContatosChatUseCase contatos;
     private final AbrirConversaDiretaUseCase abrir;
     private final ListarMensagensChatUseCase mensagens;
     private final EnviarMensagemChatUseCase enviar;
+    private final EnviarMidiaChatUseCase enviarMidia;
     private final MarcarConversaChatComoLidaUseCase ler;
+    private final ArmazenamentoDeMidia armazenamento;
 
     ChatInternoController(ListarConversasChatUseCase listar, ListarContatosChatUseCase contatos, AbrirConversaDiretaUseCase abrir,
-            ListarMensagensChatUseCase mensagens, EnviarMensagemChatUseCase enviar,
-            MarcarConversaChatComoLidaUseCase ler) {
-        this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.ler = ler;
+            ListarMensagensChatUseCase mensagens, EnviarMensagemChatUseCase enviar, EnviarMidiaChatUseCase enviarMidia,
+            MarcarConversaChatComoLidaUseCase ler, ArmazenamentoDeMidia armazenamento) {
+        this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.enviarMidia = enviarMidia; this.ler = ler; this.armazenamento = armazenamento;
     }
 
     @Operation(summary = "Listar conversas", description = "Lista as conversas internas das quais o usuário autenticado participa, com última mensagem e contador individual de não lidas.", responses = @ApiResponse(responseCode = "200", description = "Conversas das quais o usuário participa."))
@@ -79,7 +84,7 @@ class ChatInternoController {
     PaginaResposta mensagens(@Parameter(required = true) @PathVariable UUID id,
             @RequestParam(required = false) Instant antesDe,
             @RequestParam(defaultValue = "50") int limite) {
-        return PaginaResposta.de(mensagens.executar(id, antesDe, limite));
+        return PaginaResposta.de(mensagens.executar(id, antesDe, limite), armazenamento);
     }
 
     @Operation(summary = "Enviar mensagem de texto", description = "Persiste uma mensagem textual para os participantes da conversa e publica a notificação em tempo real.", responses = {
@@ -87,8 +92,24 @@ class ChatInternoController {
             @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
     @PostMapping("/conversas/{id}/mensagens")
     @ResponseStatus(HttpStatus.CREATED)
-    MensagemResposta enviar(@PathVariable UUID id, @Valid @RequestBody MensagemRequisicao requisicao) {
-        return MensagemResposta.de(enviar.executar(id, requisicao.conteudo()));
+    public MensagemResposta enviar(@PathVariable UUID id, @Valid @RequestBody MensagemRequisicao requisicao) {
+        return MensagemResposta.de(enviar.executar(id, requisicao.conteudo()), armazenamento);
+    }
+
+    @Operation(summary = "Enviar mídia", description = "Faz o upload de uma mídia (imagem, áudio, vídeo, documento) e a envia como mensagem no chat interno.", responses = {
+            @ApiResponse(responseCode = "201", description = "Mensagem com mídia persistida."),
+            @ApiResponse(responseCode = "400", description = "Arquivo inválido ou muito grande."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @PostMapping(value = "/conversas/{id}/mensagens/midia", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public MensagemResposta enviarMidia(
+            @PathVariable UUID id,
+            @RequestParam("arquivo") org.springframework.web.multipart.MultipartFile arquivo,
+            @RequestParam(value = "legenda", required = false) String legenda) throws java.io.IOException {
+        return MensagemResposta.de(
+                enviarMidia.executar(id, arquivo.getOriginalFilename(), legenda, arquivo.getBytes()),
+                armazenamento
+        );
     }
 
     @Operation(summary = "Marcar conversa como lida", description = "Atualiza somente o marcador de leitura do usuário autenticado; a leitura é individual e não altera a fila de outro participante.", responses = @ApiResponse(responseCode = "204", description = "Leitura individual atualizada."))
@@ -104,22 +125,23 @@ class ChatInternoController {
     record AbrirRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
     record MensagemRequisicao(@NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 10000) String conteudo) {}
     record ConversaCriada(UUID id) {}
-    record ContatoResposta(UUID id, String nome) {}
-    record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
+    public record ContatoResposta(UUID id, String nome) {}
+    public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {
             return new ConversaResposta(r.id(), r.tipo().name(), r.participantes(), r.ultimaMensagem(), r.ultimaMensagemEm(), r.naoLidas());
         }
     }
-    record PaginaResposta(List<MensagemResposta> mensagens, Instant proximoCursor) {
-        static PaginaResposta de(ChatInternoRepositorio.PaginaMensagens p) {
-            return new PaginaResposta(p.mensagens().stream().map(MensagemResposta::de).toList(), p.proximoCursor());
+    public record PaginaResposta(List<MensagemResposta> mensagens, Instant proximoCursor) {
+        static PaginaResposta de(ChatInternoRepositorio.PaginaMensagens p, ArmazenamentoDeMidia armazenamento) {
+            return new PaginaResposta(p.mensagens().stream().map(m -> MensagemResposta.de(m, armazenamento)).toList(), p.proximoCursor());
         }
     }
-    record MensagemResposta(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
-            String conteudo, Instant enviadoEm) {
-        static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r) {
-            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.conteudo(), r.enviadoEm());
+    public record MensagemResposta(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
+            String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm) {
+        static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r, ArmazenamentoDeMidia armazenamento) {
+            String midiaUrl = r.midiaUrl() == null ? null : armazenamento.urlAssinada(r.midiaUrl(), Duration.ofHours(1));
+            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm());
         }
     }
 }
