@@ -6,7 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /** Duas iniciais em maiúsculo para fallback de avatar — "Ana Silva" → "AS". */
-export function iniciaisDoNome(nome: string): string {
+export function iniciaisDoNome(nome: string | null | undefined): string {
+  if (!nome) return "?"
   return (
     nome
       .split(" ")

@@ -107,6 +107,18 @@ class InboxUnificadaControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("cliente mantém os campos exigidos pelo card da inbox")
+    void clienteMantemContratoDoCartao() throws Exception {
+        JsonNode corpo = json.readTree(listarComo("bruno@dev.local", SENHA_ATENDENTE));
+        JsonNode item = encontrar(corpo, atendimentoDoBruno.toString());
+
+        assertThat(item.path("tipo").asText()).isEqualTo("CLIENTE");
+        assertThat(item.path("leadNome").asText()).isEqualTo(MARCADOR + "lead");
+        assertThat(item.path("nome").asText()).isEqualTo(MARCADOR + "lead");
+        assertThat(item.path("leadId").asText()).isEqualTo(leadDoBruno.toString());
+    }
+
+    @Test
     @DisplayName("endpoint exige autenticação")
     void semToken_devolve401() {
         ResponseEntity<String> resposta = http.exchange("/api/v1/atendimentos/inbox?limite=10",

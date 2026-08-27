@@ -31,14 +31,32 @@ export function listarAtendimentos(visao: VisaoAtendimento): Promise<CartaoAtend
   return apiFetch<CartaoAtendimento[]>(`/api/v1/atendimentos?visao=${visao}`);
 }
 
-export function listarInboxUnificada(
+export async function listarInboxUnificada(
   visao: VisaoAtendimento,
   cursor?: string | null,
   limite = 50,
 ): Promise<PaginaInbox> {
   const params = new URLSearchParams({ visao, limite: String(limite) });
   if (cursor) params.set("cursor", cursor);
-  return apiFetch<PaginaInbox>(`/api/v1/atendimentos/inbox?${params.toString()}`);
+  const pagina = await apiFetch<PaginaInbox>(`/api/v1/atendimentos/inbox?${params.toString()}`);
+  return {
+    ...pagina,
+    itens: pagina.itens.map(normalizarItemInbox),
+  };
+}
+
+/** Compatibilidade durante atualização gradual: a primeira versão da inbox usou `nome` no cliente. */
+function normalizarItemInbox(item: ItemInbox): ItemInbox {
+  if (item.tipo === "EQUIPE_INTERNA") return item;
+  return {
+    ...item,
+    leadNome: item.leadNome || item.nome || "?",
+    leadFotoUrl: item.leadFotoUrl ?? item.avatarUrl ?? null,
+    atendimentoAtivoId:
+      item.atendimentoAtivoId ?? (item.status === "FINALIZADO" ? null : item.atendimentoId),
+    ultimaMensagemRemetenteTipo: item.ultimaMensagemRemetenteTipo ?? null,
+    ultimaMensagemDoLeadEm: item.ultimaMensagemDoLeadEm ?? null,
+  };
 }
 
 /** Os badges das abas — uma contagem por visão, na mesma chamada (E17b §Bloco 6). */
