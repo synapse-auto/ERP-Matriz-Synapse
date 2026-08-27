@@ -95,8 +95,7 @@ class FeedbackController {
     record FeedbackRequisicao(
             @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) TipoFeedback tipo,
             @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) AreaFeedback areaChave,
-            @NotBlank @Size(max = Feedback.LIMITE_DESCRICAO)
-                    @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = Feedback.LIMITE_DESCRICAO)
+            @NotBlank @Size(max = Feedback.LIMITE_DESCRICAO) @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = Feedback.LIMITE_DESCRICAO)
                     String descricao) {}
 
     record FeedbackCriadoResposta(UUID id, TipoFeedback tipo, String areaChave,
