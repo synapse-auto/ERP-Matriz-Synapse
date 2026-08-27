@@ -193,7 +193,15 @@ function TabelaDeMensagensProgramadas({
           {itens.map((mensagem) => {
             const editavel = mensagem.status === "AGENDADA";
             return (
-              <tr key={mensagem.id} className="border-t border-border">
+              <tr
+                key={mensagem.id}
+                data-status={mensagem.status}
+                className={
+                  editavel
+                    ? "border-t border-primary/20 bg-primary/5"
+                    : "border-t border-border"
+                }
+              >
                 <td className="px-4 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <AvatarIniciais

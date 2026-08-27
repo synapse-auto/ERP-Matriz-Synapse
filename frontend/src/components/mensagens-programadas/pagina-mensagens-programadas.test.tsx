@@ -105,6 +105,14 @@ describe("pagina de mensagens programadas", () => {
     expect(screen.getAllByText("Agendada").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Enviada").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ana Beatriz").length).toBeGreaterThan(0);
+    expect(screen.getByText("Marcos Vinícius").closest("tr")).toHaveClass(
+      "border-primary/20",
+      "bg-primary/5",
+    );
+    expect(screen.getByText("Camila Nunes").closest("tr")).toHaveClass(
+      "border-border",
+    );
+    expect(screen.getByText("Camila Nunes").closest("tr")).not.toHaveClass("bg-primary/5");
   });
 
   it("so mostra editar/cancelar para mensagens agendadas", async () => {

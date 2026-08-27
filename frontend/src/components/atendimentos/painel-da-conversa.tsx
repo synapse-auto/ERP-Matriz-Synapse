@@ -411,7 +411,8 @@ function SecaoDeProgramadas({
             {itens.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-border bg-muted/30 p-2.5"
+                data-slot="mensagem-programada"
+                className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 shadow-sm"
               >
                 <p className="text-xs font-medium text-foreground">{item.conteudo}</p>
                 <p className="mt-1 text-[0.7rem] text-muted-foreground">

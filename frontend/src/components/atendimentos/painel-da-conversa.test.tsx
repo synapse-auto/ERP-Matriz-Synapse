@@ -210,6 +210,12 @@ describe("painel da conversa", () => {
 
     renderizarPainel("lead-1", "Jardel Lima");
     fireEvent.click(screen.getByText("Mensagens programadas"));
+    const cartaoProgramada = screen.getByText("Follow-up").closest('[data-slot="mensagem-programada"]');
+    expect(cartaoProgramada).toHaveClass(
+      "border-primary/30",
+      "bg-primary/5",
+      "shadow-sm",
+    );
     expect(screen.getByRole("button", { name: "Adicionar" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
     expect(screen.getByTestId("formulario-mensagem-programada")).toBeInTheDocument();
@@ -220,6 +226,11 @@ describe("painel da conversa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
     fireEvent.click(screen.getByText("Lembretes"));
+    expect(screen.getByText("Ligar").closest("div.rounded-lg")).toHaveClass(
+      "border-border",
+      "bg-muted/30",
+    );
+    expect(document.querySelectorAll('[data-slot="mensagem-programada"]')).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "Adicionar" })).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Editar Ligar" }));
     expect(screen.getByTestId("formulario-lembrete")).toBeInTheDocument();
