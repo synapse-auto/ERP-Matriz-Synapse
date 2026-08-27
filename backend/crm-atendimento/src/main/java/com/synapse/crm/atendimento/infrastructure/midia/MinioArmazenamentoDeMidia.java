@@ -13,11 +13,12 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.errors.MinioException;
 import io.minio.http.Method;
 import org.springframework.stereotype.Component;
 
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /**
  * Adaptador S3-compativel (MinIO em desenvolvimento, S3 ou equivalente em producao — docs/01,
@@ -116,6 +117,18 @@ class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
                     .build());
         } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
             throw new IllegalStateException("falha ao assinar URL de midia: " + referencia, e);
+        }
+    }
+
+    @Override
+    public void remover(String referencia) {
+        try {
+            io.removeObject(RemoveObjectArgs.builder()
+                    .bucket(propriedades.bucket())
+                    .object(referencia)
+                    .build());
+        } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("falha ao remover midia do storage: " + referencia, e);
         }
     }
 

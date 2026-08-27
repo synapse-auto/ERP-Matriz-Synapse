@@ -5,14 +5,20 @@ import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
 import { ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
+import { TextosProvider } from "@/lib/config/textos-provider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const textos = {
+const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+const mockTextosCompletos = { chatInterno: {
   titulo: "Chat interno",
   semMensagens: "Nenhuma mensagem ainda.",
   placeholder: "Escreva uma mensagem...",
   enviar: "Enviar",
   erroEnviar: "Não foi possível enviar a mensagem.",
-} as Textos["chatInterno"];
+}, atendimentos: { composer: { anexo: "A", anexoRemover: "A", audioGravando: "A", audioDescartar: "A", audioParar: "A", audioPreview: "A", audioEnviar: "A", audioSemMicrofone: "A", audioPermissaoNegada: "A", audioMicrofoneEmUso: "A", audioErroCaptura: "A", audioExcedeuLimite: "A" }, audio: "A", baixar: "A", documento: "A", imagem: "A", responder: "A" } } as any;
+
+const textos = mockTextosCompletos.chatInterno;
 
 const mensagens: ChatMensagem[] = [
   { id: "m1", conversaId: "c1", remetenteId: "u1", remetenteNome: "Ana", conteudo: "Olá", enviadoEm: "2026-08-27T12:00:00Z" },
@@ -21,7 +27,7 @@ const mensagens: ChatMensagem[] = [
 
 describe("componentes de apresentação do chat interno", () => {
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
-    const { container } = render(<ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} />);
+    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} /></TextosProvider>);
     const linhas = container.firstElementChild?.children;
     expect(linhas?.[0]).toHaveClass("justify-end");
     expect(linhas?.[1]).toHaveClass("justify-start");
@@ -31,7 +37,7 @@ describe("componentes de apresentação do chat interno", () => {
 
   it("envia por Enter, preserva Shift+Enter e mantém o texto quando falha", async () => {
     const enviar = vi.fn().mockRejectedValue(new Error("falha"));
-    render(<ComposerChatInterno textos={textos} onEnviar={enviar} erro />);
+    render(<QueryClientProvider client={client}><TextosProvider textos={mockTextosCompletos}><ComposerChatInterno textos={textos} onEnviar={enviar} erro /></TextosProvider></QueryClientProvider>);
     const campo = screen.getByPlaceholderText(textos.placeholder);
     fireEvent.change(campo, { target: { value: "mensagem" } });
     fireEvent.keyDown(campo, { key: "Enter", shiftKey: true });

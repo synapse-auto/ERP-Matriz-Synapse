@@ -137,13 +137,15 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 ? new Object[] {conversaId, limite}
                 : new Object[] {conversaId, antesDe, limite};
         List<MensagemResumo> mensagens = jdbc.query("""
-                SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.conteudo,m.enviado_em
+                SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em
                   FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
                  WHERE m.conversa_id=? %s ORDER BY m.enviado_em DESC LIMIT ?
                 """.formatted(cursor), (r, i) -> new MensagemResumo(
                 r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
                 r.getObject("remetente_id", UUID.class), r.getString("nome"),
-                r.getString("conteudo"), instant(r, "enviado_em")), args);
+                r.getString("tipo"), r.getString("conteudo"),
+                r.getString("midia_url"), r.getString("midia_metadados"),
+                instant(r, "enviado_em")), args);
         Instant proximo = mensagens.size() == limite && !mensagens.isEmpty()
                 ? mensagens.get(mensagens.size() - 1).enviadoEm() : null;
         return new PaginaMensagens(mensagens.reversed(), proximo);
@@ -154,9 +156,25 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo) VALUES (?, ?, ?, 'TEXTO', ?)",
                 id, conversaId, remetenteId, conteudo);
-        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.conteudo,m.enviado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
                 (r, i) -> new MensagemResumo(r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
-                        r.getObject("remetente_id", UUID.class), r.getString("nome"), r.getString("conteudo"), instant(r, "enviado_em")), id);
+                        r.getObject("remetente_id", UUID.class), r.getString("nome"),
+                        r.getString("tipo"), r.getString("conteudo"),
+                        r.getString("midia_url"), r.getString("midia_metadados"),
+                        instant(r, "enviado_em")), id);
+    }
+
+    @Override
+    public MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados) VALUES (?, ?, ?, ?::tipo_mensagem, ?, ?, ?::jsonb)",
+                id, conversaId, remetenteId, tipo, conteudo, midiaUrl, midiaMetadados);
+        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+                (r, i) -> new MensagemResumo(r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
+                        r.getObject("remetente_id", UUID.class), r.getString("nome"),
+                        r.getString("tipo"), r.getString("conteudo"),
+                        r.getString("midia_url"), r.getString("midia_metadados"),
+                        instant(r, "enviado_em")), id);
     }
 
     @Override

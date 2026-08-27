@@ -10,20 +10,14 @@ import org.springframework.stereotype.Service;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
-import com.synapse.crm.atendimento.domain.midia.DetectorDeTipoReal;
-import com.synapse.crm.atendimento.domain.midia.IsoBmffAudioOnly;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
+import com.synapse.crm.sharedkernel.midia.*;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
+import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
+import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
+import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 
-/**
- * Anexo do atendente para o cliente (E11b) — valida, guarda no storage e delega o envio em si para
- * {@link EnviarMensagemUseCase}, que ja cuida de janela de 24h, RN-CRM-06, outbox e eventos. Nao ha
- * um segundo caminho de envio: este caso de uso so prepara o {@link ConteudoDeEnvio.MensagemMidia}.
- *
- * <p>Ordem das validacoes e deliberada: tipo real primeiro (barato, so os bytes em memoria), tamanho
- * em segundo (tambem barato), e so entao grava no storage — um upload que vai ser rejeitado nunca
- * chega a escrever no bucket.
- */
 @Service
 public class EnviarMidiaUseCase {
 
@@ -59,7 +53,15 @@ public class EnviarMidiaUseCase {
             throw new TipoDeMidiaNaoPermitidoException(mimetypeReal);
         }
 
-        long limite = limites.limiteEmBytes(tipo).orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(tipo));
+        // Converter para a CategoriaDeMidia exigida pelos limites
+        CategoriaDeMidia categoria = switch (tipo) {
+            case IMAGEM -> CategoriaDeMidia.IMAGEM;
+            case AUDIO -> CategoriaDeMidia.AUDIO;
+            case DOCUMENTO -> CategoriaDeMidia.DOCUMENTO;
+            default -> throw new IllegalStateException("TipoMensagem invalido para midia: " + tipo);
+        };
+
+        long limite = limites.limiteEmBytes(categoria).orElseGet(() -> TiposDeMidiaPermitidos.tetoDaMetaEmBytes(tipo));
         if (conteudo.length > limite) {
             throw new AnexoExcedeuLimiteException(conteudo.length, limite);
         }
@@ -70,10 +72,14 @@ public class EnviarMidiaUseCase {
 
         ConteudoDeEnvio.MensagemMidia envio =
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
-        return enviarMensagem.executar(leadId, envio);
+        try {
+            return enviarMensagem.executar(leadId, envio);
+        } catch (Exception e) {
+            armazenamento.remover(referencia);
+            throw e;
+        }
     }
 
-    /** So o nome-base, sem separador de caminho: nunca vira parte de um path no storage. */
     private static String sanitizar(String nomeOriginal) {
         if (nomeOriginal == null || nomeOriginal.isBlank()) {
             return "arquivo";

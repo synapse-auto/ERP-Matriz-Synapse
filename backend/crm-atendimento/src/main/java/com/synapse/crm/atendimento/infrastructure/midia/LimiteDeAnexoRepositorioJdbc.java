@@ -10,24 +10,17 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import com.synapse.crm.atendimento.application.midia.LimiteDeAnexoRepositorio;
-import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
+import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
-/**
- * Le {@code configuracao_automacao} por SQL direto — ver o Javadoc de {@link
- * LimiteDeAnexoRepositorio} para o porque de nao usar o modulo {@code crm-automacao-config}.
- *
- * <p>Pool geral, nao o do chat: e uma leitura de configuracao antes de gravar o anexo, nao parte do
- * caminho de entrega de mensagem em si.
- */
 @Repository
 class LimiteDeAnexoRepositorioJdbc implements LimiteDeAnexoRepositorio {
 
-    private static final Map<TipoMensagem, String> CHAVE_POR_TIPO = Map.of(
-            TipoMensagem.IMAGEM, "anexo.tamanho_maximo_imagem_mb",
-            TipoMensagem.AUDIO, "anexo.tamanho_maximo_audio_mb",
-            TipoMensagem.DOCUMENTO, "anexo.tamanho_maximo_documento_mb");
+    private static final Map<CategoriaDeMidia, String> CHAVE_POR_TIPO = Map.of(
+            CategoriaDeMidia.IMAGEM, "anexo.tamanho_maximo_imagem_mb",
+            CategoriaDeMidia.AUDIO, "anexo.tamanho_maximo_audio_mb",
+            CategoriaDeMidia.DOCUMENTO, "anexo.tamanho_maximo_documento_mb");
 
     private static final String SQL = "SELECT valor FROM configuracao_automacao WHERE chave = ?";
     private static final String CHAVE_DURACAO_AUDIO = "gravacao_audio.duracao_maxima_segundos";
@@ -39,7 +32,7 @@ class LimiteDeAnexoRepositorioJdbc implements LimiteDeAnexoRepositorio {
     }
 
     @Override
-    public Optional<Long> limiteEmBytes(TipoMensagem tipo) {
+    public Optional<Long> limiteEmBytes(CategoriaDeMidia tipo) {
         String chave = CHAVE_POR_TIPO.get(tipo);
         if (chave == null) {
             return Optional.empty();

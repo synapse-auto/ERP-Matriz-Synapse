@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
-import { listarConversasChat, listarMensagensChat, enviarMensagemChat, marcarChatComoLido } from "@/lib/chat-interno/api";
+import { listarConversasChat, listarMensagensChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido } from "@/lib/chat-interno/api";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -21,6 +21,10 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     mutationFn: (conteudo: string) => enviarMensagemChat(conversaId, conteudo),
     onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
   });
+  const enviarMidia = useMutation({
+    mutationFn: ({ arquivo, legenda }: { arquivo: File; legenda?: string }) => enviarMidiaChat(conversaId, arquivo, legenda),
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+  });
   useEffect(() => { void marcarChatComoLido(conversaId).catch(() => undefined); }, [conversaId]);
   if (conversas.isError || mensagens.isError) {
     return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => { void conversas.refetch(); void mensagens.refetch(); }} />;
@@ -29,7 +33,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <CabecalhoChatInterno conversa={conversa} textos={textos} />
       {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} />}
-      <ComposerChatInterno textos={textos} enviando={enviar.isPending} erro={enviar.isError} onEnviar={(conteudo) => enviar.mutateAsync(conteudo)} />
+      <ComposerChatInterno textos={textos} enviando={enviar.isPending || enviarMidia.isPending} erro={enviar.isError || enviarMidia.isError} onEnviar={(conteudo) => enviar.mutateAsync(conteudo)} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ arquivo, legenda })} />
     </div>
   );
 }

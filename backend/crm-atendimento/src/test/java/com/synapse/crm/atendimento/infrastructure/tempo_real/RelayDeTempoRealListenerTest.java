@@ -14,8 +14,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 class RelayDeTempoRealListenerTest {
     @Test

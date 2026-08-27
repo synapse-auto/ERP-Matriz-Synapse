@@ -29,8 +29,8 @@ import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelE
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.application.tempo_real.ListarMensagensDesdeUseCase;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /** Historico paginado e reconciliacao incremental da conversa. */
 @RestController

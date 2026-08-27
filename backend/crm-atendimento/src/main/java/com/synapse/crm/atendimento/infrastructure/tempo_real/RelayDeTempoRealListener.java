@@ -14,8 +14,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
-import com.synapse.crm.atendimento.domain.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
+import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /**
  * Publica no backplane Redis — nunca antes do commit.

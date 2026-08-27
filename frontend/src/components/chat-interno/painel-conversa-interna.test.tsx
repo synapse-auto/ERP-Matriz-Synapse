@@ -10,7 +10,7 @@ vi.mock("@/lib/chat-interno/api", () => ({
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
-  useTextos: () => ({ chatInterno: {
+  useTextos: () => ({ atendimentos: { composer: { anexo: "A", anexoRemover: "A", audioGravando: "A", audioDescartar: "A", audioParar: "A", audioPreview: "A", audioEnviar: "A", audioSemMicrofone: "A", audioPermissaoNegada: "A", audioMicrofoneEmUso: "A", audioErroCaptura: "A", audioExcedeuLimite: "A" }, audio: "A", baixar: "A", documento: "A", imagem: "A", responder: "A" }, chatInterno: {
     titulo: "Chat interno", semMensagens: "Nenhuma mensagem ainda.", placeholder: "Escreva uma mensagem...", enviar: "Enviar", erroEnviar: "Não foi possível enviar a mensagem.", carregando: "Carregando conversas...", erro: "Não foi possível carregar o chat interno.",
   } }),
 }));
