@@ -162,6 +162,45 @@ export const TextosSchema = z.object({
     emConstrucao: z.string(),
     sessaoExpirada: z.string(),
   }),
+  feedbacks: z.object({
+    titulo: z.string(), descricao: z.string(), tipo: z.string(),
+    tipos: z.object({ sugestao: z.string(), erro: z.string() }),
+    area: z.string(), areaPlaceholder: z.string(),
+    areas: z.object({
+      geral: z.string(), atendimentos: z.string(), agenda: z.string(), dashboard: z.string(),
+      equipe: z.string(), automacao: z.string(), mensagensProgramadas: z.string(),
+      lembretes: z.string(), tags: z.string(), configuracoes: z.string(),
+    }),
+    descricaoCampo: z.string(), descricaoPlaceholder: z.string(), limite: z.string(),
+    enviar: z.string(), enviando: z.string(), sucesso: z.string(), erro: z.string(),
+    obrigatorio: z.string(),
+  }),
+  administracao: z.object({
+    titulo: z.string(), descricao: z.string(), restrito: z.string(), estadoSistema: z.string(),
+    semPermissaoTitulo: z.string(), semPermissaoDescricao: z.string(), voltar: z.string(),
+    navegacao: z.string(),
+    abas: z.object({ visaoGeral: z.string(), acessos: z.string(), feedbacks: z.string() }),
+    visaoGeral: z.object({
+      titulo: z.string(), descricao: z.string(), usuarios: z.string(), ativos: z.string(),
+      online: z.string(), recursos: z.string(), carregando: z.string(), erro: z.string(),
+    }),
+    acessos: z.object({
+      titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(),
+      vazio: z.string(), novo: z.string(), usuario: z.string(), papel: z.string(),
+      presenca: z.string(), situacao: z.string(), acoes: z.string(), ativo: z.string(),
+      inativo: z.string(), editar: z.string(), senha: z.string(), desativar: z.string(),
+      papeis: z.object({
+        ATENDENTE: z.string(), SUBGESTOR: z.string(), GESTOR: z.string(), ADMINISTRADOR: z.string(),
+      }),
+      presencas: z.object({ ONLINE: z.string(), AUSENTE: z.string(), OFFLINE: z.string() }),
+    }),
+    feedbacks: z.object({
+      titulo: z.string(), descricao: z.string(), filtro: z.string(), todos: z.string(),
+      sugestoes: z.string(), erros: z.string(), carregando: z.string(), erro: z.string(),
+      vazio: z.string(), carregarMais: z.string(), carregandoMais: z.string(),
+      autorPapel: z.string(), tipoArea: z.string(), data: z.string(),
+    }),
+  }),
   chatInterno: z.object({
     titulo: z.string(),
     novaConversa: z.string(),
