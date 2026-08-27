@@ -53,6 +53,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
     atendimentos: {
       painel: {
         titulo: "Detalhes do lead",
+        retrair: "Retrair detalhes do lead",
+        reabrir: "Reabrir detalhes do lead",
         informacoesGerais: "Informações gerais",
         notasInternas: "Notas internas",
         adicionar: "Adicionar",
@@ -127,7 +129,8 @@ import { PainelDaConversa } from "./painel-da-conversa";
 
 describe("painel da conversa", () => {
   it("mostra contadores, etapa e resumo por IA aberto por padrão — sem seção de arquivos", () => {
-    renderizarPainel("lead-1", "Jardel Lima");
+    const onRetrair = vi.fn();
+    renderizarPainel("lead-1", "Jardel Lima", onRetrair);
 
     expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
     expect(screen.getByText("Informações gerais")).toBeInTheDocument();
@@ -140,6 +143,11 @@ describe("painel da conversa", () => {
       screen.getByText("Cliente pediu orçamento de box."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/arquivos/i)).not.toBeInTheDocument();
+    const controle = screen.getByRole("button", { name: "Retrair detalhes do lead" });
+    expect(controle).toHaveAttribute("aria-expanded", "true");
+    expect(controle).toHaveAttribute("aria-controls", "painel-detalhes-lead");
+    fireEvent.click(controle);
+    expect(onRetrair).toHaveBeenCalledOnce();
   });
 
   it("mensagens programadas e lembretes começam fechados e abrem com o estado vazio real", () => {
@@ -220,11 +228,19 @@ describe("painel da conversa", () => {
   });
 });
 
-function renderizarPainel(leadId: string, responsavelNome: string | null) {
+function renderizarPainel(
+  leadId: string,
+  responsavelNome: string | null,
+  onRetrair = vi.fn(),
+) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={cliente}>
-      <PainelDaConversa leadId={leadId} responsavelNome={responsavelNome} />
+      <PainelDaConversa
+        leadId={leadId}
+        responsavelNome={responsavelNome}
+        onRetrair={onRetrair}
+      />
     </QueryClientProvider>,
   );
 }

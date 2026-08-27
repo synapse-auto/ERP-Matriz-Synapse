@@ -72,6 +72,7 @@ export function PaginaAtendimentosCliente({
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
   const [buscaAberta, setBuscaAberta] = useState(false);
+  const [painelDetalhesAberto, setPainelDetalhesAberto] = useState(true);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
@@ -202,7 +203,9 @@ export function PaginaAtendimentosCliente({
     <div
       className={
         conversa
-          ? "relative grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
+          ? painelDetalhesAberto
+            ? "relative grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
+            : "relative grid h-full grid-cols-[346px_1fr] overflow-hidden"
           : "relative grid h-full grid-cols-[346px_1fr] overflow-hidden"
       }
     >
@@ -286,6 +289,8 @@ export function PaginaAtendimentosCliente({
               conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}
               buscaAberta={buscaAberta}
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
+              painelDetalhesAberto={painelDetalhesAberto}
+              onAlternarPainelDetalhes={() => setPainelDetalhesAberto((aberto) => !aberto)}
             />
             <ListaMensagens
               mensagens={mensagensQuery.data}
@@ -316,10 +321,11 @@ export function PaginaAtendimentosCliente({
         )}
       </div>
 
-      {conversa && (
+      {conversa && painelDetalhesAberto && (
         <PainelDaConversa
           leadId={conversa.leadId}
           responsavelNome={conversa.atendenteNome}
+          onRetrair={() => setPainelDetalhesAberto(false)}
         />
       )}
     </div>

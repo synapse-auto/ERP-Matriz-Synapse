@@ -314,6 +314,8 @@ export const TextosSchema = z.object({
     }),
     painel: z.object({
       titulo: z.string(),
+      retrair: z.string(),
+      reabrir: z.string(),
       informacoesGerais: z.string(),
       notasInternas: z.string(),
       adicionar: z.string(),

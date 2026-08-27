@@ -46,6 +46,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
+      painel: {
+        reabrir: "Reabrir detalhes do lead",
+      },
     },
     painelLead: { dados: { telefone: "Telefone" } },
   }),
@@ -89,6 +92,8 @@ describe("CabecalhoConversa", () => {
         conversa={conversa}
         buscaAberta={false}
         onAlternarBusca={alternarBusca}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
       />,
     );
 
@@ -116,6 +121,8 @@ describe("CabecalhoConversa", () => {
         conversa={conversa}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
       />,
     );
 
@@ -133,6 +140,8 @@ describe("CabecalhoConversa", () => {
         conversa={conversa}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
       />,
     );
     const acoes = screen.getByRole("button", { name: "Mais ações" });
@@ -142,5 +151,24 @@ describe("CabecalhoConversa", () => {
       expect(acoes.compareDocumentPosition(botao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(botao.compareDocumentPosition(finalizar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
+  });
+
+  it("oferece reabrir os detalhes somente quando o painel está retraído", () => {
+    const onAlternar = vi.fn();
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto={false}
+        onAlternarPainelDetalhes={onAlternar}
+      />,
+    );
+
+    const controle = screen.getByRole("button", { name: "Reabrir detalhes do lead" });
+    expect(controle).toHaveAttribute("aria-expanded", "false");
+    expect(controle).toHaveAttribute("aria-controls", "painel-detalhes-lead");
+    fireEvent.click(controle);
+    expect(onAlternar).toHaveBeenCalledOnce();
   });
 });
