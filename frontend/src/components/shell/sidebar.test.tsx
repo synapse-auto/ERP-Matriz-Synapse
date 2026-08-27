@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.hoisted(() => ({
@@ -48,6 +49,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
     menu: {
       grupoMenu: "Menu",
       grupoGestao: "Gestão",
+      retrair: "Retrair menu lateral",
+      reabrir: "Reabrir menu lateral",
+      contagemPendentes: "Atendimentos, {quantidade} pendentes",
       itens: {
         atendimentos: "Atendimentos",
         dashboard: "Dashboard",
@@ -58,10 +62,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         lembretes: "Lembretes",
         equipe: "Equipe",
         automacao: "Automação",
+        administracao: "Administração",
       },
     },
     rodape: {
       trocarConta: "Trocar conta",
+      trocarSenha: "Trocar senha",
       sair: "Sair",
       presenca: { rotulo: "Status de presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
@@ -73,9 +79,13 @@ import { Sidebar } from "./sidebar";
 
 function renderSidebar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  function SidebarControlada() {
+    const [retraida, setRetraida] = useState(false);
+    return <Sidebar retraida={retraida} onAlternar={() => setRetraida((atual) => !atual)} />;
+  }
   return render(
     <QueryClientProvider client={cliente}>
-      <Sidebar />
+      <SidebarControlada />
     </QueryClientProvider>,
   );
 }
@@ -128,7 +138,39 @@ describe("sidebar", () => {
       "href",
       "/configuracoes",
     );
-    expect(screen.getByRole("button", { name: /Ana Beatriz/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Status de presença: Online" })).toBeInTheDocument();
+  });
+
+  it("retrai e reabre preservando links, badge, presença, configurações e logout", async () => {
+    renderSidebar();
+
+    const sidebar = screen.getByRole("complementary");
+    const retrair = await screen.findByRole("button", { name: "Retrair menu lateral" });
+    expect(sidebar).toHaveClass("w-[260px]");
+    expect(retrair).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
+
+    fireEvent.click(retrair);
+
+    expect(sidebar).toHaveClass("w-[76px]");
+    const reabrir = screen.getByRole("button", { name: "Reabrir menu lateral" });
+    expect(reabrir).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "Atendimentos, 7 pendentes" })).toHaveAttribute(
+      "href",
+      "/atendimentos",
+    );
+    expect(screen.getByRole("link", { name: "Agenda de Contatos" })).toHaveAttribute(
+      "title",
+      "Agenda de Contatos",
+    );
+    expect(screen.getByRole("link", { name: "Abrir configurações" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+    expect(await screen.findByRole("button", { name: "Sair" })).toBeInTheDocument();
+
+    fireEvent.click(reabrir);
+    expect(sidebar).toHaveClass("w-[260px]");
+    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {
@@ -142,8 +184,7 @@ describe("sidebar", () => {
   it("abre o popup de presença e troca o status, sem select nativo", async () => {
     renderSidebar();
 
-    const botaoConta = await screen.findByText("Ana Beatriz");
-    fireEvent.click(botaoConta.closest("button")!);
+    fireEvent.click(await screen.findByRole("button", { name: "Status de presença: Online" }));
 
     const opcaoAusente = await screen.findByText("Ausente");
     fireEvent.click(opcaoAusente);
@@ -184,5 +225,15 @@ describe("sidebar", () => {
 
     const link = await screen.findByRole("link", { name: "Atendimentos" });
     expect(link).not.toHaveTextContent("7");
+  });
+
+  it("esconde Administracao para ATENDENTE e mostra para GESTOR", async () => {
+    renderSidebar();
+    await screen.findByText("Agenda de Contatos");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+
+    authMock.papel = "GESTOR";
+    renderSidebar();
+    expect(await screen.findByText("Administração")).toBeInTheDocument();
   });
 });

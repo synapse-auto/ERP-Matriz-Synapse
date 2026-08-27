@@ -6,6 +6,8 @@ import {
   Building2,
   Calculator,
   LifeBuoy,
+  MessageSquare,
+  Phone,
   Bell,
   Clock,
   Repeat2,
@@ -51,6 +53,7 @@ import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 interface Props {
   leadId: string | null;
   onFechar: () => void;
+  onAbrirAtendimento?: () => void;
 }
 
 const ICONES_DE_TAG: Record<string, LucideIcon> = {
@@ -99,7 +102,7 @@ function paraPayload(campos: CampoCustomizado[], valores: Record<string, unknown
   );
 }
 
-export function PainelLateralLead({ leadId, onFechar }: Props) {
+export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.painelLead;
   const lead = useLead(leadId);
@@ -194,16 +197,16 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
       role="dialog"
       aria-modal="false"
       aria-label={textos.titulo}
-      className="fixed inset-y-0 right-0 z-50 flex w-[min(30rem,100vw)] flex-col border-l border-border bg-background shadow-xl"
+      className="fixed inset-y-0 right-0 z-50 flex w-[min(22rem,100vw)] flex-col border-l border-border bg-background shadow-xl"
     >
-      <div className="flex items-center justify-between border-b border-border px-5 py-3">
-        <h2 className="text-lg font-semibold text-foreground">{textos.titulo}</h2>
-        <Button type="button" variant="ghost" size="icon" aria-label={textos.fechar} onClick={onFechar}>
-          <X />
+      <div className="flex-none flex items-center justify-between border-b border-border px-5 py-4">
+        <h2 className="text-[15px] font-extrabold text-foreground">{textos.titulo}</h2>
+        <Button type="button" variant="ghost" size="icon" className="size-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80" aria-label={textos.fechar} onClick={onFechar}>
+          <X className="size-4" />
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {lead.isLoading ? (
           <Carregando />
         ) : indisponivel ? (
@@ -322,6 +325,19 @@ export function PainelLateralLead({ leadId, onFechar }: Props) {
       </div>
       {lead.data && <FormularioLembrete aberto={lembreteAberto} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
       {lead.data && <FormularioMensagemProgramada aberto={programadaAberta} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setProgramadaAberta(false)} />}
+      <div className="flex-none flex gap-2 border-t border-border p-5">
+        {onAbrirAtendimento && (
+          <Button type="button" className="flex-1 rounded-xl shadow-sm font-bold" onClick={onAbrirAtendimento}>
+            <MessageSquare className="size-4 mr-2" />
+            {textosGerais.painelLead.acoes?.abrirAtendimento || "Abrir atendimento"}
+          </Button>
+        )}
+        {lead.data?.telefone && (
+          <Button render={<a href={`tel:${lead.data.telefone}`} />} variant="outline" className="size-11 shrink-0 rounded-xl" title={textos.acoes.ligar} aria-label={textos.acoes.ligar}>
+            <Phone className="size-[18px]" />
+          </Button>
+        )}
+      </div>
     </aside>
   );
 }
@@ -339,15 +355,13 @@ function Carregando() {
 function CabecalhoDaFicha({ lead }: { lead: LeadFicha }) {
   const foto = urlSegura(lead.fotoUrl);
   return (
-    <div className="flex items-center gap-3">
-      <Avatar className="size-14">
+    <div className="flex flex-col items-center text-center pb-2">
+      <Avatar className="size-[60px]">
         {foto && <AvatarImage src={foto} alt={lead.nome} />}
         <AvatarFallback>{iniciaisDoNome(lead.nome)}</AvatarFallback>
       </Avatar>
-      <div className="min-w-0">
-        <p className="truncate text-lg font-semibold text-foreground">{lead.nome}</p>
-        {lead.empresa && <p className="truncate text-sm text-muted-foreground">{lead.empresa}</p>}
-      </div>
+      <p className="mt-3 text-[18px] font-extrabold tracking-tight text-foreground">{lead.nome}</p>
+      {lead.empresa && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{lead.empresa}</p>}
     </div>
   );
 }
@@ -456,6 +470,7 @@ function TagsDaFicha({
               {tag.nome}
               <button
                 type="button"
+                className="rounded-full hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive p-0.5"
                 aria-label={textos.remover.replace("{nome}", tag.nome)}
                 disabled={pendente}
                 onClick={() => onRemover(tag)}

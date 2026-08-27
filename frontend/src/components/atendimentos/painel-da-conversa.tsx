@@ -10,6 +10,7 @@ import {
   Mail,
   MapPin,
   Pencil,
+  PanelRightClose,
   Phone,
   Plus,
   Sparkles,
@@ -54,6 +55,7 @@ import { FormularioMensagemProgramada } from "../mensagens-programadas/formulari
 type Props = {
   leadId: string;
   responsavelNome: string | null;
+  onRetrair: () => void;
 };
 
 /**
@@ -64,7 +66,7 @@ type Props = {
  * <p>Seção "Arquivos compartilhados" do protótipo fica de fora: Banco de Arquivos está fora da
  * primeira entrega (docs/09) — não há endpoint dos dois lados.
  */
-export function PainelDaConversa({ leadId, responsavelNome }: Props) {
+export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) {
   const textos = useTextos().atendimentos.painel;
   const textosLead = useTextos().painelLead;
   const lead = useLead(leadId);
@@ -83,9 +85,24 @@ export function PainelDaConversa({ leadId, responsavelNome }: Props) {
     : 0;
 
   return (
-    <aside className="flex h-full w-[344px] shrink-0 flex-col border-l border-border bg-background">
-      <div className="flex-none p-4">
+    <aside
+      id="painel-detalhes-lead"
+      className="flex h-full w-[344px] shrink-0 flex-col border-l border-border bg-background"
+    >
+      <div className="flex flex-none items-center justify-between gap-2 p-4">
         <p className="text-sm font-bold text-foreground">{textos.titulo}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRetrair}
+          aria-expanded="true"
+          aria-controls="painel-detalhes-lead"
+          aria-label={textos.retrair}
+          title={textos.retrair}
+        >
+          <PanelRightClose className="size-4" aria-hidden />
+        </Button>
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
@@ -394,7 +411,8 @@ function SecaoDeProgramadas({
             {itens.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-border bg-muted/30 p-2.5"
+                data-slot="mensagem-programada"
+                className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 shadow-sm"
               >
                 <p className="text-xs font-medium text-foreground">{item.conteudo}</p>
                 <p className="mt-1 text-[0.7rem] text-muted-foreground">
@@ -417,7 +435,7 @@ function SecaoDeProgramadas({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
                     aria-label={`${textos.atendimentos.painel.remover} ${item.conteudo}`}
                     onClick={() => {
                       setErro(false);
@@ -543,7 +561,7 @@ function SecaoDeLembretes({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
                     aria-label={`${textos.atendimentos.painel.remover} ${item.texto}`}
                     onClick={() => {
                       setErro(false);
