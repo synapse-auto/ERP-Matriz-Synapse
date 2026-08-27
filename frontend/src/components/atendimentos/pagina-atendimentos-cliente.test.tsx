@@ -8,8 +8,45 @@ import type { CartaoAtendimento, NotificacaoTempoReal } from "@/lib/atendimento/
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: CartaoAtendimento) => void) | undefined,
   atualizarLista: undefined as ((cartoes: CartaoAtendimento[]) => void) | undefined,
-  notificar: undefined as ((notificacao: NotificacaoTempoReal) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
+}));
+
+interface ClienteStompFalso {
+  connected: boolean;
+  onConnect?: () => void;
+  onWebSocketClose?: () => void;
+  onStompError?: () => void;
+  assinaturas: Map<string, (mensagem: { body: string }) => void>;
+}
+
+const stomp = vi.hoisted(() => ({ clientes: [] as ClienteStompFalso[] }));
+
+vi.mock("@stomp/stompjs", () => ({
+  Client: class implements ClienteStompFalso {
+    connected = false;
+    onConnect?: () => void;
+    onWebSocketClose?: () => void;
+    onStompError?: () => void;
+    assinaturas = new Map<string, (mensagem: { body: string }) => void>();
+
+    constructor() {
+      stomp.clientes.push(this);
+    }
+
+    activate() {
+      this.connected = true;
+      this.onConnect?.();
+    }
+
+    deactivate() {
+      this.connected = false;
+    }
+
+    subscribe(destino: string, callback: (mensagem: { body: string }) => void) {
+      this.assinaturas.set(destino, callback);
+      return { id: destino, unsubscribe: vi.fn(() => this.assinaturas.delete(destino)) };
+    }
+  },
 }));
 
 const cartaoInicial: CartaoAtendimento = {
@@ -81,12 +118,6 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
   useEnviarMensagem: () => ({ mutate: vi.fn() }),
 }));
-vi.mock("@/lib/atendimento/tempo-real", () => ({
-  useConexaoTempoReal: (_token: unknown, _onRevogacao: unknown, onNotificacao: (notificacao: NotificacaoTempoReal) => void) => {
-    callbacks.notificar = onNotificacao;
-    return { conexao: { fecharConversa: vi.fn() }, estado: "desconectado" };
-  },
-}));
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: { getState: () => ({ accessToken: "token" }) },
 }));
@@ -113,19 +144,27 @@ import { PaginaAtendimentosCliente } from "./pagina-atendimentos-cliente";
 
 function renderPagina() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const resultado = render(
     <QueryClientProvider client={queryClient}>
       <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="TODOS" />
     </QueryClientProvider>,
   );
+  return { ...resultado, queryClient };
+}
+
+function emitirNotificacao(notificacao: NotificacaoTempoReal) {
+  const cliente = stomp.clientes.at(-1);
+  const assinatura = cliente?.assinaturas.get("/user/queue/notificacoes");
+  if (!assinatura) throw new Error("A fila pessoal de notificações não foi assinada");
+  assinatura({ body: JSON.stringify(notificacao) });
 }
 
 describe("PaginaAtendimentosCliente", () => {
   beforeEach(() => {
     callbacks.abrir = undefined;
     callbacks.atualizarLista = undefined;
-    callbacks.notificar = undefined;
     callbacks.mensagens = undefined;
+    stomp.clientes.length = 0;
   });
 
   it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
@@ -152,7 +191,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
   });
 
-  it("abre duas vezes seguidas a mesma transferência pelo gatilho monotônico", async () => {
+  it("abre a transferência e limpa o aviso", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     const notificacao: NotificacaoTempoReal = {
@@ -166,20 +205,66 @@ describe("PaginaAtendimentosCliente", () => {
         ocorridoEm: "2026-01-01T00:00:00Z",
       },
     };
-    act(() => callbacks.notificar?.(notificacao));
+    act(() => emitirNotificacao(notificacao));
     fireEvent.click(screen.getByRole("button", { name: "Abrir transferência" }));
     await waitFor(() =>
       expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente"),
     );
 
-    act(() => callbacks.notificar?.(notificacao));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir transferência" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente"),
-    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("dispensa aviso de devolução e o remove automaticamente", () => {
+  it("mantém o mesmo evento dispensado após invalidação, render e reconexão, mas exibe uma nova ocorrência", async () => {
+    vi.useFakeTimers();
+    const random = vi.spyOn(Math, "random").mockReturnValue(1);
+    try {
+      const pagina = renderPagina();
+      const notificacao: NotificacaoTempoReal = {
+        tipo: "TRANSFERENCIA_RECEBIDA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          quemTransferiu: "Gestor",
+          atorTipo: "USUARIO",
+          ocorridoEm: "2026-01-01T00:00:00Z",
+        },
+      };
+      act(() => emitirNotificacao(notificacao));
+      expect(screen.getByRole("status")).toHaveTextContent("Transferência recebida");
+
+      fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      await pagina.queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+      pagina.rerender(
+        <QueryClientProvider client={pagina.queryClient}>
+          <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="TODOS" />
+        </QueryClientProvider>,
+      );
+      act(() => {
+        stomp.clientes[0]?.onWebSocketClose?.();
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(stomp.clientes).toHaveLength(2);
+
+      act(() => emitirNotificacao(notificacao));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      act(() =>
+        emitirNotificacao({
+          ...notificacao,
+          dados: { ...notificacao.dados, ocorridoEm: "2026-01-01T00:01:00Z" },
+        }),
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("Transferência recebida");
+    } finally {
+      random.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("dispensa a devolução para IA e respeita a expiração configurada", () => {
     vi.useFakeTimers();
     try {
       renderPagina();
@@ -192,15 +277,13 @@ describe("PaginaAtendimentosCliente", () => {
           ocorridoEm: "2026-01-01T00:00:00Z",
         },
       };
-      act(() => callbacks.notificar?.(notificacao));
+      act(() => emitirNotificacao(notificacao));
       expect(screen.getByRole("status")).toHaveTextContent("Devolvido para IA");
 
-      fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+      act(() => vi.advanceTimersByTime(8_000));
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-      act(() => callbacks.notificar?.(notificacao));
-      expect(screen.getByRole("status")).toBeInTheDocument();
-      act(() => vi.advanceTimersByTime(8_000));
+      act(() => emitirNotificacao(notificacao));
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -210,7 +293,7 @@ describe("PaginaAtendimentosCliente", () => {
   it("não ressuscita aviso antigo depois de desmontar e montar a tela", () => {
     const primeira = renderPagina();
     act(() =>
-      callbacks.notificar?.({
+      emitirNotificacao({
         tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
         dados: {
           atendimentoId: "atendimento-1",

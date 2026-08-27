@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { X } from "lucide-react";
 
@@ -34,6 +34,25 @@ interface Props {
   visaoInicial: VisaoAtendimento | null;
 }
 
+type NotificacaoDeAtendimento = Exclude<
+  NotificacaoTempoReal,
+  { tipo: "CHAT_INTERNO_MENSAGEM" }
+>;
+
+/**
+ * O contrato ainda não possui um id de evento. A ocorrência, junto do recurso e do tipo, é a
+ * identidade estável disponível: uma nova transição do mesmo atendimento continua distinta pelo
+ * `ocorridoEm`, enquanto a repetição do mesmo frame após reconexão mantém a mesma chave.
+ */
+function chaveDaNotificacao(notificacao: NotificacaoDeAtendimento): string {
+  return [
+    notificacao.tipo,
+    notificacao.dados.atendimentoId,
+    notificacao.dados.leadId,
+    notificacao.dados.ocorridoEm,
+  ].join(":");
+}
+
 /**
  * Um clique seleciona o atendimento e reassina o socket existente (RN-CRM-05). A ficha acompanha
  * a conversa no painel da direita, sem um overlay intermediário.
@@ -51,6 +70,7 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
+  const notificacoesProcessadas = useRef(new Set<string>());
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const { data: configuracao } = useConfiguracaoComposer();
@@ -96,8 +116,13 @@ export function PaginaAtendimentosCliente({
       if (
         evento.tipo === "TRANSFERENCIA_RECEBIDA" ||
         evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
-      )
-        setNotificacao(evento);
+      ) {
+        const chave = chaveDaNotificacao(evento);
+        if (!notificacoesProcessadas.current.has(chave)) {
+          notificacoesProcessadas.current.add(chave);
+          setNotificacao(evento);
+        }
+      }
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
