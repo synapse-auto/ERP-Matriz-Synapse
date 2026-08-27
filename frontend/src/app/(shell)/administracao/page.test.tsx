@@ -16,6 +16,8 @@ vi.mock("@/components/shell/placeholder", () => ({
   Placeholder: () => <div data-testid="placeholder">Placeholder</div>,
 }));
 
+type AuthStoreSelector = Parameters<typeof useAuthStore>[0];
+
 describe("AdministracaoPage", () => {
   const mockReplace = vi.fn();
 
@@ -25,21 +27,27 @@ describe("AdministracaoPage", () => {
   });
 
   it("deve bloquear acesso para ATENDENTE", () => {
-    (useAuthStore as unknown as import("vitest").Mock).mockImplementation((selector: (s: any) => any) => selector({ papel: "ATENDENTE" }));
+    (useAuthStore as unknown as import("vitest").Mock).mockImplementation(
+      (selector: AuthStoreSelector) => selector({ papel: "ATENDENTE" } as Parameters<AuthStoreSelector>[0]),
+    );
     const { queryByTestId } = render(<AdministracaoPage />);
     expect(mockReplace).toHaveBeenCalledWith("/");
     expect(queryByTestId("placeholder")).toBeNull();
   });
 
   it("deve permitir acesso para GESTOR", () => {
-    (useAuthStore as unknown as import("vitest").Mock).mockImplementation((selector: (s: any) => any) => selector({ papel: "GESTOR" }));
+    (useAuthStore as unknown as import("vitest").Mock).mockImplementation(
+      (selector: AuthStoreSelector) => selector({ papel: "GESTOR" } as Parameters<AuthStoreSelector>[0]),
+    );
     const { getByTestId } = render(<AdministracaoPage />);
     expect(mockReplace).not.toHaveBeenCalled();
     expect(getByTestId("placeholder")).toBeInTheDocument();
   });
 
   it("deve permitir acesso para ADMINISTRADOR", () => {
-    (useAuthStore as unknown as import("vitest").Mock).mockImplementation((selector: (s: any) => any) => selector({ papel: "ADMINISTRADOR" }));
+    (useAuthStore as unknown as import("vitest").Mock).mockImplementation(
+      (selector: AuthStoreSelector) => selector({ papel: "ADMINISTRADOR" } as Parameters<AuthStoreSelector>[0]),
+    );
     const { getByTestId } = render(<AdministracaoPage />);
     expect(mockReplace).not.toHaveBeenCalled();
     expect(getByTestId("placeholder")).toBeInTheDocument();

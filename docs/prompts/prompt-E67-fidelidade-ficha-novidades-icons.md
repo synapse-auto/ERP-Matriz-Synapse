@@ -268,4 +268,3 @@ captura na base final da E65, registre que a comparação foi feita na branch is
   programadas, tags ou ações de atendimento apenas para copiar o screenshot.
 - Não incorporar alterações da E65 nesta branch nem trabalhar no mesmo diretório do Codex.
 - Não commitar ou enviar os prompts não rastreados existentes automaticamente.
-

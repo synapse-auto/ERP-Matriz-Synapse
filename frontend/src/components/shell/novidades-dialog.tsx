@@ -45,7 +45,7 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
             {aba === "novidades" ? n.subtituloNovidades : n.subtituloEmBreve}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="flex gap-2 px-6 shrink-0 border-b" role="tablist" aria-label={n.titulo}>
           <button
             role="tab"

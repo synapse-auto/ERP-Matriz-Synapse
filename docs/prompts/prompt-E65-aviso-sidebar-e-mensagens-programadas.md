@@ -235,4 +235,3 @@ adaptador WebSocket fake existente, ou acrescente um fake de STOMP que emita o f
 - Não redesenhar a lista de conversas, o composer, a Agenda ou o painel de conversa interna.
 - Não transformar mensagens programadas em mensagens enviadas, alerta de erro ou componente de chat.
 - Não commitar nem enviar prompts não rastreados automaticamente; preserve os prompts já existentes.
-

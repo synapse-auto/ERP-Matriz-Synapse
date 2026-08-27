@@ -223,5 +223,3 @@ Use os sete itens de `AGENTS.md`. Em especial:
 - Não alterar chat interno, backend funcional, WebSocket, outbox, migrations ou autorização.
 - Não criar preferência persistente para sidebars.
 - Não fazer deploy, commit ou push sem autorização explícita.
-
-

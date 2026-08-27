@@ -415,4 +415,3 @@ registre isso como `⚠️` e diga exatamente o que foi validado na branch isola
    manutenção da escolha?
 4. A ação “Finalizar todos” manteve exatamente o escopo de atendimentos visíveis e a autorização
    anterior?
-

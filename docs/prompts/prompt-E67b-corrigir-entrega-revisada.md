@@ -171,4 +171,3 @@ Faça screenshots ou validação no navegador, registrando viewport, de:
 - Não criar banco, migration ou endpoint de novidades.
 - Não expor dados pessoais nem relaxar autorização.
 - Não misturar E65, E66 ou E68.
-

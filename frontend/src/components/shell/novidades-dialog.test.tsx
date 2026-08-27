@@ -50,7 +50,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 describe("NovidadesDialog", () => {
   it("agrupa itens por data e mostra a tag NOVO apenas onde configurado", () => {
     render(<NovidadesDialog aberto={true} onFechar={vi.fn()} />);
-    
+
     // Testa datas renderizadas (deve formatar as datas)
     expect(screen.getByText(/22 de julho de 2026/i)).toBeInTheDocument();
     expect(screen.getByText(/13 de julho de 2026/i)).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("NovidadesDialog", () => {
 
   it("renderiza a aba Em Breve corretamente com PillDeStatus", () => {
     render(<NovidadesDialog aberto={true} onFechar={vi.fn()} />);
-    
+
     // Troca para a aba Em Breve
     const abaEmBreve = screen.getByRole("tab", { name: "Em breve" });
     fireEvent.click(abaEmBreve);

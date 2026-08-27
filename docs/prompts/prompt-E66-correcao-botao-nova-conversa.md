@@ -129,4 +129,3 @@ Faça também uma conferência manual ou E2E na tela `/atendimentos` com a flag 
 - Não implementar novo contato WhatsApp.
 - Não redesenhar a sidebar, o painel do lead ou o fluxo de seleção de contatos.
 - Não commitar nem enviar os prompts não rastreados existentes automaticamente.
-
