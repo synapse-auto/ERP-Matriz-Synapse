@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "./types";
 
@@ -42,6 +42,8 @@ function wrapper(cache: QueryClient) {
 }
 
 describe("useAtendimentos — paginação da inbox", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("consome o cursor e concatena páginas sem reordenar nem duplicar", async () => {
     vi.mocked(api.listarInboxUnificada)
       .mockResolvedValueOnce({ itens: [cliente("um", "2026-08-26T12:00:00Z")], proximoCursor: "cursor-1" })
@@ -56,5 +58,34 @@ describe("useAtendimentos — paginação da inbox", () => {
 
     expect(result.current.data?.map((item) => item.atendimentoId)).toEqual(["um", "dois"]);
     expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1");
+  });
+
+  it("mantém a inbox íntegra após invalidação sem misturar o cache da lista legada", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [cliente("um", "2026-08-26T12:00:00Z")],
+      proximoCursor: null,
+    });
+    vi.mocked(api.listarAtendimentos).mockResolvedValue([]);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("TODOS"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(result.current.data?.[0]?.tipo).toBe("CLIENTE"));
+    await cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    await waitFor(() => expect(api.listarInboxUnificada).toHaveBeenCalledTimes(2));
+
+    expect(result.current.data?.[0]?.tipo).toBe("CLIENTE");
+    expect(api.listarAtendimentos).not.toHaveBeenCalled();
+  });
+
+  it("descarta entrada ausente sem derrubar toda a lista", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [undefined, cliente("valido", "2026-08-26T12:00:00Z")],
+      proximoCursor: null,
+    } as unknown as Awaited<ReturnType<typeof api.listarInboxUnificada>>);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("TODOS"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(result.current.data?.[0]?.atendimentoId).toBe("valido");
   });
 });

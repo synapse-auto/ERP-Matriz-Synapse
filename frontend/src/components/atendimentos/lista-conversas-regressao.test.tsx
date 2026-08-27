@@ -103,7 +103,7 @@ describe("ListaConversas — regressão de identidade do array", () => {
     await waitFor(() => expect(screen.getByTestId("ordem")).toHaveTextContent("cliente-1,conversa-1"));
     expect(repasses).toHaveLength(2);
 
-    cache.setQueryData(["atendimentos", "TODOS"], {
+    cache.setQueryData(["atendimentos", "inbox", "TODOS"], {
       pages: [{ itens: segunda, proximoCursor: null }],
       pageParams: [null],
     });

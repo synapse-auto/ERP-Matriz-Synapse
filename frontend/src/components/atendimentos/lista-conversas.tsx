@@ -84,6 +84,7 @@ export function ListaConversas({
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(visao);
+  const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
   const [contatoSelecionado, setContatoSelecionado] = useState("");
@@ -104,45 +105,45 @@ export function ListaConversas({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, visao]);
 
   useEffect(() => {
-    onAtendimentosAtualizados?.(data ?? []);
-  }, [data, onAtendimentosAtualizados]);
+    onAtendimentosAtualizados?.(cartoes);
+  }, [cartoes, onAtendimentosAtualizados]);
 
   useEffect(() => {
     abriuLeadInicial.current = false;
   }, [leadInicialGatilho, leadInicialId]);
 
   useEffect(() => {
-    if (!leadInicialId || abriuLeadInicial.current || !data) return;
-    const cartao = data.find((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadInicialId);
+    if (!leadInicialId || abriuLeadInicial.current) return;
+    const cartao = cartoes.find((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadInicialId);
     if (cartao) {
       abriuLeadInicial.current = true;
       onAbrirAtendimento(cartao);
     }
-  }, [data, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
+  }, [cartoes, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
 
   const etapas = useMemo(() => {
     const mapa = new Map<string, string>();
-    for (const cartao of data ?? []) {
+    for (const cartao of cartoes) {
       if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.etapaId && cartao.etapaNome) {
         mapa.set(cartao.etapaId, cartao.etapaNome);
       }
     }
     return Array.from(mapa.entries());
-  }, [data]);
+  }, [cartoes]);
 
   const atendentes = useMemo(() => {
     const mapa = new Map<string, string>();
-    for (const cartao of data ?? []) {
+    for (const cartao of cartoes) {
       if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.atendenteId && cartao.atendenteNome) {
         mapa.set(cartao.atendenteId, cartao.atendenteNome);
       }
     }
     return Array.from(mapa.entries());
-  }, [data]);
+  }, [cartoes]);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    return (data ?? []).filter((cartao) => {
+    return cartoes.filter((cartao) => {
       const correspondeABusca =
         !termo ||
         [cartao.tipo === "EQUIPE_INTERNA" ? cartao.nome : cartao.leadNome,
@@ -156,7 +157,7 @@ export function ListaConversas({
         (cartao.tipo === "EQUIPE_INTERNA" || !filtroAtendente || cartao.atendenteId === filtroAtendente)
       );
     });
-  }, [busca, data, filtroAtendente, filtroEtapa]);
+  }, [busca, cartoes, filtroAtendente, filtroEtapa]);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background">

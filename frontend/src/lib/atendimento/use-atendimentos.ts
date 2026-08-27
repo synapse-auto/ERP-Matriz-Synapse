@@ -12,7 +12,9 @@ const INTERVALO_DE_REVALIDACAO_MS = Number(
 
 export function useAtendimentos(visao: VisaoAtendimento) {
   const inbox = useInfiniteQuery({
-    queryKey: ["atendimentos", visao],
+    // Query infinita e query comum não podem compartilhar a mesma chave: os formatos de cache
+    // (`pages/pageParams` e array) são incompatíveis e se corrompem no refetch por WebSocket.
+    queryKey: ["atendimentos", "inbox", visao],
     enabled: visao === "TODOS",
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam),
@@ -21,9 +23,12 @@ export function useAtendimentos(visao: VisaoAtendimento) {
     refetchInterval: INTERVALO_DE_REVALIDACAO_MS,
   });
   const paginas = inbox.data?.pages;
-  const itensInbox = useMemo(() => paginas?.flatMap((pagina) => pagina.itens), [paginas]);
+  const itensInbox = useMemo(
+    () => paginas?.flatMap((pagina) => pagina?.itens ?? []).filter(itemPresente),
+    [paginas],
+  );
   const legado = useQuery({
-    queryKey: ["atendimentos", visao],
+    queryKey: ["atendimentos", "legado", visao],
     enabled: visao !== "TODOS",
     queryFn: () => listarAtendimentos(visao),
     refetchInterval: INTERVALO_DE_REVALIDACAO_MS,
@@ -44,6 +49,10 @@ export function useAtendimentos(visao: VisaoAtendimento) {
     isFetchingNextPage: false,
     fetchNextPage: async () => undefined,
   };
+}
+
+function itemPresente(item: ItemInbox | null | undefined): item is ItemInbox {
+  return item != null;
 }
 
 /** Os badges das abas (E17b §Bloco 6) — uma contagem por visão, independente de qual aba está ativa. */
