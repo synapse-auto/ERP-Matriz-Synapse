@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import { Mic, Paperclip, Send, Square, Trash2, Users, X, Download, FileText } from "lucide-react";
-import { urlSegura } from "@/lib/utils";
+import { urlSegura, cn } from "@/lib/utils";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
+import { PlayerAudio } from "@/components/atendimentos/player-audio";
 
 
 import type { Textos } from "@/lib/config/schema";
@@ -14,7 +15,6 @@ import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 
 type TextosChat = Textos["chatInterno"];
 export const TIPOS_DE_ANEXO_ACEITOS = "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -74,7 +74,17 @@ export function ListaMensagensChatInterno({ mensagens, usuarioAtual, textos }: {
               )}
 
               {tipo === "AUDIO" && (
-                midiaUrl ? <audio controls src={midiaUrl} className="max-w-full" /> : <p>{textosAtendimentos.audio}</p>
+                midiaUrl
+                  ? (
+                    <PlayerAudio
+                      src={midiaUrl}
+                      rotulo={textosAtendimentos.audio}
+                      reproduzir={textosAtendimentos.reproduzir}
+                      pausar={textosAtendimentos.pausar}
+                      posicao={textosAtendimentos.posicao}
+                    />
+                  )
+                  : <p>{textosAtendimentos.audio}</p>
               )}
 
               {tipo === "DOCUMENTO" && (

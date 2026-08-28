@@ -363,6 +363,9 @@
     "media": {
       "imagem": "Imagem",
       "audio": "Áudio",
+      "reproduzir": "Reproduzir áudio",
+      "pausar": "Pausar áudio",
+      "posicao": "Posição do áudio",
       "documento": "Documento",
       "baixar": "Baixar",
       "botoes": "Opções",

@@ -33,7 +33,7 @@ const mockTextosCompletos = {
       audioErroCaptura: "A",
       audioExcedeuLimite: "A",
     },
-    media: { audio: "A", baixar: "A", documento: "A", imagem: "A" },
+    media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "A" },
   },
 } as unknown as Textos;
 
@@ -62,6 +62,26 @@ describe("componentes de apresentação do chat interno", () => {
     expect(linhas?.[1]).toHaveClass("justify-start");
     expect(screen.getByText("Bruno")).toBeInTheDocument();
     expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
+  });
+
+  it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {
+    const comAudio: ChatMensagem[] = [{
+      id: "m-audio",
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "AUDIO",
+      conteudo: null,
+      midiaUrl: "https://example.test/voz.m4a",
+      enviadoEm: "2026-08-27T12:02:00Z",
+    }];
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno mensagens={comAudio} usuarioAtual="u1" textos={textos} />
+      </TextosProvider>,
+    );
+    expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
+    expect(document.querySelector("audio[controls]")).toBeNull();
   });
 
   it("envia por Enter, preserva Shift+Enter e mantém o texto quando falha", async () => {

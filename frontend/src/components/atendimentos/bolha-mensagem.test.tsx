@@ -6,7 +6,7 @@ import type { MensagemResposta } from "@/lib/atendimento/types";
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
-      media: { imagem: "Imagem", audio: "Áudio", documento: "Documento", baixar: "Baixar", botoes: "Opções", lista: "Lista" },
+      media: { imagem: "Imagem", audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", documento: "Documento", baixar: "Baixar", botoes: "Opções", lista: "Lista" },
       mensagem: {
         status: {
           pendente: "Enviando",
@@ -126,5 +126,22 @@ describe("BolhaMensagem", () => {
     expect(screen.getByText("Escolha uma opção")).toBeInTheDocument();
     expect(screen.getByText("Sim")).toBeInTheDocument();
     expect(screen.getByText("Confirmar")).toBeInTheDocument();
+  });
+
+  it("mostra o player compacto no áudio enviado, sem o controle nativo", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "AUDIO",
+          conteudo: null,
+          midiaUrl: "https://example.test/voz.m4a",
+        })}
+        nomeDoRemetente="Jardel Lima"
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
+    expect(document.querySelector("audio[controls]")).toBeNull();
+    expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toBeInTheDocument();
   });
 });

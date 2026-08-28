@@ -7,6 +7,7 @@ import { cn, urlSegura } from "@/lib/utils";
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
 import { StatusEntregaIcone } from "./status-entrega";
+import { PlayerAudio } from "./player-audio";
 
 interface MidiaMetadados {
   nome?: string;
@@ -102,7 +103,13 @@ export function BolhaMensagem({
 
         {mensagem.tipo === "AUDIO" &&
           (midiaUrl ? (
-            <audio controls src={midiaUrl} className="max-w-full" />
+            <PlayerAudio
+              src={midiaUrl}
+              rotulo={textos.audio}
+              reproduzir={textos.reproduzir}
+              pausar={textos.pausar}
+              posicao={textos.posicao}
+            />
           ) : (
             <p>{textos.audio}</p>
           ))}
