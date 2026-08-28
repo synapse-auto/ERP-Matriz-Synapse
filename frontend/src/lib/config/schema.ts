@@ -362,6 +362,9 @@ export const TextosSchema = z.object({
     media: z.object({
       imagem: z.string(),
       audio: z.string(),
+      reproduzir: z.string(),
+      pausar: z.string(),
+      posicao: z.string(),
       documento: z.string(),
       baixar: z.string(),
       botoes: z.string(),

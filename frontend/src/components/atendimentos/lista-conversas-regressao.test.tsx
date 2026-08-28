@@ -118,6 +118,7 @@ describe("ListaConversas — regressão de identidade do array", () => {
 
     render(<QueryClientProvider client={cache}><Tela /></QueryClientProvider>);
     await waitFor(() => expect(screen.getByTestId("ordem")).toHaveTextContent("cliente-1,conversa-1"));
+    expect(document.querySelector('[data-slot="lista-conversas-itens"]')).toHaveClass("pt-4");
     expect(repasses).toHaveLength(2);
 
     cache.setQueryData(["atendimentos", "inbox", "TODOS"], {

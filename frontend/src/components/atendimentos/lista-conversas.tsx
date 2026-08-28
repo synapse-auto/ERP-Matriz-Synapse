@@ -321,31 +321,33 @@ export function ListaConversas({
       )}
 
       <ScrollArea className="min-h-0 flex-1 overflow-hidden" data-slot="lista-conversas-scroll">
-        {isLoading ? (
-          <div className="space-y-2 p-3">
-            {Array.from({ length: 5 }).map((_, indice) => (
-              <Skeleton key={indice} className="h-14 w-full" />
-            ))}
-          </div>
-        ) : filtrados.length === 0 ? (
-          <p className="p-4 text-center text-sm text-muted-foreground">
-            {textos.cartao.vazio}
-          </p>
-        ) : (
-          filtrados.map((cartao) => (
-            <CartaoConversa
-              key={cartao.tipo === "EQUIPE_INTERNA" ? `equipe-${cartao.conversaId}` : `cliente-${cartao.leadId}`}
-              cartao={cartao}
-              selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
-              onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
-            />
-          ))
-        )}
-        {visao === "TODOS" && hasNextPage && (
-          <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
-            {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
-          </div>
-        )}
+        <div className="pt-4" data-slot="lista-conversas-itens">
+          {isLoading ? (
+            <div className="space-y-2 p-3">
+              {Array.from({ length: 5 }).map((_, indice) => (
+                <Skeleton key={indice} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : filtrados.length === 0 ? (
+            <p className="p-4 text-center text-sm text-muted-foreground">
+              {textos.cartao.vazio}
+            </p>
+          ) : (
+            filtrados.map((cartao) => (
+              <CartaoConversa
+                key={cartao.tipo === "EQUIPE_INTERNA" ? `equipe-${cartao.conversaId}` : `cliente-${cartao.leadId}`}
+                cartao={cartao}
+                selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
+                onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
+              />
+            ))
+          )}
+          {visao === "TODOS" && hasNextPage && (
+            <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
+              {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
+            </div>
+          )}
+        </div>
       </ScrollArea>
 
       <Dialog
