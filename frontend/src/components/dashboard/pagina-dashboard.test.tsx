@@ -18,7 +18,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       funilApoio: "Etapas do pipeline",
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", originacao: "Originação", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
-      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "CSAT", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },
+      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },
       secoes: { ranking: "Top atendentes · vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem vendas", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
       funil: { vazio: "Sem etapas" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
@@ -57,7 +57,10 @@ describe("PaginaDashboard", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("50,0%")).toBeInTheDocument();
     expect(screen.getByText("1h 30min")).toBeInTheDocument();
+    expect(screen.getByText("Avaliação")).toBeInTheDocument();
     expect(screen.getByText("4,5/5")).toBeInTheDocument();
+    expect(screen.queryByText("Vendas fechadas")).not.toBeInTheDocument();
+    expect(screen.getByText("Top atendentes · vendas fechadas")).toBeInTheDocument();
     expect(screen.getByText("Ana Silva")).toBeInTheDocument();
     expect(screen.getByText("1 venda sem responsável atribuído")).toBeInTheDocument();
     expect(screen.getByText("+25,0pp vs. período anterior")).toBeInTheDocument();

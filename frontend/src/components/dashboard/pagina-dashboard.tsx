@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from "react";
 import {
-  BadgeCheck,
   Bot,
-  CalendarRange,
   Clock3,
   Handshake,
   Lock,
   Monitor,
+  Star,
   TrendingDown,
   TrendingUp,
   UsersRound,
@@ -269,7 +268,7 @@ function ConteudoDashboard({
 
   return (
     <>
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-6" aria-label={textos.kpis.rotulo}>
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5" aria-label={textos.kpis.rotulo}>
         <Kpi
           titulo={textos.kpis.atendimentos}
           valor={numero(dados.atendimentos.noPeriodo)}
@@ -296,18 +295,11 @@ function ConteudoDashboard({
           quedaPositiva
         />
         <Kpi
-          titulo={textos.kpis.vendas}
-          valor={numero(dados.vendasFechadas.noPeriodo)}
-          apoio={preencher(textos.kpis.vendasApoio, { total: numero(dados.vendasFechadas.acumulado) })}
-          comparativo={dados.vendasFechadas.comparativo}
-          Icone={BadgeCheck}
-        />
-        <Kpi
           titulo={textos.kpis.csat}
           valor={dados.avaliacaoMedia.media === null ? textos.semDado : `${percentual(dados.avaliacaoMedia.media)}/${dados.avaliacaoMedia.escalaMaxima}`}
           apoio={preencher(textos.kpis.csatApoio, { total: dados.avaliacaoMedia.quantidade })}
           comparativo={dados.avaliacaoMedia.comparativo}
-          Icone={CalendarRange}
+          Icone={Star}
         />
         <Kpi
           titulo={textos.kpis.resolucaoIa}
