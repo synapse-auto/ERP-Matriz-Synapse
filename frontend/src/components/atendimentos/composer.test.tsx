@@ -193,7 +193,8 @@ describe("Composer — anexo", () => {
   });
 
   it("abre o formulário de mensagem programada sem desmontar o composer", async () => {
-    renderizar();
+    const { container } = renderizar();
+    expect(container.firstElementChild).toHaveClass("shrink-0");
 
     fireEvent.click(screen.getByRole("button", { name: "Agendar mensagem" }));
 

@@ -112,7 +112,7 @@ export function CabecalhoConversa({
 
   return (
     <div
-      className="flex h-[72px] items-center justify-between border-b border-border bg-background px-5"
+      className="flex h-[72px] shrink-0 items-center justify-between border-b border-border bg-background px-5"
       data-slot="cabecalho-conversa"
     >
       <div className="flex min-w-0 items-center gap-3">

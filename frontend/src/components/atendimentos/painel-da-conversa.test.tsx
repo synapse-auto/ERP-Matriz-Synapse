@@ -146,6 +146,10 @@ describe("painel da conversa", () => {
     const controle = screen.getByRole("button", { name: "Retrair detalhes do lead" });
     expect(controle).toHaveAttribute("aria-expanded", "true");
     expect(controle).toHaveAttribute("aria-controls", "painel-detalhes-lead");
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "min-h-0",
+      "overflow-hidden",
+    );
     fireEvent.click(controle);
     expect(onRetrair).toHaveBeenCalledOnce();
   });
@@ -156,11 +160,18 @@ describe("painel da conversa", () => {
     expect(
       screen.queryByText("Nenhuma mensagem programada"),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Mensagens programadas"));
+    const programadas = screen.getByRole("button", { name: /Mensagens programadas/ });
+    const lembretes = screen.getByRole("button", { name: /Lembretes/ });
+    expect(programadas).toHaveAttribute("aria-expanded", "false");
+    expect(lembretes).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(programadas);
+    expect(programadas).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Nenhuma mensagem programada")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Lembretes"));
+    fireEvent.click(lembretes);
+    expect(lembretes).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Nenhum lembrete")).toBeInTheDocument();
+    expect(screen.getByRole("complementary")).toHaveClass("min-h-0", "overflow-hidden");
   });
 
   it("mantém o painel estável quando a etapa, o e-mail e a localidade estão ausentes", () => {

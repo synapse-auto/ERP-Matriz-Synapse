@@ -201,15 +201,14 @@ export function PaginaAtendimentosCliente({
     });
   }
 
+  const colunasDoPainel =
+    conversa && painelDetalhesAberto
+      ? "grid-cols-[346px_minmax(0,1fr)_344px]"
+      : "grid-cols-[346px_minmax(0,1fr)]";
+
   return (
     <div
-      className={
-        conversa
-          ? painelDetalhesAberto
-            ? "relative grid h-full grid-cols-[346px_1fr_344px] overflow-hidden"
-            : "relative grid h-full grid-cols-[346px_1fr] overflow-hidden"
-          : "relative grid h-full grid-cols-[346px_1fr] overflow-hidden"
-      }
+      className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
     >
       {notificacao && (
         <div
@@ -271,7 +270,7 @@ export function PaginaAtendimentosCliente({
         onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
       />
 
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
@@ -309,7 +308,7 @@ export function PaginaAtendimentosCliente({
             {atendimentoAtivo ? (
               <Composer conversa={atendimentoAtivo} />
             ) : (
-              <div className="bg-background px-4 pb-4 pt-3">
+              <div className="shrink-0 bg-background px-4 pb-4 pt-3">
                 <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
                   {textos.finalizar.sucesso}
                 </div>

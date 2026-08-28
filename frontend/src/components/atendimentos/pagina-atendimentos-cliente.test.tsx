@@ -228,12 +228,24 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.abrir?.(cartaoInicial));
 
     expect(pagina.container.firstElementChild).toHaveClass(
-      "grid-cols-[346px_1fr_344px]",
+      "grid-cols-[346px_minmax(0,1fr)_344px]",
+      "grid-rows-[minmax(0,1fr)]",
+      "min-h-0",
+      "overflow-hidden",
     );
+    expect(pagina.container.firstElementChild?.children[1]).toHaveClass(
+      "flex",
+      "h-full",
+      "min-h-0",
+      "overflow-hidden",
+    );
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
     expect(screen.getByTestId("responsavel-painel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retrair detalhes do lead" }));
 
-    expect(pagina.container.firstElementChild).toHaveClass("grid-cols-[346px_1fr]");
+    expect(pagina.container.firstElementChild).toHaveClass(
+      "grid-cols-[346px_minmax(0,1fr)]",
+    );
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
     expect(screen.getByTestId("composer")).toBeInTheDocument();

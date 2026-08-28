@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -65,6 +65,9 @@ type Props = {
  *
  * <p>Seção "Arquivos compartilhados" do protótipo fica de fora: Banco de Arquivos está fora da
  * primeira entrega (docs/09) — não há endpoint dos dois lados.
+ *
+ * <p>{@code min-h-0 overflow-hidden} no aside: sem isso, abrir Lembretes/Programadas infla a
+ * linha do grid da página e o composer some abaixo da viewport.
  */
 export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) {
   const textos = useTextos().atendimentos.painel;
@@ -87,7 +90,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
   return (
     <aside
       id="painel-detalhes-lead"
-      className="flex h-full w-[344px] shrink-0 flex-col border-l border-border bg-background"
+      className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background"
     >
       <div className="flex flex-none items-center justify-between gap-2 p-4">
         <p className="text-sm font-bold text-foreground">{textos.titulo}</p>
@@ -317,10 +320,13 @@ function SecaoColapsavel({
   children: React.ReactNode;
 }) {
   const [aberta, setAberta] = useState(Boolean(abertaPorPadrao));
+  const idPainel = useId();
   return (
     <div>
       <button
         type="button"
+        aria-expanded={aberta}
+        aria-controls={idPainel}
         onClick={() => setAberta((atual) => !atual)}
         className="flex w-full items-center gap-2.5 rounded-lg border border-border p-2.5 text-left hover:bg-muted"
       >
@@ -339,7 +345,11 @@ function SecaoColapsavel({
           <ChevronDown className="size-4 text-muted-foreground" />
         )}
       </button>
-      {aberta && <div className="mt-2">{children}</div>}
+      {aberta && (
+        <div id={idPainel} className="mt-2">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
