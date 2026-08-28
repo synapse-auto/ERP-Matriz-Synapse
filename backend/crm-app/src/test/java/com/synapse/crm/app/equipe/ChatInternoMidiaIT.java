@@ -65,6 +65,7 @@ class ChatInternoMidiaIT extends PostgresIT {
         String payload = "{\"usuarioId\": \"" + brunoId + "\"}";
         ResponseEntity<Map> resConversa = chamadaAutenticada(rest, "/api/v1/chat-interno/conversas/direta", HttpMethod.POST, authAna, payload, Map.class);
         String conversaId = resConversa.getBody().get("id").toString();
+        Long mensagensAntes = contarMensagens(conversaId);
 
         // 3. Ana envia imagem fake (bytes de magic png limitados a menos de 100 bytes)
         byte[] imagemValida = new byte[]{
@@ -122,10 +123,7 @@ class ChatInternoMidiaIT extends PostgresIT {
         HttpEntity<MultiValueMap<String, Object>> reqFalso = new HttpEntity<>(bodyFalso, headers);
         ResponseEntity<Map> respFalso = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia", HttpMethod.POST, reqFalso, Map.class);
         assertThat(respFalso.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-
-        // Verifica que nenhuma linha a mais foi criada no banco (apenas a mensagem legitima anterior, + aviso de conversa iniciada etc, totalizando 2)
-        Long msgs = db.queryForObject("select count(*) from chat_interno_mensagem where conversa_id = ?", Long.class, UUID.fromString(conversaId));
-        assertThat(msgs).isEqualTo(1); // 1 da imagem (o POST na direta nao cria mensagem inicial neste tenant)
+        assertThat(contarMensagens(conversaId)).isEqualTo(mensagensAntes + 1);
     }
 
     @Test
@@ -184,6 +182,13 @@ class ChatInternoMidiaIT extends PostgresIT {
         System.arraycopy(nome, 0, resultado, 4, 4);
         System.arraycopy(payload, 0, resultado, 8, payload.length);
         return resultado;
+    }
+
+    private Long contarMensagens(String conversaId) {
+        return db.queryForObject(
+                "select count(*) from chat_interno_mensagem where conversa_id = ?",
+                Long.class,
+                UUID.fromString(conversaId));
     }
 
     private <T> ResponseEntity<T> chamadaAutenticada(
