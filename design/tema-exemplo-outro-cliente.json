@@ -35,7 +35,7 @@
   "corErro": "#C0392B",
   "corErroSuave": "#FBEAE8",
 
-  "fonteBase": "'Hanken Grotesk', system-ui, sans-serif",
+  "fonteBase": "'Inter', sans-serif",
   "fonteMono": "'JetBrains Mono', monospace",
 
   "textoXs": "11px",

@@ -7,8 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* --fonte-base-carregada/--fonte-mono-carregada vêm dos arquivos locais carregados em
-     layout.tsx. --fonte-base/--fonte-mono (tema.json) ficam como fallback de nome. */
+  /* --fonte-base-carregada/--fonte-mono-carregada vêm de layout.tsx (Inter via next/font/google
+     no build; JetBrains Mono local). --fonte-base/--fonte-mono (tema.json) ficam como fallback
+     de nome. */
   --font-sans: var(--fonte-base-carregada), var(--fonte-base);
   --font-mono: var(--fonte-mono-carregada), var(--fonte-mono);
   --font-heading: var(--fonte-base-carregada), var(--fonte-base);
@@ -85,7 +86,7 @@
  * existir — build estático sem backend no ar, por exemplo (já mordeu esse caminho antes).
  */
 :root {
-  --fonte-base: "Hanken Grotesk", system-ui, sans-serif;
+  --fonte-base: "Inter", sans-serif;
   --fonte-mono: "JetBrains Mono", ui-monospace, monospace;
   --background: var(--fundo-app, #F4F7FB);
   --foreground: var(--texto-padrao, #33475B);
@@ -163,10 +164,16 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    @apply font-sans font-normal;
+  }
+  body {
+    @apply bg-background text-foreground font-normal;
+  }
+  h1 {
+    @apply font-bold;
+  }
+  tbody {
+    font-weight: 400;
   }
 }

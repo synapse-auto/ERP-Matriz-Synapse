@@ -53,7 +53,7 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
             aria-controls="panel-novidades"
             onClick={() => setAba("novidades")}
             className={cn(
-              "px-4 py-2 text-sm font-semibold border-b-2 transition-colors",
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               aba === "novidades" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
@@ -65,7 +65,7 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
             aria-controls="panel-embreve"
             onClick={() => setAba("embreve")}
             className={cn(
-              "px-4 py-2 text-sm font-semibold border-b-2 transition-colors",
+              "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               aba === "novidades" ? "border-transparent text-muted-foreground hover:text-foreground" : "border-primary text-primary"
             )}
           >

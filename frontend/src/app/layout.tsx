@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 
 import { TransicaoDeAbertura } from "@/components/auth/transicao-de-abertura";
@@ -13,14 +14,12 @@ import "./globals.css";
 import "./identidade-synapse.css";
 
 /**
- * As duas fontes do protótipo ficam versionadas junto da aplicação. Além de evitar o fallback
- * mais largo que truncava rótulos como "Mensagens Programadas", `next/font/local` elimina a
- * consulta ao CDN do Google durante `next build` — uma indisponibilidade externa não pode quebrar
- * a imagem do frontend.
+ * Inter vem do Google Fonts só no `next build`: o Next baixa os arquivos e os serve da própria
+ * imagem. Em runtime o navegador não consulta o CDN — a aba Atendimentos não depende de uma
+ * fonte externa ficar no ar.
  */
-const hankenGrotesk = localFont({
-  src: "./fonts/HankenGrotesk-Variable.woff2",
-  weight: "100 900",
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
   display: "swap",
   variable: "--fonte-base-carregada",
 });
@@ -54,9 +53,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang="pt-BR"
-      className={`h-full antialiased ${hankenGrotesk.variable} ${jetBrainsMono.variable}`}
+      className={`h-full antialiased ${inter.variable} ${jetBrainsMono.variable} ${inter.className}`}
     >
-      <body className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
+      <body className="flex h-full flex-col overflow-hidden bg-background font-sans font-normal text-foreground">
         <QueryProvider>
           <TextosProvider textos={textos}>
             <AuthProvider>

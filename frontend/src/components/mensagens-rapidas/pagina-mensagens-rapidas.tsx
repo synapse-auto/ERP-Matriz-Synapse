@@ -49,7 +49,7 @@ export function PaginaMensagensRapidas() {
     <div className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{t.titulo}</h1>
+          <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
         <Button onClick={() => setAberto(true)}>{t.nova}</Button>

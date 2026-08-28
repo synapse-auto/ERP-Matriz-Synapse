@@ -70,7 +70,7 @@ export interface CartaoEquipeInterna {
   atendimentoId: null;
   conversaId: string;
   nome: string;
-  avatarUrl: null;
+  avatarUrl: string | null;
   identificadorVisual: string;
   ultimaMensagemPreview: string | null;
   ultimaMensagemEm: string | null;
@@ -143,6 +143,7 @@ export interface ParticipanteAtendimento {
   usuarioId: string;
   nome: string;
   entrouEm: string;
+  fotoUrl?: string | null;
 }
 
 export type StatusPedidoEntrada = "PENDENTE" | "APROVADO" | "RECUSADO" | "EXPIRADO";

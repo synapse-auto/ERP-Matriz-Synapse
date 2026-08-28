@@ -4,7 +4,7 @@ import { MessageCircleMore, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
+import { AvatarIniciais, tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import type { ItemInbox } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
@@ -35,11 +35,12 @@ export function CartaoConversa({
           selecionado && "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
         )}
       >
-        <Avatar className="size-11 rounded-xl">
-          <AvatarFallback className="rounded-xl text-white" style={{ backgroundColor: tomDoAvatar(cartao.conversaId) }}>
-            {iniciaisDoNome(cartao.nome)}
-          </AvatarFallback>
-        </Avatar>
+        <AvatarIniciais
+          id={cartao.conversaId}
+          nome={cartao.nome}
+          fotoUrl={cartao.avatarUrl}
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-bold text-foreground">{cartao.nome}</p>

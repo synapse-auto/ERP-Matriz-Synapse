@@ -67,7 +67,7 @@ public class ChatInternoController {
     @Operation(summary = "Listar contatos do chat", description = "Lista integrantes ativos disponíveis para iniciar uma conversa direta, sem expor credenciais ou dados pessoais desnecessários.", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
     @GetMapping("/contatos")
     List<ContatoResposta> contatos() {
-        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome())).toList();
+        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome(), c.fotoUrl())).toList();
     }
 
     @Operation(summary = "Abrir conversa direta", description = "Cria ou reutiliza uma conversa direta; a operação é idempotente para o mesmo par.", responses = {
@@ -125,11 +125,12 @@ public class ChatInternoController {
     record AbrirRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
     record MensagemRequisicao(@NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 10000) String conteudo) {}
     record ConversaCriada(UUID id) {}
-    public record ContatoResposta(UUID id, String nome) {}
+    public record ContatoResposta(UUID id, String nome, String fotoUrl) {}
     public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
-            Instant ultimaMensagemEm, long naoLidas) {
+            Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {
-            return new ConversaResposta(r.id(), r.tipo().name(), r.participantes(), r.ultimaMensagem(), r.ultimaMensagemEm(), r.naoLidas());
+            return new ConversaResposta(r.id(), r.tipo().name(), r.participantes(), r.ultimaMensagem(),
+                    r.ultimaMensagemEm(), r.naoLidas(), r.fotoUrl());
         }
     }
     public record PaginaResposta(List<MensagemResposta> mensagens, Instant proximoCursor) {

@@ -93,7 +93,7 @@ Também corrigido nesta rodada: `--fundo-sidebar` estava documentado como `#0F24
 ## 2. Tipografia
 
 ```
---fonte-base: 'Hanken Grotesk', system-ui, sans-serif
+--fonte-base: 'Inter', sans-serif
 --fonte-mono: 'JetBrains Mono', monospace
 ```
 
@@ -110,7 +110,9 @@ As mais usadas são **13, 12 e 14** — interface densa, como pedido em "menos t
 | `--texto-xl` | 18px |
 | `--texto-2xl` | 20px |
 
-Pesos: 600 (medium), 700 (semibold), 800 (bold em títulos).
+Pesos: **400** (dados de tabela, descrições secundárias, conteúdo do chat), **500** (menu
+lateral, nomes de abas, botões), **600/700** (títulos de página, nomes de clientes em destaque,
+números de métrica nos cards).
 Rótulos de seção usam `letter-spacing: .11em` a `.16em` com caixa alta.
 
 ---

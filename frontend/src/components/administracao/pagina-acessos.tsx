@@ -40,7 +40,7 @@ export function PaginaAcessosAdministracao() {
     <section className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-        <h2 className="text-lg font-extrabold tracking-tight">{t.titulo}</h2>
+        <h2 className="text-lg font-bold tracking-tight">{t.titulo}</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">{t.descricao}</p>
         </div>
         <Button onClick={() => setNovo(true)}>{t.novo}</Button>

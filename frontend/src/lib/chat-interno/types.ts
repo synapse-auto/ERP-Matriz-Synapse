@@ -1,7 +1,8 @@
-export interface ChatContato { id: string; nome: string }
+export interface ChatContato { id: string; nome: string; fotoUrl?: string | null }
 export interface ChatConversa {
   id: string; tipo: "DIRETA" | "GRUPO"; participantes: string;
   ultimaMensagem: string | null; ultimaMensagemEm: string | null; naoLidas: number;
+  fotoUrl?: string | null;
 }
 export interface ChatMensagem {
   id: string; conversaId: string; remetenteId: string; remetenteNome: string;
