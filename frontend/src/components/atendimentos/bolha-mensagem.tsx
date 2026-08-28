@@ -75,7 +75,7 @@ export function BolhaMensagem({
     <div className={cn("flex", doAtendente ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[70%] rounded-lg px-3.5 py-3 text-sm",
+          "max-w-[70%] rounded-lg px-3.5 py-3 text-sm font-normal",
           doAtendente
             ? "bg-primary text-primary-foreground"
             : "min-w-[12rem] bg-muted text-foreground shadow-sm",

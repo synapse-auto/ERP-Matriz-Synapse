@@ -16,6 +16,24 @@ import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
 
 @Repository
 class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
+    private static final String SQL_LISTAR_CONVERSAS = """
+            SELECT c.id, c.tipo::text,
+                   COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '') AS participantes,
+                   ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
+                   COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
+                       WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
+                         AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas,
+                   CASE WHEN c.tipo = 'DIRETA' AND MAX(u.foto_referencia) IS NOT NULL
+                        THEN '/api/v1/me/foto/' || MAX(u.id::text) END AS foto_url
+              FROM chat_interno_conversa c
+              JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
+              LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
+                AND outros.usuario_id <> ?
+              LEFT JOIN usuario u ON u.id = outros.usuario_id
+              LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
+                WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
+             GROUP BY c.id, c.tipo, ultima.conteudo, ultima.enviado_em, cp.lido_ate
+            """;
     private final JdbcTemplate jdbc;
 
     ChatInternoRepositorioJdbc(JdbcTemplate jdbc) {
@@ -24,48 +42,15 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
 
     @Override
     public List<ConversaResumo> listarConversas(UUID usuarioId) {
-        String sql = """
-                SELECT c.id, c.tipo::text,
-                       COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '') AS participantes,
-                       ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
-                       COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
-                           WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
-                             AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas
-                  FROM chat_interno_conversa c
-                  JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
-                  LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
-                    AND outros.usuario_id <> ?
-                  LEFT JOIN usuario u ON u.id = outros.usuario_id
-                  LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
-                    WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
-                 GROUP BY c.id, c.tipo, ultima.conteudo, ultima.enviado_em, cp.lido_ate
-                 ORDER BY COALESCE(ultima.enviado_em, c.criado_em) DESC
-                """;
-        return jdbc.query(sql, (r, i) -> new ConversaResumo(
-                r.getObject("id", UUID.class), TipoConversaChat.valueOf(r.getString("tipo")),
-                r.getString("participantes"), r.getString("ultima_mensagem"),
-                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas")), usuarioId, usuarioId, usuarioId);
+        String sql = SQL_LISTAR_CONVERSAS
+                + " ORDER BY COALESCE(ultima.enviado_em, c.criado_em) DESC";
+        return jdbc.query(sql, ChatInternoRepositorioJdbc::mapearConversa, usuarioId, usuarioId, usuarioId);
     }
 
     @Override
     public List<ConversaResumo> listarConversasPaginado(UUID usuarioId, Instant depoisDe,
             UUID depoisDoId, int limite) {
-        String base = """
-                SELECT c.id, c.tipo::text,
-                       COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '') AS participantes,
-                       ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
-                       COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
-                           WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
-                             AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas
-                  FROM chat_interno_conversa c
-                  JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
-                  LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
-                    AND outros.usuario_id <> ?
-                  LEFT JOIN usuario u ON u.id = outros.usuario_id
-                  LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
-                    WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
-                 GROUP BY c.id, c.tipo, ultima.conteudo, ultima.enviado_em, cp.lido_ate
-                """;
+        String base = SQL_LISTAR_CONVERSAS;
         String filtro = "";
         List<Object> parametros = new java.util.ArrayList<>(List.of(usuarioId, usuarioId, usuarioId));
         if (depoisDoId != null && depoisDe == null) {
@@ -78,20 +63,22 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
             parametros.add(Timestamp.from(depoisDe));
             parametros.add(depoisDoId);
         }
-        String sql = "SELECT id,tipo,participantes,ultima_mensagem,ultima_mensagem_em,nao_lidas FROM ("
+        String sql = "SELECT id,tipo,participantes,ultima_mensagem,ultima_mensagem_em,nao_lidas,foto_url FROM ("
                 + base + ") itens" + filtro
                 + " ORDER BY ultima_mensagem_em DESC NULLS LAST, id DESC LIMIT ?";
         parametros.add(Math.min(101, Math.max(1, limite)));
-        return jdbc.query(sql, (r, i) -> new ConversaResumo(
-                r.getObject("id", UUID.class), TipoConversaChat.valueOf(r.getString("tipo")),
-                r.getString("participantes"), r.getString("ultima_mensagem"),
-                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas")), parametros.toArray());
+        return jdbc.query(sql, ChatInternoRepositorioJdbc::mapearConversa, parametros.toArray());
     }
 
     @Override
     public List<ContatoResumo> listarContatos(UUID usuarioId) {
-        return jdbc.query("SELECT id,nome FROM usuario WHERE ativo AND id<>? ORDER BY nome",
-                (r, i) -> new ContatoResumo(r.getObject("id", UUID.class), r.getString("nome")), usuarioId);
+        return jdbc.query("""
+                SELECT id, nome,
+                       CASE WHEN foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || id::text END AS foto_url
+                  FROM usuario WHERE ativo AND id<>? ORDER BY nome
+                """,
+                (r, i) -> new ContatoResumo(r.getObject("id", UUID.class), r.getString("nome"),
+                        r.getString("foto_url")), usuarioId);
     }
 
     @Override
@@ -180,6 +167,13 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     @Override
     public void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando) {
         jdbc.update("UPDATE chat_interno_participante SET lido_ate=? WHERE conversa_id=? AND usuario_id=?", Timestamp.from(quando), conversaId, usuarioId);
+    }
+
+    private static ConversaResumo mapearConversa(ResultSet r, int ignored) throws SQLException {
+        return new ConversaResumo(
+                r.getObject("id", UUID.class), TipoConversaChat.valueOf(r.getString("tipo")),
+                r.getString("participantes"), r.getString("ultima_mensagem"),
+                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas"), r.getString("foto_url"));
     }
 
     private static Instant instant(ResultSet r, String coluna) throws SQLException {

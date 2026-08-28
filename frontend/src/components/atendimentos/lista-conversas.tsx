@@ -187,7 +187,7 @@ export function ListaConversas({
     <div className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background">
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-lg font-extrabold tracking-tight text-foreground">
+          <h1 className="text-lg font-bold tracking-tight text-foreground">
             {catalogo.menu.itens.atendimentos}
           </h1>
           <div className="flex items-center gap-1">

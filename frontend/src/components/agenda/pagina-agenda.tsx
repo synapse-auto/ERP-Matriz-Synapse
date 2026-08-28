@@ -122,7 +122,7 @@ export function PaginaAgenda() {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background p-6">
       <header className="-mx-6 -mt-6 mb-4 flex-none border-b border-border bg-card px-6 py-4">
-        <h1 className="text-xl font-semibold text-foreground">{t.titulo}</h1>
+        <h1 className="text-xl font-bold text-foreground">{t.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
       </header>
 

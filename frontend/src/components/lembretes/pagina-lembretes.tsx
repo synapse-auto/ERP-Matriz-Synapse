@@ -58,7 +58,7 @@ export function PaginaLembretes() {
     <div className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{textos.titulo}</h1>
+          <h1 className="text-xl font-bold">{textos.titulo}</h1>
           <p className="text-sm text-muted-foreground">{textos.descricao}</p>
         </div>
         <Button onClick={() => setAberto(true)}>{textos.novo}</Button>

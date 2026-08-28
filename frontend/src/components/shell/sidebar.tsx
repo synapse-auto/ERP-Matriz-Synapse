@@ -39,6 +39,7 @@ import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { NovidadesDialog } from "./novidades-dialog";
 
@@ -140,24 +141,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
   const [logoFalhou, setLogoFalhou] = useState(false);
 
   function itemVisivel(item: ItemDeMenu): boolean {
-    if (item.chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
-    if (item.chave === "administracao" && papel !== "ADMINISTRADOR") return false;
-    if (
-      item.chave === "automacao" &&
-      papel !== "GESTOR" &&
-      papel !== "SUBGESTOR" &&
-      papel !== "ADMINISTRADOR"
-    )
-      return false;
-    if (
-      item.chave === "dashboard" &&
-      papel !== "GESTOR" &&
-      papel !== "SUBGESTOR" &&
-      papel !== "ADMINISTRADOR"
-    )
-      return false;
-    if (!item.flag) return true;
-    return (flags ?? []).includes(item.flag);
+    return itemDeMenuVisivel(item.chave, papel, flags, item.flag);
   }
 
   const statusAtual = meuUsuario.data?.presenca ?? "OFFLINE";
@@ -208,7 +192,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           </div>
         )}
         <div className={retraida ? "sr-only" : "min-w-0 flex-1"}>
-          <p className="text-[15px] leading-tight font-extrabold tracking-tight text-white">
+          <p className="text-[15px] leading-tight font-bold tracking-tight text-white">
             {textos.app.marca}
           </p>
           <p className="mt-0.5 text-[10px] font-semibold tracking-[.16em] text-texto-sidebar-sub uppercase">
@@ -440,7 +424,7 @@ function MenuGrupo({
                     : retraida
                       ? "relative flex items-center justify-center rounded-[10px] px-2 py-2.5 text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                       : ativo
-                    ? "flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-semibold text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
+                    ? "flex items-center gap-3 rounded-[10px] bg-sidebar-item-overlay-ativo px-3 py-2.5 text-[16px] font-medium text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
                     : "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                 }
               >

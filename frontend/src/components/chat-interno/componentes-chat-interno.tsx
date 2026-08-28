@@ -35,7 +35,7 @@ export function CabecalhoChatInterno({ conversa, textos }: { conversa?: ChatConv
   const nome = conversa?.participantes?.trim() || textos.titulo;
   return (
     <header className="flex h-[72px] items-center gap-3 border-b border-border bg-background px-5">
-      <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
+      <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 truncate font-semibold text-foreground">
           <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -60,7 +60,7 @@ export function ListaMensagensChatInterno({ mensagens, usuarioAtual, textos }: {
 
         return (
           <div key={mensagem.id} className={cn("flex", propria ? "justify-end" : "justify-start")}>
-            <div className={cn("max-w-[75%] rounded-xl px-3 py-2 text-sm shadow-sm", propria ? "bg-primary text-primary-foreground" : "bg-background text-foreground")}>
+            <div className={cn("max-w-[75%] rounded-xl px-3 py-2 text-sm font-normal shadow-sm", propria ? "bg-primary text-primary-foreground" : "bg-background text-foreground")}>
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
 
               {tipo === "IMAGEM" && (

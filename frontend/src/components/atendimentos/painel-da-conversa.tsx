@@ -125,7 +125,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-base font-extrabold text-foreground">
+            <p className="text-base font-bold text-foreground">
               {lead.data.nome}
             </p>
             {lead.data.empresa && (
@@ -283,7 +283,7 @@ function ContadorDoPainel({
       <p className="text-[0.7rem] font-semibold text-muted-foreground">
         {rotulo}
       </p>
-      <p className="mt-1 text-xl font-extrabold text-foreground">{valor}</p>
+      <p className="mt-1 text-xl font-bold text-foreground">{valor}</p>
     </div>
   );
 }

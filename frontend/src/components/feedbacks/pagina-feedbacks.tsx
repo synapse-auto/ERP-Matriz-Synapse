@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import { Bug, Lightbulb, Send } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
+import { apiFetch } from "@/lib/api/http-client";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEnviarFeedback } from "@/lib/feedbacks/use-feedbacks";
 import type { AreaFeedback, TipoFeedback } from "@/lib/feedbacks/types";
+import { areaDeFeedbackVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 
 const LIMITE_DESCRICAO = 2000;
 
@@ -31,11 +35,19 @@ const CHAVES_DE_AREA: Array<{
 export function PaginaFeedbacks() {
   const textos = useTextos().feedbacks;
   const enviar = useEnviarFeedback();
+  const papel = useAuthStore((estado) => estado.papel);
+  const { data: flags } = useQuery({
+    queryKey: ["config", "features"],
+    queryFn: () => apiFetch<string[]>("/api/v1/config/features"),
+  });
   const [tipo, setTipo] = useState<TipoFeedback>("SUGESTAO");
   const [area, setArea] = useState<AreaFeedback | "">("GERAL");
   const [descricao, setDescricao] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [validacao, setValidacao] = useState(false);
+  const areasVisiveis = CHAVES_DE_AREA.filter((opcao) =>
+    areaDeFeedbackVisivel(opcao.valor, papel, flags),
+  );
 
   function submeter(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -97,7 +109,7 @@ export function PaginaFeedbacks() {
             valor={area}
             placeholder={textos.areaPlaceholder}
             obrigatorio
-            opcoes={CHAVES_DE_AREA.map((opcao) => ({
+            opcoes={areasVisiveis.map((opcao) => ({
               valor: opcao.valor,
               rotulo: textos.areas[opcao.texto],
             }))}

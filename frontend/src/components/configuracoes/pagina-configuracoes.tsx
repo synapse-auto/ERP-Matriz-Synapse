@@ -66,12 +66,12 @@ export function PaginaConfiguracoes() {
   return (
     <div className="min-h-full bg-background">
       <header className="border-b bg-card px-6 py-5 md:px-8">
-        <h1 className="text-xl font-extrabold tracking-tight">{t.titulo}</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
       </header>
       <div className="p-6 md:p-8">
         <div className="mx-auto w-full max-w-3xl">
-          <h2 className="mb-4 text-lg font-extrabold tracking-tight">{t.perfil}</h2>
+          <h2 className="mb-4 text-lg font-bold tracking-tight">{t.perfil}</h2>
           <Card>
             <CardHeader className="border-b">
                 <div className="flex items-center gap-4">

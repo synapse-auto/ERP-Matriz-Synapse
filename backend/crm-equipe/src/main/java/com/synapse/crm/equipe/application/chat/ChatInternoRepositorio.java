@@ -23,8 +23,8 @@ public interface ChatInternoRepositorio {
     void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando);
 
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
-            Instant ultimaMensagemEm, long naoLidas) {}
-    record ContatoResumo(UUID id, String nome) {}
+            Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
+    record ContatoResumo(UUID id, String nome, String fotoUrl) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {}
     record PaginaMensagens(List<MensagemResumo> mensagens, Instant proximoCursor) {}

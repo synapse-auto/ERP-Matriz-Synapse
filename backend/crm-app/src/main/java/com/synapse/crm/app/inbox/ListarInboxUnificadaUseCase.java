@@ -87,7 +87,8 @@ public class ListarInboxUnificadaUseCase {
                 conversa.ultimaMensagem(),
                 conversa.ultimaMensagemEm(),
                 conversa.naoLidas(),
-                conversa.tipo().name());
+                conversa.tipo().name(),
+                conversa.fotoUrl());
     }
 
     private static String codificar(InboxUnificada.Item item) {
@@ -109,7 +110,7 @@ public class ListarInboxUnificadaUseCase {
 
     private record Cursor(Instant data, UUID id) {
         InboxUnificada.Item item() {
-            return InboxUnificada.Item.equipe(id, "", "", data, 0, "DIRETA");
+            return InboxUnificada.Item.equipe(id, "", "", data, 0, "DIRETA", null);
         }
     }
 }

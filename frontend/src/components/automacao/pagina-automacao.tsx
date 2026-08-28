@@ -71,7 +71,7 @@ export function PaginaAutomacao() {
       <Tabs value={aba} onValueChange={(valor) => selecionarAba(valor as Aba)}>
         <header className="border-b bg-card px-6 pt-6 lg:px-9">
           <div className="mx-auto max-w-[82.5rem]">
-            <h1 className="text-xl font-extrabold tracking-tight">{t.titulo}</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t.titulo}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{t.descricaoPorAba[aba]}</p>
             <TabsList variant="line" className="mt-5 h-auto gap-1 p-0">
               {ABAS.map((id) => (
@@ -470,7 +470,7 @@ function CardsDeTelemetria({ dados, carregando, comErro, onTentarNovamente }: { 
 
 function CardDeTelemetria({ icone, tom, rotulo, valor, status, rotuloAtivo, rotuloInativo }: { icone: ReactNode; tom: string; rotulo: string; valor?: string; status?: boolean; rotuloAtivo?: string; rotuloInativo?: string }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-xl border bg-card px-4 py-4"><div className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", tom)}>{icone}</div><div className="min-w-0"><p className="text-xs font-semibold tracking-wide text-muted-foreground">{rotulo}</p>{status != null ? <p className={cn("mt-1 flex items-center gap-1.5 text-sm font-bold", status ? "text-cor-sucesso" : "text-cor-erro")}><span className={cn("size-2 rounded-full", status ? "bg-cor-sucesso" : "bg-cor-erro")} />{status ? rotuloAtivo : rotuloInativo}</p> : <p className="mt-0.5 text-2xl font-extrabold tracking-tight">{valor}</p>}</div></div>
+    <div className="flex items-center gap-3.5 rounded-xl border bg-card px-4 py-4"><div className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", tom)}>{icone}</div><div className="min-w-0"><p className="text-xs font-semibold tracking-wide text-muted-foreground">{rotulo}</p>{status != null ? <p className={cn("mt-1 flex items-center gap-1.5 text-sm font-bold", status ? "text-cor-sucesso" : "text-cor-erro")}><span className={cn("size-2 rounded-full", status ? "bg-cor-sucesso" : "bg-cor-erro")} />{status ? rotuloAtivo : rotuloInativo}</p> : <p className="mt-0.5 text-2xl font-bold tracking-tight">{valor}</p>}</div></div>
   );
 }
 

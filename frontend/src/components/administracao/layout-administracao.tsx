@@ -30,7 +30,7 @@ export function LayoutAdministracao({ children }: { children: React.ReactNode })
               <ShieldCheck className="size-5" />
             </span>
             <div className="min-w-0">
-              <h1 className="text-xl font-extrabold tracking-tight text-foreground">{textos.titulo}</h1>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
               <p className="mt-0.5 text-[13px] text-muted-foreground">{textos.descricao}</p>
             </div>
           </div>
@@ -56,7 +56,7 @@ export function LayoutAdministracao({ children }: { children: React.ReactNode })
                     href={aba.rota}
                     aria-current={ativa ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2 rounded-xl px-2 py-2.5 text-xs font-semibold whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cor-ia sm:gap-3 sm:px-3 sm:py-3 sm:text-sm",
+                      "flex items-center gap-2 rounded-xl px-2 py-2.5 text-xs font-medium whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cor-ia sm:gap-3 sm:px-3 sm:py-3 sm:text-sm",
                       ativa
                         ? "bg-cor-ia/10 text-cor-ia"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",

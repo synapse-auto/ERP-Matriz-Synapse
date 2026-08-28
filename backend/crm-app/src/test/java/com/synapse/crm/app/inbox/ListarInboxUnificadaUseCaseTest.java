@@ -35,13 +35,15 @@ class ListarInboxUnificadaUseCaseTest {
                 .thenReturn(List.of(cartao(lead, Instant.parse("2026-01-01T10:00:00Z"))));
         when(features.habilitadas()).thenReturn(List.of("chat_interno"));
         when(equipe.executarPaginado(Mockito.anyInt(), Mockito.any(), Mockito.any())).thenReturn(List.of(new ChatInternoRepositorio.ConversaResumo(
-                conversa, TipoConversaChat.DIRETA, "Ana", "Olá", Instant.parse("2026-01-01T11:00:00Z"), 1)));
+                conversa, TipoConversaChat.DIRETA, "Ana", "Olá", Instant.parse("2026-01-01T11:00:00Z"), 1,
+                "/api/v1/me/foto/" + conversa)));
 
         InboxUnificada primeira = caso.executar(VisaoAtendimento.TODOS, 1, null);
         InboxUnificada segunda = caso.executar(VisaoAtendimento.TODOS, 1, primeira.proximoCursor());
 
         assertThat(primeira.itens()).extracting(InboxUnificada.Item::tipo)
                 .containsExactly(InboxUnificada.Tipo.EQUIPE_INTERNA);
+        assertThat(primeira.itens().getFirst().avatarUrl()).isEqualTo("/api/v1/me/foto/" + conversa);
         assertThat(segunda.itens()).extracting(InboxUnificada.Item::tipo)
                 .containsExactly(InboxUnificada.Tipo.CLIENTE);
         verify(clientes, never()).executar(VisaoAtendimento.TODOS);

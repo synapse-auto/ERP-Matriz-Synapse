@@ -18,11 +18,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-The application uses the locally versioned [Hanken Grotesk](https://github.com/marcologous/Hanken-Grotesk)
-family through [`next/font/local`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts).
-The variable font is loaded from `src/app/fonts/HankenGrotesk-Variable.woff2`, so every route keeps
-the same typography without a Google Fonts or other CDN dependency. Technical values use the local
-JetBrains Mono font through the `font-mono` token.
+The application uses [Inter](https://fonts.google.com/specimen/Inter) through
+[`next/font/google`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts). The
+files are downloaded at build time and served from the frontend image, so routes do not depend on
+the Google Fonts CDN at runtime. Technical values use the local JetBrains Mono font through the
+`font-mono` token.
 
 ### WebSocket no desenvolvimento local
 

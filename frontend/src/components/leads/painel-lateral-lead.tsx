@@ -200,7 +200,7 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
       className="fixed inset-y-0 right-0 z-50 flex w-[min(22rem,100vw)] flex-col border-l border-border bg-background shadow-xl"
     >
       <div className="flex-none flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="text-[15px] font-extrabold text-foreground">{textos.titulo}</h2>
+        <h2 className="text-[15px] font-bold text-foreground">{textos.titulo}</h2>
         <Button type="button" variant="ghost" size="icon" className="size-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80" aria-label={textos.fechar} onClick={onFechar}>
           <X className="size-4" />
         </Button>
@@ -360,7 +360,7 @@ function CabecalhoDaFicha({ lead }: { lead: LeadFicha }) {
         {foto && <AvatarImage src={foto} alt={lead.nome} />}
         <AvatarFallback>{iniciaisDoNome(lead.nome)}</AvatarFallback>
       </Avatar>
-      <p className="mt-3 text-[18px] font-extrabold tracking-tight text-foreground">{lead.nome}</p>
+      <p className="mt-3 text-[18px] font-bold tracking-tight text-foreground">{lead.nome}</p>
       {lead.empresa && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{lead.empresa}</p>}
     </div>
   );

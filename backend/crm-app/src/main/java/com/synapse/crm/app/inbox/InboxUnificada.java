@@ -74,13 +74,14 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
                 String preview,
                 Instant ultimaMensagemEm,
                 long naoLidas,
-                String tipoConversa) {
+                String tipoConversa,
+                String avatarUrl) {
             return new Item(
                     Tipo.EQUIPE_INTERNA,
                     null,
                     id,
                     participantes,
-                    null,
+                    avatarUrl,
                     id.toString(),
                     preview,
                     null,

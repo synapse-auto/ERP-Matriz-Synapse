@@ -146,7 +146,7 @@ export function CabecalhoConversa({
           {participantes.data && participantes.data.length > 0 && (
             <div className="mt-1 flex items-center gap-1" aria-label={textos.atendidoPor}>
               {participantes.data.map((participante) => (
-                <AvatarIniciais key={participante.usuarioId} id={participante.usuarioId} nome={participante.nome} className="flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white" />
+                <AvatarIniciais key={participante.usuarioId} id={participante.usuarioId} nome={participante.nome} fotoUrl={participante.fotoUrl} className="flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white" />
               ))}
             </div>
           )}
