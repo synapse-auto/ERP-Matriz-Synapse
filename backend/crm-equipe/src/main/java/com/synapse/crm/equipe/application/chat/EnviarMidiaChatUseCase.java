@@ -46,7 +46,8 @@ public class EnviarMidiaChatUseCase {
         UUID remetente = usuario.atual().id();
         if (!repositorio.participante(conversaId, remetente)) throw new ChatSemAcessoException();
 
-        String mimetypeReal = detector.detectar(conteudo);
+        String mimetypeReal =
+                IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
         CategoriaDeMidia categoria = RegrasDeAnexoBase.categoriaDe(mimetypeReal)
                 .orElseThrow(() -> new TipoDeMidiaInternaNaoPermitidoException(mimetypeReal));
 

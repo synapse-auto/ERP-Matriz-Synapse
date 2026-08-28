@@ -3,6 +3,7 @@ package com.synapse.crm.app.equipe;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -126,6 +127,65 @@ class ChatInternoMidiaIT extends PostgresIT {
         Long msgs = db.queryForObject("select count(*) from chat_interno_mensagem where conversa_id = ?", Long.class, UUID.fromString(conversaId));
         assertThat(msgs).isEqualTo(1); // 1 da imagem (o POST na direta nao cria mensagem inicial neste tenant)
     }
+
+    @Test
+    @DisplayName("gravação ISO-BMFF audio-only rotulada como QuickTime e aceita no chat interno")
+    void upload_quicktimeAudioOnly_eAceito() {
+        var authAna = login(rest, EMAIL_ANA, SENHA_ATENDENTE);
+
+        ResponseEntity<List> reqContatos = chamadaAutenticada(rest, "/api/v1/chat-interno/contatos", HttpMethod.GET, authAna, null, List.class);
+        List<Map<String, Object>> contatos = reqContatos.getBody();
+        String brunoId = contatos.stream().filter(c -> c.get("nome").toString().contains("Bruno")).findFirst().orElseThrow().get("id").toString();
+
+        String payload = "{\"usuarioId\": \"" + brunoId + "\"}";
+        ResponseEntity<Map> resConversa = chamadaAutenticada(rest, "/api/v1/chat-interno/conversas/direta", HttpMethod.POST, authAna, payload, Map.class);
+        String conversaId = resConversa.getBody().get("id").toString();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(authAna.accessToken());
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("arquivo", new ByteArrayResource(AUDIO_ONLY_QUICKTIME) {
+            @Override
+            public String getFilename() {
+                return "gravacao.m4a";
+            }
+        });
+        ResponseEntity<Map> response = rest.exchange(
+                "/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia",
+                HttpMethod.POST,
+                new HttpEntity<>(body, headers),
+                Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().get("tipo")).isEqualTo("AUDIO");
+    }
+
+    private static final byte[] AUDIO_ONLY_QUICKTIME = concatenar(
+            box("ftyp", concatenar("qt  ".getBytes(StandardCharsets.US_ASCII), "qt  ".getBytes(StandardCharsets.US_ASCII))),
+            box("moov", box("trak", box("mdia", box("hdlr", concatenar(new byte[8], "soun".getBytes(StandardCharsets.US_ASCII)))))));
+
+    private static byte[] concatenar(byte[] a, byte[] b) {
+        byte[] resultado = new byte[a.length + b.length];
+        System.arraycopy(a, 0, resultado, 0, a.length);
+        System.arraycopy(b, 0, resultado, a.length, b.length);
+        return resultado;
+    }
+
+    private static byte[] box(String tipo, byte[] payload) {
+        byte[] resultado = new byte[8 + payload.length];
+        int tamanho = resultado.length;
+        resultado[0] = (byte) (tamanho >>> 24);
+        resultado[1] = (byte) (tamanho >>> 16);
+        resultado[2] = (byte) (tamanho >>> 8);
+        resultado[3] = (byte) tamanho;
+        byte[] nome = tipo.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(nome, 0, resultado, 4, 4);
+        System.arraycopy(payload, 0, resultado, 8, payload.length);
+        return resultado;
+    }
+
     private <T> ResponseEntity<T> chamadaAutenticada(
             TestRestTemplate http,
             String url,

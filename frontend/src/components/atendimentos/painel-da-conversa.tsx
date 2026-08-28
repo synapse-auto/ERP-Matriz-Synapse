@@ -412,7 +412,7 @@ function SecaoDeProgramadas({
               <div
                 key={item.id}
                 data-slot="mensagem-programada"
-                className="rounded-lg border border-primary/50 bg-primary/20 p-2.5 shadow-sm"
+                className="rounded-lg border-2 border-primary bg-primary/10 p-2.5 shadow-sm"
               >
                 <p className="text-xs font-medium text-foreground">{item.conteudo}</p>
                 <p className="mt-1 text-[0.7rem] text-muted-foreground">

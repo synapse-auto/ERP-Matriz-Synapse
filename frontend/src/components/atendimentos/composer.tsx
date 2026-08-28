@@ -404,15 +404,6 @@ export function Composer({ conversa }: Props) {
             >
               <Trash2 className="size-4" aria-hidden />
             </Button>
-            <Button
-              type="button"
-              size="icon-sm"
-              onClick={enviarGravacao}
-              disabled={Boolean(gravador.erro) || enviarMidia.isPending}
-              aria-label={textos.audioEnviar}
-            >
-              <Send className="size-4" aria-hidden />
-            </Button>
           </div>
         )}
 
@@ -588,12 +579,16 @@ export function Composer({ conversa }: Props) {
             <Button
               type="button"
               size="icon"
-              onClick={enviarConteudo}
+              onClick={() => {
+                if (gravador.fase === "PREVISUALIZACAO") enviarGravacao();
+                else enviarConteudo();
+              }}
               disabled={
-                gravador.fase !== "INATIVO" ||
-                (!texto.trim() && !arquivo) ||
-                enviar.isPending ||
-                enviarMidia.isPending
+                enviar.isPending
+                || enviarMidia.isPending
+                || (gravador.fase === "PREVISUALIZACAO"
+                  ? Boolean(gravador.erro) || !gravador.arquivo
+                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo))
               }
               aria-label={textos.enviar}
             >

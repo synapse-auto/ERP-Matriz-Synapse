@@ -307,11 +307,10 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByLabelText("Gravar áudio"));
     fireEvent.click(await screen.findByLabelText("Parar gravação"));
 
-    expect(
-      await screen.findByLabelText("Pré-visualização da gravação"),
-    ).toBeInTheDocument();
+    expect(await screen.findByLabelText("Pré-visualização da gravação")).toBeInTheDocument();
     expect(mutateMidia).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByLabelText("Enviar gravação"));
+    expect(screen.queryByLabelText("Enviar gravação")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Enviar"));
 
     const variaveis = mutateMidia.mock.calls[0]?.[0] as { arquivo: File };
     expect(variaveis.arquivo.type).toBe("audio/mp4;codecs=mp4a.40.2");
@@ -381,7 +380,7 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Áudio excedeu o limite",
     );
-    expect(screen.getByLabelText("Enviar gravação")).toBeDisabled();
+    expect(screen.getByLabelText("Enviar")).toBeDisabled();
     expect(mutateMidia).not.toHaveBeenCalled();
   });
 
@@ -393,7 +392,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByLabelText("Parar gravação"));
 
     expect(await screen.findByLabelText("Pré-visualização da gravação")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Enviar gravação"));
+    fireEvent.click(screen.getByLabelText("Enviar"));
 
     expect(mutateMidia).toHaveBeenCalledWith(
       expect.objectContaining({ arquivo: expect.any(File) }),
@@ -435,7 +434,7 @@ describe("Composer — anexo", () => {
         opcoes.onError?.();
       },
     );
-    fireEvent.click(screen.getByLabelText("Enviar gravação"));
+    fireEvent.click(screen.getByLabelText("Enviar"));
 
     expect(screen.queryByLabelText("Pré-visualização da gravação")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Gravar áudio")).toBeInTheDocument();

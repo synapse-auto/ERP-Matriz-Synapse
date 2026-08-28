@@ -198,7 +198,7 @@ function TabelaDeMensagensProgramadas({
                 data-status={mensagem.status}
                 className={
                   editavel
-                    ? "border-t border-primary/40 bg-primary/15"
+                    ? "border-t border-border border-l-4 border-l-primary bg-primary/10"
                     : "border-t border-border"
                 }
               >

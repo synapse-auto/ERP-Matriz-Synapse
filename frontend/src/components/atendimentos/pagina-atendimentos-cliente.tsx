@@ -151,9 +151,6 @@ export function PaginaAtendimentosCliente({
   const marcarConversaAbertaComoLida = useCallback(() => {
     if (!atendimentoParaLeitura || !conversa) return;
     zerarNaoLidasDoLead(cache, conversa.leadId);
-    // #region agent log
-    fetch('http://127.0.0.1:7863/ingest/8c7e9fcc-9bc0-4d40-8c83-76cd40001e00',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec4265'},body:JSON.stringify({sessionId:'ec4265',hypothesisId:'D',runId:'post-fix',location:'pagina-atendimentos-cliente.tsx:marcarConversaAbertaComoLida',message:'marcar leitura da conversa aberta',data:{leadId:conversa.leadId,atendimentoId:atendimentoParaLeitura,naoLidas:conversa.naoLidas},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     void marcarAtendimentoComoLido(atendimentoParaLeitura)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode interromper o fluxo de mensagens.
@@ -185,9 +182,6 @@ export function PaginaAtendimentosCliente({
     setLeadSelecionadoId(cartao.leadId);
     const idParaLeitura = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
     zerarNaoLidasDoLead(cache, cartao.leadId);
-    // #region agent log
-    fetch('http://127.0.0.1:7863/ingest/8c7e9fcc-9bc0-4d40-8c83-76cd40001e00',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec4265'},body:JSON.stringify({sessionId:'ec4265',hypothesisId:'B',runId:'post-fix',location:'pagina-atendimentos-cliente.tsx:abrirAtendimento',message:'abrir conversa e marcar leitura',data:{leadId:cartao.leadId,atendimentoId:cartao.atendimentoId,ativoId:cartao.atendimentoAtivoId,idParaLeitura,naoLidas:cartao.naoLidas,status:cartao.status},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!idParaLeitura) return;
     void marcarAtendimentoComoLido(idParaLeitura)
       .catch(() => {
