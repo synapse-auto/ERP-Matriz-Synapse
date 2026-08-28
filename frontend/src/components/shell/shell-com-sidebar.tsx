@@ -1,54 +1,50 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
+import { NavegacaoInferior } from "@/components/shell/navegacao-inferior";
 import { Sidebar } from "@/components/shell/sidebar";
-
-const CONSULTA_TELA_ESTREITA = "(max-width: 639px)";
-
-function assinarMudancaDeViewport(notificar: () => void) {
-  if (typeof window.matchMedia !== "function") return () => undefined;
-  const consulta = window.matchMedia(CONSULTA_TELA_ESTREITA);
-  consulta.addEventListener("change", notificar);
-  return () => consulta.removeEventListener("change", notificar);
-}
-
-function telaEstreitaNoCliente() {
-  return typeof window.matchMedia === "function"
-    ? window.matchMedia(CONSULTA_TELA_ESTREITA).matches
-    : false;
-}
-
-function telaEstreitaNoServidor() {
-  return false;
-}
+import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
+import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
+import { cn } from "@/lib/utils";
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
-  const [sidebarRetraida, setSidebarRetraida] = useState(false);
-  const telaEstreita = useSyncExternalStore(
-    assinarMudancaDeViewport,
-    telaEstreitaNoCliente,
-    telaEstreitaNoServidor,
+  return (
+    <ProvedorConversaEmTelaCheia>
+      <ShellInterno>{children}</ShellInterno>
+    </ProvedorConversaEmTelaCheia>
   );
-  const sidebarEfetivamenteRetraida = sidebarRetraida || telaEstreita;
+}
+
+function ShellInterno({ children }: { children: React.ReactNode }) {
+  const [sidebarRetraida, setSidebarRetraida] = useState(false);
+  const telaEstreita = useTelaEstreita();
+  const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
+  const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
 
   return (
     <div
       className="flex min-h-0 flex-1 overflow-hidden bg-[var(--fundo-canvas)]"
       data-slot="page-canvas"
     >
-      <Sidebar
-        retraida={sidebarEfetivamenteRetraida}
-        onAlternar={() => setSidebarRetraida((atual) => !atual)}
-      />
+      {!telaEstreita && (
+        <Sidebar
+          retraida={sidebarRetraida}
+          onAlternar={() => setSidebarRetraida((atual) => !atual)}
+        />
+      )}
       <div className="min-w-0 flex-1 overflow-x-hidden">
         <main
-          className="flex h-full min-h-0 flex-col overflow-y-auto"
+          className={cn(
+            "flex h-full min-h-0 flex-col overflow-y-auto",
+            mostrarBarraInferior && "pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]",
+          )}
           data-slot="page-surface"
         >
           {children}
         </main>
+        {mostrarBarraInferior && <NavegacaoInferior />}
         <SinalizadorShellPronto />
       </div>
     </div>

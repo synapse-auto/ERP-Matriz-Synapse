@@ -1,3 +1,5 @@
+"use client";
+
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +10,10 @@ vi.mock("@/components/shell/sidebar", () => ({
     estadoSidebar.retraida = retraida;
     return <aside data-testid="sidebar" data-state={retraida ? "collapsed" : "expanded"} />;
   },
+}));
+
+vi.mock("@/components/shell/navegacao-inferior", () => ({
+  NavegacaoInferior: () => <nav data-testid="navegacao-inferior" />,
 }));
 
 vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
@@ -43,9 +49,10 @@ describe("ShellComSidebar", () => {
     );
 
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+    expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
   });
 
-  it("retrai a sidebar quando o viewport fica estreito", () => {
+  it("esconde a sidebar e mostra a barra inferior no viewport estreito", () => {
     render(
       <ShellComSidebar>
         <p>Conteúdo</p>
@@ -55,7 +62,7 @@ describe("ShellComSidebar", () => {
     telaEstreita = true;
     act(() => notificarMudanca?.());
 
-    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
-    expect(estadoSidebar.retraida).toBe(true);
+    expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
+    expect(screen.getByTestId("navegacao-inferior")).toBeInTheDocument();
   });
 });

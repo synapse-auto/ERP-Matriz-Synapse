@@ -17,6 +17,7 @@
   --synapse-login-foco: #5835c2;
   --raio-login: 10px;
   --synapse-login-sombra: 0 28px 70px -35px rgb(47 28 101 / 45%);
+  --synapse-login-seguro: #16a34a;
 }
 
 .synapse-login {
@@ -308,14 +309,23 @@
   justify-content: flex-start;
   gap: 0.45rem;
   width: fit-content;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--synapse-login-borda);
-  border-radius: 999px;
-  background: rgb(124 92 224 / 6%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   margin: 0;
-  color: var(--synapse-login-foco);
-  font-size: 0.72rem;
-  font-weight: 650;
+  color: var(--synapse-login-texto-suave);
+  font-size: 0.75rem;
+  font-weight: 560;
+}
+
+.synapse-login__seguro-ponto {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--synapse-login-seguro);
+  box-shadow: 0 0 0 3px rgb(22 163 74 / 16%);
 }
 
 .synapse-login__ajuda {
@@ -386,21 +396,97 @@
   }
 }
 
+.synapse-login__destaques--cartao {
+  display: none;
+}
+
 @media (max-width: 880px) {
   .synapse-login {
-    display: block;
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    background: var(--synapse-login-superficie);
   }
 
   .synapse-login__apresentacao {
+    min-height: 0;
+    justify-content: flex-start;
+    gap: 2rem;
+    padding: 2.75rem 1.5rem 4.75rem;
+  }
+
+  .synapse-login__conteudo {
+    margin: 0;
+  }
+
+  .synapse-login__titulo {
+    max-width: none;
+    font-size: 1.875rem;
+    line-height: 1.14;
+    letter-spacing: -0.03em;
+  }
+
+  .synapse-login__subtitulo {
+    margin-top: 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .synapse-login__apresentacao .synapse-login__destaques {
     display: none;
   }
 
   .synapse-login__formulario {
-    min-height: 100vh;
-    padding: 1.5rem;
+    position: relative;
+    z-index: 1;
+    display: block;
+    flex: 1;
+    min-height: 0;
+    margin-top: -52px;
+    padding: 1.75rem 1.5rem 2rem;
+    border-radius: 28px 28px 0 0;
+    background: var(--synapse-login-superficie);
+    box-shadow: 0 -12px 32px -14px rgb(46 26 102 / 28%);
+    align-items: stretch;
+    justify-content: flex-start;
   }
 
-  .synapse-login__destaques {
+  .synapse-login__cartao {
+    max-width: none;
+  }
+
+  .synapse-login__destaques--cartao {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 1rem;
+    max-width: none;
+    margin-top: 1.75rem;
+    padding-top: 1.375rem;
+    border-top: 1px solid var(--synapse-login-borda);
+  }
+
+  .synapse-login__destaques--cartao .synapse-login__destaque {
+    color: var(--synapse-login-texto);
+  }
+
+  .synapse-login__destaques--cartao .synapse-login__destaque small {
+    color: var(--synapse-login-texto-suave);
+  }
+
+  .synapse-login__destaques--cartao .synapse-login__icone-destaque {
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 0.7rem;
+    border-color: rgb(124 92 224 / 18%);
+    background: rgb(124 92 224 / 8%);
+    color: var(--synapse-login-primaria);
+  }
+
+  .synapse-login__ajuda {
+    text-align: left;
+  }
+
+  .synapse-login__rodape {
+    margin-top: 1.875rem;
+    text-align: left;
   }
 }

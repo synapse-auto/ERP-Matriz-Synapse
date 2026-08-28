@@ -41,7 +41,21 @@ export default async function LoginPage() {
         </ul>
       </section>
       <section className="synapse-login__formulario" aria-label={textos.titulo}>
-        <LoginForm />
+        <LoginForm>
+          <ul className="synapse-login__destaques synapse-login__destaques--cartao">
+            {destaques.map(({ icone: Icone, titulo, descricao }) => (
+              <li key={titulo} className="synapse-login__destaque">
+                <span className="synapse-login__icone-destaque">
+                  <Icone aria-hidden="true" size={18} />
+                </span>
+                <span>
+                  <strong>{titulo}</strong>
+                  <small>{descricao}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </LoginForm>
       </section>
     </main>
   );

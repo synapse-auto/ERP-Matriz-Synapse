@@ -152,10 +152,17 @@ vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: { getState: () => ({ accessToken: "token" }) },
 }));
+const telaEstreita = vi.hoisted(() => ({ atual: false }));
+
+vi.mock("@/lib/navegacao/tela-estreita", () => ({
+  useTelaEstreita: () => telaEstreita.atual,
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { vazio: "Nenhuma conversa" },
     atendimentos: {
+      cabecalho: { voltar: "Voltar para a lista" },
       finalizar: { sucesso: "Atendimento finalizado." },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
@@ -196,6 +203,7 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.atualizarLista = undefined;
     callbacks.mensagens = undefined;
     stomp.clientes.length = 0;
+    telaEstreita.atual = false;
   });
 
   it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
@@ -447,5 +455,21 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
     expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+  });
+
+  it("no celular mostra só a lista e troca para a conversa em tela cheia", () => {
+    telaEstreita.atual = true;
+    const pagina = renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+
+    expect(screen.getByRole("button", { name: "Abrir lista" })).toBeInTheDocument();
+    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
+
+    act(() => callbacks.abrir?.(cartaoInicial));
+
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+    expect(pagina.container.firstElementChild).toHaveClass("grid-cols-1");
+    expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
   });
 });

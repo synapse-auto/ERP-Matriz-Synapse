@@ -40,38 +40,46 @@ import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
+import {
+  ITENS_GESTAO as ITENS_GESTAO_BASE,
+  ITENS_MENU as ITENS_MENU_BASE,
+  type ItemDeMenuBase,
+} from "@/lib/navegacao/itens-do-menu";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { NovidadesDialog } from "./novidades-dialog";
 
-interface ItemDeMenu {
-  chave: string;
-  rota: string;
+interface ItemDeMenu extends ItemDeMenuBase {
   icone: React.ComponentType<{ className?: string }>;
-  /** Ausente = feature central, sempre visível. Presente = só some se a flag não vier habilitada. */
-  flag?: string;
 }
 
-const ITENS_MENU: ItemDeMenu[] = [
-  { chave: "atendimentos", rota: "/atendimentos", icone: Headset },
-  { chave: "dashboard", rota: "/dashboard", icone: TrendingUp, flag: "dashboard" },
-  { chave: "agenda", rota: "/agenda", icone: BookUser },
-  { chave: "tags", rota: "/tags", icone: Tag },
-  { chave: "mensagensRapidas", rota: "/mensagens-rapidas", icone: MessageSquareText },
-  { chave: "templatesWhatsApp", rota: "/templates-whatsapp", icone: FileText },
-  { chave: "bancoArquivos", rota: "/banco-arquivos", icone: Folder, flag: "banco_arquivos" },
-  { chave: "mensagensProgramadas", rota: "/mensagens-programadas", icone: Clock },
-  { chave: "lembretes", rota: "/lembretes", icone: Bell },
-  { chave: "feedbacks", rota: "/feedbacks", icone: MessageSquarePlus },
-];
+const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> = {
+  atendimentos: Headset,
+  dashboard: TrendingUp,
+  agenda: BookUser,
+  tags: Tag,
+  mensagensRapidas: MessageSquareText,
+  templatesWhatsApp: FileText,
+  bancoArquivos: Folder,
+  mensagensProgramadas: Clock,
+  lembretes: Bell,
+  feedbacks: MessageSquarePlus,
+  equipe: Users,
+  campanhas: Megaphone,
+  automacao: Bot,
+  horarios: CalendarClock,
+  relatorios: BarChart3,
+  administracao: ShieldCheck,
+};
 
-const ITENS_GESTAO: ItemDeMenu[] = [
-  { chave: "equipe", rota: "/equipe", icone: Users },
-  { chave: "campanhas", rota: "/campanhas", icone: Megaphone, flag: "campanhas" },
-  { chave: "automacao", rota: "/automacao", icone: Bot },
-  { chave: "horarios", rota: "/horarios", icone: CalendarClock, flag: "horarios" },
-  { chave: "relatorios", rota: "/relatorios", icone: BarChart3, flag: "relatorios" },
-  { chave: "administracao", rota: "/administracao", icone: ShieldCheck },
-];
+const ITENS_MENU: ItemDeMenu[] = ITENS_MENU_BASE.map((item) => ({
+  ...item,
+  icone: ICONES_MENU[item.chave],
+}));
+
+const ITENS_GESTAO: ItemDeMenu[] = ITENS_GESTAO_BASE.map((item) => ({
+  ...item,
+  icone: ICONES_MENU[item.chave],
+}));
 
 const OPCOES_PRESENCA: StatusPresenca[] = ["ONLINE", "AUSENTE", "OFFLINE"];
 

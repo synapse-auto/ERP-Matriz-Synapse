@@ -52,6 +52,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
       retrair: "Retrair menu lateral",
       reabrir: "Reabrir menu lateral",
       contagemPendentes: "Atendimentos, {quantidade} pendentes",
+      mais: "Mais",
+      maisTitulo: "Mais opções",
+      fecharMais: "Fechar menu",
       itens: {
         atendimentos: "Atendimentos",
         dashboard: "Dashboard",

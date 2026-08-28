@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
-export function LoginForm() {
+export function LoginForm({ children }: { children?: React.ReactNode }) {
   const textos = useTextos().login;
   const router = useRouter();
   const definirSessao = useAuthStore((estado) => estado.definirSessao);
@@ -59,7 +59,7 @@ export function LoginForm() {
   return (
     <div className="synapse-login__cartao">
       <p className="synapse-login__seguro">
-        <LockKeyhole aria-hidden="true" size={14} />
+        <span className="synapse-login__seguro-ponto" aria-hidden="true" />
         {textos.ambienteSeguro}
       </p>
       <div className="synapse-login__cabecalho">
@@ -127,6 +127,7 @@ export function LoginForm() {
         </Button>
       </form>
       <p className="synapse-login__ajuda">{textos.semAcesso}</p>
+      {children}
       <p className="synapse-login__rodape">{textos.rodape}</p>
     </div>
   );
