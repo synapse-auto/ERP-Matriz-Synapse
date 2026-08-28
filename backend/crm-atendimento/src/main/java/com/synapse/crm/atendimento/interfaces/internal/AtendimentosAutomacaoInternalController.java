@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,12 +29,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.ChaveIdempotenciaReutilizadaException;
 import com.synapse.crm.atendimento.application.ComandosAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.IdempotencyKeyInvalidaException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.RegistrarAvaliacaoUseCase;
 import com.synapse.crm.atendimento.application.internal.AtendimentoSemResponsavelException;
 import com.synapse.crm.atendimento.application.internal.AtendimentosEmAndamentoRepositorio;
 import com.synapse.crm.atendimento.application.internal.AtualizarResumoIaDoAtendimentoUseCase;
@@ -40,6 +44,11 @@ import com.synapse.crm.atendimento.application.internal.ListarAtendimentosEmAnda
 import com.synapse.crm.atendimento.application.internal.PeriodoDeAtividadeInvalidoException;
 import com.synapse.crm.atendimento.application.internal.ResumoIaMuitoLongoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoAindaAbertoParaAvaliacaoException;
+import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoSemAtendenteParaAvaliacaoException;
+import com.synapse.crm.atendimento.domain.avaliacao.Avaliacao;
+import com.synapse.crm.atendimento.domain.avaliacao.AvaliacaoJaRegistradaException;
+import com.synapse.crm.atendimento.domain.avaliacao.NotaDeAvaliacaoInvalidaException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Consultas e escritas auxiliares consumidas pelo orquestrador da Automacao. */
@@ -55,16 +64,19 @@ class AtendimentosAutomacaoInternalController {
     private final ListarAtendimentosEmAndamentoUseCase listar;
     private final ComandosAutomacaoUseCase comandos;
     private final AtualizarResumoIaDoAtendimentoUseCase atualizarResumo;
+    private final RegistrarAvaliacaoUseCase avaliacoes;
     private final int tamanhoMaximoDaPagina;
 
     AtendimentosAutomacaoInternalController(
             ListarAtendimentosEmAndamentoUseCase listar,
             ComandosAutomacaoUseCase comandos,
             AtualizarResumoIaDoAtendimentoUseCase atualizarResumo,
+            RegistrarAvaliacaoUseCase avaliacoes,
             @Value("${synapse.suporte.tamanho-pagina}") int tamanhoMaximoDaPagina) {
         this.listar = listar;
         this.comandos = comandos;
         this.atualizarResumo = atualizarResumo;
+        this.avaliacoes = avaliacoes;
         this.tamanhoMaximoDaPagina = tamanhoMaximoDaPagina;
     }
 
@@ -133,6 +145,27 @@ class AtendimentosAutomacaoInternalController {
                 () -> atualizarResumo.executar(id, requisicao.resumo()));
     }
 
+    @Operation(
+            summary = "Registrar avaliação do atendimento",
+            description = "Coleta CSAT da Automação (WhatsApp) na escala 1–5, no atendente dono da conversa já finalizada.",
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
+                @ApiResponse(responseCode = "409", description = "Já existe avaliação neste atendimento."),
+                @ApiResponse(responseCode = "422", description = "Atendimento aberto, sem atendente ou nota fora da faixa.")
+            })
+    @PostMapping("/{id}/avaliacao")
+    @ResponseStatus(HttpStatus.CREATED)
+    AvaliacaoResposta registrarAvaliacao(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody AvaliacaoRequisicao requisicao) {
+        return ContextoDeServico.buscarComo(
+                "registrar-avaliacao-automacao",
+                () -> AvaliacaoResposta.de(
+                        avaliacoes.executarPelaAutomacao(id, requisicao.nota(), requisicao.comentario())));
+    }
+
     @ExceptionHandler(PeriodoDeAtividadeInvalidoException.class)
     ProblemDetail periodoInvalido(PeriodoDeAtividadeInvalidoException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Periodo de atividade invalido", erro.getMessage());
@@ -163,6 +196,20 @@ class AtendimentosAutomacaoInternalController {
         return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Resumo da IA muito longo", erro.getMessage());
     }
 
+    @ExceptionHandler(AvaliacaoJaRegistradaException.class)
+    ProblemDetail avaliacaoDuplicada(AvaliacaoJaRegistradaException erro) {
+        return problema(HttpStatus.CONFLICT, "Avaliacao ja registrada", erro.getMessage());
+    }
+
+    @ExceptionHandler({
+        AtendimentoAindaAbertoParaAvaliacaoException.class,
+        AtendimentoSemAtendenteParaAvaliacaoException.class,
+        NotaDeAvaliacaoInvalidaException.class
+    })
+    ProblemDetail avaliacaoRecusada(RuntimeException erro) {
+        return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Avaliacao recusada", erro.getMessage());
+    }
+
     private static ProblemDetail problema(HttpStatus status, String titulo, String detalhe) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(status, detalhe);
         problema.setTitle(titulo);
@@ -178,6 +225,25 @@ class AtendimentosAutomacaoInternalController {
     record ResumoRequisicao(
             @Schema(description = "Resumo integral que substituirá o anterior.", example = "Cliente solicitou orçamento e aguarda medidas.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String resumo) {}
+
+    record AvaliacaoRequisicao(
+            @Schema(description = "Nota de 1 a 5.", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull @Min(1) @Max(5) Integer nota,
+            @Schema(description = "Comentário opcional.", example = "Atendimento rápido")
+                    @Size(max = 2000) String comentario) {}
+
+    record AvaliacaoResposta(
+            UUID id, UUID atendimentoId, UUID atendenteId, int nota, String comentario, Instant criadoEm) {
+        static AvaliacaoResposta de(Avaliacao avaliacao) {
+            return new AvaliacaoResposta(
+                    avaliacao.id(),
+                    avaliacao.atendimentoId(),
+                    avaliacao.atendenteId(),
+                    avaliacao.nota(),
+                    avaliacao.comentario(),
+                    avaliacao.criadoEm());
+        }
+    }
 
     record ResponsavelResposta(UUID id, String nome) {
         static ResponsavelResposta de(AtendimentosEmAndamentoRepositorio.Responsavel responsavel) {

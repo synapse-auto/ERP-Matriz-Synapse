@@ -10,7 +10,7 @@ export function useVisaoGeralDashboard(filtro: FiltroDashboard) {
     queryKey: ["dashboard", "visao-geral", filtro],
     queryFn: () => obterVisaoGeral(filtro),
     enabled:
-      filtro.meses.length > 0
+      (filtro.meses.length > 0 || Boolean(filtro.inicio && filtro.fim))
       && ((!filtro.origemInicio && !filtro.origemFim)
         || Boolean(filtro.origemInicio && filtro.origemFim)),
   });

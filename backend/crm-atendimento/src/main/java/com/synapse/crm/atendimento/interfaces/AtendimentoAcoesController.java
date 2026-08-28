@@ -6,8 +6,11 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,6 +39,7 @@ import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.RegistrarAvaliacaoUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
 import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
@@ -46,6 +51,11 @@ import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendime
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoAindaAbertoParaAvaliacaoException;
+import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoSemAtendenteParaAvaliacaoException;
+import com.synapse.crm.atendimento.domain.avaliacao.Avaliacao;
+import com.synapse.crm.atendimento.domain.avaliacao.AvaliacaoJaRegistradaException;
+import com.synapse.crm.atendimento.domain.avaliacao.NotaDeAvaliacaoInvalidaException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -72,6 +82,7 @@ class AtendimentoAcoesController {
     private final TransferirAtendimentoUseCase transferir;
     private final FinalizarAtendimentoUseCase finalizar;
     private final FinalizarAtendimentosVisiveisUseCase finalizarLote;
+    private final RegistrarAvaliacaoUseCase avaliacoes;
     private final UsuarioContext usuarioContext;
     private final GerenciarParticipacaoAtendimentoUseCase participacao;
 
@@ -83,6 +94,7 @@ class AtendimentoAcoesController {
             TransferirAtendimentoUseCase transferir,
             FinalizarAtendimentoUseCase finalizar,
             FinalizarAtendimentosVisiveisUseCase finalizarLote,
+            RegistrarAvaliacaoUseCase avaliacoes,
             UsuarioContext usuarioContext,
             GerenciarParticipacaoAtendimentoUseCase participacao) {
         this.enviar = enviar;
@@ -92,6 +104,7 @@ class AtendimentoAcoesController {
         this.transferir = transferir;
         this.finalizar = finalizar;
         this.finalizarLote = finalizarLote;
+        this.avaliacoes = avaliacoes;
         this.usuarioContext = usuarioContext;
         this.participacao = participacao;
     }
@@ -233,6 +246,39 @@ class AtendimentoAcoesController {
     }
 
     @Operation(
+            summary = "Consultar avaliação do atendimento",
+            description = "Devolve a nota 1–5 se já existir. Ausência e atendimento invisível respondem 404 iguais.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Avaliação existente."),
+                @ApiResponse(responseCode = "404", description = "Atendimento invisível ou ainda sem nota.")
+            })
+    @GetMapping("/{id}/avaliacao")
+    AvaliacaoResposta consultarAvaliacao(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id) {
+        return avaliacoes
+                .consultar(id)
+                .map(AvaliacaoResposta::de)
+                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("avaliacao", id));
+    }
+
+    @Operation(
+            summary = "Registrar avaliação do atendimento",
+            description = "Grava uma única nota 1–5 no atendente dono da conversa já finalizada. Não substitui nota existente.",
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "Já existe avaliação neste atendimento."),
+                @ApiResponse(responseCode = "422", description = "Atendimento aberto, sem atendente ou nota fora da faixa.")
+            })
+    @PostMapping("/{id}/avaliacao")
+    @ResponseStatus(HttpStatus.CREATED)
+    AvaliacaoResposta registrarAvaliacao(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody AvaliacaoRequisicao requisicao) {
+        return AvaliacaoResposta.de(avaliacoes.executar(id, requisicao.nota(), requisicao.comentario()));
+    }
+
+    @Operation(
             summary = "Contar atendimentos abertos finalizáveis",
             description = "Retorna quantos atendimentos abertos o usuário autenticado alcança; a contagem serve para confirmação da finalização em lote.",
             responses = @ApiResponse(responseCode = "200", description = "Quantidade de atendimentos visíveis."))
@@ -338,6 +384,25 @@ class AtendimentoAcoesController {
         return problema;
     }
 
+    @ExceptionHandler(AvaliacaoJaRegistradaException.class)
+    ProblemDetail aoJaEstarAvaliado(AvaliacaoJaRegistradaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problema.setTitle("Avaliacao ja registrada");
+        return problema;
+    }
+
+    @ExceptionHandler({
+        AtendimentoAindaAbertoParaAvaliacaoException.class,
+        AtendimentoSemAtendenteParaAvaliacaoException.class,
+        NotaDeAvaliacaoInvalidaException.class
+    })
+    ProblemDetail aoRecusarAvaliacao(RuntimeException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Avaliacao recusada");
+        return problema;
+    }
+
     @ExceptionHandler(ForaDaJanelaException.class)
     ProblemDetail aoEstarForaDaJanela(ForaDaJanelaException e) {
         ProblemDetail problema =
@@ -413,4 +478,23 @@ class AtendimentoAcoesController {
     record FinalizacaoEmLotePrevia(int quantidade) {}
 
     record FinalizacaoEmLoteResposta(int solicitados, int finalizados, int recusados) {}
+
+    record AvaliacaoRequisicao(
+            @Schema(description = "Nota de 1 a 5.", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull @Min(1) @Max(5) Integer nota,
+            @Schema(description = "Comentário opcional do cliente ou do atendente.", example = "Atendimento rápido")
+                    @Size(max = 2000) String comentario) {}
+
+    record AvaliacaoResposta(
+            UUID id, UUID atendimentoId, UUID atendenteId, int nota, String comentario, Instant criadoEm) {
+        static AvaliacaoResposta de(Avaliacao avaliacao) {
+            return new AvaliacaoResposta(
+                    avaliacao.id(),
+                    avaliacao.atendimentoId(),
+                    avaliacao.atendenteId(),
+                    avaliacao.nota(),
+                    avaliacao.comentario(),
+                    avaliacao.criadoEm());
+        }
+    }
 }

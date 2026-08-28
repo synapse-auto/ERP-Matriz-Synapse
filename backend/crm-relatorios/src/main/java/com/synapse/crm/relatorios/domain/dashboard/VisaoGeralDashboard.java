@@ -1,6 +1,7 @@
 package com.synapse.crm.relatorios.domain.dashboard;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,14 +16,15 @@ public record VisaoGeralDashboard(
         TaxaConversao taxaConversao,
         List<EtapaDoFunil> funil,
         List<MensagensPorHora> horarioDePico,
-        RankingDeVendas rankingDeVendas) {
+        RankingDeVendas rankingDeVendas,
+        RankingDeAvaliacoes rankingDeAvaliacoes) {
 
     public VisaoGeralDashboard {
         funil = List.copyOf(funil);
         horarioDePico = List.copyOf(horarioDePico);
     }
 
-    public record Periodo(int ano, List<Integer> meses) {
+    public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
         public Periodo {
             meses = List.copyOf(meses);
         }
@@ -63,4 +65,12 @@ public record VisaoGeralDashboard(
     }
 
     public record AtendenteNoRanking(UUID id, String nome, long vendas) {}
+
+    public record RankingDeAvaliacoes(List<AtendenteNaAvaliacao> atendentes) {
+        public RankingDeAvaliacoes {
+            atendentes = List.copyOf(atendentes);
+        }
+    }
+
+    public record AtendenteNaAvaliacao(UUID id, String nome, BigDecimal media, long quantidade) {}
 }

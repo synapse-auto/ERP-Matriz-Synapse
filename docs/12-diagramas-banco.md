@@ -100,10 +100,11 @@ erDiagram
 
     AVALIACAO {
         uuid id PK
-        uuid atendimento_id FK
+        uuid atendimento_id FK UK
         uuid atendente_id FK
         smallint nota
         text comentario
+        timestamptz criado_em
     }
 
     DISPONIBILIDADE_ATENDENTE_IA {

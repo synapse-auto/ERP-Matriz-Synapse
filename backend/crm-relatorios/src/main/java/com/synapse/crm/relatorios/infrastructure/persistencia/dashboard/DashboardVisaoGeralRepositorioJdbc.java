@@ -63,7 +63,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         BigDecimal taxaAnterior = percentual(vendasAnterior.total(), leadsAnteriores);
 
         return new VisaoGeralDashboard(
-                new VisaoGeralDashboard.Periodo(filtro.ano(), filtro.meses()),
+                new VisaoGeralDashboard.Periodo(
+                        filtro.ano(), filtro.meses(), filtro.recorteInicio(), filtro.recorteFim()),
                 new VisaoGeralDashboard.Atendimentos(
                         atual.quantidade(),
                         atendimentosAcumulados,
@@ -99,7 +100,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                                 .map(item -> new VisaoGeralDashboard.AtendenteNoRanking(
                                         item.atendenteId(), item.atendenteNome(), item.vendas()))
                                 .toList(),
-                        vendasAtual.semResponsavel()));
+                        vendasAtual.semResponsavel()),
+                new VisaoGeralDashboard.RankingDeAvaliacoes(rankingAvaliacoes(filtro.periodoAtual())));
     }
 
     private AgregadoAtendimento atendimentos(List<IntervaloTemporal> periodos) {
@@ -124,6 +126,26 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         + filtro.clausula(),
                 (linha, indice) -> new AgregadoAvaliacao(
                         linha.getLong("quantidade"), linha.getBigDecimal("media")),
+                filtro.parametros().toArray());
+    }
+
+    private List<VisaoGeralDashboard.AtendenteNaAvaliacao> rankingAvaliacoes(
+            List<IntervaloTemporal> periodos) {
+        FiltroSql filtro = periodos("a.criado_em", periodos);
+        return jdbc.query(
+                """
+                SELECT u.id, u.nome, round(avg(a.nota), 2) AS media, count(*) AS quantidade
+                  FROM avaliacao a
+                  JOIN usuario u ON u.id = a.atendente_id
+                 WHERE %s
+                 GROUP BY u.id, u.nome
+                 ORDER BY media DESC, quantidade DESC, u.nome
+                """.formatted(filtro.clausula()),
+                (linha, indice) -> new VisaoGeralDashboard.AtendenteNaAvaliacao(
+                        linha.getObject("id", UUID.class),
+                        linha.getString("nome"),
+                        linha.getBigDecimal("media"),
+                        linha.getLong("quantidade")),
                 filtro.parametros().toArray());
     }
 

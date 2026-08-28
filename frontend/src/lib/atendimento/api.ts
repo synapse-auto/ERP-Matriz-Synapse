@@ -228,6 +228,35 @@ export function listarUsuarios(): Promise<UsuarioResposta[]> {
   return apiFetch<UsuarioResposta[]>("/api/v1/usuarios");
 }
 
+export interface AvaliacaoAtendimento {
+  id: string;
+  atendimentoId: string;
+  atendenteId: string;
+  nota: number;
+  comentario: string | null;
+  criadoEm: string;
+}
+
+export async function obterAvaliacao(atendimentoId: string): Promise<AvaliacaoAtendimento | null> {
+  try {
+    return await apiFetch<AvaliacaoAtendimento>(`/api/v1/atendimentos/${atendimentoId}/avaliacao`);
+  } catch (erro) {
+    if (erro instanceof ErroDeApi && erro.status === 404) return null;
+    throw erro;
+  }
+}
+
+export function registrarAvaliacao(
+  atendimentoId: string,
+  nota: number,
+  comentario?: string,
+): Promise<AvaliacaoAtendimento> {
+  return apiFetch<AvaliacaoAtendimento>(`/api/v1/atendimentos/${atendimentoId}/avaliacao`, {
+    method: "POST",
+    body: JSON.stringify({ nota, comentario }),
+  });
+}
+
 export function listarTags(): Promise<TagResposta[]> {
   return apiFetch<TagResposta[]>("/api/v1/tags");
 }

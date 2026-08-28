@@ -6,7 +6,7 @@ export interface Comparativo {
 }
 
 export interface VisaoGeralDashboard {
-  periodo: { ano: number; meses: number[] };
+  periodo: { ano: number; meses: number[]; inicio: string | null; fim: string | null };
   atendimentos: { noPeriodo: number; acumulado: number; comparativo: Comparativo | null };
   tempoMedioAtendimento: { segundos: number | null; comparativo: Comparativo | null };
   avaliacaoMedia: {
@@ -41,6 +41,9 @@ export interface VisaoGeralDashboard {
     atendentes: Array<{ id: string; nome: string; vendas: number }>;
     semResponsavel: number;
   };
+  rankingDeAvaliacoes: {
+    atendentes: Array<{ id: string; nome: string; media: number; quantidade: number }>;
+  };
 }
 
 export interface FiltroDashboard {
@@ -48,4 +51,6 @@ export interface FiltroDashboard {
   meses: number[];
   origemInicio: string;
   origemFim: string;
+  inicio: string;
+  fim: string;
 }

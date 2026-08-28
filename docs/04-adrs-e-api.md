@@ -77,6 +77,8 @@
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| GET | `/api/v1/atendimentos/{id}/avaliacao` | Lê a nota 1–5 da conversa visível | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
+| POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
 
 ### CRM Core
@@ -106,6 +108,7 @@
 | POST | `/internal/v1/atendimentos/{id}/transferir-proximo-humano` | Escolhe o primeiro atendente disponível por nome e id | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/lembretes` | Cria, com `Idempotency-Key`, lembrete para o responsável humano atual | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/resumo` | Sobrescreve o resumo atual da IA, limitado por configuração | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/avaliacao` | Grava CSAT 1–5 no atendente dono da conversa já finalizada | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `AvaliacaoAtendimentoIT` |
 | GET | `/internal/v1/tags` | Lista o catálogo fechado de tags da instância | Serviço de Automação | `TagsAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | POST | `/internal/v1/leads/{id}/tags` | Aplica idempotentemente tag existente, auditada como Automação | Serviço de Automação | `TagsAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | PUT | `/api/v1/automacao/config/{chave}` | Atualiza parâmetro e invalida o cache | Gestor/Subgestor | `ConfiguracaoAutomacaoController` · `ContratoAutomacaoIT` |
@@ -145,9 +148,9 @@ Um único `GET` devolve todos os KPIs, funil, ranking e horário de pico. Papéi
 
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
-| GET | `/api/v1/dashboard/visao-geral` | Visão consolidada (`ano`, `meses`, `origemInicio`, `origemFim`) | Gestor | `DashboardController` · `DashboardVisaoGeralIT` |
+| GET | `/api/v1/dashboard/visao-geral` | Visão consolidada (`ano`/`meses` **ou** `inicio`/`fim`, mais `origemInicio`/`origemFim`) | Gestor | `DashboardController` · `DashboardVisaoGeralIT` |
 
-Parâmetros: `ano` (obrigatório), `meses` (1–12, vírgula; ausente = ano inteiro), `origemInicio`/`origemFim` (coorte opcional de `lead.criado_em`, os dois juntos). O recorte de atividade é **mensal**; chips "Hoje" e "7 dias" no celular aliasam o mês corrente porque o filtro ainda não aceita janela diária.
+Parâmetros: `ano` + `meses` (1–12, vírgula; ausente = ano inteiro) **ou** `inicio`/`fim` (datas inclusivas do recorte diário; os dois juntos; quando presentes substituem ano/meses). `origemInicio`/`origemFim` (coorte opcional de `lead.criado_em`, os dois juntos). Chips "Hoje" e "7 dias" no celular enviam `inicio`/`fim` reais (hoje; últimos 7 dias inclusive). O comparativo usa a janela imediatamente anterior da mesma duração.
 
 Fontes de cada métrica (todas em `DashboardVisaoGeralRepositorioJdbc`, vendas em `AgregacaoDeVendasRepositorioJdbc`):
 
@@ -162,11 +165,12 @@ Fontes de cada métrica (todas em `DashboardVisaoGeralRepositorioJdbc`, vendas e
 | Taxa de conversão | vendas do período / leads recebidos no mesmo recorte (ou no coorte de originação) | mesmas de vendas + `lead` | `lead.criado_em` no denominador |
 | Funil | `count(lead)` por `etapa_atendimento`, snapshot da etapa **atual** (não da timeline) | `etapa_atendimento` + `lead` | `lead.criado_em` |
 | Horário de pico | `count(*)` por hora de `enviado_em` no fuso do tenant | `mensagem` | `enviado_em` |
-| Ranking de vendas | mesmas vendas, agrupadas por `responsavel_id` do JSONB; sem responsável entra no total e numa nota de rodapé, não na lista | `evento_timeline` + `lead` + `usuario` | igual a vendas |
+| Ranking de vendas (payload; a lista da Visão Geral passou a ser por avaliação) | mesmas vendas, agrupadas por `responsavel_id` do JSONB; sem responsável entra no total e numa nota de rodapé, não na lista | `evento_timeline` + `lead` + `usuario` | igual a vendas |
+| Ranking de avaliação | `avg(nota)` e `count(*)` por `atendente_id`, ordenado por média | `avaliacao` + `usuario` | `avaliacao.criado_em` |
 
 Leitura complementar na Equipe (não alimenta a Visão Geral): `GET /api/v1/equipe/avaliacoes` agrega `avaliacao` sem recorte de período.
 
-Não existe `POST` de avaliação. A tabela `avaliacao` só é escrita em testes de integração; o card mostra "Sem dados" enquanto a coleta (CSAT WhatsApp ou nota no CRM) não for implementada. A E36 deixou essa coleta de fora de propósito — escala 1–5 no banco versus 0–10 no protótipo ainda precisa de decisão do cliente.
+Coleta: `POST /api/v1/atendimentos/{id}/avaliacao` (JWT, visibilidade RLS) e `POST /internal/v1/atendimentos/{id}/avaliacao` (`X-Synapse-Token`, para a Automação/WhatsApp). Escala **1–5**, uma linha por atendimento (`uq_avaliacao_atendimento`). O atendente dono da conversa recebe o crédito. Conversa ainda aberta ou sem atendente → 422; segunda nota → 409.
 
 ## Parte D — WebSocket (tempo real)
 

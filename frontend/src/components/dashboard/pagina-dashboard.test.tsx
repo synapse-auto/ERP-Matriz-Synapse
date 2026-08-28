@@ -2,9 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const useDashboardMock = vi.fn();
+const telaEstreita = { atual: false };
 
 vi.mock("@/lib/dashboard/use-dashboard", () => ({
   useVisaoGeralDashboard: (filtro: unknown) => useDashboardMock(filtro),
+}));
+
+vi.mock("@/lib/navegacao/tela-estreita", () => ({
+  useTelaEstreita: () => telaEstreita.atual,
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -19,8 +24,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", originacao: "Originação", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
       kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },
-      secoes: { ranking: "Top atendentes · vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
-      ranking: { vazio: "Sem vendas", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
+      secoes: { ranking: "Top atendentes · avaliação", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
+      ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
       funil: { vazio: "Sem etapas" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
       tempo: { minutos: "{minutos} min", horasMinutos: "{horas}h {minutos}min" },
     },
@@ -43,6 +48,7 @@ describe("PaginaDashboard", () => {
         funil: [{ id: "e1", nome: "Negociação", ordem: 1, corVisual: null, quantidade: 6, percentualDePassagem: 50 }],
         horarioDePico: [{ hora: 10, quantidade: 7 }],
         rankingDeVendas: { atendentes: [{ id: "u1", nome: "Ana Silva", vendas: 2 }], semResponsavel: 1 },
+        rankingDeAvaliacoes: { atendentes: [{ id: "u1", nome: "Ana Silva", media: 4.5, quantidade: 8 }] },
       },
       isLoading: false,
       isError: false,
@@ -60,9 +66,9 @@ describe("PaginaDashboard", () => {
     expect(screen.getByText("Avaliação")).toBeInTheDocument();
     expect(screen.getByText("4,5/5")).toBeInTheDocument();
     expect(screen.queryByText("Vendas fechadas")).not.toBeInTheDocument();
-    expect(screen.getByText("Top atendentes · vendas fechadas")).toBeInTheDocument();
+    expect(screen.getByText("Top atendentes · avaliação")).toBeInTheDocument();
     expect(screen.getByText("Ana Silva")).toBeInTheDocument();
-    expect(screen.getByText("1 venda sem responsável atribuído")).toBeInTheDocument();
+    expect(screen.getAllByText("8 avaliações").length).toBeGreaterThan(0);
     expect(screen.getByText("+25,0pp vs. período anterior")).toBeInTheDocument();
     expect(screen.getAllByTestId("barra-funil")).toHaveLength(1);
     expect(screen.getAllByTestId("barra-horario")).toHaveLength(24);
@@ -75,5 +81,18 @@ describe("PaginaDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Jan" }));
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }));
+  });
+
+  it("chip Hoje envia recorte diário, não o mês corrente", () => {
+    telaEstreita.atual = true;
+    useDashboardMock.mockReturnValue({ data: undefined, isLoading: false, isError: false, refetch: vi.fn() });
+    render(<PaginaDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Hoje" }));
+    const agora = new Date();
+    const iso = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}-${String(agora.getDate()).padStart(2, "0")}`;
+    expect(useDashboardMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ inicio: iso, fim: iso, meses: [] }),
+    );
+    telaEstreita.atual = false;
   });
 });
