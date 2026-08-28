@@ -279,7 +279,7 @@ export function ListaConversas({
       >
         <TabsList
           variant="line"
-          className="mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto p-0 md:grid md:grid-cols-4 md:gap-1"
+          className="mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:grid-cols-4 md:gap-1 md:overflow-x-hidden"
         >
           {VISOES.map((item) => (
             <TabsTrigger

@@ -34,10 +34,10 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
           onAlternar={() => setSidebarRetraida((atual) => !atual)}
         />
       )}
-      <div className="min-w-0 flex-1 overflow-x-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <main
           className={cn(
-            "flex h-full min-h-0 flex-col overflow-y-auto",
+            "flex h-full min-h-0 flex-1 flex-col overflow-y-auto",
             mostrarBarraInferior && "pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]",
           )}
           data-slot="page-surface"
