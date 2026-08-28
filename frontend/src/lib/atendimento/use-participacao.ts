@@ -17,6 +17,12 @@ type Valor = PedidoEntradaAtendimento | null | PedidoEntradaAtendimento[];
 const cache = new Map<string, Valor>();
 const ouvintes = new Map<string, Set<() => void>>();
 const pendentes = new Set<string>();
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function idDeAtendimentoValido(id: string | null | undefined): id is string {
+  return typeof id === "string" && UUID.test(id);
+}
 
 function notificar(chave: string, valor: Valor) {
   cache.set(chave, valor);
@@ -42,11 +48,25 @@ function useRemoteParticipation<T extends Valor>(chave: string, buscar: () => Pr
 }
 
 export function useMeuPedido(atendimentoId: string) {
-  return useRemoteParticipation(`meu-pedido:${atendimentoId}`, () => obterMeuPedido(atendimentoId), null) as PedidoEntradaAtendimento | null;
+  return useRemoteParticipation(
+    `meu-pedido:${atendimentoId}`,
+    () =>
+      idDeAtendimentoValido(atendimentoId)
+        ? obterMeuPedido(atendimentoId)
+        : Promise.resolve(null),
+    null,
+  ) as PedidoEntradaAtendimento | null;
 }
 
 export function usePedidosPendentes(atendimentoId: string) {
-  return useRemoteParticipation(`pedidos-pendentes:${atendimentoId}`, () => listarPedidosPendentes(atendimentoId), []) as PedidoEntradaAtendimento[];
+  return useRemoteParticipation(
+    `pedidos-pendentes:${atendimentoId}`,
+    () =>
+      idDeAtendimentoValido(atendimentoId)
+        ? listarPedidosPendentes(atendimentoId)
+        : Promise.resolve([]),
+    [],
+  ) as PedidoEntradaAtendimento[];
 }
 
 export function invalidarParticipacao(atendimentoId: string) {

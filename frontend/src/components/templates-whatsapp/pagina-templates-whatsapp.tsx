@@ -43,6 +43,7 @@ export function PaginaTemplatesWhatsApp() {
   const consulta = useQuery({
     queryKey: ["whatsapp-templates"],
     queryFn: listarTemplatesWhatsApp,
+    retry: 1,
   });
   const criar = useMutation({
     mutationFn: criarTemplateWhatsApp,
@@ -113,7 +114,13 @@ export function PaginaTemplatesWhatsApp() {
       <FormularioTemplate
         aberto={aberto}
         salvando={criar.isPending}
-        erro={criar.isError}
+        erro={
+          criar.isError
+            ? criar.error instanceof Error && criar.error.message
+              ? criar.error.message
+              : t.formulario.erro
+            : null
+        }
         textos={t}
         onFechar={() => setAberto(false)}
         onSalvar={(pedido) => criar.mutate(pedido)}
@@ -132,7 +139,7 @@ function FormularioTemplate({
 }: {
   aberto: boolean;
   salvando: boolean;
-  erro: boolean;
+  erro: string | null;
   textos: ReturnType<typeof useTextos>["templatesWhatsApp"];
   onFechar: () => void;
   onSalvar: (pedido: {
@@ -206,7 +213,11 @@ function FormularioTemplate({
               {textos.formulario.corpoAjuda}
             </span>
           </label>
-          {erro && <p className="text-sm text-destructive">{textos.formulario.erro}</p>}
+          {erro && (
+            <p role="alert" className="text-sm text-destructive">
+              {erro}
+            </p>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onFechar}>
               {textos.formulario.cancelar}

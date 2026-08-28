@@ -60,8 +60,12 @@ class MetaCloudApiAdapter implements CanalGateway {
     static final String PROVEDOR = "meta-cloud";
 
     private static final String NOME_DO_BREAKER = "canal-meta-cloud";
+    /** Listar/criar template nao pode abrir o breaker do envio — a aba Atendimentos continua. */
+    private static final String NOME_DO_BREAKER_TEMPLATES = "canal-meta-cloud-templates";
     private static final int EXCESSO_DE_CHAMADAS = 429;
     private static final Pattern VARIAVEL_DO_CORPO = Pattern.compile("\\{\\{(\\d+)\\}\\}");
+    /** A Meta recusa amostra com "exemplo", "test", "sample". */
+    private static final String[] AMOSTRAS_DE_PARAMETRO = {"Maria", "Ana", "Joao", "Paulo", "Carla"};
 
     private static final Logger log = LoggerFactory.getLogger(MetaCloudApiAdapter.class);
 
@@ -69,6 +73,7 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final CanalProperties propriedades;
     private final ObjectMapper json;
     private final CircuitBreaker breaker;
+    private final CircuitBreaker breakerTemplates;
     private final ArmazenamentoDeMidia armazenamento;
     private final AtomicReference<String> contaNegocioResolvida = new AtomicReference<>();
 
@@ -82,6 +87,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         this.propriedades = propriedades;
         this.json = json;
         this.breaker = breakers.circuitBreaker(NOME_DO_BREAKER);
+        this.breakerTemplates = breakers.circuitBreaker(NOME_DO_BREAKER_TEMPLATES);
         this.armazenamento = armazenamento;
     }
 
@@ -309,24 +315,30 @@ class MetaCloudApiAdapter implements CanalGateway {
     @Override
     public List<TemplateDoCanal> listarTemplates() {
         try {
-            return breaker.executeSupplier(this::buscarTemplates);
+            return breakerTemplates.executeSupplier(this::buscarTemplates);
         } catch (CallNotPermittedException breakerAberto) {
-            throw new CanalIndisponivelException("circuit breaker aberto para " + PROVEDOR);
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
         } catch (RestClientResponseException e) {
             throw new CanalIndisponivelException(
-                    "provedor recusou listar templates: HTTP " + e.getStatusCode().value());
+                    "provedor recusou listar templates: HTTP "
+                            + e.getStatusCode().value()
+                            + " "
+                            + resumoDoErro(e.getResponseBodyAsString()));
         }
     }
 
     @Override
     public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
         try {
-            return breaker.executeSupplier(() -> submeterTemplate(pedido));
+            return breakerTemplates.executeSupplier(() -> submeterTemplate(pedido));
         } catch (CallNotPermittedException breakerAberto) {
-            return new ResultadoDeTemplate.Recusado("circuit breaker aberto para " + PROVEDOR);
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
         } catch (RestClientResponseException e) {
-            return new ResultadoDeTemplate.Recusado(
-                    "HTTP " + e.getStatusCode().value() + " " + resumoDoErro(e.getResponseBodyAsString()));
+            throw new CanalIndisponivelException(
+                    "provedor recusou criar template: HTTP "
+                            + e.getStatusCode().value()
+                            + " "
+                            + resumoDoErro(e.getResponseBodyAsString()));
         }
     }
 
@@ -354,29 +366,39 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     private ResultadoDeTemplate submeterTemplate(PedidoDeTemplate pedido) {
-        String conta = resolverContaNegocio();
-        JsonNode resposta = http.post()
-                .uri("/{conta}/message_templates", conta)
-                .header("Authorization", "Bearer " + propriedades.token())
-                .header("Content-Type", "application/json")
-                .body(corpoDoPedidoDeTemplate(pedido))
-                .retrieve()
-                .body(JsonNode.class);
-        TemplateDoCanal.Status status = traduzirStatus(
-                resposta == null ? "" : resposta.path("status").asText());
-        TemplateDoCanal.Categoria categoria = pedido.categoria();
-        if (resposta != null && !resposta.path("category").asText().isBlank()) {
-            categoria = traduzirCategoria(resposta.path("category").asText());
+        try {
+            String conta = resolverContaNegocio();
+            JsonNode resposta = http.post()
+                    .uri("/{conta}/message_templates", conta)
+                    .header("Authorization", "Bearer " + propriedades.token())
+                    .header("Content-Type", "application/json")
+                    .body(corpoDoPedidoDeTemplate(pedido))
+                    .retrieve()
+                    .body(JsonNode.class);
+            TemplateDoCanal.Status status = traduzirStatus(
+                    resposta == null ? "" : resposta.path("status").asText());
+            TemplateDoCanal.Categoria categoria = pedido.categoria();
+            if (resposta != null && !resposta.path("category").asText().isBlank()) {
+                categoria = traduzirCategoria(resposta.path("category").asText());
+            }
+            return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
+                    pedido.nome(),
+                    pedido.idioma(),
+                    categoria,
+                    status == TemplateDoCanal.Status.DESCONHECIDO
+                            ? TemplateDoCanal.Status.PENDENTE
+                            : status,
+                    pedido.corpo(),
+                    contarParametros(pedido.corpo())));
+        } catch (RestClientResponseException e) {
+            int status = e.getStatusCode().value();
+            if (status >= 500 || status == EXCESSO_DE_CHAMADAS) {
+                throw e;
+            }
+            String motivo = resumoDoErro(e.getResponseBodyAsString());
+            log.warn("Meta recusou o template {}: HTTP {} {}", pedido.nome(), status, motivo);
+            return new ResultadoDeTemplate.Recusado(motivo.isBlank() ? ("HTTP " + status) : motivo);
         }
-        return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
-                pedido.nome(),
-                pedido.idioma(),
-                categoria,
-                status == TemplateDoCanal.Status.DESCONHECIDO
-                        ? TemplateDoCanal.Status.PENDENTE
-                        : status,
-                pedido.corpo(),
-                contarParametros(pedido.corpo())));
     }
 
     private ObjectNode corpoDoPedidoDeTemplate(PedidoDeTemplate pedido) {
@@ -384,6 +406,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         raiz.put("name", pedido.nome());
         raiz.put("language", pedido.idioma());
         raiz.put("category", categoriaParaMeta(pedido.categoria()));
+        raiz.put("parameter_format", "positional");
         raiz.put("allow_category_change", true);
         ObjectNode corpo = raiz.putArray("components").addObject();
         corpo.put("type", "BODY");
@@ -392,7 +415,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         if (parametros > 0) {
             ArrayNode amostra = corpo.putObject("example").putArray("body_text").addArray();
             for (int i = 1; i <= parametros; i++) {
-                amostra.add("exemplo" + i);
+                amostra.add(AMOSTRAS_DE_PARAMETRO[(i - 1) % AMOSTRAS_DE_PARAMETRO.length]);
             }
         }
         return raiz;
@@ -553,11 +576,26 @@ class MetaCloudApiAdapter implements CanalGateway {
     private String resumoDoErro(String corpo) {
         try {
             JsonNode erro = json.readTree(corpo).path("error");
-            return erro.isMissingNode()
-                    ? corpo
-                    : erro.path("code").asText() + " " + erro.path("message").asText();
+            if (erro.isMissingNode()) {
+                return corpo;
+            }
+            String paraUsuario = textoDoNo(erro, "error_user_msg");
+            if (paraUsuario.isBlank()) {
+                paraUsuario = textoDoNo(erro.path("error_data"), "details");
+            }
+            if (!paraUsuario.isBlank()) {
+                return paraUsuario;
+            }
+            String codigo = textoDoNo(erro, "code");
+            String mensagem = textoDoNo(erro, "message");
+            return (codigo + " " + mensagem).trim();
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             return corpo;
         }
+    }
+
+    private static String textoDoNo(JsonNode no, String campo) {
+        JsonNode valor = no.path(campo);
+        return valor.isMissingNode() || valor.isNull() ? "" : valor.asText("");
     }
 }
