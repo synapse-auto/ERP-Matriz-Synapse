@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,18 +50,24 @@ export function DialogoNovoContato({
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [primeiraMensagem, setPrimeiraMensagem] = useState("");
+  const [tentouEnviar, setTentouEnviar] = useState(false);
 
   useEffect(() => {
     if (aberto) return;
     setNome("");
     setTelefone("");
     setPrimeiraMensagem("");
+    setTentouEnviar(false);
   }, [aberto]);
 
-  const podeConfirmar = nome.trim().length > 0 && telefone.replace(/\D/g, "").length >= 10 && !pendente;
+  const nomeValido = nome.trim().length > 0;
+  const telefoneValido = telefone.replace(/\D/g, "").length >= 10;
+  const erroNome = tentouEnviar && !nomeValido;
+  const erroTelefone = tentouEnviar && !telefoneValido;
 
   function confirmar() {
-    if (!podeConfirmar) return;
+    setTentouEnviar(true);
+    if (!nomeValido || !telefoneValido || pendente) return;
     const mensagem = primeiraMensagem.trim();
     onConfirmar({
       nome: nome.trim(),
@@ -71,10 +78,17 @@ export function DialogoNovoContato({
 
   return (
     <Dialog open={aberto} onOpenChange={(valor) => !valor && onFechar()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{textos.titulo}</DialogTitle>
-          <DialogDescription>{textos.descricao}</DialogDescription>
+          <div className="flex items-start gap-3 pr-6">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MessageSquare className="size-5" aria-hidden />
+            </div>
+            <div className="space-y-1">
+              <DialogTitle>{textos.titulo}</DialogTitle>
+              <DialogDescription>{textos.descricao}</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -87,7 +101,14 @@ export function DialogoNovoContato({
               placeholder={textos.nomePlaceholder}
               autoComplete="name"
               required
+              aria-invalid={erroNome}
+              aria-describedby={erroNome ? "novo-contato-nome-erro" : undefined}
             />
+            {erroNome && (
+              <p id="novo-contato-nome-erro" className="text-sm text-destructive">
+                {textos.nomeObrigatorio}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="novo-contato-telefone">{textos.telefone}</Label>
@@ -99,7 +120,14 @@ export function DialogoNovoContato({
               inputMode="tel"
               autoComplete="tel"
               required
+              aria-invalid={erroTelefone}
+              aria-describedby={erroTelefone ? "novo-contato-telefone-erro" : undefined}
             />
+            {erroTelefone && (
+              <p id="novo-contato-telefone-erro" className="text-sm text-destructive">
+                {textos.telefoneObrigatorio}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="novo-contato-mensagem">{textos.primeiraMensagem}</Label>
@@ -110,17 +138,22 @@ export function DialogoNovoContato({
               placeholder={textos.primeiraMensagemPlaceholder}
             />
           </div>
-          <div className="rounded-xl border border-input bg-card p-3">
-            <p className="text-sm text-muted-foreground">{textos.avisoTemplate}</p>
+          <div className="rounded-xl border border-primary/20 bg-primary/10 p-3">
+            <p className="text-sm text-foreground">{textos.avisoTemplate}</p>
           </div>
-          {erro && <p className="text-sm text-destructive">{erro}</p>}
+          {erro && (
+            <p role="alert" className="text-sm text-destructive">
+              {erro}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={onFechar} disabled={pendente}>
+          <Button type="button" variant="outline" onClick={onFechar} disabled={pendente}>
             {textos.cancelar}
           </Button>
-          <Button type="button" onClick={confirmar} disabled={!podeConfirmar}>
+          <Button type="button" onClick={confirmar} disabled={pendente}>
+            <MessageSquare className="size-4" aria-hidden />
             {textos.confirmar}
           </Button>
         </DialogFooter>

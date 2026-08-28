@@ -4,14 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 const textos = {
   botao: "Novo atendimento",
   titulo: "Novo atendimento",
-  descricao: "Inicie uma conversa WhatsApp.",
-  nome: "Nome",
+  descricao: "Abra uma conversa em modo humano pelo WhatsApp.",
+  nome: "Nome do contato",
   nomePlaceholder: "Nome do contato",
+  nomeObrigatorio: "Nome do contato é obrigatório.",
   telefone: "Telefone",
   telefonePlaceholder: "(83) 99999-9999",
-  primeiraMensagem: "Primeira mensagem",
-  primeiraMensagemPlaceholder: "Opcional",
-  avisoTemplate: "No primeiro contato, envie um template aprovado.",
+  telefoneObrigatorio: "Telefone é obrigatório.",
+  primeiraMensagem: "Primeira mensagem (opcional)",
+  primeiraMensagemPlaceholder: "Digite a mensagem que será enviada após abrir o atendimento.",
+  avisoTemplate:
+    "A mensagem será enviada após a abertura do atendimento. Dependendo do canal, pode ser necessário utilizar um template aprovado.",
   cancelar: "Cancelar",
   confirmar: "Iniciar atendimento",
   erro: "Não foi possível iniciar o atendimento.",
@@ -24,17 +27,32 @@ vi.mock("@/lib/config/textos-provider", () => ({
 import { DialogoNovoContato, mascararTelefoneBr } from "./dialogo-novo-contato";
 
 describe("DialogoNovoContato", () => {
-  it("mascara o telefone brasileiro e exige nome e telefone", () => {
+  it("mostra os erros de nome e telefone sem enviar", () => {
+    const confirmar = vi.fn();
+    render(
+      <DialogoNovoContato aberto onFechar={vi.fn()} onConfirmar={confirmar} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    expect(screen.getByText("Nome do contato é obrigatório.")).toBeInTheDocument();
+    expect(screen.getByText("Telefone é obrigatório.")).toBeInTheDocument();
+    expect(confirmar).not.toHaveBeenCalled();
+  });
+
+  it("mascara o telefone brasileiro e envia nome e telefone", () => {
     const confirmar = vi.fn();
     render(
       <DialogoNovoContato aberto onFechar={vi.fn()} onConfirmar={confirmar} />,
     );
 
     expect(screen.getByPlaceholderText("(83) 99999-9999")).toBeInTheDocument();
-    expect(screen.getByText("No primeiro contato, envie um template aprovado.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Iniciar atendimento" })).toBeDisabled();
+    expect(
+      screen.getByText(
+        "A mensagem será enviada após a abertura do atendimento. Dependendo do canal, pode ser necessário utilizar um template aprovado.",
+      ),
+    ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Maria" } });
+    fireEvent.change(screen.getByLabelText("Nome do contato"), { target: { value: "Maria" } });
     fireEvent.change(screen.getByLabelText("Telefone"), { target: { value: "83999998888" } });
     expect(screen.getByLabelText("Telefone")).toHaveValue("(83) 99999-8888");
 
@@ -53,9 +71,11 @@ describe("DialogoNovoContato", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Maria" } });
+    fireEvent.change(screen.getByLabelText("Nome do contato"), { target: { value: "Maria" } });
     fireEvent.change(screen.getByLabelText("Telefone"), { target: { value: "83988887777" } });
-    fireEvent.change(screen.getByLabelText("Primeira mensagem"), { target: { value: "  ola  " } });
+    fireEvent.change(screen.getByLabelText("Primeira mensagem (opcional)"), {
+      target: { value: "  ola  " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
 
     expect(confirmar).toHaveBeenCalledWith({
