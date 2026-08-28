@@ -150,6 +150,11 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 .isEqualTo(ana.toString());
         assertThat(resposta.at("/rankingDeVendas/atendentes/0/vendas").asLong()).isEqualTo(1);
         assertThat(resposta.at("/rankingDeVendas/semResponsavel").asLong()).isEqualTo(1);
+        assertThat(resposta.at("/rankingDeAvaliacoes/atendentes/0/id").asText())
+                .isEqualTo(ana.toString());
+        assertThat(resposta.at("/rankingDeAvaliacoes/atendentes/0/media").decimalValue())
+                .isEqualByComparingTo("4.50");
+        assertThat(resposta.at("/rankingDeAvaliacoes/atendentes/0/quantidade").asLong()).isEqualTo(2);
 
         JsonNode etapaGanhaNoFunil = encontrarPorId(resposta.path("funil"), etapaGanha);
         assertThat(etapaGanhaNoFunil.path("quantidade").asLong()).isEqualTo(2);
@@ -186,6 +191,28 @@ class DashboardVisaoGeralIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(resposta.getBody()).contains("Periodo do dashboard invalido");
+    }
+
+    @Test
+    @DisplayName("recorte diario ignora o atendimento do dia seguinte")
+    void recorteDiario_naoAliasMesInteiro() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        Instant dia10 = Instant.parse("2040-08-10T13:00:00Z");
+        Instant dia20 = Instant.parse("2040-08-20T13:00:00Z");
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        UUID[] leads = criarLeads(2, "diario", dia10, etapa, ana);
+        jdbc.update("UPDATE lead SET criado_em=? WHERE id=?", timestamp(dia20), leads[1]);
+        criarAtendimento(leads[0], ana, dia10, 10);
+        criarAtendimento(leads[1], ana, dia20, 10);
+
+        JsonNode soDia10 = chamarComo(
+                EMAIL_GESTOR, SENHA_GESTOR, "/api/v1/dashboard/visao-geral?inicio=2040-08-10&fim=2040-08-10");
+
+        assertThat(soDia10.at("/periodo/inicio").asText()).isEqualTo("2040-08-10");
+        assertThat(soDia10.at("/periodo/fim").asText()).isEqualTo("2040-08-10");
+        assertThat(soDia10.at("/atendimentos/noPeriodo").asLong()).isEqualTo(1);
     }
 
     private UUID[] criarLeads(

@@ -35,6 +35,13 @@ const ANOS_DISPONIVEIS = 7;
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
 
+function isoLocal(data: Date): string {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 function preencher(modelo: string, valores: Record<string, string | number>): string {
   return Object.entries(valores).reduce(
     (texto, [chave, valor]) => texto.replaceAll(`{${chave}}`, String(valor)),
@@ -61,12 +68,21 @@ export function PaginaDashboard() {
   const [meses, setMeses] = useState(() => textos.meses.map((_, indice) => indice + 1));
   const [origemInicio, setOrigemInicio] = useState("");
   const [origemFim, setOrigemFim] = useState("");
+  const [inicio, setInicio] = useState("");
+  const [fim, setFim] = useState("");
   const [periodo, setPeriodo] = useState<PeriodoEnxuto>("mes");
   const [avisoComputadorAberto, setAvisoComputadorAberto] = useState(false);
 
   const filtro = useMemo(
-    () => ({ ano, meses: [...meses].sort((a, b) => a - b), origemInicio, origemFim }),
-    [ano, meses, origemInicio, origemFim],
+    () => ({
+      ano,
+      meses: [...meses].sort((a, b) => a - b),
+      origemInicio,
+      origemFim,
+      inicio,
+      fim,
+    }),
+    [ano, meses, origemInicio, origemFim, inicio, fim],
   );
   const consulta = useVisaoGeralDashboard(filtro);
   const opcoesDeAno = Array.from({ length: ANOS_DISPONIVEIS }, (_, indice) => {
@@ -75,6 +91,9 @@ export function PaginaDashboard() {
   });
 
   function alternarMes(mes: number) {
+    setInicio("");
+    setFim("");
+    setPeriodo("mes");
     setMeses((atuais) =>
       atuais.includes(mes) ? atuais.filter((item) => item !== mes) : [...atuais, mes],
     );
@@ -86,6 +105,24 @@ export function PaginaDashboard() {
     setAno(agora.getFullYear());
     setOrigemInicio("");
     setOrigemFim("");
+    if (novo === "hoje") {
+      const dia = isoLocal(agora);
+      setInicio(dia);
+      setFim(dia);
+      setMeses([]);
+      return;
+    }
+    if (novo === "seteDias") {
+      const fimJanela = isoLocal(agora);
+      const inicioJanela = new Date(agora);
+      inicioJanela.setDate(agora.getDate() - 6);
+      setInicio(isoLocal(inicioJanela));
+      setFim(fimJanela);
+      setMeses([]);
+      return;
+    }
+    setInicio("");
+    setFim("");
     if (novo === "ano") {
       setMeses(textos.meses.map((_, indice) => indice + 1));
       return;
@@ -370,27 +407,31 @@ function Ranking({ dados }: { dados: VisaoGeralDashboard }) {
     <Card>
       <CardHeader><CardTitle>{textos.secoes.ranking}</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        {dados.rankingDeVendas.atendentes.length === 0 && <p className="text-sm text-muted-foreground">{textos.ranking.vazio}</p>}
-        {dados.rankingDeVendas.atendentes.map((atendente, indice) => (
+        {dados.rankingDeAvaliacoes.atendentes.length === 0 && (
+          <p className="text-sm text-muted-foreground">{textos.ranking.vazio}</p>
+        )}
+        {dados.rankingDeAvaliacoes.atendentes.map((atendente, indice) => (
           <div key={atendente.id} className="flex items-center gap-3 rounded-lg bg-muted/45 px-3 py-2.5">
             <span className="w-5 text-center text-sm font-bold text-muted-foreground">{indice + 1}</span>
             <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
               {iniciaisDoNome(atendente.nome)}
             </span>
             <span className="min-w-0 flex-1 truncate font-medium">{atendente.nome}</span>
-            <span className="font-bold">{atendente.vendas}</span>
+            <span className="text-right">
+              <span className="font-bold">
+                {preencher(textos.ranking.media, { media: percentual(atendente.media) })}
+              </span>
+              <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                {preencher(
+                  atendente.quantidade === 1
+                    ? textos.ranking.quantidadeSingular
+                    : textos.ranking.quantidadePlural,
+                  { total: atendente.quantidade },
+                )}
+              </span>
+            </span>
           </div>
         ))}
-        {dados.rankingDeVendas.semResponsavel > 0 && (
-          <p className="border-t pt-3 text-xs text-muted-foreground">
-            {preencher(
-              dados.rankingDeVendas.semResponsavel === 1
-                ? textos.ranking.semResponsavelSingular
-                : textos.ranking.semResponsavelPlural,
-              { total: dados.rankingDeVendas.semResponsavel },
-            )}
-          </p>
-        )}
       </CardContent>
     </Card>
   );

@@ -29,8 +29,14 @@ public class ObterVisaoGeralDashboardUseCase {
     @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional(readOnly = true)
     public VisaoGeralDashboard executar(
-            int ano, List<Integer> meses, LocalDate origemInicio, LocalDate origemFim) {
+            Integer ano,
+            List<Integer> meses,
+            LocalDate inicio,
+            LocalDate fim,
+            LocalDate origemInicio,
+            LocalDate origemFim) {
         return repositorio.consultar(
-                FiltroTemporalDashboard.de(ano, meses, origemInicio, origemFim, fusoHorario));
+                FiltroTemporalDashboard.deEntrada(
+                        ano, meses, inicio, fim, origemInicio, origemFim, fusoHorario));
     }
 }

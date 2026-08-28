@@ -42,6 +42,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
+      avaliacao: {
+        titulo: "Avaliação",
+        descricao: "Nota 1 a 5",
+        registrar: "Avaliar",
+        confirmar: "Salvar",
+        cancelar: "Agora não",
+        jaRegistrada: "Nota {nota}",
+        sucesso: "Ok",
+        erro: "Erro",
+        nota: "Nota {nota}",
+      },
       painel: {
         reabrir: "Reabrir detalhes do lead",
       },
@@ -56,6 +67,10 @@ vi.mock("./atalho-tags", () => ({
 
 vi.mock("./dialogo-transferir", () => ({
   DialogoTransferir: () => null,
+}));
+
+vi.mock("./dialogo-avaliacao", () => ({
+  DialogoAvaliacao: () => null,
 }));
 
 import { CabecalhoConversa } from "./cabecalho-conversa";
@@ -108,7 +123,7 @@ describe("CabecalhoConversa", () => {
     expect(alternarBusca).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
-    expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+    expect(finalizar).toHaveBeenCalledWith("atendimento-1", expect.any(Object));
   });
 
   it("mantém a ação individual e não oferece o menu global de finalização", () => {

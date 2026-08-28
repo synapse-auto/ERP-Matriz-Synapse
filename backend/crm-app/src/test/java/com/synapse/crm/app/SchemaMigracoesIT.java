@@ -181,7 +181,9 @@ class SchemaMigracoesIT extends PostgresIT {
                             "idx_feedback_criacao",
                             "idx_feedback_tipo_criacao",
                             "idx_msg_rapida_atendente_chave",
-                            "idx_mensagem_atendimento");
+                            "idx_mensagem_atendimento",
+                            "uq_avaliacao_atendimento",
+                            "idx_avaliacao_criado_em");
             assertThat(existentes)
                     .contains(
                             "uq_atendimento_participante_ativo",
@@ -286,6 +288,33 @@ class SchemaMigracoesIT extends PostgresIT {
                 if (criouPrimeira) {
                     jdbc.update("DELETE FROM etapa_atendimento WHERE id = ?", primeira);
                 }
+            }
+        }
+
+        @Test
+        @DisplayName("o banco rejeita uma segunda avaliacao no mesmo atendimento")
+        void avaliacao_segundaNoMesmoAtendimento_ehRejeitadaPeloBanco() {
+            UUID leadId = UUID.randomUUID();
+            UUID atendimentoId = UUID.randomUUID();
+            UUID atendenteId = jdbc.queryForObject(
+                    "SELECT id FROM usuario WHERE papel = 'ATENDENTE' ORDER BY email LIMIT 1", UUID.class);
+            jdbc.update("INSERT INTO lead (id, nome) VALUES (?, 'Lead avaliacao unica')", leadId);
+            jdbc.update("INSERT INTO atendimento (id, lead_id, atendente_id) VALUES (?, ?, ?)",
+                    atendimentoId, leadId, atendenteId);
+            try {
+                jdbc.update(
+                        "INSERT INTO avaliacao (atendimento_id, atendente_id, nota) VALUES (?, ?, 5)",
+                        atendimentoId,
+                        atendenteId);
+                assertThatThrownBy(() -> jdbc.update(
+                                "INSERT INTO avaliacao (atendimento_id, atendente_id, nota) VALUES (?, ?, 1)",
+                                atendimentoId,
+                                atendenteId))
+                        .isInstanceOf(DuplicateKeyException.class);
+            } finally {
+                jdbc.update("DELETE FROM avaliacao WHERE atendimento_id = ?", atendimentoId);
+                jdbc.update("DELETE FROM atendimento WHERE id = ?", atendimentoId);
+                jdbc.update("DELETE FROM lead WHERE id = ?", leadId);
             }
         }
 

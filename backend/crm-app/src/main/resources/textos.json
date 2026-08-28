@@ -299,6 +299,17 @@
       "todosResultado": "{finalizados} atendimento(s) finalizado(s); {recusados} recusado(s).",
       "todosErro": "Não foi possível finalizar os atendimentos visíveis."
     },
+    "avaliacao": {
+      "titulo": "Avaliação do atendimento",
+      "descricao": "Registre a nota de 1 a 5 que o cliente deu a este atendimento.",
+      "registrar": "Avaliar",
+      "confirmar": "Salvar avaliação",
+      "cancelar": "Agora não",
+      "jaRegistrada": "Avaliação registrada: {nota}/5",
+      "sucesso": "Avaliação registrada.",
+      "erro": "Não foi possível registrar a avaliação.",
+      "nota": "Nota {nota}"
+    },
     "mensagem": {
       "hoje": "Hoje",
       "ontem": "Ontem",
@@ -642,7 +653,7 @@
       "equipeLabel": "Equipe",
       "onlineLabel": "{online} online · {ativos} ativos",
       "avaliacaoMedia": "Avaliação média",
-      "rankingAvaliacao": "Ranking · avaliação (0–10)",
+      "rankingAvaliacao": "Ranking · avaliação (1–5)",
       "rankingVendas": "Ranking · vendas fechadas"
     },
     "grade": {
@@ -772,12 +783,15 @@
       "periodoAnterior": "vs. período anterior"
     },
     "secoes": {
-      "ranking": "Top atendentes · vendas fechadas",
+      "ranking": "Top atendentes · avaliação",
       "funil": "Funil de conversão",
       "horarioPico": "Horário de pico · mensagens por hora"
     },
     "ranking": {
-      "vazio": "Nenhuma venda atribuída no período.",
+      "vazio": "Nenhuma avaliação no período.",
+      "media": "{media}",
+      "quantidadeSingular": "{total} avaliação",
+      "quantidadePlural": "{total} avaliações",
       "semResponsavelSingular": "{total} venda sem responsável atribuído",
       "semResponsavelPlural": "{total} vendas sem responsável atribuído"
     },

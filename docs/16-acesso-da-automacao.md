@@ -108,6 +108,21 @@ nunca receberam vêm antes de quem já recebeu. Ao consultar
 recomendado; não reordene a lista no workflow. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
+Depois que o atendimento estiver `FINALIZADO`, a Automação pode gravar o CSAT
+na escala 1–5 (a mesma do `CHECK` de `avaliacao.nota`). Uma nota por conversa;
+segunda tentativa responde `409`. Conversa ainda aberta ou sem atendente
+humano responde `422`.
+
+```text
+POST /internal/v1/atendimentos/{atendimentoId}/avaliacao
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Content-Type: application/json
+```
+
+```json
+{ "nota": 5, "comentario": "Atendimento rápido" }
+```
+
 ### 3.3 Regras de follow-up e fidelização
 
 O gestor configura as regras na API administrativa, protegida por JWT e pelos

@@ -77,6 +77,45 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/avaliacao" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AvaliacaoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AvaliacaoResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/lembretes" : {
       "post" : {
         "parameters" : [ {
@@ -615,6 +654,53 @@
             "$ref" : "#/components/schemas/ParametroResposta"
           },
           "type" : "array"
+        }
+      },
+      "type" : "object"
+    },
+    "AvaliacaoRequisicao" : {
+      "properties" : {
+        "comentario" : {
+          "example" : "Atendimento rápido",
+          "maxLength" : 2000,
+          "minLength" : 0,
+          "type" : "string"
+        },
+        "nota" : {
+          "example" : 5,
+          "format" : "int32",
+          "maximum" : 5,
+          "minimum" : 1,
+          "type" : "integer"
+        }
+      },
+      "required" : [ "nota" ],
+      "type" : "object"
+    },
+    "AvaliacaoResposta" : {
+      "properties" : {
+        "atendenteId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "comentario" : {
+          "type" : "string"
+        },
+        "criadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nota" : {
+          "format" : "int32",
+          "type" : "integer"
         }
       },
       "type" : "object"

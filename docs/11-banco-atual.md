@@ -34,6 +34,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V21__resultado_etapa` | ENUM `resultado_etapa`, coluna em etapa e unicidade parcial de `GANHO` |
 | `V22__indice_historico_etapa` | Índice `(tipo, criado_em)` para métricas e início explícito do histórico de transições |
 | `V37__chat_interno_leitura_e_rls` | `lido_ate`, índice temporal e RLS do chat interno |
+| `V43__avaliacao_unica_por_atendimento` | UK `atendimento_id` + índice `criado_em` em `avaliacao` |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -69,7 +70,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 **`usuario`** — `id`, `nome`, `email` (UK), `senha_hash`, `papel`, `status_presenca`, `ativo`, `criado_em`, `senha_alterada_em` (V28, E29 — `NULL` = senha provisória, nunca trocada pelo dono)
 **`refresh_token`** — `id`, `usuario_id`, `token_hash` (UK, SHA-256), `familia`, `expira_em`, `revogado_em`, `criado_em`
-**`avaliacao`** — `id`, `atendimento_id`, `atendente_id`, `nota` (CHECK 1–5), `comentario`, `criado_em`
+**`avaliacao`** — `id`, `atendimento_id` (UK), `atendente_id`, `nota` (CHECK 1–5), `comentario`, `criado_em`
 **`horario_trabalho`** — `id`, `aplicavel_a`, `dia_semana`, `inicio`, `fim` (CHECK `fim > inicio`)
 **`rotina_disponibilidade`** / **`rotina_disponibilidade_atendente`** — plantão e fechado por dia
 **`disponibilidade_atendente_ia`** — `atendente_id` (PK), `disponivel_para_ia`, `atualizado_em`

@@ -99,6 +99,8 @@ CREATE TABLE avaliacao (
     criado_em       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_avaliacao_atendente ON avaliacao (atendente_id);
+CREATE UNIQUE INDEX uq_avaliacao_atendimento ON avaliacao (atendimento_id);
+CREATE INDEX idx_avaliacao_criado_em ON avaliacao (criado_em);
 
 CREATE TABLE rotina_disponibilidade (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

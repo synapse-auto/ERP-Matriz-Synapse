@@ -37,27 +37,33 @@ class DashboardController {
 
     @Operation(
             summary = "Obter Visão Geral",
-            description = "Agrega KPIs, funil, ranking e mensagens por hora para os meses selecionados, incluindo comparativos calculados no servidor.",
+            description = "Agrega KPIs, funil, ranking e mensagens por hora no recorte mensal ou diário, incluindo comparativos calculados no servidor.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Visão consolidada."),
                 @ApiResponse(responseCode = "400", description = "Período inválido."),
                 @ApiResponse(responseCode = "403", description = "Usuário não possui papel de gestão.")
             })
     @Parameters({
-        @Parameter(name = "ano", description = "Ano dos meses selecionados.", example = "2026"),
+        @Parameter(name = "ano", description = "Ano dos meses selecionados. Obrigatório sem recorte diário.", example = "2026"),
         @Parameter(name = "meses", description = "Meses de 1 a 12, separados por vírgula; ausente seleciona o ano inteiro.", example = "7,8"),
+        @Parameter(name = "inicio", description = "Início inclusivo opcional do recorte diário. Com fim, substitui ano/meses.", example = "2026-08-22"),
+        @Parameter(name = "fim", description = "Fim inclusivo opcional do recorte diário.", example = "2026-08-28"),
         @Parameter(name = "origemInicio", description = "Início inclusivo opcional do coorte de leads.", example = "2026-01-01"),
         @Parameter(name = "origemFim", description = "Fim inclusivo opcional do coorte de leads.", example = "2026-06-30")
     })
     @GetMapping
     VisaoGeralDashboard obter(
-            @RequestParam int ano,
+            @RequestParam(required = false) Integer ano,
             @RequestParam(required = false) List<Integer> meses,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate fim,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate origemInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate origemFim) {
-        return obter.executar(ano, meses, origemInicio, origemFim);
+        return obter.executar(ano, meses, inicio, fim, origemInicio, origemFim);
     }
 
     @ExceptionHandler(FiltroDashboardInvalidoException.class)
