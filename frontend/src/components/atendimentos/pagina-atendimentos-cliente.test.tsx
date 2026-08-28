@@ -133,7 +133,10 @@ vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
 }));
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
 vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> }));
-vi.mock("@/lib/atendimento/api", () => ({ marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()) }));
+vi.mock("@/lib/atendimento/api", () => ({
+  marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
+  iniciarNovoContato: vi.fn(),
+}));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
   useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
 }));
@@ -164,6 +167,21 @@ vi.mock("@/lib/config/textos-provider", () => ({
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
       finalizar: { sucesso: "Atendimento finalizado." },
+      novoContato: {
+        botao: "Novo atendimento",
+        titulo: "Novo atendimento",
+        descricao: "Inicie uma conversa.",
+        nome: "Nome",
+        nomePlaceholder: "Nome",
+        telefone: "Telefone",
+        telefonePlaceholder: "(83) 99999-9999",
+        primeiraMensagem: "Primeira mensagem",
+        primeiraMensagemPlaceholder: "Opcional",
+        avisoTemplate: "Use um template.",
+        cancelar: "Cancelar",
+        confirmar: "Iniciar atendimento",
+        erro: "Não foi possível iniciar o atendimento.",
+      },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",

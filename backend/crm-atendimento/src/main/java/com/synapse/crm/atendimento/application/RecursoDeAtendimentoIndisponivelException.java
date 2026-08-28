@@ -14,4 +14,9 @@ public class RecursoDeAtendimentoIndisponivelException extends RuntimeException 
     public RecursoDeAtendimentoIndisponivelException(String recurso, UUID id) {
         super(recurso + " " + id + " nao encontrado");
     }
+
+    /** Quando nao ha id visivel — o telefone existe na base, mas nao e de quem pediu. */
+    public RecursoDeAtendimentoIndisponivelException(String recurso) {
+        super(recurso + " nao encontrado");
+    }
 }

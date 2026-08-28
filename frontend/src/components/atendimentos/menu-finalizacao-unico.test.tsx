@@ -57,6 +57,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       visoes: { todos: "Todos", ativos: "Ativos", pendentes: "Pendentes", potenciais: "Potenciais" },
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       cartao: { semAtendente: "Sem atendente", vazio: "Nenhuma conversa", naoLidas: "{quantidade} mensagens não lidas" },
+      novoContato: { botao: "Novo atendimento" },
       cabecalho: {
         atendidoPor: "Atendido por",
         semAtendente: "Sem atendente",

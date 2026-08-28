@@ -16,4 +16,9 @@ public class ForaDaJanelaException extends RuntimeException {
         super("a janela de 24h do lead " + leadId + " esta fechada: fora dela o provedor oficial so"
                 + " aceita template pre-aprovado, nao texto livre");
     }
+
+    public ForaDaJanelaException() {
+        super("a janela de 24h esta fechada: fora dela o provedor oficial so aceita template"
+                + " pre-aprovado, nao texto livre");
+    }
 }

@@ -13,7 +13,9 @@ import type {
   FinalizacaoEmLotePrevia,
   FinalizacaoEmLoteResposta,
   MensagemResposta,
+  NovoContatoResposta,
   PaginaMensagens,
+  PedidoDeNovoContato,
   ParticipanteAtendimento,
   PedidoEntradaAtendimento,
   TagResposta,
@@ -91,6 +93,13 @@ export function enviarMensagem(leadId: string, conteudo: string): Promise<EnvioR
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens", {
     method: "POST",
     body: JSON.stringify({ leadId, conteudo }),
+  });
+}
+
+export function iniciarNovoContato(pedido: PedidoDeNovoContato): Promise<NovoContatoResposta> {
+  return apiFetch<NovoContatoResposta>("/api/v1/atendimentos/novo-contato", {
+    method: "POST",
+    body: JSON.stringify(pedido),
   });
 }
 

@@ -9,6 +9,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -84,6 +85,12 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     // responder e assumir pela RN-CRM-06.
     private static final String SQL_CRIAR_POR_TELEFONE =
             "INSERT INTO lead (id, nome, telefone, status_basico) VALUES (?, ?, ?, 'IA')";
+
+    private static final String SQL_CRIAR_PARA_ATENDENTE =
+            """
+            INSERT INTO lead (id, nome, telefone, status_basico, atendente_responsavel_id, canal_origem_id)
+            VALUES (?, ?, ?, 'EM_ATENDIMENTO', ?, ?)
+            """;
 
     private final JdbcTemplate chat;
     private final TelefoneCanonico telefoneCanonico;
@@ -161,6 +168,39 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                         : nomeSugerido;
         chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefoneCanonico);
         return novo;
+    }
+
+    @Override
+    public Optional<UUID> visivelPorTelefone(String telefone) {
+        TransacaoObrigatoria.exigir("visivelPorTelefone");
+        String telefoneCanonico = this.telefoneCanonico.normalizar(telefone);
+        if (telefoneCanonico == null) {
+            throw new IllegalArgumentException("telefone e obrigatorio para resolver o lead");
+        }
+        return chat
+                .query(
+                        SQL_POR_TELEFONE,
+                        (linha, indice) -> linha.getObject(1, UUID.class),
+                        telefoneCanonico)
+                .stream()
+                .findFirst();
+    }
+
+    @Override
+    public Optional<UUID> criarParaAtendente(
+            String nome, String telefone, UUID atendenteId, UUID canalOrigemId) {
+        TransacaoObrigatoria.exigir("criarParaAtendente");
+        String telefoneCanonico = this.telefoneCanonico.normalizar(telefone);
+        if (telefoneCanonico == null) {
+            throw new IllegalArgumentException("telefone e obrigatorio para resolver o lead");
+        }
+        UUID novo = UUID.randomUUID();
+        try {
+            chat.update(SQL_CRIAR_PARA_ATENDENTE, novo, nome, telefoneCanonico, atendenteId, canalOrigemId);
+            return Optional.of(novo);
+        } catch (DuplicateKeyException e) {
+            return Optional.empty();
+        }
     }
 
     /**

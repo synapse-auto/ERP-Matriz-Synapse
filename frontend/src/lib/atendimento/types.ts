@@ -122,6 +122,20 @@ export interface EnvioResposta {
   transferiuOLead: boolean;
 }
 
+/** Espelha AtendimentoAcoesController.NovoContatoResposta — POST /api/v1/atendimentos/novo-contato. */
+export interface NovoContatoResposta {
+  leadId: string;
+  atendimentoId: string;
+  mensagemId: string | null;
+  leadCriado: boolean;
+}
+
+export interface PedidoDeNovoContato {
+  nome: string;
+  telefone: string;
+  primeiraMensagem?: string;
+}
+
 /** Espelha AtendimentoAcoesController.AtendimentoResumo — resposta de /transferir e /finalizar. */
 export interface AtendimentoResumo {
   id: string;

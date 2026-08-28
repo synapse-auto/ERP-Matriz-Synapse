@@ -73,6 +73,7 @@
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` |
 | GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência, com clientes visíveis e equipe interna participante | Atendente | `InboxUnificadaController` |
+| POST | `/api/v1/atendimentos/novo-contato` | Inicia conversa WhatsApp: cria ou reusa lead visível do telefone, abre atendimento humano e envia texto livre ou template | Atendente | `AtendimentoAcoesController` · `NovoContatoIT` |
 | POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
@@ -184,9 +185,7 @@ completa em memória), para não perder itens ao compor páginas. O contrato e a
 são exercitados por `InboxUnificadaControllerIT` (Postgres/Testcontainers), incluindo participante,
 gestor não participante e 401. Conversas
 internas aparecem apenas em `TODOS`; os badges de status continuam contando apenas clientes.
-O endpoint específico de chat interno permanece para compatibilidade. O botão de novo contato
-WhatsApp não é exibido nesta etapa porque não existe caso de uso/contrato de criação de lead e a
-política de primeiro contato (template/opt-in) ainda não está definida.
+O endpoint específico de chat interno permanece para compatibilidade. O botão **Novo atendimento** da lista abre `POST /api/v1/atendimentos/novo-contato`: nome e telefone obrigatórios; primeira mensagem (texto livre) **ou** template `{nome, idioma, parametros}`, nunca os dois. A janela de 24h da Meta só abre quando o **cliente** envia mensagem — texto livre em contato novo (ou com janela fechada) responde 422 `ForaDaJanelaException` **antes** de gravar o lead. Template pré-aprovado passa. Sem mensagem, a conversa abre em modo humano e o composer oferece os templates. Opt-in é responsabilidade do atendente (não há tabela de consentimento). Telefone de colega: RLS esconde a linha e o índice único bloqueia o insert — os dois casos viram o mesmo 404 (`RecursoDeAtendimentoIndisponivelException`), sem vazar a RN-CRM-01. Não usar `resolverPorTelefone` neste fluxo (cria lead em IA, sem dono; com JWT a RLS esconderia o lead do colega e duplicaria).
 
 | Destino | Direção | Payload | Proteção | Evidência |
 |---|---|---|---|---|

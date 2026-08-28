@@ -240,6 +240,21 @@
       "carregarMais": "Carregar mais conversas",
       "carregandoMais": "Carregando conversas..."
     },
+    "novoContato": {
+      "botao": "Novo atendimento",
+      "titulo": "Novo atendimento",
+      "descricao": "Inicie uma conversa WhatsApp com um contato que ainda não falou com a empresa.",
+      "nome": "Nome",
+      "nomePlaceholder": "Nome do contato",
+      "telefone": "Telefone",
+      "telefonePlaceholder": "(83) 99999-9999",
+      "primeiraMensagem": "Primeira mensagem",
+      "primeiraMensagemPlaceholder": "Opcional — só chega se a janela de 24h estiver aberta.",
+      "avisoTemplate": "A Meta só libera texto livre depois que o cliente responde. No primeiro contato, envie um template aprovado pelo composer da conversa. Sem mensagem, a conversa abre e você escolhe o template lá.",
+      "cancelar": "Cancelar",
+      "confirmar": "Iniciar atendimento",
+      "erro": "Não foi possível iniciar o atendimento."
+    },
     "visoes": {
       "ativos": "Ativos",
       "pendentes": "Pendentes",

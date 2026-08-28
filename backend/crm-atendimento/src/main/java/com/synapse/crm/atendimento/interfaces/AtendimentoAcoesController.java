@@ -38,6 +38,8 @@ import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentosVisiveisUseCase;
+import com.synapse.crm.atendimento.application.IniciarNovoContatoUseCase;
+import com.synapse.crm.atendimento.application.PedidoDeNovoContatoInvalidoException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarAvaliacaoUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
@@ -58,6 +60,7 @@ import com.synapse.crm.atendimento.domain.avaliacao.AvaliacaoJaRegistradaExcepti
 import com.synapse.crm.atendimento.domain.avaliacao.NotaDeAvaliacaoInvalidaException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
@@ -83,6 +86,7 @@ class AtendimentoAcoesController {
     private final FinalizarAtendimentoUseCase finalizar;
     private final FinalizarAtendimentosVisiveisUseCase finalizarLote;
     private final RegistrarAvaliacaoUseCase avaliacoes;
+    private final IniciarNovoContatoUseCase novoContato;
     private final UsuarioContext usuarioContext;
     private final GerenciarParticipacaoAtendimentoUseCase participacao;
 
@@ -95,6 +99,7 @@ class AtendimentoAcoesController {
             FinalizarAtendimentoUseCase finalizar,
             FinalizarAtendimentosVisiveisUseCase finalizarLote,
             RegistrarAvaliacaoUseCase avaliacoes,
+            IniciarNovoContatoUseCase novoContato,
             UsuarioContext usuarioContext,
             GerenciarParticipacaoAtendimentoUseCase participacao) {
         this.enviar = enviar;
@@ -105,6 +110,7 @@ class AtendimentoAcoesController {
         this.finalizar = finalizar;
         this.finalizarLote = finalizarLote;
         this.avaliacoes = avaliacoes;
+        this.novoContato = novoContato;
         this.usuarioContext = usuarioContext;
         this.participacao = participacao;
     }
@@ -119,6 +125,23 @@ class AtendimentoAcoesController {
         return new ConfiguracaoComposerResposta(
                 resultado.tamanhoMaximoAudioBytes(), resultado.duracaoMaximaAudioSegundos(),
                 resultado.tempoNotificacaoSegundos());
+    }
+
+    @Operation(
+            summary = "Iniciar novo contato WhatsApp",
+            description = "Cria ou reusa o lead visível deste telefone e abre a conversa. Texto livre só sai dentro da janela de 24h aberta pelo cliente; fora dela, use template aprovado. Telefone de colega responde 404, igual a lead inexistente.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Conversa aberta; mensagem enfileirada se o pedido trouxe texto ou template."),
+                @ApiResponse(responseCode = "404", description = "Lead do telefone não existe ou não é visível."),
+                @ApiResponse(responseCode = "422", description = "Pedido inválido, telefone ilegível ou canal fora da janela de texto livre.")
+            })
+    @PostMapping("/novo-contato")
+    NovoContatoResposta iniciarNovoContato(@RequestBody NovoContatoRequisicao requisicao) {
+        NovoContatoRequisicao pedido = requisicao == null
+                ? new NovoContatoRequisicao(null, null, null, null)
+                : requisicao;
+        IniciarNovoContatoUseCase.Resultado resultado = novoContato.executar(pedido.paraCasoDeUso());
+        return NovoContatoResposta.de(resultado);
     }
 
     @Operation(
@@ -411,6 +434,22 @@ class AtendimentoAcoesController {
         return problema;
     }
 
+    @ExceptionHandler(PedidoDeNovoContatoInvalidoException.class)
+    ProblemDetail aoRecusarNovoContato(PedidoDeNovoContatoInvalidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Pedido de novo contato invalido");
+        return problema;
+    }
+
+    @ExceptionHandler(TelefoneInvalidoException.class)
+    ProblemDetail aoReceberTelefoneInvalido(TelefoneInvalidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Telefone invalido");
+        return problema;
+    }
+
     @ExceptionHandler(TipoDeMidiaNaoPermitidoException.class)
     ProblemDetail aoRecusarTipoDeMidia(TipoDeMidiaNaoPermitidoException e) {
         ProblemDetail problema =
@@ -425,6 +464,48 @@ class AtendimentoAcoesController {
                 ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, e.getMessage());
         problema.setTitle("Anexo excede o tamanho maximo");
         return problema;
+    }
+
+    record NovoContatoRequisicao(
+            @Schema(description = "Nome do contato.", example = "Maria Silva", requiredMode = Schema.RequiredMode.REQUIRED)
+                    String nome,
+            @Schema(
+                            description = "Telefone com DDD. Aceita máscara brasileira; o CRM normaliza para dígitos com DDI.",
+                            example = "(83) 99999-9999",
+                            requiredMode = Schema.RequiredMode.REQUIRED)
+                    String telefone,
+            @Schema(description = "Texto livre opcional. Incompatível com template.", example = "Olá, sou da Estrutural.")
+                    String primeiraMensagem,
+            @Schema(description = "Template pré-aprovado opcional. Incompatível com texto livre.")
+                    TemplateNovoContatoRequisicao template) {
+
+        IniciarNovoContatoUseCase.Pedido paraCasoDeUso() {
+            return new IniciarNovoContatoUseCase.Pedido(
+                    nome,
+                    telefone,
+                    primeiraMensagem,
+                    template == null
+                            ? null
+                            : new IniciarNovoContatoUseCase.Pedido.Template(
+                                    template.nome(), template.idioma(), template.parametros()));
+        }
+    }
+
+    record TemplateNovoContatoRequisicao(String nome, String idioma, List<String> parametros) {
+        TemplateNovoContatoRequisicao {
+            parametros = parametros == null ? List.of() : List.copyOf(parametros);
+        }
+    }
+
+    record NovoContatoResposta(UUID leadId, UUID atendimentoId, UUID mensagemId, boolean leadCriado) {
+
+        static NovoContatoResposta de(IniciarNovoContatoUseCase.Resultado resultado) {
+            return new NovoContatoResposta(
+                    resultado.leadId(),
+                    resultado.atendimento().id(),
+                    resultado.mensagem() == null ? null : resultado.mensagem().id(),
+                    resultado.leadCriado());
+        }
     }
 
     record EnviarMensagemRequisicao(

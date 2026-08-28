@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MoreHorizontal, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ type Props = {
   contatoInternoSelecionado?: string;
   onContatoInternoChange?: (valor: string) => void;
   onCriarConversaInterna?: () => void;
+  onNovoContato?: () => void;
   className?: string;
 };
 
@@ -88,6 +89,7 @@ export function ListaConversas({
   contatoInternoSelecionado = "",
   onContatoInternoChange,
   onCriarConversaInterna,
+  onNovoContato,
   className,
 }: Props) {
   const catalogo = useTextos();
@@ -217,6 +219,15 @@ export function ListaConversas({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label={textos.novoContato.botao}
+              onClick={onNovoContato}
+            >
+              <UserPlus className="size-4" aria-hidden />
+            </Button>
             {chatInternoHabilitado && (
               <div className="flex items-center gap-1">
                 <Button
