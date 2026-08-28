@@ -212,8 +212,8 @@ describe("painel da conversa", () => {
     fireEvent.click(screen.getByText("Mensagens programadas"));
     const cartaoProgramada = screen.getByText("Follow-up").closest('[data-slot="mensagem-programada"]');
     expect(cartaoProgramada).toHaveClass(
-      "border-primary/30",
-      "bg-primary/5",
+      "border-primary/50",
+      "bg-primary/20",
       "shadow-sm",
     );
     expect(screen.getByRole("button", { name: "Adicionar" })).toBeInTheDocument();

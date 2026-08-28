@@ -20,6 +20,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     rota
  * @param janelaTextoLivre 24h na Meta oficial; configuravel porque nao e lei da natureza e a Meta ja
  *     mudou regra de janela antes
+ * @param contaNegocio WABA ID. Vazio = o adaptador resolve via Graph a partir do Phone Number ID.
+ *     Nao e obrigatorio no deploy: a instancia ja autenticada consegue descobrir a conta.
  */
 @ConfigurationProperties("synapse.canal.whatsapp")
 public record CanalProperties(
@@ -30,13 +32,15 @@ public record CanalProperties(
         String webhookVerifyToken,
         String webhookSecret,
         Duration janelaTextoLivre,
-        Duration timeout) {
+        Duration timeout,
+        String contaNegocio) {
 
     public CanalProperties {
         provedor = (provedor == null || provedor.isBlank()) ? "meta-cloud" : provedor.trim();
         urlBase = (urlBase == null || urlBase.isBlank()) ? "https://graph.facebook.com/v21.0" : urlBase;
         janelaTextoLivre = janelaTextoLivre == null ? Duration.ofHours(24) : janelaTextoLivre;
         timeout = timeout == null ? Duration.ofSeconds(10) : timeout;
+        contaNegocio = (contaNegocio == null || contaNegocio.isBlank()) ? "" : contaNegocio.trim();
     }
 
     public boolean temSegredoDeWebhook() {

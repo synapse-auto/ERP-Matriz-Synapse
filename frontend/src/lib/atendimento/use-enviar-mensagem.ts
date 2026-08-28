@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { enviarMensagem } from "./api";
+import { enviarMensagem, enviarTemplate } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { mesclarMensagens } from "./tempo-real";
 import type { MensagemResposta } from "./types";
@@ -11,6 +11,7 @@ interface VariaveisEnvio {
   atendimentoId: string;
   leadId: string;
   conteudo: string;
+  template?: { nome: string; idioma: string; parametros: string[] };
 }
 
 function idTemporario(): string {
@@ -27,7 +28,15 @@ export function useEnviarMensagem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (variaveis: VariaveisEnvio) => enviarMensagem(variaveis.leadId, variaveis.conteudo),
+    mutationFn: (variaveis: VariaveisEnvio) =>
+      variaveis.template
+        ? enviarTemplate(
+            variaveis.leadId,
+            variaveis.template.nome,
+            variaveis.template.idioma,
+            variaveis.template.parametros,
+          )
+        : enviarMensagem(variaveis.leadId, variaveis.conteudo),
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
       const idOtimista = idTemporario();

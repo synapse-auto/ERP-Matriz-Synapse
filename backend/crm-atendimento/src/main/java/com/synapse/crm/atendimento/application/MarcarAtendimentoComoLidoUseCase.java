@@ -30,6 +30,23 @@ public class MarcarAtendimentoComoLidoUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public void executar(UUID atendimentoId) {
         UUID usuarioId = usuarioContext.atual().id();
+        // #region agent log
+        try {
+            String linha = "{\"sessionId\":\"ec4265\",\"hypothesisId\":\"B\",\"runId\":\"post-fix\",\"location\":\"MarcarAtendimentoComoLidoUseCase.executar\",\"message\":\"pedido de leitura\",\"data\":{\"atendimentoId\":\""
+                    + atendimentoId
+                    + "\"},\"timestamp\":"
+                    + System.currentTimeMillis()
+                    + "}\n";
+            java.nio.file.Files.writeString(
+                    java.nio.file.Path.of(
+                            "C:/Users/marcondes/Desktop/projeto_matriz/debug-ec4265.log"),
+                    linha,
+                    java.nio.charset.StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (Exception ignored) {
+        }
+        // #endregion
         atendimentos.marcarComoLido(atendimentoId, usuarioId, Instant.now(relogio));
     }
 }

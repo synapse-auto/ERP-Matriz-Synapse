@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.domain.canal;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -67,6 +68,25 @@ public interface CanalGateway {
      * proprio storage; a URL da Meta expira em minutos e nao pode ser o que fica salvo.
      */
     MidiaRecebida baixarMidiaRecebida(String midiaIdExterno);
+
+    /**
+     * Templates cadastrados no provedor desta instancia.
+     *
+     * <p>Nao entra no caminho sincrono de envio/recebimento: so e chamado quando o usuario abre a
+     * tela de templates ou o composer com a janela de 24h fechada. Provedor que nao gerencia
+     * templates devolve lista vazia — o CRM nao inventa modelo.
+     */
+    default List<TemplateDoCanal> listarTemplates() {
+        return List.of();
+    }
+
+    /**
+     * Submete um template de texto ao provedor. A aprovacao, quando existe, e assincrona: aceitar
+     * aqui significa "entrou na fila da Meta", nao "ja pode enviar".
+     */
+    default ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        return new ResultadoDeTemplate.Recusado("provedor nao gerencia templates");
+    }
 
     /**
      * Tudo o que o adaptador precisa para montar a chamada.

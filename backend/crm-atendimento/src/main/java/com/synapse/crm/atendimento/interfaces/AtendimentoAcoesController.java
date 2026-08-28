@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.interfaces;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -45,6 +46,7 @@ import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendime
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
@@ -118,6 +120,22 @@ class AtendimentoAcoesController {
     EnvioResposta enviar(@Valid @RequestBody EnviarMensagemRequisicao requisicao) {
         EnviarMensagemUseCase.Resultado resultado =
                 enviar.executar(requisicao.leadId(), requisicao.conteudo());
+        return EnvioResposta.de(resultado);
+    }
+
+    @Operation(
+            summary = "Enviar template do WhatsApp",
+            description = "Envia um template já aprovado. Não exige janela de 24h; o provedor recusa se o modelo não estiver aprovado.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Template aceito para entrega."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+            })
+    @PostMapping("/mensagens/template")
+    EnvioResposta enviarTemplate(@Valid @RequestBody EnviarTemplateRequisicao requisicao) {
+        EnviarMensagemUseCase.Resultado resultado = enviar.executar(
+                requisicao.leadId(),
+                new ConteudoDeEnvio.MensagemTemplate(
+                        requisicao.nome(), requisicao.idioma(), requisicao.parametros()));
         return EnvioResposta.de(resultado);
     }
 
@@ -349,6 +367,16 @@ class AtendimentoAcoesController {
                     @NotNull UUID leadId,
             @Schema(description = "Conteúdo textual.", example = "Olá! Posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String conteudo) {}
+
+    record EnviarTemplateRequisicao(
+            @NotNull UUID leadId,
+            @NotBlank String nome,
+            @NotBlank String idioma,
+            List<String> parametros) {
+        EnviarTemplateRequisicao {
+            parametros = parametros == null ? List.of() : List.copyOf(parametros);
+        }
+    }
 
     record ConfiguracaoComposerResposta(
             long tamanhoMaximoAudioBytes, long duracaoMaximaAudioSegundos,

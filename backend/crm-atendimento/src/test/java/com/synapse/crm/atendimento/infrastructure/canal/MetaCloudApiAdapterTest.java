@@ -25,7 +25,9 @@ import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
@@ -54,7 +56,8 @@ class MetaCloudApiAdapterTest {
                 "verify",
                 "secret",
                 Duration.ofHours(24),
-                Duration.ofSeconds(10));
+                Duration.ofSeconds(10),
+                "waba-teste");
         adapter = new MetaCloudApiAdapter(
                 builder,
                 propriedades,
@@ -121,5 +124,53 @@ class MetaCloudApiAdapterTest {
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
         return payloadCapturado[0];
+    }
+
+    @Test
+    void listaTemplatesPeloIdDaContaDeNegocio() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {"data":[{"name":"boas_vindas","language":"pt_BR","status":"APPROVED",
+                        "category":"UTILITY","components":[{"type":"BODY","text":"Ola {{1}}"}]}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        var templates = adapter.listarTemplates();
+
+        servidor.verify();
+        assertThat(templates).hasSize(1);
+        assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
+        assertThat(templates.getFirst().status()).isEqualTo(TemplateDoCanal.Status.APROVADO);
+        assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
+    }
+
+    @Test
+    void criaTemplateDeTextoNoEndpointDaMeta() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/waba-teste/message_templates"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"id\":\"123\",\"status\":\"PENDING\",\"category\":\"UTILITY\"}",
+                        MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.criarTemplate(new PedidoDeTemplate(
+                "retorno_orcamento",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                "Orcamento {{1}} ficou pronto, {{2}}."));
+
+        servidor.verify();
+        assertThat(resultado.aceito()).isTrue();
+        assertThat(payloadCapturado[0].path("name").asText()).isEqualTo("retorno_orcamento");
+        assertThat(payloadCapturado[0].path("category").asText()).isEqualTo("UTILITY");
+        assertThat(payloadCapturado[0].path("components").get(0).path("example").path("body_text").get(0))
+                .hasSize(2);
     }
 }

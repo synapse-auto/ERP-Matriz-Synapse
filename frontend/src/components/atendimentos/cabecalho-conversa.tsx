@@ -5,7 +5,6 @@ import {
   ArrowLeftRight,
   CheckCheck,
   MessageCircleMore,
-  MoreHorizontal,
   PanelRightOpen,
   Phone,
   Search,
@@ -15,26 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import {
-  useFinalizarAtendimento,
-  useFinalizarAtendimentosVisiveis,
-  useQuantidadeAtendimentosFinalizaveis,
-} from "@/lib/atendimento/use-transferir-finalizar";
+import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useLead } from "@/lib/lead/use-painel-lead";
@@ -71,7 +52,6 @@ export function CabecalhoConversa({
   onAlternarPainelDetalhes,
 }: Props) {
   const catalogo = useTextos();
-  const textosFinalizar = catalogo.atendimentos.finalizar;
   const textos = {
     ...catalogo.atendimentos.cabecalho,
     pedirEntrada: catalogo.atendimentos.cabecalho.pedirEntrada ?? catalogo.atendimentos.cabecalho.transferir,
@@ -83,14 +63,7 @@ export function CabecalhoConversa({
     recusarEntrada: catalogo.atendimentos.cabecalho.recusarEntrada ?? catalogo.atendimentos.cabecalho.transferir,
   };
   const [transferirAberto, setTransferirAberto] = useState(false);
-  const [finalizarTodosAberto, setFinalizarTodosAberto] = useState(false);
-  const [resultadoFinalizacao, setResultadoFinalizacao] = useState<{
-    finalizados: number;
-    recusados: number;
-  } | null>(null);
   const finalizar = useFinalizarAtendimento();
-  const finalizarTodos = useFinalizarAtendimentosVisiveis();
-  const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis();
   const token = useAuthStore((estado) => estado.accessToken);
   const papel = useAuthStore((estado) => estado.papel);
   const lead = useLead(conversa.leadId);
@@ -181,27 +154,6 @@ export function CabecalhoConversa({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {!finalizado && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={buttonVariants({ variant: "ghost", size: "icon" })}
-              aria-label={textosFinalizar.todosMenu}
-            >
-              <MoreHorizontal className="size-4" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem
-                onClick={() => {
-                  setResultadoFinalizacao(null);
-                  setFinalizarTodosAberto(true);
-                }}
-                disabled={quantidadeFinalizavel.isLoading || quantidadeFinalizavel.data?.quantidade === 0}
-              >
-                {textosFinalizar.todos}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
         {!finalizado && estadoPersistido === "SEM_PEDIDO" && (
           <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => podeEntrarDireto ? entrarAtendimento(conversa.atendimentoId) : pedirEntrada(conversa.atendimentoId), podeEntrarDireto ? "DENTRO" : "PENDENTE")} disabled={processandoParticipacao}>
             {podeEntrarDireto ? textos.entrar : textos.pedirEntrada}
@@ -286,66 +238,6 @@ export function CabecalhoConversa({
         aberto={transferirAberto}
         onFechar={() => setTransferirAberto(false)}
       />
-      <Dialog
-        open={finalizarTodosAberto}
-        onOpenChange={(novo) => !novo && setFinalizarTodosAberto(false)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{textosFinalizar.todosTitulo}</DialogTitle>
-            <DialogDescription>
-              {textosFinalizar.todosDescricao.replace(
-                "{quantidade}",
-                String(quantidadeFinalizavel.data?.quantidade ?? 0),
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {resultadoFinalizacao ? (
-            <p role="status" className="text-sm text-foreground">
-              {textosFinalizar.todosResultado
-                .replace("{finalizados}", String(resultadoFinalizacao.finalizados))
-                .replace("{recusados}", String(resultadoFinalizacao.recusados))}
-            </p>
-          ) : finalizarTodos.isError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {textosFinalizar.todosErro}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setFinalizarTodosAberto(false)}
-              disabled={finalizarTodos.isPending}
-            >
-              {textosFinalizar.todosCancelar}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() =>
-                finalizarTodos.mutate(undefined, {
-                  onSuccess: (resultado) =>
-                    setResultadoFinalizacao({
-                      finalizados: resultado.finalizados,
-                      recusados: resultado.recusados,
-                    }),
-                })
-              }
-              disabled={
-                finalizarTodos.isPending ||
-                quantidadeFinalizavel.isLoading ||
-                !quantidadeFinalizavel.data?.quantidade
-              }
-            >
-              {textosFinalizar.todosConfirmar.replace(
-                "{quantidade}",
-                String(quantidadeFinalizavel.data?.quantidade ?? 0),
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

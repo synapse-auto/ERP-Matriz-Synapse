@@ -381,6 +381,7 @@ lugar do outro.
 | `ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS` | `8` | Duração do aviso visual de transferência/devolução; aceita valores de 1 a 60 segundos. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
+| `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID. Vazio = o CRM resolve via Graph a partir do Phone Number ID. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |

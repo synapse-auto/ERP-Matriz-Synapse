@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { X } from "lucide-react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
 import { Composer } from "@/components/atendimentos/composer";
@@ -146,17 +146,22 @@ export function PaginaAtendimentosCliente({
   const atendimentoAtivo = atendimentoAtivoId
     ? { ...conversa!, atendimentoId: atendimentoAtivoId, status: "EM_ATENDIMENTO" as const }
     : null;
-  const atendimentoAtivoIdParaLeitura = atendimentoAtivo?.atendimentoId ?? null;
+  const atendimentoParaLeitura =
+    atendimentoAtivo?.atendimentoId ?? conversa?.atendimentoId ?? null;
   const marcarConversaAbertaComoLida = useCallback(() => {
-    if (!atendimentoAtivoIdParaLeitura) return;
-    void marcarAtendimentoComoLido(atendimentoAtivoIdParaLeitura)
+    if (!atendimentoParaLeitura || !conversa) return;
+    zerarNaoLidasDoLead(cache, conversa.leadId);
+    // #region agent log
+    fetch('http://127.0.0.1:7863/ingest/8c7e9fcc-9bc0-4d40-8c83-76cd40001e00',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec4265'},body:JSON.stringify({sessionId:'ec4265',hypothesisId:'D',runId:'post-fix',location:'pagina-atendimentos-cliente.tsx:marcarConversaAbertaComoLida',message:'marcar leitura da conversa aberta',data:{leadId:conversa.leadId,atendimentoId:atendimentoParaLeitura,naoLidas:conversa.naoLidas},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    void marcarAtendimentoComoLido(atendimentoParaLeitura)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode interromper o fluxo de mensagens.
       })
       .finally(() => {
         void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       });
-  }, [atendimentoAtivoIdParaLeitura, cache]);
+  }, [atendimentoParaLeitura, cache, conversa]);
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
@@ -178,10 +183,13 @@ export function PaginaAtendimentosCliente({
     setConversaInternaId(null);
     setBuscaAberta(false);
     setLeadSelecionadoId(cartao.leadId);
-    const ativoId = cartao.atendimentoAtivoId
-      ?? (cartao.status !== "FINALIZADO" ? cartao.atendimentoId : null);
-    if (!ativoId) return;
-    void marcarAtendimentoComoLido(ativoId)
+    const idParaLeitura = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+    zerarNaoLidasDoLead(cache, cartao.leadId);
+    // #region agent log
+    fetch('http://127.0.0.1:7863/ingest/8c7e9fcc-9bc0-4d40-8c83-76cd40001e00',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ec4265'},body:JSON.stringify({sessionId:'ec4265',hypothesisId:'B',runId:'post-fix',location:'pagina-atendimentos-cliente.tsx:abrirAtendimento',message:'abrir conversa e marcar leitura',data:{leadId:cartao.leadId,atendimentoId:cartao.atendimentoId,ativoId:cartao.atendimentoAtivoId,idParaLeitura,naoLidas:cartao.naoLidas,status:cartao.status},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (!idParaLeitura) return;
+    void marcarAtendimentoComoLido(idParaLeitura)
       .catch(() => {
         // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
       })
@@ -330,4 +338,32 @@ export function PaginaAtendimentosCliente({
       )}
     </div>
   );
+}
+
+function zerarNaoLidasDoLead(cache: QueryClient, leadId: string) {
+  cache.setQueriesData({ queryKey: ["atendimentos"] }, (atual: unknown) => {
+    if (!atual || typeof atual !== "object") return atual;
+    if (Array.isArray(atual)) {
+      return atual.map((item) =>
+        item && typeof item === "object" && "leadId" in item && item.leadId === leadId
+          ? { ...item, naoLidas: 0 }
+          : item,
+      );
+    }
+    if ("pages" in atual && Array.isArray((atual as { pages: unknown }).pages)) {
+      const inf = atual as { pages: { itens?: ItemInbox[] }[] };
+      return {
+        ...inf,
+        pages: inf.pages.map((pagina) => ({
+          ...pagina,
+          itens: (pagina.itens ?? []).map((item) =>
+            item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId
+              ? { ...item, naoLidas: 0 }
+              : item,
+          ),
+        })),
+      };
+    }
+    return atual;
+  });
 }

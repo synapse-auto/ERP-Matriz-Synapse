@@ -132,6 +132,9 @@ synapse:
       # template. Configuravel porque a Meta ja mudou regra de janela antes.
       janela-texto-livre: ${WHATSAPP_JANELA:24h}
       timeout: ${WHATSAPP_TIMEOUT:10s}
+      # WABA ID. Vazio de proposito: o adaptador resolve via Graph a partir do Phone Number ID.
+      # Nao usar :?obrigatoria — instancia que ainda nao tem a variavel nao pode derrubar o stack.
+      conta-negocio: ${WHATSAPP_CONTA_NEGOCIO:}
 
     # Publisher da outbox. O intervalo e o que define a latencia percebida entre
     # o clique do atendente e a mensagem sair.
