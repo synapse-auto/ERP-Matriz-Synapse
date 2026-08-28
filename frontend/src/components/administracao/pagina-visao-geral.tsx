@@ -60,24 +60,22 @@ export function PaginaVisaoGeralAdministracao() {
   return (
     <section className="space-y-6">
       <header>
-        <h2 className="text-xl font-bold tracking-tight">{textos.titulo}</h2>
+        <h2 className="text-lg font-extrabold tracking-tight">{textos.titulo}</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">{textos.descricao}</p>
       </header>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cartoes.map((cartao) => {
           const Icone = cartao.icone;
           return (
             <article
               key={cartao.rotulo}
-              className="rounded-lg border border-border bg-card p-5 shadow-md transition-shadow hover:shadow-lg"
+              className="rounded-xl border border-border bg-card p-5 shadow-sm"
             >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-muted-foreground">{cartao.rotulo}</p>
-                <span className={`rounded-full p-2 ${cartao.classeIcone}`}>
-                  <Icone className="size-5" aria-hidden />
-                </span>
-              </div>
-              <p className="mt-5 text-3xl font-bold tracking-tight tabular-nums">{cartao.valor}</p>
+              <span className={`flex size-10 items-center justify-center rounded-xl ${cartao.classeIcone}`}>
+                <Icone className="size-5" aria-hidden />
+              </span>
+              <p className="mt-3.5 text-3xl font-extrabold tracking-tight tabular-nums">{cartao.valor}</p>
+              <p className="mt-0.5 text-[12.5px] font-semibold text-muted-foreground">{cartao.rotulo}</p>
             </article>
           );
         })}

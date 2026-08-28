@@ -55,7 +55,9 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     private static final String SQL_MARCAR_COMO_LIDO =
             """
             INSERT INTO atendimento_leitura (atendimento_id, usuario_id, lido_ate)
-                 VALUES (?, ?, ?)
+            SELECT a.id, ?, ?
+              FROM atendimento a
+             WHERE a.lead_id = (SELECT origem.lead_id FROM atendimento origem WHERE origem.id = ?)
             ON CONFLICT (atendimento_id, usuario_id) DO UPDATE
                     SET lido_ate = GREATEST(atendimento_leitura.lido_ate, EXCLUDED.lido_ate)
             """;
@@ -119,7 +121,27 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     @Override
     public void marcarComoLido(UUID atendimentoId, UUID usuarioId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarComoLido");
-        chat.update(SQL_MARCAR_COMO_LIDO, atendimentoId, usuarioId, Timestamp.from(quando));
+        int linhas = chat.update(
+                SQL_MARCAR_COMO_LIDO, usuarioId, Timestamp.from(quando), atendimentoId);
+        // #region agent log
+        try {
+            String linha = "{\"sessionId\":\"ec4265\",\"hypothesisId\":\"A\",\"runId\":\"post-fix\",\"location\":\"AtendimentoRepositorioJdbc.marcarComoLido\",\"message\":\"leitura gravada\",\"data\":{\"atendimentoId\":\""
+                    + atendimentoId
+                    + "\",\"linhas\":"
+                    + linhas
+                    + "},\"timestamp\":"
+                    + System.currentTimeMillis()
+                    + "}\n";
+            java.nio.file.Files.writeString(
+                    java.nio.file.Path.of(
+                            "C:/Users/marcondes/Desktop/projeto_matriz/debug-ec4265.log"),
+                    linha,
+                    java.nio.charset.StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.APPEND);
+        } catch (Exception ignored) {
+        }
+        // #endregion
     }
 
     @Override

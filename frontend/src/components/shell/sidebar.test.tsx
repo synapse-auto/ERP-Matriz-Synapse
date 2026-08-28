@@ -58,6 +58,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         agenda: "Agenda de Contatos",
         tags: "Tags",
         mensagensRapidas: "Mensagens Rápidas",
+        templatesWhatsApp: "Templates WhatsApp",
         mensagensProgramadas: "Mensagens Programadas",
         lembretes: "Lembretes",
         equipe: "Equipe",
@@ -66,7 +67,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         administracao: "Administração",
       },
     },
-    administracao: { restrito: "Acesso restrito" },
+    administracao: {},
     rodape: {
       trocarConta: "Trocar conta",
       trocarSenha: "Trocar senha",
@@ -148,20 +149,35 @@ describe("sidebar", () => {
     );
   });
 
-  it("mostra Administração somente ao ADMINISTRADOR", async () => {
+  it("mostra Administração somente ao ADMINISTRADOR, sem selo adicional", async () => {
     authMock.papel = "GESTOR";
-    const tela = renderSidebar();
+    const telaGestor = renderSidebar();
     await screen.findByText("Feedbacks");
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+    telaGestor.unmount();
 
-    tela.unmount();
+    authMock.papel = "SUBGESTOR";
+    const telaSub = renderSidebar();
+    await screen.findByText("Feedbacks");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+    telaSub.unmount();
+
+    authMock.papel = "ATENDENTE";
+    const telaAtendente = renderSidebar();
+    await screen.findByText("Feedbacks");
+    expect(screen.queryByText("Administração")).not.toBeInTheDocument();
+    telaAtendente.unmount();
+
     authMock.papel = "ADMINISTRADOR";
     renderSidebar();
-    expect(await screen.findByRole("link", { name: /Administração/ })).toHaveAttribute(
-      "href",
-      "/administracao",
-    );
-    expect(screen.getByText("Acesso restrito")).toHaveClass("text-cor-ia");
+    const administracao = await screen.findByRole("link", { name: "Administração" });
+    expect(administracao).toHaveAttribute("href", "/administracao");
+    expect(administracao).toHaveAttribute("title", "Administração");
+    expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retrair menu lateral" }));
+    expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("title", "Administração");
+    expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
   });
 
   it("oferece engrenagem de configurações separada do popup de presença", async () => {
@@ -196,6 +212,7 @@ describe("sidebar", () => {
       "title",
       "Agenda de Contatos",
     );
+    expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir configurações" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));

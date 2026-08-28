@@ -16,6 +16,7 @@
       "agenda": "Agenda de Contatos",
       "tags": "Tags",
       "mensagensRapidas": "Mensagens Rápidas",
+      "templatesWhatsApp": "Templates WhatsApp",
       "bancoArquivos": "Banco de Arquivos",
       "mensagensProgramadas": "Mensagens Programadas",
       "lembretes": "Lembretes",
@@ -163,13 +164,17 @@
   "administracao": {
     "titulo": "Administração",
     "descricao": "Acessos e feedbacks internos do CRM.",
-    "restrito": "Acesso restrito",
     "estadoSistema": "Estado não verificado",
     "semPermissaoTitulo": "Acesso não autorizado",
     "semPermissaoDescricao": "Somente administradores podem acessar esta área.",
     "voltar": "Voltar para Atendimentos",
     "navegacao": "Áreas da Administração",
     "abas": { "visaoGeral": "Visão geral", "acessos": "Acessos", "feedbacks": "Feedbacks" },
+    "abasDescricoes": {
+      "visaoGeral": "Usuários e recursos habilitados",
+      "acessos": "Gerenciar logins",
+      "feedbacks": "Sugestões e erros"
+    },
     "visaoGeral": {
       "titulo": "Visão geral",
       "descricao": "Resumo baseado nos usuários cadastrados e nas capacidades habilitadas.",
@@ -335,7 +340,13 @@
       "emoji": "Emoji",
       "janelaFechadaTitulo": "Janela de 24h fechada",
       "janelaFechadaDescricao": "Faz mais de 24h desde a última mensagem do cliente. Só é possível enviar um template aprovado.",
-      "semTemplates": "Nenhum template disponível ainda.",
+      "semTemplates": "Nenhum template aprovado ainda.",
+      "escolherTemplate": "Enviar template",
+      "enviarTemplate": "Enviar este template",
+      "parametroTemplate": "Parâmetro {indice}",
+      "criarTemplate": "Criar template",
+      "templatesErro": "Não foi possível carregar os templates.",
+      "templatePendente": "Aguardando aprovação da Meta",
       "agendar": "Agendar mensagem",
       "mensagensRapidas": "Mensagens rápidas"
     },
@@ -560,6 +571,40 @@
       "salvar": "Salvar",
       "cancelar": "Cancelar",
       "erro": "Não foi possível salvar. Confira se a palavra-chave já está em uso."
+    }
+  },
+  "templatesWhatsApp": {
+    "titulo": "Templates do WhatsApp",
+    "descricao": "Crie modelos na Meta para usar quando a janela de 24h estiver fechada. A aprovação é da Meta e pode levar algumas horas.",
+    "novo": "Novo template",
+    "carregando": "Carregando templates...",
+    "vazio": "Nenhum template cadastrado nesta conta.",
+    "erro": "Não foi possível falar com a Meta para listar os templates.",
+    "dica": "Depois de aprovado, o template aparece no composer da conversa quando a janela de 24h estiver fechada. Use {{1}}, {{2}} para variáveis na ordem.",
+    "avisoPendente": "Enviado para aprovação. Só poderá ser usado depois que a Meta aprovar.",
+    "categorias": {
+      "UTILIDADE": "Utilidade",
+      "MARKETING": "Marketing",
+      "AUTENTICACAO": "Autenticação"
+    },
+    "status": {
+      "APROVADO": "Aprovado",
+      "PENDENTE": "Pendente",
+      "REJEITADO": "Rejeitado",
+      "PAUSADO": "Pausado",
+      "DESCONHECIDO": "Desconhecido"
+    },
+    "formulario": {
+      "criarTitulo": "Criar template na Meta",
+      "nome": "Nome interno",
+      "nomeAjuda": "Só minúsculas, números e _. Ex.: retorno_orcamento",
+      "idioma": "Idioma",
+      "categoria": "Categoria",
+      "corpo": "Texto do corpo",
+      "corpoAjuda": "Variáveis sequenciais: {{1}}, {{2}}. Sem cabeçalho, botão ou mídia nesta versão.",
+      "salvar": "Enviar para aprovação",
+      "cancelar": "Cancelar",
+      "erro": "Não foi possível criar o template. Confira o nome e o texto."
     }
   },
   "equipe": {

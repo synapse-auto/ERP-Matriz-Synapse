@@ -5,6 +5,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
+  CategoriaTemplateWhatsApp,
   ItemInbox,
   ConfiguracaoComposer,
   ContagemPorVisao,
@@ -16,6 +17,7 @@ import type {
   ParticipanteAtendimento,
   PedidoEntradaAtendimento,
   TagResposta,
+  TemplateWhatsApp,
   UsuarioResposta,
   VisaoAtendimento,
 } from "./types";
@@ -89,6 +91,34 @@ export function enviarMensagem(leadId: string, conteudo: string): Promise<EnvioR
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens", {
     method: "POST",
     body: JSON.stringify({ leadId, conteudo }),
+  });
+}
+
+export function enviarTemplate(
+  leadId: string,
+  nome: string,
+  idioma: string,
+  parametros: string[] = [],
+): Promise<EnvioResposta> {
+  return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens/template", {
+    method: "POST",
+    body: JSON.stringify({ leadId, nome, idioma, parametros }),
+  });
+}
+
+export function listarTemplatesWhatsApp(): Promise<TemplateWhatsApp[]> {
+  return apiFetch<TemplateWhatsApp[]>("/api/v1/whatsapp/templates");
+}
+
+export function criarTemplateWhatsApp(pedido: {
+  nome: string;
+  idioma: string;
+  categoria: CategoriaTemplateWhatsApp;
+  corpo: string;
+}): Promise<TemplateWhatsApp> {
+  return apiFetch<TemplateWhatsApp>("/api/v1/whatsapp/templates", {
+    method: "POST",
+    body: JSON.stringify(pedido),
   });
 }
 

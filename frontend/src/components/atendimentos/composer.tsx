@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ErroDeApi } from "@/lib/api/errors";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
+import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
@@ -81,6 +83,13 @@ export function Composer({ conversa }: Props) {
     queryKey: ["mensagens-rapidas", "minhas"],
     queryFn: () => listarMensagensRapidas(true),
   });
+  const janelaAberta = janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm);
+  const templates = useQuery({
+    queryKey: ["whatsapp-templates"],
+    queryFn: listarTemplatesWhatsApp,
+    enabled: conversa.status !== "FINALIZADO" && !janelaAberta,
+  });
+  const [parametros, setParametros] = useState<Record<string, string[]>>({});
 
   if (conversa.status === "FINALIZADO") {
     return (
@@ -91,8 +100,6 @@ export function Composer({ conversa }: Props) {
       </div>
     );
   }
-
-  const janelaAberta = janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm);
 
   function enviarConteudo() {
     if (arquivo) {
@@ -228,16 +235,86 @@ export function Composer({ conversa }: Props) {
         );
 
   if (!janelaAberta) {
+    const aprovados = (templates.data ?? []).filter((item) => item.status === "APROVADO");
     return (
       <div className="bg-background px-4 pb-4 pt-3">
-        <div className="mx-auto max-w-[780px] space-y-1 rounded-xl border border-input bg-card p-3 shadow-md">
+        <div className="mx-auto max-w-[780px] space-y-3 rounded-xl border border-input bg-card p-3 shadow-md">
           <p className="text-sm font-medium text-foreground">
             {textos.janelaFechadaTitulo}
           </p>
           <p className="text-sm text-muted-foreground">
             {textos.janelaFechadaDescricao}
           </p>
-          <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
+          {templates.isError ? (
+            <p className="text-xs text-destructive">{textos.templatesErro}</p>
+          ) : templates.isLoading ? (
+            <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
+          ) : aprovados.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
+          ) : (
+            <ul className="space-y-2">
+              {aprovados.map((template) => {
+                const chave = `${template.nome}:${template.idioma}`;
+                const valores = parametros[chave] ?? Array(template.quantidadeDeParametros).fill("");
+                return (
+                  <li key={chave} className="rounded-lg border border-border p-2">
+                    <p className="text-sm font-medium">{template.nome}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{template.corpo}</p>
+                    {template.quantidadeDeParametros > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {valores.map((valor, indice) => (
+                          <input
+                            key={`${chave}-${indice}`}
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                            value={valor}
+                            placeholder={textos.parametroTemplate.replace(
+                              "{indice}",
+                              String(indice + 1),
+                            )}
+                            onChange={(evento) => {
+                              const proximo = [...valores];
+                              proximo[indice] = evento.target.value;
+                              setParametros((atual) => ({ ...atual, [chave]: proximo }));
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="mt-2"
+                      disabled={
+                        enviar.isPending
+                        || (template.quantidadeDeParametros > 0
+                          && valores.some((valor) => valor.trim() === ""))
+                      }
+                      onClick={() =>
+                        enviar.mutate({
+                          atendimentoId: conversa.atendimentoId,
+                          leadId: conversa.leadId,
+                          conteudo: template.corpo,
+                          template: {
+                            nome: template.nome,
+                            idioma: template.idioma,
+                            parametros: valores,
+                          },
+                        })
+                      }
+                    >
+                      {textos.enviarTemplate}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Link
+            href="/templates-whatsapp"
+            className="inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {textos.criarTemplate}
+          </Link>
         </div>
       </div>
     );

@@ -19,6 +19,7 @@ import {
   Megaphone,
   MessageSquarePlus,
   MessageSquareText,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -47,7 +48,6 @@ interface ItemDeMenu {
   icone: React.ComponentType<{ className?: string }>;
   /** Ausente = feature central, sempre visível. Presente = só some se a flag não vier habilitada. */
   flag?: string;
-  restrito?: boolean;
 }
 
 const ITENS_MENU: ItemDeMenu[] = [
@@ -56,6 +56,7 @@ const ITENS_MENU: ItemDeMenu[] = [
   { chave: "agenda", rota: "/agenda", icone: BookUser },
   { chave: "tags", rota: "/tags", icone: Tag },
   { chave: "mensagensRapidas", rota: "/mensagens-rapidas", icone: MessageSquareText },
+  { chave: "templatesWhatsApp", rota: "/templates-whatsapp", icone: FileText },
   { chave: "bancoArquivos", rota: "/banco-arquivos", icone: Folder, flag: "banco_arquivos" },
   { chave: "mensagensProgramadas", rota: "/mensagens-programadas", icone: Clock },
   { chave: "lembretes", rota: "/lembretes", icone: Bell },
@@ -68,7 +69,7 @@ const ITENS_GESTAO: ItemDeMenu[] = [
   { chave: "automacao", rota: "/automacao", icone: Bot },
   { chave: "horarios", rota: "/horarios", icone: CalendarClock, flag: "horarios" },
   { chave: "relatorios", rota: "/relatorios", icone: BarChart3, flag: "relatorios" },
-  { chave: "administracao", rota: "/administracao", icone: ShieldCheck, restrito: true },
+  { chave: "administracao", rota: "/administracao", icone: ShieldCheck },
 ];
 
 const OPCOES_PRESENCA: StatusPresenca[] = ["ONLINE", "AUSENTE", "OFFLINE"];
@@ -256,7 +257,6 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           contagemPendentes={contagens?.PENDENTES}
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
-          rotuloRestrito={textos.administracao.restrito}
         />
         <MenuGrupo
           titulo={textos.menu.grupoGestao}
@@ -267,7 +267,6 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
           contagemPendentes={contagens?.PENDENTES}
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
-          rotuloRestrito={textos.administracao.restrito}
         />
         <div className="mb-2 mt-2">
           <ul className="flex flex-col gap-0.5">
@@ -400,7 +399,6 @@ interface MenuGrupoProps {
   contagemPendentes?: number;
   retraida: boolean;
   rotuloContagemPendentes: string;
-  rotuloRestrito: string;
 }
 
 function MenuGrupo({
@@ -412,7 +410,6 @@ function MenuGrupo({
   contagemPendentes,
   retraida,
   rotuloContagemPendentes,
-  rotuloRestrito,
 }: MenuGrupoProps) {
   const itensVisiveis = itens.filter(visivel);
   if (itensVisiveis.length === 0) return null;
@@ -436,7 +433,7 @@ function MenuGrupo({
               <Link
                 href={item.rota}
                 aria-label={retraida ? rotuloAcessivel : undefined}
-                title={item.restrito ? `${rotulo} — ${rotuloRestrito}` : rotulo}
+                title={rotulo}
                 className={
                   retraida && ativo
                     ? "relative flex items-center justify-center rounded-[10px] bg-sidebar-item-overlay-ativo px-2 py-2.5 text-white shadow-[inset_3px_0_0_var(--sidebar-item-acento-ativo)] hover:bg-sidebar-item-overlay-ativo-hover"
@@ -466,14 +463,6 @@ function MenuGrupo({
                     }
                   >
                     {contagemPendentes}
-                  </Badge>
-                )}
-                {item.restrito && !retraida && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 border-cor-ia/20 bg-cor-ia/10 px-1.5 text-[0.55rem] text-cor-ia uppercase"
-                  >
-                    {rotuloRestrito}
                   </Badge>
                 )}
               </Link>

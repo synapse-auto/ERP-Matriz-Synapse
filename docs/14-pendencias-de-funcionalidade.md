@@ -51,7 +51,6 @@ Estes itens continuam fora da entrega porque ainda exigem decisão de produto, c
 | **Aba de Informações da IA** | definir quais informações, tabelas, período e fonte de verdade serão exibidos | não há modelo nem contrato para os dados; uma tela baseada em snapshot seria enganosa |
 | **Modelos de filhos por nicho** | ponto de extensão, catálogo de campos e provisionamento para variações por ramo | exige decisão arquitetural de Base PAI, não uma coluna ou `if` específico de cliente |
 | **Aba de novidades da matriz** | módulo ADM para publicar, versionar e distribuir novidades | não existe serviço de conteúdo, público-alvo ou política de leitura |
-| **Templates Meta por login** | cadastro por credencial, mídia/imagem/arquivo, aprovação e integração com a API de templates da Meta | o contrato externo e o ciclo de aprovação ainda não foram definidos |
 | **Entrar/sair de atendimento em andamento** | permissão da Agenda, estado de participação e auditoria da entrada/saída | alterar presença não define sozinho quem pode assumir uma conversa em andamento |
 | **Login como outro usuário por administrador** | fluxo de impersonação com consentimento, escopo, expiração e auditoria reforçada | é uma superfície de alto risco; não será criada sem decisão explícita de segurança |
 | **Chat interno da equipe — fase 2** | conversas, participantes, mensagens, retenção e notificações internas | permanece fora da primeira entrega (`docs/09`) e exige módulo próprio |

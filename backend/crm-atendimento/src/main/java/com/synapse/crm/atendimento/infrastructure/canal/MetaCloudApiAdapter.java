@@ -1,7 +1,12 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,8 +24,12 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
+import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
@@ -52,6 +61,7 @@ class MetaCloudApiAdapter implements CanalGateway {
 
     private static final String NOME_DO_BREAKER = "canal-meta-cloud";
     private static final int EXCESSO_DE_CHAMADAS = 429;
+    private static final Pattern VARIAVEL_DO_CORPO = Pattern.compile("\\{\\{(\\d+)\\}\\}");
 
     private static final Logger log = LoggerFactory.getLogger(MetaCloudApiAdapter.class);
 
@@ -60,6 +70,7 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final ObjectMapper json;
     private final CircuitBreaker breaker;
     private final ArmazenamentoDeMidia armazenamento;
+    private final AtomicReference<String> contaNegocioResolvida = new AtomicReference<>();
 
     MetaCloudApiAdapter(
             RestClient.Builder builder,
@@ -293,6 +304,193 @@ class MetaCloudApiAdapter implements CanalGateway {
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             return null;
         }
+    }
+
+    @Override
+    public List<TemplateDoCanal> listarTemplates() {
+        try {
+            return breaker.executeSupplier(this::buscarTemplates);
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new CanalIndisponivelException("circuit breaker aberto para " + PROVEDOR);
+        } catch (RestClientResponseException e) {
+            throw new CanalIndisponivelException(
+                    "provedor recusou listar templates: HTTP " + e.getStatusCode().value());
+        }
+    }
+
+    @Override
+    public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        try {
+            return breaker.executeSupplier(() -> submeterTemplate(pedido));
+        } catch (CallNotPermittedException breakerAberto) {
+            return new ResultadoDeTemplate.Recusado("circuit breaker aberto para " + PROVEDOR);
+        } catch (RestClientResponseException e) {
+            return new ResultadoDeTemplate.Recusado(
+                    "HTTP " + e.getStatusCode().value() + " " + resumoDoErro(e.getResponseBodyAsString()));
+        }
+    }
+
+    private List<TemplateDoCanal> buscarTemplates() {
+        String conta = resolverContaNegocio();
+        JsonNode raiz = http.get()
+                .uri(
+                        "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
+                        conta)
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(JsonNode.class);
+        List<TemplateDoCanal> templates = new ArrayList<>();
+        if (raiz == null) {
+            return templates;
+        }
+        JsonNode dados = raiz.path("data");
+        if (!dados.isArray()) {
+            return templates;
+        }
+        for (JsonNode item : dados) {
+            templates.add(paraTemplateDoCanal(item));
+        }
+        return templates;
+    }
+
+    private ResultadoDeTemplate submeterTemplate(PedidoDeTemplate pedido) {
+        String conta = resolverContaNegocio();
+        JsonNode resposta = http.post()
+                .uri("/{conta}/message_templates", conta)
+                .header("Authorization", "Bearer " + propriedades.token())
+                .header("Content-Type", "application/json")
+                .body(corpoDoPedidoDeTemplate(pedido))
+                .retrieve()
+                .body(JsonNode.class);
+        TemplateDoCanal.Status status = traduzirStatus(
+                resposta == null ? "" : resposta.path("status").asText());
+        TemplateDoCanal.Categoria categoria = pedido.categoria();
+        if (resposta != null && !resposta.path("category").asText().isBlank()) {
+            categoria = traduzirCategoria(resposta.path("category").asText());
+        }
+        return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
+                pedido.nome(),
+                pedido.idioma(),
+                categoria,
+                status == TemplateDoCanal.Status.DESCONHECIDO
+                        ? TemplateDoCanal.Status.PENDENTE
+                        : status,
+                pedido.corpo(),
+                contarParametros(pedido.corpo())));
+    }
+
+    private ObjectNode corpoDoPedidoDeTemplate(PedidoDeTemplate pedido) {
+        ObjectNode raiz = json.createObjectNode();
+        raiz.put("name", pedido.nome());
+        raiz.put("language", pedido.idioma());
+        raiz.put("category", categoriaParaMeta(pedido.categoria()));
+        raiz.put("allow_category_change", true);
+        ObjectNode corpo = raiz.putArray("components").addObject();
+        corpo.put("type", "BODY");
+        corpo.put("text", pedido.corpo());
+        int parametros = contarParametros(pedido.corpo());
+        if (parametros > 0) {
+            ArrayNode amostra = corpo.putObject("example").putArray("body_text").addArray();
+            for (int i = 1; i <= parametros; i++) {
+                amostra.add("exemplo" + i);
+            }
+        }
+        return raiz;
+    }
+
+    private String resolverContaNegocio() {
+        String configurada = propriedades.contaNegocio();
+        if (!configurada.isBlank()) {
+            return configurada;
+        }
+        String emCache = contaNegocioResolvida.get();
+        if (emCache != null && !emCache.isBlank()) {
+            return emCache;
+        }
+        JsonNode resposta = http.get()
+                .uri("/{numero}?fields=whatsapp_business_account", propriedades.numeroPrincipal())
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(JsonNode.class);
+        String id = resposta == null
+                ? ""
+                : resposta.path("whatsapp_business_account").path("id").asText();
+        if (id == null || id.isBlank()) {
+            throw new CanalIndisponivelException(
+                    "nao foi possivel resolver a conta de negocio do WhatsApp");
+        }
+        contaNegocioResolvida.set(id);
+        return id;
+    }
+
+    private static TemplateDoCanal paraTemplateDoCanal(JsonNode item) {
+        String corpo = corpoDoTemplate(item.path("components"));
+        return new TemplateDoCanal(
+                item.path("name").asText(),
+                idiomaDoItem(item.path("language")),
+                traduzirCategoria(item.path("category").asText()),
+                traduzirStatus(item.path("status").asText()),
+                corpo,
+                contarParametros(corpo));
+    }
+
+    private static String idiomaDoItem(JsonNode idioma) {
+        if (idioma.isTextual()) {
+            return idioma.asText();
+        }
+        String codigo = idioma.path("code").asText();
+        return codigo.isBlank() ? idioma.path("language").asText() : codigo;
+    }
+
+    private static String corpoDoTemplate(JsonNode componentes) {
+        if (!componentes.isArray()) {
+            return "";
+        }
+        for (JsonNode componente : componentes) {
+            if ("BODY".equalsIgnoreCase(componente.path("type").asText())) {
+                return componente.path("text").asText("");
+            }
+        }
+        return "";
+    }
+
+    private static int contarParametros(String corpo) {
+        if (corpo == null || corpo.isBlank()) {
+            return 0;
+        }
+        Matcher casamento = VARIAVEL_DO_CORPO.matcher(corpo);
+        int maximo = 0;
+        while (casamento.find()) {
+            maximo = Math.max(maximo, Integer.parseInt(casamento.group(1)));
+        }
+        return maximo;
+    }
+
+    private static String categoriaParaMeta(TemplateDoCanal.Categoria categoria) {
+        return switch (categoria) {
+            case UTILIDADE -> "UTILITY";
+            case MARKETING -> "MARKETING";
+            case AUTENTICACAO -> "AUTHENTICATION";
+        };
+    }
+
+    private static TemplateDoCanal.Categoria traduzirCategoria(String categoria) {
+        return switch (categoria == null ? "" : categoria.toUpperCase()) {
+            case "UTILITY", "UTILIDADE" -> TemplateDoCanal.Categoria.UTILIDADE;
+            case "MARKETING" -> TemplateDoCanal.Categoria.MARKETING;
+            case "AUTHENTICATION", "AUTENTICACAO" -> TemplateDoCanal.Categoria.AUTENTICACAO;
+            default -> TemplateDoCanal.Categoria.UTILIDADE;
+        };
+    }
+
+    private static TemplateDoCanal.Status traduzirStatus(String status) {
+        return switch (status == null ? "" : status.toUpperCase()) {
+            case "APPROVED", "APROVADO" -> TemplateDoCanal.Status.APROVADO;
+            case "PENDING", "PENDING_DELETION", "IN_APPEAL", "PENDENTE" -> TemplateDoCanal.Status.PENDENTE;
+            case "REJECTED", "REJEITADO" -> TemplateDoCanal.Status.REJEITADO;
+            case "PAUSED", "DISABLED", "PAUSADO" -> TemplateDoCanal.Status.PAUSADO;
+            default -> TemplateDoCanal.Status.DESCONHECIDO;
+        };
     }
 
     @Override

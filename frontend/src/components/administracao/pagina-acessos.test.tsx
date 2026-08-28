@@ -78,7 +78,7 @@ describe("PaginaAcessosAdministracao", () => {
     const acaoForaDoEscopo = new RegExp(["entrar", "como"].join(" "), "i");
     expect(screen.queryByText(acaoForaDoEscopo)).not.toBeInTheDocument();
     expect(screen.queryByText(/último acesso/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("table").parentElement).toHaveClass("shadow-md");
+    expect(screen.getByRole("table").parentElement).toHaveClass("shadow-sm", "rounded-xl");
     expect(screen.getByRole("button", { name: "Desativar Marina Admin" })).toHaveClass(
       "text-destructive",
     );

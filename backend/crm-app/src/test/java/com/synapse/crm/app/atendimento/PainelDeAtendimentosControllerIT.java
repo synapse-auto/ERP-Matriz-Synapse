@@ -265,6 +265,37 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("abrir conversa zera nao lidas de todos os atendimentos do lead")
+        void abrirConversa_marcaLeituraDeTodosOsAtendimentosDoLead() throws Exception {
+            UUID lead = criarLead(
+                    "Lead com historico " + UUID.randomUUID().toString().substring(0, 8),
+                    idAna,
+                    "EM_ATENDIMENTO");
+            UUID encerrado = criarAtendimento(lead, idAna, "FINALIZADO");
+            UUID aberto = criarAtendimento(lead, idAna, "EM_ATENDIMENTO");
+            inserirMensagem(encerrado, "LEAD", null, "mensagem do atendimento encerrado");
+            inserirMensagem(aberto, "LEAD", null, "mensagem do atendimento aberto");
+
+            JsonNode cartaoAntes = cartao(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"), aberto);
+            assertThat(cartaoAntes.path("naoLidas").asLong()).isEqualTo(2);
+
+            ResponseEntity<String> resposta = marcarComoLidoComo(EMAIL_ANA, SENHA_ATENDENTE, aberto);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM atendimento_leitura WHERE usuario_id = ? AND atendimento_id IN (?, ?)",
+                            Integer.class,
+                            idAna,
+                            encerrado,
+                            aberto))
+                    .isEqualTo(2);
+            assertThat(cartao(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"), aberto)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
+        }
+
+        @Test
         @DisplayName("responsavel abre conversa e zera as nao lidas existentes")
         void responsavel_abreConversa_marcaComoLida() throws Exception {
             ResponseEntity<String> resposta = marcarComoLidoComo(

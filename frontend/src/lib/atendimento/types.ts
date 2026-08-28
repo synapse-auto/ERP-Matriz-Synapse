@@ -17,6 +17,23 @@ export interface ConfiguracaoComposer {
   tempoNotificacaoSegundos: number;
 }
 
+export type CategoriaTemplateWhatsApp = "UTILIDADE" | "MARKETING" | "AUTENTICACAO";
+export type StatusTemplateWhatsApp =
+  | "APROVADO"
+  | "PENDENTE"
+  | "REJEITADO"
+  | "PAUSADO"
+  | "DESCONHECIDO";
+
+export interface TemplateWhatsApp {
+  nome: string;
+  idioma: string;
+  categoria: CategoriaTemplateWhatsApp;
+  status: StatusTemplateWhatsApp;
+  corpo: string;
+  quantidadeDeParametros: number;
+}
+
 /** Espelha RemetenteTipo.java. */
 export type RemetenteTipo = "LEAD" | "ATENDENTE" | "SISTEMA" | "IA";
 

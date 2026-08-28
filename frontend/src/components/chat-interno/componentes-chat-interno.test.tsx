@@ -4,19 +4,38 @@ import { describe, expect, it, vi } from "vitest";
 import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
-import { ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
+import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-const mockTextosCompletos = { chatInterno: {
-  titulo: "Chat interno",
-  semMensagens: "Nenhuma mensagem ainda.",
-  placeholder: "Escreva uma mensagem...",
-  enviar: "Enviar",
-  erroEnviar: "Não foi possível enviar a mensagem.",
-}, atendimentos: { composer: { anexo: "A", anexoRemover: "A", audioGravando: "A", audioDescartar: "A", audioParar: "A", audioPreview: "A", audioEnviar: "A", audioSemMicrofone: "A", audioPermissaoNegada: "A", audioMicrofoneEmUso: "A", audioErroCaptura: "A", audioExcedeuLimite: "A" }, audio: "A", baixar: "A", documento: "A", imagem: "A", responder: "A" } } as any;
+const mockTextosCompletos = {
+  chatInterno: {
+    titulo: "Chat interno",
+    semMensagens: "Nenhuma mensagem ainda.",
+    placeholder: "Escreva uma mensagem...",
+    enviar: "Enviar",
+    erroEnviar: "Não foi possível enviar a mensagem.",
+  },
+  atendimentos: {
+    composer: {
+      anexo: "A",
+      anexoRemover: "A",
+      audioGravando: "A",
+      audioDescartar: "A",
+      audioParar: "A",
+      audioPreview: "A",
+      audioEnviar: "A",
+      audioSemMicrofone: "A",
+      audioPermissaoNegada: "A",
+      audioMicrofoneEmUso: "A",
+      audioErroCaptura: "A",
+      audioExcedeuLimite: "A",
+    },
+    media: { audio: "A", baixar: "A", documento: "A", imagem: "A" },
+  },
+} as unknown as Textos;
 
 const textos = mockTextosCompletos.chatInterno;
 
@@ -26,6 +45,16 @@ const mensagens: ChatMensagem[] = [
 ];
 
 describe("componentes de apresentação do chat interno", () => {
+  it("não oferece finalização, transferência ou controles de lead no cabeçalho interno", () => {
+    render(<CabecalhoChatInterno textos={textos} conversa={{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 0 }} />);
+
+    expect(screen.getByText("Bruno Almeida")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Finalizar todos")).not.toBeInTheDocument();
+  });
+
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
     const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} /></TextosProvider>);
     const linhas = container.firstElementChild?.children;

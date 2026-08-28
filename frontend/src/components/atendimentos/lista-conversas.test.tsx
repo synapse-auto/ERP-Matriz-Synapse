@@ -159,6 +159,15 @@ describe("ListaConversas", () => {
     expect(finalizarTodos).toHaveBeenCalledTimes(1);
   });
 
+  it("coloca o menu global ao lado do título da lista", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    const titulo = screen.getByRole("heading", { name: "Atendimentos" });
+    const menu = screen.getByRole("button", { name: "Mais ações" });
+    expect(titulo.parentElement).toContainElement(menu);
+    expect(screen.getAllByRole("button", { name: "Mais ações" })).toHaveLength(1);
+  });
+
   it("seleciona conversa interna pelo tipo e conversaId", () => {
     const abrir = vi.fn();
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={abrir} chatInternoHabilitado />);

@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
-import { PillDeStatus } from "@/components/ui/pill-de-status";
+import { PillDeStatus, type TomDePill } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   useDesativarUsuario,
@@ -40,7 +40,7 @@ export function PaginaAcessosAdministracao() {
     <section className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">{t.titulo}</h2>
+        <h2 className="text-lg font-extrabold tracking-tight">{t.titulo}</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">{t.descricao}</p>
         </div>
         <Button onClick={() => setNovo(true)}>{t.novo}</Button>
@@ -51,11 +51,11 @@ export function PaginaAcessosAdministracao() {
       ) : equipe.isError ? (
         <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => equipe.refetch()} />
       ) : (equipe.data?.length ?? 0) === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-md">
+        <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-sm">
           {t.vazio}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-md">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table className="w-full min-w-[760px] text-[13px]">
             <thead className="border-b border-border bg-muted/50 text-left text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
               <tr>
@@ -86,7 +86,7 @@ export function PaginaAcessosAdministracao() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <PillDeStatus tom="info">{t.papeis[usuario.papel]}</PillDeStatus>
+                      <PillDeStatus tom={tomDoPapel(usuario.papel)}>{t.papeis[usuario.papel]}</PillDeStatus>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {t.presencas[usuario.statusPresenca]}
@@ -187,4 +187,17 @@ export function PaginaAcessosAdministracao() {
       )}
     </section>
   );
+}
+
+function tomDoPapel(papel: UsuarioEquipe["papel"]): TomDePill {
+  switch (papel) {
+    case "ADMINISTRADOR":
+      return "ia";
+    case "GESTOR":
+      return "info";
+    case "SUBGESTOR":
+      return "sucesso";
+    default:
+      return "neutro";
+  }
 }

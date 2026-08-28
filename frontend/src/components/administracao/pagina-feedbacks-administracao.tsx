@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bug, Lightbulb } from "lucide-react";
+import { Bug, Clock, Lightbulb } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useFeedbacksAdministrativos } from "@/lib/feedbacks/use-feedbacks";
 import type { AreaFeedback, TipoFeedback } from "@/lib/feedbacks/types";
+import { cn } from "@/lib/utils";
 
 const AREA_PARA_TEXTO: Record<
   AreaFeedback,
@@ -40,37 +41,42 @@ export function PaginaFeedbacksAdministracao() {
   ];
 
   return (
-    <section className="space-y-6">
-      <header>
-        <h2 className="text-xl font-bold tracking-tight">{t.titulo}</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">{t.descricao}</p>
+    <section className="space-y-5">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-extrabold tracking-tight">{t.titulo}</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">{t.descricao}</p>
+        </div>
+        <div className="inline-flex rounded-xl bg-muted p-1" role="group" aria-label={t.filtro}>
+          {filtros.map((filtro) => (
+            <Button
+              key={filtro.valor ?? "TODOS"}
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-pressed={tipo === filtro.valor}
+              className={cn(
+                "rounded-lg px-4",
+                tipo === filtro.valor && "bg-card text-cor-ia shadow-sm hover:bg-card hover:text-cor-ia",
+              )}
+              onClick={() => setTipo(filtro.valor)}
+            >
+              {filtro.rotulo}
+            </Button>
+          ))}
+        </div>
       </header>
-
-      <div className="inline-flex rounded-lg border border-border bg-card p-1 shadow-sm" role="group" aria-label={t.filtro}>
-        {filtros.map((filtro) => (
-          <Button
-            key={filtro.valor ?? "TODOS"}
-            type="button"
-            size="sm"
-            variant={tipo === filtro.valor ? "secondary" : "ghost"}
-            aria-pressed={tipo === filtro.valor}
-            onClick={() => setTipo(filtro.valor)}
-          >
-            {filtro.rotulo}
-          </Button>
-        ))}
-      </div>
 
       {consulta.isLoading ? (
         <p className="text-sm text-muted-foreground">{t.carregando}</p>
       ) : consulta.isError ? (
         <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => consulta.refetch()} />
       ) : itens.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-md">
+        <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-sm">
           {t.vazio}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {itens.map((feedback) => {
             const sugestao = feedback.tipo === "SUGESTAO";
             const tipoTexto = sugestao ? textos.feedbacks.tipos.sugestao : textos.feedbacks.tipos.erro;
@@ -78,18 +84,18 @@ export function PaginaFeedbacksAdministracao() {
             return (
               <article
                 key={feedback.id}
-                className="rounded-lg border border-border bg-card p-5 shadow-md transition-shadow hover:shadow-lg"
+                className="rounded-xl border border-border bg-card p-5 shadow-sm"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   <AvatarIniciais
                     id={feedback.autorId}
                     nome={feedback.autorNome}
                     fotoUrl={feedback.autorFotoUrl}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div className="min-w-0">
                         <p className="font-bold text-foreground">{feedback.autorNome}</p>
                         <p className="text-xs text-muted-foreground">
                           {t.autorPapel.replace("{papel}", feedback.autorPapel)}
@@ -105,20 +111,22 @@ export function PaginaFeedbacksAdministracao() {
                           )
                         }
                       >
-                        {t.tipoArea.replace("{tipo}", tipoTexto).replace("{area}", areaTexto)}
+                        {tipoTexto}
                       </PillDeStatus>
+                      <PillDeStatus tom="neutro">{areaTexto}</PillDeStatus>
+                      <p className="ml-auto flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                        <Clock className="size-3.5" aria-hidden />
+                        {t.data.replace(
+                          "{data}",
+                          new Intl.DateTimeFormat("pt-BR", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          }).format(new Date(feedback.criadoEm)),
+                        )}
+                      </p>
                     </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {feedback.descricao}
-                    </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      {t.data.replace(
-                        "{data}",
-                        new Intl.DateTimeFormat("pt-BR", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        }).format(new Date(feedback.criadoEm)),
-                      )}
                     </p>
                   </div>
                 </div>

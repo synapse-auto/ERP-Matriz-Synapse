@@ -10,7 +10,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
+import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 
 /**
  * Um provedor inteiro, falso, escolhido por configuracao.
@@ -32,6 +35,7 @@ public class CanalFake implements CanalGateway {
     public static final String ASSINATURA_VALIDA = "sha256=fake-assinatura-valida";
 
     private final List<Envio> enviados = new CopyOnWriteArrayList<>();
+    private final List<TemplateDoCanal> templates = new CopyOnWriteArrayList<>();
     private final AtomicReference<ResultadoDeEnvio> proximaResposta =
             new AtomicReference<>(new ResultadoDeEnvio.Aceito("fake-id"));
     private final AtomicBoolean janelaAberta = new AtomicBoolean(true);
@@ -72,6 +76,7 @@ public class CanalFake implements CanalGateway {
 
     public void limpar() {
         enviados.clear();
+        templates.clear();
         religar();
         abrirJanela();
     }
@@ -122,5 +127,38 @@ public class CanalFake implements CanalGateway {
                     "teste nao chamou programarMidiaRecebida antes de simular o webhook de midia");
         }
         return programada;
+    }
+
+    @Override
+    public List<TemplateDoCanal> listarTemplates() {
+        return List.copyOf(templates);
+    }
+
+    @Override
+    public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        TemplateDoCanal template = new TemplateDoCanal(
+                pedido.nome(),
+                pedido.idioma(),
+                pedido.categoria(),
+                TemplateDoCanal.Status.APROVADO,
+                pedido.corpo(),
+                contarParametros(pedido.corpo()));
+        templates.removeIf(existente -> existente.nome().equals(template.nome())
+                && existente.idioma().equals(template.idioma()));
+        templates.add(template);
+        return new ResultadoDeTemplate.Aceito(template);
+    }
+
+    private static int contarParametros(String corpo) {
+        if (corpo == null || corpo.isBlank()) {
+            return 0;
+        }
+        java.util.regex.Matcher casamento =
+                java.util.regex.Pattern.compile("\\{\\{(\\d+)\\}\\}").matcher(corpo);
+        int maximo = 0;
+        while (casamento.find()) {
+            maximo = Math.max(maximo, Integer.parseInt(casamento.group(1)));
+        }
+        return maximo;
     }
 }
