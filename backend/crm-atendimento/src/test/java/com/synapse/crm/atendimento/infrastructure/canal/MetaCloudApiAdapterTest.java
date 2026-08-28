@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.time.Duration;
@@ -18,6 +19,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -27,6 +29,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -170,7 +173,42 @@ class MetaCloudApiAdapterTest {
         assertThat(resultado.aceito()).isTrue();
         assertThat(payloadCapturado[0].path("name").asText()).isEqualTo("retorno_orcamento");
         assertThat(payloadCapturado[0].path("category").asText()).isEqualTo("UTILITY");
+        assertThat(payloadCapturado[0].path("parameter_format").asText()).isEqualTo("positional");
         assertThat(payloadCapturado[0].path("components").get(0).path("example").path("body_text").get(0))
                 .hasSize(2);
+        assertThat(payloadCapturado[0]
+                        .path("components")
+                        .get(0)
+                        .path("example")
+                        .path("body_text")
+                        .get(0)
+                        .get(0)
+                        .asText())
+                .isEqualTo("Maria");
+    }
+
+    @Test
+    void recusaTemplateComMensagemDaMetaSemContarComoQuedaDoProvedor() {
+        servidor.expect(once(), requestTo(URL_BASE + "/waba-teste/message_templates"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(
+                                """
+                                {"error":{"code":100,"message":"Invalid parameter",
+                                "error_user_msg":"O exemplo nao pode ser um placeholder."}}
+                                """));
+
+        var resultado = adapter.criarTemplate(new PedidoDeTemplate(
+                "exemplo_template",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                "teste de template {{1}}"));
+
+        servidor.verify();
+        assertThat(resultado.aceito()).isFalse();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo())
+                .isEqualTo("O exemplo nao pode ser um placeholder.");
     }
 }

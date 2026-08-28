@@ -71,6 +71,14 @@ resilience4j:
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      canal-meta-cloud-templates:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_TEMPLATES_JANELA:10}
+        minimum-number-of-calls: ${CANAL_CB_TEMPLATES_MINIMO:5}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
       automacao-webhook:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${AUTOMACAO_WEBHOOK_CB_JANELA:10}
