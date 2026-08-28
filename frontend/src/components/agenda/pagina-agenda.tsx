@@ -26,9 +26,12 @@ import {
 import type { VisaoAtendimento } from "@/lib/atendimento/types";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
+import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
 import { TabelaDeLeads } from "./tabela-de-leads";
 import { useBuscaLeadsParaEntrada } from "@/lib/agenda/use-busca-entrada";
 import { apiFetch } from "@/lib/api/http-client";
+import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
+import { cn } from "@/lib/utils";
 
 /**
  * Agenda como tabela sobre o filtro modular (E16 §Bloco 1) — substitui a lista de cards que
@@ -57,6 +60,8 @@ export function PaginaAgenda() {
   const [pagina, setPagina] = useState(0);
   const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
   const [buscaEntrada, setBuscaEntrada] = useState("");
+  const [filtrosMobileAbertos, setFiltrosMobileAbertos] = useState(false);
+  const telaEstreita = useTelaEstreita();
   const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
   const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
   async function pedirEntrada(id: string) { setPedidoEmAndamento(id); try { await apiFetch(`/api/v1/atendimentos/pedir-entrada?leadId=${encodeURIComponent(id)}`, { method: "POST" }); } finally { setPedidoEmAndamento(null); } }
@@ -120,44 +125,78 @@ export function PaginaAgenda() {
     .replace("{total}", String(totalExibido));
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background p-6">
-      <header className="-mx-6 -mt-6 mb-4 flex-none border-b border-border bg-card px-6 py-4">
-        <h1 className="text-xl font-bold text-foreground">{t.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>
+    <div className="flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4">
+      <header className={cn(
+        "flex-none",
+        telaEstreita
+          ? "mb-3 flex items-center justify-between gap-3"
+          : "-mx-6 -mt-6 mb-4 border-b border-border bg-card px-6 py-4",
+      )}>
+        <div>
+          <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{t.titulo}</h1>
+          {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>}
+        </div>
+        {telaEstreita && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            aria-pressed={filtrosMobileAbertos}
+            onClick={() => setFiltrosMobileAbertos((abertos) => !abertos)}
+          >
+            {t.filtros.titulo}
+          </Button>
+        )}
       </header>
 
       <div className="flex-none">
-        <div className="mb-3 flex items-center gap-2">
-          <Input value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)} placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
-          {buscaColega.data?.map((lead) => <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"><span>{lead.nome}{lead.empresa ? ` · ${lead.empresa}` : ""}</span><span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span><Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)} disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button></div>)}
-        </div>
-        <BarraDeFiltros
-          campos={campos.data ?? []}
-          carregandoCampos={campos.isLoading}
-          erroCampos={campos.isError}
-          onTentarCamposNovamente={() => campos.refetch()}
-          filtrosAtivos={filtrosAtivos}
-          filtrosRapidos={filtrosRapidos}
-          cidades={catalogos.data?.cidades ?? []}
-          referencias={{
-            etapas: etapas.data ?? [],
-            canais: canais.data ?? [],
-            equipe: equipe.data ?? [],
-            tags: tagsDisponiveis,
-          }}
-          textos={t.filtros}
-          textosStatus={t.status}
-          textoSemResponsavel={t.semResponsavel}
-          contador={
-            <p className="text-sm whitespace-nowrap text-muted-foreground">
-              {textoContador}
-            </p>
-          }
-          onAdicionar={adicionarFiltro}
-          onFiltrosRapidosChange={atualizarFiltrosRapidos}
-          onRemover={removerFiltro}
-          onLimparTudo={limparFiltros}
-        />
+        {!telaEstreita && (
+          <div className="mb-3 flex items-center gap-2">
+            <Input value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)} placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
+            {buscaColega.data?.map((lead) => <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"><span>{lead.nome}{lead.empresa ? ` · ${lead.empresa}` : ""}</span><span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span><Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)} disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button></div>)}
+          </div>
+        )}
+        {(!telaEstreita || filtrosMobileAbertos) && (
+          <BarraDeFiltros
+            campos={campos.data ?? []}
+            carregandoCampos={campos.isLoading}
+            erroCampos={campos.isError}
+            onTentarCamposNovamente={() => campos.refetch()}
+            filtrosAtivos={filtrosAtivos}
+            filtrosRapidos={filtrosRapidos}
+            cidades={catalogos.data?.cidades ?? []}
+            referencias={{
+              etapas: etapas.data ?? [],
+              canais: canais.data ?? [],
+              equipe: equipe.data ?? [],
+              tags: tagsDisponiveis,
+            }}
+            textos={t.filtros}
+            textosStatus={t.status}
+            textoSemResponsavel={t.semResponsavel}
+            contador={
+              <p className="text-sm whitespace-nowrap text-muted-foreground">
+                {textoContador}
+              </p>
+            }
+            onAdicionar={adicionarFiltro}
+            onFiltrosRapidosChange={atualizarFiltrosRapidos}
+            onRemover={removerFiltro}
+            onLimparTudo={limparFiltros}
+          />
+        )}
+        {telaEstreita && !filtrosMobileAbertos && (
+          <div className="mb-3">
+            <Input
+              value={filtrosRapidos.busca}
+              onChange={(evento) => atualizarFiltrosRapidos({ ...filtrosRapidos, busca: evento.target.value })}
+              placeholder={t.filtros.buscaPlaceholder}
+              aria-label={t.filtros.busca}
+            />
+            <p className="mt-2 text-sm text-muted-foreground">{textoContador}</p>
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -170,6 +209,14 @@ export function PaginaAgenda() {
           />
         ) : leads.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t.vazia}</p>
+        ) : telaEstreita ? (
+          <ListaDeLeadsMobile
+            leads={leads}
+            etapas={etapas.data ?? []}
+            equipe={equipe.data ?? []}
+            textos={t}
+            onAbrirFicha={abrirFicha}
+          />
         ) : (
           <TabelaDeLeads
             leads={leads}

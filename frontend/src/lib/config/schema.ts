@@ -101,6 +101,9 @@ export const TextosSchema = z.object({
     retrair: z.string(),
     reabrir: z.string(),
     contagemPendentes: z.string(),
+    mais: z.string(),
+    maisTitulo: z.string(),
+    fecharMais: z.string(),
     itens: z.record(z.string(), z.string()),
   }),
   rodape: z.object({
@@ -267,6 +270,7 @@ export const TextosSchema = z.object({
       recusado: z.string(),
       aprovarEntrada: z.string(),
       recusarEntrada: z.string(),
+      voltar: z.string(),
     }),
     transferir: z.object({
       titulo: z.string(),
@@ -600,6 +604,10 @@ export const TextosSchema = z.object({
   dashboard: z.object({
     titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(), semDado: z.string(),
     abas: z.object({ rotulo: z.string(), visaoGeral: z.string(), operacional: z.string(), comercial: z.string(), iaAutomacao: z.string(), depois: z.string() }),
+    periodos: z.object({ rotulo: z.string(), hoje: z.string(), seteDias: z.string(), mes: z.string(), ano: z.string() }),
+    somenteComputador: z.string(),
+    avisoComputador: z.string(),
+    funilApoio: z.string(),
     filtros: z.object({ rotulo: z.string(), ano: z.string(), meses: z.string(), originacao: z.string(), de: z.string(), ate: z.string(), limpar: z.string(), selecioneMes: z.string(), origemCompleta: z.string() }),
     meses: z.array(z.string()).length(12),
     kpis: z.object({ rotulo: z.string(), atendimentos: z.string(), atendimentosApoio: z.string(), conversao: z.string(), conversaoApoio: z.string(), tempoMedio: z.string(), tempoMedioApoio: z.string(), vendas: z.string(), vendasApoio: z.string(), csat: z.string(), csatApoio: z.string(), resolucaoIa: z.string(), resolucaoIaApoio: z.string(), periodoAnterior: z.string() }),
@@ -617,6 +625,7 @@ export const TextosSchema = z.object({
     erro: z.string(),
     semResponsavel: z.string(),
     contador: z.string(),
+    indiceAlfabetico: z.string(),
     entrada: z.object({ placeholder: z.string(), pedir: z.string(), responsavel: z.string() }),
     colunas: z.object({
       lead: z.string(),

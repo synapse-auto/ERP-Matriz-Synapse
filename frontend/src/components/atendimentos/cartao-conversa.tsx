@@ -24,7 +24,11 @@ export function CartaoConversa({
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
   if (cartao.tipo === "EQUIPE_INTERNA") {
-    const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
+    const hora = formatarHoraDaLista(
+      cartao.ultimaMensagemEm,
+      catalogo.atendimentos.mensagem?.hoje ?? "",
+      catalogo.atendimentos.mensagem?.ontem ?? "",
+    );
     return (
       <button
         type="button"
@@ -57,7 +61,11 @@ export function CartaoConversa({
       </button>
     );
   }
-  const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
+  const hora = formatarHoraDaLista(
+    cartao.ultimaMensagemEm,
+    catalogo.atendimentos.mensagem?.hoje ?? "",
+    catalogo.atendimentos.mensagem?.ontem ?? "",
+  );
   const canal =
     cartao.canalTipo === "WHATSAPP" ? textos.canais.whatsapp : cartao.canalTipo;
 
@@ -73,7 +81,7 @@ export function CartaoConversa({
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="size-11 rounded-xl">
+        <Avatar className="size-11 rounded-full">
           {urlSegura(cartao.leadFotoUrl) && (
             <AvatarImage
               src={urlSegura(cartao.leadFotoUrl)}
@@ -81,12 +89,20 @@ export function CartaoConversa({
             />
           )}
           <AvatarFallback
-            className="rounded-xl text-white"
+            className="rounded-full text-white"
             style={{ backgroundColor: tomDoAvatar(cartao.leadId) }}
           >
             {iniciaisDoNome(cartao.leadNome)}
           </AvatarFallback>
         </Avatar>
+        {canal && (
+          <span
+            className="absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-full bg-cor-sucesso text-white"
+            title={canal}
+          >
+            <MessageCircleMore className="size-2.5" aria-hidden />
+          </span>
+        )}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -125,14 +141,6 @@ export function CartaoConversa({
         )}
 
         <div className="mt-2 flex min-h-5 items-center gap-1.5">
-          {canal && (
-            <span
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded-md bg-cor-sucesso/10 text-cor-sucesso"
-              title={canal}
-            >
-              <MessageCircleMore className="size-3" aria-hidden />
-            </span>
-          )}
           {cartao.etapaNome && (
             <span
               className="max-w-[11rem] truncate rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground"
@@ -149,8 +157,8 @@ export function CartaoConversa({
             </span>
           )}
           {cartao.atendenteNome && (
-            <span className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[0.6rem] font-bold text-muted-foreground">
-              {iniciaisDoNome(cartao.atendenteNome)}
+            <span className="ml-auto truncate text-[0.65rem] text-muted-foreground">
+              {cartao.atendenteNome}
             </span>
           )}
         </div>
@@ -159,7 +167,7 @@ export function CartaoConversa({
   );
 }
 
-function formatarHoraDaLista(valor: string | null): string | null {
+function formatarHoraDaLista(valor: string | null, hojeRotulo: string, ontemRotulo: string): string | null {
   if (!valor) return null;
   const data = new Date(valor);
   if (Number.isNaN(data.getTime())) return null;
@@ -170,6 +178,9 @@ function formatarHoraDaLista(valor: string | null): string | null {
       minute: "2-digit",
     }).format(data);
   }
+  const ontem = new Date(hoje);
+  ontem.setDate(hoje.getDate() - 1);
+  if (data.toDateString() === ontem.toDateString()) return ontemRotulo;
   return new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
     .format(data)
     .replace(".", "");

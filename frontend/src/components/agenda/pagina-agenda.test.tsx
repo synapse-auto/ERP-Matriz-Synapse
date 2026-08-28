@@ -50,6 +50,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       erro: "Não foi possível carregar a agenda.",
       semResponsavel: "Sem responsável",
       contador: "Exibindo {exibindo} de {total}",
+      indiceAlfabetico: "Índice alfabético",
       colunas: {
         lead: "Lead",
         telefone: "Telefone",

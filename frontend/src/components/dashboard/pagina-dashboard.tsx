@@ -7,6 +7,8 @@ import {
   CalendarRange,
   Clock3,
   Handshake,
+  Lock,
+  Monitor,
   TrendingDown,
   TrendingUp,
   UsersRound,
@@ -14,16 +16,25 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Seletor } from "@/components/ui/seletor";
 import { SeletorData } from "@/components/ui/seletor-data";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useVisaoGeralDashboard } from "@/lib/dashboard/use-dashboard";
 import type { Comparativo, VisaoGeralDashboard } from "@/lib/dashboard/types";
+import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
 const ANOS_DISPONIVEIS = 7;
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
+type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
 
 function preencher(modelo: string, valores: Record<string, string | number>): string {
   return Object.entries(valores).reduce(
@@ -45,11 +56,14 @@ function percentual(valor: number): string {
 
 export function PaginaDashboard() {
   const textos = useTextos().dashboard;
+  const telaEstreita = useTelaEstreita();
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState(anoAtual);
   const [meses, setMeses] = useState(() => textos.meses.map((_, indice) => indice + 1));
   const [origemInicio, setOrigemInicio] = useState("");
   const [origemFim, setOrigemFim] = useState("");
+  const [periodo, setPeriodo] = useState<PeriodoEnxuto>("mes");
+  const [avisoComputadorAberto, setAvisoComputadorAberto] = useState(false);
 
   const filtro = useMemo(
     () => ({ ano, meses: [...meses].sort((a, b) => a - b), origemInicio, origemFim }),
@@ -67,28 +81,79 @@ export function PaginaDashboard() {
     );
   }
 
+  function aplicarPeriodo(novo: PeriodoEnxuto) {
+    setPeriodo(novo);
+    const agora = new Date();
+    setAno(agora.getFullYear());
+    setOrigemInicio("");
+    setOrigemFim("");
+    if (novo === "ano") {
+      setMeses(textos.meses.map((_, indice) => indice + 1));
+      return;
+    }
+    setMeses([agora.getMonth() + 1]);
+  }
+
   return (
     <div
       data-testid="dashboard-conteudo"
-      className="flex min-h-full flex-col gap-6 bg-background p-6 lg:p-8"
+      className="flex min-h-full flex-col gap-6 bg-background p-6 lg:p-8 max-sm:gap-4 max-sm:p-4"
     >
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{textos.descricao}</p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
+          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">{textos.descricao}</p>
+        </div>
+        {telaEstreita && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => setAvisoComputadorAberto(true)}
+          >
+            <Lock className="size-3.5" aria-hidden />
+            {textos.filtros.rotulo}
+          </Button>
+        )}
       </header>
+
+      {telaEstreita && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label={textos.periodos.rotulo}>
+          {(["hoje", "seteDias", "mes", "ano"] as const).map((item) => (
+            <Button
+              key={item}
+              type="button"
+              size="sm"
+              variant={periodo === item ? "outline" : "ghost"}
+              aria-pressed={periodo === item}
+              className={cn(
+                "rounded-full",
+                periodo === item && "border-primary bg-primary/10 text-primary",
+              )}
+              onClick={() => aplicarPeriodo(item)}
+            >
+              {textos.periodos[item]}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <nav className="flex flex-wrap gap-2 border-b pb-3" aria-label={textos.abas.rotulo}>
         <Button variant="default" size="sm" aria-current="page">
           {textos.abas.visaoGeral}
         </Button>
-        {[textos.abas.operacional, textos.abas.comercial, textos.abas.iaAutomacao].map((aba) => (
+        {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
           <Button key={aba} variant="ghost" size="sm" disabled>
             {aba} · {textos.abas.depois}
           </Button>
         ))}
+        <Button variant="ghost" size="sm" disabled className="max-sm:hidden">
+          {textos.abas.iaAutomacao} · {textos.abas.depois}
+        </Button>
       </nav>
 
-      <section className="rounded-xl border bg-card/75 p-4" aria-label={textos.filtros.rotulo}>
+      <section className="hidden rounded-xl border bg-card/75 p-4 sm:block" aria-label={textos.filtros.rotulo}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-28">
             <label className="mb-1.5 block text-xs font-semibold text-muted-foreground" htmlFor="dashboard-ano">
@@ -178,19 +243,33 @@ export function PaginaDashboard() {
           onTentarNovamente={() => consulta.refetch()}
         />
       )}
-      {consulta.data && <ConteudoDashboard dados={consulta.data} />}
+      {consulta.data && <ConteudoDashboard dados={consulta.data} telaEstreita={telaEstreita} />}
+      <Dialog open={avisoComputadorAberto} onOpenChange={setAvisoComputadorAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{textos.somenteComputador}</DialogTitle>
+            <DialogDescription>{textos.avisoComputador}</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function ConteudoDashboard({ dados }: { dados: VisaoGeralDashboard }) {
+function ConteudoDashboard({
+  dados,
+  telaEstreita,
+}: {
+  dados: VisaoGeralDashboard;
+  telaEstreita: boolean;
+}) {
   const textos = useTextos().dashboard;
   const duracao = dados.tempoMedioAtendimento.segundos;
   const valorDuracao = duracao === null ? textos.semDado : formatarDuracao(duracao, textos.tempo);
 
   return (
     <>
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label={textos.kpis.rotulo}>
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-6" aria-label={textos.kpis.rotulo}>
         <Kpi
           titulo={textos.kpis.atendimentos}
           valor={numero(dados.atendimentos.noPeriodo)}
@@ -248,6 +327,12 @@ function ConteudoDashboard({ dados }: { dados: VisaoGeralDashboard }) {
         <Funil dados={dados} />
       </section>
       <HorarioDePico dados={dados} />
+      {telaEstreita && (
+        <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
+          <Monitor className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          {textos.avisoComputador}
+        </p>
+      )}
     </>
   );
 }
@@ -324,7 +409,10 @@ function Funil({ dados }: { dados: VisaoGeralDashboard }) {
   const maximo = Math.max(...dados.funil.map((etapa) => etapa.quantidade), 1);
   return (
     <Card>
-      <CardHeader><CardTitle>{textos.secoes.funil}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{textos.secoes.funil}</CardTitle>
+        <p className="text-xs font-normal text-muted-foreground">{textos.funilApoio}</p>
+      </CardHeader>
       <CardContent className="space-y-4">
         {dados.funil.length === 0 && <p className="text-sm text-muted-foreground">{textos.funil.vazio}</p>}
         {dados.funil.map((etapa) => (

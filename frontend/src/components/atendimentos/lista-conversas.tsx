@@ -35,6 +35,8 @@ import {
 import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
+import { cn } from "@/lib/utils";
+
 import { CartaoConversa } from "./cartao-conversa";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -50,6 +52,7 @@ type Props = {
   contatoInternoSelecionado?: string;
   onContatoInternoChange?: (valor: string) => void;
   onCriarConversaInterna?: () => void;
+  className?: string;
 };
 
 const VISOES: VisaoAtendimento[] = [
@@ -85,6 +88,7 @@ export function ListaConversas({
   contatoInternoSelecionado = "",
   onContatoInternoChange,
   onCriarConversaInterna,
+  className,
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
@@ -184,7 +188,7 @@ export function ListaConversas({
   }, [busca, cartoes, filtroAtendente, filtroEtapa]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background">
+    <div className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", className)}>
       <div className="px-4 pt-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-lg font-bold tracking-tight text-foreground">
@@ -273,18 +277,21 @@ export function ListaConversas({
         value={visao}
         onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}
       >
-        <TabsList variant="line" className="mx-4 mt-3 grid h-auto w-[calc(100%-2rem)] grid-cols-4 p-0">
+        <TabsList
+          variant="line"
+          className="mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto p-0 md:grid md:grid-cols-4 md:gap-1"
+        >
           {VISOES.map((item) => (
             <TabsTrigger
               key={item}
               value={item}
-              className="min-w-0 gap-1 rounded-none px-0.5 pt-1 pb-2.5 text-[0.6875rem] shadow-none data-active:after:bg-primary"
+              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3.5 py-2 text-[0.8125rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
             >
               {textos.visoes[ROTULO_VISAO[item]]}
               {contagens && (
                 <Badge
                   variant={item === visao ? "default" : "secondary"}
-                  className="shrink-0 px-1 text-[0.625rem]"
+                  className="shrink-0 px-1 text-[0.625rem] data-active:bg-primary-foreground/20"
                 >
                   {contagens[item]}
                 </Badge>

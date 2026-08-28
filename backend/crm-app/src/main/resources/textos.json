@@ -10,6 +10,9 @@
     "retrair": "Retrair menu lateral",
     "reabrir": "Reabrir menu lateral",
     "contagemPendentes": "Atendimentos, {quantidade} pendentes",
+    "mais": "Mais",
+    "maisTitulo": "Mais opções",
+    "fecharMais": "Fechar menu",
     "itens": {
       "atendimentos": "Atendimentos",
       "dashboard": "Dashboard",
@@ -267,7 +270,8 @@
       "sair": "Sair do atendimento",
       "recusado": "Pedido recusado",
       "aprovarEntrada": "Aceitar pedido",
-      "recusarEntrada": "Recusar pedido"
+      "recusarEntrada": "Recusar pedido",
+      "voltar": "Voltar para a lista"
     },
     "transferir": {
       "titulo": "Transferir atendimento",
@@ -716,6 +720,16 @@
       "iaAutomacao": "IA e Automação",
       "depois": "Em breve"
     },
+    "periodos": {
+      "rotulo": "Período",
+      "hoje": "Hoje",
+      "seteDias": "7 dias",
+      "mes": "Mês",
+      "ano": "Ano"
+    },
+    "somenteComputador": "Filtros avançados no computador",
+    "avisoComputador": "Relatórios completos, IA e Automação, período personalizado e exportação ficam disponíveis no CRM no computador.",
+    "funilApoio": "Etapas do pipeline · período atual",
     "filtros": {
       "rotulo": "Filtros do dashboard",
       "ano": "Ano",
@@ -787,6 +801,7 @@
     "erro": "Não foi possível carregar a agenda.",
     "semResponsavel": "Sem responsável",
     "contador": "Exibindo {exibindo} de {total}",
+    "indiceAlfabetico": "Índice alfabético",
     "entrada": {
       "placeholder": "Buscar contato de outro atendente...",
       "pedir": "Pedir para entrar",

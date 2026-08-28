@@ -12,6 +12,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
     dashboard: {
       titulo: "Dashboard", descricao: "Visão consolidada", carregando: "Carregando", erro: "Erro", semDado: "Sem dados",
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
+      periodos: { rotulo: "Período", hoje: "Hoje", seteDias: "7 dias", mes: "Mês", ano: "Ano" },
+      somenteComputador: "Filtros avançados no computador",
+      avisoComputador: "Relatórios completos ficam no computador.",
+      funilApoio: "Etapas do pipeline",
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", originacao: "Originação", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
       kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "CSAT", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },

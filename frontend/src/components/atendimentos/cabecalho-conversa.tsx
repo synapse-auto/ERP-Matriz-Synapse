@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  ArrowLeft,
   ArrowLeftRight,
   CheckCheck,
   MessageCircleMore,
@@ -41,6 +42,7 @@ type Props = {
   buscaAberta: boolean;
   painelDetalhesAberto: boolean;
   onAlternarPainelDetalhes: () => void;
+  onVoltar?: () => void;
 };
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
@@ -50,6 +52,7 @@ export function CabecalhoConversa({
   buscaAberta,
   painelDetalhesAberto,
   onAlternarPainelDetalhes,
+  onVoltar,
 }: Props) {
   const catalogo = useTextos();
   const textos = {
@@ -61,6 +64,7 @@ export function CabecalhoConversa({
     recusado: catalogo.atendimentos.cabecalho.recusado ?? catalogo.atendimentos.cabecalho.transferir,
     aprovarEntrada: catalogo.atendimentos.cabecalho.aprovarEntrada ?? catalogo.atendimentos.cabecalho.finalizar,
     recusarEntrada: catalogo.atendimentos.cabecalho.recusarEntrada ?? catalogo.atendimentos.cabecalho.transferir,
+    voltar: catalogo.atendimentos.cabecalho.voltar,
   };
   const [transferirAberto, setTransferirAberto] = useState(false);
   const finalizar = useFinalizarAtendimento();
@@ -116,6 +120,17 @@ export function CabecalhoConversa({
       data-slot="cabecalho-conversa"
     >
       <div className="flex min-w-0 items-center gap-3">
+        {onVoltar && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={textos.voltar}
+            onClick={onVoltar}
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+          </Button>
+        )}
         <Avatar>
           {urlSegura(conversa.leadFotoUrl) && (
             <AvatarImage

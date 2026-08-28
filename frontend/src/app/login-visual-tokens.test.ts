@@ -11,4 +11,13 @@ describe("tokens visuais do login", () => {
     expect(css).toMatch(/\.synapse-login__input\s*\{[\s\S]*?border-radius:\s*var\(--raio-login\)/);
     expect(css).toMatch(/\.synapse-login__botao\s*\{[\s\S]*?border-radius:\s*var\(--raio-login\)/);
   });
+
+  it("empilha o herói e o cartão no celular em vez de esconder a apresentação", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/app/identidade-synapse.css"), "utf8");
+    const mobile = css.split("@media (max-width: 880px)")[1] ?? "";
+
+    expect(mobile).not.toMatch(/\.synapse-login__apresentacao\s*\{[^}]*display:\s*none/);
+    expect(mobile).toMatch(/margin-top:\s*-52px/);
+    expect(mobile).toMatch(/\.synapse-login__destaques--cartao\s*\{[\s\S]*?display:\s*grid/);
+  });
 });

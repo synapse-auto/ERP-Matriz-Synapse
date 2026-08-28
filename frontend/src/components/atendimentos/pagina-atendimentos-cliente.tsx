@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
@@ -28,6 +28,9 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { apiFetch } from "@/lib/api/http-client";
 import { listarContatosChat, abrirConversaDireta } from "@/lib/chat-interno/api";
+import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
+import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
+import { cn } from "@/lib/utils";
 
 interface Props {
   leadInicialId: string | null;
@@ -72,8 +75,10 @@ export function PaginaAtendimentosCliente({
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
   const [buscaAberta, setBuscaAberta] = useState(false);
-  const [painelDetalhesAberto, setPainelDetalhesAberto] = useState(true);
+  const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
+  const telaEstreita = useTelaEstreita();
+  const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
@@ -138,6 +143,12 @@ export function PaginaAtendimentosCliente({
   }, [cache, estado]);
 
   const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
+  const conversaAberta = Boolean(conversa || conversaInternaId);
+  const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !telaEstreita);
+  useEffect(() => {
+    definirConversaEmTelaCheia(telaEstreita && conversaAberta);
+    return () => definirConversaEmTelaCheia(false);
+  }, [conversaAberta, definirConversaEmTelaCheia, telaEstreita]);
   /** Atendimento operacional do lead; histórico e cartão continuam ancorados no cartão mais recente. */
   const atendimentoAtivoId = conversa
     ? conversa.atendimentoAtivoId
@@ -201,8 +212,9 @@ export function PaginaAtendimentosCliente({
     });
   }
 
-  const colunasDoPainel =
-    conversa && painelDetalhesAberto
+  const colunasDoPainel = telaEstreita
+    ? "grid-cols-1"
+    : conversa && painelVisivel
       ? "grid-cols-[346px_minmax(0,1fr)_344px]"
       : "grid-cols-[346px_minmax(0,1fr)]";
 
@@ -268,9 +280,10 @@ export function PaginaAtendimentosCliente({
         contatoInternoSelecionado={contatoInternoId}
         onContatoInternoChange={setContatoInternoId}
         onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
+        className={cn(telaEstreita && conversaAberta && "hidden")}
       />
 
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", telaEstreita && !conversaAberta && "hidden")}>
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
@@ -283,15 +296,39 @@ export function PaginaAtendimentosCliente({
         )}
 
         {conversaInternaId ? (
-          <PainelConversaInterna conversaId={conversaInternaId} />
+          <>
+            {telaEstreita && (
+              <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
+                <button
+                  type="button"
+                  className="rounded-md p-2 text-foreground hover:bg-muted"
+                  aria-label={textos.cabecalho.voltar}
+                  onClick={() => setConversaInternaId(null)}
+                >
+                  <ArrowLeft className="size-5" aria-hidden />
+                </button>
+              </div>
+            )}
+            <PainelConversaInterna conversaId={conversaInternaId} />
+          </>
         ) : conversa ? (
           <>
             <CabecalhoConversa
               conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}
               buscaAberta={buscaAberta}
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
-              painelDetalhesAberto={painelDetalhesAberto}
-              onAlternarPainelDetalhes={() => setPainelDetalhesAberto((aberto) => !aberto)}
+              painelDetalhesAberto={painelVisivel}
+              onAlternarPainelDetalhes={() =>
+                setPainelDetalhesAberto(!(painelDetalhesAberto ?? !telaEstreita))
+              }
+              onVoltar={
+                telaEstreita
+                  ? () => {
+                      setLeadSelecionadoId(null);
+                      setConversaInternaId(null);
+                    }
+                  : undefined
+              }
             />
             <ListaMensagens
               mensagens={mensagensQuery.data}
@@ -322,12 +359,14 @@ export function PaginaAtendimentosCliente({
         )}
       </div>
 
-      {conversa && painelDetalhesAberto && (
-        <PainelDaConversa
-          leadId={conversa.leadId}
-          responsavelNome={conversa.atendenteNome}
-          onRetrair={() => setPainelDetalhesAberto(false)}
-        />
+      {conversa && painelVisivel && (
+        <div className={cn("h-full min-h-0 overflow-hidden", telaEstreita && "absolute inset-0 z-20 bg-background")}>
+          <PainelDaConversa
+            leadId={conversa.leadId}
+            responsavelNome={conversa.atendenteNome}
+            onRetrair={() => setPainelDetalhesAberto(false)}
+          />
+        </div>
       )}
     </div>
   );
