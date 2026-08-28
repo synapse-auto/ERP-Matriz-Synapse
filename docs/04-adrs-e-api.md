@@ -139,6 +139,35 @@ O componente `fila-outbox` mede a fila transacional que o backend realmente cons
 | PATCH | `/api/v1/usuarios/me/presenca` | Atualiza presença própria | Atendente | `UsuarioController` · `EquipeEPresencaIT` |
 | GET | `/api/v1/equipe/avaliacoes` | Resumo de avaliações da equipe | Gestor | `AvaliacaoController` · `EquipeEPresencaIT` |
 
+### Relatórios — Dashboard Visão Geral
+
+Um único `GET` devolve todos os KPIs, funil, ranking e horário de pico. Papéis: `GESTOR`, `SUBGESTOR`, `ADMINISTRADOR`. Atendente recebe 403.
+
+| Método | Rota | Descrição | Papel mínimo | Evidência |
+|---|---|---|---|---|
+| GET | `/api/v1/dashboard/visao-geral` | Visão consolidada (`ano`, `meses`, `origemInicio`, `origemFim`) | Gestor | `DashboardController` · `DashboardVisaoGeralIT` |
+
+Parâmetros: `ano` (obrigatório), `meses` (1–12, vírgula; ausente = ano inteiro), `origemInicio`/`origemFim` (coorte opcional de `lead.criado_em`, os dois juntos). O recorte de atividade é **mensal**; chips "Hoje" e "7 dias" no celular aliasam o mês corrente porque o filtro ainda não aceita janela diária.
+
+Fontes de cada métrica (todas em `DashboardVisaoGeralRepositorioJdbc`, vendas em `AgregacaoDeVendasRepositorioJdbc`):
+
+| KPI / bloco | Fórmula | Tabelas | Coluna temporal |
+|---|---|---|---|
+| Atendimentos no período | `count(*)` | `atendimento` | `iniciado_em` |
+| Atendimentos acumulados | `count(*)` até o fim do período | `atendimento` | `iniciado_em < fim` |
+| Tempo médio | `avg(finalizado_em - iniciado_em)` só dos finalizados | `atendimento` | `iniciado_em` |
+| Avaliação | `avg(nota)`, escala 1–5 | `avaliacao` | `criado_em` |
+| Resolução por IA | finalizados sem `LEAD_TRANSFERIDO_POR_ENVIO` nem `ATENDIMENTO_TRANSFERIDO` no histórico / finalizados no período | `atendimento` + `evento_timeline` | `atendimento.finalizado_em` |
+| Vendas fechadas (payload + ranking; o card de KPI saiu da Visão Geral) | leads distintos com primeira transição `ETAPA_ALTERADA` cujo `dados.resultado_novo = GANHO` | `evento_timeline` + `lead` (+ `usuario` no ranking) | `evento_timeline.criado_em`; coorte opcional em `lead.criado_em` |
+| Taxa de conversão | vendas do período / leads recebidos no mesmo recorte (ou no coorte de originação) | mesmas de vendas + `lead` | `lead.criado_em` no denominador |
+| Funil | `count(lead)` por `etapa_atendimento`, snapshot da etapa **atual** (não da timeline) | `etapa_atendimento` + `lead` | `lead.criado_em` |
+| Horário de pico | `count(*)` por hora de `enviado_em` no fuso do tenant | `mensagem` | `enviado_em` |
+| Ranking de vendas | mesmas vendas, agrupadas por `responsavel_id` do JSONB; sem responsável entra no total e numa nota de rodapé, não na lista | `evento_timeline` + `lead` + `usuario` | igual a vendas |
+
+Leitura complementar na Equipe (não alimenta a Visão Geral): `GET /api/v1/equipe/avaliacoes` agrega `avaliacao` sem recorte de período.
+
+Não existe `POST` de avaliação. A tabela `avaliacao` só é escrita em testes de integração; o card mostra "Sem dados" enquanto a coleta (CSAT WhatsApp ou nota no CRM) não for implementada. A E36 deixou essa coleta de fora de propósito — escala 1–5 no banco versus 0–10 no protótipo ainda precisa de decisão do cliente.
+
 ## Parte D — WebSocket (tempo real)
 
 ### ADR — Inbox unificada (E62)

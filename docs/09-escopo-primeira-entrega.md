@@ -36,7 +36,9 @@ A E16 corrigiu defaults de deploy. A E20 voltou `dashboard` para `true`; a E44 h
 
 ### Dashboard — Visão Geral recolocada no escopo (decisão do cliente, E20)
 
-O cliente recolocou somente a aba **Visão Geral** na primeira entrega. A E20 entregou uma consulta consolidada por período e a tela com atendimentos, tempo médio, CSAT, funil, mensagens por hora e vendas calculadas pela transição para etapa `GANHO`. O acesso é exclusivo de `GESTOR` e `SUBGESTOR`, porque o ranking expõe resultados comerciais de colegas. A flag `dashboard` volta a `true` onde a tela existe.
+O cliente recolocou somente a aba **Visão Geral** na primeira entrega. A E20 entregou uma consulta consolidada por período e a tela com atendimentos, tempo médio, CSAT, funil, mensagens por hora e vendas calculadas pela transição para etapa `GANHO`. O acesso é exclusivo de `GESTOR`, `SUBGESTOR` e `ADMINISTRADOR`, porque o ranking expõe resultados comerciais de colegas. A flag `dashboard` volta a `true` onde a tela existe.
+
+A grade de KPIs da Visão Geral **não mostra mais o card "Vendas fechadas"** — o lugar ficou com **Avaliação** (`avg(avaliacao.nota)` na escala 1–5). Vendas continuam no payload, na taxa de conversão e no ranking "Top atendentes · vendas fechadas". A coleta de nota ainda não existe no produto: sem linha em `avaliacao`, o card de Avaliação mostra vazio de verdade.
 
 As abas **Operacional**, **Comercial** e **IA & Automação** continuam na fase 2: aparecem desabilitadas, sem dados, apenas para manter honesta a casca aprovada no protótipo. A Visão Geral atende o recorte de `RF-CRM-31` e `RF-CRM-33`; o detalhamento de `RF-CRM-32` permanece fora.
 

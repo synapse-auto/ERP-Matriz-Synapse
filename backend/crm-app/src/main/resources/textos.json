@@ -765,7 +765,7 @@
       "tempoMedioApoio": "Entre início e finalização",
       "vendas": "Vendas fechadas",
       "vendasApoio": "{total} acumuladas",
-      "csat": "Avaliação média",
+      "csat": "Avaliação",
       "csatApoio": "{total} avaliações",
       "resolucaoIa": "Resolução por IA",
       "resolucaoIaApoio": "Sem transferência humana",
