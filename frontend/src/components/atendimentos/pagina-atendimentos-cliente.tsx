@@ -75,7 +75,7 @@ export function PaginaAtendimentosCliente({
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
   const [buscaAberta, setBuscaAberta] = useState(false);
-  const [painelDetalhesAberto, setPainelDetalhesAberto] = useState(true);
+  const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const telaEstreita = useTelaEstreita();
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
@@ -144,13 +144,11 @@ export function PaginaAtendimentosCliente({
 
   const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
   const conversaAberta = Boolean(conversa || conversaInternaId);
+  const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !telaEstreita);
   useEffect(() => {
     definirConversaEmTelaCheia(telaEstreita && conversaAberta);
     return () => definirConversaEmTelaCheia(false);
   }, [conversaAberta, definirConversaEmTelaCheia, telaEstreita]);
-  useEffect(() => {
-    if (telaEstreita) setPainelDetalhesAberto(false);
-  }, [telaEstreita]);
   /** Atendimento operacional do lead; histórico e cartão continuam ancorados no cartão mais recente. */
   const atendimentoAtivoId = conversa
     ? conversa.atendimentoAtivoId
@@ -216,7 +214,7 @@ export function PaginaAtendimentosCliente({
 
   const colunasDoPainel = telaEstreita
     ? "grid-cols-1"
-    : conversa && painelDetalhesAberto
+    : conversa && painelVisivel
       ? "grid-cols-[346px_minmax(0,1fr)_344px]"
       : "grid-cols-[346px_minmax(0,1fr)]";
 
@@ -319,8 +317,10 @@ export function PaginaAtendimentosCliente({
               conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}
               buscaAberta={buscaAberta}
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
-              painelDetalhesAberto={painelDetalhesAberto}
-              onAlternarPainelDetalhes={() => setPainelDetalhesAberto((aberto) => !aberto)}
+              painelDetalhesAberto={painelVisivel}
+              onAlternarPainelDetalhes={() =>
+                setPainelDetalhesAberto(!(painelDetalhesAberto ?? !telaEstreita))
+              }
               onVoltar={
                 telaEstreita
                   ? () => {
@@ -359,7 +359,7 @@ export function PaginaAtendimentosCliente({
         )}
       </div>
 
-      {conversa && painelDetalhesAberto && (
+      {conversa && painelVisivel && (
         <div className={cn("h-full min-h-0 overflow-hidden", telaEstreita && "absolute inset-0 z-20 bg-background")}>
           <PainelDaConversa
             leadId={conversa.leadId}
