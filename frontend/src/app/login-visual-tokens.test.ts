@@ -20,4 +20,14 @@ describe("tokens visuais do login", () => {
     expect(mobile).toMatch(/margin-top:\s*-52px/);
     expect(mobile).toMatch(/\.synapse-login__destaques--cartao\s*\{[\s\S]*?display:\s*grid/);
   });
+
+  it("permite rolagem vertical no login porque o body recorta overflow", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/app/identidade-synapse.css"), "utf8");
+    const base = css.split("@media")[0] ?? "";
+    const mobile = css.split("@media (max-width: 880px)")[1] ?? "";
+
+    expect(base).toMatch(/\.synapse-login\s*\{[\s\S]*?overflow-y:\s*auto/);
+    expect(base).toMatch(/\.synapse-login\s*\{[\s\S]*?min-height:\s*0/);
+    expect(mobile).not.toMatch(/min-height:\s*100dvh/);
+  });
 });

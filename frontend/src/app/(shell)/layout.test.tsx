@@ -28,6 +28,7 @@ describe("superfície compartilhada do shell", () => {
 
     const superficie = screen.getByText("Conteúdo").closest("main");
     expect(superficie).toHaveClass("overflow-y-auto");
+    expect(superficie?.parentElement).toHaveClass("min-h-0", "overflow-hidden");
     expect(superficie).not.toHaveClass("bg-card", "rounded-lg", "shadow-sm");
     expect(superficie?.parentElement).not.toHaveClass("p-5");
     expect(superficie?.closest('[data-slot="page-canvas"]')).toHaveClass(

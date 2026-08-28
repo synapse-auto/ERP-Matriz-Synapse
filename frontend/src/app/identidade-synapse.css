@@ -22,7 +22,11 @@
 
 .synapse-login {
   display: grid;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   grid-template-columns: 1.08fr 1fr;
   background: var(--synapse-login-fundo);
 }
@@ -403,7 +407,7 @@
 @media (max-width: 880px) {
   .synapse-login {
     display: flex;
-    min-height: 100dvh;
+    min-height: 0;
     flex-direction: column;
     background: var(--synapse-login-superficie);
   }

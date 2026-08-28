@@ -90,7 +90,7 @@ export function ListaMensagens({
 
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-2"
+        className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] px-4 py-2"
         onScroll={(evento) => {
           if (evento.currentTarget.scrollTop < 80 && temMais && !carregandoMais)
             onCarregarMais();
