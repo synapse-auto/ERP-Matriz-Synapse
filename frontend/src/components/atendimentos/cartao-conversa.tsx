@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { MessageCircleMore, Users } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,32 +23,6 @@ export function CartaoConversa({
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
-  useEffect(() => {
-    if (cartao.tipo === "EQUIPE_INTERNA") return;
-    if (!selecionado || cartao.naoLidas <= 0) return;
-    // #region agent log
-    fetch("http://127.0.0.1:7863/ingest/8c7e9fcc-9bc0-4d40-8c83-76cd40001e00", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "ec4265",
-      },
-      body: JSON.stringify({
-        sessionId: "ec4265",
-        hypothesisId: "C",
-        runId: "post-fix",
-        location: "cartao-conversa.tsx",
-        message: "badge visivel na conversa aberta",
-        data: {
-          leadId: cartao.leadId,
-          naoLidas: cartao.naoLidas,
-          atendimentoId: cartao.atendimentoId,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [selecionado, cartao]);
   if (cartao.tipo === "EQUIPE_INTERNA") {
     const hora = formatarHoraDaLista(cartao.ultimaMensagemEm);
     return (

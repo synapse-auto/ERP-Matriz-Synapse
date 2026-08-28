@@ -43,11 +43,8 @@ public class EnviarMidiaUseCase {
     @PreAuthorize("isAuthenticated()")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId, byte[] conteudo, String nomeArquivoOriginal, String legenda) {
-        String mimetypeReal = detector.detectar(conteudo);
-        if (("video/quicktime".equals(mimetypeReal) || "video/mp4".equals(mimetypeReal))
-                && IsoBmffAudioOnly.ehAudioSemVideo(conteudo)) {
-            mimetypeReal = "audio/mp4";
-        }
+        String mimetypeReal =
+                IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
         TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
         if (tipo == null) {
             throw new TipoDeMidiaNaoPermitidoException(mimetypeReal);

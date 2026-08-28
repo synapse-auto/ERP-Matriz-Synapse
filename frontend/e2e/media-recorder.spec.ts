@@ -65,7 +65,8 @@ test("o composer grava, pre-visualiza e so entao permite enviar", async ({ page 
   await page.getByRole("button", { name: "Parar gravação" }).click();
 
   await expect(page.getByLabel("Pré-visualização da gravação")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Enviar gravação" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enviar" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enviar gravação" })).toHaveCount(0);
   await page.getByRole("button", { name: "Descartar gravação" }).click();
   await expect(page.getByLabel("Pré-visualização da gravação")).toBeHidden();
 });

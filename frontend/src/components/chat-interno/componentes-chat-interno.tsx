@@ -203,7 +203,6 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/50 p-2">
             <audio className="h-9 min-w-0 flex-1" controls src={gravador.previewUrl} aria-label={tComp.audioPreview} />
             <Button type="button" size="icon-sm" variant="ghost" onClick={gravador.descartar} disabled={pendente} aria-label={tComp.audioDescartar}><Trash2 className="size-4" /></Button>
-            <Button type="button" size="icon-sm" onClick={() => void enviarGravacao()} disabled={pendente || Boolean(gravador.erro)} aria-label={tComp.audioEnviar}><Send className="size-4" /></Button>
           </div>
         )}
 
@@ -234,7 +233,21 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
           />
 
           <div className="order-last shrink-0">
-            <Button type="button" size="icon" onClick={() => void enviarConteudo()} disabled={gravador.fase !== "INATIVO" || pendente || (!texto.trim() && !arquivo)} aria-label={textos.enviar}>
+            <Button
+              type="button"
+              size="icon"
+              onClick={() => {
+                if (gravador.fase === "PREVISUALIZACAO") void enviarGravacao();
+                else void enviarConteudo();
+              }}
+              disabled={
+                pendente
+                || (gravador.fase === "PREVISUALIZACAO"
+                  ? Boolean(gravador.erro) || !gravador.arquivo
+                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo))
+              }
+              aria-label={textos.enviar}
+            >
               <Send className="size-4" />
             </Button>
           </div>

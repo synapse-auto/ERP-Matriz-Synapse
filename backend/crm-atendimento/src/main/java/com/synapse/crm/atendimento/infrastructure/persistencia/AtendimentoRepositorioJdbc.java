@@ -121,27 +121,7 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     @Override
     public void marcarComoLido(UUID atendimentoId, UUID usuarioId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarComoLido");
-        int linhas = chat.update(
-                SQL_MARCAR_COMO_LIDO, usuarioId, Timestamp.from(quando), atendimentoId);
-        // #region agent log
-        try {
-            String linha = "{\"sessionId\":\"ec4265\",\"hypothesisId\":\"A\",\"runId\":\"post-fix\",\"location\":\"AtendimentoRepositorioJdbc.marcarComoLido\",\"message\":\"leitura gravada\",\"data\":{\"atendimentoId\":\""
-                    + atendimentoId
-                    + "\",\"linhas\":"
-                    + linhas
-                    + "},\"timestamp\":"
-                    + System.currentTimeMillis()
-                    + "}\n";
-            java.nio.file.Files.writeString(
-                    java.nio.file.Path.of(
-                            "C:/Users/marcondes/Desktop/projeto_matriz/debug-ec4265.log"),
-                    linha,
-                    java.nio.charset.StandardCharsets.UTF_8,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.APPEND);
-        } catch (Exception ignored) {
-        }
-        // #endregion
+        chat.update(SQL_MARCAR_COMO_LIDO, usuarioId, Timestamp.from(quando), atendimentoId);
     }
 
     @Override

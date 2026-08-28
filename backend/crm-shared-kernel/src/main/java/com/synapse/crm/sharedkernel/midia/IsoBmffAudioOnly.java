@@ -18,6 +18,19 @@ public final class IsoBmffAudioOnly {
         return resultado.temAudio && !resultado.temVideo;
     }
 
+    /**
+     * MediaRecorder em alguns navegadores gera ISO-BMFF de áudio que o Tika rotula como
+     * {@code video/quicktime} ou {@code video/mp4}. Se as trilhas forem só de áudio, trata como
+     * {@code audio/mp4} — o mesmo critério do envio no atendimento.
+     */
+    public static String mimetypeDeAudioSeCamuflado(String mimetypeDetectado, byte[] bytes) {
+        if (("video/quicktime".equals(mimetypeDetectado) || "video/mp4".equals(mimetypeDetectado))
+                && ehAudioSemVideo(bytes)) {
+            return "audio/mp4";
+        }
+        return mimetypeDetectado;
+    }
+
     private static boolean lerCaixas(
             byte[] bytes, int inicio, int fim, int profundidade, Resultado resultado) {
         if (profundidade > LIMITE_PROFUNDIDADE) return false;
