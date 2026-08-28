@@ -24,7 +24,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
                          AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas,
                    CASE WHEN c.tipo = 'DIRETA' AND MAX(u.foto_referencia) IS NOT NULL
-                        THEN '/api/v1/me/foto/' || MAX(u.id)::text END AS foto_url
+                        THEN '/api/v1/me/foto/' || MAX(u.id::text) END AS foto_url
               FROM chat_interno_conversa c
               JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
               LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
