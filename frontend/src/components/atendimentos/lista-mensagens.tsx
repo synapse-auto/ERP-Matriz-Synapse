@@ -73,7 +73,7 @@ export function ListaMensagens({
   }, [ultimoId]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col" data-slot="lista-mensagens">
       {buscaAberta && (
         <div className="border-b border-border p-2">
           <div className="relative">
@@ -90,7 +90,7 @@ export function ListaMensagens({
 
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto px-4 py-2"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-2"
         onScroll={(evento) => {
           if (evento.currentTarget.scrollTop < 80 && temMais && !carregandoMais)
             onCarregarMais();

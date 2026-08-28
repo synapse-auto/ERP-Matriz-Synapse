@@ -93,7 +93,7 @@ export function Composer({ conversa }: Props) {
 
   if (conversa.status === "FINALIZADO") {
     return (
-      <div className="bg-background px-4 pb-4 pt-3">
+      <div className="shrink-0 bg-background px-4 pb-4 pt-3">
         <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground shadow-md">
           {textosAtendimentos.finalizar.sucesso}
         </div>
@@ -237,7 +237,7 @@ export function Composer({ conversa }: Props) {
   if (!janelaAberta) {
     const aprovados = (templates.data ?? []).filter((item) => item.status === "APROVADO");
     return (
-      <div className="bg-background px-4 pb-4 pt-3">
+      <div className="min-h-0 overflow-y-auto bg-background px-4 pb-4 pt-3">
         <div className="mx-auto max-w-[780px] space-y-3 rounded-xl border border-input bg-card p-3 shadow-md">
           <p className="text-sm font-medium text-foreground">
             {textos.janelaFechadaTitulo}
@@ -252,7 +252,7 @@ export function Composer({ conversa }: Props) {
           ) : aprovados.length === 0 ? (
             <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="max-h-48 space-y-2 overflow-y-auto">
               {aprovados.map((template) => {
                 const chave = `${template.nome}:${template.idioma}`;
                 const valores = parametros[chave] ?? Array(template.quantidadeDeParametros).fill("");
@@ -321,7 +321,7 @@ export function Composer({ conversa }: Props) {
   }
 
   return (
-    <div className="bg-background px-4 pb-4 pt-3">
+    <div className="shrink-0 bg-background px-4 pb-4 pt-3">
       <div className="relative mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 shadow-md">
         {arquivo && (
           <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
