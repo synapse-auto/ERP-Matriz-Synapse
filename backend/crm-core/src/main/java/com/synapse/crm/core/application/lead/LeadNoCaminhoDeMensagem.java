@@ -83,6 +83,15 @@ public interface LeadNoCaminhoDeMensagem {
      */
     UUID resolverPorTelefone(String telefone, String nomeSugerido);
 
+    /** Lead visivel ao contexto RLS atual com este telefone canonico. */
+    Optional<UUID> visivelPorTelefone(String telefone);
+
+    /**
+     * Cria lead ja atribuido a quem iniciou o contato. Vazio se o telefone ja existe e a RLS
+     * escondeu a linha — nao distingue "colega" de "inexistente".
+     */
+    Optional<UUID> criarParaAtendente(String nome, String telefone, UUID atendenteId, UUID canalOrigemId);
+
     /**
      * @param telefone destino no canal; sem ele nao ha para onde enviar
      * @param ultimaInteracao base da janela de 24h da Meta. Vazio quando o lead nunca interagiu, o

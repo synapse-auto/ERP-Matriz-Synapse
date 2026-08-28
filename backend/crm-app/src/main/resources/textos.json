@@ -240,6 +240,23 @@
       "carregarMais": "Carregar mais conversas",
       "carregandoMais": "Carregando conversas..."
     },
+    "novoContato": {
+      "botao": "Novo atendimento",
+      "titulo": "Novo atendimento",
+      "descricao": "Abra uma conversa em modo humano pelo WhatsApp.",
+      "nome": "Nome do contato",
+      "nomePlaceholder": "Nome do contato",
+      "nomeObrigatorio": "Nome do contato é obrigatório.",
+      "telefone": "Telefone",
+      "telefonePlaceholder": "(83) 99999-9999",
+      "telefoneObrigatorio": "Telefone é obrigatório.",
+      "primeiraMensagem": "Primeira mensagem (opcional)",
+      "primeiraMensagemPlaceholder": "Digite a mensagem que será enviada após abrir o atendimento.",
+      "avisoTemplate": "A mensagem será enviada após a abertura do atendimento. Dependendo do canal, pode ser necessário utilizar um template aprovado.",
+      "cancelar": "Cancelar",
+      "confirmar": "Iniciar atendimento",
+      "erro": "Não foi possível iniciar o atendimento."
+    },
     "visoes": {
       "ativos": "Ativos",
       "pendentes": "Pendentes",

@@ -133,7 +133,10 @@ vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
 }));
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
 vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> }));
-vi.mock("@/lib/atendimento/api", () => ({ marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()) }));
+vi.mock("@/lib/atendimento/api", () => ({
+  marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
+  iniciarNovoContato: vi.fn(),
+}));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
   useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
 }));
@@ -164,6 +167,23 @@ vi.mock("@/lib/config/textos-provider", () => ({
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
       finalizar: { sucesso: "Atendimento finalizado." },
+      novoContato: {
+        botao: "Novo atendimento",
+        titulo: "Novo atendimento",
+        descricao: "Abra uma conversa em modo humano pelo WhatsApp.",
+        nome: "Nome do contato",
+        nomePlaceholder: "Nome do contato",
+        nomeObrigatorio: "Nome do contato é obrigatório.",
+        telefone: "Telefone",
+        telefonePlaceholder: "(83) 99999-9999",
+        telefoneObrigatorio: "Telefone é obrigatório.",
+        primeiraMensagem: "Primeira mensagem (opcional)",
+        primeiraMensagemPlaceholder: "Digite a mensagem.",
+        avisoTemplate: "Use um template.",
+        cancelar: "Cancelar",
+        confirmar: "Iniciar atendimento",
+        erro: "Não foi possível iniciar o atendimento.",
+      },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",

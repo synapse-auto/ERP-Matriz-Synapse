@@ -8,4 +8,7 @@ public interface CanalCredencialAtivaRepositorio {
     ConfiguracaoCanalAtivo carregarConfiguracao();
 
     Optional<CanalEntradaAtiva> porIdentificadorExterno(String identificadorExterno);
+
+    /** Primeiro canal ativo com credencial vigente, se houver. */
+    Optional<CanalEntradaAtiva> primeiraAtiva();
 }

@@ -8,12 +8,13 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
 import { Composer } from "@/components/atendimentos/composer";
+import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { marcarAtendimentoComoLido } from "@/lib/atendimento/api";
+import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -91,6 +92,16 @@ export function PaginaAtendimentosCliente({
       setLeadSelecionadoId(null);
       setContatoInternoId("");
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+  });
+  const [novoContatoAberto, setNovoContatoAberto] = useState(false);
+  const iniciarContato = useMutation({
+    mutationFn: iniciarNovoContato,
+    onSuccess: (resposta) => {
+      setNovoContatoAberto(false);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      setLeadParaAbrir(resposta.leadId);
+      setLeadParaAbrirGatilho((atual) => atual + 1);
     },
   });
 
@@ -280,6 +291,10 @@ export function PaginaAtendimentosCliente({
         contatoInternoSelecionado={contatoInternoId}
         onContatoInternoChange={setContatoInternoId}
         onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
+        onNovoContato={() => {
+          iniciarContato.reset();
+          setNovoContatoAberto(true);
+        }}
         className={cn(telaEstreita && conversaAberta && "hidden")}
       />
 
@@ -368,6 +383,20 @@ export function PaginaAtendimentosCliente({
           />
         </div>
       )}
+
+      <DialogoNovoContato
+        aberto={novoContatoAberto}
+        onFechar={() => setNovoContatoAberto(false)}
+        onConfirmar={(pedido) => iniciarContato.mutate(pedido)}
+        pendente={iniciarContato.isPending}
+        erro={
+          iniciarContato.isError
+            ? iniciarContato.error instanceof Error
+              ? iniciarContato.error.message
+              : textos.novoContato.erro
+            : null
+        }
+      />
     </div>
   );
 }

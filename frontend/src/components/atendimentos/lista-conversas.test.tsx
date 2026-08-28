@@ -100,11 +100,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
-      cartao: {
+        cartao: {
         semAtendente: "Sem atendente",
         vazio: "Nenhuma conversa",
         naoLidas: "{quantidade} mensagens não lidas",
       },
+      novoContato: { botao: "Novo atendimento" },
     },
     chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
   }),
@@ -233,5 +234,22 @@ describe("ListaConversas", () => {
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Nova conversa" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Selecionar pessoa" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Novo atendimento" })).toBeInTheDocument();
+  });
+
+  it("dispara novo contato WhatsApp por um botão separado do + do chat interno", () => {
+    const novo = vi.fn();
+    render(
+      <ListaConversas
+        selecionadoId={null}
+        onAbrirAtendimento={vi.fn()}
+        chatInternoHabilitado
+        onNovoContato={novo}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo atendimento" }));
+    expect(novo).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Nova conversa" })).toBeInTheDocument();
   });
 });

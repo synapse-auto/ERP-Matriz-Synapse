@@ -42,6 +42,20 @@ class CanalCredencialAtivaRepositorioJdbc implements CanalCredencialAtivaReposit
                AND (cc.vigente_ate IS NULL OR cc.vigente_ate > now())
             """;
 
+    private static final String SQL_PRIMEIRA_ATIVA =
+            """
+            SELECT c.id AS canal_id, cc.id AS canal_credencial_id
+              FROM canal c
+              LEFT JOIN canal_credencial cc
+                ON cc.canal_id = c.id
+               AND cc.ativo
+               AND cc.vigente_desde <= now()
+               AND (cc.vigente_ate IS NULL OR cc.vigente_ate > now())
+             WHERE c.ativo
+             ORDER BY c.nome, cc.vigente_desde
+             LIMIT 1
+            """;
+
     private final JdbcTemplate chat;
 
     CanalCredencialAtivaRepositorioJdbc(
@@ -77,5 +91,16 @@ class CanalCredencialAtivaRepositorioJdbc implements CanalCredencialAtivaReposit
                                         resultado.getObject("canal_credencial_id", java.util.UUID.class)))
                                 : Optional.empty(),
                         identificadorExterno);
+    }
+
+    @Override
+    public Optional<CanalEntradaAtiva> primeiraAtiva() {
+        return chat.query(
+                SQL_PRIMEIRA_ATIVA,
+                resultado -> resultado.next()
+                        ? Optional.of(new CanalEntradaAtiva(
+                                resultado.getObject("canal_id", java.util.UUID.class),
+                                resultado.getObject("canal_credencial_id", java.util.UUID.class)))
+                        : Optional.empty());
     }
 }
