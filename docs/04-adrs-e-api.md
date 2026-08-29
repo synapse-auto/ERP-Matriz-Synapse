@@ -198,7 +198,7 @@ O endpoint específico de chat interno permanece para compatibilidade. O botão 
 | Destino | Direção | Payload | Proteção | Evidência |
 |---|---|---|---|---|
 | `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade | `WebSocketConfig` · `TempoRealIT` |
-| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência e finalização | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` |
+| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência, finalização e reação | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` · `RelayDeTempoRealListener` |
 | `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência | `RedisSubscriberDeAtendimento` · `TempoRealIT` |
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.

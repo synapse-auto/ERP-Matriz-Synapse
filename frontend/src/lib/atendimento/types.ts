@@ -256,11 +256,19 @@ export interface FinalizacaoTempoReal {
   ocorridoEm: string;
 }
 
+export interface ReacaoTempoReal {
+  atendimentoId: string;
+  mensagemId: string;
+  enviadoEm: string;
+  reacoes: { emoji: string; quantidade: number }[];
+}
+
 export type EventoTempoReal =
   | { tipo: "MENSAGEM"; dados: MensagemTempoReal }
   | { tipo: "STATUS"; dados: StatusTempoReal }
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
-  | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal };
+  | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal }
+  | { tipo: "REACAO"; dados: ReacaoTempoReal };
 
 export type NotificacaoTempoReal = {
   tipo: "TRANSFERENCIA_RECEBIDA";
@@ -271,6 +279,9 @@ export type NotificacaoTempoReal = {
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM";
   dados: ChatInternoMensagemTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_REACAO";
+  dados: ChatInternoReacaoTempoReal;
 };
 
 export interface ChatInternoMensagemTempoReal {
@@ -279,6 +290,12 @@ export interface ChatInternoMensagemTempoReal {
   remetenteId: string;
   conteudo: string;
   enviadoEm: string;
+}
+
+export interface ChatInternoReacaoTempoReal {
+  conversaId: string;
+  mensagemId: string;
+  reacoes: { emoji: string; quantidade: number }[];
 }
 
 /** Payload de /user/queue/revogacoes. */

@@ -98,6 +98,38 @@ class RedisSubscriberDeAtendimentoTest {
     }
 
     @Test
+    void chat_interno_reacao_entrega_a_todos_os_destinatarios_incluindo_o_autor() {
+        UUID autor = transferidorId;
+        String corpo = "{\"tipo\":\"CHAT_INTERNO_REACAO\",\"destinatarios\":[\"" + destinatarioId
+                + "\",\"" + autor + "\"],\"conversaId\":\"" + UUID.randomUUID()
+                + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                + "\",\"reacoes\":[{\"emoji\":\"👍\",\"quantidade\":1}]}";
+        Message mensagem = mock(Message.class);
+        org.mockito.Mockito.when(mensagem.getChannel()).thenReturn(
+                ("synapse:chat-interno:" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+        org.mockito.Mockito.when(mensagem.getBody()).thenReturn(corpo.getBytes(StandardCharsets.UTF_8));
+
+        subscriber.onMessage(mensagem, null);
+
+        verify(template).convertAndSendToUser(eq(destinatarioId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_REACAO"));
+        verify(template).convertAndSendToUser(eq(autor.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_REACAO"));
+    }
+
+    @Test
+    void reacao_nao_e_entregue_sem_assinatura() {
+        String corpo = "{\"tipo\":\"REACAO\",\"dados\":{\"atendimentoId\":\"" + atendimentoId
+                + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                + "\",\"enviadoEm\":\"2026-08-28T15:00:00Z\",\"reacoes\":[]}}";
+        subscriber.onMessage(mensagem(corpo), null);
+        verify(template, never()).convertAndSendToUser(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.eq("/queue/atendimento." + atendimentoId),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void revogacao_do_dono_anterior_continua_sendo_entregue() {
         registro.registrar(new AssinaturaAutorizada(
                 "sessao", "sub", atendimentoId, donoAnteriorId, PapelUsuario.ATENDENTE));

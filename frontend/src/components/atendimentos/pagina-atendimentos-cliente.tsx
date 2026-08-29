@@ -14,6 +14,7 @@ import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { atualizarReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
@@ -40,7 +41,7 @@ interface Props {
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
 >;
 
 /**
@@ -140,9 +141,19 @@ export function PaginaAtendimentosCliente({
           setNotificacao(evento);
         }
       }
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      if (evento.tipo !== "CHAT_INTERNO_REACAO") {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
+      }
+      if (evento.tipo === "CHAT_INTERNO_REACAO") {
+        atualizarReacoesDoChatInterno(
+          cache,
+          evento.dados.conversaId,
+          evento.dados.mensagemId,
+          evento.dados.reacoes,
+        );
       }
     },
   );

@@ -1,8 +1,10 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +16,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
+import com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /**
@@ -153,6 +157,27 @@ class RelayDeTempoRealListener {
         ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
         dados.put("participanteId",evento.participanteId().toString()); dados.put("ocorridoEm",evento.ocorridoEm().toString());
         publicar(evento.atendimentoId(), "PARTICIPANTE_SAIU", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoReagir(ReacaoDaMensagemParaTempoReal evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("mensagemId", evento.mensagemId().toString());
+        dados.put("enviadoEm", evento.enviadoEm().toString());
+        dados.set("reacoes", resumoPublico(evento.reacoes()));
+        publicar(evento.atendimentoId(), "REACAO", dados);
+    }
+
+    private ArrayNode resumoPublico(List<ResumoDeReacao> reacoes) {
+        var lista = json.createArrayNode();
+        for (ResumoDeReacao resumo : reacoes) {
+            ObjectNode item = json.createObjectNode();
+            item.put("emoji", resumo.emoji());
+            item.put("quantidade", resumo.quantidade());
+            lista.add(item);
+        }
+        return lista;
     }
 
     private void publicar(UUID atendimentoId, String tipo, ObjectNode dados) {

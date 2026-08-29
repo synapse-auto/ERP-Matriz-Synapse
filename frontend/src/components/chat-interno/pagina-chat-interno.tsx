@@ -12,6 +12,7 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { atualizarReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { listarContatosChat, listarConversasChat, listarMensagensChat, abrirConversaDireta, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido } from "@/lib/chat-interno/api";
 import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
 
@@ -33,6 +34,9 @@ export function PaginaChatInterno() {
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if (evento.tipo === "CHAT_INTERNO_MENSAGEM") atualizar();
+    if (evento.tipo === "CHAT_INTERNO_REACAO") {
+      atualizarReacoesDoChatInterno(cache, evento.dados.conversaId, evento.dados.mensagemId, evento.dados.reacoes);
+    }
   });
   useEffect(() => { if (conversaId) { void marcarChatComoLido(conversaId); } }, [conversaId]);
   const abrir = useMutation({ mutationFn: abrirConversaDireta, onSuccess: (r) => { setConversaId(r.id); setContatoId(""); atualizar(); } });

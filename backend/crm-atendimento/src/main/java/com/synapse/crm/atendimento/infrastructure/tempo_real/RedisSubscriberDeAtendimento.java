@@ -113,15 +113,20 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     private void entregarChatInterno(String corpo) {
         try {
             JsonNode envelope = json.readTree(corpo);
+            String tipo = envelope.path("tipo").asText("CHAT_INTERNO_MENSAGEM");
             for (JsonNode destinatario : envelope.path("destinatarios")) {
                 ObjectNode notificacao = json.createObjectNode();
-                notificacao.put("tipo", "CHAT_INTERNO_MENSAGEM");
+                notificacao.put("tipo", tipo);
                 ObjectNode dados = json.createObjectNode();
                 dados.set("conversaId", envelope.path("conversaId"));
                 dados.set("mensagemId", envelope.path("mensagemId"));
-                dados.set("remetenteId", envelope.path("remetenteId"));
-                dados.set("conteudo", envelope.path("conteudo"));
-                dados.set("enviadoEm", envelope.path("enviadoEm"));
+                if ("CHAT_INTERNO_REACAO".equals(tipo)) {
+                    dados.set("reacoes", envelope.path("reacoes"));
+                } else {
+                    dados.set("remetenteId", envelope.path("remetenteId"));
+                    dados.set("conteudo", envelope.path("conteudo"));
+                    dados.set("enviadoEm", envelope.path("enviadoEm"));
+                }
                 notificacao.set("dados", dados);
                 enviarParaUsuario(UUID.fromString(destinatario.asText()), DESTINO_NOTIFICACOES, notificacao.toString());
             }

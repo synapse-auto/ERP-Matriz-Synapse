@@ -6,6 +6,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { mensagensDesde, paginaMensagens } from "./api";
 import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
+import { atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type { MensagemResposta } from "./types";
 
@@ -83,6 +84,8 @@ export function useMensagens(
               }
             : atual,
         );
+      } else if (evento.tipo === "REACAO") {
+        atualizarReacoesDoHistorico(queryClient, queryKey, evento.dados.mensagemId, evento.dados.reacoes);
       } else {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
