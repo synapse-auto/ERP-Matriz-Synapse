@@ -188,9 +188,10 @@ function FormularioTemplate({
             onSalvar({ nome, idioma, categoria, corpo });
           }}
         >
-          <label className="block text-sm">
+          <label className="block text-sm" htmlFor="template-whatsapp-nome">
             {textos.formulario.nome}
             <Input
+              id="template-whatsapp-nome"
               className="mt-1"
               value={nome}
               onChange={(evento) => setNome(evento.target.value)}
@@ -222,9 +223,10 @@ function FormularioTemplate({
               onChange={(valor) => setCategoria(valor as CategoriaTemplateWhatsApp)}
             />
           </label>
-          <label className="block text-sm">
+          <label className="block text-sm" htmlFor="template-whatsapp-corpo">
             {textos.formulario.corpo}
             <Textarea
+              id="template-whatsapp-corpo"
               className="mt-1"
               value={corpo}
               onChange={(evento) => setCorpo(evento.target.value)}
