@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 
 /** Porta do read/write model do chat; nenhuma consulta ignora o participante corrente. */
 public interface ChatInternoRepositorio {
@@ -27,6 +28,22 @@ public interface ChatInternoRepositorio {
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
     record ContatoResumo(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
-            String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {}
+            String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
+            List<ResumoDeReacao> reacoes) {
+        public MensagemResumo {
+            reacoes = reacoes == null ? List.of() : List.copyOf(reacoes);
+        }
+
+        public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
+                String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {
+            this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
+                    enviadoEm, List.of());
+        }
+
+        public MensagemResumo comReacoes(List<ResumoDeReacao> novas) {
+            return new MensagemResumo(id, conversaId, remetenteId, remetenteNome, tipo, conteudo,
+                    midiaUrl, midiaMetadados, enviadoEm, novas);
+        }
+    }
     record PaginaMensagens(List<MensagemResumo> mensagens, Instant proximoCursor) {}
 }

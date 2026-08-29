@@ -88,6 +88,13 @@ export type ItemInbox = (CartaoAtendimento & {
   tipoConversa?: null;
 }) | CartaoEquipeInterna;
 
+/** Espelha AtendimentoMensagensController.ResumoReacaoResposta. */
+export interface ResumoReacao {
+  emoji: string;
+  quantidade: number;
+  reagi: boolean;
+}
+
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {
   id: string;
@@ -106,6 +113,7 @@ export interface MensagemResposta {
   opcoes: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
+  reacoes?: ResumoReacao[];
 }
 
 export interface PaginaMensagens {
@@ -248,11 +256,21 @@ export interface FinalizacaoTempoReal {
   ocorridoEm: string;
 }
 
+export interface ReacaoTempoReal {
+  atendimentoId: string;
+  mensagemId: string;
+  enviadoEm: string;
+  atorId: string;
+  emojiDoAtor: string | null;
+  reacoes: { emoji: string; quantidade: number }[];
+}
+
 export type EventoTempoReal =
   | { tipo: "MENSAGEM"; dados: MensagemTempoReal }
   | { tipo: "STATUS"; dados: StatusTempoReal }
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
-  | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal };
+  | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal }
+  | { tipo: "REACAO"; dados: ReacaoTempoReal };
 
 export type NotificacaoTempoReal = {
   tipo: "TRANSFERENCIA_RECEBIDA";
@@ -263,6 +281,9 @@ export type NotificacaoTempoReal = {
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM";
   dados: ChatInternoMensagemTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_REACAO";
+  dados: ChatInternoReacaoTempoReal;
 };
 
 export interface ChatInternoMensagemTempoReal {
@@ -271,6 +292,14 @@ export interface ChatInternoMensagemTempoReal {
   remetenteId: string;
   conteudo: string;
   enviadoEm: string;
+}
+
+export interface ChatInternoReacaoTempoReal {
+  conversaId: string;
+  mensagemId: string;
+  atorId: string;
+  emojiDoAtor: string | null;
+  reacoes: { emoji: string; quantidade: number }[];
 }
 
 /** Payload de /user/queue/revogacoes. */

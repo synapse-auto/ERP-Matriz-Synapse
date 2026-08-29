@@ -286,6 +286,20 @@ CREATE TABLE mensagem (
 
 CREATE INDEX idx_mensagem_atendimento ON mensagem (atendimento_id, enviado_em);
 
+CREATE TABLE mensagem_reacao (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mensagem_id             UUID NOT NULL,
+    mensagem_enviada_em     TIMESTAMPTZ NOT NULL,
+    usuario_id              UUID NOT NULL REFERENCES usuario(id),
+    emoji                   VARCHAR(32) NOT NULL,
+    criado_em               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (mensagem_id, mensagem_enviada_em)
+        REFERENCES mensagem (id, enviado_em) ON DELETE CASCADE,
+    UNIQUE (mensagem_id, mensagem_enviada_em, usuario_id)
+);
+-- Uma reacao por usuario. A FK composta ancora a particao; o UNIQUE cobre a leitura por mensagem
+-- sem varrer o pai particionado. Nao ha tabela polimorfica com o chat interno.
+
 -- =========================================================
 -- Campanhas e Filtros Modulares
 -- =========================================================
@@ -411,6 +425,17 @@ CREATE TABLE chat_interno_mensagem (
     enviado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_chat_interno_msg_conversa ON chat_interno_mensagem (conversa_id, enviado_em);
+
+CREATE TABLE chat_interno_mensagem_reacao (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mensagem_id  UUID NOT NULL REFERENCES chat_interno_mensagem(id) ON DELETE CASCADE,
+    usuario_id   UUID NOT NULL REFERENCES usuario(id),
+    emoji        VARCHAR(32) NOT NULL,
+    criado_em    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (mensagem_id, usuario_id)
+);
+-- RLS FORCE com as mesmas politicas de participacao de `chat_interno_mensagem`.
+-- Gestor que nao participa nao le nem grava.
 
 -- =========================================================
 -- Credenciais de canal (troca do número principal)

@@ -14,7 +14,8 @@ import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
+import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
+import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -40,7 +41,7 @@ interface Props {
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
 >;
 
 /**
@@ -138,9 +139,21 @@ export function PaginaAtendimentosCliente({
           setNotificacao(evento);
         }
       }
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      if (evento.tipo !== "CHAT_INTERNO_REACAO") {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
+      }
+      if (evento.tipo === "CHAT_INTERNO_REACAO") {
+        atualizarReacoesDoChatInterno(
+          cache,
+          evento.dados.conversaId,
+          evento.dados.mensagemId,
+          evento.dados.reacoes,
+          { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+          useAuthStore.getState().usuarioId,
+        );
       }
     },
   );
@@ -219,6 +232,22 @@ export function PaginaAtendimentosCliente({
       leadId: atendimentoAtivo.leadId,
       conteudo: mensagem.conteudo,
     });
+  }
+
+  const historicoId = conversa?.atendimentoId ?? null;
+
+  async function definirReacaoDaMensagem(mensagem: MensagemResposta, emoji: string) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await definirReacao(atendimentoId, mensagem.id, mensagem.enviadoEm, emoji);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
+  async function removerReacaoDaMensagem(mensagem: MensagemResposta) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await removerReacao(atendimentoId, mensagem.id, mensagem.enviadoEm);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
   }
 
   const colunasDoPainel = telaEstreita
@@ -348,6 +377,8 @@ export function PaginaAtendimentosCliente({
               mensagens={mensagensQuery.data}
               carregando={mensagensQuery.isLoading}
               onReenviar={reenviar}
+              onDefinirReacao={definirReacaoDaMensagem}
+              onRemoverReacao={removerReacaoDaMensagem}
               temMais={mensagensQuery.hasNextPage}
               carregandoMais={mensagensQuery.isFetchingNextPage}
               onCarregarMais={() => void mensagensQuery.fetchNextPage()}

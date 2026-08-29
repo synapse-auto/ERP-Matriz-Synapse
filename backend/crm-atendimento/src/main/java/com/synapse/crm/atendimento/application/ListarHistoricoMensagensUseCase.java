@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
+import com.synapse.crm.atendimento.application.reacao.ReacaoDeMensagemRepositorio;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Le a conversa em paginas estaveis, das mensagens mais recentes para as mais antigas. */
@@ -19,11 +22,18 @@ public class ListarHistoricoMensagensUseCase {
 
     private final AtendimentoRepositorio atendimentos;
     private final HistoricoDeMensagensRepositorio mensagens;
+    private final ReacaoDeMensagemRepositorio reacoes;
+    private final UsuarioContext usuarios;
 
     public ListarHistoricoMensagensUseCase(
-            AtendimentoRepositorio atendimentos, HistoricoDeMensagensRepositorio mensagens) {
+            AtendimentoRepositorio atendimentos,
+            HistoricoDeMensagensRepositorio mensagens,
+            ReacaoDeMensagemRepositorio reacoes,
+            UsuarioContext usuarios) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
+        this.reacoes = reacoes;
+        this.usuarios = usuarios;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -47,7 +57,25 @@ public class ListarHistoricoMensagensUseCase {
                         pagina.getLast().mensagem().enviadoEm(),
                         pagina.getLast().mensagem().id())
                 : null;
-        return new Pagina(pagina.reversed(), proximo);
+        return new Pagina(anexarReacoes(pagina.reversed()), proximo);
+    }
+
+    private List<MensagemDoHistorico> anexarReacoes(List<MensagemDoHistorico> pagina) {
+        UUID usuarioId = usuarios.atual().id();
+        List<ReacaoDeMensagemRepositorio.Chave> chaves = pagina.stream()
+                .map(item -> new ReacaoDeMensagemRepositorio.Chave(
+                        item.mensagem().id(), item.mensagem().enviadoEm()))
+                .toList();
+        var resumos = reacoes.resumir(chaves, usuarioId);
+        return pagina.stream()
+                .map(item -> {
+                    List<ResumoDeReacao> daMensagem = resumos.getOrDefault(
+                            new ReacaoDeMensagemRepositorio.Chave(
+                                    item.mensagem().id(), item.mensagem().enviadoEm()),
+                            List.of());
+                    return item.comReacoes(daMensagem);
+                })
+                .toList();
     }
 
     public record Cursor(Instant enviadoEm, UUID id) {}
