@@ -117,7 +117,7 @@ describe("ShellComSidebar", () => {
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
   });
 
-  it("hover so abre depois da intencao e reserva 260px no layout, sem sobreposicao", () => {
+  it("hover abre em sobreposicao: slot fica em 76px e o chat nao e empurrado", () => {
     vi.useFakeTimers();
     render(
       <ShellComSidebar>
@@ -132,9 +132,9 @@ describe("ShellComSidebar", () => {
     act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
-    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(slotDaSidebar()).toHaveAttribute("data-expandida", "true");
-    expect(slotDaSidebar().className).not.toMatch(/\babsolute\b/);
+    expect(slotDaSidebar()).toHaveAttribute("data-sobreposta", "true");
     expect(screen.getByText("Conteúdo")).toBeVisible();
   });
 
@@ -166,7 +166,8 @@ describe("ShellComSidebar", () => {
 
     act(() => estadoSidebar.onFocoDentro?.());
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
-    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+    expect(slotDaSidebar()).toHaveAttribute("data-sobreposta", "true");
 
     act(() => estadoSidebar.onFocoFora?.());
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
@@ -226,13 +227,13 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("navegacao-inferior")).toBeInTheDocument();
   });
 
-  it("falha se a expansao temporaria voltar a absolute/sobreposicao", () => {
+  it("falha se o hover temporario deixar de sobrepor e voltar a empurrar o layout", () => {
     const pasta = dirname(fileURLToPath(import.meta.url));
     const shell = readFileSync(join(pasta, "shell-com-sidebar.tsx"), "utf8");
     const sidebar = readFileSync(join(pasta, "sidebar.tsx"), "utf8");
-    expect(shell).not.toMatch(/sobreposta/);
-    expect(sidebar).not.toMatch(/sobreposta/);
-    expect(sidebar).not.toMatch(/absolute inset-y-0/);
-    expect(shell).toMatch(/estiloDaLarguraDaSidebar/);
+    expect(shell).toMatch(/estiloDaLarguraDoSlot/);
+    expect(shell).toMatch(/data-sobreposta/);
+    expect(sidebar).toMatch(/absolute inset-y-0 left-0 z-40/);
+    expect(sidebar).toMatch(/estiloDoRotuloDaSidebar/);
   });
 });

@@ -3,16 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Tempos da expansão temporária: a intenção evita abrir ao atravessar a barra;
- * o atraso de fechar cobre jitter na borda e o caminho até o botão/popup.
- * A duração é mais lenta que o duration-200 da E84 para a largura não parecer um estalo.
+ * Hover temporário sobrepõe o chat (o slot fica em 76 px) para o layout não
+ * recalcular a cada passagem. Intenção curta: a barra responde rápido, sem
+ * abrir só de atravessar. O rótulo some primeiro no fechamento para não
+ * “estourar” texto numa coluna estreita.
  */
 export const EXPANSAO_DA_SIDEBAR = {
   larguraRetraidaPx: 76,
   larguraExpandidaPx: 260,
-  intencaoAbrirMs: 160,
-  atrasoFecharMs: 240,
-  duracaoAnimacaoMs: 360,
+  intencaoAbrirMs: 50,
+  atrasoFecharMs: 160,
+  duracaoAnimacaoMs: 240,
+  rotuloFadeAbrirMs: 160,
+  rotuloFadeFecharMs: 90,
+  rotuloFadeDelayAbrirMs: 70,
   easing: "cubic-bezier(0.22, 1, 0.36, 1)",
 } as const;
 
@@ -25,6 +29,26 @@ export function estiloDaLarguraDaSidebar(expandida: boolean): {
       ? EXPANSAO_DA_SIDEBAR.larguraExpandidaPx
       : EXPANSAO_DA_SIDEBAR.larguraRetraidaPx,
     transition: `width ${EXPANSAO_DA_SIDEBAR.duracaoAnimacaoMs}ms ${EXPANSAO_DA_SIDEBAR.easing}`,
+  };
+}
+
+/** O chat só cede espaço quando a barra está fixada. Hover não empurra o conteúdo. */
+export function estiloDaLarguraDoSlot(fixada: boolean): {
+  width: number;
+  transition: string;
+} {
+  return estiloDaLarguraDaSidebar(fixada);
+}
+
+export function estiloDoRotuloDaSidebar(retraida: boolean): {
+  opacity: number;
+  transition: string;
+} {
+  return {
+    opacity: retraida ? 0 : 1,
+    transition: retraida
+      ? `opacity ${EXPANSAO_DA_SIDEBAR.rotuloFadeFecharMs}ms ${EXPANSAO_DA_SIDEBAR.easing}`
+      : `opacity ${EXPANSAO_DA_SIDEBAR.rotuloFadeAbrirMs}ms ${EXPANSAO_DA_SIDEBAR.easing} ${EXPANSAO_DA_SIDEBAR.rotuloFadeDelayAbrirMs}ms`,
   };
 }
 
@@ -100,9 +124,11 @@ export function useExpansaoDaSidebar() {
     });
   }, [limparTimers]);
 
+  const expandida = fixada || temporaria;
   return {
     fixada,
-    expandida: fixada || temporaria,
+    expandida,
+    sobreposta: expandida && !fixada,
     aoPonteiroEntrar,
     aoPonteiroSair,
     aoFocoDentro,

@@ -1,11 +1,22 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { EXPANSAO_DA_SIDEBAR, useExpansaoDaSidebar } from "./expansao-da-sidebar";
+import { EXPANSAO_DA_SIDEBAR, estiloDoRotuloDaSidebar, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 describe("useExpansaoDaSidebar", () => {
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("rotulo some na hora no fechamento e entra atrasado na abertura", () => {
+    expect(estiloDoRotuloDaSidebar(true)).toEqual({
+      opacity: 0,
+      transition: `opacity ${EXPANSAO_DA_SIDEBAR.rotuloFadeFecharMs}ms ${EXPANSAO_DA_SIDEBAR.easing}`,
+    });
+    expect(estiloDoRotuloDaSidebar(false).opacity).toBe(1);
+    expect(estiloDoRotuloDaSidebar(false).transition).toContain(
+      `${EXPANSAO_DA_SIDEBAR.rotuloFadeDelayAbrirMs}ms`,
+    );
   });
 
   it("so expande apos a intencao de hover e recolhe so depois do atraso", () => {
