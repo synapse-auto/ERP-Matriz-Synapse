@@ -43,7 +43,7 @@ public class FinalizarAtendimentosVisiveisUseCase {
 
         for (var atendimento : abertos) {
             try {
-                finalizar.executar(atendimento.id(), quemFinalizou);
+                finalizar.executarEmLote(atendimento.id(), quemFinalizou);
                 finalizados++;
             } catch (AtendimentoJaFinalizadoException | RecursoDeAtendimentoIndisponivelException e) {
                 recusados++;

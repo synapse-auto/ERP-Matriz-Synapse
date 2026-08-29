@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -72,6 +73,7 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                     SET atendente_id  = EXCLUDED.atendente_id,
                         status        = EXCLUDED.status,
                         finalizado_em = EXCLUDED.finalizado_em
+                  WHERE atendimento.status <> 'FINALIZADO'
             """;
 
     private static final RowMapper<Atendimento> MAPEADOR = AtendimentoRepositorioJdbc::paraDominio;
@@ -92,6 +94,15 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     public Optional<Atendimento> porId(UUID atendimentoId) {
         TransacaoObrigatoria.exigir("porId");
         return primeiro(chat.query(SQL_POR_ID, MAPEADOR, atendimentoId));
+    }
+
+    @Override
+    public Optional<Atendimento> porIdParaAlteracao(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("porIdParaAlteracao");
+        // NO KEY UPDATE serializa os escritores do agregado, mas coexiste com o KEY SHARE
+        // adquirido pela FK de mensagem durante o recebimento. O atendimento nao altera a
+        // chave referenciada; usar FOR UPDATE aqui criava ciclo com o UPDATE posterior do lead.
+        return primeiro(chat.query(SQL_POR_ID + " FOR NO KEY UPDATE", MAPEADOR, atendimentoId));
     }
 
     @Override
@@ -127,7 +138,7 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     @Override
     public Atendimento salvar(Atendimento atendimento) {
         TransacaoObrigatoria.exigir("salvar");
-        chat.update(
+        int alterados = chat.update(
                 SQL_SALVAR,
                 atendimento.id(),
                 atendimento.leadId(),
@@ -137,6 +148,9 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                 atendimento.status().name(),
                 Timestamp.from(atendimento.iniciadoEm()),
                 atendimento.finalizadoEm() == null ? null : Timestamp.from(atendimento.finalizadoEm()));
+        if (alterados == 0) {
+            throw new AtendimentoJaFinalizadoException(atendimento.id(), "atualizacao concorrente");
+        }
         return atendimento;
     }
 

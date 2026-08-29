@@ -90,10 +90,7 @@ public class TransferirAtendimentoUseCase {
             boolean exigirOrigemIa) {
         Instant agora = Instant.now(relogio);
 
-        Atendimento antes = atendimentos
-                .porId(atendimentoId)
-                .orElseThrow(
-                        () -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
+        Atendimento antes = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
 
         if (exigirOrigemIa && antes.status() != StatusAtendimento.EM_IA) {
             throw new TransferenciaDaAutomacaoInvalidaException(atendimentoId);
