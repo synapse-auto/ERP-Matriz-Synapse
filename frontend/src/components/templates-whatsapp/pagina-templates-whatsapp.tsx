@@ -188,19 +188,23 @@ function FormularioTemplate({
             onSalvar({ nome, idioma, categoria, corpo });
           }}
         >
-          <label className="block text-sm" htmlFor="template-whatsapp-nome">
-            {textos.formulario.nome}
+          <div>
+            <label className="block text-sm" htmlFor="template-whatsapp-nome">
+              {textos.formulario.nome}
+            </label>
             <Input
               id="template-whatsapp-nome"
               className="mt-1"
               value={nome}
               onChange={(evento) => setNome(evento.target.value)}
+              aria-label={textos.formulario.nome}
+              aria-describedby="template-whatsapp-nome-ajuda"
               required
             />
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span id="template-whatsapp-nome-ajuda" className="mt-1 block text-xs text-muted-foreground">
               {textos.formulario.nomeAjuda}
             </span>
-          </label>
+          </div>
           <label className="block text-sm">
             {textos.formulario.idioma}
             <Input
@@ -223,20 +227,24 @@ function FormularioTemplate({
               onChange={(valor) => setCategoria(valor as CategoriaTemplateWhatsApp)}
             />
           </label>
-          <label className="block text-sm" htmlFor="template-whatsapp-corpo">
-            {textos.formulario.corpo}
+          <div>
+            <label className="block text-sm" htmlFor="template-whatsapp-corpo">
+              {textos.formulario.corpo}
+            </label>
             <Textarea
               id="template-whatsapp-corpo"
               className="mt-1"
               value={corpo}
               onChange={(evento) => setCorpo(evento.target.value)}
+              aria-label={textos.formulario.corpo}
+              aria-describedby="template-whatsapp-corpo-ajuda"
               required
             />
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span id="template-whatsapp-corpo-ajuda" className="mt-1 block text-xs text-muted-foreground">
               {ajudaDasVariaveis ? `${ajudaDasVariaveis}. ` : null}
               {textos.formulario.corpoAjuda}
             </span>
-          </label>
+          </div>
           {(analise.erro || erro) && (
             <p role="alert" className="text-sm text-destructive">
               {analise.erro ? ajudaDasVariaveis : erro}

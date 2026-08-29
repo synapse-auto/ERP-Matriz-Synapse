@@ -74,7 +74,7 @@ describe("pagina de templates WhatsApp", () => {
 
   it("lista todas as variaveis presentes no corpo", async () => {
     const formulario = await abrirFormulario();
-    fireEvent.change(within(formulario).getByLabelText("Corpo"), {
+    fireEvent.change(within(formulario).getByRole("textbox", { name: "Corpo" }), {
       target: { value: "Olá {{1}}, {{2}}, {{3}} e {{4}}." },
     });
 
@@ -85,8 +85,10 @@ describe("pagina de templates WhatsApp", () => {
 
   it("bloqueia envio quando falta um indice", async () => {
     const formulario = await abrirFormulario();
-    fireEvent.change(within(formulario).getByLabelText("Nome"), { target: { value: "retorno" } });
-    fireEvent.change(within(formulario).getByLabelText("Corpo"), {
+    fireEvent.change(within(formulario).getByRole("textbox", { name: "Nome" }), {
+      target: { value: "retorno" },
+    });
+    fireEvent.change(within(formulario).getByRole("textbox", { name: "Corpo" }), {
       target: { value: "Olá {{1}} e {{3}}" },
     });
 
