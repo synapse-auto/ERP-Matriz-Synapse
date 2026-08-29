@@ -20,6 +20,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
@@ -320,12 +321,8 @@ class MetaCloudApiAdapter implements CanalGateway {
             return breakerTemplates.executeSupplier(() -> buscarTemplates(conta));
         } catch (CallNotPermittedException breakerAberto) {
             throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
-        } catch (RestClientResponseException e) {
-            throw new CanalIndisponivelException(
-                    "provedor recusou listar templates: HTTP "
-                            + e.getStatusCode().value()
-                            + " "
-                            + resumoDoErro(e.getResponseBodyAsString()));
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("listar", e);
         }
     }
 
@@ -336,23 +333,32 @@ class MetaCloudApiAdapter implements CanalGateway {
             return breakerTemplates.executeSupplier(() -> submeterTemplate(pedido, conta));
         } catch (CallNotPermittedException breakerAberto) {
             throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
-        } catch (RestClientResponseException e) {
-            throw new CanalIndisponivelException(
-                    "provedor recusou criar template: HTTP "
-                            + e.getStatusCode().value()
-                            + " "
-                            + resumoDoErro(e.getResponseBodyAsString()));
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("criar", e);
         }
     }
 
     private List<TemplateDoCanal> buscarTemplates(String conta) {
-        JsonNode raiz = http.get()
-                .uri(
-                        "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
-                        conta)
-                .header("Authorization", "Bearer " + propriedades.token())
-                .retrieve()
-                .body(JsonNode.class);
+        JsonNode raiz;
+        try {
+            raiz = http.get()
+                    .uri(
+                            "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
+                            conta)
+                    .header("Authorization", "Bearer " + propriedades.token())
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RestClientResponseException e) {
+            int status = e.getStatusCode().value();
+            if (status >= 500 || status == EXCESSO_DE_CHAMADAS) {
+                throw e;
+            }
+            throw new CanalIndisponivelException(
+                    "provedor recusou listar templates: HTTP "
+                            + status
+                            + " "
+                            + resumoDoErro(e.getResponseBodyAsString()));
+        }
         List<TemplateDoCanal> templates = new ArrayList<>();
         if (raiz == null) {
             return templates;
@@ -428,6 +434,21 @@ class MetaCloudApiAdapter implements CanalGateway {
                     "WHATSAPP_CONTA_NEGOCIO nao configurada; informe o WABA ID para administrar templates");
         }
         return propriedades.contaNegocio();
+    }
+
+    private CanalIndisponivelException indisponibilidadeAoAdministrarTemplates(
+            String operacao, RestClientException e) {
+        if (e instanceof RestClientResponseException http) {
+            return new CanalIndisponivelException(
+                    "provedor recusou "
+                            + operacao
+                            + " templates: HTTP "
+                            + http.getStatusCode().value()
+                            + " "
+                            + resumoDoErro(http.getResponseBodyAsString()));
+        }
+        return new CanalIndisponivelException(
+                "provedor indisponivel para " + operacao + " templates: " + e.getClass().getSimpleName());
     }
 
     private static TemplateDoCanal paraTemplateDoCanal(JsonNode item) {

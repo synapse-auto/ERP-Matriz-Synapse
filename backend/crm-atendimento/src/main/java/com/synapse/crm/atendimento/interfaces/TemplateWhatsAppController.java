@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestClientException;
 
 import com.synapse.crm.atendimento.application.template.CanalRecusouTemplateException;
 import com.synapse.crm.atendimento.application.template.CriarTemplateWhatsAppUseCase;
@@ -92,6 +94,15 @@ class TemplateWhatsAppController {
     ProblemDetail indisponivel(CanalIndisponivelException erro) {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, erro.getMessage());
+        problema.setTitle("Provedor de canal indisponivel");
+        return problema;
+    }
+
+    @ExceptionHandler({RestClientException.class, CallNotPermittedException.class})
+    ProblemDetail falhaDoProvedor(Exception erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "provedor de templates indisponivel: " + erro.getClass().getSimpleName());
         problema.setTitle("Provedor de canal indisponivel");
         return problema;
     }
