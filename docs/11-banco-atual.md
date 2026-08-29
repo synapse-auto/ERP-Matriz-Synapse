@@ -35,7 +35,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V22__indice_historico_etapa` | Índice `(tipo, criado_em)` para métricas e início explícito do histórico de transições |
 | `V37__chat_interno_leitura_e_rls` | `lido_ate`, índice temporal e RLS do chat interno |
 | `V43__avaliacao_unica_por_atendimento` | UK `atendimento_id` + índice `criado_em` em `avaliacao` |
-| `V44__reacoes_de_mensagem` | `mensagem_reacao` (FK composta da partição) e `chat_interno_mensagem_reacao` (RLS de participação) |
+| `V45__reacoes_de_mensagem` | `mensagem_reacao` (FK composta da partição) e `chat_interno_mensagem_reacao` (RLS de participação) |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
