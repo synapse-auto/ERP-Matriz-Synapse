@@ -181,6 +181,8 @@ Coleta: `POST /api/v1/atendimentos/{id}/avaliacao` (JWT, visibilidade RLS) e `PO
 
 Uma pessoa autenticada mantém no máximo uma reação por mensagem. `PUT` define ou substitui; repetir o mesmo emoji é idempotente e não duplica linha. `DELETE` remove a própria reação e também é idempotente. O DTO aceita só um grapheme Unicode (ZWJ, tom de pele, variation selector); texto comum, concatenação e payload grande viram 400 (RFC 7807) sem gravar. O resumo na listagem é `{emoji, quantidade, reagi}` agregado em **um** `IN` por página — proibido N+1. Identidade de quem reagiu não é exposta. Autorização: a mesma visibilidade do atendimento (RN-CRM-01, 404) e participação no chat interno (403, inclusive gestor de fora). Tabelas separadas com FK real: `mensagem_reacao` usa a chave composta da partição; `chat_interno_mensagem_reacao` aponta para `chat_interno_mensagem`.
 
+O seletor amplo usa `emoji-mart` 5.6 + `@emoji-mart/data` + `@emoji-mart/react` (MIT), com dados empacotados no bundle e `set="native"` — sem sprite/CDN. O wrapper declara peer React 16–18; a instância usa `overrides` para o React 19 do Next 16. A aparência segue o conjunto Unicode do sistema operacional (Apple no iOS, Segoe/Noto nas demais); o CRM não serve assets da Apple nem do WhatsApp.
+
 ## Parte D — WebSocket (tempo real)
 
 ### ADR — Inbox unificada (E62)

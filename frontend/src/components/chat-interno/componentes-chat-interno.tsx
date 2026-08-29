@@ -12,6 +12,7 @@ import { PlayerAudio } from "@/components/atendimentos/player-audio";
 
 import type { Textos } from "@/lib/config/schema";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
+import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,8 +48,22 @@ export function CabecalhoChatInterno({ conversa, textos }: { conversa?: ChatConv
   );
 }
 
-export function ListaMensagensChatInterno({ mensagens, usuarioAtual, textos }: { mensagens: ChatMensagem[]; usuarioAtual: string | null; textos: TextosChat }) {
-  const textosAtendimentos = useTextos().atendimentos.media;
+export function ListaMensagensChatInterno({
+  mensagens,
+  usuarioAtual,
+  textos,
+  onDefinirReacao,
+  onRemoverReacao,
+}: {
+  mensagens: ChatMensagem[];
+  usuarioAtual: string | null;
+  textos: TextosChat;
+  onDefinirReacao: (mensagem: ChatMensagem, emoji: string) => Promise<void>;
+  onRemoverReacao: (mensagem: ChatMensagem) => Promise<void>;
+}) {
+  const catalogoAtendimentos = useTextos().atendimentos;
+  const textosAtendimentos = catalogoAtendimentos.media;
+  const acoes = catalogoAtendimentos.mensagem.acoes;
   if (!mensagens.length) return <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.semMensagens}</p>;
   return (
     <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-5">
@@ -56,10 +71,23 @@ export function ListaMensagensChatInterno({ mensagens, usuarioAtual, textos }: {
         const propria = mensagem.remetenteId === usuarioAtual;
         const tipo = mensagem.tipo ?? "TEXTO";
         const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
-        const metadados = typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {});
+        const metadados = (typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados as string); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {})) as { legenda?: string; nome?: string; tamanho?: number };
+        const textoCopiavel = mensagem.conteudo?.trim()
+          ? mensagem.conteudo
+          : typeof metadados.legenda === "string" && metadados.legenda.trim()
+            ? metadados.legenda
+            : null;
 
         return (
-          <div key={mensagem.id} className={cn("flex", propria ? "justify-end" : "justify-start")}>
+          <InteracaoMensagem
+            key={mensagem.id}
+            alinhadaADireita={propria}
+            textoCopiavel={textoCopiavel}
+            reacoes={mensagem.reacoes ?? []}
+            textos={acoes}
+            onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+            onRemoverReacao={() => onRemoverReacao(mensagem)}
+          >
             <div className={cn("max-w-[75%] rounded-xl px-3 py-2 text-sm font-normal shadow-sm", propria ? "bg-primary text-primary-foreground" : "bg-background text-foreground")}>
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
 
@@ -105,7 +133,7 @@ export function ListaMensagensChatInterno({ mensagens, usuarioAtual, textos }: {
                 {new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </time>
             </div>
-          </div>
+          </InteracaoMensagem>
         );
       })}
     </div>

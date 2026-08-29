@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
@@ -16,9 +17,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
+        acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher emoji", seletorFechar: "Fechar", reacaoErro: "erro reação", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "Custom", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } },
       },
     },
   }),
+}));
+
+vi.mock("@/components/mensagens/interacao-mensagem", () => ({
+  InteracaoMensagem: ({ children }: { children: ReactNode }) => children,
 }));
 
 import { BolhaMensagem } from "./bolha-mensagem";
@@ -51,6 +57,8 @@ describe("BolhaMensagem", () => {
           conteudo: "Preciso de um orçamento.",
         })}
         nomeDoRemetente="Nome que não deve aparecer"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
       />,
     );
 
@@ -62,7 +70,7 @@ describe("BolhaMensagem", () => {
 
   it("mostra o nome conhecido do atendente dentro da bolha enviada", () => {
     render(
-      <BolhaMensagem mensagem={mensagem({})} nomeDoRemetente="Jardel Lima" />,
+      <BolhaMensagem mensagem={mensagem({})} nomeDoRemetente="Jardel Lima" onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />,
     );
 
     expect(screen.getByText("Jardel Lima")).toBeInTheDocument();
@@ -82,6 +90,8 @@ describe("BolhaMensagem", () => {
           }),
         })}
         nomeDoRemetente="Jardel Lima"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
       />,
     );
 
@@ -103,6 +113,8 @@ describe("BolhaMensagem", () => {
             legenda: "Foto da medida da suíte",
           }),
         })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
       />,
     );
 
@@ -120,6 +132,8 @@ describe("BolhaMensagem", () => {
           conteudo: "Escolha uma opção",
           opcoes: JSON.stringify([{ id: "sim", titulo: "Sim", descricao: "Confirmar" }]),
         })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
       />,
     );
 
@@ -137,6 +151,8 @@ describe("BolhaMensagem", () => {
           midiaUrl: "https://example.test/voz.m4a",
         })}
         nomeDoRemetente="Jardel Lima"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
       />,
     );
 

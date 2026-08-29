@@ -14,8 +14,8 @@ import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { atualizarReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
-import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
+import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
+import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -234,6 +234,22 @@ export function PaginaAtendimentosCliente({
     });
   }
 
+  const historicoId = conversa?.atendimentoId ?? null;
+
+  async function definirReacaoDaMensagem(mensagem: MensagemResposta, emoji: string) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await definirReacao(atendimentoId, mensagem.id, mensagem.enviadoEm, emoji);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
+  async function removerReacaoDaMensagem(mensagem: MensagemResposta) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await removerReacao(atendimentoId, mensagem.id, mensagem.enviadoEm);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
   const colunasDoPainel = telaEstreita
     ? "grid-cols-1"
     : conversa && painelVisivel
@@ -360,6 +376,8 @@ export function PaginaAtendimentosCliente({
               mensagens={mensagensQuery.data}
               carregando={mensagensQuery.isLoading}
               onReenviar={reenviar}
+              onDefinirReacao={definirReacaoDaMensagem}
+              onRemoverReacao={removerReacaoDaMensagem}
               temMais={mensagensQuery.hasNextPage}
               carregandoMais={mensagensQuery.isFetchingNextPage}
               onCarregarMais={() => void mensagensQuery.fetchNextPage()}

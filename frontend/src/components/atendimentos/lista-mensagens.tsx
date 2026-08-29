@@ -17,6 +17,8 @@ type Props = {
   mensagens: MensagemResposta[];
   carregando: boolean;
   onReenviar: (mensagem: MensagemResposta) => void;
+  onDefinirReacao: (mensagem: MensagemResposta, emoji: string) => Promise<void>;
+  onRemoverReacao: (mensagem: MensagemResposta) => Promise<void>;
   temMais: boolean;
   carregandoMais: boolean;
   onCarregarMais: () => void;
@@ -34,6 +36,8 @@ export function ListaMensagens({
   mensagens,
   carregando,
   onReenviar,
+  onDefinirReacao,
+  onRemoverReacao,
   temMais,
   carregandoMais,
   onCarregarMais,
@@ -178,6 +182,8 @@ export function ListaMensagens({
                           ? () => onReenviar(mensagem)
                           : undefined
                       }
+                      onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+                      onRemoverReacao={() => onRemoverReacao(mensagem)}
                     />
                   </div>
                 );

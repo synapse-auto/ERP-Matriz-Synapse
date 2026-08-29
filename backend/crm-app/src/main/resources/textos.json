@@ -345,7 +345,50 @@
       },
       "reenviar": "Reenviar",
       "carregarAnteriores": "Carregar mensagens anteriores",
-      "carregandoAnteriores": "Carregando mensagens..."
+      "carregandoAnteriores": "Carregando mensagens...",
+      "acoes": {
+        "abrir": "Ações da mensagem",
+        "titulo": "Ações da mensagem",
+        "copiar": "Copiar",
+        "copiada": "Mensagem copiada.",
+        "copiarErro": "Não foi possível copiar a mensagem.",
+        "reagir": "Reagir com {emoji}",
+        "reacaoQuantidade": "{emoji}, {quantidade}",
+        "reacaoMinha": "{emoji}, {quantidade}, sua reação",
+        "maisEmojis": "Mais emojis",
+        "seletorTitulo": "Escolher emoji",
+        "seletorFechar": "Fechar seletor de emojis",
+        "reacaoErro": "Não foi possível salvar a reação.",
+        "rapidas": ["👍", "❤️", "😂", "😮", "😢", "🙏"],
+        "seletor": {
+          "search": "Buscar emoji",
+          "searchNoResults": "Nenhum emoji encontrado",
+          "pick": "Escolha um emoji",
+          "addCustom": "Adicionar emoji personalizado",
+          "categories": {
+            "activity": "Atividades",
+            "custom": "Personalizados",
+            "flags": "Bandeiras",
+            "foods": "Comidas e bebidas",
+            "frequent": "Recentes",
+            "nature": "Animais e natureza",
+            "objects": "Objetos",
+            "people": "Pessoas",
+            "places": "Viagens e lugares",
+            "search": "Resultados da busca",
+            "symbols": "Símbolos"
+          },
+          "skins": {
+            "choose": "Escolher tom de pele",
+            "1": "Padrão",
+            "2": "Clara",
+            "3": "Clara média",
+            "4": "Média",
+            "5": "Escura média",
+            "6": "Escura"
+          }
+        }
+      }
     },
     "composer": {
       "placeholder": "Digite uma mensagem...",

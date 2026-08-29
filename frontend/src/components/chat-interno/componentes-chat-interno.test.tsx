@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+
 import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
@@ -34,6 +38,15 @@ const mockTextosCompletos = {
       audioExcedeuLimite: "A",
     },
     media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "A" },
+    mensagem: {
+      acoes: {
+        abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro",
+        reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação",
+        maisEmojis: "Mais emojis", seletorTitulo: "Escolher", seletorFechar: "Fechar", reacaoErro: "erro",
+        rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
+        seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "C", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } },
+      },
+    },
   },
 } as unknown as Textos;
 
@@ -56,7 +69,7 @@ describe("componentes de apresentação do chat interno", () => {
   });
 
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
-    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} /></TextosProvider>);
+    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
     const linhas = container.firstElementChild?.children;
     expect(linhas?.[0]).toHaveClass("justify-end");
     expect(linhas?.[1]).toHaveClass("justify-start");
@@ -77,7 +90,7 @@ describe("componentes de apresentação do chat interno", () => {
     }];
     render(
       <TextosProvider textos={mockTextosCompletos}>
-        <ListaMensagensChatInterno mensagens={comAudio} usuarioAtual="u1" textos={textos} />
+        <ListaMensagensChatInterno mensagens={comAudio} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
       </TextosProvider>,
     );
     expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
