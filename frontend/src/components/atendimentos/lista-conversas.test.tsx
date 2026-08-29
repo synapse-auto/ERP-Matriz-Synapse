@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
@@ -107,7 +107,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       },
       novoContato: { botao: "Novo atendimento" },
     },
-    chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
+    chatInterno: {
+      titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa",
+      selecionarPessoaDescricao: "Escolha uma pessoa", buscarPessoa: "Buscar por nome...",
+      fecharSeletor: "Fechar", online: "Online", ausente: "Ausente", offline: "Offline",
+      semPessoas: "Nenhuma pessoa", erroContatos: "Erro ao carregar", erroAbrirConversa: "Erro ao abrir",
+      tentarNovamente: "Tentar novamente", carregando: "Carregando...",
+    },
   }),
 }));
 
@@ -176,13 +182,13 @@ describe("ListaConversas", () => {
     expect(abrir).toHaveBeenCalledWith(cartoes[2]);
   });
 
-  it("abre a nova conversa com clique completo e mantém o formulário após pointerup", async () => {
+  it("abre o seletor de equipe com o ícone de usuários e mantém o diálogo após pointerup", () => {
     render(
       <ListaConversas
         selecionadoId={null}
         onAbrirAtendimento={vi.fn()}
         chatInternoHabilitado
-        contatosInternos={[{ id: "usuario-2", nome: "Bruno Almeida" }]}
+        contatosInternos={[{ id: "usuario-2", nome: "Bruno Almeida", presenca: "ONLINE" }]}
       />,
     );
 
@@ -191,35 +197,34 @@ describe("ListaConversas", () => {
     fireEvent.pointerDown(botaoNova);
     fireEvent.pointerUp(botaoNova);
     fireEvent.click(botaoNova);
-    expect(screen.getByRole("combobox", { name: "Selecionar pessoa" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Nova conversa" })).toHaveLength(2);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Buscar por nome..." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bruno Almeida, Online" })).toBeInTheDocument();
+    expect(botaoNova.querySelector(".lucide-users-round")).toBeInTheDocument();
+    expect(botaoNova.querySelector(".lucide-plus")).not.toBeInTheDocument();
   });
 
-  it("habilita e dispara a criação uma vez, limpando a seleção ao fechar", () => {
+  it("abre a conversa ao selecionar uma pessoa e fecha somente após sucesso", async () => {
     const criar = vi.fn();
     render(
       <ListaConversas
         selecionadoId={null}
         onAbrirAtendimento={vi.fn()}
         chatInternoHabilitado
-        contatosInternos={[{ id: "usuario-2", nome: "Bruno Almeida" }]}
+        contatosInternos={[{ id: "usuario-2", nome: "Bruno Almeida", presenca: "ONLINE" }]}
         onCriarConversaInterna={criar}
       />,
     );
 
     const botaoNova = screen.getByRole("button", { name: "Nova conversa" });
     fireEvent.click(botaoNova);
-    const botaoCriar = screen.getAllByRole("button", { name: "Nova conversa" })[1];
-    expect(botaoCriar).toBeDisabled();
-    fireEvent.click(screen.getByRole("combobox", { name: "Selecionar pessoa" }));
-    fireEvent.click(screen.getByRole("option", { name: "Bruno Almeida" }));
-    expect(botaoCriar).toBeEnabled();
-    fireEvent.click(botaoCriar);
+    fireEvent.click(screen.getByRole("button", { name: "Bruno Almeida, Online" }));
     expect(criar).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("combobox", { name: "Selecionar pessoa" })).not.toBeInTheDocument();
+    expect(criar).toHaveBeenCalledWith("usuario-2");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     fireEvent.click(botaoNova);
-    expect(screen.getByRole("combobox", { name: "Selecionar pessoa" })).toHaveTextContent("Selecionar pessoa");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("não renderiza controles quando o chat interno está desligado e preserva abertura em rerender", () => {
@@ -227,13 +232,13 @@ describe("ListaConversas", () => {
       <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Nova conversa" }));
-    expect(screen.getByRole("combobox", { name: "Selecionar pessoa" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />);
-    expect(screen.getByRole("combobox", { name: "Selecionar pessoa" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Nova conversa" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Selecionar pessoa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo atendimento" })).toBeInTheDocument();
   });
 
