@@ -8,10 +8,15 @@ import type {
   LeadFicha,
   PaginaTimeline,
   TagDoLead,
+  MidiaDoLead,
 } from "./types";
 
 export function obterLead(id: string): Promise<LeadFicha> {
   return apiFetch<LeadFicha>(`/api/v1/leads/${id}`);
+}
+
+export function listarMidiasDoLead(id: string, pagina = 0, tamanho = 20): Promise<MidiaDoLead[]> {
+  return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
 }
 
 export function atualizarLead(id: string, dados: AtualizacaoLead): Promise<LeadFicha> {

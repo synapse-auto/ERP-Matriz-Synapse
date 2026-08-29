@@ -273,7 +273,8 @@
     "cartao": {
       "semAtendente": "Sem atendente",
       "vazio": "Nenhuma conversa nesta visão.",
-      "naoLidas": "{quantidade} mensagens não lidas"
+      "naoLidas": "{quantidade} mensagens não lidas",
+      "atendidoPelaIa": "Atendido pela IA"
     },
     "cabecalho": {
       "atendidoPor": "Atendido por",
@@ -418,10 +419,17 @@
       "secoes": {
         "resumo": "Resumo por IA e notas",
         "programadas": "Mensagens programadas",
-        "lembretes": "Lembretes"
+        "lembretes": "Lembretes",
+        "midias": "Mídias e documentos"
       },
       "vazioProgramadas": "Nenhuma mensagem programada",
-      "vazioLembretes": "Nenhum lembrete"
+      "vazioLembretes": "Nenhum lembrete",
+      "vazioMidias": "Nenhuma mídia ou documento",
+      "erroMidias": "Não foi possível carregar as mídias.",
+      "carregandoMidias": "Carregando mídias...",
+      "carregarMaisMidias": "Carregar mais",
+      "salvarImagem": "Salvar imagem",
+      "origemMidia": "Origem"
     }
   },
   "painelLead": {
@@ -598,6 +606,7 @@
     "editar": "Editar",
     "remover": "Remover",
     "dica": "Digite a palavra-chave (ex.: /orcamento) no composer da aba Atendimentos para inserir a mensagem automaticamente.",
+    "variaveisPendentes": "Variáveis sem valor: {variaveis}. Remova ou preencha antes de enviar.",
     "formulario": {
       "criarTitulo": "Criar mensagem rápida",
       "editarTitulo": "Editar mensagem rápida",

@@ -199,7 +199,7 @@ export function ListaConversas({
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
@@ -223,6 +223,7 @@ export function ListaConversas({
               type="button"
               variant="outline"
               size="icon-sm"
+              className="min-h-10 min-w-10"
               aria-label={textos.novoContato.botao}
               onClick={onNovoContato}
             >
@@ -234,6 +235,7 @@ export function ListaConversas({
                   type="button"
                   variant="outline"
                   size="icon-sm"
+                  className="min-h-10 min-w-10"
                   aria-label={catalogo.chatInterno.novaConversa}
                   aria-expanded={novaInternaAberta}
                   onClick={() => {
@@ -254,6 +256,7 @@ export function ListaConversas({
                     type="button"
                     variant="outline"
                     size="icon-sm"
+                    className="min-h-10 min-w-10"
                     aria-label={catalogo.chatInterno.novaConversa}
                     disabled={!(contatoInternoSelecionado || contatoSelecionado)}
                     onClick={() => {
@@ -268,7 +271,7 @@ export function ListaConversas({
                 </>}
               </div>
             )}
-            <Button type="button" variant="outline" size="icon-sm" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
+            <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
               <SlidersHorizontal className="size-4" aria-hidden />
             </Button>
           </div>
@@ -296,7 +299,7 @@ export function ListaConversas({
             <TabsTrigger
               key={item}
               value={item}
-              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3.5 py-2 text-[0.8125rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
+              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
             >
               {textos.visoes[ROTULO_VISAO[item]]}
               {contagens && (

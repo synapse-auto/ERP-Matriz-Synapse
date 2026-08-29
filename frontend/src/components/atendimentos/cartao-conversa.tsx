@@ -156,6 +156,11 @@ export function CartaoConversa({
               {cartao.etapaNome}
             </span>
           )}
+          {cartao.status === "EM_IA" && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
+              {textos.cartao.atendidoPelaIa}
+            </span>
+          )}
           {cartao.atendenteNome && (
             <span className="ml-auto truncate text-[0.65rem] text-muted-foreground">
               {cartao.atendenteNome}
