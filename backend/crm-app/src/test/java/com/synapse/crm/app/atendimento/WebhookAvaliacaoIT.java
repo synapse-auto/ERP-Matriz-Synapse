@@ -3,8 +3,14 @@ package com.synapse.crm.app.atendimento;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -43,6 +49,7 @@ import com.synapse.crm.atendimento.application.*;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.infrastructure.avaliacao.*;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
+import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -93,6 +100,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     @Autowired PublicadorDaOutbox mensagens;
     @Autowired CanalFake canal;
     @Autowired RegistrarMensagemRecebidaUseCase registrar;
+    @Autowired ProcessadorDeWebhookEntrada processador;
     @Autowired CircuitBreakerRegistry circuitos;
     @Autowired @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager manager;
     @Autowired @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDs;
@@ -128,10 +136,14 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void limpar() {
         SERVIDOR.liberar.countDown();
         aguardarWorkers();
-        reset(outbox, atendimentos, config);
+        reset(outbox, atendimentos, config, leadsPorta);
+        jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE ?", PREFIXO + "%");
+        jdbc.update("DELETE FROM mensagem_recebida_idempotencia WHERE wamid LIKE ?", PREFIXO + "%");
         for (UUID id : leads) {
             jdbc.update("DELETE FROM outbox_evento WHERE payload->>'lead_id' = ? OR payload->>'leadId' = ?",
                     id.toString(), id.toString());
+            jdbc.update("DELETE FROM comando_automacao_idempotencia WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", id);
+            jdbc.update("DELETE FROM mensagem_automacao_idempotencia WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", id);
             jdbc.update("DELETE FROM mensagem WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", id);
             jdbc.update("DELETE FROM atendimento WHERE lead_id = ?", id);
             jdbc.update("DELETE FROM lead WHERE id = ?", id);
@@ -588,50 +600,276 @@ class WebhookAvaliacaoIT extends PostgresIT {
 
     @Test
     void recebimentoPausadoAntesDoContador_eFinalizacaoNaoEntramEmDeadlock() throws Exception {
-        UUID id = criar(ana, "5561988883002");
-        UUID lead = leads.getFirst();
-        var recebimentoEntrou = new CountDownLatch(1);
-        var liberarRecebimento = new CountDownLatch(1);
-        var finalizacaoTravouNoLead = new CountDownLatch(1);
-        var liberarFinalizacao = new CountDownLatch(1);
-        doAnswer(inv -> {
-            recebimentoEntrou.countDown();
-            assertThat(liberarRecebimento.await(5, TimeUnit.SECONDS)).isTrue();
-            return inv.callRealMethod();
-        }).when(leadsPorta).registrarInteracao(eq(lead), any(), eq(0), eq(1));
-        doAnswer(inv -> {
-            Object resultado = inv.callRealMethod();
-            finalizacaoTravouNoLead.countDown();
-            assertThat(liberarFinalizacao.await(5, TimeUnit.SECONDS)).isTrue();
-            return resultado;
-        }).when(leadsPorta).bloquearParaAtendimento(lead);
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var recebimento = executor.submit(() -> servico(() ->
-                    registrarRecebida(lead)));
-            assertThat(recebimentoEntrou.await(5, TimeUnit.SECONDS)).isTrue();
-            var finalizacao = executor.submit(() -> finalizar(id, tokenGestor));
-            assertThat(finalizacaoTravouNoLead.await(5, TimeUnit.SECONDS)).isTrue();
-            // O recebimento ja tem a FK KEY SHARE no atendimento; liberar os dois pontos
-            // força exatamente a disputa real, sem sleeps nem repeticao cega.
-            liberarRecebimento.countDown();
-            liberarFinalizacao.countDown();
-            assertThat(finalizacao.get(10, TimeUnit.SECONDS).getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(recebimento.get(10, TimeUnit.SECONDS)).isNotNull();
-        } finally {
-            liberarRecebimento.countDown();
-            liberarFinalizacao.countDown();
-        }
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Integer.class, id))
+        String telefone = "5561988884101";
+        UUID id = criar(ana, telefone);
+        UUID lead = leads.getLast();
+        int mensagensAntes = contador(lead, "num_mensagens");
+        String wamid = PREFIXO + "rx-" + id;
+        postarWebhookRecebido(wamid, telefone, "mensagem recebida durante finalizacao");
+        executarDisputaDeterministica(
+                lead,
+                () -> {
+                    processador.processarPendentes();
+                    return null;
+                },
+                () -> finalizar(id, tokenGestor),
+                (ignorado, finalizacao) ->
+                        assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK));
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+        assertThat(status(id)).isEqualTo("FINALIZADO");
+        assertThat(dono(id)).isEqualTo(ana);
+        assertThat(total(id)).isEqualTo(1);
+        assertThat(contador(lead, "num_mensagens")).isEqualTo(mensagensAntes + 1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT processado_em IS NOT NULL FROM webhook_entrada WHERE id_externo = ?",
+                        Boolean.class,
+                        wamid))
+                .isTrue();
+        assertThat(jdbc.queryForObject(
+                        "SELECT tentativas FROM webhook_entrada WHERE id_externo = ?", Integer.class, wamid))
+                .isZero();
+        publicador.publicarPendentes();
+        aguardarWorkers();
+        assertThat(SERVIDOR.recebidas).hasSize(1);
+    }
+
+    @Test
+    void recebimentoAposFinalizacaoConfirmada_abreOutroAtendimentoSemMudarSnapshot() {
+        String telefone = "5561988884102";
+        UUID id = criar(ana, telefone);
+        UUID lead = leads.getLast();
+        assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+        Object snapshot = linha(id).get("payload");
+        String wamid = PREFIXO + "rx-depois-" + id;
+        postarWebhookRecebido(wamid, telefone, "nova conversa apos encerramento");
+        processador.processarPendentes();
+        assertThat(status(id)).isEqualTo("FINALIZADO");
+        assertThat(dono(id)).isEqualTo(ana);
+        assertThat(linha(id).get("payload").toString()).isEqualTo(snapshot.toString());
+        assertThat(total(id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM atendimento WHERE lead_id = ? AND status <> 'FINALIZADO'",
+                        Integer.class,
+                        lead))
                 .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Integer.class, id))
+                .isZero();
+    }
+
+    @Test
+    void respostaDaAutomacaoConcorrenteComFinalizacao_naoDeadlockNemDuplica() throws Exception {
+        UUID id = criar(null, "5561988884103");
+        UUID lead = leads.getLast();
+        executarDisputaDeterministica(
+                lead,
+                () -> postInterno("/internal/v1/atendimentos/" + id + "/responder", PREFIXO + "ia-" + id,
+                        Map.of("conteudo", "resposta da IA durante encerramento")),
+                () -> finalizar(id, tokenGestor),
+                (resposta, finalizacao) -> {
+                    assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+                });
+        assertThat(status(id)).isEqualTo("FINALIZADO");
+        assertThat(total(id)).isZero();
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar' AND payload->>'atendimentoId' = ?",
+                        Integer.class,
+                        id.toString()))
+                .isEqualTo(1);
+        assertThat(postInterno("/internal/v1/atendimentos/" + id + "/responder", PREFIXO + "ia-depois-" + id,
+                Map.of("conteudo", "depois do fechamento")).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+    }
+
+    @Test
+    void registroDeMensagemJaEnviadaConcorrenteComFinalizacao_preservaIdempotencia() throws Exception {
+        UUID id = criar(ana, "5561988884104");
+        UUID lead = leads.getLast();
+        String wamid = PREFIXO + "wamid-" + id;
+        executarDisputaDeterministica(
+                lead,
+                () -> postInterno("/internal/v1/atendimentos/" + id + "/mensagens-enviadas", null,
+                        Map.of("wamid", wamid, "tipo", "TEXTO", "conteudo", "ja enviada pela IA")),
+                () -> finalizar(id, tokenGestor),
+                (registro, finalizacao) -> {
+                    assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(registro.getStatusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(registro.getBody()).contains("\"idempotente\":false");
+                });
+        assertThat(status(id)).isEqualTo("FINALIZADO");
+        assertThat(total(id)).isEqualTo(1);
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+        var repeticao = postInterno("/internal/v1/atendimentos/" + id + "/mensagens-enviadas", null,
+                Map.of("wamid", wamid, "tipo", "TEXTO", "conteudo", "ja enviada pela IA"));
+        assertThat(repeticao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(repeticao.getBody()).contains("\"idempotente\":true");
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem_automacao_idempotencia WHERE wamid = ?",
+                        Integer.class,
+                        wamid))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar' AND payload->>'atendimentoId' = ?",
+                        Integer.class,
+                        id.toString()))
+                .isZero();
+    }
+
+    @Test
+    void transferenciaConcorrenteComRecebimento_semCicloNemAvaliacao() throws Exception {
+        String telefone = "5561988884105";
+        UUID id = criar(ana, telefone);
+        UUID lead = leads.getLast();
+        int mensagensAntes = contador(lead, "num_mensagens");
+        String wamid = PREFIXO + "rx-tr-" + id;
+        postarWebhookRecebido(wamid, telefone, "mensagem durante transferencia");
+        executarDisputaDeterministica(
+                lead,
+                () -> {
+                    processador.processarPendentes();
+                    return null;
+                },
+                () -> post("/api/v1/atendimentos/" + id + "/transferir", tokenGestor,
+                        Map.of("paraAtendenteId", bruno.toString())),
+                (ignorado, transferencia) ->
+                        assertThat(transferencia.getStatusCode()).isEqualTo(HttpStatus.OK));
+        assertThat(status(id)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(dono(id)).isEqualTo(bruno);
+        assertThat(total(id)).isZero();
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
+        assertThat(contador(lead, "num_mensagens")).isEqualTo(mensagensAntes + 1);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo LIKE '%TRANSFERIDO%'",
+                        Integer.class, id)).isEqualTo(1));
+        publicador.publicarPendentes();
+        aguardarWorkers();
+        assertThat(SERVIDOR.recebidas).isEmpty();
+    }
+
+    @Test
+    void loteConcorrenteComRecebimento_semDeadlockNemPesquisa() throws Exception {
+        String telefone = "5561988884106";
+        UUID aberto = criar(ana, telefone);
+        UUID leadAberto = leads.getLast();
+        UUID jaFechado = criar(ana, "5561988884107");
+        jdbc.update("UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = now() WHERE id = ?", jaFechado);
+        var abertoAntes = servico(() -> atendimentos.porId(aberto).orElseThrow());
+        var fechadoAntes = servico(() -> atendimentos.porId(jaFechado).orElseThrow());
+        doReturn(List.of(abertoAntes, fechadoAntes)).when(atendimentos).abertosVisiveis();
+        String wamid = PREFIXO + "rx-lote-" + aberto;
+        postarWebhookRecebido(wamid, telefone, "mensagem durante lote");
+        executarDisputaDeterministica(
+                leadAberto,
+                () -> {
+                    processador.processarPendentes();
+                    return null;
+                },
+                () -> post("/api/v1/atendimentos/finalizar-lote", tokenAna, null),
+                (ignorado, lote) -> {
+                    assertThat(lote.getStatusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(lote.getBody()).contains("\"recusados\":1", "\"finalizados\":1");
+                });
+        assertThat(status(aberto)).isEqualTo("FINALIZADO");
+        assertThat(total(aberto)).isZero();
+        assertThat(total(jaFechado)).isZero();
+        assertThat(quantidadeDeMensagens(aberto)).isEqualTo(1);
+        publicador.publicarPendentes();
+        aguardarWorkers();
+        assertThat(SERVIDOR.recebidas).isEmpty();
+    }
+
+    @Test
+    void isolamentoTransacional_recebimentoPausaAntesDoLeadEFinalizacaoHttp() throws Exception {
+        UUID id = criar(ana, "5561988884108");
+        UUID lead = leads.getLast();
+        executarDisputaDeterministica(
+                lead,
+                () -> ContextoDeServico.buscarComo("teste-recebimento-concorrente", () ->
+                        registrar.executar(new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                                lead, null, null, "isolamento transacional"))),
+                () -> finalizar(id, tokenGestor),
+                (resultado, finalizacao) -> {
+                    assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+                    assertThat(resultado).isNotNull();
+                });
+        assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(total(id)).isEqualTo(1);
     }
 
-    Object registrarRecebida(UUID lead) {
-        return ContextoDeServico.buscarComo("teste-recebimento-concorrente", () ->
-                new TransactionTemplate(manager).execute(tx -> registrar.executar(
-                        new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
-                                lead, null, null, "mensagem recebida durante finalizacao"))));
+    <M, A> void executarDisputaDeterministica(
+            UUID lead,
+            Callable<M> caminhoDaMensagem,
+            Callable<A> caminhoDaAlteracao,
+            java.util.function.BiConsumer<M, A> assercoes) throws Exception {
+        var mensagemPausou = new CountDownLatch(1);
+        var liberarMensagem = new CountDownLatch(1);
+        var alteracaoTravouLead = new CountDownLatch(1);
+        var liberarAlteracao = new CountDownLatch(1);
+        doAnswer(inv -> {
+            mensagemPausou.countDown();
+            assertThat(liberarMensagem.await(8, TimeUnit.SECONDS)).isTrue();
+            return inv.callRealMethod();
+        }).when(leadsPorta).registrarInteracao(eq(lead), any(), anyInt(), anyInt());
+        doAnswer(inv -> {
+            Object resultado = inv.callRealMethod();
+            alteracaoTravouLead.countDown();
+            assertThat(liberarAlteracao.await(8, TimeUnit.SECONDS)).isTrue();
+            return resultado;
+        }).when(leadsPorta).bloquearParaAtendimento(lead);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var futuraMensagem = executor.submit(caminhoDaMensagem);
+            assertThat(mensagemPausou.await(8, TimeUnit.SECONDS)).isTrue();
+            var futuraAlteracao = executor.submit(caminhoDaAlteracao);
+            assertThat(alteracaoTravouLead.await(8, TimeUnit.SECONDS)).isTrue();
+            // A mensagem ja inseriu (KEY SHARE no atendimento desta fixture) e a
+            // alteracao ja obteve FOR UPDATE neste lead. Liberar os dois forca o ciclo.
+            liberarMensagem.countDown();
+            liberarAlteracao.countDown();
+            M resultadoMensagem = futuraMensagem.get(10, TimeUnit.SECONDS);
+            A resultadoAlteracao = futuraAlteracao.get(10, TimeUnit.SECONDS);
+            assercoes.accept(resultadoMensagem, resultadoAlteracao);
+        } finally {
+            liberarMensagem.countDown();
+            liberarAlteracao.countDown();
+            reset(leadsPorta);
+        }
+    }
+
+    void postarWebhookRecebido(String idExterno, String telefone, String texto) {
+        String payload = "{\"id\":\"" + idExterno + "\",\"de\":\"" + telefone
+                + "\",\"nome\":\"Cliente\",\"texto\":\"" + texto + "\"}";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Hub-Signature-256", CanalFake.ASSINATURA_VALIDA);
+        assertThat(http.postForEntity("/webhook/canal", new HttpEntity<>(payload, headers), String.class)
+                .getStatusCode()
+                .is2xxSuccessful())
+                .isTrue();
+    }
+
+    ResponseEntity<String> postInterno(String url, String chave, Object corpo) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Synapse-Token", "avaliacao-interno-fixture");
+        if (chave != null) {
+            headers.set("Idempotency-Key", chave);
+        }
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return http.exchange(url, HttpMethod.POST, new HttpEntity<>(corpo, headers), String.class);
+    }
+
+    int quantidadeDeMensagens(UUID atendimentoId) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Integer.class, atendimentoId);
+    }
+
+    int contador(UUID leadId, String coluna) {
+        return jdbc.queryForObject("SELECT " + coluna + " FROM lead WHERE id = ?", Integer.class, leadId);
     }
 
     List<OutboxDeAvaliacao.Reserva> reservar() {

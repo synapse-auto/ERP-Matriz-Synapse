@@ -71,11 +71,17 @@ Não usar NEXT_PUBLIC, catálogo, banco ou logs para guardar o segredo.
 
 ## Atomicidade, concorrência e entrega
 
-- Finalização e transferência travam primeiro o lead, depois o atendimento, compatível
-  com o envio manual. A leitura de alteração usa `FOR NO KEY UPDATE`: escritores do
-  agregado continuam serializados, enquanto a chave compartilhada que a FK de mensagem
-  mantém durante um INSERT pode coexistir. O estado é relido após o lock sob a RLS existente;
-  o upsert ainda impede qualquer cópia antiga de reabrir atendimento finalizado.
+- Finalização e transferência travam primeiro o lead (`FOR UPDATE`), depois o
+  atendimento com `FOR NO KEY UPDATE`. Essa ordem é a do envio manual. O modo
+  no atendimento serializa escritores do agregado (status, atendente_id,
+  finalizado_em — nenhuma é a PK referenciada) e coexiste com o `KEY SHARE` que
+  o INSERT de `mensagem` (e as FKs de idempotência da automação) mantém enquanto
+  a transação da mensagem ainda não deu commit. `FOR UPDATE` no atendimento
+  fechava ciclo com o `UPDATE` posterior do lead: a IT
+  `recebimentoPausadoAntesDoContador_eFinalizacaoNaoEntramEmDeadlock` reproduziu
+  `40P01` nesse interleaving, com schema/RLS reais do CRM. O diagnóstico JDBC
+  anterior em schema reduzido só ilustrava o ciclo; não substitui essa IT.
+  O upsert em `salvar` continua recusando cópia antiga (`WHERE status <> 'FINALIZADO'`).
 - Atendimento finalizado não pode ser sobrescrito pelo upsert de uma cópia antiga.
   Enviar depois do encerramento abre outro atendimento; não muda o responsável da pesquisa antiga.
 - Finalização e intenção usam a mesma conexão/transação do chat. Erro de persistência

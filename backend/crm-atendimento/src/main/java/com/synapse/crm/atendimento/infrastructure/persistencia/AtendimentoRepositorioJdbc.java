@@ -99,9 +99,11 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     @Override
     public Optional<Atendimento> porIdParaAlteracao(UUID atendimentoId) {
         TransacaoObrigatoria.exigir("porIdParaAlteracao");
-        // NO KEY UPDATE serializa os escritores do agregado, mas coexiste com o KEY SHARE
-        // adquirido pela FK de mensagem durante o recebimento. O atendimento nao altera a
-        // chave referenciada; usar FOR UPDATE aqui criava ciclo com o UPDATE posterior do lead.
+        // FOR NO KEY UPDATE serializa escritores do agregado (status, atendente_id,
+        // finalizado_em) sem conflitar com o KEY SHARE da FK de mensagem — o INSERT
+        // so referencia atendimento.id, que esta leitura nao altera. O upsert em
+        // salvar continua recusando copia antiga via WHERE status <> 'FINALIZADO'.
+        // FOR UPDATE aqui formava ciclo com o UPDATE posterior do lead.
         return primeiro(chat.query(SQL_POR_ID + " FOR NO KEY UPDATE", MAPEADOR, atendimentoId));
     }
 

@@ -8,7 +8,8 @@ produto já decididas. Este relatório distingue testes locais de operação rea
 - Worktree exclusivo: `C:/Users/marcondes/Desktop/projeto_matriz-e83`.
 - Branch: `codex/e83-webhook-avaliacao`, criada da `origin/main` conferida após fetch.
 - Base e HEAD, antes/depois: `aed6f16d711ec39cc3cdfc62a93dc1653a435157`.
-- Estado inicial limpo; estado final: 27 arquivos da E83/E83b (12 modificados e 15 novos),
+- Estado inicial limpo; estado final da E83: 27 arquivos (12 modificados e 15 novos).
+  A correção de deadlock é a E83b, relatada à parte.
   sem staging. Nenhuma alteração de outro worktree foi incorporada ou descartada.
 - **Commit não criado; push, merge e deploy não realizados**, conforme restrição
   explícita do prompt. Portanto, esta implementação ainda não está no origin.
@@ -79,11 +80,10 @@ A docs/relatorio-E83-webhook-avaliacao.md
   `erroDepoisDeGravarIntencao_fazRollbackDaFinalizacaoEDaOutbox` injeta falha após INSERT.
   `colegaESemAutenticacao_naoMudamNadaNemEnfileiram` verifica HTTP negativo e a RLS no
   banco sob `synapse_app`, sem nova intenção ou HTTP externo.
-- ✅ **Deadlock E83b**: `recebimentoPausadoAntesDoContador_eFinalizacaoNaoEntramEmDeadlock`
-  pausa o recebimento real depois do INSERT de mensagem, aguarda a finalização obter o
-  lock do lead e então libera as duas transações. Resultado 28/28, sem 40P01, sem perda
-  ou duplicação, atendimento finalizado e uma intenção. O diagnóstico anterior em schema
-  reduzido observou 40P01 com `FOR UPDATE`; ele não é apresentado como execução de produção.
+- ⚠️ **Deadlock E83b**: a revisão encontrou ciclo `FOR UPDATE` × `KEY SHARE` da FK
+  de mensagem. A correção e a matriz de regressão estão em
+  [relatorio-E83b-deadlock-finalizacao-mensagens.md](relatorio-E83b-deadlock-finalizacao-mensagens.md).
+  Não tratar o diagnóstico JDBC em schema reduzido como execução de produção.
 - ✅ **Lease/retry**: ponto de entrada `publicarPendentes`, o próprio método `@Scheduled`,
   é chamado nos testes; agendamento global permanece desligado em `PostgresIT`.
   `leaseConcorrente_expiraRecuperaERecusaResultadosAntigos` força duas reservas,
@@ -115,8 +115,8 @@ A docs/relatorio-E83-webhook-avaliacao.md
   **412 testes**, zero falhas, erros, skips ou flakes. Spotless e ArchUnit incluídos.
   Evidência local em `backend/*/target/surefire-reports/TEST-*.xml` e
   `backend/crm-app/target/failsafe-reports/{TEST-*.xml,failsafe-summary.xml}`.
-- Nova suíte: `WebhookAvaliacaoIT` **28/28** (inclui a regressão determinística
-  recebimento × finalização); `AvaliacaoWebhookTest` **19/19**.
+- Nova suíte da E83: `WebhookAvaliacaoIT` **28/28** naquele reator; `AvaliacaoWebhookTest` **19/19**.
+  A matriz de deadlock e a expansão para 34 testes estão no relatório E83b.
 - Regressões verificadas no reator: `AvaliacaoAtendimentoIT` 6/6,
   `CanalWhatsAppIT` 19/19 (classes aninhadas), `RepasseWebhookAutomacaoIT` 2/2,
   `RepasseWebhookAutomacaoDesabilitadoIT` 1/1, `RlsIsolamentoIT` 11/11,
@@ -125,8 +125,7 @@ A docs/relatorio-E83-webhook-avaliacao.md
   fake e mensagem recebida mesmo com automação indisponível; não foi reescrito.
 - Antes do reator, seleção dirigida passou 44 testes (24 IT da primeira versão,
   19 unitários novos e 1 regressão de transferência). A versão final acrescentou
-  três casos de integração e asserções de sanitização ao reator completo; a E83b
-  acrescentou a regressão determinística de recebimento × finalização.
+  três casos de integração e asserções de sanitização ao reator completo.
 - A primeira execução dirigida revelou duas questões nas fixtures: telefone curto
   barrado pela constraint antes da ACL, e relógio controlado anterior ao INSERT da
   outbox legada. Corrigidas as fixtures; não houve redução de asserção nem aumento
@@ -190,10 +189,8 @@ A docs/relatorio-E83-webhook-avaliacao.md
   atendimento finalizado. Proteção de domínio sequencial não eliminava a corrida.
 - **Corrigido no carregamento de finalização/transferência:** falta de coordenação
   com a ordem de bloqueio do envio. Há testes das duas ordens transferência × finalização.
-- **Corrigido na E83b:** `FOR UPDATE` conflitava com o `KEY SHARE` da FK durante a
-  mensagem recebida, formando ciclo lead → atendimento → lead. `FOR NO KEY UPDATE`
-  mantém a serialização necessária do agregado e o teste determinístico reproduz o
-  ponto de entrada sob transações reais; não houve retry, sleep ou timeout ampliado.
+- **Aberto na revisão / corrigido na E83b:** `FOR UPDATE` no atendimento conflitava
+  com o `KEY SHARE` da FK durante mensagem recebida/automação. Ver relatório E83b.
 - **Fora do escopo:** outbox legada grava `Instant.now()` sem Clock injetado, enquanto
   o publisher usa Clock. Ficou evidente na fixture de envio simultâneo; o teste
   alinha o relógio após a escrita, sem esperar/reexecutar o publisher para mascarar.
