@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
 import { NavegacaoInferior } from "@/components/shell/navegacao-inferior";
 import { Sidebar } from "@/components/shell/sidebar";
 import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+
+import { estiloDaLarguraDaSidebar, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
@@ -18,12 +18,10 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 }
 
 function ShellInterno({ children }: { children: React.ReactNode }) {
-  const [sidebarFixada, setSidebarFixada] = useState(false);
-  const [sidebarTemporaria, setSidebarTemporaria] = useState(false);
+  const expansao = useExpansaoDaSidebar();
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
   const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
-  const expandida = sidebarFixada || sidebarTemporaria;
 
   return (
     <div
@@ -32,22 +30,20 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
     >
       {!telaEstreita && (
         <div
-          className={cn(
-            "relative h-full shrink-0 transition-[width] duration-200",
-            sidebarFixada ? "w-[260px]" : "w-[76px]",
-          )}
+          className="relative h-full shrink-0"
+          style={estiloDaLarguraDaSidebar(expansao.expandida)}
           data-slot="sidebar-slot"
-          data-fixada={sidebarFixada ? "true" : "false"}
+          data-fixada={expansao.fixada ? "true" : "false"}
+          data-expandida={expansao.expandida ? "true" : "false"}
         >
           <Sidebar
-            retraida={!expandida}
-            fixada={sidebarFixada}
-            sobreposta={!sidebarFixada}
-            onAlternar={() => setSidebarFixada((atual) => !atual)}
-            onPonteiroEntrar={() => setSidebarTemporaria(true)}
-            onPonteiroSair={() => setSidebarTemporaria(false)}
-            onFocoDentro={() => setSidebarTemporaria(true)}
-            onFocoFora={() => setSidebarTemporaria(false)}
+            retraida={!expansao.expandida}
+            fixada={expansao.fixada}
+            onAlternar={expansao.alternarFixacao}
+            onPonteiroEntrar={expansao.aoPonteiroEntrar}
+            onPonteiroSair={expansao.aoPonteiroSair}
+            onFocoDentro={expansao.aoFocoDentro}
+            onFocoFora={expansao.aoFocoFora}
           />
         </div>
       )}

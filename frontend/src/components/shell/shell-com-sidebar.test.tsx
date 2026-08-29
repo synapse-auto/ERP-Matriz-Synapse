@@ -1,7 +1,13 @@
 "use client";
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { EXPANSAO_DA_SIDEBAR } from "./expansao-da-sidebar";
 
 const estadoSidebar = vi.hoisted(() => ({
   retraida: true,
@@ -69,6 +75,10 @@ vi.mock("@/components/auth/sinalizador-shell-pronto", () => ({
 
 import { ShellComSidebar } from "./shell-com-sidebar";
 
+function slotDaSidebar() {
+  return document.querySelector("[data-slot='sidebar-slot']") as HTMLElement;
+}
+
 describe("ShellComSidebar", () => {
   let telaEstreita = false;
   let notificarMudanca: (() => void) | undefined;
@@ -90,6 +100,10 @@ describe("ShellComSidebar", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("inicia a sidebar retraida em viewport largo", () => {
     render(
       <ShellComSidebar>
@@ -99,10 +113,12 @@ describe("ShellComSidebar", () => {
 
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
   });
 
-  it("expande ao passar o mouse e retrai ao sair, sem fixar", () => {
+  it("hover so abre depois da intencao e reserva 260px no layout, sem sobreposicao", () => {
+    vi.useFakeTimers();
     render(
       <ShellComSidebar>
         <p>Conteúdo</p>
@@ -110,14 +126,38 @@ describe("ShellComSidebar", () => {
     );
 
     fireEvent.mouseEnter(screen.getByTestId("sidebar"));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
-
-    fireEvent.mouseLeave(screen.getByTestId("sidebar"));
-    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+    expect(slotDaSidebar()).toHaveAttribute("data-expandida", "true");
+    expect(slotDaSidebar().className).not.toMatch(/\babsolute\b/);
+    expect(screen.getByText("Conteúdo")).toBeVisible();
   });
 
-  it("expande com foco de teclado e retrai ao perder o foco", () => {
+  it("mouse leave recolhe depois do atraso, sem fixar", () => {
+    vi.useFakeTimers();
+    render(
+      <ShellComSidebar>
+        <p>Conteúdo</p>
+      </ShellComSidebar>,
+    );
+
+    fireEvent.mouseEnter(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
+    fireEvent.mouseLeave(screen.getByTestId("sidebar"));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+  });
+
+  it("expande com foco de teclado sem atraso e retrai ao perder o foco", () => {
+    vi.useFakeTimers();
     render(
       <ShellComSidebar>
         <p>Conteúdo</p>
@@ -126,12 +166,14 @@ describe("ShellComSidebar", () => {
 
     act(() => estadoSidebar.onFocoDentro?.());
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
 
     act(() => estadoSidebar.onFocoFora?.());
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
   });
 
   it("o botao de pin mantem a barra aberta depois de sair o ponteiro", () => {
+    vi.useFakeTimers();
     render(
       <ShellComSidebar>
         <p>Conteúdo</p>
@@ -142,13 +184,30 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "true");
     expect(screen.getByRole("button", { name: "pin" })).toHaveAttribute("aria-pressed", "true");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
 
     fireEvent.mouseLeave(screen.getByTestId("sidebar"));
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
 
     fireEvent.click(screen.getByRole("button", { name: "pin" }));
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "collapsed");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+  });
+
+  it("cancela timers ao desmontar", () => {
+    vi.useFakeTimers();
+    const tela = render(
+      <ShellComSidebar>
+        <p>Conteúdo</p>
+      </ShellComSidebar>,
+    );
+
+    fireEvent.mouseEnter(screen.getByTestId("sidebar"));
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    tela.unmount();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("esconde a sidebar e mostra a barra inferior no viewport estreito", () => {
@@ -162,6 +221,18 @@ describe("ShellComSidebar", () => {
     act(() => notificarMudanca?.());
 
     expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-slot")).not.toBeInTheDocument();
+    expect(document.querySelector("[data-slot='sidebar-slot']")).toBeNull();
     expect(screen.getByTestId("navegacao-inferior")).toBeInTheDocument();
+  });
+
+  it("falha se a expansao temporaria voltar a absolute/sobreposicao", () => {
+    const pasta = dirname(fileURLToPath(import.meta.url));
+    const shell = readFileSync(join(pasta, "shell-com-sidebar.tsx"), "utf8");
+    const sidebar = readFileSync(join(pasta, "sidebar.tsx"), "utf8");
+    expect(shell).not.toMatch(/sobreposta/);
+    expect(sidebar).not.toMatch(/sobreposta/);
+    expect(sidebar).not.toMatch(/absolute inset-y-0/);
+    expect(shell).toMatch(/estiloDaLarguraDaSidebar/);
   });
 });
