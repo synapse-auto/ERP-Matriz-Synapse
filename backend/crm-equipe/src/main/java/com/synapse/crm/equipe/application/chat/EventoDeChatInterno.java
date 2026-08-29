@@ -13,7 +13,12 @@ public final class EventoDeChatInterno {
     public record MensagemEnviada(UUID conversaId, UUID mensagemId, UUID remetenteId,
             List<UUID> destinatarios, String conteudo, Instant enviadoEm) {}
 
-    public record ReacaoAlterada(UUID conversaId, UUID mensagemId, List<UUID> destinatarios,
+    public record ReacaoAlterada(
+            UUID conversaId,
+            UUID mensagemId,
+            UUID atorId,
+            String emojiDoAtor,
+            List<UUID> destinatarios,
             List<ResumoDeReacao> reacoes) {
         public ReacaoAlterada {
             destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);

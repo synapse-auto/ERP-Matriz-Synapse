@@ -35,7 +35,14 @@ export function PaginaChatInterno() {
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if (evento.tipo === "CHAT_INTERNO_MENSAGEM") atualizar();
     if (evento.tipo === "CHAT_INTERNO_REACAO") {
-      atualizarReacoesDoChatInterno(cache, evento.dados.conversaId, evento.dados.mensagemId, evento.dados.reacoes);
+      atualizarReacoesDoChatInterno(
+        cache,
+        evento.dados.conversaId,
+        evento.dados.mensagemId,
+        evento.dados.reacoes,
+        { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+        useAuthStore.getState().usuarioId,
+      );
     }
   });
   useEffect(() => { if (conversaId) { void marcarChatComoLido(conversaId); } }, [conversaId]);

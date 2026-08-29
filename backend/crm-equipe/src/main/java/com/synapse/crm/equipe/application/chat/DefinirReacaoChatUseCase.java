@@ -43,7 +43,7 @@ public class DefinirReacaoChatUseCase {
         }
         List<ResumoDeReacao> resumo = reacoes.resumirUma(mensagemId, atual);
         eventos.publishEvent(new EventoDeChatInterno.ReacaoAlterada(
-                conversaId, mensagemId, conversas.participantes(conversaId), resumo));
+                conversaId, mensagemId, atual, validado, conversas.participantes(conversaId), resumo));
         return resumo;
     }
 }

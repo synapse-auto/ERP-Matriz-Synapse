@@ -47,6 +47,8 @@ class RelayDeChatInterno {
                 evento.destinatarios(),
                 evento.conversaId(),
                 evento.mensagemId(),
+                evento.atorId(),
+                evento.emojiDoAtor(),
                 evento.reacoes().stream().map(r -> new ResumoPublico(r.emoji(), r.quantidade())).toList())));
     }
 
@@ -67,7 +69,7 @@ class RelayDeChatInterno {
             UUID remetenteId, String conteudo, Instant enviadoEm) {}
 
     private record EnvelopeReacao(String tipo, List<UUID> destinatarios, UUID conversaId, UUID mensagemId,
-            List<ResumoPublico> reacoes) {}
+            UUID atorId, String emojiDoAtor, List<ResumoPublico> reacoes) {}
 
     private record ResumoPublico(String emoji, int quantidade) {}
 }

@@ -165,6 +165,12 @@ class RelayDeTempoRealListener {
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("mensagemId", evento.mensagemId().toString());
         dados.put("enviadoEm", evento.enviadoEm().toString());
+        dados.put("atorId", evento.atorId().toString());
+        if (evento.emojiDoAtor() == null) {
+            dados.putNull("emojiDoAtor");
+        } else {
+            dados.put("emojiDoAtor", evento.emojiDoAtor());
+        }
         dados.set("reacoes", resumoPublico(evento.reacoes()));
         publicar(evento.atendimentoId(), "REACAO", dados);
     }

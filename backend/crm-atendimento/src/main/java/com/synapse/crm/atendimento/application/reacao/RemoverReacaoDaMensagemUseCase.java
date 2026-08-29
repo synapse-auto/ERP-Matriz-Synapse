@@ -46,7 +46,8 @@ public class RemoverReacaoDaMensagemUseCase {
         var chave = new ReacaoDeMensagemRepositorio.Chave(mensagemId, enviadoEm);
         reacoes.remover(chave, atendimentoId, usuarioId);
         List<ResumoDeReacao> resumo = reacoes.resumirUma(chave, usuarioId);
-        eventos.publishEvent(new ReacaoDaMensagemParaTempoReal(atendimentoId, mensagemId, enviadoEm, resumo));
+        eventos.publishEvent(new ReacaoDaMensagemParaTempoReal(
+                atendimentoId, mensagemId, enviadoEm, usuarioId, null, resumo));
         return resumo;
     }
 }

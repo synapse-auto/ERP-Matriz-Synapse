@@ -39,7 +39,7 @@ public class RemoverReacaoChatUseCase {
         reacoes.remover(conversaId, mensagemId, atual);
         List<ResumoDeReacao> resumo = reacoes.resumirUma(mensagemId, atual);
         eventos.publishEvent(new EventoDeChatInterno.ReacaoAlterada(
-                conversaId, mensagemId, conversas.participantes(conversaId), resumo));
+                conversaId, mensagemId, atual, null, conversas.participantes(conversaId), resumo));
         return resumo;
     }
 }

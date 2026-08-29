@@ -11,16 +11,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
-  "overrides": {
-    "@emoji-mart/react": {
-      "react": "$react",
-      "react-dom": "$react-dom"
-    }
-  },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@emoji-mart/data": "1.2.1",
-    "@emoji-mart/react": "1.1.1",
     "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-virtual": "^3.14.9",

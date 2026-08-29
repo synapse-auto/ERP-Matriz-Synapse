@@ -122,6 +122,8 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                 dados.set("mensagemId", envelope.path("mensagemId"));
                 if ("CHAT_INTERNO_REACAO".equals(tipo)) {
                     dados.set("reacoes", envelope.path("reacoes"));
+                    dados.set("atorId", envelope.path("atorId"));
+                    dados.set("emojiDoAtor", envelope.path("emojiDoAtor"));
                 } else {
                     dados.set("remetenteId", envelope.path("remetenteId"));
                     dados.set("conteudo", envelope.path("conteudo"));

@@ -260,6 +260,8 @@ export interface ReacaoTempoReal {
   atendimentoId: string;
   mensagemId: string;
   enviadoEm: string;
+  atorId: string;
+  emojiDoAtor: string | null;
   reacoes: { emoji: string; quantidade: number }[];
 }
 
@@ -295,6 +297,8 @@ export interface ChatInternoMensagemTempoReal {
 export interface ChatInternoReacaoTempoReal {
   conversaId: string;
   mensagemId: string;
+  atorId: string;
+  emojiDoAtor: string | null;
   reacoes: { emoji: string; quantidade: number }[];
 }
 

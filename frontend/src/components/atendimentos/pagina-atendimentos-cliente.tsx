@@ -153,6 +153,8 @@ export function PaginaAtendimentosCliente({
           evento.dados.conversaId,
           evento.dados.mensagemId,
           evento.dados.reacoes,
+          { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+          useAuthStore.getState().usuarioId,
         );
       }
     },

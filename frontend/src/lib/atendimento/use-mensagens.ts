@@ -9,6 +9,7 @@ import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens
 import { atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type { MensagemResposta } from "./types";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 /** Historico por cursor, somado ao fluxo incremental do WebSocket e a reconciliacao de reconexao. */
 export function useMensagens(
@@ -85,7 +86,14 @@ export function useMensagens(
             : atual,
         );
       } else if (evento.tipo === "REACAO") {
-        atualizarReacoesDoHistorico(queryClient, queryKey, evento.dados.mensagemId, evento.dados.reacoes);
+        atualizarReacoesDoHistorico(
+          queryClient,
+          queryKey,
+          evento.dados.mensagemId,
+          evento.dados.reacoes,
+          { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+          useAuthStore.getState().usuarioId,
+        );
       } else {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }

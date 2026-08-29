@@ -36,7 +36,7 @@ class RelayDeTempoRealListenerTest {
     }
 
     @Test
-    void reacao_publica_depois_do_commit_sem_identidade_de_quem_reagiu() throws Exception {
+    void reacao_depois_do_commit_leva_ator_sem_nomes_nem_lista_de_reatores() throws Exception {
         var metodo = RelayDeTempoRealListener.class.getDeclaredMethod(
                 "aoReagir", com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal.class);
         assertThat(metodo.getAnnotation(org.springframework.transaction.event.TransactionalEventListener.class)
@@ -52,6 +52,8 @@ class RelayDeTempoRealListenerTest {
                 atendimento,
                 mensagem,
                 Instant.parse("2026-08-28T15:00:00Z"),
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                "👍",
                 java.util.List.of(new com.synapse.crm.sharedkernel.emoji.ResumoDeReacao("👍", 2, true))));
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
@@ -59,10 +61,14 @@ class RelayDeTempoRealListenerTest {
         JsonNode envelope = new ObjectMapper().readTree(payload.getValue());
         assertThat(envelope.path("tipo").asText()).isEqualTo("REACAO");
         assertThat(envelope.path("dados").path("mensagemId").asText()).isEqualTo(mensagem.toString());
+        assertThat(envelope.path("dados").path("atorId").asText()).isEqualTo("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        assertThat(envelope.path("dados").path("emojiDoAtor").asText()).isEqualTo("👍");
         assertThat(envelope.path("dados").path("reacoes").get(0).path("emoji").asText()).isEqualTo("👍");
         assertThat(envelope.path("dados").path("reacoes").get(0).path("quantidade").asInt()).isEqualTo(2);
         assertThat(envelope.path("dados").path("reacoes").get(0).has("reagi")).isFalse();
         assertThat(envelope.toString()).doesNotContain("reagi");
+        assertThat(envelope.toString()).doesNotContain("remetenteNome");
+        assertThat(envelope.path("dados").has("reatores")).isFalse();
     }
 
     @Test
@@ -76,6 +82,8 @@ class RelayDeTempoRealListenerTest {
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 Instant.parse("2026-08-28T15:00:00Z"),
-                java.util.List.of(new com.synapse.crm.sharedkernel.emoji.ResumoDeReacao("👍", 1, true))));
+                UUID.randomUUID(),
+                null,
+                java.util.List.of()));
     }
 }

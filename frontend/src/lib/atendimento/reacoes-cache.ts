@@ -10,16 +10,30 @@ export interface ResumoReacaoPublico {
   quantidade: number;
 }
 
-/** Substitui quantidades do evento; preserva `reagi` local. Nunca incrementa. */
+/** Minimo no evento WS: quem alterou e o emoji atual (nulo = removeu). Sem nomes nem lista. */
+export interface AlteracaoDeReacao {
+  atorId: string;
+  emojiDoAtor: string | null;
+}
+
+/**
+ * Substitui quantidades do evento; nunca incrementa.
+ * Se o ator e o usuario desta aba, `reagi` segue `emojiDoAtor`; senao preserva a marca local.
+ */
 export function aplicarResumoPublico(
   atuais: ResumoReacao[] | undefined,
   publicos: ResumoReacaoPublico[],
+  alteracao: AlteracaoDeReacao,
+  usuarioAtualId: string | null,
 ): ResumoReacao[] {
-  const meu = atuais?.find((item) => item.reagi)?.emoji;
+  const meuEmoji =
+    alteracao.atorId === usuarioAtualId
+      ? alteracao.emojiDoAtor
+      : (atuais?.find((item) => item.reagi)?.emoji ?? null);
   return publicos.map((item) => ({
     emoji: item.emoji,
     quantidade: item.quantidade,
-    reagi: item.emoji === meu,
+    reagi: meuEmoji != null && item.emoji === meuEmoji,
   }));
 }
 
@@ -28,6 +42,8 @@ export function atualizarReacoesDoHistorico(
   queryKey: ChaveDoHistorico,
   mensagemId: string,
   publicos: ResumoReacaoPublico[],
+  alteracao: AlteracaoDeReacao,
+  usuarioAtualId: string | null,
 ): void {
   queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) => {
     if (!atual) return atual;
@@ -37,7 +53,7 @@ export function atualizarReacoesDoHistorico(
         ...pagina,
         mensagens: pagina.mensagens.map((mensagem) =>
           mensagem.id === mensagemId
-            ? { ...mensagem, reacoes: aplicarResumoPublico(mensagem.reacoes, publicos) }
+            ? { ...mensagem, reacoes: aplicarResumoPublico(mensagem.reacoes, publicos, alteracao, usuarioAtualId) }
             : mensagem,
         ),
       })),
@@ -50,6 +66,8 @@ export function atualizarReacoesDoChatInterno(
   conversaId: string,
   mensagemId: string,
   publicos: ResumoReacaoPublico[],
+  alteracao: AlteracaoDeReacao,
+  usuarioAtualId: string | null,
 ): void {
   queryClient.setQueryData<PaginaChatMensagens>(["chat-interno", "mensagens", conversaId], (atual) => {
     if (!atual) return atual;
@@ -57,7 +75,7 @@ export function atualizarReacoesDoChatInterno(
       ...atual,
       mensagens: atual.mensagens.map((mensagem: ChatMensagem) =>
         mensagem.id === mensagemId
-          ? { ...mensagem, reacoes: aplicarResumoPublico(mensagem.reacoes, publicos) }
+          ? { ...mensagem, reacoes: aplicarResumoPublico(mensagem.reacoes, publicos, alteracao, usuarioAtualId) }
           : mensagem,
       ),
     };

@@ -50,7 +50,8 @@ public class DefinirReacaoDaMensagemUseCase {
             throw new RecursoDeAtendimentoIndisponivelException("mensagem", mensagemId);
         }
         List<ResumoDeReacao> resumo = reacoes.resumirUma(chave, usuarioId);
-        eventos.publishEvent(new ReacaoDaMensagemParaTempoReal(atendimentoId, mensagemId, enviadoEm, resumo));
+        eventos.publishEvent(new ReacaoDaMensagemParaTempoReal(
+                atendimentoId, mensagemId, enviadoEm, usuarioId, validado, resumo));
         return resumo;
     }
 }
