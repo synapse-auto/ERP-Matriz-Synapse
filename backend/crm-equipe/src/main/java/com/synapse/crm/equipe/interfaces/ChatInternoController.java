@@ -40,6 +40,7 @@ import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
 import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -77,7 +78,7 @@ public class ChatInternoController {
     @Operation(summary = "Listar contatos do chat", description = "Lista integrantes ativos disponíveis para iniciar uma conversa direta, sem expor credenciais ou dados pessoais desnecessários.", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
     @GetMapping("/contatos")
     List<ContatoResposta> contatos() {
-        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome(), c.fotoUrl())).toList();
+        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome(), c.fotoUrl(), c.presenca())).toList();
     }
 
     @Operation(summary = "Abrir conversa direta", description = "Cria ou reutiliza uma conversa direta; a operação é idempotente para o mesmo par.", responses = {
@@ -172,7 +173,7 @@ public class ChatInternoController {
         }
     }
     record ConversaCriada(UUID id) {}
-    public record ContatoResposta(UUID id, String nome, String fotoUrl) {}
+    public record ContatoResposta(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {

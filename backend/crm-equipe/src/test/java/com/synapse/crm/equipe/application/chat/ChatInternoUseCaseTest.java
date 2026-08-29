@@ -18,6 +18,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -84,5 +85,18 @@ class ChatInternoUseCaseTest {
         new ListarMensagensChatUseCase(repositorio, reacoes, contexto).executar(conversa, cursor, 50);
 
         verify(repositorio).listarMensagens(conversa, usuario, cursor, 50);
+    }
+
+    @Test
+    void lista_de_contatos_preserva_presenca_da_fonte_de_verdade() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        UUID outro = UUID.randomUUID();
+        when(repositorio.listarContatos(usuario)).thenReturn(
+                java.util.List.of(new ChatInternoRepositorio.ContatoResumo(outro, "Bruno", null, StatusPresenca.ONLINE)));
+
+        var contatos = new ListarContatosChatUseCase(repositorio, contexto).executar();
+
+        org.junit.jupiter.api.Assertions.assertEquals(StatusPresenca.ONLINE, contatos.getFirst().presenca());
+        verify(repositorio).listarContatos(usuario);
     }
 }

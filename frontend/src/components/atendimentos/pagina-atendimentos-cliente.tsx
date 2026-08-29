@@ -84,14 +84,12 @@ export function PaginaAtendimentosCliente({
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
-  const [contatoInternoId, setContatoInternoId] = useState("");
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
       setLeadSelecionadoId(null);
-      setContatoInternoId("");
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -317,9 +315,10 @@ export function PaginaAtendimentosCliente({
         onAbrirAtendimento={abrirAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
         contatosInternos={contatosInternos.data ?? []}
-        contatoInternoSelecionado={contatoInternoId}
-        onContatoInternoChange={setContatoInternoId}
-        onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
+        contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
+        contatosInternosErro={contatosInternos.isError}
+        onRecarregarContatos={() => void contatosInternos.refetch()}
+        onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
         onNovoContato={() => {
           iniciarContato.reset();
           setNovoContatoAberto(true);
