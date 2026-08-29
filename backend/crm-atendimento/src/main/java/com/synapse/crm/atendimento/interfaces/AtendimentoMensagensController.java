@@ -13,10 +13,13 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -27,9 +30,13 @@ import com.synapse.crm.atendimento.application.ListarHistoricoMensagensUseCase;
 import com.synapse.crm.atendimento.application.MarcarAtendimentoComoLidoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
+import com.synapse.crm.atendimento.application.reacao.DefinirReacaoDaMensagemUseCase;
+import com.synapse.crm.atendimento.application.reacao.RemoverReacaoDaMensagemUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.ListarMensagensDesdeUseCase;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
+import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 /** Historico paginado e reconciliacao incremental da conversa. */
@@ -42,6 +49,8 @@ class AtendimentoMensagensController {
     private final ListarHistoricoMensagensUseCase listarHistorico;
     private final ListarMensagensDesdeUseCase listarDesde;
     private final MarcarAtendimentoComoLidoUseCase marcarComoLido;
+    private final DefinirReacaoDaMensagemUseCase definirReacaoUseCase;
+    private final RemoverReacaoDaMensagemUseCase removerReacaoUseCase;
     private final ArmazenamentoDeMidia armazenamento;
     private final MidiaProperties midiaPropriedades;
     private final int tamanhoPagina;
@@ -50,12 +59,16 @@ class AtendimentoMensagensController {
             ListarHistoricoMensagensUseCase listarHistorico,
             ListarMensagensDesdeUseCase listarDesde,
             MarcarAtendimentoComoLidoUseCase marcarComoLido,
+            DefinirReacaoDaMensagemUseCase definirReacaoUseCase,
+            RemoverReacaoDaMensagemUseCase removerReacaoUseCase,
             ArmazenamentoDeMidia armazenamento,
             MidiaProperties midiaPropriedades,
             @Value("${synapse.atendimento.historico.tamanho-pagina}") int tamanhoPagina) {
         this.listarHistorico = listarHistorico;
         this.listarDesde = listarDesde;
         this.marcarComoLido = marcarComoLido;
+        this.definirReacaoUseCase = definirReacaoUseCase;
+        this.removerReacaoUseCase = removerReacaoUseCase;
         this.armazenamento = armazenamento;
         this.midiaPropriedades = midiaPropriedades;
         this.tamanhoPagina = tamanhoPagina;
@@ -112,6 +125,41 @@ class AtendimentoMensagensController {
         marcarComoLido.executar(id);
     }
 
+    @Operation(
+            summary = "Definir reação da mensagem",
+            description = "Substitui a reação do usuário autenticado nesta mensagem. Idempotente para o mesmo emoji. A visibilidade é a do atendimento.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resumo atualizado das reações."),
+                @ApiResponse(responseCode = "400", description = "Emoji inválido."),
+                @ApiResponse(responseCode = "401", description = "Não autenticado."),
+                @ApiResponse(responseCode = "404", description = "Atendimento ou mensagem inexistente ou não visível.")
+            })
+    @PutMapping("/{id}/mensagens/{mensagemId}/reacao")
+    ReacaoResposta definirReacao(
+            @PathVariable UUID id,
+            @PathVariable UUID mensagemId,
+            @RequestParam Instant enviadoEm,
+            @RequestBody ReacaoRequisicao requisicao) {
+        String emoji = requisicao == null ? null : requisicao.emoji();
+        return ReacaoResposta.de(mensagemId, enviadoEm, definirReacaoUseCase.executar(id, mensagemId, enviadoEm, emoji));
+    }
+
+    @Operation(
+            summary = "Remover a própria reação",
+            description = "Remove a reação do usuário autenticado. Idempotente se já não houver reação.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resumo atualizado das reações."),
+                @ApiResponse(responseCode = "401", description = "Não autenticado."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")
+            })
+    @DeleteMapping("/{id}/mensagens/{mensagemId}/reacao")
+    ReacaoResposta removerReacao(
+            @PathVariable UUID id,
+            @PathVariable UUID mensagemId,
+            @RequestParam Instant enviadoEm) {
+        return ReacaoResposta.de(mensagemId, enviadoEm, removerReacaoUseCase.executar(id, mensagemId, enviadoEm));
+    }
+
     private static ListarHistoricoMensagensUseCase.Cursor decodificar(String cursor) {
         if (cursor == null) return null;
         try {
@@ -136,6 +184,28 @@ class AtendimentoMensagensController {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Atendimento nao encontrado");
     }
 
+    @ExceptionHandler(EmojiInvalidoException.class)
+    org.springframework.http.ProblemDetail emojiInvalido(EmojiInvalidoException erro) {
+        return org.springframework.http.ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
+    }
+
+    record ReacaoRequisicao(String emoji) {}
+
+    record ResumoReacaoResposta(String emoji, int quantidade, boolean reagi) {
+        static ResumoReacaoResposta de(ResumoDeReacao resumo) {
+            return new ResumoReacaoResposta(resumo.emoji(), resumo.quantidade(), resumo.reagi());
+        }
+    }
+
+    record ReacaoResposta(UUID mensagemId, Instant enviadoEm, List<ResumoReacaoResposta> reacoes) {
+        static ReacaoResposta de(UUID mensagemId, Instant enviadoEm, List<ResumoDeReacao> reacoes) {
+            return new ReacaoResposta(
+                    mensagemId,
+                    enviadoEm,
+                    reacoes.stream().map(ResumoReacaoResposta::de).toList());
+        }
+    }
+
     record MensagemResposta(
             UUID id,
             UUID atendimentoId,
@@ -151,7 +221,8 @@ class AtendimentoMensagensController {
             String midiaMetadados,
             String opcoes,
             String statusEntrega,
-            Instant enviadoEm) {
+            Instant enviadoEm,
+            List<ResumoReacaoResposta> reacoes) {
 
         static MensagemResposta de(
                 MensagemDoHistorico item,
@@ -176,7 +247,8 @@ class AtendimentoMensagensController {
                     mensagem.midiaMetadados(),
                     mensagem.opcoes(),
                     mensagem.statusEntrega().name(),
-                    mensagem.enviadoEm());
+                    mensagem.enviadoEm(),
+                    item.reacoes().stream().map(ResumoReacaoResposta::de).toList());
         }
     }
 

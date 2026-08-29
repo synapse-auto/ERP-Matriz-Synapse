@@ -18,6 +18,7 @@ import type {
   PedidoDeNovoContato,
   ParticipanteAtendimento,
   PedidoEntradaAtendimento,
+  ResumoReacao,
   TagResposta,
   TemplateWhatsApp,
   UsuarioResposta,
@@ -72,6 +73,29 @@ export function marcarAtendimentoComoLido(atendimentoId: string): Promise<void> 
   return apiFetch<void>(`/api/v1/atendimentos/${atendimentoId}/leitura`, {
     method: "POST",
   });
+}
+
+export function definirReacao(
+  atendimentoId: string,
+  mensagemId: string,
+  enviadoEm: string,
+  emoji: string,
+): Promise<{ mensagemId: string; enviadoEm: string; reacoes: ResumoReacao[] }> {
+  return apiFetch(
+    `/api/v1/atendimentos/${atendimentoId}/mensagens/${mensagemId}/reacao?enviadoEm=${encodeURIComponent(enviadoEm)}`,
+    { method: "PUT", body: JSON.stringify({ emoji }) },
+  );
+}
+
+export function removerReacao(
+  atendimentoId: string,
+  mensagemId: string,
+  enviadoEm: string,
+): Promise<{ mensagemId: string; enviadoEm: string; reacoes: ResumoReacao[] }> {
+  return apiFetch(
+    `/api/v1/atendimentos/${atendimentoId}/mensagens/${mensagemId}/reacao?enviadoEm=${encodeURIComponent(enviadoEm)}`,
+    { method: "DELETE" },
+  );
 }
 
 /** `desde` ausente traz a conversa inteira — primeira carga da tela. */

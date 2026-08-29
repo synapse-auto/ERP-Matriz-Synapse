@@ -88,6 +88,13 @@ export type ItemInbox = (CartaoAtendimento & {
   tipoConversa?: null;
 }) | CartaoEquipeInterna;
 
+/** Espelha AtendimentoMensagensController.ResumoReacaoResposta. */
+export interface ResumoReacao {
+  emoji: string;
+  quantidade: number;
+  reagi: boolean;
+}
+
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {
   id: string;
@@ -106,6 +113,7 @@ export interface MensagemResposta {
   opcoes: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
+  reacoes?: ResumoReacao[];
 }
 
 export interface PaginaMensagens {

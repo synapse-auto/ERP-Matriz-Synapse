@@ -12,6 +12,9 @@ import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
+import com.synapse.crm.atendimento.application.reacao.ReacaoDeMensagemRepositorio;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -32,11 +35,18 @@ public class ListarMensagensDesdeUseCase {
 
     private final AtendimentoRepositorio atendimentos;
     private final HistoricoDeMensagensRepositorio mensagens;
+    private final ReacaoDeMensagemRepositorio reacoes;
+    private final UsuarioContext usuarios;
 
     public ListarMensagensDesdeUseCase(
-            AtendimentoRepositorio atendimentos, HistoricoDeMensagensRepositorio mensagens) {
+            AtendimentoRepositorio atendimentos,
+            HistoricoDeMensagensRepositorio mensagens,
+            ReacaoDeMensagemRepositorio reacoes,
+            UsuarioContext usuarios) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
+        this.reacoes = reacoes;
+        this.usuarios = usuarios;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -46,6 +56,21 @@ public class ListarMensagensDesdeUseCase {
                 .porId(atendimentoId)
                 .orElseThrow(
                         () -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
-        return mensagens.desde(atendimentoId, desde);
+        List<MensagemDoHistorico> encontradas = mensagens.desde(atendimentoId, desde);
+        UUID usuarioId = usuarios.atual().id();
+        List<ReacaoDeMensagemRepositorio.Chave> chaves = encontradas.stream()
+                .map(item -> new ReacaoDeMensagemRepositorio.Chave(
+                        item.mensagem().id(), item.mensagem().enviadoEm()))
+                .toList();
+        var resumos = reacoes.resumir(chaves, usuarioId);
+        return encontradas.stream()
+                .map(item -> {
+                    List<ResumoDeReacao> daMensagem = resumos.getOrDefault(
+                            new ReacaoDeMensagemRepositorio.Chave(
+                                    item.mensagem().id(), item.mensagem().enviadoEm()),
+                            List.of());
+                    return item.comReacoes(daMensagem);
+                })
+                .toList();
     }
 }

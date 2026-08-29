@@ -7,5 +7,6 @@ export interface ChatConversa {
 export interface ChatMensagem {
   id: string; conversaId: string; remetenteId: string; remetenteNome: string;
   tipo?: string; conteudo: string | null; midiaUrl?: string | null; midiaMetadados?: unknown; enviadoEm: string;
+  reacoes?: { emoji: string; quantidade: number; reagi: boolean }[];
 }
 export interface PaginaChatMensagens { mensagens: ChatMensagem[]; proximoCursor: string | null }

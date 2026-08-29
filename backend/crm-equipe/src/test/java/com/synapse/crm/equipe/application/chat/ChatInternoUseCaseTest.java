@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 class ChatInternoUseCaseTest {
     private final ChatInternoRepositorio repositorio = Mockito.mock(ChatInternoRepositorio.class);
+    private final ReacaoDeChatInternoRepositorio reacoes = Mockito.mock(ReacaoDeChatInternoRepositorio.class);
     private final UsuarioContext contexto = Mockito.mock(UsuarioContext.class);
     private final ApplicationEventPublisher eventos = Mockito.mock(ApplicationEventPublisher.class);
     private final UUID conversa = UUID.randomUUID();
@@ -34,9 +37,15 @@ class ChatInternoUseCaseTest {
         when(repositorio.participante(conversa, usuario)).thenReturn(false);
 
         assertThrows(ChatSemAcessoException.class,
-                () -> new ListarMensagensChatUseCase(repositorio, contexto).executar(conversa, null, 50));
+                () -> new ListarMensagensChatUseCase(repositorio, reacoes, contexto).executar(conversa, null, 50));
         assertThrows(ChatSemAcessoException.class,
                 () -> new EnviarMensagemChatUseCase(repositorio, contexto, eventos).executar(conversa, "texto"));
+        assertThrows(ChatSemAcessoException.class,
+                () -> new DefinirReacaoChatUseCase(repositorio, reacoes, contexto, eventos)
+                        .executar(conversa, UUID.randomUUID(), "👍"));
+        assertThrows(ChatSemAcessoException.class,
+                () -> new RemoverReacaoChatUseCase(repositorio, reacoes, contexto, eventos)
+                        .executar(conversa, UUID.randomUUID()));
     }
 
     @Test
@@ -69,9 +78,10 @@ class ChatInternoUseCaseTest {
         when(repositorio.participante(conversa, usuario)).thenReturn(true);
         Instant cursor = Instant.parse("2026-08-24T02:00:00Z");
         when(repositorio.listarMensagens(conversa, usuario, cursor, 50))
-                .thenReturn(new ChatInternoRepositorio.PaginaMensagens(java.util.List.of(), null));
+                .thenReturn(new ChatInternoRepositorio.PaginaMensagens(List.of(), null));
+        when(reacoes.resumir(List.of(), usuario)).thenReturn(Map.of());
 
-        new ListarMensagensChatUseCase(repositorio, contexto).executar(conversa, cursor, 50);
+        new ListarMensagensChatUseCase(repositorio, reacoes, contexto).executar(conversa, cursor, 50);
 
         verify(repositorio).listarMensagens(conversa, usuario, cursor, 50);
     }
