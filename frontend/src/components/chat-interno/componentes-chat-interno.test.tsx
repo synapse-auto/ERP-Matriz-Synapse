@@ -75,6 +75,24 @@ describe("componentes de apresentação do chat interno", () => {
     expect(linhas?.[1]).toHaveClass("justify-start");
     expect(screen.getByText("Bruno")).toBeInTheDocument();
     expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
+    expect(screen.getByText("Olá").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tr-md",
+    );
+    expect(screen.getByText("Tudo bem?").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tl-md",
+      "border",
+    );
+    expect(container.querySelector('[data-slot="historico-chat-interno"]')).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overscroll-contain",
+    );
   });
 
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {

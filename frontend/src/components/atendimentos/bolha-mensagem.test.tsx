@@ -66,6 +66,14 @@ describe("BolhaMensagem", () => {
     expect(
       screen.queryByText("Nome que não deve aparecer"),
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Preciso de um orçamento.").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tl-md",
+      "border",
+    );
+    expect(screen.getByText("Preciso de um orçamento.").closest("div")).not.toHaveClass("min-w-[12rem]");
   });
 
   it("mostra o nome conhecido do atendente dentro da bolha enviada", () => {
@@ -74,6 +82,12 @@ describe("BolhaMensagem", () => {
     );
 
     expect(screen.getByText("Jardel Lima")).toBeInTheDocument();
+    expect(screen.getByText("Olá").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tr-md",
+    );
   });
 
   it("mostra documento com nome, tamanho e descrição", () => {
