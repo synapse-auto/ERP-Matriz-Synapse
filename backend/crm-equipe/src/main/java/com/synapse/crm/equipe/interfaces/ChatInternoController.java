@@ -17,10 +17,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,12 +32,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.equipe.application.chat.AbrirConversaDiretaUseCase;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
+import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
+import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
+import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
+import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 @RestController
@@ -50,12 +57,16 @@ public class ChatInternoController {
     private final EnviarMensagemChatUseCase enviar;
     private final EnviarMidiaChatUseCase enviarMidia;
     private final MarcarConversaChatComoLidaUseCase ler;
+    private final DefinirReacaoChatUseCase definirReacaoUseCase;
+    private final RemoverReacaoChatUseCase removerReacaoUseCase;
     private final ArmazenamentoDeMidia armazenamento;
 
     ChatInternoController(ListarConversasChatUseCase listar, ListarContatosChatUseCase contatos, AbrirConversaDiretaUseCase abrir,
             ListarMensagensChatUseCase mensagens, EnviarMensagemChatUseCase enviar, EnviarMidiaChatUseCase enviarMidia,
-            MarcarConversaChatComoLidaUseCase ler, ArmazenamentoDeMidia armazenamento) {
-        this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.enviarMidia = enviarMidia; this.ler = ler; this.armazenamento = armazenamento;
+            MarcarConversaChatComoLidaUseCase ler, DefinirReacaoChatUseCase definirReacaoUseCase,
+            RemoverReacaoChatUseCase removerReacaoUseCase, ArmazenamentoDeMidia armazenamento) {
+        this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.enviarMidia = enviarMidia; this.ler = ler;
+        this.definirReacaoUseCase = definirReacaoUseCase; this.removerReacaoUseCase = removerReacaoUseCase; this.armazenamento = armazenamento;
     }
 
     @Operation(summary = "Listar conversas", description = "Lista as conversas internas das quais o usuário autenticado participa, com última mensagem e contador individual de não lidas.", responses = @ApiResponse(responseCode = "200", description = "Conversas das quais o usuário participa."))
@@ -67,7 +78,7 @@ public class ChatInternoController {
     @Operation(summary = "Listar contatos do chat", description = "Lista integrantes ativos disponíveis para iniciar uma conversa direta, sem expor credenciais ou dados pessoais desnecessários.", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
     @GetMapping("/contatos")
     List<ContatoResposta> contatos() {
-        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome(), c.fotoUrl())).toList();
+        return contatos.executar().stream().map(c -> new ContatoResposta(c.id(), c.nome(), c.fotoUrl(), c.presenca())).toList();
     }
 
     @Operation(summary = "Abrir conversa direta", description = "Cria ou reutiliza uma conversa direta; a operação é idempotente para o mesmo par.", responses = {
@@ -117,15 +128,52 @@ public class ChatInternoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void marcarComoLida(@PathVariable UUID id) { ler.executar(id); }
 
+    @Operation(summary = "Definir reação da mensagem interna", description = "Substitui a reação do participante autenticado nesta mensagem. Idempotente para o mesmo emoji. Quem não participa recebe 403.", responses = {
+            @ApiResponse(responseCode = "200", description = "Resumo atualizado das reações."),
+            @ApiResponse(responseCode = "400", description = "Emoji inválido."),
+            @ApiResponse(responseCode = "401", description = "Não autenticado."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @PutMapping("/conversas/{id}/mensagens/{mensagemId}/reacao")
+    ReacaoResposta definirReacao(@PathVariable UUID id, @PathVariable UUID mensagemId,
+            @RequestBody ReacaoRequisicao requisicao) {
+        String emoji = requisicao == null ? null : requisicao.emoji();
+        return ReacaoResposta.de(mensagemId, definirReacaoUseCase.executar(id, mensagemId, emoji));
+    }
+
+    @Operation(summary = "Remover a própria reação interna", description = "Remove a reação do participante autenticado. Idempotente se já não houver reação.", responses = {
+            @ApiResponse(responseCode = "200", description = "Resumo atualizado das reações."),
+            @ApiResponse(responseCode = "401", description = "Não autenticado."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @DeleteMapping("/conversas/{id}/mensagens/{mensagemId}/reacao")
+    ReacaoResposta removerReacao(@PathVariable UUID id, @PathVariable UUID mensagemId) {
+        return ReacaoResposta.de(mensagemId, removerReacaoUseCase.executar(id, mensagemId));
+    }
+
     @ExceptionHandler(ChatSemAcessoException.class)
     ProblemDetail semAcesso(ChatSemAcessoException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
+    @ExceptionHandler(EmojiInvalidoException.class)
+    ProblemDetail emojiInvalido(EmojiInvalidoException erro) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
+    }
+
     record AbrirRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
     record MensagemRequisicao(@NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 10000) String conteudo) {}
+    record ReacaoRequisicao(String emoji) {}
+    record ResumoReacaoResposta(String emoji, int quantidade, boolean reagi) {
+        static ResumoReacaoResposta de(ResumoDeReacao resumo) {
+            return new ResumoReacaoResposta(resumo.emoji(), resumo.quantidade(), resumo.reagi());
+        }
+    }
+    record ReacaoResposta(UUID mensagemId, List<ResumoReacaoResposta> reacoes) {
+        static ReacaoResposta de(UUID mensagemId, List<ResumoDeReacao> reacoes) {
+            return new ReacaoResposta(mensagemId, reacoes.stream().map(ResumoReacaoResposta::de).toList());
+        }
+    }
     record ConversaCriada(UUID id) {}
-    public record ContatoResposta(UUID id, String nome, String fotoUrl) {}
+    public record ContatoResposta(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {
@@ -139,10 +187,12 @@ public class ChatInternoController {
         }
     }
     public record MensagemResposta(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
-            String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm) {
+            String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm,
+            List<ResumoReacaoResposta> reacoes) {
         static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r, ArmazenamentoDeMidia armazenamento) {
             String midiaUrl = r.midiaUrl() == null ? null : armazenamento.urlAssinada(r.midiaUrl(), Duration.ofHours(1));
-            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm());
+            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm(),
+                    r.reacoes().stream().map(ResumoReacaoResposta::de).toList());
         }
     }
 }

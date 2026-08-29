@@ -14,7 +14,8 @@ import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
+import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
+import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -40,7 +41,7 @@ interface Props {
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
 >;
 
 /**
@@ -83,14 +84,12 @@ export function PaginaAtendimentosCliente({
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
-  const [contatoInternoId, setContatoInternoId] = useState("");
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
       setLeadSelecionadoId(null);
-      setContatoInternoId("");
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -140,9 +139,21 @@ export function PaginaAtendimentosCliente({
           setNotificacao(evento);
         }
       }
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      if (evento.tipo !== "CHAT_INTERNO_REACAO") {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
+      }
+      if (evento.tipo === "CHAT_INTERNO_REACAO") {
+        atualizarReacoesDoChatInterno(
+          cache,
+          evento.dados.conversaId,
+          evento.dados.mensagemId,
+          evento.dados.reacoes,
+          { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+          useAuthStore.getState().usuarioId,
+        );
       }
     },
   );
@@ -223,6 +234,22 @@ export function PaginaAtendimentosCliente({
     });
   }
 
+  const historicoId = conversa?.atendimentoId ?? null;
+
+  async function definirReacaoDaMensagem(mensagem: MensagemResposta, emoji: string) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await definirReacao(atendimentoId, mensagem.id, mensagem.enviadoEm, emoji);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
+  async function removerReacaoDaMensagem(mensagem: MensagemResposta) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await removerReacao(atendimentoId, mensagem.id, mensagem.enviadoEm);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
   const colunasDoPainel = telaEstreita
     ? "grid-cols-1"
     : conversa && painelVisivel
@@ -288,9 +315,10 @@ export function PaginaAtendimentosCliente({
         onAbrirAtendimento={abrirAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
         contatosInternos={contatosInternos.data ?? []}
-        contatoInternoSelecionado={contatoInternoId}
-        onContatoInternoChange={setContatoInternoId}
-        onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
+        contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
+        contatosInternosErro={contatosInternos.isError}
+        onRecarregarContatos={() => void contatosInternos.refetch()}
+        onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
         onNovoContato={() => {
           iniciarContato.reset();
           setNovoContatoAberto(true);
@@ -349,6 +377,8 @@ export function PaginaAtendimentosCliente({
               mensagens={mensagensQuery.data}
               carregando={mensagensQuery.isLoading}
               onReenviar={reenviar}
+              onDefinirReacao={definirReacaoDaMensagem}
+              onRemoverReacao={removerReacaoDaMensagem}
               temMais={mensagensQuery.hasNextPage}
               carregandoMais={mensagensQuery.isFetchingNextPage}
               onCarregarMais={() => void mensagensQuery.fetchNextPage()}

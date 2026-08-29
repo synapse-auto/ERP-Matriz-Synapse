@@ -71,7 +71,9 @@
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
-| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` |
+| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com resumo de reações agregado em lote | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` |
+| PUT | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Define a reação do usuário autenticado (`enviadoEm` na query ancora a partição). Idempotente para o mesmo emoji | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
+| DELETE | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação. Idempotente | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência, com clientes visíveis e equipe interna participante | Atendente | `InboxUnificadaController` |
 | POST | `/api/v1/atendimentos/novo-contato` | Inicia conversa WhatsApp: cria ou reusa lead visível do telefone, abre atendimento humano e envia texto livre ou template | Atendente | `AtendimentoAcoesController` · `NovoContatoIT` |
 | POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
@@ -142,6 +144,8 @@ O componente `fila-outbox` mede a fila transacional que o backend realmente cons
 | PUT | `/api/v1/usuarios/{id}` | Atualiza usuário operacional | Gestor | `UsuarioController` · `EquipeEPresencaIT` |
 | PATCH | `/api/v1/usuarios/me/presenca` | Atualiza presença própria | Atendente | `UsuarioController` · `EquipeEPresencaIT` |
 | GET | `/api/v1/equipe/avaliacoes` | Resumo de avaliações da equipe | Gestor | `AvaliacaoController` · `EquipeEPresencaIT` |
+| PUT | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/reacao` | Define a reação do participante. Papel amplo não fura conversa privada | Participante | `ChatInternoController` · `ReacoesDeChatInternoIT` |
+| DELETE | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação do participante | Participante | `ChatInternoController` · `ReacoesDeChatInternoIT` |
 
 ### Relatórios — Dashboard Visão Geral
 
@@ -173,6 +177,12 @@ Leitura complementar na Equipe (não alimenta a Visão Geral): `GET /api/v1/equi
 
 Coleta: `POST /api/v1/atendimentos/{id}/avaliacao` (JWT, visibilidade RLS) e `POST /internal/v1/atendimentos/{id}/avaliacao` (`X-Synapse-Token`, para a Automação/WhatsApp). Escala **1–5**, uma linha por atendimento (`uq_avaliacao_atendimento`). O atendente dono da conversa recebe o crédito. Conversa ainda aberta ou sem atendente → 422; segunda nota → 409.
 
+### ADR — Uma reação por usuário (E84)
+
+Uma pessoa autenticada mantém no máximo uma reação por mensagem. `PUT` define ou substitui; repetir o mesmo emoji é idempotente e não duplica linha. `DELETE` remove a própria reação e também é idempotente. O DTO aceita só um grapheme Unicode (ZWJ, tom de pele, variation selector); texto comum, concatenação e payload grande viram 400 (RFC 7807) sem gravar. O resumo na listagem HTTP é `{emoji, quantidade, reagi}` agregado em **um** `IN` por página — proibido N+1. O evento de tempo real (depois do commit) leva o resumo público `{emoji, quantidade}` **mais** `atorId` e `emojiDoAtor` (nulo na remoção): o mínimo para a outra aba do mesmo usuário recalcular `reagi`, sem nomes, sem lista de reatores e sem `reagi` no fio. Autorização: a mesma visibilidade do atendimento (RN-CRM-01, 404) e participação no chat interno (403, inclusive gestor de fora). Tabelas separadas com FK real: `mensagem_reacao` usa a chave composta da partição; `chat_interno_mensagem_reacao` aponta para `chat_interno_mensagem`.
+
+O seletor amplo usa `emoji-mart` 5.6.0 + `@emoji-mart/data` 1.2.1 (MIT), montado como Web Component (`em-emoji-picker`). O pacote `emoji-mart` **não declara peer de React** — internamente usa Preact — então não há `overrides` nem `@emoji-mart/react` (peer só até React 18). Dados versionados no bundle, `set: native`, sem CDN. A aparência segue o Unicode do sistema (Apple no iOS, Segoe/Noto no Windows); o CRM não serve assets da Apple nem do WhatsApp.
+
 ## Parte D — WebSocket (tempo real)
 
 ### ADR — Inbox unificada (E62)
@@ -190,7 +200,7 @@ O endpoint específico de chat interno permanece para compatibilidade. O botão 
 | Destino | Direção | Payload | Proteção | Evidência |
 |---|---|---|---|---|
 | `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade | `WebSocketConfig` · `TempoRealIT` |
-| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência e finalização | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` |
+| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência, finalização e reação | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` · `RelayDeTempoRealListener` |
 | `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência | `RedisSubscriberDeAtendimento` · `TempoRealIT` |
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.

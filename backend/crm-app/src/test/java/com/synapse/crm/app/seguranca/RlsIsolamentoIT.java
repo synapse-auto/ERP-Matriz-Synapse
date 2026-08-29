@@ -272,6 +272,48 @@ class RlsIsolamentoIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("RLS impede que nao participante leia ou grave reacao do chat alheio")
+    void chat_naoParticipante_naoLeNemGravaReacao() {
+        UUID conversa = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        UUID reacao = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_conversa(id, tipo) VALUES (?, 'DIRETA')", conversa);
+        jdbc.update(
+                "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)",
+                conversa,
+                bruno);
+        jdbc.update(
+                "INSERT INTO chat_interno_mensagem(id, conversa_id, remetente_id, tipo, conteudo) VALUES (?, ?, ?, 'TEXTO', 'segredo')",
+                mensagem,
+                conversa,
+                bruno);
+        jdbc.update(
+                "INSERT INTO chat_interno_mensagem_reacao(id, mensagem_id, usuario_id, emoji) VALUES (?, ?, ?, '👍')",
+                reacao,
+                mensagem,
+                bruno);
+
+        ApoioRls.entrarComo(gestor, PapelUsuario.GESTOR);
+        List<UUID> reacoesVisiveis = transacao.execute(status -> jdbc.queryForList(
+                "SELECT id FROM chat_interno_mensagem_reacao WHERE mensagem_id = ?",
+                UUID.class,
+                mensagem));
+        assertThat(reacoesVisiveis)
+                .as("gestor fora da conversa nao le reacao via papel amplo")
+                .isEmpty();
+
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        assertThatThrownBy(() -> transacao.execute(status -> {
+                    jdbc.update(
+                            "INSERT INTO chat_interno_mensagem_reacao(mensagem_id, usuario_id, emoji) VALUES (?, ?, '❤️')",
+                            mensagem,
+                            ana);
+                    return null;
+                }))
+                .isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
     @DisplayName("funcao de conversa direta recusa chamador fora do par")
     void criarConversaDireta_chamadorForaDoPar_ehRecusado() {
         ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);

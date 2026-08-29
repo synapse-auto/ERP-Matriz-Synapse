@@ -6,6 +6,8 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
+import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
+
 import { StatusEntregaIcone } from "./status-entrega";
 import { PlayerAudio } from "./player-audio";
 
@@ -53,15 +55,28 @@ type Props = {
   mensagem: MensagemResposta;
   onReenviar?: () => void;
   nomeDoRemetente?: string | null;
+  onDefinirReacao: (emoji: string) => Promise<void>;
+  onRemoverReacao: () => Promise<void>;
 };
+
+export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
+  const conteudo = mensagem.conteudo?.trim();
+  if (conteudo) return mensagem.conteudo;
+  const metadados = metadadosDaMidia(mensagem.midiaMetadados);
+  const legenda = metadados.legenda?.trim();
+  return legenda ? metadados.legenda! : null;
+}
 
 /** Texto, imagem, áudio ou documento — a bolha renderiza os quatro tipos que o backend já entrega. */
 export function BolhaMensagem({
   mensagem,
   onReenviar,
   nomeDoRemetente,
+  onDefinirReacao,
+  onRemoverReacao,
 }: Props) {
-  const textos = useTextos().atendimentos.media;
+  const catalogo = useTextos().atendimentos;
+  const textos = catalogo.media;
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
   const opcoes = opcoesInterativas(mensagem.opcoes);
@@ -72,7 +87,14 @@ export function BolhaMensagem({
   });
 
   return (
-    <div className={cn("flex", doAtendente ? "justify-end" : "justify-start")}>
+    <InteracaoMensagem
+      alinhadaADireita={doAtendente}
+      textoCopiavel={textoCopiavelDaMensagem(mensagem)}
+      reacoes={mensagem.reacoes ?? []}
+      textos={catalogo.mensagem.acoes}
+      onDefinirReacao={onDefinirReacao}
+      onRemoverReacao={onRemoverReacao}
+    >
       <div
         className={cn(
           "max-w-[70%] rounded-lg px-3.5 py-3 text-sm font-normal",
@@ -185,7 +207,7 @@ export function BolhaMensagem({
           )}
         </div>
       </div>
-    </div>
+    </InteracaoMensagem>
   );
 }
 
