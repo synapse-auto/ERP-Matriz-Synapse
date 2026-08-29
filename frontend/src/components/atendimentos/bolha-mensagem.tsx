@@ -97,10 +97,10 @@ export function BolhaMensagem({
     >
       <div
         className={cn(
-          "max-w-[70%] rounded-lg px-3.5 py-3 text-sm font-normal",
+          "w-fit max-w-[70%] rounded-2xl px-3.5 py-3 text-sm font-normal",
           doAtendente
-            ? "bg-primary text-primary-foreground"
-            : "min-w-[12rem] bg-muted text-foreground shadow-sm",
+            ? "rounded-tr-md bg-primary text-primary-foreground"
+            : "rounded-tl-md border border-border bg-muted text-foreground shadow-sm",
         )}
       >
         {doAtendente && nomeDoRemetente && (
