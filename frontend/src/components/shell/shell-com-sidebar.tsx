@@ -7,7 +7,7 @@ import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/naveg
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
 
-import { estiloDaLarguraDaSidebar, useExpansaoDaSidebar } from "./expansao-da-sidebar";
+import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
@@ -31,10 +31,11 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
       {!telaEstreita && (
         <div
           className="relative h-full shrink-0"
-          style={estiloDaLarguraDaSidebar(expansao.expandida)}
+          style={estiloDaLarguraDoSlot(expansao.fixada)}
           data-slot="sidebar-slot"
           data-fixada={expansao.fixada ? "true" : "false"}
           data-expandida={expansao.expandida ? "true" : "false"}
+          data-sobreposta={expansao.sobreposta ? "true" : "false"}
         >
           <Sidebar
             retraida={!expansao.expandida}

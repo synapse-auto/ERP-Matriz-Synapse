@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EXPANSAO_DA_SIDEBAR, estiloDaLarguraDaSidebar, useExpansaoDaSidebar } from "./expansao-da-sidebar";
+import { EXPANSAO_DA_SIDEBAR, estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 const authMock = vi.hoisted(() => ({
   papel: "ATENDENTE",
@@ -94,7 +94,7 @@ function renderSidebar() {
       <div
         data-testid="sidebar-slot"
         data-slot="sidebar-slot"
-        style={estiloDaLarguraDaSidebar(expansao.expandida)}
+        style={estiloDaLarguraDoSlot(expansao.fixada)}
       >
         <Sidebar
           retraida={!expansao.expandida}
@@ -225,6 +225,7 @@ describe("sidebar", () => {
     expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(fixar).toHaveAttribute("aria-pressed", "false");
     expect(fixar).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Estrutural Vidros")).toHaveStyle({ opacity: 0 });
     expect(screen.getByRole("link", { name: "Atendimentos, 7 pendentes" })).toHaveAttribute(
       "href",
       "/atendimentos",
@@ -240,7 +241,7 @@ describe("sidebar", () => {
     expect(sidebar).toHaveAttribute("data-state", "collapsed");
     act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
     expect(sidebar).toHaveAttribute("data-state", "expanded");
-    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.getByText("Estrutural Vidros")).toBeVisible();
 
     fireEvent.click(fixar);
@@ -266,7 +267,7 @@ describe("sidebar", () => {
     );
   });
 
-  it("nao usa absolute nem sobreposicao na expansao temporaria", async () => {
+  it("hover temporario sobrepoe em absolute e o slot permanece 76px", async () => {
     renderSidebar();
 
     const sidebar = screen.getByRole("complementary");
@@ -278,12 +279,11 @@ describe("sidebar", () => {
     act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
 
     expect(sidebar).toHaveAttribute("data-state", "expanded");
-    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
-    expect(sidebar.className).not.toMatch(/\babsolute\b/);
-    expect(sidebar.className).not.toMatch(/inset-y-0/);
-    expect(sidebar.className).not.toMatch(/\bz-40\b/);
-    expect(slot.className).not.toMatch(/\babsolute\b/);
-    expect(slot.className).not.toMatch(/inset-y-0/);
+    expect(sidebar).toHaveAttribute("data-sobreposta", "true");
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+    expect(sidebar.className).toMatch(/\babsolute\b/);
+    expect(sidebar.className).toMatch(/inset-y-0/);
+    expect(sidebar.className).toMatch(/\bz-40\b/);
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {
