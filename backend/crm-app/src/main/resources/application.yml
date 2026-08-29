@@ -79,6 +79,8 @@ resilience4j:
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
         permitted-number-of-calls-in-half-open-state: 2
         automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException
       automacao-webhook:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${AUTOMACAO_WEBHOOK_CB_JANELA:10}

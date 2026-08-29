@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
@@ -227,6 +228,111 @@ class MetaCloudApiAdapterTest {
         servidorSemConta.verify();
         assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
                 .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void criarTemplateSemContaNegocioNaoConsultaGraphNemAbreCircuitBreaker() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer servidorSemConta = MockRestServiceServer.bindTo(builder).build();
+        CircuitBreakerRegistry breakers = CircuitBreakerRegistry.ofDefaults();
+        CanalProperties semConta = new CanalProperties(
+                MetaCloudApiAdapter.PROVEDOR,
+                URL_BASE,
+                NUMERO,
+                "token-de-teste",
+                "verify",
+                "secret",
+                Duration.ofHours(24),
+                Duration.ofSeconds(10),
+                "");
+        MetaCloudApiAdapter adapterSemConta =
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+        PedidoDeTemplate pedido = new PedidoDeTemplate(
+                "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
+
+        for (int tentativa = 0; tentativa < 10; tentativa++) {
+            assertThatThrownBy(() -> adapterSemConta.criarTemplate(pedido))
+                    .isInstanceOf(CanalIndisponivelException.class)
+                    .hasMessageContaining("WHATSAPP_CONTA_NEGOCIO");
+        }
+
+        servidorSemConta.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void lista400DaMetaViraCanalIndisponivelENaoConsultaCampoWhatsappBusinessAccount() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(
+                                """
+                                {"error":{"code":100,"message":"Tried accessing nonexisting field (whatsapp_business_account)"}}
+                                """));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 400")
+                .hasMessageContaining("whatsapp_business_account");
+
+        servidor.verify();
+    }
+
+    @Test
+    void lista429DaMetaViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"message\":\"too many requests\"}}"));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 429");
+
+        servidor.verify();
+    }
+
+    @Test
+    void lista500DaMetaViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"message\":\"upstream\"}}"));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 500");
+
+        servidor.verify();
+    }
+
+    @Test
+    void timeoutAoListarViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("read timed out");
+                });
+
+        assertThatThrownBy(adapter::listarTemplates).isInstanceOf(CanalIndisponivelException.class);
+
+        servidor.verify();
     }
 
     @Test
