@@ -75,9 +75,17 @@ public class CriarTemplateWhatsAppUseCase {
         }
         int esperado = 1;
         for (int indice : indices) {
+            if (indice < 1) {
+                throw new PedidoDeTemplateInvalidoException(
+                        "indice {{"
+                                + indice
+                                + "}} e invalido; variaveis comecam em {{1}}");
+            }
             if (indice != esperado) {
                 throw new PedidoDeTemplateInvalidoException(
-                        "variaveis do corpo precisam ser sequenciais a partir de {{1}}");
+                        "variavel {{"
+                                + esperado
+                                + "}} ausente; indices precisam ser sequenciais a partir de {{1}}");
             }
             esperado++;
         }

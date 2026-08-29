@@ -20,6 +20,11 @@ import type { TomDePill } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { criarTemplateWhatsApp, listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import {
+  analisarVariaveisDoCorpo,
+  interpolarCatalogo,
+  rotulosDasVariaveis,
+} from "@/lib/atendimento/variaveis-do-template";
 import type {
   CategoriaTemplateWhatsApp,
   StatusTemplateWhatsApp,
@@ -153,6 +158,19 @@ function FormularioTemplate({
   const [idioma, setIdioma] = useState("pt_BR");
   const [categoria, setCategoria] = useState<CategoriaTemplateWhatsApp>("UTILIDADE");
   const [corpo, setCorpo] = useState("");
+  const analise = analisarVariaveisDoCorpo(corpo);
+  const ajudaDasVariaveis = analise.erro
+    ? interpolarCatalogo(
+        analise.erro.tipo === "ausente"
+          ? textos.formulario.variavelAusente
+          : textos.formulario.variavelInvalida,
+        { marcador: `{{${analise.erro.indice}}}` },
+      )
+    : analise.indices.length > 0
+      ? interpolarCatalogo(textos.formulario.variaveisDetectadas, {
+          lista: rotulosDasVariaveis(analise.indices),
+        })
+      : null;
 
   return (
     <Dialog open={aberto} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
@@ -164,6 +182,9 @@ function FormularioTemplate({
           className="space-y-3"
           onSubmit={(evento) => {
             evento.preventDefault();
+            if (analise.erro) {
+              return;
+            }
             onSalvar({ nome, idioma, categoria, corpo });
           }}
         >
@@ -210,19 +231,20 @@ function FormularioTemplate({
               required
             />
             <span className="mt-1 block text-xs text-muted-foreground">
+              {ajudaDasVariaveis ? `${ajudaDasVariaveis}. ` : null}
               {textos.formulario.corpoAjuda}
             </span>
           </label>
-          {erro && (
+          {(analise.erro || erro) && (
             <p role="alert" className="text-sm text-destructive">
-              {erro}
+              {analise.erro ? ajudaDasVariaveis : erro}
             </p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onFechar}>
               {textos.formulario.cancelar}
             </Button>
-            <Button type="submit" disabled={salvando}>
+            <Button type="submit" disabled={salvando || Boolean(analise.erro)}>
               {textos.formulario.salvar}
             </Button>
           </DialogFooter>

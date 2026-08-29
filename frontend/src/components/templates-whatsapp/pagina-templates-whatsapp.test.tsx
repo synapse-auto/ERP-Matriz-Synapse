@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -43,7 +43,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
         idioma: "Idioma",
         categoria: "Categoria",
         corpo: "Corpo",
-        corpoAjuda: "Ajuda corpo",
+        corpoAjuda: "Sem cabeçalho nesta versão.",
+        variaveisDetectadas: "Variáveis sequenciais: {lista}",
+        variavelAusente: "Falta {marcador}.",
+        variavelInvalida: "O índice {marcador} é inválido.",
         salvar: "Salvar",
         cancelar: "Cancelar",
         erro: "Erro ao salvar",
@@ -52,6 +55,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   }),
 }));
 
+import { criarTemplateWhatsApp } from "@/lib/atendimento/api";
 import { PaginaTemplatesWhatsApp } from "./pagina-templates-whatsapp";
 
 describe("pagina de templates WhatsApp", () => {
@@ -67,4 +71,39 @@ describe("pagina de templates WhatsApp", () => {
     expect(screen.getByText("Pendente")).toBeInTheDocument();
     expect(screen.getByText("Olá {{1}}, o orçamento ficou pronto.")).toBeInTheDocument();
   });
+
+  it("lista todas as variaveis presentes no corpo", async () => {
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: "Novo template" }));
+    fireEvent.change(screen.getByLabelText("Corpo"), {
+      target: { value: "Olá {{1}}, {{2}}, {{3}} e {{4}}." },
+    });
+
+    expect(
+      screen.getByText(/Variáveis sequenciais: \{\{1\}\}, \{\{2\}\}, \{\{3\}\}, \{\{4\}\}/),
+    ).toBeInTheDocument();
+  });
+
+  it("bloqueia envio quando falta um indice", async () => {
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: "Novo template" }));
+    fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "retorno" } });
+    fireEvent.change(screen.getByLabelText("Corpo"), {
+      target: { value: "Olá {{1}} e {{3}}" },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Falta {{2}}.");
+    expect(screen.getByRole("button", { name: "Salvar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(criarTemplateWhatsApp).not.toHaveBeenCalled();
+  });
 });
+
+function renderizar() {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={cliente}>
+      <PaginaTemplatesWhatsApp />
+    </QueryClientProvider>,
+  );
+}
