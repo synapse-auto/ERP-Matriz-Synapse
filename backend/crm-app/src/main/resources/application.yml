@@ -179,6 +179,22 @@ synapse:
     ttl-assinatura-segundos: ${WS_TTL_ASSINATURA_SEGUNDOS:60}
 
   automacao:
+    # E83: opcional, independente do repasse cru; nenhum segredo vai ao navegador/outbox.
+    avaliacao:
+      url: ${AUTOMACAO_AVALIACAO_URL:}
+      token: ${AUTOMACAO_AVALIACAO_TOKEN:}
+      auth-header: ${AUTOMACAO_AVALIACAO_AUTH_HEADER:}
+      timeout: ${AUTOMACAO_AVALIACAO_TIMEOUT:5s}
+      reserva-expiracao: ${AUTOMACAO_AVALIACAO_RESERVA_EXPIRACAO:30s}
+      lote: ${AUTOMACAO_AVALIACAO_LOTE:10}
+      concorrencia: ${AUTOMACAO_AVALIACAO_CONCORRENCIA:2}
+      fila: ${AUTOMACAO_AVALIACAO_FILA:10}
+      maximo-tentativas: ${AUTOMACAO_AVALIACAO_MAXIMO_TENTATIVAS:5}
+      backoff-inicial: ${AUTOMACAO_AVALIACAO_BACKOFF_INICIAL:10s}
+      backoff-maximo: ${AUTOMACAO_AVALIACAO_BACKOFF_MAXIMO:30m}
+      minimo-chamadas-circuito: ${AUTOMACAO_AVALIACAO_MINIMO_CHAMADAS_CIRCUITO:5}
+      espera-circuito: ${AUTOMACAO_AVALIACAO_ESPERA_CIRCUITO:30s}
+      intervalo-ms: ${AUTOMACAO_AVALIACAO_INTERVALO_MS:1000}
     url-base: ${AUTOMACAO_URL:}
     token-permanente: ${AUTOMACAO_TOKEN:}
     # Protege a ficha do lead e o contrato com o n8n de respostas sem limite operacional.

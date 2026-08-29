@@ -58,6 +58,9 @@ public interface LeadNoCaminhoDeMensagem {
     /** Se o usuario da transacao corrente alcanca este lead — mesma politica da RN-CRM-01. */
     boolean alcancavel(UUID leadId);
 
+    /** Trava curta do lead visivel, antes de alterar atendimento; mesma ordem do envio manual. */
+    boolean bloquearParaAtendimento(UUID leadId);
+
     /**
      * O que o canal precisa saber para mandar mensagem a este lead.
      *
