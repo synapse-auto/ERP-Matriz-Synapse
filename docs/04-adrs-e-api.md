@@ -71,13 +71,14 @@
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
-| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com resumo de reações agregado em lote | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` |
+| GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com reações agregadas e `citacao` denormalizada quando a mensagem é resposta ou encaminhamento | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` · `RespostaEEncaminhamentoIT` |
 | PUT | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Define a reação do usuário autenticado (`enviadoEm` na query ancora a partição). Idempotente para o mesmo emoji | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | DELETE | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação. Idempotente | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência, com clientes visíveis e equipe interna participante | Atendente | `InboxUnificadaController` |
 | POST | `/api/v1/atendimentos/novo-contato` | Inicia conversa WhatsApp: cria ou reusa lead visível do telefone, abre atendimento humano e envia texto livre ou template | Atendente | `AtendimentoAcoesController` · `NovoContatoIT` |
-| POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
-| POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
+| POST | `/api/v1/atendimentos/mensagens` | Envia texto. Resposta opcional: `mensagemOrigemId` e `origemEnviadaEm` juntos no corpo | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` · `RespostaEEncaminhamentoIT` |
+| POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem ou documento. Resposta opcional: os mesmos dois campos na query | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` · `RespostaEEncaminhamentoIT` |
+| POST | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/encaminhamentos` | Encaminha a origem para **um** destino visível. `enviadoEm` na query ancora a partição; corpo `{ destinoAtendimentoId }` | Atendente | `AtendimentoAcoesController` · `RespostaEEncaminhamentoIT` · `OpenApiIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/avaliacao` | Lê a nota 1–5 da conversa visível | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
@@ -183,6 +184,18 @@ Uma pessoa autenticada mantém no máximo uma reação por mensagem. `PUT` defin
 
 O seletor amplo usa `emoji-mart` 5.6.0 + `@emoji-mart/data` 1.2.1 (MIT), montado como Web Component (`em-emoji-picker`). O pacote `emoji-mart` **não declara peer de React** — internamente usa Preact — então não há `overrides` nem `@emoji-mart/react` (peer só até React 18). Dados versionados no bundle, `set: native`, sem CDN. A aparência segue o Unicode do sistema (Apple no iOS, Segoe/Noto no Windows); o CRM não serve assets da Apple nem do WhatsApp.
 
+### ADR — Resposta e encaminhamento no WhatsApp (E87)
+
+Só o atendimento WhatsApp. Chat interno não tem essas rotas, não aceita `mensagemOrigemId` e não mostra o menu. Não há menção `@`, destino múltiplo, favorito, pin, exclusão nem denúncia.
+
+**Resposta** reusa o envio que já existe. `POST /api/v1/atendimentos/mensagens` aceita `mensagemOrigemId` + `origemEnviadaEm` no JSON; `POST /api/v1/atendimentos/{id}/mensagens/midia` os mesmos dois na query. Os dois campos vêm juntos ou nenhum — um só vira 422 com título `Resposta indevida`, sem gravar. Template (`POST /api/v1/atendimentos/mensagens/template`) **não** aceita origem: não há campo no contrato. A origem precisa ser do **mesmo lead** e ter wamid em `mensagem_id_externo` (preenchido no commit da outbox quando a Meta devolve o id, e no webhook de entrada). Sem wamid, lead diferente ou origem invisível: 422 `Resposta indevida` ou 404, **sem** mensagem parcial e **sem** citação só no CRM. O caminho humano continua na outbox; o adaptador da Meta manda `context.message_id` com o wamid. Janela de 24h, mídia, RN-CRM-06 e entrega são as regras de envio atuais.
+
+**Encaminhamento** é recurso novo, um destino por request: `POST /api/v1/atendimentos/{id}/mensagens/{mensagemId}/encaminhamentos?enviadoEm=` com `{ "destinoAtendimentoId": "<uuid>" }`. Cria mensagem **nova** no destino; a origem não muda. O corpo sai da linha persistida — o cliente não escolhe o texto. WhatsApp Cloud API não tem tipo nativo de forward: **não** vai `context.message_id`. Tipos `TEXTO`, `IMAGEM`, `AUDIO` e `DOCUMENTO`; `BOTOES` e `LISTA` → 422 com título `Encaminhamento incompativel`. Destino igual à conversa **ou** ao mesmo lead → o mesmo 422. Destino fora da visibilidade (RN-CRM-01) → 404, igual a recurso inexistente. O envio no destino é o envio manual de sempre: RN-CRM-06 transfere o lead destino quando a regra atual já transferiria. Mídia reusa a chave de storage, sem reupload e sem URL privada.
+
+**Citação** fica em `mensagem_referencia` (`RESPOSTA` \| `ENCAMINHAMENTO`), denormalizada (`autor`, `tipo`, `previa` ≤ 120 caracteres, sem telefone, token ou URL). Sem FK para a origem: se ela sumir, o histórico ainda devolve `citacao`. O GET do histórico, o `desde` e o evento WebSocket `MensagemParaTempoReal` carregam o mesmo objeto `{ origemId, tipoReferencia, autor, tipoConteudo, previa }`. Autor: nome do lead, do atendente, `IA` ou `Sistema` — nunca o número.
+
+Evidência: `AtendimentoAcoesController`, `EnviarMensagemUseCase`, `EncaminharMensagemUseCase`, `MetaCloudApiAdapter`, V46, `RespostaEEncaminhamentoIT`, `EncaminharMensagemUseCaseTest`, `OpenApiIT`.
+
 ## Parte D — WebSocket (tempo real)
 
 ### ADR — Inbox unificada (E62)
@@ -200,7 +213,7 @@ O endpoint específico de chat interno permanece para compatibilidade. O botão 
 | Destino | Direção | Payload | Proteção | Evidência |
 |---|---|---|---|---|
 | `/ws?token=<JWT>` | Cliente → Servidor | Handshake STOMP | JWT validado antes do upgrade | `WebSocketConfig` · `TempoRealIT` |
-| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem, status, transferência, finalização e reação | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` · `RelayDeTempoRealListener` |
+| `/user/queue/atendimento.{id}` | Servidor → Cliente | Mensagem (inclui `citacao` quando houver), status, transferência, finalização e reação | Assinatura autorizada pela visibilidade do atendimento | `AutorizacaoDeAssinaturaInterceptor` · `TempoRealIT` · `RelayDeTempoRealListener` |
 | `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência | `RedisSubscriberDeAtendimento` · `TempoRealIT` |
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.
