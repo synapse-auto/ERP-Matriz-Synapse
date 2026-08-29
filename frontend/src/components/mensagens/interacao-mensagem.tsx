@@ -84,10 +84,11 @@ export function InteracaoMensagem({
     <PopoverTrigger
       className={cn(
         buttonVariants({ variant: "ghost", size: "icon-xs" }),
-        "shrink-0 bg-background text-foreground shadow-sm ring-1 ring-foreground/10",
-        "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-        "[@media(hover:none)]:opacity-100",
-        (menuAberto || seletorAberto) && "opacity-100",
+        "absolute top-2 z-10 bg-background text-foreground shadow-sm ring-1 ring-foreground/10",
+        "pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
+        "[@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100",
+        alinhadaADireita ? "right-full mr-1" : "left-full ml-1",
+        (menuAberto || seletorAberto) && "pointer-events-auto opacity-100",
       )}
       aria-label={textos.abrir}
       disabled={pendente}
@@ -99,10 +100,12 @@ export function InteracaoMensagem({
   return (
     <>
       <div className={cn("group flex", alinhadaADireita ? "justify-end" : "justify-start")}>
-        <div className="flex max-w-[85%] items-start gap-1">
+        <div
+          className="relative w-fit max-w-[calc(100%-2.75rem)] sm:max-w-[70%]"
+          data-slot="interacao-mensagem"
+        >
           <Popover open={menuAberto} onOpenChange={setMenuAberto}>
-            {alinhadaADireita && chevron}
-            <div className="min-w-0">
+            <div className="min-w-0 max-w-full">
               {children}
               {reacoes.length > 0 && (
                 <div className={cn("mt-1 flex flex-wrap gap-1", alinhadaADireita && "justify-end")}>
@@ -128,7 +131,7 @@ export function InteracaoMensagem({
                 </div>
               )}
             </div>
-            {!alinhadaADireita && chevron}
+            {chevron}
             <PopoverContent
               side="top"
               align={alinhadaADireita ? "end" : "start"}

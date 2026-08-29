@@ -39,7 +39,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => { void conversas.refetch(); void mensagens.refetch(); }} />;
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <CabecalhoChatInterno conversa={conversa} textos={textos} />
       {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} />}
       <ComposerChatInterno textos={textos} enviando={enviar.isPending || enviarMidia.isPending} erro={enviar.isError || enviarMidia.isError} onEnviar={(conteudo) => enviar.mutateAsync(conteudo)} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ arquivo, legenda })} />

@@ -58,6 +58,44 @@ const textos: Textos["atendimentos"]["mensagem"]["acoes"] = {
 const fantasmas = ["Responder", "Encaminhar", "Fixar", "Pergunte à IA", "Favoritar", "Denunciar", "Apagar"];
 
 describe("InteracaoMensagem", () => {
+  it("mantém a ação fora da geometria da bolha e acessível nos dois alinhamentos", () => {
+    const { rerender } = render(
+      <InteracaoMensagem
+        alinhadaADireita
+        textoCopiavel="Olá"
+        reacoes={[]}
+        textos={textos}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+
+    const acaoEnviada = screen.getByRole("button", { name: "Ações da mensagem" });
+    expect(acaoEnviada).toHaveClass("absolute", "right-full", "pointer-events-none", "opacity-0");
+    expect(acaoEnviada.closest('[data-slot="interacao-mensagem"]')).toHaveClass(
+      "w-fit",
+      "max-w-[calc(100%-2.75rem)]",
+      "sm:max-w-[70%]",
+    );
+
+    rerender(
+      <InteracaoMensagem
+        alinhadaADireita={false}
+        textoCopiavel="Olá"
+        reacoes={[]}
+        textos={textos}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+
+    expect(screen.getByRole("button", { name: "Ações da mensagem" })).toHaveClass("left-full");
+  });
+
   it("abre o menu com reações rápidas e copiar, sem comandos fora de escopo", async () => {
     render(
       <InteracaoMensagem
