@@ -58,8 +58,11 @@ class ChatInternoMidiaIT extends PostgresIT {
 
         // 1. Ana lista contatos e acha o Bruno
         ResponseEntity<List> reqContatos = chamadaAutenticada(rest, "/api/v1/chat-interno/contatos", HttpMethod.GET, authAna, null, List.class);
+        assertThat(reqContatos.getStatusCode()).isEqualTo(HttpStatus.OK);
         List<Map<String, Object>> contatos = reqContatos.getBody();
-        String brunoId = contatos.stream().filter(c -> c.get("nome").toString().contains("Bruno")).findFirst().orElseThrow().get("id").toString();
+        Map<String, Object> bruno = contatos.stream().filter(c -> c.get("nome").toString().contains("Bruno")).findFirst().orElseThrow();
+        assertThat(bruno).containsKey("presenca");
+        String brunoId = bruno.get("id").toString();
 
         // 2. Ana abre conversa com Bruno
         String payload = "{\"usuarioId\": \"" + brunoId + "\"}";

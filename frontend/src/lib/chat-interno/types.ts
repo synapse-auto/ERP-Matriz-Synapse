@@ -1,4 +1,10 @@
-export interface ChatContato { id: string; nome: string; fotoUrl?: string | null }
+export type StatusPresencaChat = "ONLINE" | "AUSENTE" | "OFFLINE";
+export interface ChatContato {
+  id: string;
+  nome: string;
+  fotoUrl?: string | null;
+  presenca: StatusPresencaChat;
+}
 export interface ChatConversa {
   id: string; tipo: "DIRETA" | "GRUPO"; participantes: string;
   ultimaMensagem: string | null; ultimaMensagemEm: string | null; naoLidas: number;

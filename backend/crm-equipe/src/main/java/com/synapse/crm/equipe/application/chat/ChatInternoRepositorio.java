@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 
 /** Porta do read/write model do chat; nenhuma consulta ignora o participante corrente. */
 public interface ChatInternoRepositorio {
@@ -24,7 +25,7 @@ public interface ChatInternoRepositorio {
 
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
-    record ContatoResumo(UUID id, String nome, String fotoUrl) {}
+    record ContatoResumo(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {}
     record PaginaMensagens(List<MensagemResumo> mensagens, Instant proximoCursor) {}

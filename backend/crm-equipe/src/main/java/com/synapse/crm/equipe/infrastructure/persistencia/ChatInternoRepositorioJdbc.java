@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
+import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 
 @Repository
 class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
@@ -73,12 +74,12 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     @Override
     public List<ContatoResumo> listarContatos(UUID usuarioId) {
         return jdbc.query("""
-                SELECT id, nome,
+                SELECT id, nome, status_presenca::text,
                        CASE WHEN foto_referencia IS NOT NULL THEN '/api/v1/me/foto/' || id::text END AS foto_url
                   FROM usuario WHERE ativo AND id<>? ORDER BY nome
                 """,
                 (r, i) -> new ContatoResumo(r.getObject("id", UUID.class), r.getString("nome"),
-                        r.getString("foto_url")), usuarioId);
+                        r.getString("foto_url"), StatusPresenca.valueOf(r.getString("status_presenca"))), usuarioId);
     }
 
     @Override
