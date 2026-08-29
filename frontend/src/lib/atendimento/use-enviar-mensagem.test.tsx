@@ -71,6 +71,32 @@ describe("useEnviarMensagem", () => {
     expect(mensagens?.[0].statusEntrega).toBe("PENDENTE");
   });
 
+  it("remove a bolha otimista quando a resposta é recusada, sem deixar vínculo falso", async () => {
+    vi.mocked(api.enviarMensagem).mockRejectedValue(
+      new Error("Resposta indevida"),
+    );
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-resposta");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+
+    result.current.mutate({
+      atendimentoId: "at-resposta",
+      leadId: "lead-1",
+      conteudo: "ok",
+      resposta: { mensagemId: "origem", enviadoEm: "2026-08-29T12:00:00Z" },
+      citacao: {
+        origemId: "origem",
+        tipoReferencia: "RESPOSTA",
+        autor: "Maria",
+        tipoConteudo: "TEXTO",
+        previa: "oi",
+      },
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mensagensDoHistorico(queryClient, "at-resposta")).toEqual([]);
+  });
+
   it("falha de rede: a mensagem otimista transita para FALHOU, sem duplicar entrada", async () => {
     vi.mocked(api.enviarMensagem).mockRejectedValue(new Error("falha de rede"));
     const { queryClient, Wrapper } = criarWrapper();

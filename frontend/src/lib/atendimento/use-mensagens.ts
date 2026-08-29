@@ -65,6 +65,7 @@ export function useMensagens(
           opcoes: evento.dados.opcoes,
           statusEntrega: evento.dados.statusEntrega,
           enviadoEm: evento.dados.enviadoEm,
+          citacao: evento.dados.citacao ?? null,
         };
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;

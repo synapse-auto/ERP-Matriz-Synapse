@@ -121,9 +121,18 @@ class OutboxRepositorioJdbc implements Outbox {
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
-            ConteudoDeEnvio conteudo) {
+            ConteudoDeEnvio conteudo,
+            String contextoWamid) {
         enfileirarEnvioInterno(
-                mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId, conteudo, null);
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                null,
+                contextoWamid);
     }
 
     @Override
@@ -144,7 +153,8 @@ class OutboxRepositorioJdbc implements Outbox {
                 telefoneDestino,
                 credencialId,
                 conteudo,
-                mensagemProgramadaId);
+                mensagemProgramadaId,
+                null);
     }
 
     private void enfileirarEnvioInterno(
@@ -155,7 +165,8 @@ class OutboxRepositorioJdbc implements Outbox {
             String telefoneDestino,
             UUID credencialId,
             ConteudoDeEnvio conteudo,
-            UUID mensagemProgramadaId) {
+            UUID mensagemProgramadaId,
+            String contextoWamid) {
         TransacaoObrigatoria.exigir("enfileirarEnvio");
 
         Instant agora = Instant.now();
@@ -164,8 +175,15 @@ class OutboxRepositorioJdbc implements Outbox {
                 UUID.randomUUID(),
                 TIPO_ENVIO,
                 serializar(
-                        mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId,
-                        conteudo, mensagemProgramadaId),
+                        mensagemId,
+                        enviadoEm,
+                        atendimentoId,
+                        leadId,
+                        telefoneDestino,
+                        credencialId,
+                        conteudo,
+                        mensagemProgramadaId,
+                        contextoWamid),
                 Timestamp.from(agora),
                 Timestamp.from(agora));
     }
@@ -252,7 +270,8 @@ class OutboxRepositorioJdbc implements Outbox {
             String telefoneDestino,
             UUID credencialId,
             ConteudoDeEnvio conteudo,
-            UUID mensagemProgramadaId) {
+            UUID mensagemProgramadaId,
+            String contextoWamid) {
 
         ObjectNode raiz = json.createObjectNode();
         raiz.put("mensagemId", mensagemId.toString());
@@ -263,6 +282,9 @@ class OutboxRepositorioJdbc implements Outbox {
         raiz.put("credencialId", credencialId == null ? null : credencialId.toString());
         if (mensagemProgramadaId != null) {
             raiz.put("mensagemProgramadaId", mensagemProgramadaId.toString());
+        }
+        if (contextoWamid != null && !contextoWamid.isBlank()) {
+            raiz.put("contextoWamid", contextoWamid);
         }
 
         ObjectNode conteudoNo = raiz.putObject("conteudo");
@@ -300,6 +322,7 @@ class OutboxRepositorioJdbc implements Outbox {
         JsonNode payload = ler(linha.getString("payload"));
         JsonNode conteudo = payload.get("conteudo");
 
+        JsonNode contexto = payload.get("contextoWamid");
         return new EnvioPendente(
                 linha.getObject("id", UUID.class),
                 UUID.fromString(payload.get("mensagemId").asText()),
@@ -311,7 +334,10 @@ class OutboxRepositorioJdbc implements Outbox {
                         ? null
                         : UUID.fromString(payload.get("credencialId").asText()),
                 paraConteudo(conteudo),
-                linha.getInt("tentativas"));
+                linha.getInt("tentativas"),
+                contexto == null || contexto.isNull() || contexto.asText().isBlank()
+                        ? null
+                        : contexto.asText());
     }
 
     private RepasseWebhookPendente desserializarRepasseWebhook(ResultSet linha, int indice)

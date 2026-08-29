@@ -209,6 +209,9 @@ class MetaCloudApiAdapter implements CanalGateway {
         raiz.put("messaging_product", "whatsapp");
         raiz.put("recipient_type", "individual");
         raiz.put("to", envio.telefoneDestino());
+        if (envio.contextoWamid() != null && !envio.contextoWamid().isBlank()) {
+            raiz.putObject("context").put("message_id", envio.contextoWamid());
+        }
 
         switch (envio.conteudo()) {
             case ConteudoDeEnvio.MensagemLivre livre -> {

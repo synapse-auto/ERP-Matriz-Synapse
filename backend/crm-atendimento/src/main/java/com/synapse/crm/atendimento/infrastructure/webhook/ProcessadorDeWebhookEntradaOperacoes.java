@@ -25,6 +25,7 @@ import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
+import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -61,6 +62,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final TradutorDeCanal tradutor;
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
+    private final MensagemIdExternoRepositorio idsExternos;
     private final AtendimentoRepositorio atendimentos;
     private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset;
     private final TransferirAtendimentoUseCase transferirAtendimento;
@@ -79,6 +81,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal tradutor,
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
+            MensagemIdExternoRepositorio idsExternos,
             AtendimentoRepositorio atendimentos,
             ConfiguracaoDoComandoResetRepositorio configuracaoDoReset,
             TransferirAtendimentoUseCase transferirAtendimento,
@@ -95,6 +98,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
         this.registrar = registrar;
+        this.idsExternos = idsExternos;
         this.atendimentos = atendimentos;
         this.configuracaoDoReset = configuracaoDoReset;
         this.transferirAtendimento = transferirAtendimento;
@@ -158,6 +162,11 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                             canalEntrada.canalId(),
                             canalEntrada.canalCredencialId(),
                             mensagem.texto()));
+            idsExternos.gravar(
+                    mensagem.idExterno(),
+                    resultado.mensagem().id(),
+                    resultado.mensagem().enviadoEm(),
+                    resultado.atendimento().id());
 
             // A mensagem fica gravada e seus eventos de mensagem seguem normalmente. So depois
             // disso o CRM aplica a metade que lhe cabe do #reset: devolver um atendimento humano

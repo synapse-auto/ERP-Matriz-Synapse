@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 
@@ -15,7 +16,8 @@ public record MensagemDoHistorico(
         Instant atendimentoIniciadoEm,
         Instant atendimentoFinalizadoEm,
         String atendimentoResponsavelNome,
-        List<ResumoDeReacao> reacoes) {
+        List<ResumoDeReacao> reacoes,
+        CitacaoDeMensagem citacao) {
 
     public MensagemDoHistorico {
         reacoes = reacoes == null ? List.of() : List.copyOf(reacoes);
@@ -35,7 +37,8 @@ public record MensagemDoHistorico(
                 atendimentoIniciadoEm,
                 atendimentoFinalizadoEm,
                 atendimentoResponsavelNome,
-                List.of());
+                List.of(),
+                null);
     }
 
     public MensagemDoHistorico comReacoes(List<ResumoDeReacao> novas) {
@@ -46,6 +49,7 @@ public record MensagemDoHistorico(
                 atendimentoIniciadoEm,
                 atendimentoFinalizadoEm,
                 atendimentoResponsavelNome,
-                novas);
+                novas,
+                citacao);
     }
 }

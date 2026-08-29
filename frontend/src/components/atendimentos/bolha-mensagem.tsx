@@ -8,6 +8,7 @@ import type { MensagemResposta } from "@/lib/atendimento/types";
 
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 
+import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { StatusEntregaIcone } from "./status-entrega";
 import { PlayerAudio } from "./player-audio";
 
@@ -57,6 +58,8 @@ type Props = {
   nomeDoRemetente?: string | null;
   onDefinirReacao: (emoji: string) => Promise<void>;
   onRemoverReacao: () => Promise<void>;
+  onResponder?: () => void;
+  onEncaminhar?: () => void;
 };
 
 export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
@@ -74,6 +77,8 @@ export function BolhaMensagem({
   nomeDoRemetente,
   onDefinirReacao,
   onRemoverReacao,
+  onResponder,
+  onEncaminhar,
 }: Props) {
   const catalogo = useTextos().atendimentos;
   const textos = catalogo.media;
@@ -94,6 +99,8 @@ export function BolhaMensagem({
       textos={catalogo.mensagem.acoes}
       onDefinirReacao={onDefinirReacao}
       onRemoverReacao={onRemoverReacao}
+      onResponder={onResponder}
+      onEncaminhar={onEncaminhar}
     >
       <div
         className={cn(
@@ -107,6 +114,10 @@ export function BolhaMensagem({
           <p className="mb-1 text-xs font-bold text-primary-foreground/80">
             {nomeDoRemetente}
           </p>
+        )}
+
+        {mensagem.citacao && (
+          <CitacaoMensagemVisual citacao={mensagem.citacao} textos={catalogo.mensagem.citacao} />
         )}
 
         {mensagem.tipo === "IMAGEM" && (

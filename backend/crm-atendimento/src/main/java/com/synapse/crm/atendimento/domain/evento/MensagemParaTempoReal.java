@@ -3,6 +3,8 @@ package com.synapse.crm.atendimento.domain.evento;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
+
 /**
  * Uma mensagem, pronta para a tela — nao para o banco.
  *
@@ -27,4 +29,35 @@ public record MensagemParaTempoReal(
         String midiaMetadados,
         String opcoes,
         String statusEntrega,
-        Instant enviadoEm) {}
+        Instant enviadoEm,
+        CitacaoDeMensagem citacao) {
+
+    public MensagemParaTempoReal(
+            UUID atendimentoId,
+            UUID leadId,
+            UUID mensagemId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            String opcoes,
+            String statusEntrega,
+            Instant enviadoEm) {
+        this(
+                atendimentoId,
+                leadId,
+                mensagemId,
+                remetenteTipo,
+                remetenteId,
+                tipo,
+                conteudo,
+                midiaUrl,
+                midiaMetadados,
+                opcoes,
+                statusEntrega,
+                enviadoEm,
+                null);
+    }
+}

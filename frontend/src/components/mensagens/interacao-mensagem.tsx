@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { ChevronDown, Copy, Plus, X } from "lucide-react";
+import { ChevronDown, Copy, Forward, Plus, Reply, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -32,6 +32,8 @@ type Props = {
   textos: TextosAcoes;
   onDefinirReacao: (emoji: string) => Promise<void>;
   onRemoverReacao: () => Promise<void>;
+  onResponder?: () => void;
+  onEncaminhar?: () => void;
   children: React.ReactNode;
 };
 
@@ -47,6 +49,8 @@ export function InteracaoMensagem({
   textos,
   onDefinirReacao,
   onRemoverReacao,
+  onResponder,
+  onEncaminhar,
   children,
 }: Props) {
   const [menuAberto, setMenuAberto] = useState(false);
@@ -177,6 +181,36 @@ export function InteracaoMensagem({
                 >
                   <Copy className="size-3.5" aria-hidden />
                   {textos.copiar}
+                </Button>
+              )}
+              {onResponder && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-1 w-full justify-start"
+                  disabled={pendente}
+                  onClick={() => {
+                    setMenuAberto(false);
+                    onResponder();
+                  }}
+                >
+                  <Reply className="size-3.5" aria-hidden />
+                  {textos.responder}
+                </Button>
+              )}
+              {onEncaminhar && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  disabled={pendente}
+                  onClick={() => {
+                    setMenuAberto(false);
+                    onEncaminhar();
+                  }}
+                >
+                  <Forward className="size-3.5" aria-hidden />
+                  {textos.encaminhar}
                 </Button>
               )}
             </PopoverContent>

@@ -13,6 +13,8 @@ interface VariaveisEnvioMidia {
   arquivo: File;
   legenda?: string;
   onProgresso?: (percentual: number) => void;
+  resposta?: { mensagemId: string; enviadoEm: string };
+  citacao?: MensagemResposta["citacao"];
 }
 
 function idTemporario(): string {
@@ -41,6 +43,7 @@ export function useEnviarMidia() {
         variaveis.arquivo,
         variaveis.legenda,
         variaveis.onProgresso ?? (() => {}),
+        variaveis.resposta,
       ),
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
@@ -64,12 +67,19 @@ export function useEnviarMidia() {
         opcoes: null,
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
+        citacao: variaveis.citacao ?? null,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
       return { queryKey, idOtimista };
     },
-    onError: (_erro, _variaveis, contexto) => {
+    onError: (_erro, variaveis, contexto) => {
       if (!contexto) {
+        return;
+      }
+      if (variaveis.resposta) {
+        atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+          atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
+        );
         return;
       }
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>

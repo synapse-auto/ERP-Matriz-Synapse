@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ChangeEvent, type KeyboardEvent, useRef, useState } from "react";
+import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -31,16 +31,18 @@ import {
 import { ErroDeApi } from "@/lib/api/errors";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import { citacaoDeResposta } from "@/lib/atendimento/citacao";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { listarMensagensRapidas } from "@/lib/suporte/api";
 import { useLead } from "@/lib/lead/use-painel-lead";
 import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 
+import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { useGravadorAudio } from "./use-gravador-audio";
 
 const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "😢", "😡", "👀", "✅"];
@@ -50,6 +52,8 @@ const TIPOS_DE_ANEXO_ACEITOS =
 
 type Props = {
   conversa: CartaoAtendimento;
+  resposta?: MensagemResposta | null;
+  onCancelarResposta?: () => void;
 };
 
 function tamanhoLegivel(bytes: number): string {
@@ -68,7 +72,7 @@ function duracaoLegivel(segundos: number): string {
  * `useEnviarMidia`), aviso de janela de 24h ANTES de digitar, e anexo — imagem, áudio ou
  * documento — com seleção, preview, progresso de upload e erro acionável.
  */
-export function Composer({ conversa }: Props) {
+export function Composer({ conversa, resposta = null, onCancelarResposta }: Props) {
   const catalogo = useTextos();
   const textosAtendimentos = catalogo.atendimentos;
   const textos = textosAtendimentos.composer;
@@ -78,6 +82,7 @@ export function Composer({ conversa }: Props) {
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const enviar = useEnviarMensagem();
   const enviarMidia = useEnviarMidia();
   const configuracaoComposer = useConfiguracaoComposer();
@@ -95,6 +100,11 @@ export function Composer({ conversa }: Props) {
     enabled: conversa.status !== "FINALIZADO" && !janelaAberta,
   });
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
+  const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
+
+  useEffect(() => {
+    if (resposta) textareaRef.current?.focus();
+  }, [resposta]);
 
   if (conversa.status === "FINALIZADO") {
     return (
@@ -104,6 +114,19 @@ export function Composer({ conversa }: Props) {
         </div>
       </div>
     );
+  }
+
+  function alvoDeResposta() {
+    return resposta
+      ? { mensagemId: resposta.id, enviadoEm: resposta.enviadoEm }
+      : undefined;
+  }
+
+  function limparAposEnvio() {
+    setArquivo(null);
+    setTexto("");
+    setProgresso(null);
+    onCancelarResposta?.();
   }
 
   function enviarConteudo() {
@@ -118,13 +141,11 @@ export function Composer({ conversa }: Props) {
           arquivo,
           legenda,
           onProgresso: setProgresso,
+          resposta: alvoDeResposta(),
+          citacao: citacaoResposta,
         },
         {
-          onSuccess: () => {
-            setArquivo(null);
-            setTexto("");
-            setProgresso(null);
-          },
+          onSuccess: limparAposEnvio,
           onError: () => setProgresso(null),
         },
       );
@@ -134,12 +155,19 @@ export function Composer({ conversa }: Props) {
     if (!conteudo) {
       return;
     }
-    setTexto("");
-    enviar.mutate({
-      atendimentoId: conversa.atendimentoId,
-      leadId: conversa.leadId,
-      conteudo,
-    });
+    if (!resposta) {
+      setTexto("");
+    }
+    enviar.mutate(
+      {
+        atendimentoId: conversa.atendimentoId,
+        leadId: conversa.leadId,
+        conteudo,
+        resposta: alvoDeResposta(),
+        citacao: citacaoResposta,
+      },
+      { onSuccess: limparAposEnvio },
+    );
   }
 
   function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
@@ -203,6 +231,11 @@ export function Composer({ conversa }: Props) {
       setAtalhoSelecionado(0);
       return;
     }
+    if (evento.key === "Escape" && resposta) {
+      evento.preventDefault();
+      onCancelarResposta?.();
+      return;
+    }
     if (evento.key === "Enter" && !evento.shiftKey) {
       evento.preventDefault();
       enviarConteudo();
@@ -211,7 +244,9 @@ export function Composer({ conversa }: Props) {
 
   const erroDeTexto =
     enviar.error instanceof ErroDeApi
-      ? enviar.error.message
+      ? resposta
+        ? (enviar.error.problema?.detail ?? textos.respostaErro)
+        : enviar.error.message
       : enviar.isError
         ? textosAtendimentos.mensagem.status.falhou
         : null;
@@ -334,6 +369,22 @@ export function Composer({ conversa }: Props) {
   return (
     <div className="shrink-0 bg-background px-4 pb-4 pt-3">
       <div className="relative mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 shadow-md">
+        {citacaoResposta && (
+          <div className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+            <div className="min-w-0 flex-1 text-muted-foreground">
+              <CitacaoMensagemVisual citacao={citacaoResposta} textos={textosAtendimentos.mensagem.citacao} />
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+              aria-label={textosAtendimentos.mensagem.citacao.cancelar}
+              onClick={() => onCancelarResposta?.()}
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+
         {arquivo && (
           <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
             <Paperclip
@@ -543,6 +594,7 @@ export function Composer({ conversa }: Props) {
 
           <div className="relative min-w-0 flex-1">
             <Textarea
+              ref={textareaRef}
               value={texto}
               onChange={(evento) => {
                 setTexto(evento.target.value);

@@ -90,6 +90,7 @@ class PublicadorDaOutboxOperacoesTest {
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
                 outbox,
                 mock(MensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
                 mock(CanalGateway.class),
                 propriedades,
                 mock(ApplicationEventPublisher.class));
@@ -106,7 +107,12 @@ class PublicadorDaOutboxOperacoesTest {
         ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
         OutboxProperties propriedades = propriedades();
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
-                outbox, mensagens, canal, propriedades, eventos);
+                outbox,
+                mensagens,
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                canal,
+                propriedades,
+                eventos);
         Outbox.EnvioPendente pendente = pendente();
 
         transacoes.registrarResultado(pendente, ResultadoDeEnvio.Recusado.temporario("429"), AGORA);

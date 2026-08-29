@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.application.Outbox;
+import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
@@ -25,6 +26,7 @@ class PublicadorDaOutboxTransacoes {
 
     private final Outbox outbox;
     private final MensagemRepositorio mensagens;
+    private final MensagemIdExternoRepositorio idsExternos;
     private final CanalGateway canal;
     private final OutboxProperties propriedades;
     private final ApplicationEventPublisher eventos;
@@ -32,11 +34,13 @@ class PublicadorDaOutboxTransacoes {
     PublicadorDaOutboxTransacoes(
             Outbox outbox,
             MensagemRepositorio mensagens,
+            MensagemIdExternoRepositorio idsExternos,
             CanalGateway canal,
             OutboxProperties propriedades,
             ApplicationEventPublisher eventos) {
         this.outbox = outbox;
         this.mensagens = mensagens;
+        this.idsExternos = idsExternos;
         this.canal = canal;
         this.propriedades = propriedades;
         this.eventos = eventos;
@@ -56,6 +60,11 @@ class PublicadorDaOutboxTransacoes {
                 outbox.marcarPublicado(pendente.outboxId(), quando);
                 mensagens.atualizarStatusEntrega(
                         pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.ENVIADO);
+                idsExternos.gravar(
+                        aceito.idExterno(),
+                        pendente.mensagemId(),
+                        pendente.enviadoEm(),
+                        pendente.atendimentoId());
                 eventos.publishEvent(new MudancaDeStatusDeEntrega(
                         pendente.mensagemId(),
                         pendente.atendimentoId(),

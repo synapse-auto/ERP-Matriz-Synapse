@@ -32,6 +32,8 @@ const textos: Textos["atendimentos"]["mensagem"]["acoes"] = {
   seletorTitulo: "Escolher emoji",
   seletorFechar: "Fechar seletor de emojis",
   reacaoErro: "Não foi possível salvar a reação.",
+  responder: "Responder",
+  encaminhar: "Encaminhar",
   rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
   seletor: {
     search: "Buscar emoji",
@@ -229,5 +231,33 @@ describe("InteracaoMensagem", () => {
     expect(await screen.findByLabelText("Buscar emoji")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "🎉" }));
     await waitFor(() => expect(definir).toHaveBeenCalledWith("🎉"));
+  });
+
+  it("mostra Responder e Encaminhar só quando o atendimento oferece os callbacks", async () => {
+    const responder = vi.fn();
+    const encaminhar = vi.fn();
+    render(
+      <InteracaoMensagem
+        alinhadaADireita
+        textoCopiavel="Olá"
+        reacoes={[]}
+        textos={textos}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+        onResponder={responder}
+        onEncaminhar={encaminhar}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Responder" }));
+    expect(responder).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Encaminhar" }));
+    expect(encaminhar).toHaveBeenCalled();
+    for (const nome of ["Fixar", "Pergunte à IA", "Favoritar", "Denunciar", "Apagar"]) {
+      expect(screen.queryByText(nome)).not.toBeInTheDocument();
+    }
   });
 });

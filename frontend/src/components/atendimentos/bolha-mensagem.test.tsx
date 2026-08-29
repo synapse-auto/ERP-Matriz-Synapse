@@ -17,7 +17,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
-        acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher emoji", seletorFechar: "Fechar", reacaoErro: "erro reação", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "Custom", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } },
+        acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher emoji", seletorFechar: "Fechar", reacaoErro: "erro reação", responder: "Responder", encaminhar: "Encaminhar", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "Custom", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } },
+        citacao: { resposta: "Respondendo a {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar resposta", origemIndisponivel: "Mensagem original indisponível", imagem: "Foto", audio: "Áudio", documento: "Documento" },
       },
     },
   }),
@@ -173,5 +174,50 @@ describe("BolhaMensagem", () => {
     expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
     expect(document.querySelector("audio[controls]")).toBeNull();
     expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toBeInTheDocument();
+  });
+
+  it("mostra a citação persistida com autor e prévia, sem HTML da origem", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          conteudo: "combinado",
+          citacao: {
+            origemId: "origem-1",
+            tipoReferencia: "RESPOSTA",
+            autor: "Maria",
+            tipoConteudo: "TEXTO",
+            previa: "<script>x</script> medida do vão",
+          },
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Respondendo a Maria")).toBeInTheDocument();
+    expect(screen.getByText("<script>x</script> medida do vão")).toBeInTheDocument();
+    expect(document.querySelector("script")).toBeNull();
+  });
+
+  it("cai no texto de origem indisponível quando a prévia veio vazia", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          conteudo: "ok",
+          citacao: {
+            origemId: "origem-sumiu",
+            tipoReferencia: "RESPOSTA",
+            autor: "",
+            tipoConteudo: "TEXTO",
+            previa: "",
+          },
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Respondendo a Mensagem original indisponível")).toBeInTheDocument();
+    expect(screen.getByText("Mensagem original indisponível")).toBeInTheDocument();
   });
 });

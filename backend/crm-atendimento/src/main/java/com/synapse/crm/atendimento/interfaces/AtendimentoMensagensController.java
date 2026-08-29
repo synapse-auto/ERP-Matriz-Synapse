@@ -222,7 +222,8 @@ class AtendimentoMensagensController {
             String opcoes,
             String statusEntrega,
             Instant enviadoEm,
-            List<ResumoReacaoResposta> reacoes) {
+            List<ResumoReacaoResposta> reacoes,
+            CitacaoResposta citacao) {
 
         static MensagemResposta de(
                 MensagemDoHistorico item,
@@ -248,7 +249,23 @@ class AtendimentoMensagensController {
                     mensagem.opcoes(),
                     mensagem.statusEntrega().name(),
                     mensagem.enviadoEm(),
-                    item.reacoes().stream().map(ResumoReacaoResposta::de).toList());
+                    item.reacoes().stream().map(ResumoReacaoResposta::de).toList(),
+                    CitacaoResposta.de(item.citacao()));
+        }
+    }
+
+    record CitacaoResposta(
+            UUID origemId, String tipoReferencia, String autor, String tipoConteudo, String previa) {
+        static CitacaoResposta de(com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem citacao) {
+            if (citacao == null) {
+                return null;
+            }
+            return new CitacaoResposta(
+                    citacao.origemId(),
+                    citacao.tipoReferencia(),
+                    citacao.autor(),
+                    citacao.tipoConteudo(),
+                    citacao.previa());
         }
     }
 
