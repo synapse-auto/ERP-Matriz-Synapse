@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,7 +74,6 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final CircuitBreaker breaker;
     private final CircuitBreaker breakerTemplates;
     private final ArmazenamentoDeMidia armazenamento;
-    private final AtomicReference<String> contaNegocioResolvida = new AtomicReference<>();
 
     MetaCloudApiAdapter(
             RestClient.Builder builder,
@@ -317,8 +315,9 @@ class MetaCloudApiAdapter implements CanalGateway {
 
     @Override
     public List<TemplateDoCanal> listarTemplates() {
+        String conta = exigirContaNegocio();
         try {
-            return breakerTemplates.executeSupplier(this::buscarTemplates);
+            return breakerTemplates.executeSupplier(() -> buscarTemplates(conta));
         } catch (CallNotPermittedException breakerAberto) {
             throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
         } catch (RestClientResponseException e) {
@@ -332,8 +331,9 @@ class MetaCloudApiAdapter implements CanalGateway {
 
     @Override
     public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        String conta = exigirContaNegocio();
         try {
-            return breakerTemplates.executeSupplier(() -> submeterTemplate(pedido));
+            return breakerTemplates.executeSupplier(() -> submeterTemplate(pedido, conta));
         } catch (CallNotPermittedException breakerAberto) {
             throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
         } catch (RestClientResponseException e) {
@@ -345,8 +345,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         }
     }
 
-    private List<TemplateDoCanal> buscarTemplates() {
-        String conta = resolverContaNegocio();
+    private List<TemplateDoCanal> buscarTemplates(String conta) {
         JsonNode raiz = http.get()
                 .uri(
                         "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
@@ -368,9 +367,8 @@ class MetaCloudApiAdapter implements CanalGateway {
         return templates;
     }
 
-    private ResultadoDeTemplate submeterTemplate(PedidoDeTemplate pedido) {
+    private ResultadoDeTemplate submeterTemplate(PedidoDeTemplate pedido, String conta) {
         try {
-            String conta = resolverContaNegocio();
             JsonNode resposta = http.post()
                     .uri("/{conta}/message_templates", conta)
                     .header("Authorization", "Bearer " + propriedades.token())
@@ -424,29 +422,12 @@ class MetaCloudApiAdapter implements CanalGateway {
         return raiz;
     }
 
-    private String resolverContaNegocio() {
-        String configurada = propriedades.contaNegocio();
-        if (!configurada.isBlank()) {
-            return configurada;
-        }
-        String emCache = contaNegocioResolvida.get();
-        if (emCache != null && !emCache.isBlank()) {
-            return emCache;
-        }
-        JsonNode resposta = http.get()
-                .uri("/{numero}?fields=whatsapp_business_account", propriedades.numeroPrincipal())
-                .header("Authorization", "Bearer " + propriedades.token())
-                .retrieve()
-                .body(JsonNode.class);
-        String id = resposta == null
-                ? ""
-                : resposta.path("whatsapp_business_account").path("id").asText();
-        if (id == null || id.isBlank()) {
+    private String exigirContaNegocio() {
+        if (!propriedades.temContaNegocio()) {
             throw new CanalIndisponivelException(
-                    "nao foi possivel resolver a conta de negocio do WhatsApp");
+                    "WHATSAPP_CONTA_NEGOCIO nao configurada; informe o WABA ID para administrar templates");
         }
-        contaNegocioResolvida.set(id);
-        return id;
+        return propriedades.contaNegocio();
     }
 
     private static TemplateDoCanal paraTemplateDoCanal(JsonNode item) {

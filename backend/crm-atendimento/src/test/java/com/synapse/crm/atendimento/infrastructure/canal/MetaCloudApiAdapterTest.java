@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -194,6 +197,36 @@ class MetaCloudApiAdapterTest {
         assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
         assertThat(templates.getFirst().status()).isEqualTo(TemplateDoCanal.Status.APROVADO);
         assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
+    }
+
+    @Test
+    void contaNegocioAusenteFalhaSemConsultarGraphNemAbrirCircuitBreaker() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer servidorSemConta = MockRestServiceServer.bindTo(builder).build();
+        CircuitBreakerRegistry breakers = CircuitBreakerRegistry.ofDefaults();
+        CanalProperties semConta = new CanalProperties(
+                MetaCloudApiAdapter.PROVEDOR,
+                URL_BASE,
+                NUMERO,
+                "token-de-teste",
+                "verify",
+                "secret",
+                Duration.ofHours(24),
+                Duration.ofSeconds(10),
+                "");
+        MetaCloudApiAdapter adapterSemConta =
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+
+        for (int tentativa = 0; tentativa < 10; tentativa++) {
+            assertThatThrownBy(adapterSemConta::listarTemplates)
+                    .isInstanceOf(CanalIndisponivelException.class)
+                    .hasMessageContaining("WHATSAPP_CONTA_NEGOCIO")
+                    .hasMessageContaining("WABA ID");
+        }
+
+        servidorSemConta.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     @Test

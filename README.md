@@ -394,7 +394,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS` | `8` | Duração do aviso visual de transferência/devolução; aceita valores de 1 a 60 segundos. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
-| `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID. Sem isso, listar/criar template falha com 503 se o Graph não resolver a conta. |
+| `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |

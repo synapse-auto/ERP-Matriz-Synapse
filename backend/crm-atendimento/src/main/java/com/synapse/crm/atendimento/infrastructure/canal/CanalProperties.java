@@ -20,8 +20,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     rota
  * @param janelaTextoLivre 24h na Meta oficial; configuravel porque nao e lei da natureza e a Meta ja
  *     mudou regra de janela antes
- * @param contaNegocio WABA ID. Vazio = o adaptador resolve via Graph a partir do Phone Number ID.
- *     Nao e obrigatorio no deploy: a instancia ja autenticada consegue descobrir a conta.
+ * @param contaNegocio WABA ID usado para administrar templates. A Graph API nao oferece uma
+ *     resolucao reversa suportada a partir do Phone Number ID; vazio deixa somente a administracao
+ *     de templates indisponivel, sem afetar envio e recebimento.
  */
 @ConfigurationProperties("synapse.canal.whatsapp")
 public record CanalProperties(
@@ -49,5 +50,9 @@ public record CanalProperties(
 
     public boolean temTokenDeVerificacao() {
         return webhookVerifyToken != null && !webhookVerifyToken.isBlank();
+    }
+
+    public boolean temContaNegocio() {
+        return contaNegocio != null && !contaNegocio.isBlank();
     }
 }
