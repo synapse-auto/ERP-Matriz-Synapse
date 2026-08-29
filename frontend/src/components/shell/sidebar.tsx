@@ -123,7 +123,6 @@ async function encerrarSessao() {
 interface SidebarProps {
   retraida: boolean;
   fixada?: boolean;
-  sobreposta?: boolean;
   onAlternar: () => void;
   onPonteiroEntrar?: () => void;
   onPonteiroSair?: () => void;
@@ -134,7 +133,6 @@ interface SidebarProps {
 export function Sidebar({
   retraida,
   fixada = false,
-  sobreposta = false,
   onAlternar,
   onPonteiroEntrar,
   onPonteiroSair,
@@ -176,21 +174,9 @@ export function Sidebar({
     })[status];
 
   return (
-    <div
-      className={
-        sobreposta && !retraida
-          ? "absolute inset-y-0 left-0 z-40 flex h-full w-[260px] flex-col"
-          : retraida
-            ? "flex h-full w-[76px] flex-col"
-            : "flex h-full w-[260px] flex-col"
-      }
-    >
+    <>
       <aside
-        className={
-          retraida
-            ? "flex h-full w-[76px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
-            : "flex h-full w-[260px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
-        }
+        className="flex h-full w-full min-w-0 shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item"
         data-slot="sidebar"
         data-state={retraida ? "collapsed" : "expanded"}
         data-fixada={fixada ? "true" : "false"}
@@ -413,7 +399,7 @@ export function Sidebar({
       </div>
     </aside>
       <NovidadesDialog aberto={novidadesAberto} onFechar={() => setNovidadesAberto(false)} />
-    </div>
+    </>
   );
 }
 
