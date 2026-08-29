@@ -53,7 +53,7 @@ vi.mock("@/components/shell/sidebar", () => ({
         >
           pin
         </button>
-        <a href="/atendimentos">Atendimentos</a>
+        <span>Atendimentos</span>
       </aside>
     );
   },
