@@ -95,6 +95,14 @@ export interface ResumoReacao {
   reagi: boolean;
 }
 
+export interface CitacaoMensagem {
+  origemId: string;
+  tipoReferencia: "RESPOSTA" | "ENCAMINHAMENTO";
+  autor: string;
+  tipoConteudo: TipoMensagem | string;
+  previa: string;
+}
+
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {
   id: string;
@@ -114,6 +122,7 @@ export interface MensagemResposta {
   statusEntrega: StatusEntrega;
   enviadoEm: string;
   reacoes?: ResumoReacao[];
+  citacao?: CitacaoMensagem | null;
 }
 
 export interface PaginaMensagens {
@@ -212,6 +221,7 @@ export interface MensagemTempoReal {
   opcoes: string | null;
   statusEntrega: StatusEntrega;
   enviadoEm: string;
+  citacao?: CitacaoMensagem | null;
 }
 
 export interface StatusTempoReal {

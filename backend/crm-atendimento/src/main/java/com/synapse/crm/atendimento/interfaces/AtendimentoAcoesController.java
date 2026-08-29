@@ -35,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
+import com.synapse.crm.atendimento.application.EncaminharMensagemUseCase;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentosVisiveisUseCase;
@@ -51,6 +52,7 @@ import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoExce
 import com.synapse.crm.atendimento.application.participacao.GerenciarParticipacaoAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento;
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
+import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoAindaAbertoParaAvaliacaoException;
@@ -60,6 +62,8 @@ import com.synapse.crm.atendimento.domain.avaliacao.AvaliacaoJaRegistradaExcepti
 import com.synapse.crm.atendimento.domain.avaliacao.NotaDeAvaliacaoInvalidaException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.atendimento.domain.mensagem.EncaminhamentoIncompativelException;
+import com.synapse.crm.atendimento.domain.mensagem.RespostaAoCanalIndevidaException;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
@@ -79,6 +83,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class AtendimentoAcoesController {
 
     private final EnviarMensagemUseCase enviar;
+    private final EncaminharMensagemUseCase encaminharMensagem;
     private final EnviarMidiaUseCase enviarMidia;
     private final ObterConfiguracaoComposerUseCase obterConfiguracaoComposer;
     private final ResolverLeadDoAtendimentoUseCase resolverLead;
@@ -92,6 +97,7 @@ class AtendimentoAcoesController {
 
     AtendimentoAcoesController(
             EnviarMensagemUseCase enviar,
+            EncaminharMensagemUseCase encaminharMensagem,
             EnviarMidiaUseCase enviarMidia,
             ObterConfiguracaoComposerUseCase obterConfiguracaoComposer,
             ResolverLeadDoAtendimentoUseCase resolverLead,
@@ -103,6 +109,7 @@ class AtendimentoAcoesController {
             UsuarioContext usuarioContext,
             GerenciarParticipacaoAtendimentoUseCase participacao) {
         this.enviar = enviar;
+        this.encaminharMensagem = encaminharMensagem;
         this.enviarMidia = enviarMidia;
         this.obterConfiguracaoComposer = obterConfiguracaoComposer;
         this.resolverLead = resolverLead;
@@ -154,8 +161,13 @@ class AtendimentoAcoesController {
             })
     @PostMapping("/mensagens")
     EnvioResposta enviar(@Valid @RequestBody EnviarMensagemRequisicao requisicao) {
-        EnviarMensagemUseCase.Resultado resultado =
-                enviar.executar(requisicao.leadId(), requisicao.conteudo());
+        AlvoDeResposta resposta = requisicao.alvoDeResposta();
+        EnviarMensagemUseCase.Resultado resultado = resposta == null
+                ? enviar.executar(requisicao.leadId(), requisicao.conteudo())
+                : enviar.executar(
+                        requisicao.leadId(),
+                        new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
+                        resposta);
         return EnvioResposta.de(resultado);
     }
 
@@ -199,7 +211,11 @@ class AtendimentoAcoesController {
                             content = @Content(schema = @Schema(type = "string", format = "binary")))
                     @RequestPart("arquivo") MultipartFile arquivo,
             @Parameter(description = "Legenda opcional da mídia.")
-                    @RequestParam(required = false) String legenda) {
+                    @RequestParam(required = false) String legenda,
+            @Parameter(description = "Mensagem de origem quando o anexo é uma resposta.")
+                    @RequestParam(required = false) UUID mensagemOrigemId,
+            @Parameter(description = "Instante da origem, chave de partição da mensagem.")
+                    @RequestParam(required = false) Instant origemEnviadaEm) {
         UUID leadId = resolverLead.executar(id);
         byte[] conteudo;
         try {
@@ -207,9 +223,28 @@ class AtendimentoAcoesController {
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "falha ao ler o arquivo enviado");
         }
-        EnviarMensagemUseCase.Resultado resultado =
-                enviarMidia.executar(leadId, conteudo, arquivo.getOriginalFilename(), legenda);
+        AlvoDeResposta resposta = alvoOpcional(mensagemOrigemId, origemEnviadaEm);
+        EnviarMensagemUseCase.Resultado resultado = enviarMidia.executar(
+                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta);
         return EnvioResposta.de(resultado);
+    }
+
+    @Operation(
+            summary = "Encaminhar mensagem",
+            description = "Cria uma mensagem nova no destino visível, citando a origem. A origem não é alterada. Um destino por envio.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagem encaminhada e enfileirada."),
+                @ApiResponse(responseCode = "404", description = "Origem ou destino inexistente ou não visível."),
+                @ApiResponse(responseCode = "422", description = "Tipo incompatível, destino inválido ou canal fora da janela.")
+            })
+    @PostMapping("/{id}/mensagens/{mensagemId}/encaminhamentos")
+    EnvioResposta encaminhar(
+            @PathVariable UUID id,
+            @PathVariable UUID mensagemId,
+            @RequestParam Instant enviadoEm,
+            @Valid @RequestBody EncaminharRequisicao requisicao) {
+        return EnvioResposta.de(encaminharMensagem.executar(
+                id, mensagemId, enviadoEm, requisicao.destinoAtendimentoId()));
     }
 
     /** {@code paraAtendenteId} ausente devolve o atendimento para a IA. */
@@ -382,6 +417,17 @@ class AtendimentoAcoesController {
     @GetMapping("/{id}/pedido-entrada/meu")
     java.util.Optional<PedidoEntradaAtendimento> meuPedido(@PathVariable UUID id) { return participacao.meuPedido(id); }
 
+    private static AlvoDeResposta alvoOpcional(UUID mensagemOrigemId, Instant origemEnviadaEm) {
+        if (mensagemOrigemId == null && origemEnviadaEm == null) {
+            return null;
+        }
+        if (mensagemOrigemId == null || origemEnviadaEm == null) {
+            throw new RespostaAoCanalIndevidaException(
+                    "resposta exige mensagemOrigemId e origemEnviadaEm juntos");
+        }
+        return new AlvoDeResposta(mensagemOrigemId, origemEnviadaEm);
+    }
+
     record PedidoEntradaResposta(UUID pedidoId) {}
 
     @ExceptionHandler(RecursoDeAtendimentoIndisponivelException.class)
@@ -431,6 +477,22 @@ class AtendimentoAcoesController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
         problema.setTitle("Fora da janela de 24 horas");
+        return problema;
+    }
+
+    @ExceptionHandler(RespostaAoCanalIndevidaException.class)
+    ProblemDetail aoRecusarResposta(RespostaAoCanalIndevidaException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Resposta indevida");
+        return problema;
+    }
+
+    @ExceptionHandler(EncaminhamentoIncompativelException.class)
+    ProblemDetail aoRecusarEncaminhamento(EncaminhamentoIncompativelException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Encaminhamento incompativel");
         return problema;
     }
 
@@ -512,7 +574,19 @@ class AtendimentoAcoesController {
             @Schema(description = "Lead visível que receberá a mensagem.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull UUID leadId,
             @Schema(description = "Conteúdo textual.", example = "Olá! Posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotBlank String conteudo) {}
+                    @NotBlank String conteudo,
+            @Schema(description = "Mensagem de origem quando esta é uma resposta.")
+                    UUID mensagemOrigemId,
+            @Schema(description = "Instante da origem, chave de partição.")
+                    Instant origemEnviadaEm) {
+
+        AlvoDeResposta alvoDeResposta() {
+            return alvoOpcional(mensagemOrigemId, origemEnviadaEm);
+        }
+    }
+
+    record EncaminharRequisicao(
+            @NotNull UUID destinoAtendimentoId) {}
 
     record EnviarTemplateRequisicao(
             @NotNull UUID leadId,

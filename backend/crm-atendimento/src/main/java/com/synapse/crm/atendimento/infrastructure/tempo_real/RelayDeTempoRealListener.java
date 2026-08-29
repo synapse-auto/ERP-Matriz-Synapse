@@ -76,6 +76,14 @@ class RelayDeTempoRealListener {
         dados.put("opcoes", evento.opcoes());
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
+        if (evento.citacao() != null) {
+            ObjectNode citacao = dados.putObject("citacao");
+            citacao.put("origemId", evento.citacao().origemId().toString());
+            citacao.put("tipoReferencia", evento.citacao().tipoReferencia());
+            citacao.put("autor", evento.citacao().autor());
+            citacao.put("tipoConteudo", evento.citacao().tipoConteudo());
+            citacao.put("previa", evento.citacao().previa());
+        }
         publicar(evento.atendimentoId(), "MENSAGEM", dados);
     }
 

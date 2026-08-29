@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -25,6 +26,7 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final MensagemRepositorio mensagens;
     private final IdempotenciaDeMensagemAutomacaoRepositorio idempotencia;
+    private final MensagemIdExternoRepositorio idsExternos;
     private final LeadNoCaminhoDeMensagem leads;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
@@ -33,12 +35,14 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
             IdempotenciaDeMensagemAutomacaoRepositorio idempotencia,
+            MensagemIdExternoRepositorio idsExternos,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
             Clock relogio) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.idempotencia = idempotencia;
+        this.idsExternos = idsExternos;
         this.leads = leads;
         this.eventos = eventos;
         this.relogio = relogio;
@@ -64,6 +68,7 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
 
         Mensagem mensagem = criarMensagem(atendimento, requisicao, mensagemId, agora);
         mensagens.registrar(mensagem);
+        idsExternos.gravar(requisicao.wamid(), mensagem.id(), mensagem.enviadoEm(), atendimento.id());
         leads.registrarInteracao(atendimento.leadId(), agora, 0, 1);
         eventos.publishEvent(new MensagemParaTempoReal(
                 atendimento.id(),

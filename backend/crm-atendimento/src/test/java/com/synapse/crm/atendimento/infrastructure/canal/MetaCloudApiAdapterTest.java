@@ -130,6 +130,50 @@ class MetaCloudApiAdapterTest {
     }
 
     @Test
+    void respostaIncluiContextMessageId() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.resp\"}]}", MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemLivre("resposta"),
+                UUID.randomUUID(),
+                "wamid.origem"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(payloadCapturado[0].path("context").path("message_id").asText())
+                .isEqualTo("wamid.origem");
+        assertThat(payloadCapturado[0].path("text").path("body").asText()).isEqualTo("resposta");
+    }
+
+    @Test
+    void envioSemContextoNaoInventaContext() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.1\"}]}", MediaType.APPLICATION_JSON));
+
+        adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemLivre("oi"),
+                UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(payloadCapturado[0].has("context")).isFalse();
+    }
+
+    @Test
     void listaTemplatesPeloIdDaContaDeNegocio() {
         servidor.expect(
                         once(),

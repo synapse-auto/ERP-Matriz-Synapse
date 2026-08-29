@@ -21,6 +21,7 @@ import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
@@ -67,7 +68,10 @@ class EnviarMensagemUseCaseTest {
 
         EnviarMensagemUseCase useCase = new EnviarMensagemUseCase(
                 atendimentos, mensagens, leads, outbox, canal, contexto, eventos,
-                Clock.fixed(agora, ZoneOffset.UTC));
+                Clock.fixed(agora, ZoneOffset.UTC),
+                mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class));
 
         EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "oi");
 
@@ -84,5 +88,61 @@ class EnviarMensagemUseCaseTest {
             assertThat(mensagem.donoAnterior()).contains(donoAnterior);
             assertThat(mensagem.remetenteId()).isEqualTo(convidado);
         });
+    }
+
+    @Test
+    void respostaSemWamidNaoGravaMensagem() {
+        UUID leadId = UUID.randomUUID();
+        UUID origemId = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-29T12:00:00Z");
+        Instant origemEm = agora.minusSeconds(30);
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        var origens = mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class);
+        var idsExternos = mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class);
+        var referencias = mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class);
+
+        UUID dono = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(dono, PapelUsuario.ATENDENTE, false));
+        Mensagem origem = Mensagem.texto(
+                origemId,
+                atendimentoId,
+                Remetente.lead(),
+                "oi",
+                origemEm);
+        when(origens.buscar(origemId, origemEm))
+                .thenReturn(Optional.of(new com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem(
+                        origem, leadId, "Cliente", null)));
+        when(atendimentos.porId(atendimentoId))
+                .thenReturn(Optional.of(new Atendimento(
+                        atendimentoId,
+                        leadId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        dono,
+                        com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.EM_ATENDIMENTO,
+                        agora.minusSeconds(60),
+                        null)));
+        when(idsExternos.wamidDe(origemId, origemEm)).thenReturn(Optional.empty());
+
+        EnviarMensagemUseCase useCase = new EnviarMensagemUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos,
+                Clock.fixed(agora, ZoneOffset.UTC), origens, idsExternos, referencias);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> useCase.executar(
+                        leadId,
+                        new com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemLivre("resposta"),
+                        new com.synapse.crm.atendimento.application.referencia.AlvoDeResposta(origemId, origemEm)))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.mensagem.RespostaAoCanalIndevidaException.class);
+
+        verify(mensagens, org.mockito.Mockito.never()).registrar(any());
+        verify(outbox, org.mockito.Mockito.never()).enfileirarEnvio(any(), any(), any(), any(), any(), any(), any(), any());
     }
 }

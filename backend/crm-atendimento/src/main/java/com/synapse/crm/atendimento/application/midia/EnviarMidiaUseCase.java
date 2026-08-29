@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
+import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.midia.TiposDeMidiaPermitidos;
@@ -43,6 +44,16 @@ public class EnviarMidiaUseCase {
     @PreAuthorize("isAuthenticated()")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId, byte[] conteudo, String nomeArquivoOriginal, String legenda) {
+        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    public EnviarMensagemUseCase.Resultado executar(
+            UUID leadId,
+            byte[] conteudo,
+            String nomeArquivoOriginal,
+            String legenda,
+            AlvoDeResposta resposta) {
         String mimetypeReal =
                 IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
         TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
@@ -70,7 +81,9 @@ public class EnviarMidiaUseCase {
         ConteudoDeEnvio.MensagemMidia envio =
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
         try {
-            return enviarMensagem.executar(leadId, envio);
+            return resposta == null
+                    ? enviarMensagem.executar(leadId, envio)
+                    : enviarMensagem.executar(leadId, envio, resposta);
         } catch (Exception e) {
             armazenamento.remover(referencia);
             throw e;

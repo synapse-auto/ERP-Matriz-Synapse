@@ -2,10 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
+const onCancelarResposta = vi.fn();
 const estadoMidia: { isError: boolean; error: Error | null } = {
   isError: false,
   error: null,
@@ -72,6 +73,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         anexoRemover: "Remover anexo",
         anexoEnviando: "Enviando anexo...",
         anexoErro: "Falha ao enviar o anexo.",
+        respostaErro: "Não foi possível responder a esta mensagem.",
         anexoLegendaPlaceholder: "Adicionar legenda (opcional)",
         anexoTipoNaoPermitido: "Tipo nao aceito.",
         anexoExcedeuLimite: "Excede o limite.",
@@ -109,6 +111,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
+        citacao: {
+          resposta: "Respondendo a {autor}",
+          encaminhamento: "Encaminhada",
+          cancelar: "Cancelar resposta",
+          origemIndisponivel: "Mensagem original indisponível",
+          imagem: "Foto",
+          audio: "Áudio",
+          documento: "Documento",
+        },
       },
     },
     mensagensProgramadas: {
@@ -129,13 +140,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 import { Composer } from "./composer";
 
-function renderizar() {
+function renderizar(resposta?: MensagemResposta) {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={cliente}>
-      <Composer conversa={conversa} />
+      <Composer conversa={conversa} resposta={resposta ?? null} onCancelarResposta={onCancelarResposta} />
     </QueryClientProvider>,
   );
 }
@@ -292,6 +303,42 @@ describe("Composer — anexo", () => {
     renderizar();
 
     expect(screen.getByRole("alert")).toHaveTextContent("Falha ao enviar");
+  });
+
+  it("mostra a citação da resposta, envia o vínculo e cancela com Escape sem perder o rascunho", () => {
+    const origem: MensagemResposta = {
+      id: "msg-origem",
+      remetenteTipo: "LEAD",
+      remetenteId: null,
+      remetenteNome: "Maria",
+      tipo: "TEXTO",
+      conteudo: "preciso de orçamento",
+      midiaUrl: null,
+      midiaMetadados: null,
+      opcoes: null,
+      statusEntrega: "ENTREGUE",
+      enviadoEm: "2026-08-29T12:00:00Z",
+    };
+    renderizar(origem);
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "já estou vendo" } });
+
+    expect(screen.getByText("Respondendo a Maria")).toBeInTheDocument();
+    expect(screen.getByText("preciso de orçamento")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Enviar"));
+    expect(mutateTexto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conteudo: "já estou vendo",
+        resposta: { mensagemId: "msg-origem", enviadoEm: "2026-08-29T12:00:00Z" },
+      }),
+      expect.anything(),
+    );
+    expect(campo).toHaveValue("já estou vendo");
+
+    fireEvent.keyDown(campo, { key: "Escape" });
+    expect(onCancelarResposta).toHaveBeenCalled();
+    expect(campo).toHaveValue("já estou vendo");
   });
 
   it("nao mostra controle fantasma quando MediaRecorder esta indisponivel", () => {

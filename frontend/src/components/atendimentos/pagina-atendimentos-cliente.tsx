@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
 import { Composer } from "@/components/atendimentos/composer";
+import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
@@ -78,6 +79,14 @@ export function PaginaAtendimentosCliente({
   const notificacoesProcessadas = useRef(new Set<string>());
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
+  const [respostaAlvo, setRespostaAlvo] = useState<{
+    leadId: string;
+    mensagem: MensagemResposta;
+  } | null>(null);
+  const [encaminharAlvo, setEncaminharAlvo] = useState<{
+    leadId: string;
+    mensagem: MensagemResposta;
+  } | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const telaEstreita = useTelaEstreita();
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
@@ -166,6 +175,10 @@ export function PaginaAtendimentosCliente({
 
   const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
   const conversaAberta = Boolean(conversa || conversaInternaId);
+  const respostaDaTela =
+    conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
+  const encaminharDaTela =
+    conversa && encaminharAlvo?.leadId === conversa.leadId ? encaminharAlvo.mensagem : null;
   const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !telaEstreita);
   useEffect(() => {
     definirConversaEmTelaCheia(telaEstreita && conversaAberta);
@@ -386,9 +399,19 @@ export function PaginaAtendimentosCliente({
               canalTipo={conversa.canalTipo}
               atendenteId={conversa.atendenteId}
               atendenteNome={conversa.atendenteNome}
+              onResponder={(mensagem) =>
+                setRespostaAlvo({ leadId: conversa.leadId, mensagem })
+              }
+              onEncaminhar={(mensagem) =>
+                setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
+              }
             />
             {atendimentoAtivo ? (
-              <Composer conversa={atendimentoAtivo} />
+              <Composer
+                conversa={atendimentoAtivo}
+                resposta={respostaDaTela}
+                onCancelarResposta={() => setRespostaAlvo(null)}
+              />
             ) : (
               <div className="shrink-0 bg-background px-4 pb-4 pt-3">
                 <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
@@ -427,6 +450,15 @@ export function PaginaAtendimentosCliente({
             : null
         }
       />
+      {conversa && encaminharDaTela && (
+        <DialogoEncaminhar
+          origemAtendimentoId={encaminharDaTela.atendimentoId ?? conversa.atendimentoId}
+          origemLeadId={conversa.leadId}
+          mensagem={encaminharDaTela}
+          aberto
+          onFechar={() => setEncaminharAlvo(null)}
+        />
+      )}
     </div>
   );
 }

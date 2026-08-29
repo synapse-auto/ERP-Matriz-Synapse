@@ -359,6 +359,8 @@
         "seletorTitulo": "Escolher emoji",
         "seletorFechar": "Fechar seletor de emojis",
         "reacaoErro": "Não foi possível salvar a reação.",
+        "responder": "Responder",
+        "encaminhar": "Encaminhar",
         "rapidas": ["👍", "❤️", "😂", "😮", "😢", "🙏"],
         "seletor": {
           "search": "Buscar emoji",
@@ -388,7 +390,27 @@
             "6": "Escura"
           }
         }
+      },
+      "citacao": {
+        "resposta": "Respondendo a {autor}",
+        "encaminhamento": "Encaminhada",
+        "cancelar": "Cancelar resposta",
+        "origemIndisponivel": "Mensagem original indisponível",
+        "imagem": "Foto",
+        "audio": "Áudio",
+        "documento": "Documento"
       }
+    },
+    "encaminhar": {
+      "titulo": "Encaminhar mensagem",
+      "busca": "Buscar conversa",
+      "vazio": "Nenhuma conversa encontrada.",
+      "confirmar": "Encaminhar",
+      "cancelar": "Cancelar",
+      "origem": "De",
+      "destino": "Para",
+      "erro": "Não foi possível encaminhar a mensagem.",
+      "incompativel": "Este tipo de mensagem não pode ser encaminhado."
     },
     "composer": {
       "placeholder": "Digite uma mensagem...",
@@ -399,6 +421,7 @@
       "anexoRemover": "Remover anexo",
       "anexoEnviando": "Enviando anexo...",
       "anexoErro": "Falha ao enviar o anexo.",
+      "respostaErro": "Não foi possível responder a esta mensagem.",
       "anexoLegendaPlaceholder": "Adicionar legenda (opcional)",
       "anexoTipoNaoPermitido": "Esse tipo de arquivo não é aceito.",
       "anexoExcedeuLimite": "Arquivo maior do que o limite permitido.",

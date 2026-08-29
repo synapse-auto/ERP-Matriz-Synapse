@@ -77,6 +77,23 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
   });
 
+  it("não oferece responder nem encaminhar no chat interno", async () => {
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={mensagens}
+          usuarioAtual="u1"
+          textos={textos}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+        />
+      </TextosProvider>,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
+    expect(screen.queryByRole("button", { name: "Responder" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Encaminhar" })).not.toBeInTheDocument();
+  });
+
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {
     const comAudio: ChatMensagem[] = [{
       id: "m-audio",

@@ -27,6 +27,25 @@ public interface Outbox {
      *
      * @param enviadoEm chave de particao da mensagem, guardada para o publisher achar a linha depois
      */
+    default void enfileirarEnvio(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo) {
+        enfileirarEnvio(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                null);
+    }
+
     void enfileirarEnvio(
             UUID mensagemId,
             Instant enviadoEm,
@@ -34,7 +53,8 @@ public interface Outbox {
             UUID leadId,
             String telefoneDestino,
             UUID credencialId,
-            ConteudoDeEnvio conteudo);
+            ConteudoDeEnvio conteudo,
+            String contextoWamid);
 
     /** Enfileira envio originado por mensagem programada, preservando a origem no payload. */
     default void enfileirarEnvioProgramado(
@@ -102,7 +122,32 @@ public interface Outbox {
             String telefoneDestino,
             UUID credencialId,
             ConteudoDeEnvio conteudo,
-            int tentativas) {}
+            int tentativas,
+            String contextoWamid) {
+
+        public EnvioPendente(
+                UUID outboxId,
+                UUID mensagemId,
+                Instant enviadoEm,
+                UUID atendimentoId,
+                UUID leadId,
+                String telefoneDestino,
+                UUID credencialId,
+                ConteudoDeEnvio conteudo,
+                int tentativas) {
+            this(
+                    outboxId,
+                    mensagemId,
+                    enviadoEm,
+                    atendimentoId,
+                    leadId,
+                    telefoneDestino,
+                    credencialId,
+                    conteudo,
+                    tentativas,
+                    null);
+        }
+    }
 
     record RepasseWebhookPendente(
             UUID outboxId, String payloadCru, String assinatura, int tentativas) {}

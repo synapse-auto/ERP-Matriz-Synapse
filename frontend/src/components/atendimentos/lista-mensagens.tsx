@@ -26,6 +26,8 @@ type Props = {
   canalTipo: string | null;
   atendenteId: string | null;
   atendenteNome: string | null;
+  onResponder?: (mensagem: MensagemResposta) => void;
+  onEncaminhar?: (mensagem: MensagemResposta) => void;
 };
 
 /**
@@ -45,6 +47,8 @@ export function ListaMensagens({
   canalTipo,
   atendenteId,
   atendenteNome,
+  onResponder,
+  onEncaminhar,
 }: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
@@ -184,6 +188,8 @@ export function ListaMensagens({
                       }
                       onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
                       onRemoverReacao={() => onRemoverReacao(mensagem)}
+                      onResponder={onResponder ? () => onResponder(mensagem) : undefined}
+                      onEncaminhar={onEncaminhar ? () => onEncaminhar(mensagem) : undefined}
                     />
                   </div>
                 );
