@@ -1,12 +1,16 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -17,6 +21,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -63,7 +69,9 @@ class MetaCloudApiAdapter implements CanalGateway {
     /** Listar/criar template nao pode abrir o breaker do envio — a aba Atendimentos continua. */
     private static final String NOME_DO_BREAKER_TEMPLATES = "canal-meta-cloud-templates";
     private static final int EXCESSO_DE_CHAMADAS = 429;
+    private static final int TRECHO_MAXIMO_DO_CORPO = 240;
     private static final Pattern VARIAVEL_DO_CORPO = Pattern.compile("\\{\\{(\\d+)\\}\\}");
+    private static final Pattern SEGREDO_NO_CORPO = Pattern.compile("(?i)(bearer\\s+)\\S+");
     /** A Meta recusa amostra com "exemplo", "test", "sample". */
     private static final String[] AMOSTRAS_DE_PARAMETRO = {"Maria", "Ana", "Joao", "Paulo", "Carla"};
 
@@ -339,30 +347,24 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     private List<TemplateDoCanal> buscarTemplates(String conta) {
-        JsonNode raiz;
-        try {
-            raiz = http.get()
-                    .uri(
-                            "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
-                            conta)
-                    .header("Authorization", "Bearer " + propriedades.token())
-                    .retrieve()
-                    .body(JsonNode.class);
-        } catch (RestClientResponseException e) {
-            int status = e.getStatusCode().value();
-            if (status >= 500 || status == EXCESSO_DE_CHAMADAS) {
-                throw e;
-            }
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.get()
+                        .uri(
+                                "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
+                                conta)
+                        .header("Authorization", "Bearer " + propriedades.token()));
+        if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(bruta);
+        }
+        if (bruta.status() >= 400) {
             throw new CanalIndisponivelException(
                     "provedor recusou listar templates: HTTP "
-                            + status
+                            + bruta.status()
                             + " "
-                            + resumoDoErro(e.getResponseBodyAsString()));
+                            + resumoDoErro(bruta.corpo()));
         }
+        JsonNode raiz = jsonDaRespostaDeTemplate(bruta, "listar");
         List<TemplateDoCanal> templates = new ArrayList<>();
-        if (raiz == null) {
-            return templates;
-        }
         JsonNode dados = raiz.path("data");
         if (!dados.isArray()) {
             return templates;
@@ -374,38 +376,131 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     private ResultadoDeTemplate submeterTemplate(PedidoDeTemplate pedido, String conta) {
-        try {
-            JsonNode resposta = http.post()
-                    .uri("/{conta}/message_templates", conta)
-                    .header("Authorization", "Bearer " + propriedades.token())
-                    .header("Content-Type", "application/json")
-                    .body(corpoDoPedidoDeTemplate(pedido))
-                    .retrieve()
-                    .body(JsonNode.class);
-            TemplateDoCanal.Status status = traduzirStatus(
-                    resposta == null ? "" : resposta.path("status").asText());
-            TemplateDoCanal.Categoria categoria = pedido.categoria();
-            if (resposta != null && !resposta.path("category").asText().isBlank()) {
-                categoria = traduzirCategoria(resposta.path("category").asText());
-            }
-            return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
-                    pedido.nome(),
-                    pedido.idioma(),
-                    categoria,
-                    status == TemplateDoCanal.Status.DESCONHECIDO
-                            ? TemplateDoCanal.Status.PENDENTE
-                            : status,
-                    pedido.corpo(),
-                    contarParametros(pedido.corpo())));
-        } catch (RestClientResponseException e) {
-            int status = e.getStatusCode().value();
-            if (status >= 500 || status == EXCESSO_DE_CHAMADAS) {
-                throw e;
-            }
-            String motivo = resumoDoErro(e.getResponseBodyAsString());
-            log.warn("Meta recusou o template {}: HTTP {} {}", pedido.nome(), status, motivo);
-            return new ResultadoDeTemplate.Recusado(motivo.isBlank() ? ("HTTP " + status) : motivo);
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.post()
+                        .uri("/{conta}/message_templates", conta)
+                        .header("Authorization", "Bearer " + propriedades.token())
+                        .header("Content-Type", "application/json")
+                        .body(corpoDoPedidoDeTemplate(pedido)));
+        if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(bruta);
         }
+        if (bruta.status() >= 400) {
+            String motivo = resumoDoErro(bruta.corpo());
+            log.warn(
+                    "Meta recusou o template {}: HTTP {} Content-Type {} {}",
+                    pedido.nome(),
+                    bruta.status(),
+                    bruta.contentType(),
+                    motivo);
+            return new ResultadoDeTemplate.Recusado(
+                    motivo.isBlank() ? ("HTTP " + bruta.status()) : motivo);
+        }
+        JsonNode resposta = jsonDaRespostaDeTemplate(bruta, "criar");
+        TemplateDoCanal.Status status = traduzirStatus(resposta.path("status").asText());
+        TemplateDoCanal.Categoria categoria = pedido.categoria();
+        if (!resposta.path("category").asText().isBlank()) {
+            categoria = traduzirCategoria(resposta.path("category").asText());
+        }
+        return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
+                pedido.nome(),
+                pedido.idioma(),
+                categoria,
+                status == TemplateDoCanal.Status.DESCONHECIDO
+                        ? TemplateDoCanal.Status.PENDENTE
+                        : status,
+                pedido.corpo(),
+                contarParametros(pedido.corpo())));
+    }
+
+    private RespostaBrutaDaMeta lerRespostaBruta(RestClient.RequestHeadersSpec<?> spec) {
+        return spec.exchange((request, response) -> {
+            MediaType tipo = response.getHeaders().getContentType();
+            Charset charset = tipo != null && tipo.getCharset() != null
+                    ? tipo.getCharset()
+                    : StandardCharsets.UTF_8;
+            String corpo = new String(response.getBody().readAllBytes(), charset);
+            return new RespostaBrutaDaMeta(
+                    response.getStatusCode().value(),
+                    tipo == null ? "" : tipo.toString(),
+                    corpo);
+        });
+    }
+
+    JsonNode jsonDaRespostaDeTemplate(RespostaBrutaDaMeta resposta, String operacao) {
+        log.debug(
+                "Meta {} templates: HTTP {} Content-Type={} chars={}",
+                operacao,
+                resposta.status(),
+                resposta.contentType(),
+                resposta.corpo() == null ? 0 : resposta.corpo().length());
+        if (resposta.corpo() == null || resposta.corpo().isBlank()) {
+            throw new CanalIndisponivelException(
+                    diagnosticoDaMeta("corpo vazio", resposta, operacao));
+        }
+        if (!contentTypeCompativelComJson(resposta.contentType()) && !pareceJson(resposta.corpo())) {
+            throw new CanalIndisponivelException(
+                    diagnosticoDaMeta("Content-Type incompativel", resposta, operacao));
+        }
+        try {
+            return json.readTree(resposta.corpo());
+        } catch (JsonProcessingException e) {
+            throw new CanalIndisponivelException(
+                    diagnosticoDaMeta("corpo ilegivel", resposta, operacao));
+        }
+    }
+
+    private String diagnosticoDaMeta(String motivo, RespostaBrutaDaMeta resposta, String operacao) {
+        return "provedor devolveu "
+                + motivo
+                + " ao "
+                + operacao
+                + " templates: HTTP "
+                + resposta.status()
+                + " Content-Type "
+                + resposta.contentType()
+                + " corpo "
+                + corpoParaDiagnostico(resposta.corpo());
+    }
+
+    private String corpoParaDiagnostico(String corpo) {
+        String texto = corpo == null ? "" : corpo;
+        String token = propriedades.token();
+        if (token != null && !token.isBlank()) {
+            texto = texto.replace(token, "[redacted]");
+        }
+        texto = SEGREDO_NO_CORPO.matcher(texto).replaceAll("$1[redacted]");
+        return texto.length() > TRECHO_MAXIMO_DO_CORPO
+                ? texto.substring(0, TRECHO_MAXIMO_DO_CORPO)
+                : texto;
+    }
+
+    static boolean contentTypeCompativelComJson(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return true;
+        }
+        String tipo = contentType.toLowerCase(Locale.ROOT);
+        return tipo.contains("json")
+                || tipo.startsWith("text/plain")
+                || tipo.contains("text/javascript");
+    }
+
+    private static boolean pareceJson(String corpo) {
+        String texto = corpo.trim();
+        return texto.startsWith("{") || texto.startsWith("[");
+    }
+
+    private static RestClientResponseException falhaHttpDaMeta(RespostaBrutaDaMeta resposta) {
+        byte[] bytes = resposta.corpo() == null
+                ? new byte[0]
+                : resposta.corpo().getBytes(StandardCharsets.UTF_8);
+        return new RestClientResponseException(
+                "HTTP " + resposta.status(),
+                HttpStatusCode.valueOf(resposta.status()),
+                "",
+                null,
+                bytes,
+                StandardCharsets.UTF_8);
     }
 
     private ObjectNode corpoDoPedidoDeTemplate(PedidoDeTemplate pedido) {
@@ -603,4 +698,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         JsonNode valor = no.path(campo);
         return valor.isMissingNode() || valor.isNull() ? "" : valor.asText("");
     }
+
+    /** Status, Content-Type e corpo crus da Meta — nunca inclui o token da requisicao. */
+    record RespostaBrutaDaMeta(int status, String contentType, String corpo) {}
 }

@@ -713,7 +713,10 @@
       "idioma": "Idioma",
       "categoria": "Categoria",
       "corpo": "Texto do corpo",
-      "corpoAjuda": "Variáveis sequenciais: {{1}}, {{2}}. Sem cabeçalho, botão ou mídia nesta versão.",
+      "corpoAjuda": "Sem cabeçalho, botão ou mídia nesta versão.",
+      "variaveisDetectadas": "Variáveis sequenciais: {lista}",
+      "variavelAusente": "Falta {marcador}. Os índices precisam ser sequenciais, sem pular.",
+      "variavelInvalida": "O índice {marcador} é inválido. As variáveis começam em {{1}}.",
       "salvar": "Enviar para aprovação",
       "cancelar": "Cancelar",
       "erro": "Não foi possível criar o template. Confira o nome e o texto."

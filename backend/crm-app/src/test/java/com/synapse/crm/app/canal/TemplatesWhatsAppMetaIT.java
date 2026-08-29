@@ -44,6 +44,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
             "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                     + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
     private static final AtomicInteger consultasCampoInvalido = new AtomicInteger();
+    private static final AtomicReference<String> contentTypeGraph = new AtomicReference<>("application/json");
     private static HttpServer provedor;
 
     @Autowired
@@ -75,6 +76,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                         + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
         consultasCampoInvalido.set(0);
+        contentTypeGraph.set("application/json");
     }
 
     @AfterAll
@@ -150,6 +152,55 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         assertThat(resposta.getStatusCode()).isNotEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @Test
+    @DisplayName("POST com JSON em text/plain da Meta cria o template e nao vira 503")
+    void postJsonComoTextPlainCriaTemplate() throws Exception {
+        statusGraph.set(200);
+        contentTypeGraph.set("text/plain; charset=utf-8");
+        corpoGraph.set("{\"id\":\"123\",\"status\":\"PENDING\",\"category\":\"UTILITY\"}");
+
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST,
+                "/api/v1/whatsapp/templates",
+                Map.of(
+                        "nome", "retorno_orcamento",
+                        "idioma", "pt_BR",
+                        "categoria", "UTILIDADE",
+                        "corpo", "Ola {{1}}, {{2}}, {{3}} e {{4}}."));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resposta.getStatusCode()).isNotEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        JsonNode corpo = json.readTree(resposta.getBody());
+        assertThat(corpo.path("nome").asText()).isEqualTo("retorno_orcamento");
+        assertThat(corpo.path("quantidadeDeParametros").asInt()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("POST com HTML da Meta vira 503 RFC 7807 com status e Content-Type, sem token")
+    void postHtmlDaMetaVira503SemExporToken() throws Exception {
+        statusGraph.set(200);
+        contentTypeGraph.set("text/html");
+        corpoGraph.set("<html>Bearer token-de-teste</html>");
+
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST,
+                "/api/v1/whatsapp/templates",
+                Map.of(
+                        "nome", "retorno_orcamento",
+                        "idioma", "pt_BR",
+                        "categoria", "UTILIDADE",
+                        "corpo", "Ola {{1}}"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(resposta.getStatusCode()).isNotEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        String detalhe = json.readTree(resposta.getBody()).path("detail").asText();
+        assertThat(detalhe).contains("HTTP 200");
+        assertThat(detalhe).contains("text/html");
+        assertThat(detalhe).contains("<html>");
+        assertThat(detalhe).doesNotContain("token-de-teste");
+        assertThat(detalhe).doesNotContain("Bearer token-de-teste");
+    }
+
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
@@ -171,7 +222,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 }
                 byte[] corpo = corpoGraph.get().getBytes(StandardCharsets.UTF_8);
                 int status = statusGraph.get();
-                troca.getResponseHeaders().add("Content-Type", "application/json");
+                troca.getResponseHeaders().set("Content-Type", contentTypeGraph.get());
                 troca.sendResponseHeaders(status, corpo.length);
                 troca.getResponseBody().write(corpo);
                 troca.close();

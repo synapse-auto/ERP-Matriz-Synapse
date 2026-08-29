@@ -84,6 +84,23 @@ class TemplatesWhatsAppIT extends PostgresIT {
         assertThat(canal.listarTemplates()).isEmpty();
     }
 
+    @Test
+    @DisplayName("variavel ausente no corpo vira 400 antes de chegar ao provedor")
+    void variavelAusenteNaoChegaAoProvedor() {
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST,
+                "/api/v1/whatsapp/templates",
+                Map.of(
+                        "nome", "retorno_orcamento",
+                        "idioma", "pt_BR",
+                        "categoria", "UTILIDADE",
+                        "corpo", "Ola {{1}} e {{3}}"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody()).contains("{{2}}");
+        assertThat(canal.listarTemplates()).isEmpty();
+    }
+
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();

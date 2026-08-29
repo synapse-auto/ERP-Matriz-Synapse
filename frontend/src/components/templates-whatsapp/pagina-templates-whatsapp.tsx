@@ -20,6 +20,11 @@ import type { TomDePill } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
 import { criarTemplateWhatsApp, listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import {
+  analisarVariaveisDoCorpo,
+  interpolarCatalogo,
+  rotulosDasVariaveis,
+} from "@/lib/atendimento/variaveis-do-template";
 import type {
   CategoriaTemplateWhatsApp,
   StatusTemplateWhatsApp,
@@ -153,6 +158,19 @@ function FormularioTemplate({
   const [idioma, setIdioma] = useState("pt_BR");
   const [categoria, setCategoria] = useState<CategoriaTemplateWhatsApp>("UTILIDADE");
   const [corpo, setCorpo] = useState("");
+  const analise = analisarVariaveisDoCorpo(corpo);
+  const ajudaDasVariaveis = analise.erro
+    ? interpolarCatalogo(
+        analise.erro.tipo === "ausente"
+          ? textos.formulario.variavelAusente
+          : textos.formulario.variavelInvalida,
+        { marcador: `{{${analise.erro.indice}}}` },
+      )
+    : analise.indices.length > 0
+      ? interpolarCatalogo(textos.formulario.variaveisDetectadas, {
+          lista: rotulosDasVariaveis(analise.indices),
+        })
+      : null;
 
   return (
     <Dialog open={aberto} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
@@ -164,21 +182,29 @@ function FormularioTemplate({
           className="space-y-3"
           onSubmit={(evento) => {
             evento.preventDefault();
+            if (analise.erro) {
+              return;
+            }
             onSalvar({ nome, idioma, categoria, corpo });
           }}
         >
-          <label className="block text-sm">
-            {textos.formulario.nome}
+          <div>
+            <label className="block text-sm" htmlFor="template-whatsapp-nome">
+              {textos.formulario.nome}
+            </label>
             <Input
+              id="template-whatsapp-nome"
               className="mt-1"
               value={nome}
               onChange={(evento) => setNome(evento.target.value)}
+              aria-label={textos.formulario.nome}
+              aria-describedby="template-whatsapp-nome-ajuda"
               required
             />
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span id="template-whatsapp-nome-ajuda" className="mt-1 block text-xs text-muted-foreground">
               {textos.formulario.nomeAjuda}
             </span>
-          </label>
+          </div>
           <label className="block text-sm">
             {textos.formulario.idioma}
             <Input
@@ -201,28 +227,34 @@ function FormularioTemplate({
               onChange={(valor) => setCategoria(valor as CategoriaTemplateWhatsApp)}
             />
           </label>
-          <label className="block text-sm">
-            {textos.formulario.corpo}
+          <div>
+            <label className="block text-sm" htmlFor="template-whatsapp-corpo">
+              {textos.formulario.corpo}
+            </label>
             <Textarea
+              id="template-whatsapp-corpo"
               className="mt-1"
               value={corpo}
               onChange={(evento) => setCorpo(evento.target.value)}
+              aria-label={textos.formulario.corpo}
+              aria-describedby="template-whatsapp-corpo-ajuda"
               required
             />
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span id="template-whatsapp-corpo-ajuda" className="mt-1 block text-xs text-muted-foreground">
+              {ajudaDasVariaveis ? `${ajudaDasVariaveis}. ` : null}
               {textos.formulario.corpoAjuda}
             </span>
-          </label>
-          {erro && (
+          </div>
+          {(analise.erro || erro) && (
             <p role="alert" className="text-sm text-destructive">
-              {erro}
+              {analise.erro ? ajudaDasVariaveis : erro}
             </p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onFechar}>
               {textos.formulario.cancelar}
             </Button>
-            <Button type="submit" disabled={salvando}>
+            <Button type="submit" disabled={salvando || Boolean(analise.erro)}>
               {textos.formulario.salvar}
             </Button>
           </DialogFooter>
