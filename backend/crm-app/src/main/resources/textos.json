@@ -9,6 +9,8 @@
     "grupoGestao": "Gestão",
     "retrair": "Retrair menu lateral",
     "reabrir": "Reabrir menu lateral",
+    "fixar": "Fixar menu aberto",
+    "desafixar": "Desafixar menu lateral",
     "contagemPendentes": "Atendimentos, {quantidade} pendentes",
     "mais": "Mais",
     "maisTitulo": "Mais opções",

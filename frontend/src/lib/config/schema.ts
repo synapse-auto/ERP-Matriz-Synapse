@@ -100,6 +100,8 @@ export const TextosSchema = z.object({
     grupoGestao: z.string(),
     retrair: z.string(),
     reabrir: z.string(),
+    fixar: z.string(),
+    desafixar: z.string(),
     contagemPendentes: z.string(),
     mais: z.string(),
     maisTitulo: z.string(),

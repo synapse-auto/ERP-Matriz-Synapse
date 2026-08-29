@@ -122,10 +122,25 @@ async function encerrarSessao() {
 
 interface SidebarProps {
   retraida: boolean;
+  fixada?: boolean;
+  sobreposta?: boolean;
   onAlternar: () => void;
+  onPonteiroEntrar?: () => void;
+  onPonteiroSair?: () => void;
+  onFocoDentro?: () => void;
+  onFocoFora?: () => void;
 }
 
-export function Sidebar({ retraida, onAlternar }: SidebarProps) {
+export function Sidebar({
+  retraida,
+  fixada = false,
+  sobreposta = false,
+  onAlternar,
+  onPonteiroEntrar,
+  onPonteiroSair,
+  onFocoDentro,
+  onFocoFora,
+}: SidebarProps) {
   const textos = useTextos();
   const pathname = usePathname();
   const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
@@ -161,15 +176,38 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
     })[status];
 
   return (
-    <>
+    <div
+      className={
+        sobreposta && !retraida
+          ? "absolute inset-y-0 left-0 z-40 flex h-full w-[260px] flex-col"
+          : retraida
+            ? "flex h-full w-[76px] flex-col"
+            : "flex h-full w-[260px] flex-col"
+      }
+    >
       <aside
         className={
           retraida
-            ? "flex w-[76px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
-            : "flex w-[260px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+            ? "flex h-full w-[76px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
+            : "flex h-full w-[260px] shrink-0 flex-col overflow-x-hidden border-r border-sidebar-border bg-sidebar text-texto-sidebar-item transition-[width] duration-200"
         }
         data-slot="sidebar"
         data-state={retraida ? "collapsed" : "expanded"}
+        data-fixada={fixada ? "true" : "false"}
+        onMouseEnter={onPonteiroEntrar}
+        onPointerEnter={onPonteiroEntrar}
+        onMouseLeave={() => {
+          if (!popupAberto) onPonteiroSair?.();
+        }}
+        onPointerLeave={() => {
+          if (!popupAberto) onPonteiroSair?.();
+        }}
+        onFocusCapture={onFocoDentro}
+        onBlurCapture={(evento) => {
+          if (!evento.currentTarget.contains(evento.relatedTarget as Node | null) && !popupAberto) {
+            onFocoFora?.();
+          }
+        }}
       >
       <div
         className={
@@ -210,15 +248,16 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
         <button
           type="button"
           onClick={onAlternar}
+          aria-pressed={fixada}
           aria-expanded={!retraida}
-          aria-label={retraida ? textos.menu.reabrir : textos.menu.retrair}
-          title={retraida ? textos.menu.reabrir : textos.menu.retrair}
+          aria-label={fixada ? textos.menu.desafixar : textos.menu.fixar}
+          title={fixada ? textos.menu.desafixar : textos.menu.fixar}
           className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
         >
-          {retraida ? (
-            <PanelLeftOpen className="size-[18px]" aria-hidden />
-          ) : (
+          {fixada ? (
             <PanelLeftClose className="size-[18px]" aria-hidden />
+          ) : (
+            <PanelLeftOpen className="size-[18px]" aria-hidden />
           )}
         </button>
       </div>
@@ -285,11 +324,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
       <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>
         {popupAberto && (
           <div
-            className={
-              retraida
-                ? "fixed bottom-3 left-[84px] z-40 w-56 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
-                : "absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
-            }
+            className="absolute inset-x-3 bottom-[74px] z-40 rounded-xl border border-white/12 bg-fundo-sidebar-bloco p-1.5 shadow-lg"
           >
             <p className="px-2.5 pt-2 pb-1.5 text-[10px] font-bold tracking-[.12em] text-texto-sidebar-sub">
               {textos.rodape.presenca.rotulo}
@@ -378,7 +413,7 @@ export function Sidebar({ retraida, onAlternar }: SidebarProps) {
       </div>
     </aside>
       <NovidadesDialog aberto={novidadesAberto} onFechar={() => setNovidadesAberto(false)} />
-    </>
+    </div>
   );
 }
 

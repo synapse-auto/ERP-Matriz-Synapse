@@ -18,10 +18,12 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 }
 
 function ShellInterno({ children }: { children: React.ReactNode }) {
-  const [sidebarRetraida, setSidebarRetraida] = useState(false);
+  const [sidebarFixada, setSidebarFixada] = useState(false);
+  const [sidebarTemporaria, setSidebarTemporaria] = useState(false);
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
   const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
+  const expandida = sidebarFixada || sidebarTemporaria;
 
   return (
     <div
@@ -29,10 +31,25 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
       data-slot="page-canvas"
     >
       {!telaEstreita && (
-        <Sidebar
-          retraida={sidebarRetraida}
-          onAlternar={() => setSidebarRetraida((atual) => !atual)}
-        />
+        <div
+          className={cn(
+            "relative h-full shrink-0 transition-[width] duration-200",
+            sidebarFixada ? "w-[260px]" : "w-[76px]",
+          )}
+          data-slot="sidebar-slot"
+          data-fixada={sidebarFixada ? "true" : "false"}
+        >
+          <Sidebar
+            retraida={!expandida}
+            fixada={sidebarFixada}
+            sobreposta={!sidebarFixada}
+            onAlternar={() => setSidebarFixada((atual) => !atual)}
+            onPonteiroEntrar={() => setSidebarTemporaria(true)}
+            onPonteiroSair={() => setSidebarTemporaria(false)}
+            onFocoDentro={() => setSidebarTemporaria(true)}
+            onFocoFora={() => setSidebarTemporaria(false)}
+          />
+        </div>
       )}
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <main

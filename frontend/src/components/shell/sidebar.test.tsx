@@ -51,6 +51,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       grupoGestao: "Gestão",
       retrair: "Retrair menu lateral",
       reabrir: "Reabrir menu lateral",
+      fixar: "Fixar menu aberto",
+      desafixar: "Desafixar menu lateral",
       contagemPendentes: "Atendimentos, {quantidade} pendentes",
       mais: "Mais",
       maisTitulo: "Mais opções",
@@ -86,8 +88,21 @@ import { Sidebar } from "./sidebar";
 function renderSidebar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function SidebarControlada() {
-    const [retraida, setRetraida] = useState(false);
-    return <Sidebar retraida={retraida} onAlternar={() => setRetraida((atual) => !atual)} />;
+    const [fixada, setFixada] = useState(false);
+    const [temporaria, setTemporaria] = useState(false);
+    const expandida = fixada || temporaria;
+    return (
+      <Sidebar
+        retraida={!expandida}
+        fixada={fixada}
+        sobreposta={!fixada}
+        onAlternar={() => setFixada((atual) => !atual)}
+        onPonteiroEntrar={() => setTemporaria(true)}
+        onPonteiroSair={() => setTemporaria(false)}
+        onFocoDentro={() => setTemporaria(true)}
+        onFocoFora={() => setTemporaria(false)}
+      />
+    );
   }
   return render(
     <QueryClientProvider client={cliente}>
@@ -178,7 +193,7 @@ describe("sidebar", () => {
     expect(administracao).toHaveAttribute("title", "Administração");
     expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Retrair menu lateral" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fixar menu aberto" }));
     expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("title", "Administração");
     expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
   });
@@ -193,20 +208,14 @@ describe("sidebar", () => {
     expect(screen.getByRole("button", { name: "Status de presença: Online" })).toBeInTheDocument();
   });
 
-  it("retrai e reabre preservando links, badge, presença, configurações e logout", async () => {
+  it("inicia retraida e preserva links, badge, presença, configurações e logout nos dois estados", async () => {
     renderSidebar();
 
     const sidebar = screen.getByRole("complementary");
-    const retrair = await screen.findByRole("button", { name: "Retrair menu lateral" });
-    expect(sidebar).toHaveClass("w-[260px]");
-    expect(retrair).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
-
-    fireEvent.click(retrair);
-
+    const fixar = await screen.findByRole("button", { name: "Fixar menu aberto" });
     expect(sidebar).toHaveClass("w-[76px]");
-    const reabrir = screen.getByRole("button", { name: "Reabrir menu lateral" });
-    expect(reabrir).toHaveAttribute("aria-expanded", "false");
+    expect(fixar).toHaveAttribute("aria-pressed", "false");
+    expect(fixar).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("link", { name: "Atendimentos, 7 pendentes" })).toHaveAttribute(
       "href",
       "/atendimentos",
@@ -215,15 +224,32 @@ describe("sidebar", () => {
       "title",
       "Agenda de Contatos",
     );
-    expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir configurações" })).toBeInTheDocument();
+
+    fireEvent.mouseEnter(sidebar);
+    expect(sidebar).toHaveClass("w-[260px]");
+    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
+
+    fireEvent.click(fixar);
+    expect(sidebar).toHaveAttribute("data-fixada", "true");
+    expect(screen.getByRole("button", { name: "Desafixar menu lateral" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
     expect(await screen.findByRole("button", { name: "Sair" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
 
-    fireEvent.click(reabrir);
+    fireEvent.mouseLeave(sidebar);
     expect(sidebar).toHaveClass("w-[260px]");
-    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desafixar menu lateral" }));
+    expect(sidebar).toHaveClass("w-[76px]");
+    expect(screen.getByRole("button", { name: "Fixar menu aberto" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {
