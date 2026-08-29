@@ -38,6 +38,8 @@ import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { listarMensagensRapidas } from "@/lib/suporte/api";
+import { useLead } from "@/lib/lead/use-painel-lead";
+import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
@@ -71,7 +73,8 @@ function duracaoLegivel(segundos: number): string {
  * documento — com seleção, preview, progresso de upload e erro acionável.
  */
 export function Composer({ conversa, resposta = null, onCancelarResposta }: Props) {
-  const textosAtendimentos = useTextos().atendimentos;
+  const catalogo = useTextos();
+  const textosAtendimentos = catalogo.atendimentos;
   const textos = textosAtendimentos.composer;
   const [texto, setTexto] = useState("");
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -88,6 +91,8 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
     queryKey: ["mensagens-rapidas", "minhas"],
     queryFn: () => listarMensagensRapidas(true),
   });
+  const lead = useLead(conversa.leadId);
+  const [variaveisPendentes, setVariaveisPendentes] = useState<string[]>([]);
   const janelaAberta = janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm);
   const templates = useQuery({
     queryKey: ["whatsapp-templates"],
@@ -125,6 +130,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   }
 
   function enviarConteudo() {
+    if (variaveisPendentes.length > 0) return;
     if (arquivo) {
       const legenda = texto.trim() || undefined;
       setProgresso(0);
@@ -216,7 +222,12 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
       (evento.key === "Enter" || evento.key === "Tab")
     ) {
       evento.preventDefault();
-      setTexto(sugestoes[atalhoSelecionado]?.conteudo ?? texto);
+      const escolhida = sugestoes[atalhoSelecionado];
+      if (escolhida) {
+        const resolvida = resolverMensagemRapida(escolhida.conteudo, { nome: lead.data?.nome ?? "", empresa: lead.data?.empresa });
+        setTexto(resolvida.texto);
+        setVariaveisPendentes(resolvida.pendentes);
+      }
       setAtalhoSelecionado(0);
       return;
     }
@@ -506,7 +517,11 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
                         <button
                           type="button"
                           className="w-full rounded-md p-2 text-left outline-none hover:bg-accent focus-visible:bg-accent"
-                          onClick={() => setTexto(mensagem.conteudo)}
+                        onClick={() => {
+                          const resolvida = resolverMensagemRapida(mensagem.conteudo, { nome: lead.data?.nome ?? "", empresa: lead.data?.empresa });
+                          setTexto(resolvida.texto);
+                          setVariaveisPendentes(resolvida.pendentes);
+                        }}
                         >
                           <span className="block truncate font-mono text-xs text-primary">
                             /{mensagem.palavraChave}
@@ -583,6 +598,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
               value={texto}
               onChange={(evento) => {
                 setTexto(evento.target.value);
+                setVariaveisPendentes([]);
                 setAtalhoSelecionado(0);
               }}
               onKeyDown={aoPressionarTecla}
@@ -610,7 +626,9 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
                       }
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setTexto(m.conteudo);
+                        const resolvida = resolverMensagemRapida(m.conteudo, { nome: lead.data?.nome ?? "", empresa: lead.data?.empresa });
+                        setTexto(resolvida.texto);
+                        setVariaveisPendentes(resolvida.pendentes);
                         setAtalhoSelecionado(0);
                       }}
                     >
@@ -640,7 +658,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
                 || enviarMidia.isPending
                 || (gravador.fase === "PREVISUALIZACAO"
                   ? Boolean(gravador.erro) || !gravador.arquivo
-                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo))
+                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo) || variaveisPendentes.length > 0)
               }
               aria-label={textos.enviar}
             >
@@ -652,6 +670,11 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
         {mensagemDeErro && (
           <p className="mt-1 text-xs text-destructive" role="alert">
             {mensagemDeErro}
+          </p>
+        )}
+        {variaveisPendentes.length > 0 && (
+          <p className="mt-1 text-xs text-destructive" role="alert">
+            {catalogo.mensagensRapidas.variaveisPendentes.replace("{variaveis}", variaveisPendentes.map((item) => `{${item}}`).join(", "))}
           </p>
         )}
         <FormularioMensagemProgramada

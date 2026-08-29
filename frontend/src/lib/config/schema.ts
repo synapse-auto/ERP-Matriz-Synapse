@@ -285,6 +285,7 @@ export const TextosSchema = z.object({
       semAtendente: z.string(),
       vazio: z.string(),
       naoLidas: z.string(),
+      atendidoPelaIa: z.string(),
     }),
     cabecalho: z.object({
       atendidoPor: z.string(),
@@ -496,9 +497,16 @@ export const TextosSchema = z.object({
         resumo: z.string(),
         programadas: z.string(),
         lembretes: z.string(),
+        midias: z.string(),
       }),
       vazioProgramadas: z.string(),
       vazioLembretes: z.string(),
+      vazioMidias: z.string(),
+      erroMidias: z.string(),
+      carregandoMidias: z.string(),
+      carregarMaisMidias: z.string(),
+      salvarImagem: z.string(),
+      origemMidia: z.string(),
     }),
   }),
   painelLead: z.object({
@@ -604,6 +612,7 @@ export const TextosSchema = z.object({
     editar: z.string(),
     remover: z.string(),
     dica: z.string(),
+    variaveisPendentes: z.string(),
     formulario: z.object({
       criarTitulo: z.string(),
       editarTitulo: z.string(),

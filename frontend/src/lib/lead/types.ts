@@ -75,3 +75,16 @@ export interface PaginaTimeline {
   pagina: number;
   temMais: boolean;
 }
+
+export interface MidiaDoLead {
+  mensagemId: string;
+  atendimentoId: string;
+  tipo: "IMAGEM" | "AUDIO" | "DOCUMENTO";
+  nome: string | null;
+  mimetype: string | null;
+  tamanho: number;
+  legenda: string | null;
+  urlDownload: string;
+  enviadoEm: string;
+  origem: string | null;
+}

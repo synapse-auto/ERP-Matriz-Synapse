@@ -11,6 +11,7 @@ import {
   listarTagsDoLead,
   listarTimeline,
   listarTodasAsTags,
+  listarMidiasDoLead,
   obterLead,
   vincularTagAoLead,
 } from "./api";
@@ -54,6 +55,16 @@ export function useTimelineDoLead(leadId: string | null) {
     queryFn: ({ pageParam }) => listarTimeline(leadId!, pageParam),
     initialPageParam: 0,
     getNextPageParam: (ultima) => (ultima.temMais ? ultima.pagina + 1 : undefined),
+    enabled: Boolean(leadId),
+  });
+}
+
+export function useMidiasDoLead(leadId: string | null) {
+  return useInfiniteQuery({
+    queryKey: ["lead", leadId, "midias"],
+    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (ultima, _paginas, pagina) => ultima.length === 20 ? pagina + 1 : undefined,
     enabled: Boolean(leadId),
   });
 }

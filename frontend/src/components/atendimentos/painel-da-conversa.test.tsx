@@ -67,9 +67,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
           resumo: "Resumo por IA e notas",
           programadas: "Mensagens programadas",
           lembretes: "Lembretes",
+          midias: "Mídias e documentos",
         },
         vazioProgramadas: "Nenhuma mensagem programada",
         vazioLembretes: "Nenhum lembrete",
+        vazioMidias: "Nenhuma mídia ou documento",
+        erroMidias: "Não foi possível carregar as mídias.",
+        carregandoMidias: "Carregando mídias...",
+        carregarMaisMidias: "Carregar mais",
+        salvarImagem: "Salvar imagem",
+        origemMidia: "Origem",
       },
     },
     painelLead: {
@@ -96,6 +103,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useLead: () => leadState,
   useEtapas: () => etapasState,
+  useMidiasDoLead: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
   useTagsDoLead: () => ({
     data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
   }),

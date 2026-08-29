@@ -29,6 +29,7 @@ import type {
 } from "@/lib/automacao/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import type { Textos } from "@/lib/config/schema";
+import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
 import { useAtualizarDisponibilidadeParaIa, useEquipe } from "@/lib/equipe/use-equipe";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { cn } from "@/lib/utils";
@@ -398,7 +399,7 @@ function ErroCampo({ texto }: { texto: string }) { return <p role="alert" classN
 function PreviewWhatsApp({ textos, preview }: { textos: Textos; preview: Preview }) {
   const t = textos.automacao.regras;
   const nomeInstancia = textos.app.marca;
-  const mensagem = (preview.texto || t.previewVazio).split("{nome}").join(t.previewNome);
+  const mensagem = resolverMensagemRapida(preview.texto || t.previewVazio, { nome: "{nome}", empresa: "{empresa}" }).texto;
   return (
     <aside className="sticky top-6 hidden xl:block">
       <h2 className="mb-3 text-center text-xs font-bold tracking-widest text-muted-foreground">{t.visualizacaoWhatsapp}</h2>

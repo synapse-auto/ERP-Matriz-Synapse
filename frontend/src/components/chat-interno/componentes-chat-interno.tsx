@@ -35,7 +35,7 @@ export function duracaoLegivel(segundos: number): string {
 export function CabecalhoChatInterno({ conversa, textos }: { conversa?: ChatConversa; textos: TextosChat }) {
   const nome = conversa?.participantes?.trim() || textos.titulo;
   return (
-    <header className="flex h-[72px] items-center gap-3 border-b border-border bg-background px-5">
+    <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-background px-5">
       <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 truncate font-semibold text-foreground">
@@ -66,7 +66,10 @@ export function ListaMensagensChatInterno({
   const acoes = catalogoAtendimentos.mensagem.acoes;
   if (!mensagens.length) return <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.semMensagens}</p>;
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 p-5">
+    <div
+      className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-5"
+      data-slot="historico-chat-interno"
+    >
       {mensagens.map((mensagem) => {
         const propria = mensagem.remetenteId === usuarioAtual;
         const tipo = mensagem.tipo ?? "TEXTO";
@@ -88,7 +91,14 @@ export function ListaMensagensChatInterno({
             onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
             onRemoverReacao={() => onRemoverReacao(mensagem)}
           >
-            <div className={cn("max-w-[75%] rounded-xl px-3 py-2 text-sm font-normal shadow-sm", propria ? "bg-primary text-primary-foreground" : "bg-background text-foreground")}>
+            <div
+              className={cn(
+                "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
+                propria
+                  ? "rounded-tr-md bg-primary text-primary-foreground"
+                  : "rounded-tl-md border border-border bg-background text-foreground",
+              )}
+            >
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
 
               {tipo === "IMAGEM" && (
@@ -213,7 +223,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
       : gravador.erro === "TAMANHO" ? tComp.audioExcedeuLimite : null;
 
   return (
-    <div className="border-t border-border bg-background p-4">
+    <div className="shrink-0 border-t border-border bg-background p-4">
       {erro && <p role="alert" className="mb-2 text-sm text-destructive">{textos.erroEnviar}</p>}
       {erroDeGravacao && <p className="mb-2 text-sm text-destructive">{erroDeGravacao}</p>}
       <div className="mx-auto flex max-w-[780px] flex-col gap-2 rounded-xl border border-input bg-card p-2 shadow-sm">
