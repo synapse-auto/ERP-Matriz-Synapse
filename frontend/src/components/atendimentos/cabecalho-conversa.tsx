@@ -12,8 +12,6 @@ import {
   Star,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -32,7 +30,7 @@ import {
   useMeuPedido,
   usePedidosPendentes,
 } from "@/lib/atendimento/use-participacao";
-import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 import { DialogoTransferir } from "./dialogo-transferir";
 import { DialogoAvaliacao } from "./dialogo-avaliacao";
@@ -135,20 +133,13 @@ export function CabecalhoConversa({
             <ArrowLeft className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
           </Button>
         )}
-        <Avatar>
-          {urlSegura(conversa.leadFotoUrl) && (
-            <AvatarImage
-              src={urlSegura(conversa.leadFotoUrl)}
-              alt={nomeDoLead}
-            />
-          )}
-          <AvatarFallback
-            className="text-white"
-            style={{ backgroundColor: tomDoAvatar(conversa.leadId) }}
-          >
-            {iniciaisDoNome(nomeDoLead)}
-          </AvatarFallback>
-        </Avatar>
+        <AvatarIniciais
+          id={conversa.leadId}
+          nome={nomeDoLead}
+          fotoUrl={conversa.leadFotoUrl}
+          fotoAlt={nomeDoLead}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+        />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="truncate font-bold text-foreground">

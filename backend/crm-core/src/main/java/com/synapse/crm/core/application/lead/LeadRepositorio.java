@@ -1,10 +1,12 @@
 package com.synapse.crm.core.application.lead;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
+import com.synapse.crm.core.domain.lead.FotoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 
@@ -100,4 +102,23 @@ public interface LeadRepositorio {
 
     /** Idem para mensagens. Ver {@link #somarAtendimentos(UUID, int)}. */
     void somarMensagens(UUID leadId, int quantidade);
+
+    /**
+     * Estado da foto entregue pela integracao (E97), <em>se</em> o lead for visivel a quem pediu.
+     *
+     * <p>Passa pela mesma Specification de {@link #porId(UUID)}: vazio significa "nao existe ou nao
+     * e seu". Um lead visivel <b>sem</b> foto devolve um {@link FotoDoLead} presente e vazio por
+     * dentro — distinguir os dois e o que separa 404 de "removida, nada a fazer".
+     */
+    Optional<FotoDoLead> fotoDoLead(UUID leadId);
+
+    /**
+     * Troca as tres colunas de foto do lead, se ele for visivel a quem pediu.
+     *
+     * <p>Metodo proprio, e nao {@link #salvar(Lead)}: a foto da integracao nao e campo de ficha, e
+     * um PUT da tela nunca pode sobrescreve-la. Nulos em todos os argumentos removem a foto.
+     *
+     * @return {@code false} se o lead sumiu ou nao e visivel
+     */
+    boolean atualizarFoto(UUID leadId, String referencia, String hash, Instant quando);
 }

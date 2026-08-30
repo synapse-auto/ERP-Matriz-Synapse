@@ -4,17 +4,23 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
-import com.synapse.crm.equipe.application.usuario.ArmazenamentoDeAvatar;
+import com.synapse.crm.core.application.lead.foto.ArmazenamentoDeFotoDeLead;
 
-/** Bucket separado de avatares, prefixo {@code avatar/}; o browser nunca recebe URL do MinIO. */
+/**
+ * Mesmo bucket dos avatares, prefixo proprio {@code lead/} (E97).
+ *
+ * <p>Prefixo separado, e nao bucket separado, porque o que precisa ficar isolado e o alcance de uma
+ * referencia: {@code buscar}/{@code remover} do avatar de usuario filtram por {@code avatar/} e nao
+ * conseguem tocar objeto de lead, e vice-versa.
+ */
 @Component
-class MinioArmazenamentoDeAvatar implements ArmazenamentoDeAvatar {
+class MinioArmazenamentoDeFotoDeLead implements ArmazenamentoDeFotoDeLead {
 
-    static final String PREFIXO = "avatar/";
+    static final String PREFIXO = "lead/";
 
     private final BucketDeAvatares bucket;
 
-    MinioArmazenamentoDeAvatar(BucketDeAvatares bucket) {
+    MinioArmazenamentoDeFotoDeLead(BucketDeAvatares bucket) {
         this.bucket = bucket;
     }
 

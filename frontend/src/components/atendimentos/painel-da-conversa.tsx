@@ -23,8 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { tomDoAvatar } from "@/components/ui/avatar-iniciais";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +50,6 @@ import type {
   PaginaLembretes,
   PaginaMensagensProgramadas,
 } from "@/lib/suporte/types";
-import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 import { AtalhoTags } from "./atalho-tags";
 import { FormularioLembrete } from "../lembretes/formulario-lembrete";
@@ -116,20 +114,13 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
         <div className="flex flex-col items-center gap-2 text-center">
-          <Avatar className="size-16">
-            {urlSegura(lead.data.fotoUrl) && (
-              <AvatarImage
-                src={urlSegura(lead.data.fotoUrl)}
-                alt={lead.data.nome}
-              />
-            )}
-            <AvatarFallback
-              className="text-white"
-              style={{ backgroundColor: tomDoAvatar(lead.data.id) }}
-            >
-              {iniciaisDoNome(lead.data.nome)}
-            </AvatarFallback>
-          </Avatar>
+          <AvatarIniciais
+            id={lead.data.id}
+            nome={lead.data.nome}
+            fotoUrl={lead.data.fotoUrl}
+            fotoAlt={lead.data.nome}
+            className="flex size-16 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
+          />
           <div>
             <CampoNomeDoLead
               key={leadId}

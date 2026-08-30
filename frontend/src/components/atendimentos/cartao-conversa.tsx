@@ -2,12 +2,11 @@
 
 import { MessageCircleMore, Users } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { AvatarIniciais, tomDoAvatar } from "@/components/ui/avatar-iniciais";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import type { ItemInbox } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
-import { cn, iniciaisDoNome, urlSegura } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type Props = {
   cartao: ItemInbox;
@@ -81,20 +80,13 @@ export function CartaoConversa({
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="size-11 rounded-full">
-          {urlSegura(cartao.leadFotoUrl) && (
-            <AvatarImage
-              src={urlSegura(cartao.leadFotoUrl)}
-              alt={cartao.leadNome}
-            />
-          )}
-          <AvatarFallback
-            className="rounded-full text-white"
-            style={{ backgroundColor: tomDoAvatar(cartao.leadId) }}
-          >
-            {iniciaisDoNome(cartao.leadNome)}
-          </AvatarFallback>
-        </Avatar>
+        <AvatarIniciais
+          id={cartao.leadId}
+          nome={cartao.leadNome}
+          fotoUrl={cartao.leadFotoUrl}
+          fotoAlt={cartao.leadNome}
+          className="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+        />
         {canal && (
           <span
             className="absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-full bg-cor-sucesso text-white"
