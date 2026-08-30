@@ -361,6 +361,15 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
 | `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
+| `AUTOMACAO_AVALIACAO_URL` | Opcional, vazio desliga pesquisas após encerramento individual; não é o repasse cru. |
+| `AUTOMACAO_AVALIACAO_TOKEN` | Segredo privado do webhook de avaliação, somente no ambiente; default vazio. |
+| `AUTOMACAO_AVALIACAO_AUTH_HEADER` | Nome acordado do header (crm-synapse-marc-auth no contrato atual); default vazio. |
+| `AUTOMACAO_AVALIACAO_TIMEOUT` / `AUTOMACAO_AVALIACAO_RESERVA_EXPIRACAO` | Limite HTTP total 5s / lease 30s; lease deve exceder timeout. |
+| `AUTOMACAO_AVALIACAO_LOTE` / `AUTOMACAO_AVALIACAO_CONCORRENCIA` / `AUTOMACAO_AVALIACAO_FILA` | Tarefas por tick 10 / workers próprios 2 / fila limitada 10. |
+| `AUTOMACAO_AVALIACAO_MAXIMO_TENTATIVAS` | 5 reservas; esgotadas permanecem inspecionáveis. |
+| `AUTOMACAO_AVALIACAO_BACKOFF_INICIAL` / `AUTOMACAO_AVALIACAO_BACKOFF_MAXIMO` | 10s / 30m, exponencial com teto. |
+| `AUTOMACAO_AVALIACAO_MINIMO_CHAMADAS_CIRCUITO` / `AUTOMACAO_AVALIACAO_ESPERA_CIRCUITO` | 5 amostras / 30s; circuito exclusivo de avaliação. |
+| `AUTOMACAO_AVALIACAO_INTERVALO_MS` | 1000ms; desabilitado com o agendamento global nos testes. |
 | `WHATSAPP_NUMERO` | Identificador do número de telefone na Meta Cloud API. |
 | `WHATSAPP_TOKEN` | Token de acesso da Meta usado nas chamadas de saída. |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token escolhido pela instância para o desafio `GET` do webhook. |
@@ -368,6 +377,10 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 
 Os dois segredos do webhook são deliberadamente distintos e não podem ser reutilizados um no
 lugar do outro.
+
+Avaliação após encerramento: consulte o [runbook E83](docs/35-runbook-webhook-avaliacao.md)
+antes de ativar. Lote e atendimento sem responsável não iniciam pesquisa. Ativação,
+backlog e teste real precisam de autorização; 2xx não comprova envio de WhatsApp.
 
 #### Variáveis opcionais e capacidade
 
@@ -381,7 +394,7 @@ lugar do outro.
 | `ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS` | `8` | Duração do aviso visual de transferência/devolução; aceita valores de 1 a 60 segundos. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
-| `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID. Sem isso, listar/criar template falha com 503 se o Graph não resolver a conta. |
+| `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |

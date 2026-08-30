@@ -1,5 +1,10 @@
 # 03. Modelo de Dados — PostgreSQL
 
+> **Reconciliação em 30/08/2026:** este documento continua sendo o modelo arquitetural,
+> não o inventário operacional. A implementação atual está na **V47**; as diferenças das
+> migrations V41–V47 estão registradas no final deste arquivo e o inventário completo está
+> em `docs/11-banco-atual.md`.
+
 ## 1. Diagrama Entidade-Relacionamento (visão consolidada)
 
 ```mermaid
@@ -173,6 +178,11 @@ CREATE TABLE lead (
     criado_em                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Evolução (V47): identificador interno numérico, editável pelo atendente.
+-- Não estava no CREATE inicial de propósito — ver docs/11 (vence este arquivo).
+-- ALTER TABLE lead ADD COLUMN codigo VARCHAR(20);
+-- CHECK (codigo IS NULL OR codigo ~ '^[0-9]+$');
+
 -- Isolamento de agenda (RN-CRM-01) e listagens por papel
 CREATE INDEX idx_lead_atendente ON lead (atendente_responsavel_id);
 CREATE INDEX idx_lead_etapa ON lead (etapa_atendimento_id);
@@ -285,6 +295,20 @@ CREATE TABLE mensagem (
 -- Partição DEFAULT existe como rede de segurança de último recurso — ver §6, item 7.
 
 CREATE INDEX idx_mensagem_atendimento ON mensagem (atendimento_id, enviado_em);
+
+CREATE TABLE mensagem_reacao (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mensagem_id             UUID NOT NULL,
+    mensagem_enviada_em     TIMESTAMPTZ NOT NULL,
+    usuario_id              UUID NOT NULL REFERENCES usuario(id),
+    emoji                   VARCHAR(32) NOT NULL,
+    criado_em               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    FOREIGN KEY (mensagem_id, mensagem_enviada_em)
+        REFERENCES mensagem (id, enviado_em) ON DELETE CASCADE,
+    UNIQUE (mensagem_id, mensagem_enviada_em, usuario_id)
+);
+-- Uma reacao por usuario. A FK composta ancora a particao; o UNIQUE cobre a leitura por mensagem
+-- sem varrer o pai particionado. Nao ha tabela polimorfica com o chat interno.
 
 -- =========================================================
 -- Campanhas e Filtros Modulares
@@ -411,6 +435,17 @@ CREATE TABLE chat_interno_mensagem (
     enviado_em     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_chat_interno_msg_conversa ON chat_interno_mensagem (conversa_id, enviado_em);
+
+CREATE TABLE chat_interno_mensagem_reacao (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mensagem_id  UUID NOT NULL REFERENCES chat_interno_mensagem(id) ON DELETE CASCADE,
+    usuario_id   UUID NOT NULL REFERENCES usuario(id),
+    emoji        VARCHAR(32) NOT NULL,
+    criado_em    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (mensagem_id, usuario_id)
+);
+-- RLS FORCE com as mesmas politicas de participacao de `chat_interno_mensagem`.
+-- Gestor que nao participa nao le nem grava.
 
 -- =========================================================
 -- Credenciais de canal (troca do número principal)
@@ -678,3 +713,20 @@ Justificativas migradas de comentário SQL para `COMMENT ON TABLE/COLUMN/FUNCTIO
 `pg_trgm` ainda exige privilégio elevado. Funciona no container e no Testcontainers (usuário é superusuário), mas em RDS, Cloud SQL ou similar pode precisar ser habilitada fora da migration — e a V1 falharia lá. Está na allowlist da maioria dos provedores gerenciados, mas **confirme antes do deploy de homologação**. Documentado no `README.md`, seção "Deploy → Extensões do PostgreSQL".
 
 **Edição de migrations já aplicadas.** A movimentação dos índices únicos (item 5) exigiu editar migrations já aplicadas — feito de forma segura porque o schema só existia no ambiente local, que foi zerado e remigrado do zero. **A partir daqui a regra do `CLAUDE.md` volta a valer integralmente:** nenhuma migration aplicada é editada; correção é sempre migration nova. Se algum ambiente tiver aplicado a versão anterior (`ac8326e`), precisa zerar o banco ou rodar `flyway repair`.
+
+## 9. Reconciliação com a implementação V41–V47
+
+O modelo consolidado acima foi preservado. Desde sua redação, a implementação acrescentou:
+
+- `atendimento_leitura` (V41), para cada usuário marcar sua própria leitura;
+- `feedback_usuario` e o tipo `tipo_feedback` (V42);
+- unicidade de uma avaliação por atendimento e índice por data (V43);
+- `outbox_evento.avaliacao_reserva_id` para proteger o lease da avaliação (V44);
+- `mensagem_reacao` e `chat_interno_mensagem_reacao` (V45);
+- `mensagem_id_externo` para `wamid` e `mensagem_referencia` para citação de resposta/
+  encaminhamento (V46);
+- `lead.codigo`, identificador interno opcional que aceita somente dígitos (V47).
+
+Essas alterações não mudam a decisão de domínio de manter `mensagem` particionada nem a
+separação entre o chat externo, o chat interno e a Automação. Para o estado efetivo do banco,
+consulte `docs/11-banco-atual.md`.

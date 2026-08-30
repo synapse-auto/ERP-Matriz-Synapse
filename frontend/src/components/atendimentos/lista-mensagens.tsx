@@ -17,6 +17,8 @@ type Props = {
   mensagens: MensagemResposta[];
   carregando: boolean;
   onReenviar: (mensagem: MensagemResposta) => void;
+  onDefinirReacao: (mensagem: MensagemResposta, emoji: string) => Promise<void>;
+  onRemoverReacao: (mensagem: MensagemResposta) => Promise<void>;
   temMais: boolean;
   carregandoMais: boolean;
   onCarregarMais: () => void;
@@ -24,7 +26,12 @@ type Props = {
   canalTipo: string | null;
   atendenteId: string | null;
   atendenteNome: string | null;
+  onResponder?: (mensagem: MensagemResposta) => void;
+  onEncaminhar?: (mensagem: MensagemResposta) => void;
 };
+
+/** Espaço real dentro do virtualizador para nenhuma mensagem encostar no cabeçalho ou composer. */
+export const ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO = 16;
 
 /**
  * A lista virtualizada recebe paginas por cursor e busca as anteriores ao chegar ao topo. Mensagens
@@ -34,6 +41,8 @@ export function ListaMensagens({
   mensagens,
   carregando,
   onReenviar,
+  onDefinirReacao,
+  onRemoverReacao,
   temMais,
   carregandoMais,
   onCarregarMais,
@@ -41,6 +50,8 @@ export function ListaMensagens({
   canalTipo,
   atendenteId,
   atendenteNome,
+  onResponder,
+  onEncaminhar,
 }: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
@@ -62,6 +73,10 @@ export function ListaMensagens({
     getItemKey: (indice) => chaveDaMensagem(filtradas, indice),
     estimateSize: () => 48,
     overscan: 8,
+    paddingStart: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
+    paddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
+    scrollPaddingStart: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
+    scrollPaddingEnd: ESPACAMENTO_DE_SEGURANCA_DO_HISTORICO,
   });
 
   const ultimoId = filtradas.at(-1)?.id;
@@ -90,7 +105,8 @@ export function ListaMensagens({
 
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] px-4 py-2"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-py-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] px-4 py-2"
+        data-slot="historico-mensagens"
         onScroll={(evento) => {
           if (evento.currentTarget.scrollTop < 80 && temMais && !carregandoMais)
             onCarregarMais();
@@ -178,6 +194,10 @@ export function ListaMensagens({
                           ? () => onReenviar(mensagem)
                           : undefined
                       }
+                      onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+                      onRemoverReacao={() => onRemoverReacao(mensagem)}
+                      onResponder={onResponder ? () => onResponder(mensagem) : undefined}
+                      onEncaminhar={onEncaminhar ? () => onEncaminhar(mensagem) : undefined}
                     />
                   </div>
                 );

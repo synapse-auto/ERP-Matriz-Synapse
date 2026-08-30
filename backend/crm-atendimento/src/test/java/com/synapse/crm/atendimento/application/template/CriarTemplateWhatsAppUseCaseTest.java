@@ -30,7 +30,43 @@ class CriarTemplateWhatsAppUseCaseTest {
 
         assertThatThrownBy(() -> useCase.executar(
                         "retorno", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}} e {{3}}"))
-                .isInstanceOf(PedidoDeTemplateInvalidoException.class);
+                .isInstanceOf(PedidoDeTemplateInvalidoException.class)
+                .hasMessageContaining("{{2}}")
+                .hasMessageContaining("ausente");
+    }
+
+    @Test
+    void rejeitaIndiceZero() {
+        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class));
+
+        assertThatThrownBy(() -> useCase.executar(
+                        "retorno", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{0}}"))
+                .isInstanceOf(PedidoDeTemplateInvalidoException.class)
+                .hasMessageContaining("{{0}}")
+                .hasMessageContaining("invalido");
+    }
+
+    @Test
+    void aceitaQuatroVariaveisSequenciaisMesmoComRepeticaoDoMesmoIndice() {
+        CanalGateway canal = mock(CanalGateway.class);
+        TemplateDoCanal criado = new TemplateDoCanal(
+                "retorno",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                TemplateDoCanal.Status.PENDENTE,
+                "Ola {{1}}, {{2}}, {{3}} e {{4}}. {{1}} de novo.",
+                4);
+        when(canal.criarTemplate(any(PedidoDeTemplate.class)))
+                .thenReturn(new ResultadoDeTemplate.Aceito(criado));
+
+        TemplateDoCanal resultado = new CriarTemplateWhatsAppUseCase(canal)
+                .executar(
+                        "retorno",
+                        "pt_BR",
+                        TemplateDoCanal.Categoria.UTILIDADE,
+                        "Ola {{1}}, {{2}}, {{3}} e {{4}}. {{1}} de novo.");
+
+        assertThat(resultado.quantidadeDeParametros()).isEqualTo(4);
     }
 
     @Test

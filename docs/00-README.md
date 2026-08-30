@@ -26,6 +26,10 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 8. [`08-plano-execucao.md`](./08-plano-execucao.md) — avaliação do prazo, cronograma semanal até 25/08 e definição objetiva de pronto.
 9. [`09-escopo-primeira-entrega.md`](./09-escopo-primeira-entrega.md) — **recorte oficial da primeira entrega.** Tem precedência sobre a lista de features dos requisitos para o que entra até 25/08.
 
+### Schema vigente (vence o `03` quando divergirem)
+- [`11-banco-atual.md`](./11-banco-atual.md) — colunas e constraints como estão nas migrations Flyway (última: V47 `lead.codigo`).
+- [`12-diagramas-banco.md`](./12-diagramas-banco.md) — ERD Mermaid extraído do schema atual.
+
 ### Continuidade
 
 - [`13-estado-do-projeto.md`](./13-estado-do-projeto.md) — **leia primeiro se estiver retomando o projeto.** Onde estamos, o que falta, decisões que não se revertem, as nove proteções silenciosas e as dívidas com prazo.
@@ -50,6 +54,6 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 
 ## Como ler
 
-**Se você vai começar a codar agora:** `PLANO-ETAPAS.md` → prompt da etapa atual. O `03` é a referência de schema e o `06` a de padrões.
+**Se você vai começar a codar agora:** `PLANO-ETAPAS.md` → prompt da etapa atual. Schema vigente é o `11` (vence o `03`). O `06` é a referência de padrões.
 
 **Se você vai apresentar/discutir a arquitetura:** siga a ordem 01 → 07, terminando na rastreabilidade (`05`) como checklist de cobertura.

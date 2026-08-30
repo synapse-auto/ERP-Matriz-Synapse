@@ -1,10 +1,13 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.nio.charset.StandardCharsets;
@@ -13,9 +16,11 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -95,6 +100,47 @@ class RedisSubscriberDeAtendimentoTest {
                 eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
         verify(template, never()).convertAndSendToUser(eq(transferidorId.toString()),
                 eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), contains("CHAT_INTERNO_MENSAGEM"));
+    }
+
+    @Test
+    void chat_interno_reacao_entrega_a_todos_os_destinatarios_incluindo_o_autor() throws Exception {
+        UUID autor = transferidorId;
+        String corpo = "{\"tipo\":\"CHAT_INTERNO_REACAO\",\"destinatarios\":[\"" + destinatarioId
+                + "\",\"" + autor + "\"],\"conversaId\":\"" + UUID.randomUUID()
+                + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                + "\",\"atorId\":\"" + autor + "\",\"emojiDoAtor\":\"👍\""
+                + ",\"reacoes\":[{\"emoji\":\"👍\",\"quantidade\":1}]}";
+        Message mensagem = mock(Message.class);
+        org.mockito.Mockito.when(mensagem.getChannel()).thenReturn(
+                ("synapse:chat-interno:" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+        org.mockito.Mockito.when(mensagem.getBody()).thenReturn(corpo.getBytes(StandardCharsets.UTF_8));
+
+        subscriber.onMessage(mensagem, null);
+
+        ArgumentCaptor<String> entregue = ArgumentCaptor.forClass(String.class);
+        verify(template, times(2)).convertAndSendToUser(
+                anyString(), eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), entregue.capture());
+        for (String payload : entregue.getAllValues()) {
+            JsonNode envelope = new ObjectMapper().readTree(payload);
+            assertThat(envelope.path("tipo").asText()).isEqualTo("CHAT_INTERNO_REACAO");
+            assertThat(envelope.path("dados").path("atorId").asText()).isEqualTo(autor.toString());
+            assertThat(envelope.path("dados").path("emojiDoAtor").asText()).isEqualTo("👍");
+            assertThat(envelope.path("dados").path("reacoes").get(0).has("reagi")).isFalse();
+            assertThat(envelope.toString()).doesNotContain("reagi");
+            assertThat(envelope.path("dados").has("reatores")).isFalse();
+        }
+    }
+
+    @Test
+    void reacao_nao_e_entregue_sem_assinatura() {
+        String corpo = "{\"tipo\":\"REACAO\",\"dados\":{\"atendimentoId\":\"" + atendimentoId
+                + "\",\"mensagemId\":\"" + UUID.randomUUID()
+                + "\",\"enviadoEm\":\"2026-08-28T15:00:00Z\",\"reacoes\":[]}}";
+        subscriber.onMessage(mensagem(corpo), null);
+        verify(template, never()).convertAndSendToUser(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.eq("/queue/atendimento." + atendimentoId),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

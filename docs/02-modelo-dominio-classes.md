@@ -86,6 +86,8 @@ classDiagram
 
 ## 2. CRM Core (Lead, Tags, Agenda, Lembretes, Mensagens Programadas)
 
+`Lead.codigo` é identificador interno numérico da instância (somente dígitos, até 20, zeros à esquerda preservados). Opcional; vazio na edição vira `null`. Não é campo customizado: precisa aparecer no card da lista de Atendimentos, e `dadosCustomizados` não entra em projeção de listagem. A Agenda (`LeadResumo`) não o carrega. Normalização em `CodigoDoLead`; persistência em `lead.codigo` (V47).
+
 ```mermaid
 classDiagram
     class Lead {
@@ -96,6 +98,7 @@ classDiagram
         +String email
         +String cpf
         +String empresa
+        +String codigo
         +String localizacao
         +UUID canalOrigemId
         +StatusBasicoLead statusBasico

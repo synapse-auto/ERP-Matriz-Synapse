@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,9 +25,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -130,6 +134,50 @@ class MetaCloudApiAdapterTest {
     }
 
     @Test
+    void respostaIncluiContextMessageId() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.resp\"}]}", MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemLivre("resposta"),
+                UUID.randomUUID(),
+                "wamid.origem"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(payloadCapturado[0].path("context").path("message_id").asText())
+                .isEqualTo("wamid.origem");
+        assertThat(payloadCapturado[0].path("text").path("body").asText()).isEqualTo("resposta");
+    }
+
+    @Test
+    void envioSemContextoNaoInventaContext() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.1\"}]}", MediaType.APPLICATION_JSON));
+
+        adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemLivre("oi"),
+                UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(payloadCapturado[0].has("context")).isFalse();
+    }
+
+    @Test
     void listaTemplatesPeloIdDaContaDeNegocio() {
         servidor.expect(
                         once(),
@@ -150,6 +198,141 @@ class MetaCloudApiAdapterTest {
         assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
         assertThat(templates.getFirst().status()).isEqualTo(TemplateDoCanal.Status.APROVADO);
         assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
+    }
+
+    @Test
+    void contaNegocioAusenteFalhaSemConsultarGraphNemAbrirCircuitBreaker() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer servidorSemConta = MockRestServiceServer.bindTo(builder).build();
+        CircuitBreakerRegistry breakers = CircuitBreakerRegistry.ofDefaults();
+        CanalProperties semConta = new CanalProperties(
+                MetaCloudApiAdapter.PROVEDOR,
+                URL_BASE,
+                NUMERO,
+                "token-de-teste",
+                "verify",
+                "secret",
+                Duration.ofHours(24),
+                Duration.ofSeconds(10),
+                "");
+        MetaCloudApiAdapter adapterSemConta =
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+
+        for (int tentativa = 0; tentativa < 10; tentativa++) {
+            assertThatThrownBy(adapterSemConta::listarTemplates)
+                    .isInstanceOf(CanalIndisponivelException.class)
+                    .hasMessageContaining("WHATSAPP_CONTA_NEGOCIO")
+                    .hasMessageContaining("WABA ID");
+        }
+
+        servidorSemConta.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void criarTemplateSemContaNegocioNaoConsultaGraphNemAbreCircuitBreaker() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer servidorSemConta = MockRestServiceServer.bindTo(builder).build();
+        CircuitBreakerRegistry breakers = CircuitBreakerRegistry.ofDefaults();
+        CanalProperties semConta = new CanalProperties(
+                MetaCloudApiAdapter.PROVEDOR,
+                URL_BASE,
+                NUMERO,
+                "token-de-teste",
+                "verify",
+                "secret",
+                Duration.ofHours(24),
+                Duration.ofSeconds(10),
+                "");
+        MetaCloudApiAdapter adapterSemConta =
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+        PedidoDeTemplate pedido = new PedidoDeTemplate(
+                "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
+
+        for (int tentativa = 0; tentativa < 10; tentativa++) {
+            assertThatThrownBy(() -> adapterSemConta.criarTemplate(pedido))
+                    .isInstanceOf(CanalIndisponivelException.class)
+                    .hasMessageContaining("WHATSAPP_CONTA_NEGOCIO");
+        }
+
+        servidorSemConta.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void lista400DaMetaViraCanalIndisponivelENaoConsultaCampoWhatsappBusinessAccount() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(
+                                """
+                                {"error":{"code":100,"message":"Tried accessing nonexisting field (whatsapp_business_account)"}}
+                                """));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 400")
+                .hasMessageContaining("whatsapp_business_account");
+
+        servidor.verify();
+    }
+
+    @Test
+    void lista429DaMetaViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"message\":\"too many requests\"}}"));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 429");
+
+        servidor.verify();
+    }
+
+    @Test
+    void lista500DaMetaViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"message\":\"upstream\"}}"));
+
+        assertThatThrownBy(adapter::listarTemplates)
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 500");
+
+        servidor.verify();
+    }
+
+    @Test
+    void timeoutAoListarViraCanalIndisponivel() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("read timed out");
+                });
+
+        assertThatThrownBy(adapter::listarTemplates).isInstanceOf(CanalIndisponivelException.class);
+
+        servidor.verify();
     }
 
     @Test
@@ -210,5 +393,176 @@ class MetaCloudApiAdapterTest {
         assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
         assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo())
                 .isEqualTo("O exemplo nao pode ser um placeholder.");
+    }
+
+    @Test
+    void criaTemplateQuandoMetaDevolveJsonComoTextPlain() {
+        servidor.expect(once(), requestTo(URL_BASE + "/waba-teste/message_templates"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"id\":\"123\",\"status\":\"PENDING\",\"category\":\"UTILITY\"}",
+                        MediaType.TEXT_PLAIN));
+
+        var resultado = adapter.criarTemplate(new PedidoDeTemplate(
+                "retorno_orcamento",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                "Ola {{1}}, {{2}}, {{3}} e {{4}}."));
+
+        servidor.verify();
+        assertThat(resultado.aceito()).isTrue();
+    }
+
+    @Test
+    void recusa400ComoTextPlainContinuaRecusaDeterministica() {
+        servidor.expect(once(), requestTo(URL_BASE + "/waba-teste/message_templates"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(
+                                """
+                                {"error":{"code":100,"message":"Invalid parameter",
+                                "error_user_msg":"O exemplo nao pode ser um placeholder."}}
+                                """));
+
+        var resultado = adapter.criarTemplate(new PedidoDeTemplate(
+                "exemplo_template",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                "teste de template {{1}}"));
+
+        servidor.verify();
+        assertThat(resultado.aceito()).isFalse();
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo())
+                .isEqualTo("O exemplo nao pode ser um placeholder.");
+    }
+
+    @Test
+    void recusaDeterministicaNaoAbreOBreakerDeTemplates() {
+        CircuitBreakerRegistry breakers = CircuitBreakerRegistry.ofDefaults();
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer servidorLocal = MockRestServiceServer.bindTo(builder).build();
+        for (int i = 0; i < 10; i++) {
+            servidorLocal
+                    .expect(requestTo(URL_BASE + "/waba-teste/message_templates"))
+                    .andExpect(method(HttpMethod.POST))
+                    .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body("{\"error\":{\"error_user_msg\":\"nome invalido\"}}"));
+        }
+        MetaCloudApiAdapter local = new MetaCloudApiAdapter(
+                builder,
+                new CanalProperties(
+                        MetaCloudApiAdapter.PROVEDOR,
+                        URL_BASE,
+                        NUMERO,
+                        "token-de-teste",
+                        "verify",
+                        "secret",
+                        Duration.ofHours(24),
+                        Duration.ofSeconds(10),
+                        "waba-teste"),
+                json,
+                breakers,
+                armazenamento);
+        PedidoDeTemplate pedido = new PedidoDeTemplate(
+                "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
+
+        for (int i = 0; i < 10; i++) {
+            assertThat(local.criarTemplate(pedido).aceito()).isFalse();
+        }
+
+        servidorLocal.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void jsonDaRespostaCapturaStatusContentTypeECorpoSemExporToken() {
+        var bruta = new MetaCloudApiAdapter.RespostaBrutaDaMeta(
+                200,
+                "text/plain;charset=UTF-8",
+                "{\"id\":\"123\",\"status\":\"PENDING\"}");
+
+        JsonNode no = adapter.jsonDaRespostaDeTemplate(bruta, "criar");
+
+        assertThat(bruta.status()).isEqualTo(200);
+        assertThat(bruta.contentType()).contains("text/plain");
+        assertThat(bruta.corpo()).contains("PENDING");
+        assertThat(bruta.corpo()).doesNotContain("token-de-teste");
+        assertThat(bruta.corpo()).doesNotContain("Bearer");
+        assertThat(no.path("status").asText()).isEqualTo("PENDING");
+    }
+
+    @Test
+    void corpoInvalidoRelataStatusContentTypeETrechoSemToken() {
+        var bruta = new MetaCloudApiAdapter.RespostaBrutaDaMeta(
+                200, "text/html", "<html>ok Bearer token-de-teste</html>");
+
+        assertThatThrownBy(() -> adapter.jsonDaRespostaDeTemplate(bruta, "criar"))
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("HTTP 200")
+                .hasMessageContaining("text/html")
+                .hasMessageContaining("<html>")
+                .hasMessageNotContaining("token-de-teste")
+                .hasMessageNotContaining("Bearer token-de-teste");
+    }
+
+    @Test
+    void corpoVazioRelataStatusEContentType() {
+        var bruta = new MetaCloudApiAdapter.RespostaBrutaDaMeta(200, "application/json", "  ");
+
+        assertThatThrownBy(() -> adapter.jsonDaRespostaDeTemplate(bruta, "criar"))
+                .isInstanceOf(CanalIndisponivelException.class)
+                .hasMessageContaining("corpo vazio")
+                .hasMessageContaining("HTTP 200")
+                .hasMessageContaining("application/json");
+    }
+
+    @Test
+    void listaTemplatesQuandoMetaDevolveJsonComoTextPlain() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {"data":[{"name":"boas_vindas","language":"pt_BR","status":"APPROVED",
+                        "category":"UTILITY","components":[{"type":"BODY","text":"Ola {{1}}"}]}]}
+                        """,
+                        MediaType.TEXT_PLAIN));
+
+        var templates = adapter.listarTemplates();
+
+        servidor.verify();
+        assertThat(templates).hasSize(1);
+        assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
+    }
+
+    @Test
+    void criaTemplateComQuatroVariaveisEnviaQuatroAmostras() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/waba-teste/message_templates"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess(
+                        "{\"id\":\"123\",\"status\":\"PENDING\"}", MediaType.APPLICATION_JSON));
+
+        adapter.criarTemplate(new PedidoDeTemplate(
+                "retorno_completo",
+                "pt_BR",
+                TemplateDoCanal.Categoria.UTILIDADE,
+                "Ola {{1}}, {{2}}, {{3}} e {{4}}."));
+
+        servidor.verify();
+        assertThat(payloadCapturado[0]
+                        .path("components")
+                        .get(0)
+                        .path("example")
+                        .path("body_text")
+                        .get(0))
+                .hasSize(4);
     }
 }

@@ -94,7 +94,19 @@ public interface CanalGateway {
      * @param credencialId qual credencial usar; o historico aponta para a vigente na epoca, entao
      *     troca de numero nao corrompe conversa antiga
      */
-    record Envio(UUID mensagemId, String telefoneDestino, ConteudoDeEnvio conteudo, UUID credencialId) {}
+    record Envio(
+            UUID mensagemId,
+            String telefoneDestino,
+            ConteudoDeEnvio conteudo,
+            UUID credencialId,
+            String contextoWamid) {
+
+        /** Envio sem citacao no provedor — o caso comum ate a E87. */
+        public Envio(
+                UUID mensagemId, String telefoneDestino, ConteudoDeEnvio conteudo, UUID credencialId) {
+            this(mensagemId, telefoneDestino, conteudo, credencialId, null);
+        }
+    }
 
     /** Os bytes de uma midia recebida, prontos para o storage proprio. */
     record MidiaRecebida(byte[] conteudo, String mimetype) {}

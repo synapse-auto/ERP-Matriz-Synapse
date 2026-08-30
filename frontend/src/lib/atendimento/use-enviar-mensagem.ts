@@ -12,6 +12,8 @@ interface VariaveisEnvio {
   leadId: string;
   conteudo: string;
   template?: { nome: string; idioma: string; parametros: string[] };
+  resposta?: { mensagemId: string; enviadoEm: string };
+  citacao?: MensagemResposta["citacao"];
 }
 
 function idTemporario(): string {
@@ -36,7 +38,7 @@ export function useEnviarMensagem() {
             variaveis.template.idioma,
             variaveis.template.parametros,
           )
-        : enviarMensagem(variaveis.leadId, variaveis.conteudo),
+        : enviarMensagem(variaveis.leadId, variaveis.conteudo, variaveis.resposta),
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
       const idOtimista = idTemporario();
@@ -53,12 +55,19 @@ export function useEnviarMensagem() {
         opcoes: null,
         statusEntrega: "PENDENTE",
         enviadoEm: new Date().toISOString(),
+        citacao: variaveis.citacao ?? null,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
       return { queryKey, idOtimista };
     },
-    onError: (_erro, _variaveis, contexto) => {
+    onError: (_erro, variaveis, contexto) => {
       if (!contexto) {
+        return;
+      }
+      if (variaveis.resposta) {
+        atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+          atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
+        );
         return;
       }
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
@@ -88,6 +97,7 @@ export function useEnviarMensagem() {
           opcoes: otimista?.opcoes ?? null,
           statusEntrega: resposta.statusEntrega,
           enviadoEm: resposta.enviadoEm,
+          citacao: otimista?.citacao ?? variaveis.citacao ?? null,
         };
         return mesclarMensagens(
           atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),

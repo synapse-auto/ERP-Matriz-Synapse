@@ -199,7 +199,8 @@ export class ConexaoTempoReal {
         if (
           notificacao.tipo === "TRANSFERENCIA_RECEBIDA" ||
           notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA" ||
-          notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
+          notificacao.tipo === "CHAT_INTERNO_MENSAGEM" ||
+          notificacao.tipo === "CHAT_INTERNO_REACAO"
         ) {
           this.opcoes.onNotificacao?.(notificacao);
         }

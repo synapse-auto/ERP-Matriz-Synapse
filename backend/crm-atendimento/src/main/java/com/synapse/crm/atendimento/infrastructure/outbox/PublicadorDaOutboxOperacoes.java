@@ -75,7 +75,8 @@ public class PublicadorDaOutboxOperacoes {
                     pendente.mensagemId(),
                     pendente.telefoneDestino(),
                     pendente.conteudo(),
-                    pendente.credencialId()));
+                    pendente.credencialId(),
+                    pendente.contextoWamid()));
         } catch (RuntimeException e) {
             log.warn("Falha nao tratada ao enviar a mensagem {}.", pendente.mensagemId(), e);
             return ResultadoDeEnvio.Recusado.temporario(

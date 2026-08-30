@@ -1,6 +1,20 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("next/dynamic", () => ({
+  default: () =>
+    function SeletorMock({ onEscolher }: { onEscolher: (emoji: string) => void }) {
+      return (
+        <>
+          <input aria-label="Buscar emoji" />
+          <button type="button" onClick={() => onEscolher("👍🏽")}>
+            👍🏽
+          </button>
+        </>
+      );
+    },
+}));
+
 import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
@@ -22,6 +36,11 @@ const mockTextosCompletos = {
     composer: {
       anexo: "A",
       anexoRemover: "A",
+      anexoLegendaPlaceholder: "Legenda",
+      anexoTipoNaoPermitido: "Tipo nao aceito.",
+      anexoSoltar: "Solte os arquivos aqui",
+      anexoEnviandoLote: "Enviando {atual} de {total}",
+      emoji: "Emoji",
       audioGravando: "A",
       audioDescartar: "A",
       audioParar: "A",
@@ -34,6 +53,15 @@ const mockTextosCompletos = {
       audioExcedeuLimite: "A",
     },
     media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "A" },
+    mensagem: {
+      acoes: {
+        abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro",
+        reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação",
+        maisEmojis: "Mais emojis", seletorTitulo: "Escolher", seletorFechar: "Fechar", reacaoErro: "erro",
+        rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
+        seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "C", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } },
+      },
+    },
   },
 } as unknown as Textos;
 
@@ -56,12 +84,47 @@ describe("componentes de apresentação do chat interno", () => {
   });
 
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
-    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} /></TextosProvider>);
+    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
     const linhas = container.firstElementChild?.children;
     expect(linhas?.[0]).toHaveClass("justify-end");
     expect(linhas?.[1]).toHaveClass("justify-start");
     expect(screen.getByText("Bruno")).toBeInTheDocument();
     expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
+    expect(screen.getByText("Olá").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tr-md",
+    );
+    expect(screen.getByText("Tudo bem?").closest("div")).toHaveClass(
+      "w-fit",
+      "max-w-full",
+      "rounded-2xl",
+      "rounded-tl-md",
+      "border",
+    );
+    expect(container.querySelector('[data-slot="historico-chat-interno"]')).toHaveClass(
+      "min-h-0",
+      "flex-1",
+      "overscroll-contain",
+    );
+  });
+
+  it("não oferece responder nem encaminhar no chat interno", async () => {
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={mensagens}
+          usuarioAtual="u1"
+          textos={textos}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+        />
+      </TextosProvider>,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
+    expect(screen.queryByRole("button", { name: "Responder" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Encaminhar" })).not.toBeInTheDocument();
   });
 
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {
@@ -77,7 +140,7 @@ describe("componentes de apresentação do chat interno", () => {
     }];
     render(
       <TextosProvider textos={mockTextosCompletos}>
-        <ListaMensagensChatInterno mensagens={comAudio} usuarioAtual="u1" textos={textos} />
+        <ListaMensagensChatInterno mensagens={comAudio} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
       </TextosProvider>,
     );
     expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
@@ -95,5 +158,47 @@ describe("componentes de apresentação do chat interno", () => {
     await waitFor(() => expect(enviar).toHaveBeenCalledWith("mensagem"));
     expect(campo).toHaveValue("mensagem");
     expect(screen.getByRole("alert")).toHaveTextContent(textos.erroEnviar);
+  });
+
+  it("abre o catálogo de emoji e insere no texto sem enviar", async () => {
+    const enviar = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={enviar} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Emoji" }));
+    fireEvent.click(await screen.findByRole("button", { name: "👍🏽" }));
+    expect(screen.getByPlaceholderText(textos.placeholder)).toHaveValue("👍🏽");
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("enfileira varios arquivos e envia midia em sequencia", async () => {
+    const enviar = vi.fn();
+    const enviarMidia = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={enviar} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["a"], "a.png", { type: "image/png" }),
+          new File(["b"], "b.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledTimes(2));
+    expect(enviarMidia.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ name: "a.png" }));
+    expect(enviarMidia.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ name: "b.pdf" }));
+    expect(enviar).not.toHaveBeenCalled();
   });
 });

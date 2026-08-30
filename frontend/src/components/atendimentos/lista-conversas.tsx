@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MoreHorizontal, Plus, Search, SlidersHorizontal, UserPlus } from "lucide-react";
+import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,9 +36,10 @@ import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { cn } from "@/lib/utils";
+import type { ChatContato } from "@/lib/chat-interno/types";
 
 import { CartaoConversa } from "./cartao-conversa";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DialogoSelecionarPessoa } from "@/components/chat-interno/dialogo-selecionar-pessoa";
 
 type Props = {
   selecionadoId: string | null;
@@ -48,10 +49,11 @@ type Props = {
   onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
   onAbrirAtendimento: (cartao: ItemInbox) => void;
   chatInternoHabilitado?: boolean;
-  contatosInternos?: { id: string; nome: string }[];
-  contatoInternoSelecionado?: string;
-  onContatoInternoChange?: (valor: string) => void;
-  onCriarConversaInterna?: () => void;
+  contatosInternos?: ChatContato[];
+  contatosInternosCarregando?: boolean;
+  contatosInternosErro?: boolean;
+  onRecarregarContatos?: () => void;
+  onCriarConversaInterna?: (usuarioId: string) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
 };
@@ -86,8 +88,9 @@ export function ListaConversas({
   onAbrirAtendimento,
   chatInternoHabilitado = false,
   contatosInternos = [],
-  contatoInternoSelecionado = "",
-  onContatoInternoChange,
+  contatosInternosCarregando = false,
+  contatosInternosErro = false,
+  onRecarregarContatos,
   onCriarConversaInterna,
   onNovoContato,
   className,
@@ -110,7 +113,6 @@ export function ListaConversas({
   const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
-  const [contatoSelecionado, setContatoSelecionado] = useState("");
   const [novaInternaAberta, setNovaInternaAberta] = useState(false);
   const [finalizarTodosAberto, setFinalizarTodosAberto] = useState(false);
   const [resultadoFinalizacao, setResultadoFinalizacao] = useState<{
@@ -199,7 +201,7 @@ export function ListaConversas({
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
                 <MoreHorizontal className="size-4" aria-hidden />
@@ -223,52 +225,30 @@ export function ListaConversas({
               type="button"
               variant="outline"
               size="icon-sm"
+              className="min-h-10 min-w-10"
               aria-label={textos.novoContato.botao}
               onClick={onNovoContato}
             >
               <UserPlus className="size-4" aria-hidden />
             </Button>
             {chatInternoHabilitado && (
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label={catalogo.chatInterno.novaConversa}
-                  aria-expanded={novaInternaAberta}
-                  onClick={() => {
-                    if (novaInternaAberta) {
-                      setNovaInternaAberta(false);
-                      setContatoSelecionado("");
-                      onContatoInternoChange?.("");
-                    } else {
-                      setNovaInternaAberta(true);
-                    }
-                  }}
-                >
-                  <Plus className="size-4" aria-hidden />
-                </Button>
-                {novaInternaAberta && <>
-                  <SelectContato contatos={contatosInternos} valor={contatoInternoSelecionado || contatoSelecionado} onChange={onContatoInternoChange ?? setContatoSelecionado} placeholder={catalogo.chatInterno.selecionarPessoa} />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label={catalogo.chatInterno.novaConversa}
-                    disabled={!(contatoInternoSelecionado || contatoSelecionado)}
-                    onClick={() => {
-                      onCriarConversaInterna?.();
-                      setNovaInternaAberta(false);
-                      setContatoSelecionado("");
-                      onContatoInternoChange?.("");
-                    }}
-                  >
-                    <Plus className="size-4" aria-hidden />
-                  </Button>
-                </>}
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="min-h-10 min-w-10"
+                aria-label={catalogo.chatInterno.novaConversa}
+                title={catalogo.chatInterno.novaConversa}
+                aria-expanded={novaInternaAberta}
+                onClick={() => {
+                  setNovaInternaAberta(true);
+                  onRecarregarContatos?.();
+                }}
+              >
+                <UsersRound className="size-4" aria-hidden />
+              </Button>
             )}
-            <Button type="button" variant="outline" size="icon-sm" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
+            <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
               <SlidersHorizontal className="size-4" aria-hidden />
             </Button>
           </div>
@@ -296,7 +276,7 @@ export function ListaConversas({
             <TabsTrigger
               key={item}
               value={item}
-              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3.5 py-2 text-[0.8125rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
+              className="min-w-0 shrink-0 gap-1 rounded-full border border-border px-3 py-1.5 text-[0.75rem] shadow-none after:hidden data-active:border-primary data-active:bg-primary data-active:text-primary-foreground md:rounded-none md:border-0 md:px-0.5 md:pt-1 md:pb-2.5 md:text-[0.6875rem] md:data-active:bg-transparent md:data-active:text-foreground md:data-active:after:bg-primary md:after:opacity-0 md:data-active:after:opacity-100"
             >
               {textos.visoes[ROTULO_VISAO[item]]}
               {contagens && (
@@ -368,6 +348,19 @@ export function ListaConversas({
         </div>
       </ScrollArea>
 
+      {chatInternoHabilitado && (
+        <DialogoSelecionarPessoa
+          aberto={novaInternaAberta}
+          onFechar={() => setNovaInternaAberta(false)}
+          contatos={contatosInternos}
+          carregando={contatosInternosCarregando}
+          erro={contatosInternosErro}
+          onTentarNovamente={onRecarregarContatos}
+          onSelecionar={(usuarioId) => onCriarConversaInterna?.(usuarioId) ?? Promise.resolve()}
+          textos={catalogo.chatInterno}
+        />
+      )}
+
       <Dialog
         open={finalizarTodosAberto}
         onOpenChange={(novo) => !novo && setFinalizarTodosAberto(false)}
@@ -429,19 +422,5 @@ export function ListaConversas({
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function SelectContato({
-  contatos,
-  valor,
-  onChange,
-  placeholder,
-}: { contatos: { id: string; nome: string }[]; valor: string; onChange: (valor: string) => void; placeholder: string }) {
-  return (
-    <Select value={valor} onValueChange={(novoValor) => onChange(novoValor ?? "")}>
-      <SelectTrigger className="h-9 w-32" aria-label={placeholder}><SelectValue placeholder={placeholder} /></SelectTrigger>
-      <SelectContent>{contatos.map((contato) => <SelectItem key={contato.id} value={contato.id}>{contato.nome}</SelectItem>)}</SelectContent>
-    </Select>
   );
 }

@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 37 migrations · 39 tabelas · 17 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V37__chat_interno_leitura_e_rls.sql`
+**Estado:** 47 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V47__lead_codigo.sql`
 
 ---
 
@@ -33,8 +33,31 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V20__ator_estruturado_timeline` | `evento_timeline.ator_id` + `dados` JSONB |
 | `V21__resultado_etapa` | ENUM `resultado_etapa`, coluna em etapa e unicidade parcial de `GANHO` |
 | `V22__indice_historico_etapa` | Índice `(tipo, criado_em)` para métricas e início explícito do histórico de transições |
+| `V23__janela_alerta_cliente` | janela de alerta do cliente |
+| `V24__telefone_canonico` | telefone canônico e restrições de formato |
+| `V25__leitura_atendimento` | marca de leitura do atendimento |
+| `V26__telefone_com_ddi_padrao` | normalização padrão com DDI |
+| `V27__duracao_maxima_gravacao_audio` | limite configurável de gravação de áudio |
+| `V28__senha_alterada_em` | controle do primeiro acesso/troca de senha |
+| `V29__idempotencia_mensagens_automacao` | idempotência estreita para mensagens da Automação |
+| `V30__mensagens_interativas` | campos de mensagens interativas |
+| `V31__idempotencia_mensagens_recebidas` | idempotência de mensagens recebidas |
+| `V32__idempotencia_comandos_automacao` | idempotência de comandos internos |
+| `V33__recurso_preenchimento_automatico_ia` | feature de preenchimento automático da IA |
+| `V34__backfill_disponibilidade_ia` | backfill de disponibilidade para IA |
+| `V35__linhas_singleton_da_automacao` | linhas singleton de configuração |
+| `V36__participacao_e_pedidos_de_entrada` | participação em atendimento e pedidos de entrada |
 | `V37__chat_interno_leitura_e_rls` | `lido_ate`, índice temporal e RLS do chat interno |
+| `V38__comando_reset_da_automacao` | comando de reset da Automação |
+| `V39__perfil_de_usuario` | campos do perfil do usuário |
+| `V40__foto_de_usuario` | foto de usuário |
+| `V41__leitura_atendimento_por_usuario` | `atendimento_leitura`, leitura isolada por usuário e RLS |
+| `V42__feedbacks_de_usuarios` | `feedback_usuario` e ENUM `tipo_feedback` |
 | `V43__avaliacao_unica_por_atendimento` | UK `atendimento_id` + índice `criado_em` em `avaliacao` |
+| `V44__reserva_webhook_avaliacao` | reserva/lease da intenção de avaliação na outbox |
+| `V45__reacoes_de_mensagem` | `mensagem_reacao` (FK composta da partição) e `chat_interno_mensagem_reacao` (RLS de participação) |
+| `V46__referencia_e_id_externo_de_mensagem` | `mensagem_id_externo` (wamid) e `mensagem_referencia` (citação/encaminhamento) |
+| `V47__lead_codigo` | `lead.codigo VARCHAR(20)`, CHECK somente dígitos, nullable |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -87,12 +110,14 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.3 CRM Core
 
-**`lead`** — 19 colunas:
+**`lead`** — 20 colunas:
 
-`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18)
+`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18)
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
+> `codigo` entra no card da lista de Atendimentos (`leadCodigo` na inbox). **Não** entra em `LeadResumo` (Agenda). Sem unique e sem índice de busca — o campo não é critério de filtro.
+> Constraint `lead_codigo_somente_digitos`: `NULL` ou `^[0-9]+$`. A aplicação normaliza string vazia para `NULL` (`CodigoDoLead`).
 
 **`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only; `ator_id` identifica quem executou e `dados` JSONB guarda, em `ETAPA_ALTERADA`, etapas anterior/nova e `responsavel_id` comercial) · **`preferencia_usuario`** · **`arquivo_banco`**
 
@@ -116,16 +141,21 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 
 `configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva`, `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton)
 
-### 3.7 Chat interno *(E44 — fase direta de texto)*
+### 3.7 Chat interno *(E44/E80/E86 — texto, mídia e entrada pela equipe)*
 
-`chat_interno_conversa`, `chat_interno_participante` (com `lido_ate`), `chat_interno_mensagem`. A V37 aplica RLS por participação e mantém o índice temporal da V10 de forma idempotente. A função booleana de participação usa a role `synapse_chat_rls` (NOLOGIN/BYPASSRLS) apenas para evitar recursão da própria política; a aplicação continua assumindo `synapse_app`.
+`chat_interno_conversa`, `chat_interno_participante` (com `lido_ate`), `chat_interno_mensagem` e `chat_interno_mensagem_reacao`. A V37 aplica RLS por participação e mantém o índice temporal da V10 de forma idempotente; a V45 protege as reações pelo mesmo recorte. A função booleana de participação usa a role `synapse_chat_rls` (NOLOGIN/BYPASSRLS) apenas para evitar recursão da própria política; a aplicação continua assumindo `synapse_app`.
 
 ### 3.8 Infraestrutura transversal
 
 **`audit_log`** — `id` BIGINT identity, `ator_id`, `ator_tipo`, `acao`, `entidade_tipo`, `entidade_id`, `lead_id`, `dados_antes`, `dados_depois`, `ip`, `criado_em`
 **`feature_flag`** — `chave` (PK), `habilitado`, `descricao`
-**`outbox_evento`** — `id`, `tipo`, `payload`, `criado_em`, `publicado_em`, `tentativas`, `proxima_tentativa_em`, `ultimo_erro`
+**`outbox_evento`** — `id`, `tipo`, `payload`, `criado_em`, `publicado_em`, `tentativas`, `proxima_tentativa_em`, `ultimo_erro`, `avaliacao_reserva_id` (V44)
 **`webhook_entrada`** — `id_externo` (PK, idempotência), `provedor`, **`payload` TEXT** (V17 — byte a byte, para reverificar HMAC), `recebido_em`, `processado_em`, `tentativas`, `ultimo_erro`, `esgotado_em`
+
+**`atendimento_leitura`** (V41) — leitura por usuário, em vez de compartilhar o legado
+`atendimento.lido_ate`. **`feedback_usuario`** (V42) guarda feedbacks administrativos.
+**`mensagem_id_externo`** e **`mensagem_referencia`** (V46) mantêm, respectivamente, o
+`wamid` e a citação de resposta/encaminhamento sem depender da mensagem de origem.
 
 ---
 

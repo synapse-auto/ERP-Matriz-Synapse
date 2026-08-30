@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
 import { NavegacaoInferior } from "@/components/shell/navegacao-inferior";
 import { Sidebar } from "@/components/shell/sidebar";
 import { ProvedorConversaEmTelaCheia, useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+
+import { estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 export function ShellComSidebar({ children }: { children: React.ReactNode }) {
   return (
@@ -18,7 +18,7 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 }
 
 function ShellInterno({ children }: { children: React.ReactNode }) {
-  const [sidebarRetraida, setSidebarRetraida] = useState(false);
+  const expansao = useExpansaoDaSidebar();
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
   const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
@@ -29,10 +29,24 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
       data-slot="page-canvas"
     >
       {!telaEstreita && (
-        <Sidebar
-          retraida={sidebarRetraida}
-          onAlternar={() => setSidebarRetraida((atual) => !atual)}
-        />
+        <div
+          className="relative h-full shrink-0"
+          style={estiloDaLarguraDoSlot(expansao.fixada)}
+          data-slot="sidebar-slot"
+          data-fixada={expansao.fixada ? "true" : "false"}
+          data-expandida={expansao.expandida ? "true" : "false"}
+          data-sobreposta={expansao.sobreposta ? "true" : "false"}
+        >
+          <Sidebar
+            retraida={!expansao.expandida}
+            fixada={expansao.fixada}
+            onAlternar={expansao.alternarFixacao}
+            onPonteiroEntrar={expansao.aoPonteiroEntrar}
+            onPonteiroSair={expansao.aoPonteiroSair}
+            onFocoDentro={expansao.aoFocoDentro}
+            onFocoFora={expansao.aoFocoFora}
+          />
+        </div>
       )}
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/*

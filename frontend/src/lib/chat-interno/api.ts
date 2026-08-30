@@ -20,3 +20,13 @@ export const enviarMidiaChat = (id: string, arquivo: File, legenda?: string) => 
 };
 export const marcarChatComoLido = (id: string) =>
   apiFetch<void>(`/api/v1/chat-interno/conversas/${id}/leitura`, { method: "POST" });
+export const definirReacaoChat = (conversaId: string, mensagemId: string, emoji: string) =>
+  apiFetch<{ mensagemId: string; reacoes: ChatMensagem["reacoes"] }>(
+    `/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/reacao`,
+    { method: "PUT", body: JSON.stringify({ emoji }) },
+  );
+export const removerReacaoChat = (conversaId: string, mensagemId: string) =>
+  apiFetch<{ mensagemId: string; reacoes: ChatMensagem["reacoes"] }>(
+    `/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/reacao`,
+    { method: "DELETE" },
+  );

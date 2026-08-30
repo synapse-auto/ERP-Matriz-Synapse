@@ -7,6 +7,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronUp,
+  Hash,
   Mail,
   MapPin,
   Pencil,
@@ -17,6 +18,9 @@ import {
   StickyNote,
   Trash2,
   UserRound,
+  Download,
+  Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,8 +34,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useEtapas, useLead } from "@/lib/lead/use-painel-lead";
+import { useEtapas, useLead, useMidiasDoLead, useSalvarFicha } from "@/lib/lead/use-painel-lead";
 import {
   cancelarMensagemProgramada,
   removerLembrete,
@@ -51,6 +56,7 @@ import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 import { AtalhoTags } from "./atalho-tags";
 import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
+import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 
 type Props = {
   leadId: string;
@@ -125,9 +131,12 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-base font-bold text-foreground">
-              {lead.data.nome}
-            </p>
+            <CampoNomeDoLead
+              key={leadId}
+              leadId={leadId}
+              valorAtual={lead.data.nome}
+              className="text-base"
+            />
             {lead.data.empresa && (
               <p className="text-xs text-muted-foreground">
                 {lead.data.empresa}
@@ -152,6 +161,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             {textos.informacoesGerais}
           </p>
           <div className="space-y-3">
+            <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
             <InformacaoDoPainel
               icone={<Phone className="size-4" aria-hidden />}
               rotulo={textosLead.dados.telefone}
@@ -266,8 +276,43 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           titulo={textos.secoes.lembretes}
           vazio={textos.vazioLembretes}
         />
+        <SecaoDeMidias leadId={leadId} />
       </div>
     </aside>
+  );
+}
+
+function SecaoDeMidias({ leadId }: { leadId: string }) {
+  const catalogo = useTextos();
+  const textos = catalogo.atendimentos.painel;
+  const midias = useMidiasDoLead(leadId);
+  const itens = midias.data?.pages.flat() ?? [];
+  return (
+    <SecaoColapsavel icone={<FileText className="size-4 text-primary" />} titulo={textos.secoes.midias ?? textos.secoes.resumo} contagem={itens.length}>
+      {midias.isLoading ? <p className="p-2 text-xs text-muted-foreground">{textos.carregandoMidias}</p> : midias.isError ? (
+        <p role="alert" className="p-2 text-xs text-destructive">{textos.erroMidias ?? textos.erroOperacao}</p>
+      ) : itens.length === 0 ? <p className="p-2 text-center text-xs text-muted-foreground">{textos.vazioMidias ?? textos.vazioLembretes}</p> : (
+        <div className="space-y-1.5">
+          {itens.map((item) => {
+            const imagem = item.tipo === "IMAGEM";
+            const audio = item.tipo === "AUDIO";
+            return <div key={item.mensagemId} className="rounded-lg border border-border bg-muted/30 p-2">
+              <div className="flex items-center gap-2">
+                {imagem ? <ImageIcon className="size-4 text-primary" aria-hidden /> : <FileText className="size-4 text-muted-foreground" aria-hidden />}
+                <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.nome ?? item.tipo}</span>
+                <a href={item.urlDownload} download={item.nome ?? undefined} className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted" aria-label={`${imagem ? textos.salvarImagem : catalogo.atendimentos.media.baixar}: ${item.nome ?? item.tipo}`}>
+                  <Download className="size-3.5" aria-hidden />
+                </a>
+              </div>
+              <p className="mt-1 text-[0.65rem] text-muted-foreground">{item.tipo}{item.origem ? ` · ${textos.origemMidia}: ${item.origem}` : ""} · {item.tamanho ? `${Math.ceil(item.tamanho / 1024)} KB` : ""} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(item.enviadoEm))}</p>
+              {audio && <audio className="mt-1 h-8 w-full" controls src={item.urlDownload} aria-label={catalogo.atendimentos.media.audio} />}
+              {imagem && <a href={item.urlDownload} target="_blank" rel="noreferrer" className="mt-1 block"><img src={item.urlDownload} alt={item.legenda ?? item.nome ?? catalogo.atendimentos.media.imagem} className="max-h-28 w-full rounded object-contain" /></a>}
+            </div>;
+          })}
+          {midias.hasNextPage && <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => void midias.fetchNextPage()} disabled={midias.isFetchingNextPage}>{textos.carregarMaisMidias ?? textos.adicionar}</Button>}
+        </div>
+      )}
+    </SecaoColapsavel>
   );
 }
 
@@ -302,6 +347,75 @@ function InformacaoDoPainel({
     <div className="flex items-center gap-2.5 text-primary" title={rotulo}>
       {icone}
       <p className="text-sm text-foreground">{valor}</p>
+    </div>
+  );
+}
+
+const TAMANHO_MAXIMO_CODIGO = 20;
+
+function somenteDigitos(texto: string): string {
+  return texto.replace(/\D/g, "").slice(0, TAMANHO_MAXIMO_CODIGO);
+}
+
+function CampoCodigoDoLead({
+  leadId,
+  valorAtual,
+}: {
+  leadId: string;
+  valorAtual: string | null;
+}) {
+  const textos = useTextos().painelLead.dados;
+  const salvar = useSalvarFicha(leadId);
+  const idCampo = useId();
+  const [valor, setValor] = useState(valorAtual ?? "");
+  const [erro, setErro] = useState(false);
+
+  function persistir() {
+    const canonico = somenteDigitos(valor);
+    setValor(canonico);
+    if (canonico === (valorAtual ?? "")) return;
+    salvar.mutate(
+      { codigo: canonico },
+      {
+        onError: () => setErro(true),
+        onSuccess: () => setErro(false),
+      },
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 text-primary">
+      <Hash className="size-4 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <label htmlFor={idCampo} className="sr-only">
+          {textos.codigo}
+        </label>
+        <Input
+          id={idCampo}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={TAMANHO_MAXIMO_CODIGO}
+          placeholder={textos.codigoPlaceholder}
+          value={valor}
+          disabled={salvar.isPending}
+          aria-invalid={erro || undefined}
+          className="h-8 font-mono text-sm tabular-nums"
+          onChange={(evento) => {
+            setErro(false);
+            setValor(somenteDigitos(evento.target.value));
+          }}
+          onBlur={persistir}
+          onKeyDown={(evento) => {
+            if (evento.key === "Enter") evento.currentTarget.blur();
+          }}
+        />
+        {erro && (
+          <p role="alert" className="mt-1 text-[0.65rem] text-destructive">
+            {textos.codigoInvalido}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

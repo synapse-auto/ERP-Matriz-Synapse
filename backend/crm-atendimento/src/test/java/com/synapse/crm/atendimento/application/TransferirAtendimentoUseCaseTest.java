@@ -39,6 +39,8 @@ class TransferirAtendimentoUseCaseTest {
                 UUID.randomUUID(),
                 Instant.parse("2026-08-23T11:00:00Z"));
         when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(antes));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(antes));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
         doReturn(new AtendenteParaTransferenciaRepositorio.Destino(atendenteId, "Ana"))
                 .when(destinos)
                 .exigirAtendenteAtivo(atendenteId);

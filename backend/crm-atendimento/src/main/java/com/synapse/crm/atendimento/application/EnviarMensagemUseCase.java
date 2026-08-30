@@ -9,16 +9,25 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
+import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
+import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
+import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
+import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
+import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
+import com.synapse.crm.atendimento.domain.mensagem.RespostaAoCanalIndevidaException;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
+import com.synapse.crm.atendimento.domain.mensagem.TipoReferencia;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -48,6 +57,9 @@ public class EnviarMensagemUseCase {
     private final UsuarioContext usuarioContext;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final OrigemDeMensagemRepositorio origens;
+    private final MensagemIdExternoRepositorio idsExternos;
+    private final MensagemReferenciaRepositorio referencias;
 
     public EnviarMensagemUseCase(
             AtendimentoRepositorio atendimentos,
@@ -57,7 +69,10 @@ public class EnviarMensagemUseCase {
             CanalGateway canal,
             UsuarioContext usuarioContext,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio,
+            OrigemDeMensagemRepositorio origens,
+            MensagemIdExternoRepositorio idsExternos,
+            MensagemReferenciaRepositorio referencias) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
@@ -68,6 +83,9 @@ public class EnviarMensagemUseCase {
         this.usuarioContext = usuarioContext;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.origens = origens;
+        this.idsExternos = idsExternos;
+        this.referencias = referencias;
     }
 
     /**
@@ -87,7 +105,25 @@ public class EnviarMensagemUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null);
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta) {
+        ReferenciaDeMensagem referencia = resposta == null ? null : resolverResposta(leadId, resposta);
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia);
+    }
+
+    /**
+     * Encaminhamento ja autorizado: a origem e o destino foram validados pelo caso de uso de
+     * encaminhar. Aqui so reusa o caminho de envio (janela, RN-CRM-06, outbox).
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executarComReferencia(
+            UUID leadId, ConteudoDeEnvio conteudo, ReferenciaDeMensagem referencia) {
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia);
     }
 
     /**
@@ -99,11 +135,15 @@ public class EnviarMensagemUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComoServico(
             UUID leadId, UUID remetenteId, ConteudoDeEnvio conteudo, UUID mensagemProgramadaId) {
-        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId);
+        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId, null);
     }
 
     private Resultado executarInterno(
-            UUID leadId, ConteudoDeEnvio conteudo, UUID remetenteId, UUID mensagemProgramadaId) {
+            UUID leadId,
+            ConteudoDeEnvio conteudo,
+            UUID remetenteId,
+            UUID mensagemProgramadaId,
+            ReferenciaDeMensagem referencia) {
         Instant agora = Instant.now(relogio);
 
         // Alcanca o lead? Telefone e janela vem juntos, numa consulta so.
@@ -162,9 +202,14 @@ public class EnviarMensagemUseCase {
                 StatusEntrega.PENDENTE,
                 agora));
 
+        if (referencia != null) {
+            referencias.gravar(gravada.id(), agora, referencia);
+        }
+
         // A intencao de enviar entra na MESMA transacao que a mensagem. Ou as duas
         // gravam, ou nenhuma: nao existe conversa mostrando mensagem que ninguem tentou
         // enviar, nem envio de mensagem que nao esta na conversa.
+        String contextoWamid = referencia == null ? null : referencia.contextoWamid();
         if (mensagemProgramadaId == null) {
             outbox.enfileirarEnvio(
                     gravada.id(),
@@ -173,7 +218,8 @@ public class EnviarMensagemUseCase {
                     leadId,
                     contato.telefone(),
                     aberto.canalCredencialId(),
-                    conteudo);
+                    conteudo,
+                    contextoWamid);
         } else {
             outbox.enfileirarEnvioProgramado(
                     gravada.id(),
@@ -212,9 +258,54 @@ public class EnviarMensagemUseCase {
                 gravada.midiaMetadados(),
                 gravada.opcoes(),
                 gravada.statusEntrega().name(),
-                agora));
+                agora,
+                citacaoDe(referencia)));
 
         return new Resultado(aberto, gravada, trocouDeDono);
+    }
+
+    private ReferenciaDeMensagem resolverResposta(UUID leadId, AlvoDeResposta resposta) {
+        OrigemDeMensagem origem = origens
+                .buscar(resposta.mensagemId(), resposta.enviadoEm())
+                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException(
+                        "mensagem", resposta.mensagemId()));
+        if (!leadId.equals(origem.leadId())) {
+            throw new RespostaAoCanalIndevidaException(
+                    "a origem nao pertence a este atendimento");
+        }
+        atendimentos
+                .porId(origem.mensagem().atendimentoId())
+                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException(
+                        "mensagem", resposta.mensagemId()));
+        String wamid = idsExternos
+                .wamidDe(origem.mensagem().id(), origem.mensagem().enviadoEm())
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new RespostaAoCanalIndevidaException(
+                        "a origem nao tem identificador externo para responder no canal"));
+        Mensagem mensagem = origem.mensagem();
+        return new ReferenciaDeMensagem(
+                TipoReferencia.RESPOSTA,
+                mensagem.id(),
+                mensagem.enviadoEm(),
+                mensagem.atendimentoId(),
+                CitacaoDeMensagem.autorDe(
+                        mensagem.remetente().tipo(), origem.leadNome(), origem.remetenteNome()),
+                mensagem.tipo().name(),
+                CitacaoDeMensagem.previaDe(
+                        mensagem.tipo(), mensagem.conteudo(), mensagem.midiaMetadados()),
+                wamid);
+    }
+
+    private static CitacaoDeMensagem citacaoDe(ReferenciaDeMensagem referencia) {
+        if (referencia == null) {
+            return null;
+        }
+        return new CitacaoDeMensagem(
+                referencia.origemMensagemId(),
+                referencia.tipo().name(),
+                referencia.citacaoAutor(),
+                referencia.citacaoTipo(),
+                referencia.citacaoPrevia());
     }
 
     private static TipoMensagem tipoDe(ConteudoDeEnvio conteudo) {

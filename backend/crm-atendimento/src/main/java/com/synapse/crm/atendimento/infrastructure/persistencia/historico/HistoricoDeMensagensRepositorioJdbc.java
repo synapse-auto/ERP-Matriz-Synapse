@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
+import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
@@ -32,31 +33,27 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                     + " a.finalizado_em AS atendimento_finalizado_em, ua.nome AS atendimento_responsavel_nome,"
                     + " m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,"
                     + " m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,"
-                    + " u.nome AS remetente_nome";
+                    + " u.nome AS remetente_nome,"
+                    + " r.tipo AS citacao_tipo_ref, r.origem_mensagem_id, r.citacao_autor,"
+                    + " r.citacao_tipo, r.citacao_previa";
 
-    private static final String SQL_ULTIMAS = "SELECT " + COLUNAS
-            + " FROM mensagem m"
-            + " JOIN atendimento origem ON origem.id = ?"
-            + " JOIN atendimento a ON a.id = m.atendimento_id AND a.lead_id = origem.lead_id"
-            + " LEFT JOIN usuario u ON u.id = m.remetente_id"
-            + " LEFT JOIN usuario ua ON ua.id = a.atendente_id"
+    private static final String JOINS =
+            " FROM mensagem m"
+                    + " JOIN atendimento origem ON origem.id = ?"
+                    + " JOIN atendimento a ON a.id = m.atendimento_id AND a.lead_id = origem.lead_id"
+                    + " LEFT JOIN usuario u ON u.id = m.remetente_id"
+                    + " LEFT JOIN usuario ua ON ua.id = a.atendente_id"
+                    + " LEFT JOIN mensagem_referencia r"
+                    + "   ON r.mensagem_id = m.id AND r.mensagem_enviada_em = m.enviado_em";
+
+    private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + JOINS
             + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ?";
 
-    private static final String SQL_ANTERIORES = "SELECT " + COLUNAS
-            + " FROM mensagem m"
-            + " JOIN atendimento origem ON origem.id = ?"
-            + " JOIN atendimento a ON a.id = m.atendimento_id AND a.lead_id = origem.lead_id"
-            + " LEFT JOIN usuario u ON u.id = m.remetente_id"
-            + " LEFT JOIN usuario ua ON ua.id = a.atendente_id"
+    private static final String SQL_ANTERIORES = "SELECT " + COLUNAS + JOINS
             + " WHERE (m.enviado_em, m.id) < (?, ?)"
             + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ?";
 
-    private static final String SQL_DESDE = "SELECT " + COLUNAS
-            + " FROM mensagem m"
-            + " JOIN atendimento origem ON origem.id = ?"
-            + " JOIN atendimento a ON a.id = m.atendimento_id AND a.lead_id = origem.lead_id"
-            + " LEFT JOIN usuario u ON u.id = m.remetente_id"
-            + " LEFT JOIN usuario ua ON ua.id = a.atendente_id"
+    private static final String SQL_DESDE = "SELECT " + COLUNAS + JOINS
             + " WHERE m.enviado_em > ?"
             + " ORDER BY m.enviado_em ASC";
 
@@ -108,7 +105,22 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                 linha.getObject("atendimento_id", UUID.class),
                 instante(linha, "atendimento_iniciado_em"),
                 instante(linha, "atendimento_finalizado_em"),
-                linha.getString("atendimento_responsavel_nome"));
+                linha.getString("atendimento_responsavel_nome"),
+                List.of(),
+                citacaoDe(linha));
+    }
+
+    private static CitacaoDeMensagem citacaoDe(ResultSet linha) throws SQLException {
+        UUID origemId = linha.getObject("origem_mensagem_id", UUID.class);
+        if (origemId == null) {
+            return null;
+        }
+        return new CitacaoDeMensagem(
+                origemId,
+                linha.getString("citacao_tipo_ref"),
+                linha.getString("citacao_autor"),
+                linha.getString("citacao_tipo"),
+                linha.getString("citacao_previa"));
     }
 
     private static Instant instante(ResultSet linha, String coluna) throws SQLException {

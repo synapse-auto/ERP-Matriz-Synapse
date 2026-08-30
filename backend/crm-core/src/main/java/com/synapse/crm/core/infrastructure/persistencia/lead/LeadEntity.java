@@ -50,6 +50,9 @@ class LeadEntity {
     @Column(name = "empresa")
     private String empresa;
 
+    @Column(name = "codigo")
+    private String codigo;
+
     @Column(name = "localizacao")
     private String localizacao;
 
@@ -103,7 +106,7 @@ class LeadEntity {
 
     Lead paraDominio() {
         return new Lead(
-                id, nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId,
+                id, nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId,
                 statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
                 numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
     }
@@ -122,6 +125,7 @@ class LeadEntity {
         this.email = lead.email();
         this.cpf = lead.cpf();
         this.empresa = lead.empresa();
+        this.codigo = lead.codigo();
         this.localizacao = lead.localizacao();
         this.canalOrigemId = lead.canalOrigemId();
         this.statusBasico = lead.statusBasico();
@@ -140,6 +144,7 @@ class LeadEntity {
         static final String EMAIL = "email";
         static final String CPF = "cpf";
         static final String EMPRESA = "empresa";
+        static final String CODIGO = "codigo";
         static final String LOCALIZACAO = "localizacao";
         static final String CANAL_ORIGEM_ID = "canalOrigemId";
         static final String STATUS_BASICO = "statusBasico";

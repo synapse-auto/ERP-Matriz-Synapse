@@ -81,6 +81,7 @@ export function CabecalhoConversa({
   const [processandoParticipacao, setProcessandoParticipacao] = useState(false);
   const finalizado = conversa.status === "FINALIZADO";
   const telefone = lead.data?.telefone ?? null;
+  const nomeDoLead = lead.data?.nome ?? conversa.leadNome;
   const canal =
     conversa.canalTipo === "WHATSAPP"
       ? catalogo.atendimentos.canais.whatsapp
@@ -138,20 +139,20 @@ export function CabecalhoConversa({
           {urlSegura(conversa.leadFotoUrl) && (
             <AvatarImage
               src={urlSegura(conversa.leadFotoUrl)}
-              alt={conversa.leadNome}
+              alt={nomeDoLead}
             />
           )}
           <AvatarFallback
             className="text-white"
             style={{ backgroundColor: tomDoAvatar(conversa.leadId) }}
           >
-            {iniciaisDoNome(conversa.leadNome)}
+            {iniciaisDoNome(nomeDoLead)}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="truncate font-bold text-foreground">
-              {conversa.leadNome}
+              {nomeDoLead}
             </p>
             {canal && (
               <span className="inline-flex items-center gap-1 rounded-md bg-cor-sucesso/10 px-2 py-0.5 text-[0.7rem] font-semibold text-cor-sucesso">

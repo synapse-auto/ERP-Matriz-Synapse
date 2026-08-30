@@ -3,7 +3,9 @@ package com.synapse.crm.core.application.lead;
 import java.util.Map;
 import java.util.UUID;
 
+import com.synapse.crm.core.domain.lead.CodigoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
+import com.synapse.crm.core.domain.lead.NomeDoLead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 
@@ -32,6 +34,7 @@ public record DadosDeAtualizacaoLead(
         String email,
         String cpf,
         String empresa,
+        String codigo,
         String localizacao,
         UUID canalOrigemId,
         StatusBasicoLead statusBasico,
@@ -50,12 +53,13 @@ public record DadosDeAtualizacaoLead(
     Lead aplicarEm(Lead atual, TelefoneCanonico telefoneCanonico) {
         return new Lead(
                 atual.id(),
-                ouAtual(nome, atual.nome()),
+                nome == null ? atual.nome() : NomeDoLead.normalizar(nome),
                 ouAtual(fotoUrl, atual.fotoUrl()),
                 telefone == null ? atual.telefone() : telefoneCanonico.normalizar(telefone),
                 ouAtual(email, atual.email()),
                 ouAtual(cpf, atual.cpf()),
                 ouAtual(empresa, atual.empresa()),
+                codigo == null ? atual.codigo() : CodigoDoLead.normalizar(codigo),
                 ouAtual(localizacao, atual.localizacao()),
                 ouAtual(canalOrigemId, atual.canalOrigemId()),
                 ouAtual(statusBasico, atual.statusBasico()),

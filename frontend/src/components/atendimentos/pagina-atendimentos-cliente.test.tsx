@@ -166,6 +166,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     estados: { vazio: "Nenhuma conversa" },
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
+      composer: { anexoSoltar: "Solte os arquivos aqui" },
       finalizar: { sucesso: "Atendimento finalizado." },
       novoContato: {
         botao: "Novo atendimento",

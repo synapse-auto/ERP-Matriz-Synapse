@@ -128,6 +128,15 @@ export function CartaoConversa({
           </span>
         </div>
 
+        {cartao.leadCodigo && (
+          <p
+            className="mt-0.5 font-mono text-[0.65rem] tabular-nums text-muted-foreground"
+            aria-label={textos.cartao.codigo.replace("{codigo}", cartao.leadCodigo)}
+          >
+            {cartao.leadCodigo}
+          </p>
+        )}
+
         {cartao.leadEmpresa && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {cartao.leadEmpresa}
@@ -154,6 +163,11 @@ export function CartaoConversa({
               }
             >
               {cartao.etapaNome}
+            </span>
+          )}
+          {cartao.status === "EM_IA" && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
+              {textos.cartao.atendidoPelaIa}
             </span>
           )}
           {cartao.atendenteNome && (

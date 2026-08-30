@@ -140,6 +140,13 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     }
 
     @Override
+    public boolean bloquearParaAtendimento(UUID leadId) {
+        TransacaoObrigatoria.exigir("bloquearParaAtendimento");
+        return !chat.queryForList("SELECT id FROM lead WHERE id = ? FOR UPDATE", UUID.class, leadId)
+                .isEmpty();
+    }
+
+    @Override
     public boolean alcancavel(UUID leadId) {
         TransacaoObrigatoria.exigir("alcancavel");
         return !chat.queryForList(SQL_ALCANCAVEL, Integer.class, leadId).isEmpty();

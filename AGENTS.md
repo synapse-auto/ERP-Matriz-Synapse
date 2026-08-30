@@ -223,7 +223,14 @@ Essas regras vivem em `VisibilidadeLeadSpecification`, nas políticas RLS e nos 
 
 **Autorização:** cada caso de uso declara quem pode chamá-lo (`@PreAuthorize`). Por papel **e** por propriedade do recurso.
 
-**Migrations:** Flyway, `V{n}__{descricao}.sql`.
+**Migrations:** Flyway, `V{n}__{descricao}.sql`. Antes de criar uma migration, faça
+`git fetch` e escolha o próximo número livre a partir de `origin/main`, nunca apenas do
+checkout local. Ao rebasear uma branch que já contém migration, confira novamente se o
+número continua sendo o próximo livre e renumere a migration se outra já tiver ocupado a
+posição. Uma migration que já entrou na `main` nunca é editada: qualquer correção vira uma
+nova migration. Branches paralelas podem criar o mesmo `V4x`; o schema do zero no CI pode
+passar, mas o Flyway quebra no boot da produção quando encontra o mesmo número aplicado
+com outro checksum.
 
 **Commits:** Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `chore:`).
 

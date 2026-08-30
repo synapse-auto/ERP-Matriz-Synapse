@@ -1,6 +1,8 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+
+import type { ItemInbox } from "@/lib/atendimento/types";
 
 import {
   atualizarLead,
@@ -11,6 +13,7 @@ import {
   listarTagsDoLead,
   listarTimeline,
   listarTodasAsTags,
+  listarMidiasDoLead,
   obterLead,
   vincularTagAoLead,
 } from "./api";
@@ -58,6 +61,16 @@ export function useTimelineDoLead(leadId: string | null) {
   });
 }
 
+export function useMidiasDoLead(leadId: string | null) {
+  return useInfiniteQuery({
+    queryKey: ["lead", leadId, "midias"],
+    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (ultima, _paginas, pagina) => ultima.length === 20 ? pagina + 1 : undefined,
+    enabled: Boolean(leadId),
+  });
+}
+
 export function useSalvarFicha(leadId: string) {
   const cache = useQueryClient();
   return useMutation({
@@ -68,8 +81,15 @@ export function useSalvarFicha(leadId: string) {
       if (anterior) {
         cache.setQueryData<LeadFicha>(["lead", leadId], {
           ...anterior,
-          notas: dados.notas,
-          dadosCustomizados: dados.dadosCustomizados,
+          notas: dados.notas ?? anterior.notas,
+          dadosCustomizados: dados.dadosCustomizados ?? anterior.dadosCustomizados,
+          nome: dados.nome ?? anterior.nome,
+          codigo:
+            dados.codigo !== undefined
+              ? dados.codigo === ""
+                ? null
+                : dados.codigo
+              : anterior.codigo,
         });
       }
       return { anterior };
@@ -79,7 +99,48 @@ export function useSalvarFicha(leadId: string) {
         cache.setQueryData(["lead", leadId], contexto.anterior);
       }
     },
-    onSuccess: (salvo) => cache.setQueryData(["lead", leadId], salvo),
+    onSuccess: (salvo, dados) => {
+      cache.setQueryData(["lead", leadId], salvo);
+      atualizarCartaoNaInbox(cache, leadId, {
+        ...(dados.nome !== undefined ? { leadNome: salvo.nome } : {}),
+        ...(dados.codigo !== undefined ? { leadCodigo: salvo.codigo } : {}),
+      });
+      if (dados.nome !== undefined) {
+        cache.invalidateQueries({ queryKey: ["agenda"] });
+      }
+    },
+  });
+}
+
+function atualizarCartaoNaInbox(
+  cache: QueryClient,
+  leadId: string,
+  patch: { leadNome?: string; leadCodigo?: string | null },
+) {
+  cache.setQueriesData({ queryKey: ["atendimentos"] }, (atual: unknown) => {
+    if (!atual || typeof atual !== "object") return atual;
+    if (Array.isArray(atual)) {
+      return atual.map((item) =>
+        item && typeof item === "object" && "leadId" in item && item.leadId === leadId
+          ? { ...item, ...patch }
+          : item,
+      );
+    }
+    if ("pages" in atual && Array.isArray((atual as { pages: unknown }).pages)) {
+      const inf = atual as { pages: { itens?: ItemInbox[] }[] };
+      return {
+        ...inf,
+        pages: inf.pages.map((pagina) => ({
+          ...pagina,
+          itens: (pagina.itens ?? []).map((item) =>
+            item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId
+              ? { ...item, ...patch }
+              : item,
+          ),
+        })),
+      };
+    }
+    return atual;
   });
 }
 

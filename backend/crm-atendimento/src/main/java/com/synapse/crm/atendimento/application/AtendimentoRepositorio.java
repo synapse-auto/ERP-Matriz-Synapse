@@ -32,6 +32,9 @@ public interface AtendimentoRepositorio {
     /** Este atendimento, se quem pede o alcanca. */
     Optional<Atendimento> porId(UUID atendimentoId);
 
+    /** Rele o estado sob lock, depois de bloquear o lead; preserva o recorte RLS. */
+    Optional<Atendimento> porIdParaAlteracao(UUID atendimentoId);
+
     /** Atendimentos ainda abertos que o contexto RLS do usuario atual alcanca. */
     List<Atendimento> abertosVisiveis();
 

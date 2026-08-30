@@ -18,6 +18,7 @@ import type {
   PedidoDeNovoContato,
   ParticipanteAtendimento,
   PedidoEntradaAtendimento,
+  ResumoReacao,
   TagResposta,
   TemplateWhatsApp,
   UsuarioResposta,
@@ -74,6 +75,29 @@ export function marcarAtendimentoComoLido(atendimentoId: string): Promise<void> 
   });
 }
 
+export function definirReacao(
+  atendimentoId: string,
+  mensagemId: string,
+  enviadoEm: string,
+  emoji: string,
+): Promise<{ mensagemId: string; enviadoEm: string; reacoes: ResumoReacao[] }> {
+  return apiFetch(
+    `/api/v1/atendimentos/${atendimentoId}/mensagens/${mensagemId}/reacao?enviadoEm=${encodeURIComponent(enviadoEm)}`,
+    { method: "PUT", body: JSON.stringify({ emoji }) },
+  );
+}
+
+export function removerReacao(
+  atendimentoId: string,
+  mensagemId: string,
+  enviadoEm: string,
+): Promise<{ mensagemId: string; enviadoEm: string; reacoes: ResumoReacao[] }> {
+  return apiFetch(
+    `/api/v1/atendimentos/${atendimentoId}/mensagens/${mensagemId}/reacao?enviadoEm=${encodeURIComponent(enviadoEm)}`,
+    { method: "DELETE" },
+  );
+}
+
 /** `desde` ausente traz a conversa inteira — primeira carga da tela. */
 export function paginaMensagens(
   atendimentoId: string,
@@ -89,10 +113,25 @@ export function mensagensDesde(atendimentoId: string, desde: string): Promise<Me
   );
 }
 
-export function enviarMensagem(leadId: string, conteudo: string): Promise<EnvioResposta> {
+export interface AlvoDeResposta {
+  mensagemId: string;
+  enviadoEm: string;
+}
+
+export function enviarMensagem(
+  leadId: string,
+  conteudo: string,
+  resposta?: AlvoDeResposta,
+): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens", {
     method: "POST",
-    body: JSON.stringify({ leadId, conteudo }),
+    body: JSON.stringify({
+      leadId,
+      conteudo,
+      ...(resposta
+        ? { mensagemOrigemId: resposta.mensagemId, origemEnviadaEm: resposta.enviadoEm }
+        : {}),
+    }),
   });
 }
 
@@ -131,6 +170,18 @@ export function criarTemplateWhatsApp(pedido: {
   });
 }
 
+export function encaminharMensagem(
+  origemAtendimentoId: string,
+  mensagemId: string,
+  enviadoEm: string,
+  destinoAtendimentoId: string,
+): Promise<EnvioResposta> {
+  return apiFetch<EnvioResposta>(
+    `/api/v1/atendimentos/${origemAtendimentoId}/mensagens/${mensagemId}/encaminhamentos?enviadoEm=${encodeURIComponent(enviadoEm)}`,
+    { method: "POST", body: JSON.stringify({ destinoAtendimentoId }) },
+  );
+}
+
 export function obterConfiguracaoComposer(): Promise<ConfiguracaoComposer> {
   return apiFetch<ConfiguracaoComposer>("/api/v1/atendimentos/configuracao-composer");
 }
@@ -145,6 +196,7 @@ export function enviarMidia(
   arquivo: File,
   legenda: string | undefined,
   onProgresso: (percentual: number) => void,
+  resposta?: AlvoDeResposta,
 ): Promise<EnvioResposta> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -153,8 +205,14 @@ export function enviarMidia(
       formData.append("legenda", legenda);
     }
 
+    const params = new URLSearchParams();
+    if (resposta) {
+      params.set("mensagemOrigemId", resposta.mensagemId);
+      params.set("origemEnviadaEm", resposta.enviadoEm);
+    }
+    const query = params.toString() ? `?${params.toString()}` : "";
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_URL}/api/v1/atendimentos/${atendimentoId}/mensagens/midia`);
+    xhr.open("POST", `${API_URL}/api/v1/atendimentos/${atendimentoId}/mensagens/midia${query}`);
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
       xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);

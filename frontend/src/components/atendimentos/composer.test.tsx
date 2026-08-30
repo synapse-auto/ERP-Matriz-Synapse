@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createRef } from "react";
+import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
+const onCancelarResposta = vi.fn();
 const estadoMidia: { isError: boolean; error: Error | null } = {
   isError: false,
   error: null,
@@ -31,6 +33,7 @@ vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
 vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
   useEnviarMidia: () => ({
     mutate: mutateMidia,
+    mutateAsync: (variaveis: unknown) => Promise.resolve(mutateMidia(variaveis)),
     isPending: false,
     ...estadoMidia,
   }),
@@ -42,6 +45,20 @@ vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
 
 vi.mock("@/lib/atendimento/janela-24h", () => ({
   janelaTextoLivreAberta: () => true,
+}));
+
+vi.mock("@/lib/atendimento/api", () => ({
+  listarTemplatesWhatsApp: () =>
+    Promise.resolve([
+      {
+        nome: "boas_vindas",
+        idioma: "pt_BR",
+        categoria: "UTILIDADE",
+        status: "APROVADO",
+        corpo: "Olá, bem-vindo",
+        quantidadeDeParametros: 0,
+      },
+    ]),
 }));
 
 vi.mock("@/lib/suporte/api", () => ({
@@ -60,6 +77,25 @@ vi.mock("@/lib/suporte/api", () => ({
   editarMensagemProgramada: vi.fn(),
 }));
 
+vi.mock("@/components/mensagens/painel-emoji-composer", () => ({
+  PainelEmojiComposer: ({
+    rotulo,
+    onEscolher,
+  }: {
+    rotulo: string;
+    onEscolher: (emoji: string) => void;
+  }) => (
+    <>
+      <button type="button" aria-label={rotulo} />
+      <input aria-label="Buscar emoji" />
+      <button type="button">Natureza</button>
+      <button type="button" onClick={() => onEscolher("👍🏽")}>
+        👍🏽
+      </button>
+    </>
+  ),
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
@@ -69,11 +105,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         anexo: "Anexo",
         anexoIndisponivel: "indisponivel",
         anexoSelecionar: "Escolher arquivo",
+        anexoMenuArquivos: "Arquivos",
+        anexoMenuTemplates: "Templates",
         anexoRemover: "Remover anexo",
         anexoEnviando: "Enviando anexo...",
         anexoErro: "Falha ao enviar o anexo.",
+        respostaErro: "Não foi possível responder a esta mensagem.",
         anexoLegendaPlaceholder: "Adicionar legenda (opcional)",
         anexoTipoNaoPermitido: "Tipo nao aceito.",
+        anexoSoltar: "Solte os arquivos aqui",
+        anexoEnviandoLote: "Enviando {atual} de {total}",
         anexoExcedeuLimite: "Excede o limite.",
         audioGravar: "Gravar áudio",
         audioGravando: "Gravando áudio",
@@ -90,7 +131,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         emoji: "Emoji",
         janelaFechadaTitulo: "",
         janelaFechadaDescricao: "",
-        semTemplates: "",
+        semTemplates: "Nenhum template aprovado ainda.",
         escolherTemplate: "Enviar template",
         enviarTemplate: "Enviar este template",
         parametroTemplate: "Parâmetro {indice}",
@@ -109,6 +150,37 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
+        acoes: {
+          seletor: {
+            search: "Buscar emoji",
+            searchNoResults: "Nenhum",
+            pick: "Escolha",
+            addCustom: "Custom",
+            categories: {
+              activity: "A",
+              custom: "C",
+              flags: "F",
+              foods: "Fo",
+              frequent: "R",
+              nature: "Natureza",
+              objects: "O",
+              people: "P",
+              places: "V",
+              search: "B",
+              symbols: "S",
+            },
+            skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" },
+          },
+        },
+        citacao: {
+          resposta: "Respondendo a {autor}",
+          encaminhamento: "Encaminhada",
+          cancelar: "Cancelar resposta",
+          origemIndisponivel: "Mensagem original indisponível",
+          imagem: "Foto",
+          audio: "Áudio",
+          documento: "Documento",
+        },
       },
     },
     mensagensProgramadas: {
@@ -127,15 +199,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
   }),
 }));
 
-import { Composer } from "./composer";
+import { Composer, type ComposerHandle } from "./composer";
 
-function renderizar() {
+function renderizar(resposta?: MensagemResposta) {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={cliente}>
-      <Composer conversa={conversa} />
+      <Composer conversa={conversa} resposta={resposta ?? null} onCancelarResposta={onCancelarResposta} />
     </QueryClientProvider>,
   );
 }
@@ -216,6 +288,50 @@ describe("Composer — anexo", () => {
     expect(screen.getByText("foto.png")).toBeInTheDocument();
   });
 
+  it("abre o menu do clipe para cima com Arquivos e Templates", async () => {
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Enviar template" })).not.toBeInTheDocument();
+  });
+
+  it("Arquivos no menu dispara o seletor de arquivo atual", async () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const abrir = vi.spyOn(input, "click");
+
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Arquivos" }));
+
+    await waitFor(() => expect(abrir).toHaveBeenCalled());
+  });
+
+  it("Templates no menu abre o catálogo aprovado e envia sem texto livre", async () => {
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Templates" }));
+
+    expect(await screen.findByRole("heading", { name: "Enviar template" })).toBeInTheDocument();
+    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar este template" }));
+
+    expect(mutateTexto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        atendimentoId: "at-1",
+        leadId: "lead-1",
+        template: {
+          nome: "boas_vindas",
+          idioma: "pt_BR",
+          parametros: [],
+        },
+      }),
+    );
+  });
+
   it("remove o arquivo selecionado ao clicar em remover", () => {
     renderizar();
     const input = document.querySelector(
@@ -254,9 +370,119 @@ describe("Composer — anexo", () => {
         leadId: "lead-1",
         legenda: "segue o orçamento",
       }),
-      expect.anything(),
     );
     expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("acumula varios arquivos no seletor e envia um POST de midia por arquivo", async () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+
+    fireEvent.change(input, {
+      target: {
+        files: [
+          arquivoFake("foto.png", "image/png"),
+          arquivoFake("orcamento.pdf", "application/pdf"),
+        ],
+      },
+    });
+
+    expect(screen.getByText("foto.png")).toBeInTheDocument();
+    expect(screen.getByText("orcamento.pdf")).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Adicionar legenda (opcional)"),
+      { target: { value: "lote" } },
+    );
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(2));
+    expect(mutateMidia.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        arquivo: expect.objectContaining({ name: "foto.png" }),
+        legenda: "lote",
+      }),
+    );
+    expect(mutateMidia.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        arquivo: expect.objectContaining({ name: "orcamento.pdf" }),
+        legenda: undefined,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("foto.png")).not.toBeInTheDocument();
+      expect(screen.queryByText("orcamento.pdf")).not.toBeInTheDocument();
+    });
+  });
+
+  it("mantem os arquivos que ainda nao sairam quando um envio do lote falha", async () => {
+    mutateMidia
+      .mockReturnValueOnce(undefined)
+      .mockImplementationOnce(() => Promise.reject(new Error("falha")));
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: {
+        files: [
+          arquivoFake("a.png", "image/png"),
+          arquivoFake("b.png", "image/png"),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(screen.queryByText("a.png")).not.toBeInTheDocument();
+      expect(screen.getByText("b.png")).toBeInTheDocument();
+    });
+  });
+
+  it("recusa tipo nao permitido e avisa sem enfileirar", () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [arquivoFake("setup.exe", "application/x-msdownload")] },
+    });
+
+    expect(screen.queryByText("setup.exe")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
+  });
+
+  it("recebe arquivos pela api do composer usada no arrastar e soltar", () => {
+    const referencia = createRef<ComposerHandle>();
+    const cliente = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={cliente}>
+        <Composer
+          ref={referencia}
+          conversa={conversa}
+          resposta={null}
+          onCancelarResposta={onCancelarResposta}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(referencia.current).not.toBeNull();
+    act(() => {
+      referencia.current?.adicionarArquivos([
+        arquivoFake("arrastada.png", "image/png"),
+        arquivoFake("setup.exe", "application/x-msdownload"),
+      ]);
+    });
+
+    expect(screen.getByText("arrastada.png")).toBeInTheDocument();
+    expect(screen.queryByText("setup.exe")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
   });
 
   it("expande /palavra-chave com Enter sem enviar a mensagem", async () => {
@@ -268,6 +494,19 @@ describe("Composer — anexo", () => {
     fireEvent.keyDown(composer, { key: "Enter" });
 
     expect(composer).toHaveValue("Olá! Como posso ajudar?");
+    expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("abre o catálogo completo e insere o emoji no texto", async () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+
+    fireEvent.click(screen.getByRole("button", { name: "Emoji" }));
+    expect(await screen.findByLabelText("Buscar emoji")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Natureza" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "👍🏽" }));
+    expect(campo).toHaveValue("👍🏽");
     expect(mutateTexto).not.toHaveBeenCalled();
   });
 
@@ -292,6 +531,42 @@ describe("Composer — anexo", () => {
     renderizar();
 
     expect(screen.getByRole("alert")).toHaveTextContent("Falha ao enviar");
+  });
+
+  it("mostra a citação da resposta, envia o vínculo e cancela com Escape sem perder o rascunho", () => {
+    const origem: MensagemResposta = {
+      id: "msg-origem",
+      remetenteTipo: "LEAD",
+      remetenteId: null,
+      remetenteNome: "Maria",
+      tipo: "TEXTO",
+      conteudo: "preciso de orçamento",
+      midiaUrl: null,
+      midiaMetadados: null,
+      opcoes: null,
+      statusEntrega: "ENTREGUE",
+      enviadoEm: "2026-08-29T12:00:00Z",
+    };
+    renderizar(origem);
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "já estou vendo" } });
+
+    expect(screen.getByText("Respondendo a Maria")).toBeInTheDocument();
+    expect(screen.getByText("preciso de orçamento")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Enviar"));
+    expect(mutateTexto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conteudo: "já estou vendo",
+        resposta: { mensagemId: "msg-origem", enviadoEm: "2026-08-29T12:00:00Z" },
+      }),
+      expect.anything(),
+    );
+    expect(campo).toHaveValue("já estou vendo");
+
+    fireEvent.keyDown(campo, { key: "Escape" });
+    expect(onCancelarResposta).toHaveBeenCalled();
+    expect(campo).toHaveValue("já estou vendo");
   });
 
   it("nao mostra controle fantasma quando MediaRecorder esta indisponivel", () => {

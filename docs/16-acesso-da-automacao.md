@@ -70,6 +70,16 @@ Toda escrita exige `X-Synapse-Token` e um `Idempotency-Key` único. Repetir a
 mesma chave e o mesmo comando devolve a resposta original; usar a chave em
 outra operação ou atendimento responde `409`. Sem chave, responde `400`.
 
+Para consultar o recorte mínimo dos atendimentos ainda abertos, use:
+
+```text
+GET /internal/v1/atendimentos/em-andamento
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+```
+
+Aceita `atividadeDesde`, `atividadeAte`, `pagina` e `tamanho`. A resposta não contém
+histórico nem conteúdo de mensagens; o limite de página é aplicado pelo CRM.
+
 Responder pela IA grava a mensagem como `Remetente.IA` e a intenção na outbox;
 o n8n não chama a Meta diretamente e não precisa enviar `wamid`:
 
@@ -122,6 +132,19 @@ Content-Type: application/json
 ```json
 { "nota": 5, "comentario": "Atendimento rápido" }
 ```
+
+Quando a Automação já enviou uma mensagem diretamente à Meta, registre o resultado no
+histórico do CRM. Esta rota **não chama a Meta**; ela persiste a saída, publica no WebSocket
+e mantém o `wamid` necessário para responder mensagens futuras:
+
+```text
+POST /internal/v1/atendimentos/{atendimentoId}/mensagens-enviadas
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Content-Type: application/json
+```
+
+O corpo inclui `wamid`, `tipo`, e os campos normalizados de texto/mídia. A chamada é
+idempotente pelo `wamid`; um `wamid` já ligado a outro atendimento responde `409`.
 
 ### 3.3 Regras de follow-up e fidelização
 
@@ -179,13 +202,25 @@ Três motivos, em ordem de gravidade:
 
 A linha existe no banco e é como se não existisse no produto.
 
-**3. O schema pertence ao Flyway.** São 22 migrations versionadas. Uma coluna criada na mão fica fora desse controle: no próximo deploy o `validate` pode recusar subir, ou o filho seguinte nasce sem ela. Este é um produto multi-instância — o schema tem que ser idêntico em todos.
+**3. O schema pertence ao Flyway.** São 47 migrations versionadas, até `V47__lead_codigo.sql`. Uma coluna criada na mão fica fora desse controle: no próximo deploy o `validate` pode recusar subir, ou o filho seguinte nasce sem ela. Este é um produto multi-instância — o schema tem que ser idêntico em todos.
+
+### 4.1 Templates da Meta não são contrato interno
+
+O CRM agora possui administração de templates pela rota pública autenticada
+`/api/v1/whatsapp/templates`, usada pela tela de Administração. Ela consulta e submete
+templates de texto no Graph da Meta fora do caminho de envio/recebimento. Para esse fluxo,
+o backend usa o **WABA ID** configurado em `WHATSAPP_CONTA_NEGOCIO`; ele é diferente do
+Phone Number ID usado para filtrar eventos. A ausência do WABA ID degrada somente a
+administração de templates para `503` em RFC 7807; não bloqueia o atendimento.
+
+O n8n não deve chamar essa rota nem falar com a Meta diretamente. O contrato do n8n
+continua sendo o namespace `/internal/v1`.
 
 ## 5. Quando você precisa guardar um dado que não existe
 
-**Campo customizado, não coluna nova.** O CRM já tem esse mecanismo: o gestor define campos extras por instância, e eles aparecem na ficha do lead, no filtro e na API. É exatamente o caso de "a Automação precisa gravar mais uma informação no lead".
+**Campo customizado, não coluna nova — com uma exceção já existente.** O CRM tem `campo_customizado` + `lead.dados_customizados` para dado que só um filho precisa. Identificador interno numérico do cliente **já é coluna**: `lead.codigo` (V47), editável pelo PUT da ficha, visível no card. Não crie um campo customizado chamado `codigo` para o mesmo fim.
 
-Nenhuma migration, nenhum deploy, e funciona diferente em cada cliente sem tocar em código.
+Nenhuma migration, nenhum deploy para um campo customizado novo, e funciona diferente em cada cliente sem tocar em código.
 
 **Se o dado não couber num campo customizado**, ou se o `/internal/v1` não expuser a operação que você precisa — não contorne pelo banco. Peça a extensão do contrato. É uma etapa curta de backend, e ela vem com autorização, evento de domínio e teste, que é o que faz o dado valer para o produto inteiro e não só para o seu workflow.
 

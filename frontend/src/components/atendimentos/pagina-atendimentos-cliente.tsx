@@ -7,14 +7,19 @@ import { ArrowLeft, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
-import { Composer } from "@/components/atendimentos/composer";
+import { Composer, type ComposerHandle } from "@/components/atendimentos/composer";
+import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
+import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
-import { iniciarNovoContato, marcarAtendimentoComoLido } from "@/lib/atendimento/api";
+import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
+import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -40,7 +45,7 @@ interface Props {
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
 >;
 
 /**
@@ -75,22 +80,29 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
+  const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
+  const [respostaAlvo, setRespostaAlvo] = useState<{
+    leadId: string;
+    mensagem: MensagemResposta;
+  } | null>(null);
+  const [encaminharAlvo, setEncaminharAlvo] = useState<{
+    leadId: string;
+    mensagem: MensagemResposta;
+  } | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
   const telaEstreita = useTelaEstreita();
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
   const chatInternoHabilitado = flags?.includes("chat_interno") ?? false;
-  const [contatoInternoId, setContatoInternoId] = useState("");
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
       setLeadSelecionadoId(null);
-      setContatoInternoId("");
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -140,9 +152,21 @@ export function PaginaAtendimentosCliente({
           setNotificacao(evento);
         }
       }
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      if (evento.tipo !== "CHAT_INTERNO_REACAO") {
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });
+      }
+      if (evento.tipo === "CHAT_INTERNO_REACAO") {
+        atualizarReacoesDoChatInterno(
+          cache,
+          evento.dados.conversaId,
+          evento.dados.mensagemId,
+          evento.dados.reacoes,
+          { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
+          useAuthStore.getState().usuarioId,
+        );
       }
     },
   );
@@ -155,6 +179,10 @@ export function PaginaAtendimentosCliente({
 
   const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
   const conversaAberta = Boolean(conversa || conversaInternaId);
+  const respostaDaTela =
+    conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
+  const encaminharDaTela =
+    conversa && encaminharAlvo?.leadId === conversa.leadId ? encaminharAlvo.mensagem : null;
   const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !telaEstreita);
   useEffect(() => {
     definirConversaEmTelaCheia(telaEstreita && conversaAberta);
@@ -223,6 +251,22 @@ export function PaginaAtendimentosCliente({
     });
   }
 
+  const historicoId = conversa?.atendimentoId ?? null;
+
+  async function definirReacaoDaMensagem(mensagem: MensagemResposta, emoji: string) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await definirReacao(atendimentoId, mensagem.id, mensagem.enviadoEm, emoji);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
+  async function removerReacaoDaMensagem(mensagem: MensagemResposta) {
+    const atendimentoId = mensagem.atendimentoId ?? historicoId;
+    if (!atendimentoId || !historicoId) return;
+    const resposta = await removerReacao(atendimentoId, mensagem.id, mensagem.enviadoEm);
+    substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
+  }
+
   const colunasDoPainel = telaEstreita
     ? "grid-cols-1"
     : conversa && painelVisivel
@@ -288,9 +332,10 @@ export function PaginaAtendimentosCliente({
         onAbrirAtendimento={abrirAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
         contatosInternos={contatosInternos.data ?? []}
-        contatoInternoSelecionado={contatoInternoId}
-        onContatoInternoChange={setContatoInternoId}
-        onCriarConversaInterna={() => { if (contatoInternoId) abrirConversaInterna.mutate(contatoInternoId); }}
+        contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
+        contatosInternosErro={contatosInternos.isError}
+        onRecarregarContatos={() => void contatosInternos.refetch()}
+        onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
         onNovoContato={() => {
           iniciarContato.reset();
           setNovoContatoAberto(true);
@@ -345,27 +390,52 @@ export function PaginaAtendimentosCliente({
                   : undefined
               }
             />
-            <ListaMensagens
-              mensagens={mensagensQuery.data}
-              carregando={mensagensQuery.isLoading}
-              onReenviar={reenviar}
-              temMais={mensagensQuery.hasNextPage}
-              carregandoMais={mensagensQuery.isFetchingNextPage}
-              onCarregarMais={() => void mensagensQuery.fetchNextPage()}
-              buscaAberta={buscaAberta}
-              canalTipo={conversa.canalTipo}
-              atendenteId={conversa.atendenteId}
-              atendenteNome={conversa.atendenteNome}
-            />
-            {atendimentoAtivo ? (
-              <Composer conversa={atendimentoAtivo} />
-            ) : (
-              <div className="shrink-0 bg-background px-4 pb-4 pt-3">
-                <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
-                  {textos.finalizar.sucesso}
+            <ZonaSoltarArquivos
+              accept={TIPOS_DE_ANEXO_ACEITOS}
+              disabled={
+                !atendimentoAtivo
+                || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)
+              }
+              rotulo={textos.composer.anexoSoltar}
+              onArquivos={({ aceitos, rejeitados }) =>
+                composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
+              }
+            >
+              <ListaMensagens
+                mensagens={mensagensQuery.data}
+                carregando={mensagensQuery.isLoading}
+                onReenviar={reenviar}
+                onDefinirReacao={definirReacaoDaMensagem}
+                onRemoverReacao={removerReacaoDaMensagem}
+                temMais={mensagensQuery.hasNextPage}
+                carregandoMais={mensagensQuery.isFetchingNextPage}
+                onCarregarMais={() => void mensagensQuery.fetchNextPage()}
+                buscaAberta={buscaAberta}
+                canalTipo={conversa.canalTipo}
+                atendenteId={conversa.atendenteId}
+                atendenteNome={conversa.atendenteNome}
+                onResponder={(mensagem) =>
+                  setRespostaAlvo({ leadId: conversa.leadId, mensagem })
+                }
+                onEncaminhar={(mensagem) =>
+                  setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
+                }
+              />
+              {atendimentoAtivo ? (
+                <Composer
+                  ref={composerRef}
+                  conversa={atendimentoAtivo}
+                  resposta={respostaDaTela}
+                  onCancelarResposta={() => setRespostaAlvo(null)}
+                />
+              ) : (
+                <div className="shrink-0 bg-background px-4 pb-4 pt-3">
+                  <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
+                    {textos.finalizar.sucesso}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </ZonaSoltarArquivos>
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -397,6 +467,15 @@ export function PaginaAtendimentosCliente({
             : null
         }
       />
+      {conversa && encaminharDaTela && (
+        <DialogoEncaminhar
+          origemAtendimentoId={encaminharDaTela.atendimentoId ?? conversa.atendimentoId}
+          origemLeadId={conversa.leadId}
+          mensagem={encaminharDaTela}
+          aberto
+          onFechar={() => setEncaminharAlvo(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { EXPANSAO_DA_SIDEBAR, estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 const authMock = vi.hoisted(() => ({
   papel: "ATENDENTE",
@@ -51,6 +52,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       grupoGestao: "Gestão",
       retrair: "Retrair menu lateral",
       reabrir: "Reabrir menu lateral",
+      fixar: "Fixar menu aberto",
+      desafixar: "Desafixar menu lateral",
       contagemPendentes: "Atendimentos, {quantidade} pendentes",
       mais: "Mais",
       maisTitulo: "Mais opções",
@@ -86,8 +89,24 @@ import { Sidebar } from "./sidebar";
 function renderSidebar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function SidebarControlada() {
-    const [retraida, setRetraida] = useState(false);
-    return <Sidebar retraida={retraida} onAlternar={() => setRetraida((atual) => !atual)} />;
+    const expansao = useExpansaoDaSidebar();
+    return (
+      <div
+        data-testid="sidebar-slot"
+        data-slot="sidebar-slot"
+        style={estiloDaLarguraDoSlot(expansao.fixada)}
+      >
+        <Sidebar
+          retraida={!expansao.expandida}
+          fixada={expansao.fixada}
+          onAlternar={expansao.alternarFixacao}
+          onPonteiroEntrar={expansao.aoPonteiroEntrar}
+          onPonteiroSair={expansao.aoPonteiroSair}
+          onFocoDentro={expansao.aoFocoDentro}
+          onFocoFora={expansao.aoFocoFora}
+        />
+      </div>
+    );
   }
   return render(
     <QueryClientProvider client={cliente}>
@@ -97,6 +116,10 @@ function renderSidebar() {
 }
 
 describe("sidebar", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     authMock.papel = "ATENDENTE";
     fetchMock.mockReset();
@@ -178,7 +201,7 @@ describe("sidebar", () => {
     expect(administracao).toHaveAttribute("title", "Administração");
     expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Retrair menu lateral" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fixar menu aberto" }));
     expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("title", "Administração");
     expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
   });
@@ -193,20 +216,16 @@ describe("sidebar", () => {
     expect(screen.getByRole("button", { name: "Status de presença: Online" })).toBeInTheDocument();
   });
 
-  it("retrai e reabre preservando links, badge, presença, configurações e logout", async () => {
+  it("inicia retraida e preserva links, badge, presença, configurações e logout nos dois estados", async () => {
     renderSidebar();
 
     const sidebar = screen.getByRole("complementary");
-    const retrair = await screen.findByRole("button", { name: "Retrair menu lateral" });
-    expect(sidebar).toHaveClass("w-[260px]");
-    expect(retrair).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Estrutural Vidros")).toBeVisible();
-
-    fireEvent.click(retrair);
-
-    expect(sidebar).toHaveClass("w-[76px]");
-    const reabrir = screen.getByRole("button", { name: "Reabrir menu lateral" });
-    expect(reabrir).toHaveAttribute("aria-expanded", "false");
+    const slot = screen.getByTestId("sidebar-slot");
+    const fixar = await screen.findByRole("button", { name: "Fixar menu aberto" });
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+    expect(fixar).toHaveAttribute("aria-pressed", "false");
+    expect(fixar).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Estrutural Vidros")).toHaveStyle({ opacity: 0 });
     expect(screen.getByRole("link", { name: "Atendimentos, 7 pendentes" })).toHaveAttribute(
       "href",
       "/atendimentos",
@@ -215,15 +234,56 @@ describe("sidebar", () => {
       "title",
       "Agenda de Contatos",
     );
-    expect(screen.queryByText("Acesso restrito")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Abrir configurações" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
-    expect(await screen.findByRole("button", { name: "Sair" })).toBeInTheDocument();
-
-    fireEvent.click(reabrir);
-    expect(sidebar).toHaveClass("w-[260px]");
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(sidebar);
+    expect(sidebar).toHaveAttribute("data-state", "collapsed");
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
+    expect(sidebar).toHaveAttribute("data-state", "expanded");
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.getByText("Estrutural Vidros")).toBeVisible();
+
+    fireEvent.click(fixar);
+    expect(sidebar).toHaveAttribute("data-fixada", "true");
+    expect(screen.getByRole("button", { name: "Desafixar menu lateral" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+    expect(screen.getByRole("button", { name: "Sair" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Status de presença: Online" }));
+
+    fireEvent.mouseLeave(sidebar);
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.atrasoFecharMs));
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+
+    fireEvent.click(screen.getByRole("button", { name: "Desafixar menu lateral" }));
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+    expect(screen.getByRole("button", { name: "Fixar menu aberto" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("hover temporario sobrepoe em absolute e o slot permanece 76px", async () => {
+    renderSidebar();
+
+    const sidebar = screen.getByRole("complementary");
+    const slot = screen.getByTestId("sidebar-slot");
+    await screen.findByRole("button", { name: "Fixar menu aberto" });
+
+    vi.useFakeTimers();
+    fireEvent.mouseEnter(sidebar);
+    act(() => vi.advanceTimersByTime(EXPANSAO_DA_SIDEBAR.intencaoAbrirMs));
+
+    expect(sidebar).toHaveAttribute("data-state", "expanded");
+    expect(sidebar).toHaveAttribute("data-sobreposta", "true");
+    expect(slot).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
+    expect(sidebar.className).toMatch(/\babsolute\b/);
+    expect(sidebar.className).toMatch(/inset-y-0/);
+    expect(sidebar.className).toMatch(/\bz-40\b/);
   });
 
   it("mostra Dashboard para ADMINISTRADOR quando a feature está habilitada", async () => {

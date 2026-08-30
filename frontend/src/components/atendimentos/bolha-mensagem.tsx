@@ -6,6 +6,9 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
+import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
+
+import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { StatusEntregaIcone } from "./status-entrega";
 import { PlayerAudio } from "./player-audio";
 
@@ -53,15 +56,32 @@ type Props = {
   mensagem: MensagemResposta;
   onReenviar?: () => void;
   nomeDoRemetente?: string | null;
+  onDefinirReacao: (emoji: string) => Promise<void>;
+  onRemoverReacao: () => Promise<void>;
+  onResponder?: () => void;
+  onEncaminhar?: () => void;
 };
+
+export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
+  const conteudo = mensagem.conteudo?.trim();
+  if (conteudo) return mensagem.conteudo;
+  const metadados = metadadosDaMidia(mensagem.midiaMetadados);
+  const legenda = metadados.legenda?.trim();
+  return legenda ? metadados.legenda! : null;
+}
 
 /** Texto, imagem, áudio ou documento — a bolha renderiza os quatro tipos que o backend já entrega. */
 export function BolhaMensagem({
   mensagem,
   onReenviar,
   nomeDoRemetente,
+  onDefinirReacao,
+  onRemoverReacao,
+  onResponder,
+  onEncaminhar,
 }: Props) {
-  const textos = useTextos().atendimentos.media;
+  const catalogo = useTextos().atendimentos;
+  const textos = catalogo.media;
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
   const opcoes = opcoesInterativas(mensagem.opcoes);
@@ -72,19 +92,32 @@ export function BolhaMensagem({
   });
 
   return (
-    <div className={cn("flex", doAtendente ? "justify-end" : "justify-start")}>
+    <InteracaoMensagem
+      alinhadaADireita={doAtendente}
+      textoCopiavel={textoCopiavelDaMensagem(mensagem)}
+      reacoes={mensagem.reacoes ?? []}
+      textos={catalogo.mensagem.acoes}
+      onDefinirReacao={onDefinirReacao}
+      onRemoverReacao={onRemoverReacao}
+      onResponder={onResponder}
+      onEncaminhar={onEncaminhar}
+    >
       <div
         className={cn(
-          "max-w-[70%] rounded-lg px-3.5 py-3 text-sm font-normal",
+          "w-fit max-w-full rounded-2xl px-3.5 py-3 text-sm font-normal",
           doAtendente
-            ? "bg-primary text-primary-foreground"
-            : "min-w-[12rem] bg-muted text-foreground shadow-sm",
+            ? "rounded-tr-md bg-primary text-primary-foreground"
+            : "rounded-tl-md border border-border bg-muted text-foreground shadow-sm",
         )}
       >
         {doAtendente && nomeDoRemetente && (
           <p className="mb-1 text-xs font-bold text-primary-foreground/80">
             {nomeDoRemetente}
           </p>
+        )}
+
+        {mensagem.citacao && (
+          <CitacaoMensagemVisual citacao={mensagem.citacao} textos={catalogo.mensagem.citacao} />
         )}
 
         {mensagem.tipo === "IMAGEM" && (
@@ -185,7 +218,7 @@ export function BolhaMensagem({
           )}
         </div>
       </div>
-    </div>
+    </InteracaoMensagem>
   );
 }
 
