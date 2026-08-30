@@ -38,5 +38,8 @@ describe("compatibilidade do seletor de emoji com React 19", () => {
     expect(fonte).not.toContain("@emoji-mart/react");
     expect(fonte).toContain('from "emoji-mart"');
     expect(fonte).toContain("new Picker");
+    const composer = readFileSync("src/components/atendimentos/composer.tsx", "utf8");
+    expect(composer).not.toMatch(/const EMOJIS\s*=/);
+    expect(composer).toContain("PainelEmojiComposer");
   });
 });

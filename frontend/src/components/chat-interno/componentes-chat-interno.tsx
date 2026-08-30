@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import { Mic, Paperclip, Send, Square, Trash2, Users, X, Download, FileText } from "lucide-react";
+import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
+import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { urlSegura, cn } from "@/lib/utils";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
@@ -154,6 +156,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
   const [enviandoLocal, setEnviandoLocal] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendente = enviando || enviandoLocal;
 
   const textosAtendimentos = useTextos().atendimentos;
@@ -260,6 +263,19 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
             <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={gravador.fase !== "INATIVO" || pendente}>
               <Paperclip className="size-4" />
             </Button>
+            <PainelEmojiComposer
+              rotulo={tComp.emoji}
+              i18n={textosAtendimentos.mensagem.acoes.seletor}
+              disabled={gravador.fase !== "INATIVO" || pendente}
+              onEscolher={(emoji) => {
+                const campo = textareaRef.current;
+                setTexto((atual) => {
+                  const { texto, cursor } = inserirNoCursor(atual, emoji, campo);
+                  requestAnimationFrame(() => posicionarCursor(textareaRef.current, cursor));
+                  return texto;
+                });
+              }}
+            />
           </div>
 
           {gravador.disponivel && gravador.fase === "INATIVO" && !arquivo && (
@@ -271,6 +287,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
           )}
 
           <Textarea
+            ref={textareaRef}
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
             onKeyDown={aoPressionarTecla}

@@ -35,7 +35,7 @@ export function SeletorEmojiCompleto({ i18n, onEscolher }: Props) {
       data,
       i18n,
       set: "native",
-      theme: "light",
+      theme: "auto",
       previewPosition: "none",
       skinTonePosition: "search",
       dynamicWidth: true,

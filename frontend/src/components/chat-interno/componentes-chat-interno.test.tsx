@@ -2,7 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/dynamic", () => ({
-  default: () => () => null,
+  default: () =>
+    function SeletorMock({ onEscolher }: { onEscolher: (emoji: string) => void }) {
+      return (
+        <>
+          <input aria-label="Buscar emoji" />
+          <button type="button" onClick={() => onEscolher("👍🏽")}>
+            👍🏽
+          </button>
+        </>
+      );
+    },
 }));
 
 import type { Textos } from "@/lib/config/schema";
@@ -26,6 +36,8 @@ const mockTextosCompletos = {
     composer: {
       anexo: "A",
       anexoRemover: "A",
+      anexoLegendaPlaceholder: "Legenda",
+      emoji: "Emoji",
       audioGravando: "A",
       audioDescartar: "A",
       audioParar: "A",
@@ -143,5 +155,20 @@ describe("componentes de apresentação do chat interno", () => {
     await waitFor(() => expect(enviar).toHaveBeenCalledWith("mensagem"));
     expect(campo).toHaveValue("mensagem");
     expect(screen.getByRole("alert")).toHaveTextContent(textos.erroEnviar);
+  });
+
+  it("abre o catálogo de emoji e insere no texto sem enviar", async () => {
+    const enviar = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={enviar} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Emoji" }));
+    fireEvent.click(await screen.findByRole("button", { name: "👍🏽" }));
+    expect(screen.getByPlaceholderText(textos.placeholder)).toHaveValue("👍🏽");
+    expect(enviar).not.toHaveBeenCalled();
   });
 });
