@@ -8,6 +8,7 @@ export interface LeadFicha {
   email: string | null;
   cpf: string | null;
   empresa: string | null;
+  codigo: string | null;
   localizacao: string | null;
   canalOrigemId: string | null;
   status: StatusBasicoLead;
@@ -22,8 +23,10 @@ export interface LeadFicha {
 }
 
 export interface AtualizacaoLead {
-  notas: string;
-  dadosCustomizados: Record<string, unknown>;
+  notas?: string;
+  dadosCustomizados?: Record<string, unknown>;
+  /** Somente dígitos; string vazia limpa o campo. Ausente preserva o valor atual. */
+  codigo?: string | null;
 }
 
 export interface TagDoLead {

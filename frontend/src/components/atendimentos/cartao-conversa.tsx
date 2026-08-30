@@ -128,6 +128,15 @@ export function CartaoConversa({
           </span>
         </div>
 
+        {cartao.leadCodigo && (
+          <p
+            className="mt-0.5 font-mono text-[0.65rem] tabular-nums text-muted-foreground"
+            aria-label={textos.cartao.codigo.replace("{codigo}", cartao.leadCodigo)}
+          >
+            {cartao.leadCodigo}
+          </p>
+        )}
+
         {cartao.leadEmpresa && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {cartao.leadEmpresa}

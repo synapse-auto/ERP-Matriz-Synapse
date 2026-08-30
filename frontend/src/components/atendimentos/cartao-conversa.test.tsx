@@ -25,6 +25,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       cartao: {
         semAtendente: "Sem atendente",
         naoLidas: "{quantidade} mensagens não lidas",
+        codigo: "Código {codigo}",
       },
     },
   }),
@@ -38,6 +39,7 @@ const cartao: CartaoAtendimento = {
   leadNome: "Cliente E12",
   leadFotoUrl: null,
   leadEmpresa: null,
+  leadCodigo: null,
   canalTipo: "WHATSAPP",
   etapaId: null,
   etapaNome: null,
@@ -104,6 +106,30 @@ describe("CartaoConversa — RN-CRM-05", () => {
     expect(screen.queryByText("Vidraçaria Cristal Clara")).not.toBeInTheDocument();
     expect(screen.queryByTitle("WhatsApp")).not.toBeInTheDocument();
     expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("mostra o código do lead de forma compacta quando o backend envia o valor", () => {
+    render(
+      <CartaoConversa
+        cartao={{ ...cartao, leadCodigo: "00421" }}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("00421")).toHaveAttribute("aria-label", "Código 00421");
+  });
+
+  it("não inventa código no card quando o lead ainda não tem", () => {
+    render(
+      <CartaoConversa
+        cartao={cartao}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/Código/)).not.toBeInTheDocument();
   });
 
   it("usa tom determinístico pelo id do lead e deixa a foto vencer", () => {

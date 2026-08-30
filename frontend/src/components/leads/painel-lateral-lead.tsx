@@ -227,6 +227,7 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
               <Informacao rotulo={textos.dados.email} valor={lead.data.email} vazio={textos.dados.naoInformado} />
               <Informacao rotulo={textos.dados.cpf} valor={lead.data.cpf} vazio={textos.dados.naoInformado} />
               <Informacao rotulo={textos.dados.empresa} valor={lead.data.empresa} vazio={textos.dados.naoInformado} />
+              <Informacao rotulo={textos.dados.codigo} valor={lead.data.codigo} vazio={textos.dados.naoInformado} />
               <Informacao rotulo={textos.dados.localizacao} valor={lead.data.localizacao} vazio={textos.dados.naoInformado} />
               <Informacao
                 rotulo={textos.dados.canalOrigem}

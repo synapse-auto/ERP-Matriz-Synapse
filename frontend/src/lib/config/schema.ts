@@ -286,6 +286,7 @@ export const TextosSchema = z.object({
       vazio: z.string(),
       naoLidas: z.string(),
       atendidoPelaIa: z.string(),
+      codigo: z.string(),
     }),
     cabecalho: z.object({
       atendidoPor: z.string(),
@@ -522,6 +523,9 @@ export const TextosSchema = z.object({
       email: z.string(),
       cpf: z.string(),
       empresa: z.string(),
+      codigo: z.string(),
+      codigoPlaceholder: z.string(),
+      codigoInvalido: z.string(),
       localizacao: z.string(),
       responsavel: z.string(),
       canalOrigem: z.string(),

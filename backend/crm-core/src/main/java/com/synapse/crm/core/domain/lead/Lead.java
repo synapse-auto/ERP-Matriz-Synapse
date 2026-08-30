@@ -23,6 +23,7 @@ public record Lead(
         String email,
         String cpf,
         String empresa,
+        String codigo,
         String localizacao,
         UUID canalOrigemId,
         StatusBasicoLead statusBasico,
@@ -45,7 +46,7 @@ public record Lead(
     /** Copia com os dados customizados substituidos — ja validados contra {@code campo_customizado}. */
     public Lead comDadosCustomizados(Map<String, Object> novosDadosCustomizados) {
         return new Lead(
-                id, nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId,
+                id, nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId,
                 statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
                 numAtendimentos, numMensagens, criadoEm, novosDadosCustomizados);
     }
@@ -69,7 +70,7 @@ public record Lead(
     public static Lead apenasParaVisibilidade(
             UUID id, String nome, StatusBasicoLead status, UUID atendenteResponsavelId) {
         return new Lead(
-                id, nome, null, null, null, null, null, null, null, status, null,
+                id, nome, null, null, null, null, null, null, null, null, status, null,
                 atendenteResponsavelId, null, null, 0, 0, null, null);
     }
 }

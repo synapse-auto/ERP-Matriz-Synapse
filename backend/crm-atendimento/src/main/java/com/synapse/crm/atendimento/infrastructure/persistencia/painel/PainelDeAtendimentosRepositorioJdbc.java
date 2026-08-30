@@ -37,7 +37,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String CAMPOS =
             """
             a.id AS atendimento_id, a.lead_id, l.nome AS lead_nome, l.foto_url AS lead_foto_url,
-            l.empresa AS lead_empresa, c.tipo AS canal_tipo,
+            l.empresa AS lead_empresa, l.codigo AS lead_codigo, c.tipo AS canal_tipo,
             l.etapa_atendimento_id, et.nome AS etapa_nome,
             et.cor_visual AS etapa_cor, a.status, a.atendente_id, u.nome AS atendente_nome,
             a.iniciado_em AS iniciado_em,
@@ -128,7 +128,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
 
     private static final String COLUNAS_CARTAO =
-            "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, canal_tipo, "
+            "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
                     + "etapa_atendimento_id, etapa_nome, etapa_cor, status, atendente_id, atendente_nome, "
                     + "iniciado_em, atendimento_ativo_id, ultima_mensagem_preview, ultima_mensagem_remetente_tipo, "
                     + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, linha_do_lead";
@@ -235,6 +235,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 linha.getString("lead_nome"),
                 linha.getString("lead_foto_url"),
                 linha.getString("lead_empresa"),
+                linha.getString("lead_codigo"),
                 linha.getString("canal_tipo"),
                 linha.getObject("etapa_atendimento_id", UUID.class),
                 linha.getString("etapa_nome"),
