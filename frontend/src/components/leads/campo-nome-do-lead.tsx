@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Pencil } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -51,27 +52,33 @@ export function CampoNomeDoLead({ leadId, valorAtual, className }: Props) {
       <label htmlFor={idCampo} className="sr-only">
         {textos.nome}
       </label>
-      <Input
-        id={idCampo}
-        type="text"
-        autoComplete="off"
-        maxLength={TAMANHO_MAXIMO_NOME}
-        value={valor}
-        disabled={salvar.isPending}
-        aria-invalid={erro || undefined}
-        className={cn(
-          "h-auto border-transparent bg-transparent px-1 py-0.5 text-center font-bold shadow-none md:text-base",
-          className,
-        )}
-        onChange={(evento) => {
-          setErro(false);
-          setValor(evento.target.value);
-        }}
-        onBlur={persistir}
-        onKeyDown={(evento) => {
-          if (evento.key === "Enter") evento.currentTarget.blur();
-        }}
-      />
+      <div className="flex items-center gap-1.5">
+        <Input
+          id={idCampo}
+          type="text"
+          autoComplete="off"
+          maxLength={TAMANHO_MAXIMO_NOME}
+          value={valor}
+          disabled={salvar.isPending}
+          aria-invalid={erro || undefined}
+          className={cn(
+            "h-auto min-w-0 flex-1 border-transparent bg-transparent px-1 py-0.5 text-center font-bold shadow-none md:text-base",
+            className,
+          )}
+          onChange={(evento) => {
+            setErro(false);
+            setValor(evento.target.value);
+          }}
+          onBlur={persistir}
+          onKeyDown={(evento) => {
+            if (evento.key === "Enter") evento.currentTarget.blur();
+          }}
+        />
+        <Pencil
+          className="size-[calc(var(--tamanho-icone-interface)*0.75)] shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+      </div>
       {erro && (
         <p role="alert" className="mt-1 text-[0.65rem] font-normal text-destructive">
           {textos.nomeInvalido}

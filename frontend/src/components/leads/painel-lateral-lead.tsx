@@ -203,7 +203,7 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
       <div className="flex-none flex items-center justify-between border-b border-border px-5 py-4">
         <h2 className="text-[15px] font-bold text-foreground">{textos.titulo}</h2>
         <Button type="button" variant="ghost" size="icon" className="size-8 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80" aria-label={textos.fechar} onClick={onFechar}>
-          <X className="size-4" />
+          <X className="size-(--tamanho-icone-interface)" />
         </Button>
       </div>
 
@@ -246,10 +246,10 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
             </div>
 
             <Button type="button" variant="outline" onClick={() => setLembreteAberto(true)}>
-              <Bell className="size-4" /> {textos.acoes.lembrete}
+              <Bell className="size-(--tamanho-icone-interface)" /> {textos.acoes.lembrete}
             </Button>
             <Button type="button" variant="outline" onClick={() => setProgramadaAberta(true)}>
-              <Clock className="size-4" /> {textos.acoes.mensagemProgramada}
+              <Clock className="size-(--tamanho-icone-interface)" /> {textos.acoes.mensagemProgramada}
             </Button>
 
             <TagsDaFicha
@@ -330,13 +330,13 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
       <div className="flex-none flex gap-2 border-t border-border p-5">
         {onAbrirAtendimento && (
           <Button type="button" className="flex-1 rounded-xl shadow-sm font-bold" onClick={onAbrirAtendimento}>
-            <MessageSquare className="size-4 mr-2" />
+            <MessageSquare className="size-(--tamanho-icone-interface) mr-2" />
             {textosGerais.painelLead.acoes?.abrirAtendimento || "Abrir atendimento"}
           </Button>
         )}
         {lead.data?.telefone && (
           <Button render={<a href={`tel:${lead.data.telefone}`} />} variant="outline" className="size-11 shrink-0 rounded-xl" title={textos.acoes.ligar} aria-label={textos.acoes.ligar}>
-            <Phone className="size-[18px]" />
+            <Phone className="size-[calc(var(--tamanho-icone-interface)*1.125)]" />
           </Button>
         )}
       </div>
@@ -473,7 +473,7 @@ function TagsDaFicha({
               className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium"
               style={{ borderColor: tag.cor, color: tag.cor }}
             >
-              <Icone className="size-3" />
+              <Icone className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
               {tag.nome}
               <button
                 type="button"
@@ -482,7 +482,7 @@ function TagsDaFicha({
                 disabled={pendente}
                 onClick={() => onRemover(tag)}
               >
-                <X className="size-3" />
+                <X className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
               </button>
             </span>
           );

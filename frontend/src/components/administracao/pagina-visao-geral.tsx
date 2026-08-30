@@ -72,7 +72,7 @@ export function PaginaVisaoGeralAdministracao() {
               className="rounded-xl border border-border bg-card p-5 shadow-sm"
             >
               <span className={`flex size-10 items-center justify-center rounded-xl ${cartao.classeIcone}`}>
-                <Icone className="size-5" aria-hidden />
+                <Icone className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
               </span>
               <p className="mt-3.5 text-3xl font-bold tracking-tight tabular-nums">{cartao.valor}</p>
               <p className="mt-0.5 text-[12.5px] font-semibold text-muted-foreground">{cartao.rotulo}</p>

@@ -72,7 +72,7 @@ export function DialogoAvaliacao({ atendimentoId, aberto, onFechar }: Props) {
             >
               <Star
                 className={cn(
-                  "size-6",
+                  "size-[calc(var(--tamanho-icone-interface)*1.5)]",
                   escolhida !== null && valor <= escolhida
                     ? "fill-primary text-primary"
                     : "text-muted-foreground",

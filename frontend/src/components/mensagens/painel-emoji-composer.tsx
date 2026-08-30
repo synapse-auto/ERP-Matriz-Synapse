@@ -34,7 +34,7 @@ export function PainelEmojiComposer({ rotulo, i18n, disabled, onEscolher }: Prop
         aria-label={rotulo}
         disabled={disabled}
       >
-        <Smile className="size-4" aria-hidden />
+        <Smile className="size-(--tamanho-icone-interface)" aria-hidden />
       </PopoverTrigger>
       <PopoverContent
         side="top"

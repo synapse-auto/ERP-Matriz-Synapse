@@ -92,7 +92,7 @@ export function ListaMensagens({
       {buscaAberta && (
         <div className="border-b border-border p-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-2 top-1/2 size-[calc(var(--tamanho-icone-interface)*0.875)] -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
               onChange={(evento) => setBusca(evento.target.value)}
@@ -279,7 +279,7 @@ function LinhaDeInicio({
       data-slot="linha-atendimento-recebido"
       data-troca-atendimento={troca ? "true" : undefined}
     >
-      <ShieldCheck className="size-3.5" aria-hidden />
+      <ShieldCheck className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
       {partes.filter(Boolean).join(" · ")}
     </p>
   );

@@ -72,7 +72,7 @@ export function PaginaTemplatesWhatsApp() {
       </header>
 
       <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/15 p-3">
-        <LayoutTemplate className="size-5 shrink-0 text-primary" />
+        <LayoutTemplate className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-primary" />
         <p className="text-sm text-primary">{t.dica}</p>
       </div>
 

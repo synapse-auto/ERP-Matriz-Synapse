@@ -70,11 +70,11 @@ export function AtalhoTags({
         >
           {modo === "painel" ? (
             <>
-              <Plus className="size-3.5" />
+              <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
               {textos.botao}
             </>
           ) : (
-            <Tag className="size-4" />
+            <Tag className="size-(--tamanho-icone-interface)" />
           )}
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-2">
@@ -103,16 +103,16 @@ export function AtalhoTags({
                   }}
                 >
                   {ativa ? (
-                    <Check className="size-4" />
+                    <Check className="size-(--tamanho-icone-interface)" />
                   ) : (
-                    <Plus className="size-4" />
+                    <Plus className="size-(--tamanho-icone-interface)" />
                   )}
                   <span
                     className="size-2.5 rounded-full border"
                     style={{ borderColor: tag.cor, backgroundColor: tag.cor }}
                   />
                   <span className="flex-1 truncate text-left">{tag.nome}</span>
-                  {ativa && <X className="size-3.5" />}
+                  {ativa && <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />}
                 </Button>
               );
             })}

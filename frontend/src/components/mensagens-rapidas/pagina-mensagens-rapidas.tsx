@@ -56,7 +56,7 @@ export function PaginaMensagensRapidas() {
       </header>
 
       <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-        <Zap className="size-5 shrink-0 text-primary" />
+        <Zap className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-primary" />
         <p className="text-sm text-primary">{t.dica}</p>
       </div>
 
@@ -151,7 +151,7 @@ function CardDeMensagemRapida({
             aria-label={`${textos.editar} /${mensagem.palavraChave}`}
             onClick={onEditar}
           >
-            <Pencil className="size-4" />
+            <Pencil className="size-(--tamanho-icone-interface)" />
           </Button>
           <Button
             size="icon"
@@ -160,7 +160,7 @@ function CardDeMensagemRapida({
             aria-label={`${textos.remover} /${mensagem.palavraChave}`}
             onClick={onRemover}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-(--tamanho-icone-interface)" />
           </Button>
         </div>
       </div>

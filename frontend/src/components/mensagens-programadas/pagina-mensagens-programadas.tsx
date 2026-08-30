@@ -248,7 +248,7 @@ function TabelaDeMensagensProgramadas({
                         aria-label={`${textos.cancelar} ${mensagem.leadNome}`}
                         onClick={() => onCancelar(mensagem.id)}
                       >
-                        <X className="size-4" />
+                        <X className="size-(--tamanho-icone-interface)" />
                       </Button>
                     </div>
                   )}

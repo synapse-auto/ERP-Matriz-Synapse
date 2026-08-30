@@ -20,7 +20,7 @@ export function ProtecaoAdministrador({ children }: { children: React.ReactNode 
     return (
       <main className="flex min-h-[60vh] items-center justify-center p-6">
         <div className="max-w-md space-y-4 rounded-xl border bg-card p-8 text-center shadow-sm">
-          <ShieldX className="mx-auto size-10 text-destructive" aria-hidden />
+          <ShieldX className="mx-auto size-[calc(var(--tamanho-icone-interface)*2.5)] text-destructive" aria-hidden />
           <div>
             <h1 className="text-xl font-bold">{textos.administracao.semPermissaoTitulo}</h1>
             <p className="mt-1 text-sm text-muted-foreground">

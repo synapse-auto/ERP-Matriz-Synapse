@@ -85,7 +85,7 @@ export function NovidadesDialog({ aberto, onFechar }: NovidadesDialogProps) {
                     {agrupadasPorData[data].map((item, i) => (
                       <div key={i} className="flex gap-4">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Sparkles className="size-5" />
+                          <Sparkles className="size-[calc(var(--tamanho-icone-interface)*1.25)]" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">

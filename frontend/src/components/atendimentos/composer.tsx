@@ -379,7 +379,7 @@ export function Composer({
               aria-label={textosAtendimentos.mensagem.citacao.cancelar}
               onClick={() => onCancelarResposta?.()}
             >
-              <X className="size-3.5" />
+              <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
             </button>
           </div>
         )}
@@ -399,7 +399,7 @@ export function Composer({
                 className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm"
               >
                 <Paperclip
-                  className="size-4 shrink-0 text-muted-foreground"
+                  className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground"
                   aria-hidden
                 />
                 <span className="flex-1 truncate">{item.name}</span>
@@ -418,7 +418,7 @@ export function Composer({
                     disabled={enviarMidia.isPending}
                     onClick={() => removerArquivo(indice)}
                   >
-                    <X className="size-3.5" />
+                    <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
                   </button>
                 )}
               </div>
@@ -429,7 +429,7 @@ export function Composer({
         {gravador.fase === "GRAVANDO" && (
           <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-muted/50 p-2">
             <Mic
-              className="size-4 animate-pulse text-destructive"
+              className="size-(--tamanho-icone-interface) animate-pulse text-destructive"
               aria-hidden
             />
             <span className="flex-1 text-sm">
@@ -443,7 +443,7 @@ export function Composer({
               onClick={gravador.descartar}
               aria-label={textos.audioDescartar}
             >
-              <Trash2 className="size-4" aria-hidden />
+              <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
             <Button
               type="button"
@@ -451,7 +451,7 @@ export function Composer({
               onClick={gravador.parar}
               aria-label={textos.audioParar}
             >
-              <Square className="size-3.5 fill-current" aria-hidden />
+              <Square className="size-[calc(var(--tamanho-icone-interface)*0.875)] fill-current" aria-hidden />
             </Button>
           </div>
         )}
@@ -478,7 +478,7 @@ export function Composer({
               disabled={enviarMidia.isPending}
               aria-label={textos.audioDescartar}
             >
-              <Trash2 className="size-4" aria-hidden />
+              <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
           </div>
         )}
@@ -506,7 +506,7 @@ export function Composer({
                 aria-label={textos.anexo}
                 disabled={gravador.fase !== "INATIVO"}
               >
-                <Paperclip className="size-4" />
+                <Paperclip className="size-(--tamanho-icone-interface)" />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="min-w-40 w-auto">
                 <DropdownMenuItem
@@ -514,11 +514,11 @@ export function Composer({
                     requestAnimationFrame(() => inputArquivoRef.current?.click());
                   }}
                 >
-                  <File className="size-4" aria-hidden />
+                  <File className="size-(--tamanho-icone-interface)" aria-hidden />
                   {textos.anexoMenuArquivos}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setPainelTemplateAberto(true)}>
-                  <LayoutTemplate className="size-4" aria-hidden />
+                  <LayoutTemplate className="size-(--tamanho-icone-interface)" aria-hidden />
                   {textos.anexoMenuTemplates}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -531,7 +531,7 @@ export function Composer({
                   aria-label={textos.mensagensRapidas}
                   disabled={gravador.fase !== "INATIVO"}
                 >
-                  <Zap className="size-4" />
+                  <Zap className="size-(--tamanho-icone-interface)" />
                 </PopoverTrigger>
                 <PopoverContent
                   side="top"
@@ -571,7 +571,7 @@ export function Composer({
                 onClick={() => setAgendamentoAberto(true)}
                 disabled={gravador.fase !== "INATIVO"}
               >
-                <Clock className="size-4" />
+                <Clock className="size-(--tamanho-icone-interface)" />
               </TooltipTrigger>
               <TooltipContent>{textos.agendar}</TooltipContent>
             </Tooltip>
@@ -601,7 +601,7 @@ export function Composer({
                   onClick={gravador.iniciar}
                   disabled={enviarMidia.isPending}
                 >
-                  <Mic className="size-4" />
+                  <Mic className="size-(--tamanho-icone-interface)" />
                 </TooltipTrigger>
                 <TooltipContent>{textos.audioGravar}</TooltipContent>
               </Tooltip>
@@ -678,7 +678,7 @@ export function Composer({
               }
               aria-label={textos.enviar}
             >
-              <Send className="size-4" />
+              <Send className="size-(--tamanho-icone-interface)" />
             </Button>
           </div>
         </div>

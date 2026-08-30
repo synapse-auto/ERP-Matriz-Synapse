@@ -59,7 +59,7 @@ export function SeletorMultiplo({
         }
       >
         <span className="truncate">{rotulo}</span>
-        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        <ChevronDown className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -83,7 +83,7 @@ export function SeletorMultiplo({
                 onClick={() => alternar(opcao.valor)}
               >
                 <span className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-input bg-card">
-                  {marcada && <Check className="size-3" />}
+                  {marcada && <Check className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />}
                 </span>
                 <span className="truncate">{opcao.rotulo}</span>
               </button>

@@ -263,9 +263,9 @@ export function Sidebar({
           className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
         >
           {fixada ? (
-            <PanelLeftClose className="size-[18px]" aria-hidden />
+            <PanelLeftClose className="size-[calc(var(--tamanho-icone-sidebar)*0.857143)]" aria-hidden />
           ) : (
-            <PanelLeftOpen className="size-[18px]" aria-hidden />
+            <PanelLeftOpen className="size-[calc(var(--tamanho-icone-sidebar)*0.857143)]" aria-hidden />
           )}
         </button>
       </div>
@@ -317,7 +317,7 @@ export function Sidebar({
                 title={textos.novidades?.titulo || "Novidades"}
                 className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
               >
-                <Sparkles className="size-[21px] shrink-0" />
+                <Sparkles className="size-(--tamanho-icone-sidebar) shrink-0" />
                 <span
                   className="flex-1 truncate text-left whitespace-nowrap"
                   style={estiloDoRotuloDaSidebar(retraida)}
@@ -358,7 +358,7 @@ export function Sidebar({
                     style={{ backgroundColor: COR_PRESENCA[status] }}
                   />
                   <span className="flex-1">{rotuloDaPresenca(status)}</span>
-                  {selecionado && <Check className="size-4 text-sidebar-item-icone-ativo" />}
+                  {selecionado && <Check className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)] text-sidebar-item-icone-ativo" />}
                 </button>
               );
             })}
@@ -368,7 +368,7 @@ export function Sidebar({
               onClick={() => setPopupAberto(false)}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] font-semibold text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
             >
-              <KeyRound className="size-4" />
+              <KeyRound className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" />
               {textos.rodape.trocarSenha}
             </Link>
             <button
@@ -376,7 +376,7 @@ export function Sidebar({
               onClick={() => void encerrarSessao()}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] font-semibold text-sidebar-item-texto-perigo hover:bg-sidebar-item-overlay-perigo"
             >
-              <LogOut className="size-4" />
+              <LogOut className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" />
               {textos.rodape.sair}
             </button>
           </div>
@@ -423,7 +423,7 @@ export function Sidebar({
             title={textos.configuracoes.abrir}
             className="flex size-8 items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
           >
-            <Settings className="size-4" />
+            <Settings className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" />
           </Link>
         </div>
       </div>
@@ -497,10 +497,10 @@ function MenuGrupo({
                 <Icone
                   className={
                     ativo && item.chave === "administracao"
-                      ? "size-[21px] shrink-0 text-cor-ia"
+                      ? "size-(--tamanho-icone-sidebar) shrink-0 text-cor-ia"
                       : ativo
-                        ? "size-[21px] shrink-0 text-sidebar-item-icone-ativo"
-                        : "size-[21px] shrink-0"
+                        ? "size-(--tamanho-icone-sidebar) shrink-0 text-sidebar-item-icone-ativo"
+                        : "size-(--tamanho-icone-sidebar) shrink-0"
                   }
                 />
                 <span
