@@ -762,7 +762,9 @@
       "rotulo": "Filtros do dashboard",
       "ano": "Ano",
       "meses": "Meses",
+      "anoInteiro": "Ano inteiro",
       "originacao": "Período de originação",
+      "intervalo": "{inicio} até {fim}",
       "de": "De",
       "ate": "Até",
       "limpar": "Limpar",
@@ -813,7 +815,8 @@
       "semResponsavelPlural": "{total} vendas sem responsável atribuído"
     },
     "funil": {
-      "vazio": "Nenhuma etapa com lead no recorte."
+      "vazio": "Nenhuma etapa com lead no recorte.",
+      "semPassagem": "—"
     },
     "horario": {
       "vazio": "Nenhuma mensagem enviada no período.",
