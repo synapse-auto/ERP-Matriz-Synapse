@@ -72,7 +72,7 @@
 <body>
 
 <h1>Integração da Automação com o CRM</h1>
-<div class="sub">Estrutural Vidros &middot; ambiente de homologação &middot; agosto de 2026</div>
+<div class="sub">Estrutural Vidros &middot; ambiente de produção real &middot; agosto de 2026</div>
 
 <p>Este documento tem o que é preciso para construir os fluxos do n8n contra o CRM. São duas direções de comunicação, e elas funcionam de formas diferentes.</p>
 
@@ -133,6 +133,8 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
   <tr><td class="metodo post">PATCH</td><td><code>/atendimentos/{id}/modo-ia</code></td><td>devolver o atendimento para a IA</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/lembretes</code></td><td>criar lembrete idempotente para o responsável atual</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/resumo</code></td><td>sobrescrever o resumo atual da IA</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/avaliacao</code></td><td>registrar CSAT 1–5 após finalização</td></tr>
+  <tr><td class="metodo post">POST</td><td><code>/atendimentos/{id}/mensagens-enviadas</code></td><td>registrar mensagem que a Automação já enviou à Meta</td></tr>
   <tr><td class="metodo get">GET</td><td><code>/tags</code></td><td>consultar o catálogo de tags existente</td></tr>
   <tr><td class="metodo post">POST</td><td><code>/leads/{id}/tags</code></td><td>aplicar uma tag existente ao lead</td></tr>
 </table>
@@ -147,6 +149,13 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
   destinatário: o CRM escolhe pelo rodízio (menor carga, depois quem está há mais tempo sem receber,
   depois o <code>id</code>). Os atendentes trabalham por comissão; se o workflow não tem um motivo de
   negócio para apontar a pessoa, use a segunda e deixe o rodízio decidir.
+</div>
+
+<div class="nota">
+  <strong>Templates da Meta:</strong> o CRM possui a tela administrativa
+  <code>/api/v1/whatsapp/templates</code>, protegida por JWT, para listar e submeter templates
+  de texto. Ela usa o WABA ID configurado no CRM e fica fora do contrato do n8n. O workflow
+  não deve chamar essa rota nem a Graph API diretamente.
 </div>
 
 <div class="quebra"></div>
