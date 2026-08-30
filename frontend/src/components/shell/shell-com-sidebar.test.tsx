@@ -236,4 +236,23 @@ describe("ShellComSidebar", () => {
     expect(sidebar).toMatch(/absolute inset-y-0 left-0 z-40/);
     expect(sidebar).toMatch(/estiloDoRotuloDaSidebar/);
   });
+
+  /*
+   * jsdom não faz layout: não dá para medir scrollHeight aqui e provar a rolagem. O que este
+   * teste protege é a única causa real já diagnosticada — sem `shrink-0` nos filhos diretos, o
+   * flex column encolhe a página inteira até caber e nada rola. A prova de comportamento é a
+   * medição no navegador, refeita contra o shell desta merge (sidebar retraída/sobreposta, E84c)
+   * e registrada no relatório da etapa. Se alguém remover a classe, este teste reprova.
+   */
+  it("a superficie de pagina nao deixa o filho direto encolher — sem isso a pagina nao rola", () => {
+    const { container } = render(
+      <ShellComSidebar>
+        <p>Conteúdo</p>
+      </ShellComSidebar>,
+    );
+
+    const superficie = container.querySelector('[data-slot="page-surface"]');
+    expect(superficie).toHaveClass("overflow-y-auto");
+    expect(superficie).toHaveClass("[&>*]:shrink-0");
+  });
 });
