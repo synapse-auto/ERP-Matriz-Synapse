@@ -95,7 +95,7 @@ function FormularioNovoContato({
       <DialogHeader>
         <div className="flex items-start gap-3 pr-6">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <MessageSquare className="size-5" aria-hidden />
+            <MessageSquare className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
           </div>
           <div className="space-y-1">
             <DialogTitle>{textos.titulo}</DialogTitle>
@@ -166,7 +166,7 @@ function FormularioNovoContato({
           {textos.cancelar}
         </Button>
         <Button type="button" onClick={confirmar} disabled={pendente}>
-          <MessageSquare className="size-4" aria-hidden />
+          <MessageSquare className="size-(--tamanho-icone-interface)" aria-hidden />
           {textos.confirmar}
         </Button>
       </DialogFooter>

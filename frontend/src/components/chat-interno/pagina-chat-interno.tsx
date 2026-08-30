@@ -66,7 +66,7 @@ export function PaginaChatInterno() {
   const conversaAtual = useMemo(() => conversas.data?.find((c) => c.id === conversaId), [conversas.data, conversaId]);
   if (conversas.isError) return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void conversas.refetch()} />;
   return <div className="flex h-full min-h-0 flex-col gap-5 p-6">
-    <header><h1 className="flex items-center gap-2 text-2xl font-bold"><MessageCircle className="size-6" />{textos.titulo}</h1></header>
+    <header><h1 className="flex items-center gap-2 text-2xl font-bold"><MessageCircle className="size-[calc(var(--tamanho-icone-interface)*1.5)]" />{textos.titulo}</h1></header>
     <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[300px_1fr]">
       <Card className="min-h-0"><CardHeader className="flex flex-row items-center justify-between"><CardTitle>{textos.conversas}</CardTitle><Button size="icon" variant="outline" aria-label={textos.novaConversa} onClick={() => contatos.refetch()}><Plus /></Button></CardHeader><CardContent className="space-y-2 overflow-y-auto">
         {conversas.isLoading && <p className="text-sm text-muted-foreground">{textos.carregando}</p>}

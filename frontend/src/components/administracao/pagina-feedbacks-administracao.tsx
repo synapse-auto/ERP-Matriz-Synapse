@@ -105,9 +105,9 @@ export function PaginaFeedbacksAdministracao() {
                         tom={sugestao ? "info" : "erro"}
                         icone={
                           sugestao ? (
-                            <Lightbulb className="size-3" aria-hidden />
+                            <Lightbulb className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />
                           ) : (
-                            <Bug className="size-3" aria-hidden />
+                            <Bug className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />
                           )
                         }
                       >
@@ -115,7 +115,7 @@ export function PaginaFeedbacksAdministracao() {
                       </PillDeStatus>
                       <PillDeStatus tom="neutro">{areaTexto}</PillDeStatus>
                       <p className="ml-auto flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                        <Clock className="size-3.5" aria-hidden />
+                        <Clock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                         {t.data.replace(
                           "{data}",
                           new Intl.DateTimeFormat("pt-BR", {

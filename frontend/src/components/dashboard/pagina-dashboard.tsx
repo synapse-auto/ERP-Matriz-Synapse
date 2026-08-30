@@ -148,7 +148,7 @@ export function PaginaDashboard() {
             className="rounded-full"
             onClick={() => setAvisoComputadorAberto(true)}
           >
-            <Lock className="size-3.5" aria-hidden />
+            <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
             {textos.filtros.rotulo}
           </Button>
         )}
@@ -358,7 +358,7 @@ function ConteudoDashboard({
       <HorarioDePico dados={dados} />
       {telaEstreita && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
-          <Monitor className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <Monitor className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" aria-hidden />
           {textos.avisoComputador}
         </p>
       )}
@@ -385,14 +385,14 @@ function Kpi({ titulo, valor, apoio, comparativo, Icone, quedaPositiva = false }
     <Card>
       <CardHeader className="grid grid-cols-[1fr_auto] items-start">
         <CardTitle className="text-sm text-muted-foreground">{titulo}</CardTitle>
-        <span className="rounded-lg bg-primary/10 p-2 text-primary"><Icone className="size-4" /></span>
+        <span className="rounded-lg bg-primary/10 p-2 text-primary"><Icone className="size-(--tamanho-icone-interface)" /></span>
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>{valor}</p>
         <p className="mt-1 text-xs text-muted-foreground">{apoio}</p>
         {comparativo && (
           <p className={cn("mt-3 flex items-center gap-1 text-xs font-semibold", positivo ? "text-[var(--cor-sucesso)]" : "text-destructive")}>
-            <IconeTendencia className="size-3.5" />
+            <IconeTendencia className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
             {formatarComparativo(comparativo)} {textos.kpis.periodoAnterior}
           </p>
         )}

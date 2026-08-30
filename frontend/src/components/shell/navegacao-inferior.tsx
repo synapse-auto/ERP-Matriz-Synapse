@@ -156,7 +156,7 @@ export function NavegacaoInferior() {
                   )}
                 >
                   <span className="relative">
-                    {Icone && <Icone className="size-6" aria-hidden />}
+                    {Icone && <Icone className="size-[calc(var(--tamanho-icone-interface)*1.5)]" aria-hidden />}
                     {item.chave === "atendimentos" && contagens?.PENDENTES !== undefined && (
                       <Badge className="absolute -right-2.5 -top-1 h-4 min-w-4 rounded-full px-1 text-[0.55rem]">
                         {contagens.PENDENTES}
@@ -179,7 +179,7 @@ export function NavegacaoInferior() {
                 maisAtivo ? "text-primary" : "text-muted-foreground",
               )}
             >
-              <Menu className="size-6" aria-hidden />
+              <Menu className="size-[calc(var(--tamanho-icone-interface)*1.5)]" aria-hidden />
               {textos.menu.mais}
             </button>
           </li>
@@ -231,7 +231,7 @@ export function NavegacaoInferior() {
                   style={{ backgroundColor: COR_PRESENCA[status] }}
                 />
                 {rotuloDaPresenca(status)}
-                {statusAtual === status && <Check className="size-3.5" aria-hidden />}
+                {statusAtual === status && <Check className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />}
               </button>
             ))}
           </div>
@@ -250,7 +250,7 @@ export function NavegacaoInferior() {
                       ativo ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted",
                     )}
                   >
-                    {Icone && <Icone className="size-5 shrink-0" aria-hidden />}
+                    {Icone && <Icone className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />}
                     {rotulo}
                   </Link>
                 </li>
@@ -266,7 +266,7 @@ export function NavegacaoInferior() {
                   }}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
                 >
-                  <Sparkles className="size-5 shrink-0" aria-hidden />
+                  <Sparkles className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />
                   {textos.novidades.titulo}
                 </button>
               </li>
@@ -277,7 +277,7 @@ export function NavegacaoInferior() {
                 onClick={() => setMaisAberto(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
               >
-                <Settings className="size-5 shrink-0" aria-hidden />
+                <Settings className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />
                 {textos.configuracoes.abrir}
               </Link>
             </li>
@@ -287,7 +287,7 @@ export function NavegacaoInferior() {
                 onClick={() => setMaisAberto(false)}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
               >
-                <KeyRound className="size-5 shrink-0" aria-hidden />
+                <KeyRound className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />
                 {textos.rodape.trocarSenha}
               </Link>
             </li>
@@ -297,7 +297,7 @@ export function NavegacaoInferior() {
                 onClick={() => void encerrarSessao()}
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
               >
-                <LogOut className="size-5 shrink-0" aria-hidden />
+                <LogOut className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />
                 {textos.rodape.sair}
               </button>
             </li>

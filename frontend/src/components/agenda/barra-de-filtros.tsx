@@ -181,7 +181,7 @@ export function BarraDeFiltros({
     <div className="mb-3 space-y-2 border-b border-border pb-3">
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="relative min-w-72 max-w-[380px] flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" />
           <Input
             value={filtrosRapidos.busca}
             aria-label={textos.busca}
@@ -313,7 +313,7 @@ function ChipDeFiltro({
         className="rounded-sm p-0.5 text-primary/70 hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={onRemover}
       >
-        <X className="size-3.5" />
+        <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
       </button>
     </span>
   );

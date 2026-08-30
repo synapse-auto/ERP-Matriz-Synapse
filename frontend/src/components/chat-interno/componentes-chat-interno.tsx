@@ -39,7 +39,7 @@ export function CabecalhoChatInterno({ conversa, textos }: { conversa?: ChatConv
       <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
       <div className="min-w-0">
         <h2 className="flex items-center gap-2 truncate font-semibold text-foreground">
-          <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <Users className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
           <span className="truncate">{nome}</span>
         </h2>
         <p className="text-xs text-muted-foreground">{textos.titulo}</p>
@@ -278,11 +278,11 @@ export function ComposerChatInterno({
             )}
             {arquivos.map((item, indice) => (
               <div key={`${item.name}-${item.size}-${indice}`} className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
-                <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <Paperclip className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
                 <span className="flex-1 truncate">{item.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">{tamanhoLegivel(item.size)}</span>
                 <button type="button" className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive" aria-label={tComp.anexoRemover} disabled={pendente} onClick={() => setArquivos((atual) => atual.filter((_, itemIndice) => itemIndice !== indice))}>
-                  <X className="size-3.5" />
+                  <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
                 </button>
               </div>
             ))}
@@ -291,17 +291,17 @@ export function ComposerChatInterno({
 
         {gravador.fase === "GRAVANDO" && (
           <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-2">
-            <Mic className="size-4 animate-pulse text-destructive" aria-hidden />
+            <Mic className="size-(--tamanho-icone-interface) animate-pulse text-destructive" aria-hidden />
             <span className="flex-1 text-sm">{tComp.audioGravando} · {duracaoLegivel(gravador.segundos)}</span>
-            <Button type="button" size="icon-sm" variant="ghost" onClick={gravador.descartar} aria-label={tComp.audioDescartar}><Trash2 className="size-4" /></Button>
-            <Button type="button" size="icon-sm" onClick={gravador.parar} aria-label={tComp.audioParar}><Square className="size-3.5 fill-current" /></Button>
+            <Button type="button" size="icon-sm" variant="ghost" onClick={gravador.descartar} aria-label={tComp.audioDescartar}><Trash2 className="size-(--tamanho-icone-interface)" /></Button>
+            <Button type="button" size="icon-sm" onClick={gravador.parar} aria-label={tComp.audioParar}><Square className="size-[calc(var(--tamanho-icone-interface)*0.875)] fill-current" /></Button>
           </div>
         )}
 
         {gravador.fase === "PREVISUALIZACAO" && gravador.previewUrl && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/50 p-2">
             <audio className="h-9 min-w-0 flex-1" controls src={gravador.previewUrl} aria-label={tComp.audioPreview} />
-            <Button type="button" size="icon-sm" variant="ghost" onClick={gravador.descartar} disabled={pendente} aria-label={tComp.audioDescartar}><Trash2 className="size-4" /></Button>
+            <Button type="button" size="icon-sm" variant="ghost" onClick={gravador.descartar} disabled={pendente} aria-label={tComp.audioDescartar}><Trash2 className="size-(--tamanho-icone-interface)" /></Button>
           </div>
         )}
 
@@ -309,7 +309,7 @@ export function ComposerChatInterno({
           <div className="flex shrink-0 items-center gap-1">
             <input ref={inputArquivoRef} type="file" accept={TIPOS_DE_ANEXO_ACEITOS} multiple className="hidden" onChange={aoSelecionarArquivo} disabled={gravador.fase !== "INATIVO" || pendente} />
             <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={gravador.fase !== "INATIVO" || pendente}>
-              <Paperclip className="size-4" />
+              <Paperclip className="size-(--tamanho-icone-interface)" />
             </Button>
             <PainelEmojiComposer
               rotulo={tComp.emoji}
@@ -329,7 +329,7 @@ export function ComposerChatInterno({
           {gravador.disponivel && gravador.fase === "INATIVO" && arquivos.length === 0 && (
             <div className="order-last shrink-0">
               <Button type="button" variant="ghost" size="icon" aria-label={tComp.audioGravar} onClick={gravador.iniciar} disabled={pendente}>
-                <Mic className="size-4" />
+                <Mic className="size-(--tamanho-icone-interface)" />
               </Button>
             </div>
           )}
@@ -361,7 +361,7 @@ export function ComposerChatInterno({
               }
               aria-label={textos.enviar}
             >
-              <Send className="size-4" />
+              <Send className="size-(--tamanho-icone-interface)" />
             </Button>
           </div>
         </div>

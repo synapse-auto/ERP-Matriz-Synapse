@@ -132,7 +132,7 @@ export function CabecalhoConversa({
             aria-label={textos.voltar}
             onClick={onVoltar}
           >
-            <ArrowLeft className="size-5" aria-hidden />
+            <ArrowLeft className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
           </Button>
         )}
         <Avatar>
@@ -156,7 +156,7 @@ export function CabecalhoConversa({
             </p>
             {canal && (
               <span className="inline-flex items-center gap-1 rounded-md bg-cor-sucesso/10 px-2 py-0.5 text-[0.7rem] font-semibold text-cor-sucesso">
-                <MessageCircleMore className="size-3" aria-hidden />
+                <MessageCircleMore className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />
                 {canal}
               </span>
             )}
@@ -199,7 +199,7 @@ export function CabecalhoConversa({
               size="sm"
               onClick={() => setTransferirAberto(true)}
             >
-              <ArrowLeftRight className="size-3.5" aria-hidden />
+              <ArrowLeftRight className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
               {textos.transferir}
             </Button>
             <Button
@@ -216,7 +216,7 @@ export function CabecalhoConversa({
               }
               disabled={finalizar.isPending}
             >
-              <CheckCheck className="size-3.5" aria-hidden />
+              <CheckCheck className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
               {textos.finalizar}
             </Button>
           </>
@@ -228,7 +228,7 @@ export function CabecalhoConversa({
             size="sm"
             onClick={() => setAvaliacaoAberta(true)}
           >
-            <Star className="size-3.5" aria-hidden />
+            <Star className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
             {catalogo.atendimentos.avaliacao.registrar}
           </Button>
         )}
@@ -241,7 +241,7 @@ export function CabecalhoConversa({
           aria-pressed={buscaAberta}
           onClick={onAlternarBusca}
         >
-          <Search className="size-4" aria-hidden />
+          <Search className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
         <AtalhoTags leadId={conversa.leadId} />
         {telefone && (
@@ -250,7 +250,7 @@ export function CabecalhoConversa({
             aria-label={`${catalogo.painelLead.dados.telefone}: ${telefone}`}
             className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
           >
-            <Phone className="size-4" aria-hidden />
+            <Phone className="size-(--tamanho-icone-interface)" aria-hidden />
           </a>
         )}
         {!painelDetalhesAberto && (
@@ -264,7 +264,7 @@ export function CabecalhoConversa({
             aria-label={catalogo.atendimentos.painel.reabrir}
             title={catalogo.atendimentos.painel.reabrir}
           >
-            <PanelRightOpen className="size-4" aria-hidden />
+            <PanelRightOpen className="size-(--tamanho-icone-interface)" aria-hidden />
           </Button>
         )}
       </div>

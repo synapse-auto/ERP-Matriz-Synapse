@@ -204,7 +204,7 @@ export function ListaConversas({
                 className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
-                <MoreHorizontal className="size-4" aria-hidden />
+                <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
@@ -229,7 +229,7 @@ export function ListaConversas({
               aria-label={textos.novoContato.botao}
               onClick={onNovoContato}
             >
-              <UserPlus className="size-4" aria-hidden />
+              <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
             {chatInternoHabilitado && (
               <Button
@@ -245,16 +245,16 @@ export function ListaConversas({
                   onRecarregarContatos?.();
                 }}
               >
-                <UsersRound className="size-4" aria-hidden />
+                <UsersRound className="size-(--tamanho-icone-interface)" aria-hidden />
               </Button>
             )}
             <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
-              <SlidersHorizontal className="size-4" aria-hidden />
+              <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
           </div>
         </div>
         <div className="relative mt-3">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca}
             onChange={(evento) => setBusca(evento.target.value)}

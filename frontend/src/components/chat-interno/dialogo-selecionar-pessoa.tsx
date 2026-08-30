@@ -98,7 +98,7 @@ export function DialogoSelecionarPessoa({
       <DialogContent className="max-w-md gap-0 overflow-hidden p-0" showCloseButton={false}>
         <DialogHeader className="border-b border-border px-5 py-4 pr-12">
           <DialogTitle className="flex items-center gap-2">
-            <UsersRound className="size-5 text-primary" aria-hidden />
+            <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" aria-hidden />
             {textos.selecionarPessoa}
           </DialogTitle>
           <DialogDescription>{textos.selecionarPessoaDescricao}</DialogDescription>
@@ -110,13 +110,13 @@ export function DialogoSelecionarPessoa({
             aria-label={textos.fecharSeletor}
             onClick={fechar}
           >
-            <X className="size-4" aria-hidden />
+            <X className="size-(--tamanho-icone-interface)" aria-hidden />
           </Button>
         </DialogHeader>
 
         <div className="space-y-3 p-4">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               autoFocus
               value={busca}

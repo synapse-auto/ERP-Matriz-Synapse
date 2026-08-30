@@ -107,6 +107,11 @@
   --input: var(--borda-forte, #E1E8F0);
   --ring: var(--cor-primaria, #1F74E0);
 
+  /* Escala visual dos glifos da interface. Os componentes preservam sua hierarquia relativa
+     derivando tamanhos maiores/menores destes dois valores, sem repetir medidas em px. */
+  --tamanho-icone-interface: 18.4px;
+  --tamanho-icone-sidebar: 17.85px;
+
   /* Paleta de tags (E15) — precisa ser COLORIDA e distinguível entre si, não cinco tons de cinza. */
   --chart-1: var(--cor-info, #3E8FD0);
   --chart-2: var(--cor-ia, #6D4FD6);

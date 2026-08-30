@@ -27,7 +27,7 @@ export function LayoutAdministracao({ children }: { children: React.ReactNode })
               className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-cor-ia text-white shadow-md"
               aria-hidden
             >
-              <ShieldCheck className="size-5" />
+              <ShieldCheck className="size-[calc(var(--tamanho-icone-interface)*1.25)]" />
             </span>
             <div className="min-w-0">
               <h1 className="text-xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
@@ -62,7 +62,7 @@ export function LayoutAdministracao({ children }: { children: React.ReactNode })
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
-                    <Icone className="size-4 shrink-0 sm:size-5" aria-hidden />
+                    <Icone className="size-(--tamanho-icone-interface) shrink-0 sm:size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
                     <span className="flex min-w-0 flex-col">
                       <span>{textos.abas[aba.chave]}</span>
                       <span

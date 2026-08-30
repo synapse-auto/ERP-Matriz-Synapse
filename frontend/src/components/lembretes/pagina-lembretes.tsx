@@ -191,13 +191,13 @@ function TabelaDeLembretes({
                       concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
                     }`}
                   >
-                    {concluido && <Check className="size-3.5 text-white" />}
+                    {concluido && <Check className="size-[calc(var(--tamanho-icone-interface)*0.875)] text-white" />}
                   </button>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {item.origemAutomatica && (
-                      <PillDeStatus tom="ia" icone={<Bot className="size-3" />} className="shrink-0">
+                      <PillDeStatus tom="ia" icone={<Bot className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />} className="shrink-0">
                         {textos.automatico}
                       </PillDeStatus>
                     )}
@@ -250,7 +250,7 @@ function TabelaDeLembretes({
                     aria-label={`${textos.remover} ${item.texto}`}
                     onClick={() => onRemover(item.id)}
                   >
-                    <Trash2 className="size-4" />
+                    <Trash2 className="size-(--tamanho-icone-interface)" />
                   </Button>
                 </td>
               </tr>

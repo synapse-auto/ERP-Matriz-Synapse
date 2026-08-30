@@ -55,7 +55,7 @@ export function CartaoConversa({
           </div>
           {cartao.ultimaMensagemPreview && <p className="mt-1 truncate text-xs text-foreground/70">{cartao.ultimaMensagemPreview}</p>}
           <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground">
-            <Users className="size-3" aria-hidden />{catalogo.chatInterno.titulo}
+            <Users className="size-[calc(var(--tamanho-icone-interface)*0.75)]" aria-hidden />{catalogo.chatInterno.titulo}
           </span>
         </div>
       </button>
@@ -100,7 +100,7 @@ export function CartaoConversa({
             className="absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-full bg-cor-sucesso text-white"
             title={canal}
           >
-            <MessageCircleMore className="size-2.5" aria-hidden />
+            <MessageCircleMore className="size-[calc(var(--tamanho-icone-interface)*0.625)]" aria-hidden />
           </span>
         )}
       </div>
