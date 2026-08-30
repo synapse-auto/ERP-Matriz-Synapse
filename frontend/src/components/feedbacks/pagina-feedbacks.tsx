@@ -87,7 +87,7 @@ export function PaginaFeedbacks() {
               aria-pressed={tipo === "SUGESTAO"}
               onClick={() => setTipo("SUGESTAO")}
             >
-              <Lightbulb className="size-4" aria-hidden />
+              <Lightbulb className="size-(--tamanho-icone-interface)" aria-hidden />
               {textos.tipos.sugestao}
             </Button>
             <Button
@@ -96,7 +96,7 @@ export function PaginaFeedbacks() {
               aria-pressed={tipo === "ERRO"}
               onClick={() => setTipo("ERRO")}
             >
-              <Bug className="size-4" aria-hidden />
+              <Bug className="size-(--tamanho-icone-interface)" aria-hidden />
               {textos.tipos.erro}
             </Button>
           </div>
@@ -143,7 +143,7 @@ export function PaginaFeedbacks() {
         </div>
 
         <Button type="submit" disabled={enviar.isPending}>
-          <Send className="size-4" aria-hidden />
+          <Send className="size-(--tamanho-icone-interface)" aria-hidden />
           {enviar.isPending ? textos.enviando : textos.enviar}
         </Button>
       </form>

@@ -110,7 +110,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           aria-label={textos.retrair}
           title={textos.retrair}
         >
-          <PanelRightClose className="size-4" aria-hidden />
+          <PanelRightClose className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
       </div>
 
@@ -163,22 +163,22 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           <div className="space-y-3">
             <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
             <InformacaoDoPainel
-              icone={<Phone className="size-4" aria-hidden />}
+              icone={<Phone className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.telefone}
               valor={lead.data.telefone}
             />
             <InformacaoDoPainel
-              icone={<Mail className="size-4" aria-hidden />}
+              icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.email}
               valor={lead.data.email}
             />
             <InformacaoDoPainel
-              icone={<MapPin className="size-4" aria-hidden />}
+              icone={<MapPin className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.localizacao}
               valor={lead.data.localizacao}
             />
             <InformacaoDoPainel
-              icone={<UserRound className="size-4" aria-hidden />}
+              icone={<UserRound className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.responsavel}
               valor={responsavelNome}
             />
@@ -243,13 +243,13 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
         </div>
 
         <SecaoColapsavel
-          icone={<Sparkles className="size-4 text-primary" />}
+          icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
           titulo={textos.secoes.resumo}
           abertaPorPadrao
         >
           {lead.data.resumoIa && (
             <div className="mb-2 flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+              <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
               <p className="text-sm text-foreground">{lead.data.resumoIa}</p>
             </div>
           )}
@@ -257,7 +257,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             {textos.notasInternas}
           </p>
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <StickyNote className="mt-0.5 size-4 shrink-0 text-cor-atencao" />
+            <StickyNote className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-cor-atencao" />
             <p className="text-sm text-foreground">
               {lead.data.notas || textosLead.resumoIa.vazio}
             </p>
@@ -288,7 +288,7 @@ function SecaoDeMidias({ leadId }: { leadId: string }) {
   const midias = useMidiasDoLead(leadId);
   const itens = midias.data?.pages.flat() ?? [];
   return (
-    <SecaoColapsavel icone={<FileText className="size-4 text-primary" />} titulo={textos.secoes.midias ?? textos.secoes.resumo} contagem={itens.length}>
+    <SecaoColapsavel icone={<FileText className="size-(--tamanho-icone-interface) text-primary" />} titulo={textos.secoes.midias ?? textos.secoes.resumo} contagem={itens.length}>
       {midias.isLoading ? <p className="p-2 text-xs text-muted-foreground">{textos.carregandoMidias}</p> : midias.isError ? (
         <p role="alert" className="p-2 text-xs text-destructive">{textos.erroMidias ?? textos.erroOperacao}</p>
       ) : itens.length === 0 ? <p className="p-2 text-center text-xs text-muted-foreground">{textos.vazioMidias ?? textos.vazioLembretes}</p> : (
@@ -298,10 +298,10 @@ function SecaoDeMidias({ leadId }: { leadId: string }) {
             const audio = item.tipo === "AUDIO";
             return <div key={item.mensagemId} className="rounded-lg border border-border bg-muted/30 p-2">
               <div className="flex items-center gap-2">
-                {imagem ? <ImageIcon className="size-4 text-primary" aria-hidden /> : <FileText className="size-4 text-muted-foreground" aria-hidden />}
+                {imagem ? <ImageIcon className="size-(--tamanho-icone-interface) text-primary" aria-hidden /> : <FileText className="size-(--tamanho-icone-interface) text-muted-foreground" aria-hidden />}
                 <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.nome ?? item.tipo}</span>
                 <a href={item.urlDownload} download={item.nome ?? undefined} className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted" aria-label={`${imagem ? textos.salvarImagem : catalogo.atendimentos.media.baixar}: ${item.nome ?? item.tipo}`}>
-                  <Download className="size-3.5" aria-hidden />
+                  <Download className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                 </a>
               </div>
               <p className="mt-1 text-[0.65rem] text-muted-foreground">{item.tipo}{item.origem ? ` · ${textos.origemMidia}: ${item.origem}` : ""} · {item.tamanho ? `${Math.ceil(item.tamanho / 1024)} KB` : ""} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(item.enviadoEm))}</p>
@@ -385,7 +385,7 @@ function CampoCodigoDoLead({
 
   return (
     <div className="flex items-center gap-2.5 text-primary">
-      <Hash className="size-4 shrink-0" aria-hidden />
+      <Hash className="size-(--tamanho-icone-interface) shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
         <label htmlFor={idCampo} className="sr-only">
           {textos.codigo}
@@ -454,9 +454,9 @@ function SecaoColapsavel({
           </span>
         )}
         {aberta ? (
-          <ChevronUp className="size-4 text-muted-foreground" />
+          <ChevronUp className="size-(--tamanho-icone-interface) text-muted-foreground" />
         ) : (
-          <ChevronDown className="size-4 text-muted-foreground" />
+          <ChevronDown className="size-(--tamanho-icone-interface) text-muted-foreground" />
         )}
       </button>
       {aberta && (
@@ -513,7 +513,7 @@ function SecaoDeProgramadas({
   );
   return (
     <SecaoColapsavel
-      icone={<CalendarClock className="size-4 text-primary" />}
+      icone={<CalendarClock className="size-(--tamanho-icone-interface) text-primary" />}
       titulo={titulo}
       contagem={itens.length}
     >
@@ -525,7 +525,7 @@ function SecaoDeProgramadas({
           className="w-full"
           onClick={() => setFormulario("novo")}
         >
-          <Plus className="size-3.5" aria-hidden />
+          <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
           {textos.atendimentos.painel.adicionar}
         </Button>
         {itens.length === 0 ? (
@@ -553,7 +553,7 @@ function SecaoDeProgramadas({
                     aria-label={`${textos.atendimentos.painel.editar} ${item.conteudo}`}
                     onClick={() => setFormulario(item)}
                   >
-                    <Pencil className="size-3.5" aria-hidden />
+                    <Pencil className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
                   <Button
                     type="button"
@@ -566,7 +566,7 @@ function SecaoDeProgramadas({
                       setItemParaRemover(item);
                     }}
                   >
-                    <Trash2 className="size-3.5" aria-hidden />
+                    <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
                 </div>
               </div>
@@ -640,7 +640,7 @@ function SecaoDeLembretes({
   });
   return (
     <SecaoColapsavel
-      icone={<Bell className="size-4 text-cor-atencao" />}
+      icone={<Bell className="size-(--tamanho-icone-interface) text-cor-atencao" />}
       titulo={titulo}
       contagem={itens.length}
     >
@@ -652,7 +652,7 @@ function SecaoDeLembretes({
           className="w-full"
           onClick={() => setFormulario("novo")}
         >
-          <Plus className="size-3.5" aria-hidden />
+          <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
           {textos.atendimentos.painel.adicionar}
         </Button>
         {itens.length === 0 ? (
@@ -679,7 +679,7 @@ function SecaoDeLembretes({
                     aria-label={`${textos.atendimentos.painel.editar} ${item.texto}`}
                     onClick={() => setFormulario(item)}
                   >
-                    <Pencil className="size-3.5" aria-hidden />
+                    <Pencil className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
                   <Button
                     type="button"
@@ -692,7 +692,7 @@ function SecaoDeLembretes({
                       setItemParaRemover(item);
                     }}
                   >
-                    <Trash2 className="size-3.5" aria-hidden />
+                    <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
                 </div>
               </div>

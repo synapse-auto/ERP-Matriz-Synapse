@@ -82,10 +82,10 @@ export function PaginaConfiguracoes() {
                 </div>
                 <div className="ml-auto flex flex-wrap justify-end gap-2">
                   <label className={`inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium ${atualizarFoto.isPending ? "cursor-wait opacity-60" : "cursor-pointer hover:bg-muted"}`} aria-busy={atualizarFoto.isPending}>
-                    <Camera className="size-4" />{atualizarFoto.isPending ? t.salvando : t.alterarFoto}
+                    <Camera className="size-(--tamanho-icone-interface)" />{atualizarFoto.isPending ? t.salvando : t.alterarFoto}
                     <input type="file" className="sr-only" disabled={atualizarFoto.isPending} accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(evento) => { const arquivo = evento.target.files?.[0]; if (arquivo) atualizarFoto.mutate(arquivo); evento.currentTarget.value = ""; }} />
                   </label>
-                  {dados.fotoUrl && <Button type="button" variant="outline" size="sm" onClick={() => removerFoto.mutate()} disabled={removerFoto.isPending}><Trash2 className="size-4" />{t.removerFoto}</Button>}
+                  {dados.fotoUrl && <Button type="button" variant="outline" size="sm" onClick={() => removerFoto.mutate()} disabled={removerFoto.isPending}><Trash2 className="size-(--tamanho-icone-interface)" />{t.removerFoto}</Button>}
                 </div>
               </div>
             </CardHeader>
@@ -117,7 +117,7 @@ export function PaginaConfiguracoes() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium">{t.papel}</span>
-                  <Badge variant="secondary"><UserRound className="size-3" />{dados.papel}</Badge>
+                  <Badge variant="secondary"><UserRound className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />{dados.papel}</Badge>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
                   <div className="text-sm text-muted-foreground">
@@ -125,7 +125,7 @@ export function PaginaConfiguracoes() {
                     <p>{t.ultimaAlteracaoSenha}: {dataDaSenha(dados.senhaAlteradaEm, t)}</p>
                   </div>
                   <Link href="/trocar-senha" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-sm font-medium hover:bg-muted">
-                    <KeyRound className="size-4" />{t.alterarSenha}
+                    <KeyRound className="size-(--tamanho-icone-interface)" />{t.alterarSenha}
                   </Link>
                 </div>
                 <div className="flex items-center justify-end gap-3">
@@ -133,7 +133,7 @@ export function PaginaConfiguracoes() {
                   {atualizar.isError && <span role="alert" className="text-sm text-destructive">{t.erro}</span>}
                   {(atualizarFoto.isError || removerFoto.isError) && <span role="alert" className="text-sm text-destructive">{t.fotoErro}</span>}
                   <Button type="submit" disabled={atualizar.isPending}>
-                    <Save className="size-4" />{atualizar.isPending ? t.salvando : t.salvarPerfil}
+                    <Save className="size-(--tamanho-icone-interface)" />{atualizar.isPending ? t.salvando : t.salvarPerfil}
                   </Button>
                 </div>
               </form>

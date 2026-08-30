@@ -112,7 +112,7 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
         <AtendentesDisponiveis textos={textos} />
         <section className="rounded-xl border bg-card p-6">
           <div className="flex items-center gap-2.5">
-            <Sparkles className="size-5 text-primary" />
+            <Sparkles className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />
             <h2 className="text-base font-bold">{t.recursosIa.titulo}</h2>
           </div>
           {recursos.isLoading ? null : recursos.isError || !recursos.data ? (
@@ -134,7 +134,7 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
           </div>
           <span className="sr-only group-open:hidden">{t.avancado.abrir}</span>
           <span className="sr-only hidden group-open:inline">{t.avancado.fechar}</span>
-          <ChevronDown className="size-5 text-muted-foreground transition-transform group-open:rotate-180" />
+          <ChevronDown className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-muted-foreground transition-transform group-open:rotate-180" />
         </summary>
         <div className="space-y-3 border-t p-5">
           {parametros.isLoading ? <p>{t.carregando}</p> : parametros.isError ? (
@@ -159,7 +159,7 @@ function AtendentesDisponiveis({ textos }: { textos: Textos }) {
   return (
     <section className="rounded-xl border bg-card p-6">
       <div className="flex flex-wrap items-center gap-2.5">
-        <UsersRound className="size-5 text-primary" />
+        <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />
         <h2 className="text-base font-bold">{t.titulo}</h2>
         <span className="rounded-full bg-cor-sucesso/10 px-2.5 py-1 text-xs font-bold text-cor-sucesso">{contagem}</span>
       </div>
@@ -282,7 +282,7 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
 }
 
 function CabecalhoLista({ contagem, botao, pendente, onNovo }: { contagem: string; botao: string; pendente: boolean; onNovo: () => void }) {
-  return <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-muted-foreground">{contagem}</span><Button variant="outline" size="sm" disabled={pendente} onClick={onNovo}><Plus className="size-4" />{botao}</Button></div>;
+  return <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-muted-foreground">{contagem}</span><Button variant="outline" size="sm" disabled={pendente} onClick={onNovo}><Plus className="size-(--tamanho-icone-interface)" />{botao}</Button></div>;
 }
 
 function CardFollowUp({ regra, ativo, autoFocus, t, onAtivar, onSalvar, onAlternar, onExcluir }: {
@@ -377,7 +377,7 @@ function TopoCard({ gatilho, ativo, t, onAlternar, onExcluir }: { gatilho: strin
       <div className="ml-auto flex items-center gap-2.5">
         <span className={cn("text-xs font-bold", ativo ? "text-cor-sucesso" : "text-muted-foreground")}>{ativo ? t.regras.ativo : t.regras.inativo}</span>
         <Switch checked={ativo} aria-label={ativo ? t.regras.desativar : t.regras.ativar} onCheckedChange={onAlternar} />
-        <Button variant="ghost" size="icon-sm" aria-label={t.regras.excluir} onClick={onExcluir}><Trash2 className="size-4" /></Button>
+        <Button variant="ghost" size="icon-sm" aria-label={t.regras.excluir} onClick={onExcluir}><Trash2 className="size-(--tamanho-icone-interface)" /></Button>
       </div>
     </div>
   );
@@ -461,10 +461,10 @@ function CardsDeTelemetria({ dados, carregando, comErro, onTentarNovamente }: { 
   if (comErro || !dados) return <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={onTentarNovamente} />;
   return (
     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-      <CardDeTelemetria icone={<MessageSquareText className="size-5 text-primary" />} tom="bg-accent" rotulo={t.mensagensEnviadas} valor={dados.mensagensEnviadas.toLocaleString("pt-BR")} />
-      <CardDeTelemetria icone={<UserRoundCheck className="size-5 text-cor-ia" />} tom="bg-cor-ia/10" rotulo={t.clientesTransferidos} valor={dados.clientesTransferidos.toLocaleString("pt-BR")} />
-      <CardDeTelemetria icone={<Link2 className="size-5 text-cor-sucesso" />} tom="bg-cor-sucesso/10" rotulo={t.conexaoAutomacao} status={dados.conexaoAutomacaoAtiva} rotuloAtivo={t.conectado} rotuloInativo={t.desconectado} />
-      <CardDeTelemetria icone={<Database className="size-5 text-cor-sucesso" />} tom="bg-cor-sucesso/10" rotulo={t.statusDoCrm} status={dados.crmOnline} rotuloAtivo={t.online} rotuloInativo={t.offline} />
+      <CardDeTelemetria icone={<MessageSquareText className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />} tom="bg-accent" rotulo={t.mensagensEnviadas} valor={dados.mensagensEnviadas.toLocaleString("pt-BR")} />
+      <CardDeTelemetria icone={<UserRoundCheck className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-cor-ia" />} tom="bg-cor-ia/10" rotulo={t.clientesTransferidos} valor={dados.clientesTransferidos.toLocaleString("pt-BR")} />
+      <CardDeTelemetria icone={<Link2 className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-cor-sucesso" />} tom="bg-cor-sucesso/10" rotulo={t.conexaoAutomacao} status={dados.conexaoAutomacaoAtiva} rotuloAtivo={t.conectado} rotuloInativo={t.desconectado} />
+      <CardDeTelemetria icone={<Database className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-cor-sucesso" />} tom="bg-cor-sucesso/10" rotulo={t.statusDoCrm} status={dados.crmOnline} rotuloAtivo={t.online} rotuloInativo={t.offline} />
     </div>
   );
 }

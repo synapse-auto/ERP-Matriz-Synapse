@@ -63,7 +63,7 @@ export function SeletorData({
             ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(selecionada)
             : placeholder}
         </span>
-        <CalendarDays className="size-4" />
+        <CalendarDays className="size-(--tamanho-icone-interface)" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar

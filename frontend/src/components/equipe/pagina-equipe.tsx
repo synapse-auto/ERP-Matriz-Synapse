@@ -206,7 +206,7 @@ function MiniDashboard({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Users className="size-6 text-primary" />
+          <Users className="size-[calc(var(--tamanho-icone-interface)*1.5)] text-primary" />
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">{textos.dashboard.equipeLabel}</p>
@@ -221,7 +221,7 @@ function MiniDashboard({
 
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-cor-atencao/10">
-          <Star className="size-6 text-cor-atencao" />
+          <Star className="size-[calc(var(--tamanho-icone-interface)*1.5)] text-cor-atencao" />
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">{textos.dashboard.avaliacaoMedia}</p>
@@ -234,7 +234,7 @@ function MiniDashboard({
 
       <div className="rounded-lg border bg-card p-4">
         <div className="mb-2 flex items-center gap-2">
-          <Medal className="size-4 text-cor-atencao" />
+          <Medal className="size-(--tamanho-icone-interface) text-cor-atencao" />
           <p className="text-sm font-bold">{textos.dashboard.rankingAvaliacao}</p>
         </div>
         {rankingAvaliacao.length === 0 ? (
@@ -262,7 +262,7 @@ function MiniDashboard({
 
       <div className="rounded-lg border bg-card p-4">
         <div className="mb-2 flex items-center gap-2">
-          <BadgeCheck className="size-4 text-primary" />
+          <BadgeCheck className="size-(--tamanho-icone-interface) text-primary" />
           <p className="text-sm font-bold">{textos.dashboard.rankingVendas}</p>
         </div>
         {rankingVendas.length === 0 ? (
@@ -421,7 +421,7 @@ function TabelaDeUsuarios({
                 </td>
                 <td className="px-4 py-3">
                   <span className="inline-flex items-center gap-1 text-xs font-bold">
-                    <Star className="size-3.5 text-cor-atencao" />
+                    <Star className="size-[calc(var(--tamanho-icone-interface)*0.875)] text-cor-atencao" />
                     {avaliacao
                       ? `${avaliacao.media.toFixed(1)} (${avaliacao.total})`
                       : textos.avaliacoes.semDados}
@@ -442,7 +442,7 @@ function TabelaDeUsuarios({
                       aria-label={`${textos.editar} ${usuario.nome}`}
                       onClick={() => onEditar(usuario)}
                     >
-                      <Pencil className="size-4" />
+                      <Pencil className="size-(--tamanho-icone-interface)" />
                     </Button>
                     <Button
                       size="icon"
@@ -451,7 +451,7 @@ function TabelaDeUsuarios({
                       aria-label={`${textos.senhaProvisoria.acao} ${usuario.nome}`}
                       onClick={() => onGerarSenhaProvisoria(usuario)}
                     >
-                      <KeyRound className="size-4" />
+                      <KeyRound className="size-(--tamanho-icone-interface)" />
                     </Button>
                     {usuario.ativo && (
                       <Button
@@ -461,7 +461,7 @@ function TabelaDeUsuarios({
                         aria-label={`${textos.desativar} ${usuario.nome}`}
                         onClick={() => onDesativar(usuario)}
                       >
-                        <UserRoundX className="size-4" />
+                        <UserRoundX className="size-(--tamanho-icone-interface)" />
                       </Button>
                     )}
                   </div>
@@ -514,7 +514,7 @@ export function SenhaProvisoriaDialog({
           <div className="flex items-center gap-2">
             <Input readOnly value={senha} className="font-mono" />
             <Button type="button" variant="outline" size="icon" onClick={() => void copiar()}>
-              {copiada ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copiada ? <Check className="size-(--tamanho-icone-interface)" /> : <Copy className="size-(--tamanho-icone-interface)" />}
             </Button>
           </div>
         ) : (

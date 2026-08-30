@@ -32,7 +32,7 @@ export function ErroDeCarregamento({ mensagem, onTentarNovamente, className }: P
         size="sm"
         onClick={() => void onTentarNovamente()}
       >
-        <RefreshCw className="size-3.5" />
+        <RefreshCw className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
         {textos.tentarNovamente}
       </Button>
     </div>

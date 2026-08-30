@@ -106,7 +106,7 @@ export function PaginaAcessosAdministracao() {
                             aria-label={`${t.editar} ${usuario.nome}`}
                             onClick={() => setEdicao(usuario)}
                           >
-                            <Pencil className="size-4" aria-hidden />
+                            <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
                           </Button>
                         )}
                         <Button
@@ -122,7 +122,7 @@ export function PaginaAcessosAdministracao() {
                             });
                           }}
                         >
-                          <KeyRound className="size-4" aria-hidden />
+                          <KeyRound className="size-(--tamanho-icone-interface)" aria-hidden />
                         </Button>
                         {usuario.ativo && (
                           <Button
@@ -133,7 +133,7 @@ export function PaginaAcessosAdministracao() {
                             aria-label={`${t.desativar} ${usuario.nome}`}
                             onClick={() => setParaDesativar(usuario)}
                           >
-                            <UserRoundX className="size-4" aria-hidden />
+                            <UserRoundX className="size-(--tamanho-icone-interface)" aria-hidden />
                           </Button>
                         )}
                       </div>

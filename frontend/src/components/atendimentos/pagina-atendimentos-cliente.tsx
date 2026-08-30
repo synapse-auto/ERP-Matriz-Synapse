@@ -288,7 +288,7 @@ export function PaginaAtendimentosCliente({
             aria-label={textos.tempoReal.fechar}
             onClick={() => setNotificacao(null)}
           >
-            <X className="size-4" aria-hidden />
+            <X className="size-(--tamanho-icone-interface)" aria-hidden />
           </button>
           <p className="font-semibold text-foreground">
             {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
@@ -365,7 +365,7 @@ export function PaginaAtendimentosCliente({
                   aria-label={textos.cabecalho.voltar}
                   onClick={() => setConversaInternaId(null)}
                 >
-                  <ArrowLeft className="size-5" aria-hidden />
+                  <ArrowLeft className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
                 </button>
               </div>
             )}

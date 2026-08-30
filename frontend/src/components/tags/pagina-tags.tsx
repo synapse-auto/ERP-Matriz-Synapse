@@ -245,7 +245,7 @@ function MiniDashboard({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <TagIcon className="size-6 text-primary" />
+          <TagIcon className="size-[calc(var(--tamanho-icone-interface)*1.5)] text-primary" />
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">{textos.totalTags}</p>
@@ -285,7 +285,7 @@ function MiniDashboard({
 
       <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-cor-sucesso/10">
-          <Percent className="size-6 text-cor-sucesso" />
+          <Percent className="size-[calc(var(--tamanho-icone-interface)*1.5)] text-cor-sucesso" />
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">{textos.leadsTagueados}</p>
@@ -329,7 +329,7 @@ function CartaoDeTag({
           className="flex size-11 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `color-mix(in srgb, ${tag.cor} 16%, transparent)` }}
         >
-          <IconeDaTag nome={tag.icone} className="size-5" style={{ color: tag.cor }} />
+          <IconeDaTag nome={tag.icone} className="size-[calc(var(--tamanho-icone-interface)*1.25)]" style={{ color: tag.cor }} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold">{tag.nome}</p>
@@ -347,7 +347,7 @@ function CartaoDeTag({
             aria-label={`${textos.editar} ${tag.nome}`}
             onClick={onEditar}
           >
-            <Pencil className="size-4" />
+            <Pencil className="size-(--tamanho-icone-interface)" />
           </Button>
           <Button
             size="icon"
@@ -356,7 +356,7 @@ function CartaoDeTag({
             aria-label={`${textos.remover} ${tag.nome}`}
             onClick={onRemover}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className="size-(--tamanho-icone-interface)" />
           </Button>
         </div>
       </div>
@@ -368,7 +368,7 @@ function CartaoDeTag({
       </div>
       <div className="mt-3 flex items-center justify-between">
         <Badge variant="outline" style={{ borderColor: tag.cor, color: tag.cor }} className="gap-1.5">
-          <IconeDaTag nome={tag.icone} className="size-3" />
+          <IconeDaTag nome={tag.icone} className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
           {tag.nome}
         </Badge>
         <span className="text-xs font-medium text-muted-foreground">{textos.grade.previa}</span>
@@ -470,7 +470,7 @@ function Formulario({
                       : "flex size-8 items-center justify-center rounded-md border text-muted-foreground"
                   }
                 >
-                  <Icone className="size-4" />
+                  <Icone className="size-(--tamanho-icone-interface)" />
                 </button>
                 );
               })}

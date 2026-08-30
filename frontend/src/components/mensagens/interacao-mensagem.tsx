@@ -97,7 +97,7 @@ export function InteracaoMensagem({
       aria-label={textos.abrir}
       disabled={pendente}
     >
-      <ChevronDown className="size-3.5" aria-hidden />
+      <ChevronDown className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
     </PopoverTrigger>
   );
 
@@ -168,7 +168,7 @@ export function InteracaoMensagem({
                     setSeletorAberto(true);
                   }}
                 >
-                  <Plus className="size-3.5" aria-hidden />
+                  <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                 </Button>
               </div>
               {textoCopiavel && (
@@ -179,7 +179,7 @@ export function InteracaoMensagem({
                   disabled={pendente}
                   onClick={() => void copiar()}
                 >
-                  <Copy className="size-3.5" aria-hidden />
+                  <Copy className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.copiar}
                 </Button>
               )}
@@ -194,7 +194,7 @@ export function InteracaoMensagem({
                     onResponder();
                   }}
                 >
-                  <Reply className="size-3.5" aria-hidden />
+                  <Reply className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.responder}
                 </Button>
               )}
@@ -209,7 +209,7 @@ export function InteracaoMensagem({
                     onEncaminhar();
                   }}
                 >
-                  <Forward className="size-3.5" aria-hidden />
+                  <Forward className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.encaminhar}
                 </Button>
               )}
@@ -226,7 +226,7 @@ export function InteracaoMensagem({
                 <Button type="button" variant="ghost" size="icon-xs" aria-label={textos.seletorFechar} />
               }
             >
-              <X className="size-3.5" aria-hidden />
+              <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
             </DialogClose>
           </DialogHeader>
           {seletorAberto && (

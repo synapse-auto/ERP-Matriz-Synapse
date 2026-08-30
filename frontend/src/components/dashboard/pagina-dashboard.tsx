@@ -202,7 +202,7 @@ export function PaginaDashboard() {
             className="rounded-full"
             onClick={() => setAvisoComputadorAberto(true)}
           >
-            <Lock className="size-3.5" aria-hidden />
+            <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
             {textos.filtros.rotulo}
           </Button>
         )}
@@ -412,7 +412,7 @@ function SeletorDeOriginacao({
         }
       >
         <span className="truncate">{rotulo}</span>
-        <CalendarDays className="size-4" aria-hidden />
+        <CalendarDays className="size-(--tamanho-icone-interface)" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
         <Calendar
@@ -529,7 +529,7 @@ function ConteudoDashboard({
       <HorarioDePico dados={dados} />
       {telaEstreita && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
-          <Monitor className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <Monitor className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" aria-hidden />
           {textos.avisoComputador}
         </p>
       )}
@@ -554,7 +554,7 @@ function Kpi({ titulo, valor, apoio, comparativo, Icone, tom, quedaPositiva = fa
     <Card className="gap-3" style={{ "--tom": tom } as React.CSSProperties}>
       <CardHeader className="grid grid-cols-[auto_1fr] items-center gap-2.5">
         <span className="flex size-9 items-center justify-center rounded-lg bg-[color-mix(in_oklab,var(--tom)_14%,transparent)] text-[var(--tom)]">
-          <Icone className="size-4" />
+          <Icone className="size-(--tamanho-icone-interface)" />
         </span>
         <CardTitle className="truncate text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           {titulo}
@@ -603,7 +603,7 @@ function SeloDeTendencia({
           : "bg-destructive/10 text-destructive",
       )}
     >
-      <IconeTendencia className="size-3.5" aria-hidden />
+      <IconeTendencia className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
       {formatarComparativo(comparativo)} {sufixo}
     </p>
   );

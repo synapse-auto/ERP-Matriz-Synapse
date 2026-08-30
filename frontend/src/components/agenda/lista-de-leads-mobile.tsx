@@ -115,7 +115,7 @@ export function ListaDeLeadsMobile({ leads, etapas, equipe, textos, onAbrirFicha
                           </span>
                         </span>
                       </span>
-                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <ChevronRight className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
                     </button>
                   </li>
                 );

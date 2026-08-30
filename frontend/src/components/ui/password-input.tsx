@@ -26,7 +26,7 @@ function PasswordInput({ className, ...props }: React.ComponentProps<"input">) {
         aria-label={mostrar ? authTextos.ocultarSenha : authTextos.mostrarSenha}
         title={mostrar ? authTextos.ocultarSenha : authTextos.mostrarSenha}
       >
-        {mostrar ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        {mostrar ? <EyeOff className="size-(--tamanho-icone-interface)" /> : <Eye className="size-(--tamanho-icone-interface)" />}
       </button>
     </div>
   )
