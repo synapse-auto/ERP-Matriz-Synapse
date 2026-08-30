@@ -428,6 +428,8 @@ export const TextosSchema = z.object({
       anexo: z.string(),
       anexoIndisponivel: z.string(),
       anexoSelecionar: z.string(),
+      anexoMenuArquivos: z.string(),
+      anexoMenuTemplates: z.string(),
       anexoRemover: z.string(),
       anexoEnviando: z.string(),
       anexoErro: z.string(),

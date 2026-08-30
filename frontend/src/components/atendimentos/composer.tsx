@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
   Clock,
+  File,
+  LayoutTemplate,
   Mic,
   Paperclip,
   Send,
@@ -17,6 +18,18 @@ import {
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -43,6 +56,7 @@ import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
+import { ListaTemplatesWhatsApp } from "./lista-templates-whatsapp";
 import { useGravadorAudio } from "./use-gravador-audio";
 
 const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "😢", "😡", "👀", "✅"];
@@ -80,6 +94,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
+  const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -97,7 +112,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   const templates = useQuery({
     queryKey: ["whatsapp-templates"],
     queryFn: listarTemplatesWhatsApp,
-    enabled: conversa.status !== "FINALIZADO" && !janelaAberta,
+    enabled: conversa.status !== "FINALIZADO" && (!janelaAberta || painelTemplateAberto),
   });
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
@@ -281,7 +296,6 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
         );
 
   if (!janelaAberta) {
-    const aprovados = (templates.data ?? []).filter((item) => item.status === "APROVADO");
     return (
       <div className="min-h-0 overflow-y-auto bg-background px-4 pb-4 pt-3">
         <div className="mx-auto max-w-[780px] space-y-3 rounded-xl border border-input bg-card p-3 shadow-md">
@@ -291,76 +305,27 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
           <p className="text-sm text-muted-foreground">
             {textos.janelaFechadaDescricao}
           </p>
-          {templates.isError ? (
-            <p className="text-xs text-destructive">{textos.templatesErro}</p>
-          ) : templates.isLoading ? (
-            <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
-          ) : aprovados.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{textos.semTemplates}</p>
-          ) : (
-            <ul className="max-h-48 space-y-2 overflow-y-auto">
-              {aprovados.map((template) => {
-                const chave = `${template.nome}:${template.idioma}`;
-                const valores = parametros[chave] ?? Array(template.quantidadeDeParametros).fill("");
-                return (
-                  <li key={chave} className="rounded-lg border border-border p-2">
-                    <p className="text-sm font-medium">{template.nome}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{template.corpo}</p>
-                    {template.quantidadeDeParametros > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {valores.map((valor, indice) => (
-                          <input
-                            key={`${chave}-${indice}`}
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                            value={valor}
-                            placeholder={textos.parametroTemplate.replace(
-                              "{indice}",
-                              String(indice + 1),
-                            )}
-                            onChange={(evento) => {
-                              const proximo = [...valores];
-                              proximo[indice] = evento.target.value;
-                              setParametros((atual) => ({ ...atual, [chave]: proximo }));
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="mt-2"
-                      disabled={
-                        enviar.isPending
-                        || (template.quantidadeDeParametros > 0
-                          && valores.some((valor) => valor.trim() === ""))
-                      }
-                      onClick={() =>
-                        enviar.mutate({
-                          atendimentoId: conversa.atendimentoId,
-                          leadId: conversa.leadId,
-                          conteudo: template.corpo,
-                          template: {
-                            nome: template.nome,
-                            idioma: template.idioma,
-                            parametros: valores,
-                          },
-                        })
-                      }
-                    >
-                      {textos.enviarTemplate}
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <Link
-            href="/templates-whatsapp"
-            className="inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
-          >
-            {textos.criarTemplate}
-          </Link>
+          <ListaTemplatesWhatsApp
+            textos={textos}
+            templates={templates}
+            parametros={parametros}
+            onParametros={(chave, valores) =>
+              setParametros((atual) => ({ ...atual, [chave]: valores }))
+            }
+            enviando={enviar.isPending}
+            onEnviar={(template, valores) =>
+              enviar.mutate({
+                atendimentoId: conversa.atendimentoId,
+                leadId: conversa.leadId,
+                conteudo: template.corpo,
+                template: {
+                  nome: template.nome,
+                  idioma: template.idioma,
+                  parametros: valores,
+                },
+              })
+            }
+          />
         </div>
       </div>
     );
@@ -485,17 +450,29 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
               onChange={aoSelecionarArquivo}
               disabled={gravador.fase !== "INATIVO"}
             />
-            <Tooltip>
-              <TooltipTrigger
+            <DropdownMenu>
+              <DropdownMenuTrigger
                 className={buttonVariants({ variant: "ghost", size: "icon" })}
                 aria-label={textos.anexo}
-                onClick={() => inputArquivoRef.current?.click()}
                 disabled={gravador.fase !== "INATIVO"}
               >
                 <Paperclip className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent>{textos.anexoSelecionar}</TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="min-w-40 w-auto">
+                <DropdownMenuItem
+                  onClick={() => {
+                    requestAnimationFrame(() => inputArquivoRef.current?.click());
+                  }}
+                >
+                  <File className="size-4" aria-hidden />
+                  {textos.anexoMenuArquivos}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPainelTemplateAberto(true)}>
+                  <LayoutTemplate className="size-4" aria-hidden />
+                  {textos.anexoMenuTemplates}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {rapidas.data && rapidas.data.length > 0 && (
               <Popover>
@@ -677,6 +654,35 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
             {catalogo.mensagensRapidas.variaveisPendentes.replace("{variaveis}", variaveisPendentes.map((item) => `{${item}}`).join(", "))}
           </p>
         )}
+        <Dialog open={painelTemplateAberto} onOpenChange={setPainelTemplateAberto}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{textos.escolherTemplate}</DialogTitle>
+            </DialogHeader>
+            <ListaTemplatesWhatsApp
+              textos={textos}
+              templates={templates}
+              parametros={parametros}
+              onParametros={(chave, valores) =>
+                setParametros((atual) => ({ ...atual, [chave]: valores }))
+              }
+              enviando={enviar.isPending}
+              onEnviar={(template, valores) => {
+                enviar.mutate({
+                  atendimentoId: conversa.atendimentoId,
+                  leadId: conversa.leadId,
+                  conteudo: template.corpo,
+                  template: {
+                    nome: template.nome,
+                    idioma: template.idioma,
+                    parametros: valores,
+                  },
+                });
+                setPainelTemplateAberto(false);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
         <FormularioMensagemProgramada
           key={agendamentoAberto ? "agendamento-aberto" : "agendamento-fechado"}
           aberto={agendamentoAberto}
