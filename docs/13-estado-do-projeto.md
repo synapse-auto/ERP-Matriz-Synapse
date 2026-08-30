@@ -2,7 +2,11 @@
 
 Documento de continuidade. **Este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
 
-Atualizado em 26/08/2026, depois da E58.
+Handoff da E58 (26/08/2026). O HEAD de código muda; confira o git. Acrescentado em 30/08/2026: `lead.codigo` (V47).
+
+### 30/08/2026 — Código interno do lead
+
+Coluna `lead.codigo VARCHAR(20)`, somente dígitos, opcional, sem unique. Editável na ficha (`PUT /api/v1/leads/{id}`) por quem alcança o lead. Visível e editável em Informações gerais do painel da conversa; no card da lista de Atendimentos aparece de forma compacta (`leadCodigo`) só quando preenchido. Overlay da Agenda mostra, não edita. Agenda/`LeadResumo` não carrega o campo. Não é `dados_customizados`: o card não pode projetar JSONB. ADR-009 em `docs/04`. PR #28.
 
 ---
 

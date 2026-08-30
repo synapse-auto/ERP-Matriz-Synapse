@@ -33,7 +33,7 @@
 | RF-CRM-12 | ✅ | `MensagemRapidaController` | `MensagensRapidasIT` |
 | RF-CRM-13 | ❌ **rebaixado de ✅** (estava junto de RF-CRM-12) | `arquivo_banco` existe só na migration (`V4__crm_core.sql`) — nenhum domain/application/interfaces em nenhum módulo | Nenhum (só `SchemaMigracoesIT`, que testa a tabela, não a feature) |
 | RF-CRM-14 a 16 | ✅ | `TimelineDoLeadController`, `LembreteController`, `MensagemProgramadaController` | `PainelDoLeadIT`, `LembretesIT`, `MensagensProgramadasIT` |
-| RF-CRM-17 a 19 | ✅ | `LeadController`, `EtapaController` | `LeadFichaIT` |
+| RF-CRM-17 a 19 | ✅ | `LeadController`, `EtapaController`; `codigo` (V47) na ficha e no card da inbox | `LeadFichaIT` (gravação, recusa de letra, limpeza) |
 | RF-CRM-20/21/22 | ✅ | `PainelDeAtendimentosController` (`?visao=ATIVOS/PENDENTES/POTENCIAIS/TODOS`) | `PainelDeAtendimentosControllerIT` |
 | RF-CRM-65 | ✅ | `AtendimentoAcoesController` (`/transferir`, `/finalizar`) | `AtendimentoAcoesControllerIT` |
 | RF-CRM-66 | ✅ | `CanalController` + tabela `canal` (não hardcoded) | `CanalWhatsAppIT` |

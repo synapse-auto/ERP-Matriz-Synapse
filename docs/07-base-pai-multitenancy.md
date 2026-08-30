@@ -131,6 +131,8 @@ Três propriedades que fazem isso funcionar:
 
 > **Onde não usar:** campo que *todos* os filhos vão querer não é customizado — é campo do core. Se três clientes seguidos criam o mesmo campo customizado, promova para coluna. O JSONB é para a cauda longa, não para adiar decisão de modelagem.
 
+Exemplo já promovido: `lead.codigo` (V47) — identificador interno numérico de qualquer filho, editável pelo atendente e visível no card da lista. Por isso é coluna. "Número da obra" ou "convênio" continuam em `dados_customizados`.
+
 **Nível 2 — Feature flags** (sem deploy)
 Ligar/desligar módulos inteiros por filho: `campanhas.habilitado`, `chat_interno.habilitado`, `fidelizacao.habilitado`. O filho que não comprou campanhas simplesmente não vê a aba.
 
