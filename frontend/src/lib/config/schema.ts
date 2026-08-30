@@ -436,6 +436,8 @@ export const TextosSchema = z.object({
       respostaErro: z.string(),
       anexoLegendaPlaceholder: z.string(),
       anexoTipoNaoPermitido: z.string(),
+      anexoSoltar: z.string(),
+      anexoEnviandoLote: z.string(),
       anexoExcedeuLimite: z.string(),
       audioGravar: z.string(),
       audioGravando: z.string(),

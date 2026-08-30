@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createRef } from "react";
+import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,6 +33,7 @@ vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
 vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
   useEnviarMidia: () => ({
     mutate: mutateMidia,
+    mutateAsync: (variaveis: unknown) => Promise.resolve(mutateMidia(variaveis)),
     isPending: false,
     ...estadoMidia,
   }),
@@ -111,6 +113,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
         respostaErro: "Não foi possível responder a esta mensagem.",
         anexoLegendaPlaceholder: "Adicionar legenda (opcional)",
         anexoTipoNaoPermitido: "Tipo nao aceito.",
+        anexoSoltar: "Solte os arquivos aqui",
+        anexoEnviandoLote: "Enviando {atual} de {total}",
         anexoExcedeuLimite: "Excede o limite.",
         audioGravar: "Gravar áudio",
         audioGravando: "Gravando áudio",
@@ -195,7 +199,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
   }),
 }));
 
-import { Composer } from "./composer";
+import { Composer, type ComposerHandle } from "./composer";
 
 function renderizar(resposta?: MensagemResposta) {
   const cliente = new QueryClient({
@@ -366,9 +370,119 @@ describe("Composer — anexo", () => {
         leadId: "lead-1",
         legenda: "segue o orçamento",
       }),
-      expect.anything(),
     );
     expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("acumula varios arquivos no seletor e envia um POST de midia por arquivo", async () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+
+    fireEvent.change(input, {
+      target: {
+        files: [
+          arquivoFake("foto.png", "image/png"),
+          arquivoFake("orcamento.pdf", "application/pdf"),
+        ],
+      },
+    });
+
+    expect(screen.getByText("foto.png")).toBeInTheDocument();
+    expect(screen.getByText("orcamento.pdf")).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("Adicionar legenda (opcional)"),
+      { target: { value: "lote" } },
+    );
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(2));
+    expect(mutateMidia.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        arquivo: expect.objectContaining({ name: "foto.png" }),
+        legenda: "lote",
+      }),
+    );
+    expect(mutateMidia.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        arquivo: expect.objectContaining({ name: "orcamento.pdf" }),
+        legenda: undefined,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("foto.png")).not.toBeInTheDocument();
+      expect(screen.queryByText("orcamento.pdf")).not.toBeInTheDocument();
+    });
+  });
+
+  it("mantem os arquivos que ainda nao sairam quando um envio do lote falha", async () => {
+    mutateMidia
+      .mockReturnValueOnce(undefined)
+      .mockImplementationOnce(() => Promise.reject(new Error("falha")));
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: {
+        files: [
+          arquivoFake("a.png", "image/png"),
+          arquivoFake("b.png", "image/png"),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(screen.queryByText("a.png")).not.toBeInTheDocument();
+      expect(screen.getByText("b.png")).toBeInTheDocument();
+    });
+  });
+
+  it("recusa tipo nao permitido e avisa sem enfileirar", () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: { files: [arquivoFake("setup.exe", "application/x-msdownload")] },
+    });
+
+    expect(screen.queryByText("setup.exe")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
+  });
+
+  it("recebe arquivos pela api do composer usada no arrastar e soltar", () => {
+    const referencia = createRef<ComposerHandle>();
+    const cliente = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={cliente}>
+        <Composer
+          ref={referencia}
+          conversa={conversa}
+          resposta={null}
+          onCancelarResposta={onCancelarResposta}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(referencia.current).not.toBeNull();
+    act(() => {
+      referencia.current?.adicionarArquivos([
+        arquivoFake("arrastada.png", "image/png"),
+        arquivoFake("setup.exe", "application/x-msdownload"),
+      ]);
+    });
+
+    expect(screen.getByText("arrastada.png")).toBeInTheDocument();
+    expect(screen.queryByText("setup.exe")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
   });
 
   it("expande /palavra-chave com Enter sem enviar a mensagem", async () => {

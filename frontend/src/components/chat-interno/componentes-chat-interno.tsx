@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type Ref } from "react";
 import { Mic, Paperclip, Send, Square, Trash2, Users, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
@@ -10,8 +9,7 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
 import { PlayerAudio } from "@/components/atendimentos/player-audio";
-
-
+import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import type { Textos } from "@/lib/config/schema";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
@@ -20,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 type TextosChat = Textos["chatInterno"];
-export const TIPOS_DE_ANEXO_ACEITOS = "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+export { TIPOS_DE_ANEXO_ACEITOS };
 
 export function tamanhoLegivel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -151,10 +149,30 @@ export function ListaMensagensChatInterno({
     </div>
   );
 }
-export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando = false, erro = false }: { textos: TextosChat; onEnviar: (conteudo: string) => Promise<unknown>; onEnviarMidia?: (arquivo: File, legenda?: string) => Promise<unknown>; enviando?: boolean; erro?: boolean }) {
+export type ComposerChatHandle = {
+  adicionarArquivos: (novos: File[]) => void;
+};
+
+export function ComposerChatInterno({
+  textos,
+  onEnviar,
+  onEnviarMidia,
+  enviando = false,
+  erro = false,
+  ref,
+}: {
+  textos: TextosChat;
+  onEnviar: (conteudo: string) => Promise<unknown>;
+  onEnviarMidia?: (arquivo: File, legenda?: string) => Promise<unknown>;
+  enviando?: boolean;
+  erro?: boolean;
+  ref?: Ref<ComposerChatHandle>;
+}) {
   const [texto, setTexto] = useState("");
   const [enviandoLocal, setEnviandoLocal] = useState(false);
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [avisoTipo, setAvisoTipo] = useState(false);
+  const [indiceEnvio, setIndiceEnvio] = useState<number | null>(null);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendente = enviando || enviandoLocal;
@@ -164,17 +182,36 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
   const configuracaoComposer = useConfiguracaoComposer();
   const gravador = useGravadorAudio(configuracaoComposer.data);
 
+  function adicionarArquivos(novos: File[]) {
+    if (gravador.fase !== "INATIVO" || pendente) return;
+    const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS);
+    if (aceitos.length > 0) {
+      setArquivos((atual) => [...atual, ...aceitos]);
+    }
+    setAvisoTipo(rejeitados.length > 0);
+  }
+
+  useImperativeHandle(ref, () => ({ adicionarArquivos }));
+
   async function enviarConteudo() {
-    if (arquivo) {
+    if (arquivos.length > 0) {
       if (!onEnviarMidia) return;
+      const fila = arquivos;
       const legenda = texto.trim() || undefined;
       setEnviandoLocal(true);
+      let indice = 0;
       try {
-        await onEnviarMidia(arquivo, legenda);
-        setArquivo(null);
-        setTexto("");
+        for (; indice < fila.length; indice++) {
+          setIndiceEnvio(indice);
+          await onEnviarMidia(fila[indice], indice === 0 ? legenda : undefined);
+          if (indice === 0) setTexto("");
+        }
+        setArquivos([]);
+        setAvisoTipo(false);
+        setIndiceEnvio(null);
       } catch {
-        // erro fica visivel
+        setArquivos((atual) => atual.slice(indice));
+        setIndiceEnvio(null);
       } finally {
         setEnviandoLocal(false);
       }
@@ -213,8 +250,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
   }
 
   function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
-    const selecionado = evento.target.files?.[0] ?? null;
-    setArquivo(selecionado);
+    adicionarArquivos(Array.from(evento.target.files ?? []));
     evento.target.value = "";
   }
 
@@ -229,15 +265,27 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
     <div className="shrink-0 border-t border-border bg-background p-4">
       {erro && <p role="alert" className="mb-2 text-sm text-destructive">{textos.erroEnviar}</p>}
       {erroDeGravacao && <p className="mb-2 text-sm text-destructive">{erroDeGravacao}</p>}
+      {avisoTipo && <p className="mb-2 text-sm text-destructive" role="alert">{tComp.anexoTipoNaoPermitido}</p>}
       <div className="mx-auto flex max-w-[780px] flex-col gap-2 rounded-xl border border-input bg-card p-2 shadow-sm">
-        {arquivo && (
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
-            <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <span className="flex-1 truncate">{arquivo.name}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{tamanhoLegivel(arquivo.size)}</span>
-            <button type="button" className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive" aria-label={tComp.anexoRemover} onClick={() => setArquivo(null)}>
-              <X className="size-3.5" />
-            </button>
+        {arquivos.length > 0 && (
+          <div className="space-y-1">
+            {indiceEnvio !== null && arquivos.length > 1 && (
+              <p className="text-xs text-muted-foreground" role="status">
+                {tComp.anexoEnviandoLote
+                  .replace("{atual}", String(indiceEnvio + 1))
+                  .replace("{total}", String(arquivos.length))}
+              </p>
+            )}
+            {arquivos.map((item, indice) => (
+              <div key={`${item.name}-${item.size}-${indice}`} className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
+                <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex-1 truncate">{item.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{tamanhoLegivel(item.size)}</span>
+                <button type="button" className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive" aria-label={tComp.anexoRemover} disabled={pendente} onClick={() => setArquivos((atual) => atual.filter((_, itemIndice) => itemIndice !== indice))}>
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -259,7 +307,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
 
         <div className="flex items-end gap-2">
           <div className="flex shrink-0 items-center gap-1">
-            <input ref={inputArquivoRef} type="file" accept={TIPOS_DE_ANEXO_ACEITOS} className="hidden" onChange={aoSelecionarArquivo} disabled={gravador.fase !== "INATIVO" || pendente} />
+            <input ref={inputArquivoRef} type="file" accept={TIPOS_DE_ANEXO_ACEITOS} multiple className="hidden" onChange={aoSelecionarArquivo} disabled={gravador.fase !== "INATIVO" || pendente} />
             <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={gravador.fase !== "INATIVO" || pendente}>
               <Paperclip className="size-4" />
             </Button>
@@ -278,7 +326,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
             />
           </div>
 
-          {gravador.disponivel && gravador.fase === "INATIVO" && !arquivo && (
+          {gravador.disponivel && gravador.fase === "INATIVO" && arquivos.length === 0 && (
             <div className="order-last shrink-0">
               <Button type="button" variant="ghost" size="icon" aria-label={tComp.audioGravar} onClick={gravador.iniciar} disabled={pendente}>
                 <Mic className="size-4" />
@@ -291,7 +339,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
             onKeyDown={aoPressionarTecla}
-            placeholder={arquivo ? tComp.anexoLegendaPlaceholder : textos.placeholder}
+            placeholder={arquivos.length > 0 ? tComp.anexoLegendaPlaceholder : textos.placeholder}
             rows={1}
             disabled={gravador.fase !== "INATIVO" || pendente}
             className="min-h-11 max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0"
@@ -309,7 +357,7 @@ export function ComposerChatInterno({ textos, onEnviar, onEnviarMidia, enviando 
                 pendente
                 || (gravador.fase === "PREVISUALIZACAO"
                   ? Boolean(gravador.erro) || !gravador.arquivo
-                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo))
+                  : gravador.fase !== "INATIVO" || (!texto.trim() && arquivos.length === 0))
               }
               aria-label={textos.enviar}
             >
