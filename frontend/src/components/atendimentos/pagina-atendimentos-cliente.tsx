@@ -7,16 +7,19 @@ import { ArrowLeft, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { CabecalhoConversa } from "@/components/atendimentos/cabecalho-conversa";
-import { Composer } from "@/components/atendimentos/composer";
+import { Composer, type ComposerHandle } from "@/components/atendimentos/composer";
 import { DialogoEncaminhar } from "@/components/atendimentos/dialogo-encaminhar";
 import { DialogoNovoContato } from "@/components/atendimentos/dialogo-novo-contato";
 import { ListaConversas } from "@/components/atendimentos/lista-conversas";
 import { ListaMensagens } from "@/components/atendimentos/lista-mensagens";
 import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
+import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
 import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import type {
   CartaoAtendimento,
   ItemInbox,
@@ -77,6 +80,7 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
+  const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const [respostaAlvo, setRespostaAlvo] = useState<{
@@ -386,39 +390,52 @@ export function PaginaAtendimentosCliente({
                   : undefined
               }
             />
-            <ListaMensagens
-              mensagens={mensagensQuery.data}
-              carregando={mensagensQuery.isLoading}
-              onReenviar={reenviar}
-              onDefinirReacao={definirReacaoDaMensagem}
-              onRemoverReacao={removerReacaoDaMensagem}
-              temMais={mensagensQuery.hasNextPage}
-              carregandoMais={mensagensQuery.isFetchingNextPage}
-              onCarregarMais={() => void mensagensQuery.fetchNextPage()}
-              buscaAberta={buscaAberta}
-              canalTipo={conversa.canalTipo}
-              atendenteId={conversa.atendenteId}
-              atendenteNome={conversa.atendenteNome}
-              onResponder={(mensagem) =>
-                setRespostaAlvo({ leadId: conversa.leadId, mensagem })
+            <ZonaSoltarArquivos
+              accept={TIPOS_DE_ANEXO_ACEITOS}
+              disabled={
+                !atendimentoAtivo
+                || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)
               }
-              onEncaminhar={(mensagem) =>
-                setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
+              rotulo={textos.composer.anexoSoltar}
+              onArquivos={({ aceitos, rejeitados }) =>
+                composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
               }
-            />
-            {atendimentoAtivo ? (
-              <Composer
-                conversa={atendimentoAtivo}
-                resposta={respostaDaTela}
-                onCancelarResposta={() => setRespostaAlvo(null)}
+            >
+              <ListaMensagens
+                mensagens={mensagensQuery.data}
+                carregando={mensagensQuery.isLoading}
+                onReenviar={reenviar}
+                onDefinirReacao={definirReacaoDaMensagem}
+                onRemoverReacao={removerReacaoDaMensagem}
+                temMais={mensagensQuery.hasNextPage}
+                carregandoMais={mensagensQuery.isFetchingNextPage}
+                onCarregarMais={() => void mensagensQuery.fetchNextPage()}
+                buscaAberta={buscaAberta}
+                canalTipo={conversa.canalTipo}
+                atendenteId={conversa.atendenteId}
+                atendenteNome={conversa.atendenteNome}
+                onResponder={(mensagem) =>
+                  setRespostaAlvo({ leadId: conversa.leadId, mensagem })
+                }
+                onEncaminhar={(mensagem) =>
+                  setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
+                }
               />
-            ) : (
-              <div className="shrink-0 bg-background px-4 pb-4 pt-3">
-                <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
-                  {textos.finalizar.sucesso}
+              {atendimentoAtivo ? (
+                <Composer
+                  ref={composerRef}
+                  conversa={atendimentoAtivo}
+                  resposta={respostaDaTela}
+                  onCancelarResposta={() => setRespostaAlvo(null)}
+                />
+              ) : (
+                <div className="shrink-0 bg-background px-4 pb-4 pt-3">
+                  <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
+                    {textos.finalizar.sucesso}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </ZonaSoltarArquivos>
           </>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">

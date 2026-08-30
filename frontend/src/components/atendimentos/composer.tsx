@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type KeyboardEvent, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -43,6 +43,7 @@ import {
 import { ErroDeApi } from "@/lib/api/errors";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta } from "@/lib/atendimento/citacao";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -60,13 +61,15 @@ import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { ListaTemplatesWhatsApp } from "./lista-templates-whatsapp";
 import { useGravadorAudio } from "./use-gravador-audio";
 
-const TIPOS_DE_ANEXO_ACEITOS =
-  "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
-
 type Props = {
   conversa: CartaoAtendimento;
   resposta?: MensagemResposta | null;
   onCancelarResposta?: () => void;
+  ref?: Ref<ComposerHandle>;
+};
+
+export type ComposerHandle = {
+  adicionarArquivos: (novos: File[]) => void;
 };
 
 function tamanhoLegivel(bytes: number): string {
@@ -85,13 +88,20 @@ function duracaoLegivel(segundos: number): string {
  * `useEnviarMidia`), aviso de janela de 24h ANTES de digitar, e anexo — imagem, áudio ou
  * documento — com seleção, preview, progresso de upload e erro acionável.
  */
-export function Composer({ conversa, resposta = null, onCancelarResposta }: Props) {
+export function Composer({
+  conversa,
+  resposta = null,
+  onCancelarResposta,
+  ref,
+}: Props) {
   const catalogo = useTextos();
   const textosAtendimentos = catalogo.atendimentos;
   const textos = textosAtendimentos.composer;
   const [texto, setTexto] = useState("");
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [avisoTipo, setAvisoTipo] = useState(false);
   const [progresso, setProgresso] = useState<number | null>(null);
+  const [indiceEnvio, setIndiceEnvio] = useState<number | null>(null);
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
@@ -116,6 +126,17 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
 
+  function adicionarArquivos(novos: File[]) {
+    if (!janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
+    const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS);
+    if (aceitos.length > 0) {
+      setArquivos((atual) => [...atual, ...aceitos]);
+    }
+    setAvisoTipo(rejeitados.length > 0);
+  }
+
+  useImperativeHandle(ref, () => ({ adicionarArquivos }));
+
   useEffect(() => {
     if (resposta) textareaRef.current?.focus();
   }, [resposta]);
@@ -137,32 +158,45 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   }
 
   function limparAposEnvio() {
-    setArquivo(null);
+    setArquivos([]);
     setTexto("");
     setProgresso(null);
+    setIndiceEnvio(null);
+    setAvisoTipo(false);
     onCancelarResposta?.();
   }
 
-  function enviarConteudo() {
+  async function enviarConteudo() {
     if (variaveisPendentes.length > 0) return;
-    if (arquivo) {
+    if (arquivos.length > 0) {
+      const fila = arquivos;
       const legenda = texto.trim() || undefined;
-      setProgresso(0);
-      enviarMidia.mutate(
-        {
-          atendimentoId: conversa.atendimentoId,
-          leadId: conversa.leadId,
-          arquivo,
-          legenda,
-          onProgresso: setProgresso,
-          resposta: alvoDeResposta(),
-          citacao: citacaoResposta,
-        },
-        {
-          onSuccess: limparAposEnvio,
-          onError: () => setProgresso(null),
-        },
-      );
+      const respostaAlvo = alvoDeResposta();
+      let indice = 0;
+      try {
+        for (; indice < fila.length; indice++) {
+          setIndiceEnvio(indice);
+          setProgresso(0);
+          await enviarMidia.mutateAsync({
+            atendimentoId: conversa.atendimentoId,
+            leadId: conversa.leadId,
+            arquivo: fila[indice],
+            legenda: indice === 0 ? legenda : undefined,
+            onProgresso: setProgresso,
+            resposta: indice === 0 ? respostaAlvo : undefined,
+            citacao: indice === 0 ? citacaoResposta : undefined,
+          });
+          if (indice === 0) {
+            setTexto("");
+            onCancelarResposta?.();
+          }
+        }
+        limparAposEnvio();
+      } catch {
+        setArquivos((atual) => atual.slice(indice));
+        setProgresso(null);
+        setIndiceEnvio(null);
+      }
       return;
     }
     const conteudo = texto.trim();
@@ -185,14 +219,14 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
   }
 
   function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
-    const selecionado = evento.target.files?.[0] ?? null;
-    setArquivo(selecionado);
+    adicionarArquivos(Array.from(evento.target.files ?? []));
     evento.target.value = "";
   }
 
-  function removerArquivo() {
-    setArquivo(null);
+  function removerArquivo(indice: number) {
+    setArquivos((atual) => atual.filter((_, item) => item !== indice));
     setProgresso(null);
+    setIndiceEnvio(null);
   }
 
   function enviarGravacao() {
@@ -282,7 +316,8 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
             : gravador.erro === "TAMANHO"
               ? textos.audioExcedeuLimite
               : null;
-  const mensagemDeErro = erroDeTexto ?? erroDeMidia ?? erroDeGravacao;
+  const mensagemDeErro =
+    erroDeTexto ?? erroDeMidia ?? erroDeGravacao ?? (avisoTipo ? textos.anexoTipoNaoPermitido : null);
   const termoAtalho =
     texto.startsWith("/") && !texto.includes(" ")
       ? texto.slice(1).toLowerCase()
@@ -349,30 +384,45 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
           </div>
         )}
 
-        {arquivo && (
-          <div className="mb-2 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
-            <Paperclip
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="flex-1 truncate">{arquivo.name}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {tamanhoLegivel(arquivo.size)}
-            </span>
-            {progresso !== null ? (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {progresso}%
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
-                aria-label={textos.anexoRemover}
-                onClick={removerArquivo}
-              >
-                <X className="size-3.5" />
-              </button>
+        {arquivos.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {indiceEnvio !== null && arquivos.length > 1 && (
+              <p className="text-xs text-muted-foreground" role="status">
+                {textos.anexoEnviandoLote
+                  .replace("{atual}", String(indiceEnvio + 1))
+                  .replace("{total}", String(arquivos.length))}
+              </p>
             )}
+            {arquivos.map((item, indice) => (
+              <div
+                key={`${item.name}-${item.size}-${indice}`}
+                className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm"
+              >
+                <Paperclip
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <span className="flex-1 truncate">{item.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {tamanhoLegivel(item.size)}
+                </span>
+                {enviarMidia.isPending && indiceEnvio === indice && progresso !== null ? (
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {progresso}%
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                    aria-label={textos.anexoRemover}
+                    disabled={enviarMidia.isPending}
+                    onClick={() => removerArquivo(indice)}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -445,9 +495,10 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
               ref={inputArquivoRef}
               type="file"
               accept={TIPOS_DE_ANEXO_ACEITOS}
+              multiple
               className="hidden"
               onChange={aoSelecionarArquivo}
-              disabled={gravador.fase !== "INATIVO"}
+              disabled={gravador.fase !== "INATIVO" || enviarMidia.isPending}
             />
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -541,7 +592,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
             />
           </div>
 
-          {gravador.disponivel && gravador.fase === "INATIVO" && !arquivo && (
+          {gravador.disponivel && gravador.fase === "INATIVO" && arquivos.length === 0 && (
             <div className="order-last shrink-0">
               <Tooltip>
                 <TooltipTrigger
@@ -568,7 +619,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
               }}
               onKeyDown={aoPressionarTecla}
               placeholder={
-                arquivo ? textos.anexoLegendaPlaceholder : textos.placeholder
+                arquivos.length > 0 ? textos.anexoLegendaPlaceholder : textos.placeholder
               }
               rows={1}
               className="min-h-11 max-h-32 w-full min-w-0 resize-none break-words border-0 bg-transparent px-2 py-2 shadow-none focus-visible:border-0 focus-visible:ring-2"
@@ -623,7 +674,7 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
                 || enviarMidia.isPending
                 || (gravador.fase === "PREVISUALIZACAO"
                   ? Boolean(gravador.erro) || !gravador.arquivo
-                  : gravador.fase !== "INATIVO" || (!texto.trim() && !arquivo) || variaveisPendentes.length > 0)
+                  : gravador.fase !== "INATIVO" || (!texto.trim() && arquivos.length === 0) || variaveisPendentes.length > 0)
               }
               aria-label={textos.enviar}
             >

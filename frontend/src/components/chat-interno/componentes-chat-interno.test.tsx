@@ -37,6 +37,9 @@ const mockTextosCompletos = {
       anexo: "A",
       anexoRemover: "A",
       anexoLegendaPlaceholder: "Legenda",
+      anexoTipoNaoPermitido: "Tipo nao aceito.",
+      anexoSoltar: "Solte os arquivos aqui",
+      anexoEnviandoLote: "Enviando {atual} de {total}",
       emoji: "Emoji",
       audioGravando: "A",
       audioDescartar: "A",
@@ -169,6 +172,33 @@ describe("componentes de apresentação do chat interno", () => {
     fireEvent.click(screen.getByRole("button", { name: "Emoji" }));
     fireEvent.click(await screen.findByRole("button", { name: "👍🏽" }));
     expect(screen.getByPlaceholderText(textos.placeholder)).toHaveValue("👍🏽");
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("enfileira varios arquivos e envia midia em sequencia", async () => {
+    const enviar = vi.fn();
+    const enviarMidia = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={enviar} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.multiple).toBe(true);
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["a"], "a.png", { type: "image/png" }),
+          new File(["b"], "b.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledTimes(2));
+    expect(enviarMidia.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ name: "a.png" }));
+    expect(enviarMidia.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ name: "b.pdf" }));
     expect(enviar).not.toHaveBeenCalled();
   });
 });

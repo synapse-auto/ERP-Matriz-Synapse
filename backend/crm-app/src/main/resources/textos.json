@@ -427,6 +427,8 @@
       "respostaErro": "Não foi possível responder a esta mensagem.",
       "anexoLegendaPlaceholder": "Adicionar legenda (opcional)",
       "anexoTipoNaoPermitido": "Esse tipo de arquivo não é aceito.",
+      "anexoSoltar": "Solte os arquivos aqui",
+      "anexoEnviandoLote": "Enviando {atual} de {total}",
       "anexoExcedeuLimite": "Arquivo maior do que o limite permitido.",
       "audioGravar": "Gravar áudio",
       "audioGravando": "Gravando áudio",
