@@ -98,7 +98,7 @@
 |---|---|---|---|---|
 | GET | `/api/v1/leads` | Lista leads sob a `VisibilidadeLeadSpecification` (sem `codigo`, notas, resumo ou JSONB) | Atendente | `LeadController` · `PainelDoLeadIT` |
 | GET | `/api/v1/leads/{id}` | Ficha completa, inclusive `codigo` | Atendente (visível) | `LeadController` · `LeadFichaIT` |
-| PUT | `/api/v1/leads/{id}` | Atualização parcial da ficha. `codigo` ausente preserva; `""` limpa; letra ou >20 dígitos vira 400 (`Codigo invalido`) | Atendente (visível) | `LeadController` · `LeadFichaIT` |
+| PUT | `/api/v1/leads/{id}` | Atualização parcial da ficha. `codigo` ausente preserva; `""` limpa; letra ou >20 dígitos vira 400 (`Codigo invalido`). `nome` ausente preserva; vazio ou só espaços vira 400 (`Nome invalido`) — o nome não se apaga | Atendente (visível) | `LeadController` · `LeadFichaIT` |
 | POST | `/api/v1/leads/filtrar` | Executa a árvore de critérios AND/OR | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
 | POST | `/api/v1/leads/filtrar/contagem` | Conta o resultado da mesma árvore de critérios | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
 | POST | `/api/v1/lembretes` | Cria lembrete | Atendente | `LembreteController` · `LembretesIT` |

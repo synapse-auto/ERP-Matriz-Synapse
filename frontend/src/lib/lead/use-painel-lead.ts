@@ -83,6 +83,7 @@ export function useSalvarFicha(leadId: string) {
           ...anterior,
           notas: dados.notas ?? anterior.notas,
           dadosCustomizados: dados.dadosCustomizados ?? anterior.dadosCustomizados,
+          nome: dados.nome ?? anterior.nome,
           codigo:
             dados.codigo !== undefined
               ? dados.codigo === ""
@@ -98,20 +99,30 @@ export function useSalvarFicha(leadId: string) {
         cache.setQueryData(["lead", leadId], contexto.anterior);
       }
     },
-    onSuccess: (salvo) => {
+    onSuccess: (salvo, dados) => {
       cache.setQueryData(["lead", leadId], salvo);
-      atualizarCodigoNaInbox(cache, leadId, salvo.codigo);
+      atualizarCartaoNaInbox(cache, leadId, {
+        ...(dados.nome !== undefined ? { leadNome: salvo.nome } : {}),
+        ...(dados.codigo !== undefined ? { leadCodigo: salvo.codigo } : {}),
+      });
+      if (dados.nome !== undefined) {
+        cache.invalidateQueries({ queryKey: ["agenda"] });
+      }
     },
   });
 }
 
-function atualizarCodigoNaInbox(cache: QueryClient, leadId: string, codigo: string | null) {
+function atualizarCartaoNaInbox(
+  cache: QueryClient,
+  leadId: string,
+  patch: { leadNome?: string; leadCodigo?: string | null },
+) {
   cache.setQueriesData({ queryKey: ["atendimentos"] }, (atual: unknown) => {
     if (!atual || typeof atual !== "object") return atual;
     if (Array.isArray(atual)) {
       return atual.map((item) =>
         item && typeof item === "object" && "leadId" in item && item.leadId === leadId
-          ? { ...item, leadCodigo: codigo }
+          ? { ...item, ...patch }
           : item,
       );
     }
@@ -123,7 +134,7 @@ function atualizarCodigoNaInbox(cache: QueryClient, leadId: string, codigo: stri
           ...pagina,
           itens: (pagina.itens ?? []).map((item) =>
             item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId
-              ? { ...item, leadCodigo: codigo }
+              ? { ...item, ...patch }
               : item,
           ),
         })),

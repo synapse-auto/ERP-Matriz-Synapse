@@ -87,6 +87,20 @@ class LeadFichaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("nome vazio devolve Problem Details e nao apaga o atual")
+    void editar_nomeVazio_devolveProblemDetails() {
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("nome", "   "));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getHeaders().getContentType())
+                .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(resposta.getBody()).contains("Nome invalido");
+        assertThat(jdbc.queryForObject("SELECT nome FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo("Cliente da Ana");
+    }
+
+    @Test
     @DisplayName("atendente grava codigo numerico e a ficha devolve o valor")
     void editar_codigoNumerico_funciona() {
         var resposta = comoAna(

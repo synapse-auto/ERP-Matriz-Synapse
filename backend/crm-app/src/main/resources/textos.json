@@ -510,6 +510,8 @@
     "fechar": "Fechar ficha do lead",
     "indisponivel": "Este lead não existe ou não está mais disponível para você.",
     "dados": {
+      "nome": "Nome",
+      "nomeInvalido": "Informe o nome do cliente.",
       "telefone": "Telefone",
       "email": "E-mail",
       "cpf": "CPF",

@@ -27,6 +27,8 @@ export interface AtualizacaoLead {
   dadosCustomizados?: Record<string, unknown>;
   /** Somente dígitos; string vazia limpa o campo. Ausente preserva o valor atual. */
   codigo?: string | null;
+  /** Ausente preserva. Vazio é recusado no servidor — o nome não se apaga. */
+  nome?: string;
 }
 
 export interface TagDoLead {

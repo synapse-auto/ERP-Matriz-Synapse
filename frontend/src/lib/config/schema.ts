@@ -519,6 +519,8 @@ export const TextosSchema = z.object({
     fechar: z.string(),
     indisponivel: z.string(),
     dados: z.object({
+      nome: z.string(),
+      nomeInvalido: z.string(),
       telefone: z.string(),
       email: z.string(),
       cpf: z.string(),

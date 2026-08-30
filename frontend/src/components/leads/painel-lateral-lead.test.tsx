@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 
@@ -11,7 +11,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 painelLead: {
       titulo: "Ficha",
       fechar: "Fechar",
-      dados: { telefone: "Telefone", email: "Email", cpf: "CPF", empresa: "Empresa", codigo: "Código", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
+      dados: { nome: "Nome", nomeInvalido: "Informe o nome do cliente.", telefone: "Telefone", email: "Email", cpf: "CPF", empresa: "Empresa", codigo: "Código", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
       acoes: { ligar: "Ligar para lead", lembrete: "L", mensagemProgramada: "M", abrirAtendimento: "A" },
       etapa: { titulo: "Etapa", semEtapa: "Sem", posicao: "{atual} de {total}" },
       contadores: { atendimentos: "At", mensagens: "Msg" },
@@ -35,6 +35,10 @@ painelLead: {
 }));
 
 let mockLeadData: Record<string, unknown> = { id: "1", nome: "Lead 1", telefone: "11999999999" };
+const salvarFichaState = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useEtapas: () => ({ data: [] }),
   useCamposCustomizados: () => ({ data: [] }),
@@ -42,7 +46,7 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useTodasAsTags: () => ({ data: [] }),
   useTagsDoLead: () => ({ data: [] }),
   useTimelineDoLead: () => ({ data: null }),
-  useSalvarFicha: () => ({ mutate: vi.fn(), isPending: false }),
+  useSalvarFicha: () => salvarFichaState,
   useVincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useDesvincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useLead: () => ({ data: mockLeadData, isLoading: false, isError: false }),
@@ -102,5 +106,18 @@ describe("PainelLateralLead telefones", () => {
     renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
     expect(screen.getByText("Código")).toBeInTheDocument();
     expect(screen.getByText("00421")).toBeInTheDocument();
+  });
+
+  it("grava o nome do cliente ao sair do campo no overlay", () => {
+    salvarFichaState.mutate.mockClear();
+    mockLeadData = { id: "1", nome: "Lead 1", telefone: null };
+    renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
+    const campo = screen.getByLabelText("Nome");
+    fireEvent.change(campo, { target: { value: "Maria Silva" } });
+    fireEvent.blur(campo);
+    expect(salvarFichaState.mutate).toHaveBeenCalledWith(
+      { nome: "Maria Silva" },
+      expect.any(Object),
+    );
   });
 });

@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { FormularioLembrete } from "@/components/lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
+import { CampoNomeDoLead } from "@/components/leads/campo-nome-do-lead";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
@@ -361,7 +362,12 @@ function CabecalhoDaFicha({ lead }: { lead: LeadFicha }) {
         {foto && <AvatarImage src={foto} alt={lead.nome} />}
         <AvatarFallback>{iniciaisDoNome(lead.nome)}</AvatarFallback>
       </Avatar>
-      <p className="mt-3 text-[18px] font-bold tracking-tight text-foreground">{lead.nome}</p>
+      <CampoNomeDoLead
+        key={lead.id}
+        leadId={lead.id}
+        valorAtual={lead.nome}
+        className="mt-3 text-[18px] tracking-tight"
+      />
       {lead.empresa && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{lead.empresa}</p>}
     </div>
   );

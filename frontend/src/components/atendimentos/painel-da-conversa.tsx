@@ -56,6 +56,7 @@ import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 import { AtalhoTags } from "./atalho-tags";
 import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
+import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 
 type Props = {
   leadId: string;
@@ -130,9 +131,12 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="text-base font-bold text-foreground">
-              {lead.data.nome}
-            </p>
+            <CampoNomeDoLead
+              key={leadId}
+              leadId={leadId}
+              valorAtual={lead.data.nome}
+              className="text-base"
+            />
             {lead.data.empresa && (
               <p className="text-xs text-muted-foreground">
                 {lead.data.empresa}

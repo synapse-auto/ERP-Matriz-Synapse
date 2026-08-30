@@ -2,11 +2,15 @@
 
 Documento de continuidade. **Este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
 
-Handoff da E58 (26/08/2026). O HEAD de código muda; confira o git. Acrescentado em 30/08/2026: `lead.codigo` (V47).
+Handoff da E58 (26/08/2026). O HEAD de código muda; confira o git. Acrescentado em 30/08/2026: `lead.codigo` (V47) e edição do nome na sidebar.
 
 ### 30/08/2026 — Código interno do lead
 
 Coluna `lead.codigo VARCHAR(20)`, somente dígitos, opcional, sem unique. Editável na ficha (`PUT /api/v1/leads/{id}`) por quem alcança o lead. Visível e editável em Informações gerais do painel da conversa; no card da lista de Atendimentos aparece de forma compacta (`leadCodigo`) só quando preenchido. Overlay da Agenda mostra, não edita. Agenda/`LeadResumo` não carrega o campo. Não é `dados_customizados`: o card não pode projetar JSONB. ADR-009 em `docs/04`. PR #28.
+
+### 30/08/2026 — Nome do cliente na sidebar
+
+O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
 
 ---
 
