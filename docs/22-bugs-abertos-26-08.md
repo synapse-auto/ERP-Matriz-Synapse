@@ -1,11 +1,16 @@
 # 22. Bugs abertos — 26/08
 
+> **Registro encerrado em 30/08/2026.** Os nove itens da triagem foram incorporados à
+> `origin/main` por meio das etapas posteriores. Este arquivo permanece datado e histórico;
+> não é um painel vivo de bugs. Pendências novas devem entrar em uma triagem própria, com
+> data e evidência.
+
 Triagem feita lendo o código, não as telas. **Os nove têm causa confirmada na linha.** A dúvida do
 #7 foi resolvida pela consulta ao banco: não há lead duplicado.
 
-> **Estado em 26/08, fim do dia.** Os nove estão corrigidos em commits locais ainda **não
-> empurrados** (`0d467a2` E53, `c8d3da4` E54, `20c62f2` + `4bf3d76` E55, `40e8e2f` E57,
-> `0987732` + `8d59cbe` E56/E58).
+> **Estado em 26/08, fim do dia.** Naquele momento os nove estavam corrigidos em commits
+> locais ainda **não empurrados** (`0d467a2` E53, `c8d3da4` E54, `20c62f2` + `4bf3d76` E55,
+> `40e8e2f` E57, `0987732` + `8d59cbe` E56/E58). Depois, esse conjunto entrou na `main`.
 > As descrições abaixo continuam descrevendo o **defeito original**, para quem for ler o histórico —
 > elas não descrevem mais o código atual. Onde o comportamento mudou, há uma nota "corrigido em".
 
