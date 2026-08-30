@@ -218,9 +218,9 @@ continua sendo o namespace `/internal/v1`.
 
 ## 5. Quando você precisa guardar um dado que não existe
 
-**Campo customizado, não coluna nova.** O CRM já tem esse mecanismo: o gestor define campos extras por instância, e eles aparecem na ficha do lead, no filtro e na API. É exatamente o caso de "a Automação precisa gravar mais uma informação no lead".
+**Campo customizado, não coluna nova — com uma exceção já existente.** O CRM tem `campo_customizado` + `lead.dados_customizados` para dado que só um filho precisa. Identificador interno numérico do cliente **já é coluna**: `lead.codigo` (V47), editável pelo PUT da ficha, visível no card. Não crie um campo customizado chamado `codigo` para o mesmo fim.
 
-Nenhuma migration, nenhum deploy, e funciona diferente em cada cliente sem tocar em código.
+Nenhuma migration, nenhum deploy para um campo customizado novo, e funciona diferente em cada cliente sem tocar em código.
 
 **Se o dado não couber num campo customizado**, ou se o `/internal/v1` não expuser a operação que você precisa — não contorne pelo banco. Peça a extensão do contrato. É uma etapa curta de backend, e ela vem com autorização, evento de domínio e teste, que é o que faz o dado valer para o produto inteiro e não só para o seu workflow.
 

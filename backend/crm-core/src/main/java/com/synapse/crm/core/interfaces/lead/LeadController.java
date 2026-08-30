@@ -37,6 +37,7 @@ import com.synapse.crm.core.application.lead.ObterLeadUseCase;
 import com.synapse.crm.core.domain.campocustomizado.DadosCustomizadosInvalidosException;
 import com.synapse.crm.core.domain.lead.CodigoInvalidoException;
 import com.synapse.crm.core.domain.lead.Lead;
+import com.synapse.crm.core.domain.lead.NomeInvalidoException;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 
@@ -154,6 +155,14 @@ class LeadController {
         return problema;
     }
 
+    @ExceptionHandler(NomeInvalidoException.class)
+    ProblemDetail aoReceberNomeInvalido(NomeInvalidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Nome invalido");
+        return problema;
+    }
+
     /** Ficha completa, so na consulta por id. */
     record FichaDoLead(
             UUID id,
@@ -194,7 +203,7 @@ class LeadController {
      * Nao aceita {@code resumoIa} porque quem escreve e a Automacao.
      */
     record AtualizacaoRequisicao(
-            @Schema(description = "Nome; ausente preserva o valor atual.", example = "Maria Silva", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "Nome; ausente preserva o valor atual. Vazio ou so espacos vira 400 (Nome invalido).", example = "Maria Silva", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
                     @Size(max = 150) String nome,
             @Schema(description = "URL da foto; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
                     String fotoUrl,

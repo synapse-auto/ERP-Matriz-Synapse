@@ -4,6 +4,12 @@ Documento de continuidade. **Estado reconstruído em 30/08/2026 a partir de
 `origin/main` (`a47362c`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 30/08/2026 — Nome do cliente na sidebar (PR #30)
+
+O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
+
+---
+
 ## 1. Onde estamos
 
 O produto está em **produção real**, conforme o estado operacional desta etapa. O git
@@ -47,7 +53,7 @@ pela operação.
 | E92b | respostas da Meta por texto/content-type e rótulos acessíveis | PR #24: `2f7f2b4` |
 | Correção de templates | RFC 7807 para falhas de templates | PR #22: `bc89ba6` |
 | E89–E91 | prompts preservados, mas sem merge identificado com esse rótulo no histórico de `main` | não confirmado como etapas independentes; verificar os commits/PRs que absorveram cada ajuste |
-| E93 | documentação e regras de migration | esta branch; ainda não está na `main` |
+| E93 | documentação e regras de migration | PR #29: `ed02ac3` |
 
 Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
 prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens
@@ -73,7 +79,8 @@ Confirmado pela árvore de `origin/main`:
 - **Emoji:** catálogo amplo categorizado no composer; o backend valida uma sequência Unicode
   válida para reações. A aparência final depende da plataforma/fonte emoji do navegador.
 - **Código numérico do lead:** `lead.codigo`, somente dígitos, editável e visível na ficha/
-  card sem colocar dados extensos em listagem.
+  card sem colocar dados extensos em listagem (PR #28).
+- **Nome do cliente na sidebar:** o título da ficha é editor inline; vazio é recusado (PR #30).
 - **Chat interno:** conversa iniciada pela lista de atendimentos e suporte a mídia/reação,
   além do chat direto já existente.
 

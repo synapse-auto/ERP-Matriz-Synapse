@@ -178,6 +178,11 @@ CREATE TABLE lead (
     criado_em                 TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Evolução (V47): identificador interno numérico, editável pelo atendente.
+-- Não estava no CREATE inicial de propósito — ver docs/11 (vence este arquivo).
+-- ALTER TABLE lead ADD COLUMN codigo VARCHAR(20);
+-- CHECK (codigo IS NULL OR codigo ~ '^[0-9]+$');
+
 -- Isolamento de agenda (RN-CRM-01) e listagens por papel
 CREATE INDEX idx_lead_atendente ON lead (atendente_responsavel_id);
 CREATE INDEX idx_lead_etapa ON lead (etapa_atendimento_id);

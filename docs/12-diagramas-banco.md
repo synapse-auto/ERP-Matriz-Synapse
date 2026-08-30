@@ -1,6 +1,6 @@
 # 12. Diagramas do Banco de Dados
 
-Gerado a partir das migrations V1–V18. Fonte da verdade: o SQL em `backend/crm-app/src/main/resources/db/migration/`.
+Gerado a partir das migrations. Fonte da verdade: o SQL em `backend/crm-app/src/main/resources/db/migration/`. Última coluna de `lead` documentada aqui: `codigo` (V47).
 
 > Todos os rótulos estão entre aspas e sem acentos — Mermaid quebra com `:`, `(` e `<br/>` em rótulo não aspeado.
 
@@ -236,6 +236,7 @@ Notas importantes:
 
 - `atendente_responsavel_id` é a base do RLS e da Specification de visibilidade
 - `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**
+- `codigo` (V47) entra no card da lista de Atendimentos; não entra na Agenda. Somente dígitos, opcional, sem unique
 - `num_atendimentos`, `num_mensagens` e `ultima_interacao_em` são denormalizados, escritos na mesma transação da mensagem. O último usa `GREATEST` para não retroceder em reentrega de webhook
 - `campo_customizado` não tem FK para `lead` — guarda só metadados; os valores vivem no JSONB. É a extensibilidade da Base PAI sem nichar o core
 - `evento_timeline.atendimento_id` usa `ON DELETE SET NULL`: o histórico do lead sobrevive ao atendimento

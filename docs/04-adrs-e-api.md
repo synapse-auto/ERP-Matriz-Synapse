@@ -54,6 +54,14 @@
 
 **Consequências:** nomes como "Fechado", "Concluído" ou "Vendido" não entram em consultas nem regras. O histórico começa no deploy da migration que introduziu `ETAPA_ALTERADA`; períodos anteriores retornam zero. Não existe reconstrução pelo `audit_log`, porque sua retenção é de manutenção e não pode governar uma métrica comercial.
 
+### ADR-009 — Código interno do lead como coluna, não JSONB
+
+**Contexto:** o atendente precisa de um identificador numérico do cliente visível no card da lista de Atendimentos e editável em Informações gerais. `dados_customizados` não entra em projeção de listagem (mesmo recorte de `notas` e `resumo_ia`).
+
+**Decisão:** coluna `lead.codigo VARCHAR(20)`, nullable, CHECK só dígitos, sem unique. `VARCHAR` em vez de inteiro para preservar zeros à esquerda (`00421`). Campo ausente no PUT preserva; string vazia limpa. Quem alcança o lead (atendente dono, gestor, subgestor) edita — a visibilidade continua sendo a Authorization. A Agenda (`LeadResumo`) não carrega o campo.
+
+**Consequências:** todo filho da Base PAI ganha o campo; não é coluna de ramo (obra, convênio, imóvel). Dado específico de um cliente continua em `campo_customizado`. Busca/filtro por código e unicidade ficam de fora até decisão de produto.
+
 ---
 
 ## Parte B — Convenções gerais de API
@@ -74,7 +82,7 @@
 | GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com resumo de reações agregado em lote | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` |
 | PUT | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Define a reação do usuário autenticado (`enviadoEm` na query ancora a partição). Idempotente para o mesmo emoji | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | DELETE | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação. Idempotente | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
-| GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência, com clientes visíveis e equipe interna participante | Atendente | `InboxUnificadaController` |
+| GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência; item `CLIENTE` inclui `leadCodigo` | Atendente | `InboxUnificadaController` |
 | POST | `/api/v1/atendimentos/novo-contato` | Inicia conversa WhatsApp: cria ou reusa lead visível do telefone, abre atendimento humano e envia texto livre ou template | Atendente | `AtendimentoAcoesController` · `NovoContatoIT` |
 | POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
@@ -88,7 +96,9 @@
 
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
-| GET | `/api/v1/leads` | Lista leads sob a `VisibilidadeLeadSpecification` | Atendente | `LeadController` · `PainelDoLeadIT` |
+| GET | `/api/v1/leads` | Lista leads sob a `VisibilidadeLeadSpecification` (sem `codigo`, notas, resumo ou JSONB) | Atendente | `LeadController` · `PainelDoLeadIT` |
+| GET | `/api/v1/leads/{id}` | Ficha completa, inclusive `codigo` | Atendente (visível) | `LeadController` · `LeadFichaIT` |
+| PUT | `/api/v1/leads/{id}` | Atualização parcial da ficha. `codigo` ausente preserva; `""` limpa; letra ou >20 dígitos vira 400 (`Codigo invalido`). `nome` ausente preserva; vazio ou só espaços vira 400 (`Nome invalido`) — o nome não se apaga | Atendente (visível) | `LeadController` · `LeadFichaIT` |
 | POST | `/api/v1/leads/filtrar` | Executa a árvore de critérios AND/OR | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
 | POST | `/api/v1/leads/filtrar/contagem` | Conta o resultado da mesma árvore de critérios | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
 | POST | `/api/v1/lembretes` | Cria lembrete | Atendente | `LembreteController` · `LembretesIT` |
@@ -193,7 +203,8 @@ expõe somente a conversa interna da qual o usuário participa. A união, ordena
 mensagem e cursor são feitos no backend com consultas keyset limitadas por fonte (não há carga
 completa em memória), para não perder itens ao compor páginas. O contrato e a autorização HTTP
 são exercitados por `InboxUnificadaControllerIT` (Postgres/Testcontainers), incluindo participante,
-gestor não participante e 401. Conversas
+gestor não participante e 401. Item `CLIENTE` inclui `leadCodigo` (nulo omitido via `@JsonInclude`)
+para o card da lista; conversas internas não têm o campo. Conversas
 internas aparecem apenas em `TODOS`; os badges de status continuam contando apenas clientes.
 O endpoint específico de chat interno permanece para compatibilidade. O botão **Novo atendimento** da lista abre `POST /api/v1/atendimentos/novo-contato`: nome e telefone obrigatórios; primeira mensagem (texto livre) **ou** template `{nome, idioma, parametros}`, nunca os dois. A janela de 24h da Meta só abre quando o **cliente** envia mensagem — texto livre em contato novo (ou com janela fechada) responde 422 `ForaDaJanelaException` **antes** de gravar o lead. Template pré-aprovado passa. Sem mensagem, a conversa abre em modo humano e o composer oferece os templates. Opt-in é responsabilidade do atendente (não há tabela de consentimento). Telefone de colega: RLS esconde a linha e o índice único bloqueia o insert — os dois casos viram o mesmo 404 (`RecursoDeAtendimentoIndisponivelException`), sem vazar a RN-CRM-01. Não usar `resolverPorTelefone` neste fluxo (cria lead em IA, sem dono; com JWT a RLS esconderia o lead do colega e duplicaria).
 

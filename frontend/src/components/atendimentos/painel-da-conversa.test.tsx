@@ -87,6 +87,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
     },
     painelLead: {
       dados: {
+        nome: "Nome",
+        nomeInvalido: "Informe o nome do cliente.",
         telefone: "Telefone",
         email: "E-mail",
         codigo: "Código",
@@ -148,12 +150,32 @@ import { PainelDaConversa } from "./painel-da-conversa";
 describe("painel da conversa", () => {
   beforeEach(() => {
     salvarFichaState.mutate.mockClear();
+    leadState.data = {
+      id: "lead-1",
+      nome: "Marcos Vinícius",
+      fotoUrl: null,
+      empresa: "Vidraçaria Cristal",
+      codigo: null,
+      telefone: "(61) 99999-0000",
+      email: "marcos@cliente.com",
+      localizacao: "Taguatinga · DF",
+      etapaAtendimentoId: "etapa-1",
+      numAtendimentos: 3,
+      numMensagens: 20,
+      resumoIa: "Cliente pediu orçamento de box.",
+      notas: "",
+    };
+    etapasState.data = [
+      { id: "etapa-0", nome: "Novo contato", ordem: 1, corVisual: "var(--muted)" },
+      { id: "etapa-1", nome: "Orçamento", ordem: 2, corVisual: "var(--primary)" },
+      { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
+    ];
   });
   it("mostra contadores, etapa e resumo por IA aberto por padrão — sem seção de arquivos", () => {
     const onRetrair = vi.fn();
     renderizarPainel("lead-1", "Jardel Lima", onRetrair);
 
-    expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome")).toHaveValue("Marcos Vinícius");
     expect(screen.getByText("Informações gerais")).toBeInTheDocument();
     expect(screen.getByText("Jardel Lima")).toBeInTheDocument();
     expect(screen.getByText("Orçamento")).toBeInTheDocument();
@@ -211,11 +233,32 @@ describe("painel da conversa", () => {
 
     renderizarPainel("lead-2", null);
 
-    expect(screen.getByText("Lead sem dados opcionais")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nome")).toHaveValue("Lead sem dados opcionais");
     expect(screen.queryByText("E-mail")).not.toBeInTheDocument();
     expect(screen.queryByText("Localização")).not.toBeInTheDocument();
     expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Código")).toBeInTheDocument();
+  });
+
+  it("grava o nome ao sair do campo", () => {
+    renderizarPainel("lead-1", "Jardel Lima");
+    const campo = screen.getByLabelText("Nome");
+    fireEvent.change(campo, { target: { value: "  Maria Silva  " } });
+    fireEvent.blur(campo);
+    expect(salvarFichaState.mutate).toHaveBeenCalledWith(
+      { nome: "Maria Silva" },
+      expect.any(Object),
+    );
+  });
+
+  it("nao grava nome vazio e restaura o anterior", () => {
+    renderizarPainel("lead-1", "Jardel Lima");
+    const campo = screen.getByLabelText("Nome");
+    fireEvent.change(campo, { target: { value: "   " } });
+    fireEvent.blur(campo);
+    expect(salvarFichaState.mutate).not.toHaveBeenCalled();
+    expect(campo).toHaveValue("Marcos Vinícius");
+    expect(screen.getByRole("alert")).toHaveTextContent("Informe o nome do cliente.");
   });
 
   it("grava o código numérico ao sair do campo e descarta letras coladas", () => {

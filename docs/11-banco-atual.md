@@ -56,8 +56,8 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V43__avaliacao_unica_por_atendimento` | UK `atendimento_id` + índice `criado_em` em `avaliacao` |
 | `V44__reserva_webhook_avaliacao` | reserva/lease da intenção de avaliação na outbox |
 | `V45__reacoes_de_mensagem` | `mensagem_reacao` (FK composta da partição) e `chat_interno_mensagem_reacao` (RLS de participação) |
-| `V46__referencia_e_id_externo_de_mensagem` | `mensagem_id_externo` para `wamid` e `mensagem_referencia` para responder/encaminhar |
-| `V47__lead_codigo` | `lead.codigo`, identificador numérico somente com dígitos |
+| `V46__referencia_e_id_externo_de_mensagem` | `mensagem_id_externo` (wamid) e `mensagem_referencia` (citação/encaminhamento) |
+| `V47__lead_codigo` | `lead.codigo VARCHAR(20)`, CHECK somente dígitos, nullable |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -116,6 +116,8 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
+> `codigo` entra no card da lista de Atendimentos (`leadCodigo` na inbox). **Não** entra em `LeadResumo` (Agenda). Sem unique e sem índice de busca — o campo não é critério de filtro.
+> Constraint `lead_codigo_somente_digitos`: `NULL` ou `^[0-9]+$`. A aplicação normaliza string vazia para `NULL` (`CodigoDoLead`).
 
 **`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only; `ator_id` identifica quem executou e `dados` JSONB guarda, em `ETAPA_ALTERADA`, etapas anterior/nova e `responsavel_id` comercial) · **`preferencia_usuario`** · **`arquivo_banco`**
 

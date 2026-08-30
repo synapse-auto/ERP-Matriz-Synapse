@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.synapse.crm.core.domain.lead.CodigoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
+import com.synapse.crm.core.domain.lead.NomeDoLead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 
@@ -52,7 +53,7 @@ public record DadosDeAtualizacaoLead(
     Lead aplicarEm(Lead atual, TelefoneCanonico telefoneCanonico) {
         return new Lead(
                 atual.id(),
-                ouAtual(nome, atual.nome()),
+                nome == null ? atual.nome() : NomeDoLead.normalizar(nome),
                 ouAtual(fotoUrl, atual.fotoUrl()),
                 telefone == null ? atual.telefone() : telefoneCanonico.normalizar(telefone),
                 ouAtual(email, atual.email()),

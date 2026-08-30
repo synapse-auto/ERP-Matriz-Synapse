@@ -103,6 +103,24 @@ describe("mutações otimistas da ficha", () => {
     );
   });
 
+  it("aplica nome otimista e espelha no card da inbox", async () => {
+    vi.mocked(api.atualizarLead).mockResolvedValue({ ...ficha, nome: "Maria Silva" });
+    const cache = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    cache.setQueryData(["lead", "lead-1"], ficha);
+    cache.setQueryData(["atendimentos"], [{ leadId: "lead-1", leadNome: "Cliente" }]);
+    const { result } = renderHook(() => useSalvarFicha("lead-1"), { wrapper: wrapper(cache) });
+
+    result.current.mutate({ nome: "Maria Silva" });
+    await waitFor(() =>
+      expect(cache.getQueryData<LeadFicha>(["lead", "lead-1"])?.nome).toBe("Maria Silva"),
+    );
+    await waitFor(() =>
+      expect(cache.getQueryData(["atendimentos"])).toEqual([
+        { leadId: "lead-1", leadNome: "Maria Silva" },
+      ]),
+    );
+  });
+
   it("adiciona a tag otimista e restaura a lista quando o vínculo falha", async () => {
     let rejeitar!: (erro: Error) => void;
     vi.mocked(api.vincularTagAoLead).mockImplementation(
