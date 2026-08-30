@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -157,7 +157,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             {textos.informacoesGerais}
           </p>
           <div className="space-y-3">
-            <CampoCodigoDoLead leadId={leadId} valorAtual={lead.data.codigo} />
+            <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
             <InformacaoDoPainel
               icone={<Phone className="size-4" aria-hidden />}
               rotulo={textosLead.dados.telefone}
@@ -365,10 +365,6 @@ function CampoCodigoDoLead({
   const idCampo = useId();
   const [valor, setValor] = useState(valorAtual ?? "");
   const [erro, setErro] = useState(false);
-
-  useEffect(() => {
-    setValor(valorAtual ?? "");
-  }, [valorAtual]);
 
   function persistir() {
     const canonico = somenteDigitos(valor);
