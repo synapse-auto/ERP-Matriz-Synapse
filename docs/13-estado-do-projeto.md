@@ -1,14 +1,10 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Este arquivo mais o `AGENTS.md` recuperam o contexto necessário para seguir calibrando as próximas etapas.**
+Documento de continuidade. **Estado reconstruído em 30/08/2026 a partir de
+`origin/main` (`a47362c`), das migrations e do código.** Se este arquivo divergir do
+repositório, o repositório vence.
 
-Handoff da E58 (26/08/2026). O HEAD de código muda; confira o git. Acrescentado em 30/08/2026: `lead.codigo` (V47) e edição do nome na sidebar.
-
-### 30/08/2026 — Código interno do lead
-
-Coluna `lead.codigo VARCHAR(20)`, somente dígitos, opcional, sem unique. Editável na ficha (`PUT /api/v1/leads/{id}`) por quem alcança o lead. Visível e editável em Informações gerais do painel da conversa; no card da lista de Atendimentos aparece de forma compacta (`leadCodigo`) só quando preenchido. Overlay da Agenda mostra, não edita. Agenda/`LeadResumo` não carrega o campo. Não é `dados_customizados`: o card não pode projetar JSONB. ADR-009 em `docs/04`. PR #28.
-
-### 30/08/2026 — Nome do cliente na sidebar
+### 30/08/2026 — Nome do cliente na sidebar (PR #30)
 
 O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
 
@@ -16,126 +12,132 @@ O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser
 
 ## 1. Onde estamos
 
-**Entrega: 25/08/2026.** Desenvolvedor solo, com agentes (Codex desde a E12; Gemini/Antigravity e Claude Code a partir da E31).
+O produto está em **produção real**, conforme o estado operacional desta etapa. O git
+confirma a promoção do conjunto de homologação para `main` em `89d7dfc`, de 27/08/2026,
+mas não registra por si só o instante do deploy nem prova todos os smoke tests do ambiente.
+Não tratar esse SHA como imagem necessariamente em execução: o Dokploy deve ser conferido
+pelo digest da imagem.
 
-O CRM está **no ar em homologação**, com WhatsApp funcionando ponta a ponta e tempo real ativo.
+O HEAD de referência é `a47362c` (`origin/main`), promovido pelo PR #28. O trabalho normal
+é feito em branch própria, publicado no `origin` e entregue por Pull Request para `main`.
+O agente não faz merge do próprio PR e não faz deploy; essas ações ficam com o responsável
+pela operação.
 
-| Etapa | Entrega | Estado |
+### Etapas reconstruídas
+
+| Etapa | Entrega confirmada | Evidência no git |
 |---|---|---|
-| E00–E25 | fundação, backend, frontend, fidelidade visual, Dashboard, repasse para a Automação | ver histórico do git |
-| E26 | telefone canônico, não lidas, autoria real, degradação parcial de tela | feita |
-| E27 | isolamento do canal por `phone_number_id` — contenção do incidente de 16/08 | feita |
-| E27b | telefone canônico com DDI, migration `V24` | feita |
-| E28 | gravação de áudio no composer, scroll interno do canvas, payload de áudio da Meta | feita |
-| E29 | primeiro acesso e troca de senha (`senha_alterada_em`) | feita |
-| E31 / E31b | ajustes finos de UI, logo e favicon da instância, pendências da E29 | feita |
-| E30 | áudio AAC/M4A, `POST /internal/v1/atendimentos/{id}/mensagens-enviadas`, botões e listas | feita — `066a5c1`, run 32443306178 |
-| **E32** | **próxima** — payload da Meta com várias mensagens | prompt escrito, não despachada |
+| E59 | ligação/paridade do chat interno | `e9cddf6`, promovido em `89d7dfc` |
+| E60–E61 | correções de mensagens programadas e MIME de áudio | `7399b72` |
+| E62–E63b | inbox unificada e correções de produção/login/cache | `80ee893`, `3f2c841`, `e1f5971` |
+| E64 | isolamento dos schedulers na suíte de integração | `e0420e4` |
+| E65 | aviso da sidebar e mensagens programadas | `a65db62`, promovido em `89d7dfc` |
+| E66 | nova conversa permanece aberta após o clique | `43bf65e` |
+| E67–E67b | ficha do lead, novidades e correções de entrega visual | `56ede13`, `74e528d` |
+| E68–E69 | menu de finalização/chat interno e isolamento do ajuste da E65 | `e9cddf6`, `79b7b71` |
+| E70 | correção da auditoria da E67b | `74e528d` |
+| E71–E72 | feedbacks e Administração, incluindo autorização backend | `ca41ea5`, `c5892a5`, `db29534` |
+| E73–E77 | validação integrada, identidade visual e promoção de `hmlgc` | `b35f1f8`, `79b7b71`, `89d7dfc` |
+| E78 | remoção dos scripts auxiliares locais | `7d729f8` |
+| E79 | datas determinísticas das Novidades no CI | `9f491de` |
+| E80 | mídia no chat interno | `4d03812` |
+| E81 | refino do menu Administração e cobertura OpenAPI | PRs #1 e #2: `180072a`, `72d35e9` |
+| E83/E83b/E83c/E83d + E85 | avaliação automática pós-finalização, outbox, lease e concorrência | PR #14: `b7a7ab8` |
+| E84/E84b | sidebar dinâmica e reações persistidas/tempo real | PR #15: `99048f6` |
+| E84c | sidebar sem cobrir o chat e hover suave | PR #21: `be0bc48` |
+| E86 | iniciar chat interno pela equipe | PR #16: `be5b1b8` |
+| E87 | responder e encaminhar mensagens | PR #19: `d9b249a` |
+| E88 | mídias/documentos na ficha do lead | PR #17: `9dbe439` |
+| E88b | correção visual dos balões do chat | PR #18: `3b01818` |
+| E92 | identificação da WABA para templates da Meta | PR #20: `91ea622` |
+| E92b | respostas da Meta por texto/content-type e rótulos acessíveis | PR #24: `2f7f2b4` |
+| Correção de templates | RFC 7807 para falhas de templates | PR #22: `bc89ba6` |
+| E89–E91 | prompts preservados, mas sem merge identificado com esse rótulo no histórico de `main` | não confirmado como etapas independentes; verificar os commits/PRs que absorveram cada ajuste |
+| E93 | documentação e regras de migration | PR #29: `ed02ac3` |
 
-**HEAD de código da publicação: `8d59cbe`.** A publicação reúne as correções E53–E57 e o ajuste
-de autosize da E58; o commit de documentação desta etapa vem em seguida.
+Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
+prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens
+ficam explicitamente marcados como não isolados, e não como feitos apenas porque o prompt
+existe.
 
-### Estado após E58
+## 2. O que está implementado e antes não aparecia na documentação
 
-- A transferência humana valida destino existente, ativo e com papel `ATENDENTE`, antes de gravar.
-- O chat apresenta uma conversa por cliente, unificando o histórico dos atendimentos do lead.
-- A leitura de atendimento é por usuário desde a V41; `atendimento.lido_ate` permanece como legado.
-- A outbox reserva por lease, envia fora de transação e grava o resultado em transação curta.
+Confirmado pela árvore de `origin/main`:
 
-## 2. O que já foi provado no ambiente real
+- **Templates da Meta:** administração em `/api/v1/whatsapp/templates`, listagem/criação
+  pelo WABA ID configurado, tratamento de indisponibilidade em RFC 7807 e catálogo de
+  variáveis posicionais. Isso não é uma rota do contrato interno do n8n.
+- **Avaliação de atendimento:** registro de CSAT da Automação após finalização elegível,
+  com intenção durável/outbox, reserva e idempotência; o contrato de gravação é
+  `POST /internal/v1/atendimentos/{id}/avaliacao`.
+- **Reações:** reações de mensagens do atendimento e do chat interno, com persistência,
+  autorização por participação/visibilidade e publicação em tempo real.
+- **Responder e encaminhar:** citação persistida, `wamid` para `context.message_id` da
+  Meta e encaminhamento como novo envio com referência denormalizada.
+- **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
+  de vários arquivos/arrastar para o composer.
+- **Emoji:** catálogo amplo categorizado no composer; o backend valida uma sequência Unicode
+  válida para reações. A aparência final depende da plataforma/fonte emoji do navegador.
+- **Código numérico do lead:** `lead.codigo`, somente dígitos, editável e visível na ficha/
+  card sem colocar dados extensos em listagem (PR #28).
+- **Nome do cliente na sidebar:** o título da ficha é editor inline; vazio é recusado (PR #30).
+- **Chat interno:** conversa iniciada pela lista de atendimentos e suporte a mídia/reação,
+  além do chat direto já existente.
 
-- **Mensagem entrando**, de número real, ponta a ponta: Meta → Traefik → HMAC → filtro por número → lead → atendimento → tela
-- **Mensagem saindo**, com status de entrega
-- **Áudio, imagem e arquivo** entrando; áudio gravado saindo (E30)
-- **WebSocket conectando** — `CONNECT(5)-CONNECTED(5)` no log do backend
-- App da Meta **publicado**, webhook cadastrado, campo `messages` assinado
-- **Isolamento por número validado**: mensagem para o número oficial da Estrutural não chega no CRM de homologação
+## 3. Estado técnico e banco
 
-## 3. Pendências operacionais — dependem do Marcondes
+- Migrations presentes: **V1 a V47**, última `V47__lead_codigo.sql`.
+- V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
+  avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
+  mensagem; V47 código numérico do lead.
+- O caminho de mensagem mantém WebSocket, outbox, retry e circuit breaker separados de
+  chamadas externas. A aba Atendimentos não pode depender de Meta, n8n ou outro provedor.
+- O isolamento da Meta continua sendo pelo `phone_number_id` da credencial ativa; a
+  inscrição do app é por WABA, mas o WABA ID usado para administrar templates é uma
+  configuração distinta.
 
-Nenhuma é prompt. Passo a passo completo em `docs/18-runbook-pendencias-operacionais.md`.
+## 4. Pendências reais
 
-| Item | Situação |
+O arquivo `docs/prompts/pendencias-clickup-para-cursor.md` é o inventário inicial, mas
+estava desatualizado. Após confrontá-lo com os merges, estes itens estão feitos e não devem
+ser reabertos como se fossem pendências: E86, E87, E88/E88b, reações/sidebar de E84/E84c,
+templates Meta de E92/E92b e código numérico do lead do PR #28.
+
+Ainda exigem confirmação ou implementação:
+
+| Item | Estado verificável |
 |---|---|
-| **Deploy da E30** | `SYNAPSE_IMAGE_TAG` ainda em `1c3cfca`; o HEAD de código é `066a5c1`. Enquanto não trocar, o endpoint novo devolve 404 para a Automação |
-| **Smoke RLS** | nunca executado. Se um atendente vê lead de colega, é incidente comercial |
-| **Seed de demonstração** | nunca executado; telas quase vazias |
-| **Backup + restauração testada** | não feito |
-| **Watchdog externo** | endpoint e runbook prontos; Uptime Kuma não provisionado |
-| **Subdomínios reais** | `sslip.io` divide cota do Let's Encrypt com o mundo; na renovação o certificado pode não sair |
-| **Painel do Dokploy em HTTP na porta 3000** | fechar com `ufw` e acessar por túnel |
-| **Rotações pendentes** | `N8N_DB_PASSWORD` (vazada em grupo) e o token da Meta (colado em chat) |
-| **Lead de teste** | `test user name` (`16315551181`) criado pelo webhook de teste; limpar antes do cliente |
-| **Etapas do funil e tags** | dependem da subgestora |
-| **Jardel como GESTOR** | `UPDATE usuario SET papel='GESTOR'` — a tela só atribui ATENDENTE e SUBGESTOR |
+| E32 — payload da Meta com várias mensagens agrupadas | não há merge de E32 identificado; deve continuar pendente até prova de teste/código |
+| Regras de follow-up, fidelização, festiva e executor de automação | configuração/contratos existem; executor continua sendo responsabilidade do n8n |
+| Horários de trabalho e disponibilidade da IA independente da presença | não confirmados como entregues |
+| Kanban, CSV e troca de credencial de canal | não confirmados como entregues |
+| Impersonação, participação em atendimento e módulos de fase 2 | fora do escopo ou aguardando decisão de produto/segurança |
+| Download de mídia retornando 401 | prompt separado preservado em `docs/prompts/pendencia-E88-download-midia-401.md`; não há evidência de correção nesta `main` |
+| Operação | validar no Dokploy a imagem em execução, smoke RLS, backup/restauração, watchdog, domínio real, rotação de segredos e PITR |
 
-## 4. Decisões que não se revertem sem custo
+Nada deve ser marcado como “feito” só por existir um prompt: o item precisa de merge,
+teste ou evidência operacional correspondente.
 
-- **Multi-tenancy Silo**: instância isolada por cliente, sem `tenant_id`. Um repositório, uma imagem, N deploys. **Filho novo não escreve código.**
-- **Regra de precedência**: a aba Atendimentos não pode cair 08:00–18:30.
-- **`/internal/v1` não é roteável publicamente.** n8n na mesma overlay, token como segunda camada.
-- **Repasse para a Automação é assíncrono e opcional.** A entrada de mensagem nunca depende do n8n.
-- **Java 21 fixo.** Java 25 quebra o ArchUnit silenciosamente.
-- **`SYNAPSE_IMAGE_TAG` sempre com o SHA do commit, nunca `latest`** — em homologação também. O Swarm fixa o digest na criação do serviço; com `latest`, `Restart` e `Deploy` sobem a imagem velha. Custo da regra: todo deploy exige atualizar a variável. Detalhe em `docs/18`.
-- **Telefone canônico**: só dígitos, com código de país, sem `+`. Decidido e migrado na E27b (`V24`).
-- **Isolamento por `phone_number_id`** lido de `canal_credencial`, com fail-closed. `subscribed_apps` na Meta é por WABA, não por número.
-- **Marca da instância em runtime**: `tema.json` aponta `logoUrl` para `/api/v1/config/logo`. Trocar de filho não toca em `.tsx`. Não existe `favicon.ico` em `frontend/src/app/` — metadata de arquivo venceria a do tema.
-- **Idempotência de mensagem em tabela estreita não particionada** (`mensagem_automacao_idempotencia`, `V29`): `mensagem` é particionada por `enviado_em` e o Postgres exige a chave de partição em todo UNIQUE.
-## 5. O padrão que se repete — dezoito casos
+## 5. Como o trabalho acontece agora
 
-Proteção que existe, passa no teste, e não protege nada. Os mais caros:
+1. O responsável cria um prompt versionado para uma etapa e define o critério de pronto.
+2. O agente atualiza uma branch própria `codex/...` ou a branch explicitamente pedida.
+3. O agente executa os testes proporcionais, registra decisões/gaps e faz commit convencional.
+4. O agente publica a branch e abre/atualiza o PR para `main`.
+5. O responsável revisa, aguarda CI e decide o merge; deploy e validação de produção são
+   ações operacionais separadas. O agente não faz merge nem deploy sozinho.
 
-1. `DoNotIncludeJars` — ArchUnit nunca rodou por três etapas
-2. RLS escrita, usuário era dono das tabelas — só o **teste negativo** expôs
-3. `@Scheduled` com auto-invocação — mensagens quebradas nos dois sentidos, build verde
-4. `JwtAuthenticationToken` de um argumento nasce `authenticated=false`
-5. Webhook `GET` reusando o validador HMAC do `POST`
-6. Redis em `localhost` — passava local, 166 falhas no runner
-7. **E23**: `traefik.docker.network` somada à `traefik.swarm.network` fez o Traefik **descartar o router do backend inteiro**. `/api/v1` devolvia HTML, `/ws` dava 502, o webhook da Meta parou. CI verde com 323 testes; o teste de handshake da própria etapa passava contra um Traefik montado por ela
-8. **E23**: `onMutate` tratando cache de `useInfiniteQuery` como array plano — `mutationFn` nunca era chamado, e **o teste assumia a mesma forma errada**
+## 6. Evidências que ainda precisam ser mantidas
 
-9. **E29/E31**: `SYNAPSE_IMAGE_TAG=latest` — o Swarm fixa o digest na criação do serviço, então `Restart` e `Deploy` sobem a imagem velha. CI verde, deploy feito, **metade do sistema antiga**. Aconteceu duas vezes antes de alguém entender o mecanismo
-10. **E31b**: `frontend/src/app/favicon.ico` do scaffold do Next vencia o `metadata.icons` gerado a partir do tema. O código estava certo; o arquivo do andaime, versionado desde o commit de fundação, é que anulava
-11. **Entrada de mensagem**: `get(0)` em `entry`/`changes`/`messages`. A E27 passou a percorrer **todos** os eventos para filtrar por número, e a tradução continuou lendo só o primeiro — as duas metades da mesma classe discordando sobre o que é o payload. A Meta agrupa, o CRM grava uma mensagem e responde 200
+“CI verde” só vale com número da run; execução local é evidência local. Para cada promoção,
+confira o SHA/digest realmente rodando no Dokploy, os smoke tests de RLS e o caminho real
+Meta → CRM → tela. O `docs/22-bugs-abertos-26-08.md` continua como registro histórico,
+não como painel vivo.
 
-Acrescentadas depois da E31: **imagem publicada não é imagem rodando** — confira o digest dos dois serviços, não o log do CI; e **arquivo de andaime vence configuração** — o que o framework resolve por convenção de arquivo ganha do que você configurou em código.
-**Regras derivadas** (também no `AGENTS.md`): proteção nova nasce com teste que a viola; teste o ponto de entrada, não o método interno; erro recorrente em log é defeito, não paisagem; teste o negativo; espere por condição, nunca por tempo; **"CI verde" só vale com o número da run**; e o mais recente — **teste que valida a configuração que você montou não prova nada sobre a que roda**.
+## 7. Próximos passos recomendados
 
-## 6. Dívidas abertas
-
-`docs/14-pendencias-de-funcionalidade.md` tem a lista completa. As maiores:
-
-- **Payload da Meta com várias mensagens** — perda silenciosa de mensagem de cliente. Prompt E32 escrito, não despachado. **É a maior dívida técnica aberta**
-- **Regras de automação** (follow-up, fidelização, festiva, resumo IA) — tabelas existem, zero caso de uso
-- **Horários de trabalho** — módulo inteiro; hoje a disponibilidade do atendente é **manual**
-- **Disponibilidade para a IA independente da presença** — `disponivel_para_ia` espelha o status e só é gravado para `papel = 'ATENDENTE'`; não existe "atendente online fora do rodízio"
-- **Escala do CSAT** — banco 0–5, protótipo 9,4/10. Decidir com o sistema vazio custa muito menos
-- Kanban, CSV, avaliação por atendimento, troca de credencial de canal
-- **PITR** antes do go-live de produção
-
-## 7. Como o arquiteto trabalha aqui
-
-**O ciclo:** um prompt por etapa → o agente executa e reporta no formato de sete itens do `AGENTS.md` → o arquiteto lê, decide o que ficou aberto e calibra o próximo.
-
-**O que extrair de cada relatório:** o item 3 (decisões não especificadas) traz as escolhas a validar; o item 5 (bugs encontrados) é onde apareceram quase todos os defeitos silenciosos; o item 7 é o que precisa de decisão — decida quando for técnico, devolva ao humano quando envolver dinheiro, cliente ou risco irreversível.
-
-**Ponto de parada é ferramenta.** Prompts que mandam o agente parar e avisar quando a premissa não se sustenta já evitaram duas entregas erradas — a Dashboard sem histórico de etapa, e o card de IA sem registro de transferência.
-
-**Tom:** direto, sem bajulação. Admitir erro rápido e seguir. Neste projeto o arquiteto errou, entre outras: avaliou vulnerabilidades npm como dev-only quando eram de produção; decidiu ignorar `docs/` no git; extraiu o `TOKENS.md` sem mapear a base do shadcn; instruiu a converter tabelas em cards com base num relatório não conferido; sugeriu rollback num ambiente que não é produção.
-
-## 8. Ordem recomendada
-
-1. **Deploy da E30** — `SYNAPSE_IMAGE_TAG=066a5c1`. Sem isso a Automação não tem o endpoint, e o Dylan fica parado
-2. **E32** — payload com várias mensagens. Prompt escrito. É perda silenciosa de mensagem de cliente: mais grave que a aba cair, porque queda alguém percebe
-3. **Smoke RLS** (`docs/18` fase 3) — dez minutos, e é o portão: se falhar, para tudo
-4. **Seed** — sem ele ninguém consegue avaliar tela
-5. **Correções pontuais** que aparecerem no teste do Lucas
-6. **Backup, watchdog e subdomínios** antes do go-live
-7. **25/08** — entrega
-
-`docs/17-plano-de-fechamento.md` tem o plano completo, incluindo o que fica de fora e o que precisa ir por escrito ao cliente.
-
-## 9. Como escrever o próximo prompt
-
-`docs/prompts/COMO-ESCREVER-PROMPTS.md` descreve o formato usado da E19 em diante, com os
-exemplos que funcionaram e os erros que custaram etapa. Leia antes de redigir a E33.
+1. Revisar/mergir o PR desta E93 sem alterar `main` diretamente.
+2. Confirmar o estado do download de mídia 401 e do payload multi-mensagem.
+3. Validar operação real: imagem/digest, WABA/Phone Number ID, RLS, backup, watchdog,
+   domínios e rotação de credenciais.
+4. Só então transformar a próxima pendência confirmada em prompt isolado.

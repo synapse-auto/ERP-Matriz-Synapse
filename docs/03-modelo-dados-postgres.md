@@ -1,5 +1,10 @@
 # 03. Modelo de Dados — PostgreSQL
 
+> **Reconciliação em 30/08/2026:** este documento continua sendo o modelo arquitetural,
+> não o inventário operacional. A implementação atual está na **V47**; as diferenças das
+> migrations V41–V47 estão registradas no final deste arquivo e o inventário completo está
+> em `docs/11-banco-atual.md`.
+
 ## 1. Diagrama Entidade-Relacionamento (visão consolidada)
 
 ```mermaid
@@ -708,3 +713,20 @@ Justificativas migradas de comentário SQL para `COMMENT ON TABLE/COLUMN/FUNCTIO
 `pg_trgm` ainda exige privilégio elevado. Funciona no container e no Testcontainers (usuário é superusuário), mas em RDS, Cloud SQL ou similar pode precisar ser habilitada fora da migration — e a V1 falharia lá. Está na allowlist da maioria dos provedores gerenciados, mas **confirme antes do deploy de homologação**. Documentado no `README.md`, seção "Deploy → Extensões do PostgreSQL".
 
 **Edição de migrations já aplicadas.** A movimentação dos índices únicos (item 5) exigiu editar migrations já aplicadas — feito de forma segura porque o schema só existia no ambiente local, que foi zerado e remigrado do zero. **A partir daqui a regra do `CLAUDE.md` volta a valer integralmente:** nenhuma migration aplicada é editada; correção é sempre migration nova. Se algum ambiente tiver aplicado a versão anterior (`ac8326e`), precisa zerar o banco ou rodar `flyway repair`.
+
+## 9. Reconciliação com a implementação V41–V47
+
+O modelo consolidado acima foi preservado. Desde sua redação, a implementação acrescentou:
+
+- `atendimento_leitura` (V41), para cada usuário marcar sua própria leitura;
+- `feedback_usuario` e o tipo `tipo_feedback` (V42);
+- unicidade de uma avaliação por atendimento e índice por data (V43);
+- `outbox_evento.avaliacao_reserva_id` para proteger o lease da avaliação (V44);
+- `mensagem_reacao` e `chat_interno_mensagem_reacao` (V45);
+- `mensagem_id_externo` para `wamid` e `mensagem_referencia` para citação de resposta/
+  encaminhamento (V46);
+- `lead.codigo`, identificador interno opcional que aceita somente dígitos (V47).
+
+Essas alterações não mudam a decisão de domínio de manter `mensagem` particionada nem a
+separação entre o chat externo, o chat interno e a Automação. Para o estado efetivo do banco,
+consulte `docs/11-banco-atual.md`.

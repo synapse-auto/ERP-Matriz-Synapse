@@ -4,7 +4,20 @@ Tudo que está no protótipo aprovado pelo cliente e **não** está no sistema. 
 
 Distinto do `docs/09`, que define o recorte da primeira entrega. Este documento existe para que nenhuma dessas pendências dependa de alguém lembrar.
 
-Atualizado em 24/08/2026, depois da E49.
+Atualizado em 30/08/2026, após a E92, confrontando os itens com `origin/main` (`a47362c`).
+
+## Itens que deixaram de ser pendências
+
+As entregas abaixo estavam pendentes na versão anterior, mas foram incorporadas à `main`:
+
+| Item | Evidência |
+|---|---|
+| Chat interno básico, entrada pela equipe, mídia e reações | PR #16 `be5b1b8`, PR #15 `99048f6`, merge E80 `4d03812` |
+| Responder e encaminhar mensagens com citação | PR #19 `d9b249a` e migration V46 |
+| Mídias/documentos na ficha, anexos múltiplos e catálogo de emoji | PR #17 `9dbe439`, PRs #25–#27 |
+| CSAT após finalização pela Automação | PR #14 `b7a7ab8`, migrations V43–V44 |
+| Templates da Meta | PR #13 `d5ba368`, PR #20 `91ea622`, PR #22 `bc89ba6`, PR #24 `2f7f2b4` |
+| Código numérico do lead | PR #28 `a47362c`, migration V47 |
 
 ## E49 — Configurações ainda fora da entrega
 
@@ -39,7 +52,7 @@ fluxo existente de troca de senha. Os itens abaixo continuam pendentes e não s�
 | **Horários de trabalho** | 1,5 a 2 dias | módulo inteiro: `horario_trabalho` e `rotina_disponibilidade` só existem no schema. Consequência atual: **disponibilidade do atendente é manual** — ninguém entra em expediente sozinho |
 | **Kanban na Agenda** | médio | precisa de endpoint de agrupamento por etapa com contagem; sem ele vira N+1 |
 | **Importar/exportar CSV de leads** | médio | não existe motor CSV em nenhum dos dois lados |
-| **Avaliação por atendimento na Automação** | médio | sem endpoint |
+| **Avaliação por atendimento na Automação** | ~~médio~~ **feito** | `POST /internal/v1/atendimentos/{id}/avaliacao`, com idempotência e validação de atendimento finalizado; PR #14 |
 | **Troca de credencial do canal pela gestão** | médio | o cadastro de canal existe, mas não há API para consultar ou rotacionar a credencial com validação e histórico; os contratos antes descritos no `docs/04` eram apenas planejados |
 
 ## Prioridade 3 — itens do protótipo sem contrato fechado
@@ -53,17 +66,17 @@ Estes itens continuam fora da entrega porque ainda exigem decisão de produto, c
 | **Aba de novidades da matriz** | módulo ADM para publicar, versionar e distribuir novidades | não existe serviço de conteúdo, público-alvo ou política de leitura |
 | **Entrar/sair de atendimento em andamento** | permissão da Agenda, estado de participação e auditoria da entrada/saída | alterar presença não define sozinho quem pode assumir uma conversa em andamento |
 | **Login como outro usuário por administrador** | fluxo de impersonação com consentimento, escopo, expiração e auditoria reforçada | é uma superfície de alto risco; não será criada sem decisão explícita de segurança |
-| **Chat interno da equipe — fase 2** | conversas, participantes, mensagens, retenção e notificações internas | permanece fora da primeira entrega (`docs/09`) e exige módulo próprio |
+| **Chat interno da equipe — fase 2** | grupos, retenção e notificações internas além da conversa direta, mídia e reações já entregues | a base foi entregue em E80/E86; só o restante continua pendente |
 
 ## Fora da primeira entrega por decisão (`docs/09`)
 
-Dashboard nas abas Operacional, Comercial e IA & Automação; Relatórios; Campanhas; Banco de Arquivos; Chat interno. Não são pendências — são escopo de fase 2, com o cliente ciente.
+Dashboard nas abas Operacional, Comercial e IA & Automação; Relatórios; Campanhas; Banco de Arquivos. Não são pendências — são escopo de fase 2, com o cliente ciente. O chat interno deixou de ser apenas escopo futuro: sua base está entregue; os complementos de fase 2 permanecem na tabela acima.
 
 ---
 
 ## Duas decisões de produto em aberto
 
-**Escala do CSAT.** O banco guarda 0–5; o protótipo aprovado mostra "9,4 / 10" e a tela de Equipe diz "avaliações na escala 0-10". A pergunta que decide: **o que a Automação vai perguntar ao cliente final?** Se for 1 a 5 estrelas, o protótipo é que está errado. Se for 0 a 10, o banco precisa mudar — e é muito melhor mudar agora, com o sistema vazio, do que depois com avaliação real dentro.
+**Escala do CSAT.** A implementação atual usa a escala **1–5**, inclusive no contrato da Automação e na constraint de `avaliacao.nota`. O texto antigo do protótipo (“9,4 / 10”/0–10) ficou defasado; não alterar o banco sem uma nova decisão explícita de produto.
 
 **Conjunto de cores e ícones de tag.** O protótipo tem 7 tons e 22 ícones; o construído tem 7 e 14. Trocar é decisão de produto.
 
@@ -75,8 +88,8 @@ Registrado aqui porque some de vista com facilidade:
 
 - **Smoke RLS nunca executado** no ambiente real — atendente pode estar vendo lead de colega e ninguém saberia
 - **Seed de demonstração nunca executado** — as telas estão vazias
-- **Entrada de mensagem: PROVADA** em 15/08 pelo webhook de teste do painel da Meta — lead criado a partir de número desconhecido, atendimento aberto com a IA, mensagem persistida, tela atualizada. Falta a **saída** (responder pela tela), que só dá para provar com mensagem real
-- **App da Meta não publicado** — enquanto estiver assim, a Meta só entrega webhook de teste do painel. Nenhuma mensagem real entra, nem de administrador ou testador. Publicar exige política de privacidade, ícone, categoria e possivelmente verificação do negócio (dias)
+- **Entrada e saída de mensagem:** o código e os contratos estão implementados, mas a confirmação do fluxo real no ambiente precisa ser mantida como evidência operacional separada; git não prova um teste contra WhatsApp real
+- **App da Meta e WABA:** o estado operacional deve ser conferido no painel da Meta/Dokploy; este documento não deve afirmar que o app está publicado apenas por causa de um commit
 - **Lead de teste no ambiente** — o webhook de teste criou "test user name" (`16315551181`). Limpar antes de o cliente usar
 - **Backup nunca restaurado** de verdade
 - **Watchdog externo da E22 ainda não provisionado/testado** — o endpoint e o runbook existem; falta configurar o Kuma fora do provedor do CRM e executar o teste destrutivo de `docs/15`

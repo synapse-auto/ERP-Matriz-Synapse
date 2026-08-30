@@ -92,3 +92,6 @@ coverage/
 /_to_delete/
 /output/
 /tmp/
+
+# Artefatos temporários de inspeção e extração local
+.tmp-*
