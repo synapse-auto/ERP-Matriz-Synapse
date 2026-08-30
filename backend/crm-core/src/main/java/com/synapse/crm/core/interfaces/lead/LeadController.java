@@ -35,6 +35,7 @@ import com.synapse.crm.core.application.lead.LeadParaEntrada;
 import com.synapse.crm.core.application.lead.ListarLeadsUseCase;
 import com.synapse.crm.core.application.lead.ObterLeadUseCase;
 import com.synapse.crm.core.domain.campocustomizado.DadosCustomizadosInvalidosException;
+import com.synapse.crm.core.domain.lead.CodigoInvalidoException;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
@@ -145,6 +146,14 @@ class LeadController {
         return problema;
     }
 
+    @ExceptionHandler(CodigoInvalidoException.class)
+    ProblemDetail aoReceberCodigoInvalido(CodigoInvalidoException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Codigo invalido");
+        return problema;
+    }
+
     /** Ficha completa, so na consulta por id. */
     record FichaDoLead(
             UUID id,
@@ -154,6 +163,7 @@ class LeadController {
             String email,
             String cpf,
             String empresa,
+            String codigo,
             String localizacao,
             UUID canalOrigemId,
             StatusBasicoLead status,
@@ -169,7 +179,7 @@ class LeadController {
         static FichaDoLead de(Lead lead) {
             return new FichaDoLead(
                     lead.id(), lead.nome(), lead.fotoUrl(), lead.telefone(), lead.email(), lead.cpf(),
-                    lead.empresa(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
+                    lead.empresa(), lead.codigo(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
                     lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.notas(),
                     lead.resumoIa(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
                     lead.dadosCustomizados());
@@ -196,6 +206,8 @@ class LeadController {
                     @Size(max = 14) String cpf,
             @Schema(description = "Empresa; ausente preserva o valor atual.", example = "Empresa Exemplo", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
                     @Size(max = 150) String empresa,
+            @Schema(description = "Código numérico interno; ausente preserva o valor atual. Vazio limpa o campo.", example = "00421", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+                    @Size(max = 20) String codigo,
             @Schema(description = "Localização; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
                     @Size(max = 200) String localizacao,
             @Schema(description = "Canal de origem; ausente preserva o valor atual.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
@@ -211,7 +223,7 @@ class LeadController {
 
         DadosDeAtualizacaoLead paraDados() {
             return new DadosDeAtualizacaoLead(
-                    nome, fotoUrl, telefone, email, cpf, empresa, localizacao, canalOrigemId, status,
+                    nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId, status,
                     etapaAtendimentoId, notas, dadosCustomizados);
         }
     }

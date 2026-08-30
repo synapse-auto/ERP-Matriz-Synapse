@@ -20,6 +20,7 @@ public record CartaoAtendimento(
         String leadNome,
         String leadFotoUrl,
         String leadEmpresa,
+        String leadCodigo,
         String canalTipo,
         UUID etapaId,
         String etapaNome,

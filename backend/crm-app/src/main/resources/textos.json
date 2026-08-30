@@ -276,7 +276,8 @@
       "semAtendente": "Sem atendente",
       "vazio": "Nenhuma conversa nesta visão.",
       "naoLidas": "{quantidade} mensagens não lidas",
-      "atendidoPelaIa": "Atendido pela IA"
+      "atendidoPelaIa": "Atendido pela IA",
+      "codigo": "Código {codigo}"
     },
     "cabecalho": {
       "atendidoPor": "Atendido por",
@@ -513,6 +514,9 @@
       "email": "E-mail",
       "cpf": "CPF",
       "empresa": "Empresa",
+      "codigo": "Código",
+      "codigoPlaceholder": "Somente números",
+      "codigoInvalido": "Informe apenas números, com no máximo 20 dígitos.",
       "localizacao": "Localização",
       "responsavel": "Responsável",
       "canalOrigem": "Canal de origem",

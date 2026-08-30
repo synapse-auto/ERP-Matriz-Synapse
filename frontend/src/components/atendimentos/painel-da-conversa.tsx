@@ -7,6 +7,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronUp,
+  Hash,
   Mail,
   MapPin,
   Pencil,
@@ -33,8 +34,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useEtapas, useLead, useMidiasDoLead } from "@/lib/lead/use-painel-lead";
+import { useEtapas, useLead, useMidiasDoLead, useSalvarFicha } from "@/lib/lead/use-painel-lead";
 import {
   cancelarMensagemProgramada,
   removerLembrete,
@@ -155,6 +157,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
             {textos.informacoesGerais}
           </p>
           <div className="space-y-3">
+            <CampoCodigoDoLead key={leadId} leadId={leadId} valorAtual={lead.data.codigo} />
             <InformacaoDoPainel
               icone={<Phone className="size-4" aria-hidden />}
               rotulo={textosLead.dados.telefone}
@@ -340,6 +343,75 @@ function InformacaoDoPainel({
     <div className="flex items-center gap-2.5 text-primary" title={rotulo}>
       {icone}
       <p className="text-sm text-foreground">{valor}</p>
+    </div>
+  );
+}
+
+const TAMANHO_MAXIMO_CODIGO = 20;
+
+function somenteDigitos(texto: string): string {
+  return texto.replace(/\D/g, "").slice(0, TAMANHO_MAXIMO_CODIGO);
+}
+
+function CampoCodigoDoLead({
+  leadId,
+  valorAtual,
+}: {
+  leadId: string;
+  valorAtual: string | null;
+}) {
+  const textos = useTextos().painelLead.dados;
+  const salvar = useSalvarFicha(leadId);
+  const idCampo = useId();
+  const [valor, setValor] = useState(valorAtual ?? "");
+  const [erro, setErro] = useState(false);
+
+  function persistir() {
+    const canonico = somenteDigitos(valor);
+    setValor(canonico);
+    if (canonico === (valorAtual ?? "")) return;
+    salvar.mutate(
+      { codigo: canonico },
+      {
+        onError: () => setErro(true),
+        onSuccess: () => setErro(false),
+      },
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 text-primary">
+      <Hash className="size-4 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <label htmlFor={idCampo} className="sr-only">
+          {textos.codigo}
+        </label>
+        <Input
+          id={idCampo}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={TAMANHO_MAXIMO_CODIGO}
+          placeholder={textos.codigoPlaceholder}
+          value={valor}
+          disabled={salvar.isPending}
+          aria-invalid={erro || undefined}
+          className="h-8 font-mono text-sm tabular-nums"
+          onChange={(evento) => {
+            setErro(false);
+            setValor(somenteDigitos(evento.target.value));
+          }}
+          onBlur={persistir}
+          onKeyDown={(evento) => {
+            if (evento.key === "Enter") evento.currentTarget.blur();
+          }}
+        />
+        {erro && (
+          <p role="alert" className="mt-1 text-[0.65rem] text-destructive">
+            {textos.codigoInvalido}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

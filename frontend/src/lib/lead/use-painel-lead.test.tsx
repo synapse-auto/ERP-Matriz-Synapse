@@ -35,6 +35,7 @@ const ficha: LeadFicha = {
   email: null,
   cpf: null,
   empresa: null,
+  codigo: null,
   localizacao: null,
   canalOrigemId: null,
   status: "EM_ATENDIMENTO",
@@ -65,6 +66,41 @@ describe("mutações otimistas da ficha", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     expect(cache.getQueryData<LeadFicha>(["lead", "lead-1"])).toEqual(ficha);
+  });
+
+  it("aplica codigo otimista e restaura quando o servidor recusa", async () => {
+    let rejeitar!: (erro: Error) => void;
+    vi.mocked(api.atualizarLead).mockImplementation(
+      () => new Promise((_resolver, rejeicao) => (rejeitar = rejeicao)),
+    );
+    const cache = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    cache.setQueryData(["lead", "lead-1"], ficha);
+    cache.setQueryData(["atendimentos"], [{ leadId: "lead-1", leadCodigo: null }]);
+    const { result } = renderHook(() => useSalvarFicha("lead-1"), { wrapper: wrapper(cache) });
+
+    result.current.mutate({ codigo: "00421" });
+    await waitFor(() =>
+      expect(cache.getQueryData<LeadFicha>(["lead", "lead-1"])?.codigo).toBe("00421"),
+    );
+
+    rejeitar(new Error("recusado"));
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(cache.getQueryData<LeadFicha>(["lead", "lead-1"])).toEqual(ficha);
+    expect(cache.getQueryData(["atendimentos"])).toEqual([{ leadId: "lead-1", leadCodigo: null }]);
+  });
+
+  it("espelha o codigo salvo no card da inbox", async () => {
+    vi.mocked(api.atualizarLead).mockResolvedValue({ ...ficha, codigo: "00421" });
+    const cache = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    cache.setQueryData(["lead", "lead-1"], ficha);
+    cache.setQueryData(["atendimentos"], [{ leadId: "lead-1", leadCodigo: null }]);
+    const { result } = renderHook(() => useSalvarFicha("lead-1"), { wrapper: wrapper(cache) });
+
+    result.current.mutate({ codigo: "00421" });
+    await waitFor(() =>
+      expect(cache.getQueryData(["atendimentos"])).toEqual([{ leadId: "lead-1", leadCodigo: "00421" }]),
+    );
   });
 
   it("adiciona a tag otimista e restaura a lista quando o vínculo falha", async () => {

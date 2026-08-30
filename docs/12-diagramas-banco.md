@@ -158,6 +158,7 @@ erDiagram
         varchar email
         varchar cpf
         varchar empresa
+        varchar codigo
         varchar localizacao
         uuid canal_origem_id FK
         enum status_basico

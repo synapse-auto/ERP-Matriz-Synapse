@@ -48,6 +48,7 @@ export interface CartaoAtendimento {
   leadNome: string;
   leadFotoUrl: string | null;
   leadEmpresa: string | null;
+  leadCodigo?: string | null;
   canalTipo: string | null;
   etapaId: string | null;
   etapaNome: string | null;

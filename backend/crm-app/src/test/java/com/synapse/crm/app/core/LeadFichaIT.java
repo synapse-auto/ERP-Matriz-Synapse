@@ -87,6 +87,45 @@ class LeadFichaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("atendente grava codigo numerico e a ficha devolve o valor")
+    void editar_codigoNumerico_funciona() {
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("codigo", "00421"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"codigo\":\"00421\"");
+        assertThat(jdbc.queryForObject("SELECT codigo FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo("00421");
+    }
+
+    @Test
+    @DisplayName("codigo com letra devolve Problem Details e nao grava")
+    void editar_codigoComLetra_devolveProblemDetails() {
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("codigo", "12a"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getHeaders().getContentType())
+                .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(resposta.getBody()).contains("Codigo invalido");
+        assertThat(jdbc.queryForObject("SELECT codigo FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("codigo vazio limpa o campo gravado")
+    void editar_codigoVazio_limpa() {
+        comoAna(HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("codigo", "00421"));
+
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("codigo", ""));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT codigo FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isNull();
+    }
+
+    @Test
     @DisplayName("telefone com menos de dez digitos devolve Problem Details")
     void editar_telefoneCurto_devolveProblemDetails() {
         var resposta = comoAna(

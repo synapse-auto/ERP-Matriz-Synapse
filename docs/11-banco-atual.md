@@ -88,9 +88,9 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.3 CRM Core
 
-**`lead`** — 19 colunas:
+**`lead`** — 20 colunas:
 
-`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18)
+`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18)
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.

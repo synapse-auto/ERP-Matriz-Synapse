@@ -11,7 +11,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 painelLead: {
       titulo: "Ficha",
       fechar: "Fechar",
-      dados: { telefone: "Telefone", email: "Email", cpf: "CPF", empresa: "Empresa", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
+      dados: { telefone: "Telefone", email: "Email", cpf: "CPF", empresa: "Empresa", codigo: "Código", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
       acoes: { ligar: "Ligar para lead", lembrete: "L", mensagemProgramada: "M", abrirAtendimento: "A" },
       etapa: { titulo: "Etapa", semEtapa: "Sem", posicao: "{atual} de {total}" },
       contadores: { atendimentos: "At", mensagens: "Msg" },
@@ -95,5 +95,12 @@ describe("PainelLateralLead telefones", () => {
     renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
     const btn = screen.queryByRole("link", { name: "Ligar para lead" });
     expect(btn).not.toBeInTheDocument();
+  });
+
+  it("mostra o código numérico nas informações da ficha", () => {
+    mockLeadData = { id: "1", nome: "Lead 1", telefone: null, codigo: "00421" };
+    renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
+    expect(screen.getByText("Código")).toBeInTheDocument();
+    expect(screen.getByText("00421")).toBeInTheDocument();
   });
 });

@@ -111,7 +111,7 @@ class ListarInboxUnificadaUseCaseTest {
     }
 
     private static CartaoAtendimento cartao(UUID lead, Instant ultimaMensagem) {
-        return new CartaoAtendimento(UUID.randomUUID(), lead, "Lead", null, null, "WHATSAPP", null,
+        return new CartaoAtendimento(UUID.randomUUID(), lead, "Lead", null, null, null, "WHATSAPP", null,
                 null, null, StatusAtendimento.EM_ATENDIMENTO, null, null, null, "mensagem", "LEAD",
                 ultimaMensagem, null, 0);
     }
