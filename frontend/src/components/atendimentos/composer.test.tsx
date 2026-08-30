@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -45,6 +45,20 @@ vi.mock("@/lib/atendimento/janela-24h", () => ({
   janelaTextoLivreAberta: () => true,
 }));
 
+vi.mock("@/lib/atendimento/api", () => ({
+  listarTemplatesWhatsApp: () =>
+    Promise.resolve([
+      {
+        nome: "boas_vindas",
+        idioma: "pt_BR",
+        categoria: "UTILIDADE",
+        status: "APROVADO",
+        corpo: "Olá, bem-vindo",
+        quantidadeDeParametros: 0,
+      },
+    ]),
+}));
+
 vi.mock("@/lib/suporte/api", () => ({
   listarMensagensRapidas: () =>
     Promise.resolve([
@@ -89,6 +103,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
         anexo: "Anexo",
         anexoIndisponivel: "indisponivel",
         anexoSelecionar: "Escolher arquivo",
+        anexoMenuArquivos: "Arquivos",
+        anexoMenuTemplates: "Templates",
         anexoRemover: "Remover anexo",
         anexoEnviando: "Enviando anexo...",
         anexoErro: "Falha ao enviar o anexo.",
@@ -111,7 +127,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         emoji: "Emoji",
         janelaFechadaTitulo: "",
         janelaFechadaDescricao: "",
-        semTemplates: "",
+        semTemplates: "Nenhum template aprovado ainda.",
         escolherTemplate: "Enviar template",
         enviarTemplate: "Enviar este template",
         parametroTemplate: "Parâmetro {indice}",
@@ -266,6 +282,50 @@ describe("Composer — anexo", () => {
     });
 
     expect(screen.getByText("foto.png")).toBeInTheDocument();
+  });
+
+  it("abre o menu do clipe para cima com Arquivos e Templates", async () => {
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Enviar template" })).not.toBeInTheDocument();
+  });
+
+  it("Arquivos no menu dispara o seletor de arquivo atual", async () => {
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const abrir = vi.spyOn(input, "click");
+
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Arquivos" }));
+
+    await waitFor(() => expect(abrir).toHaveBeenCalled());
+  });
+
+  it("Templates no menu abre o catálogo aprovado e envia sem texto livre", async () => {
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Templates" }));
+
+    expect(await screen.findByRole("heading", { name: "Enviar template" })).toBeInTheDocument();
+    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar este template" }));
+
+    expect(mutateTexto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        atendimentoId: "at-1",
+        leadId: "lead-1",
+        template: {
+          nome: "boas_vindas",
+          idioma: "pt_BR",
+          parametros: [],
+        },
+      }),
+    );
   });
 
   it("remove o arquivo selecionado ao clicar em remover", () => {

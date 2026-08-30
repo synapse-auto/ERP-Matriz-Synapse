@@ -43,7 +43,7 @@ A grade de KPIs da Visão Geral **não mostra mais o card "Vendas fechadas"** �
 As abas **Operacional**, **Comercial** e **IA & Automação** continuam na fase 2: aparecem desabilitadas, sem dados, apenas para manter honesta a casca aprovada no protótipo. A Visão Geral atende o recorte de `RF-CRM-31` e `RF-CRM-33`; o detalhamento de `RF-CRM-32` permanece fora.
 
 ### Anexos no chat — upload direto
-O composer mantém o botão de anexo com upload do computador (`RF-CRM-09`, `RF-CRM-68`). O que sai é o **repositório compartilhado** de arquivos frequentes (`RF-CRM-13/55/56`). O atendente continua enviando foto e orçamento — apenas sem a biblioteca reutilizável.
+O composer mantém o botão de anexo (`RF-CRM-09`, `RF-CRM-68`): o clipe abre um menu para cima com **Arquivos** (upload do computador) e **Templates** (templates WhatsApp aprovados, o mesmo fluxo da janela de 24h). O que sai é o **repositório compartilhado** de arquivos frequentes (`RF-CRM-13/55/56`).
 
 **Consequência técnica:** a infraestrutura de storage (S3/MinIO, upload, URL assinada) **permanece na primeira entrega**, porque o anexo do chat depende dela. O que não é construído é a aba de gestão desses arquivos.
 

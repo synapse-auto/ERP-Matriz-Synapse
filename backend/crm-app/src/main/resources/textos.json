@@ -419,6 +419,8 @@
       "anexo": "Anexo",
       "anexoIndisponivel": "Envio de anexo ainda não está disponível.",
       "anexoSelecionar": "Escolher arquivo",
+      "anexoMenuArquivos": "Arquivos",
+      "anexoMenuTemplates": "Templates",
       "anexoRemover": "Remover anexo",
       "anexoEnviando": "Enviando anexo...",
       "anexoErro": "Falha ao enviar o anexo.",
