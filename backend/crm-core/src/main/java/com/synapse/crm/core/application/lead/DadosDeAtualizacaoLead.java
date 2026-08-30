@@ -55,6 +55,9 @@ public record DadosDeAtualizacaoLead(
                 atual.id(),
                 nome == null ? atual.nome() : NomeDoLead.normalizar(nome),
                 ouAtual(fotoUrl, atual.fotoUrl()),
+                // A foto da integracao (E97) nao passa por edicao de ficha: quem a escreve e o
+                // contrato interno. Preservada sempre, como o dono do lead.
+                atual.fotoReferencia(),
                 telefone == null ? atual.telefone() : telefoneCanonico.normalizar(telefone),
                 ouAtual(email, atual.email()),
                 ouAtual(cpf, atual.cpf()),

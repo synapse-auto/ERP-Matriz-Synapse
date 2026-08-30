@@ -19,6 +19,7 @@ import com.synapse.crm.core.application.lead.FiltroLead;
 import com.synapse.crm.core.application.lead.LeadRepositorio;
 import com.synapse.crm.core.application.lead.PaginaDeLeads;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
+import com.synapse.crm.core.domain.lead.FotoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 import com.synapse.crm.core.domain.lead.VisibilidadeLead;
@@ -188,6 +189,21 @@ class LeadRepositorioJpa implements LeadRepositorio {
     @Override
     public void somarMensagens(UUID leadId, int quantidade) {
         jpa.somarMensagens(leadId, quantidade);
+    }
+
+    /** Mesmo predicado da leitura de ficha: a foto de um lead de colega nao sai do banco. */
+    @Override
+    public Optional<FotoDoLead> fotoDoLead(UUID leadId) {
+        return entidadeVisivel(leadId).map(LeadEntity::foto);
+    }
+
+    @Override
+    public boolean atualizarFoto(UUID leadId, String referencia, String hash, Instant quando) {
+        return entidadeVisivel(leadId).map(entidade -> {
+            entidade.trocarFoto(referencia, hash, quando);
+            jpa.save(entidade);
+            return true;
+        }).orElse(false);
     }
 
     private Optional<LeadEntity> entidadeVisivel(UUID id) {

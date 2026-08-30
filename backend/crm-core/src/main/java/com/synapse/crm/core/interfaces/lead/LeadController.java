@@ -187,11 +187,17 @@ class LeadController {
 
         static FichaDoLead de(Lead lead) {
             return new FichaDoLead(
-                    lead.id(), lead.nome(), lead.fotoUrl(), lead.telefone(), lead.email(), lead.cpf(),
+                    lead.id(), lead.nome(), fotoExibida(lead), lead.telefone(), lead.email(), lead.cpf(),
                     lead.empresa(), lead.codigo(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
                     lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.notas(),
                     lead.resumoIa(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
                     lead.dadosCustomizados());
+        }
+
+        private static String fotoExibida(Lead lead) {
+            return lead.fotoReferencia() == null || lead.fotoReferencia().isBlank()
+                    ? lead.fotoUrl()
+                    : "/api/v1/leads/" + lead.id() + "/foto";
         }
     }
 

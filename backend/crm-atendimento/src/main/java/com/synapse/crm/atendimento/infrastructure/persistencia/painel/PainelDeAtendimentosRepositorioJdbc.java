@@ -34,9 +34,15 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Repository
 class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosRepositorio {
 
+    // E97: a foto entregue pela integracao ganha da URL externa digitada na ficha. Mesmo
+    // formato de ChatInternoRepositorioJdbc/FeedbackRepositorioJdbc com o avatar do usuario:
+    // caminho relativo autenticado, nunca URL de storage.
     private static final String CAMPOS =
             """
-            a.id AS atendimento_id, a.lead_id, l.nome AS lead_nome, l.foto_url AS lead_foto_url,
+            a.id AS atendimento_id, a.lead_id, l.nome AS lead_nome,
+            CASE WHEN l.foto_referencia IS NOT NULL
+                 THEN '/api/v1/leads/' || l.id::text || '/foto'
+                 ELSE l.foto_url END AS lead_foto_url,
             l.empresa AS lead_empresa, l.codigo AS lead_codigo, c.tipo AS canal_tipo,
             l.etapa_atendimento_id, et.nome AS etapa_nome,
             et.cor_visual AS etapa_cor, a.status, a.atendente_id, u.nome AS atendente_nome,

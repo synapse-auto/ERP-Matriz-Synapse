@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.synapse.crm.core.domain.lead.FotoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 
@@ -37,6 +38,24 @@ class LeadEntity {
 
     @Column(name = "foto_url")
     private String fotoUrl;
+
+    /**
+     * Foto entregue pela integracao externa (E97), ja reprocessada no bucket proprio.
+     *
+     * <p>Como {@link #ultimaInteracaoEm}, fica fora de {@link #aplicar(Lead)}: edicao de ficha nao
+     * pode sobrescrever, com um valor lido da tela, o que o contrato interno acabou de gravar. Quem
+     * escreve estas tres colunas e {@code atualizarFoto}, e so ele.
+     */
+    @Column(name = "foto_referencia")
+    private String fotoReferencia;
+
+    /** SHA-256 dos bytes ORIGINAIS recebidos; e o que faz o polling da integracao sair barato. */
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "foto_hash", length = 64)
+    private String fotoHash;
+
+    @Column(name = "foto_atualizada_em")
+    private Instant fotoAtualizadaEm;
 
     @Column(name = "telefone")
     private String telefone;
@@ -106,8 +125,8 @@ class LeadEntity {
 
     Lead paraDominio() {
         return new Lead(
-                id, nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId,
-                statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
+                id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,
+                canalOrigemId, statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
                 numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
     }
 
@@ -134,6 +153,18 @@ class LeadEntity {
         this.notas = lead.notas();
         this.resumoIa = lead.resumoIa();
         this.dadosCustomizados = new LinkedHashMap<>(lead.dadosCustomizados());
+    }
+
+    /** Estado atual da foto entregue pela integracao; nunca passa por {@link #aplicar(Lead)}. */
+    FotoDoLead foto() {
+        return new FotoDoLead(id, fotoReferencia, fotoHash, fotoAtualizadaEm);
+    }
+
+    /** Troca as tres colunas de foto de uma vez; nulos em todas removem a foto. */
+    void trocarFoto(String referencia, String hash, Instant quando) {
+        this.fotoReferencia = referencia;
+        this.fotoHash = hash;
+        this.fotoAtualizadaEm = quando;
     }
 
     /** Nomes de atributo usados pela Specification e pela projecao de listagem. */

@@ -2,7 +2,7 @@ import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetchBlob } from "@/lib/api/http-client";
-import { iniciaisDoNome } from "@/lib/utils";
+import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 /**
  * Avatar com as iniciais de uma pessoa e um tom de cor determinístico (E17b §Bloco 4 — extraído na
@@ -33,10 +33,11 @@ type Props = {
   id: string;
   nome: string;
   fotoUrl?: string | null;
+  fotoAlt?: string;
   className?: string;
 };
 
-export function AvatarIniciais({ id, nome, fotoUrl, className }: Props) {
+export function AvatarIniciais({ id, nome, fotoUrl, fotoAlt = "", className }: Props) {
   const classe = `${className ?? "flex size-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"} relative overflow-hidden`;
 
   return (
@@ -45,12 +46,50 @@ export function AvatarIniciais({ id, nome, fotoUrl, className }: Props) {
       style={{ backgroundColor: tomDoAvatar(id) }}
       title={nome}
     >
-      {fotoUrl ? <FotoCarregada fotoUrl={fotoUrl} fallback={iniciaisDoNome(nome)} /> : iniciaisDoNome(nome)}
+      {fotoUrl ? (
+        <FotoCarregada
+          fotoUrl={fotoUrl}
+          fotoAlt={fotoAlt}
+          fallback={iniciaisDoNome(nome)}
+        />
+      ) : iniciaisDoNome(nome)}
     </span>
   );
 }
 
-function FotoCarregada({ fotoUrl, fallback }: { fotoUrl: string; fallback: string }) {
+/**
+ * Um unico seam decide como cada foto e carregada: caminhos da API recebem o JWT pelo cliente
+ * binario; URLs absolutas continuam diretas, depois da validacao de esquema. Assim nenhum
+ * componente de lead precisa conhecer autenticacao nem repetir a regra de seguranca.
+ */
+function FotoCarregada({
+  fotoUrl,
+  fotoAlt,
+  fallback,
+}: {
+  fotoUrl: string;
+  fotoAlt: string;
+  fallback: string;
+}) {
+  if (fotoUrl.startsWith("/") && !fotoUrl.startsWith("//")) {
+    return <FotoAutenticada fotoUrl={fotoUrl} fotoAlt={fotoAlt} fallback={fallback} />;
+  }
+  const externa = urlSegura(fotoUrl);
+  if (!externa) return <>{fallback}</>;
+  // A URL externa foi limitada a http(s) por urlSegura; nao passa pelo proxy de imagens.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={externa} alt={fotoAlt} className="absolute inset-0 size-full object-cover" />;
+}
+
+function FotoAutenticada({
+  fotoUrl,
+  fotoAlt,
+  fallback,
+}: {
+  fotoUrl: string;
+  fotoAlt: string;
+  fallback: string;
+}) {
   const foto = useQuery({
     queryKey: ["avatar", fotoUrl],
     queryFn: () => apiFetchBlob(fotoUrl),
@@ -63,5 +102,5 @@ function FotoCarregada({ fotoUrl, fallback }: { fotoUrl: string; fallback: strin
   if (!url) return <>{fallback}</>;
   // A URL e um blob criado pelo cliente a partir do endpoint autenticado; nao e URL assinada.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt="" className="absolute inset-0 size-full object-cover" />;
+  return <img src={url} alt={fotoAlt} className="absolute inset-0 size-full object-cover" />;
 }

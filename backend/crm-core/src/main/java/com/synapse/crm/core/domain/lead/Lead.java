@@ -10,6 +10,10 @@ import java.util.UUID;
  *
  * <p>Java puro — sem JPA, sem Spring. O mapeamento para tabela mora em infrastructure.
  *
+ * <p>{@code fotoUrl} e a URL externa digitada na ficha; {@code fotoReferencia} e a foto que a
+ * integracao entregou (E97), guardada no storage proprio. A referencia <b>ganha</b> da URL externa
+ * na leitura, e nao e editavel por aqui: quem a escreve e o contrato interno, nunca a tela.
+ *
  * <p>Para listagem existe {@link LeadResumo}, que nao carrega {@code notas} nem {@code resumoIa}.
  * Sao campos longos e a separacao e por tipo, nao por disciplina: o metodo de listar nao tem onde
  * colocar esses campos, entao nao ha como traze-los por descuido. {@code dadosCustomizados} (E06b)
@@ -19,6 +23,7 @@ public record Lead(
         UUID id,
         String nome,
         String fotoUrl,
+        String fotoReferencia,
         String telefone,
         String email,
         String cpf,
@@ -46,8 +51,8 @@ public record Lead(
     /** Copia com os dados customizados substituidos — ja validados contra {@code campo_customizado}. */
     public Lead comDadosCustomizados(Map<String, Object> novosDadosCustomizados) {
         return new Lead(
-                id, nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId,
-                statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
+                id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,
+                canalOrigemId, statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
                 numAtendimentos, numMensagens, criadoEm, novosDadosCustomizados);
     }
 
@@ -70,7 +75,7 @@ public record Lead(
     public static Lead apenasParaVisibilidade(
             UUID id, String nome, StatusBasicoLead status, UUID atendenteResponsavelId) {
         return new Lead(
-                id, nome, null, null, null, null, null, null, null, null, status, null,
+                id, nome, null, null, null, null, null, null, null, null, null, status, null,
                 atendenteResponsavelId, null, null, 0, 0, null, null);
     }
 }

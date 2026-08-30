@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
@@ -49,7 +49,6 @@ import type {
   OrigemEvento,
   TagDoLead,
 } from "@/lib/lead/types";
-import { iniciaisDoNome, urlSegura } from "@/lib/utils";
 
 interface Props {
   leadId: string | null;
@@ -355,13 +354,15 @@ function Carregando() {
 }
 
 function CabecalhoDaFicha({ lead }: { lead: LeadFicha }) {
-  const foto = urlSegura(lead.fotoUrl);
   return (
     <div className="flex flex-col items-center text-center pb-2">
-      <Avatar className="size-[60px]">
-        {foto && <AvatarImage src={foto} alt={lead.nome} />}
-        <AvatarFallback>{iniciaisDoNome(lead.nome)}</AvatarFallback>
-      </Avatar>
+      <AvatarIniciais
+        id={lead.id}
+        nome={lead.nome}
+        fotoUrl={lead.fotoUrl}
+        fotoAlt={lead.nome}
+        className="flex size-[60px] shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
+      />
       <CampoNomeDoLead
         key={lead.id}
         leadId={lead.id}

@@ -494,6 +494,76 @@
         }
       }
     },
+    "/internal/v1/leads/{id}/foto" : {
+      "delete" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FotoDoLeadResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      },
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "arquivo" : {
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "arquivo" ],
+                "type" : "object"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FotoDoLeadResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "413" : { },
+          "422" : { }
+        }
+      }
+    },
     "/internal/v1/leads/{id}/tags" : {
       "post" : {
         "parameters" : [ {
@@ -713,6 +783,19 @@
         }
       },
       "required" : [ "tipo" ],
+      "type" : "object"
+    },
+    "FotoDoLeadResposta" : {
+      "properties" : {
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "status" : {
+          "enum" : [ "ATUALIZADA", "INALTERADA", "REMOVIDA" ],
+          "type" : "string"
+        }
+      },
       "type" : "object"
     },
     "LembreteRequisicao" : {
