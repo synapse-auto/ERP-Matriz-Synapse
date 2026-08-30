@@ -9,7 +9,6 @@ import {
   Mic,
   Paperclip,
   Send,
-  Smile,
   Square,
   Trash2,
   X,
@@ -40,12 +39,12 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { listarMensagensRapidas } from "@/lib/suporte/api";
 import { useLead } from "@/lib/lead/use-painel-lead";
 import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
+import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
+import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { useGravadorAudio } from "./use-gravador-audio";
-
-const EMOJIS = ["😀", "😂", "😍", "👍", "🙏", "🎉", "😢", "😡", "👀", "✅"];
 
 const TIPOS_DE_ANEXO_ACEITOS =
   "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -549,31 +548,20 @@ export function Composer({ conversa, resposta = null, onCancelarResposta }: Prop
               <TooltipContent>{textos.agendar}</TooltipContent>
             </Tooltip>
 
-            <Popover>
-              <PopoverTrigger
-                className={buttonVariants({ variant: "ghost", size: "icon" })}
-                aria-label={textos.emoji}
-                disabled={gravador.fase !== "INATIVO"}
-              >
-                <Smile className="size-4" />
-              </PopoverTrigger>
-              <PopoverContent
-                side="top"
-                align="start"
-                className="grid w-auto grid-cols-5 gap-1"
-              >
-                {EMOJIS.map((emoji) => (
-                  <button
-                    type="button"
-                    key={emoji}
-                    className="rounded p-1 text-lg hover:bg-muted"
-                    onClick={() => setTexto((atual) => atual + emoji)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
+            <PainelEmojiComposer
+              rotulo={textos.emoji}
+              i18n={textosAtendimentos.mensagem.acoes.seletor}
+              disabled={gravador.fase !== "INATIVO"}
+              onEscolher={(emoji) => {
+                const campo = textareaRef.current;
+                setTexto((atual) => {
+                  const { texto, cursor } = inserirNoCursor(atual, emoji, campo);
+                  requestAnimationFrame(() => posicionarCursor(textareaRef.current, cursor));
+                  return texto;
+                });
+                setVariaveisPendentes([]);
+              }}
+            />
           </div>
 
           {gravador.disponivel && gravador.fase === "INATIVO" && !arquivo && (

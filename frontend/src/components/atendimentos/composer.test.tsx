@@ -61,6 +61,25 @@ vi.mock("@/lib/suporte/api", () => ({
   editarMensagemProgramada: vi.fn(),
 }));
 
+vi.mock("@/components/mensagens/painel-emoji-composer", () => ({
+  PainelEmojiComposer: ({
+    rotulo,
+    onEscolher,
+  }: {
+    rotulo: string;
+    onEscolher: (emoji: string) => void;
+  }) => (
+    <>
+      <button type="button" aria-label={rotulo} />
+      <input aria-label="Buscar emoji" />
+      <button type="button">Natureza</button>
+      <button type="button" onClick={() => onEscolher("👍🏽")}>
+        👍🏽
+      </button>
+    </>
+  ),
+}));
+
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
@@ -111,6 +130,28 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
+        acoes: {
+          seletor: {
+            search: "Buscar emoji",
+            searchNoResults: "Nenhum",
+            pick: "Escolha",
+            addCustom: "Custom",
+            categories: {
+              activity: "A",
+              custom: "C",
+              flags: "F",
+              foods: "Fo",
+              frequent: "R",
+              nature: "Natureza",
+              objects: "O",
+              people: "P",
+              places: "V",
+              search: "B",
+              symbols: "S",
+            },
+            skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" },
+          },
+        },
         citacao: {
           resposta: "Respondendo a {autor}",
           encaminhamento: "Encaminhada",
@@ -279,6 +320,19 @@ describe("Composer — anexo", () => {
     fireEvent.keyDown(composer, { key: "Enter" });
 
     expect(composer).toHaveValue("Olá! Como posso ajudar?");
+    expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("abre o catálogo completo e insere o emoji no texto", async () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+
+    fireEvent.click(screen.getByRole("button", { name: "Emoji" }));
+    expect(await screen.findByLabelText("Buscar emoji")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Natureza" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "👍🏽" }));
+    expect(campo).toHaveValue("👍🏽");
     expect(mutateTexto).not.toHaveBeenCalled();
   });
 

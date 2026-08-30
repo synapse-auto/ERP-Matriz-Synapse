@@ -10,10 +10,12 @@ vi.mock("emoji-mart", () => {
     constructor(options: {
       data?: unknown;
       set?: string;
+      theme?: string;
       onEmojiSelect?: (escolha: { native?: unknown }) => void;
     }) {
       super();
       this.setAttribute("data-emoji-set", String(options.set ?? ""));
+      this.setAttribute("data-emoji-theme", String(options.theme ?? ""));
       const busca = document.createElement("input");
       busca.setAttribute("aria-label", "Buscar emoji");
       const pessoas = document.createElement("button");
@@ -71,6 +73,7 @@ describe("SeletorEmojiCompleto", () => {
       expect(document.querySelector("[data-slot='seletor-emoji'] em-emoji-picker")).not.toBeNull();
     });
     expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-set")).toBe("native");
+    expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-theme")).toBe("auto");
     expect(screen.getByLabelText("Buscar emoji")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pessoas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Natureza" })).toBeInTheDocument();
