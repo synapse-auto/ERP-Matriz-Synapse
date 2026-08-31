@@ -15,6 +15,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.timeline.OrigemEvento;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -34,18 +35,21 @@ public class TransferirAtendimentoUseCase {
     private final AtendenteParaTransferenciaRepositorio destinos;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final UsuarioContext usuarios;
 
     public TransferirAtendimentoUseCase(
             AtendimentoRepositorio atendimentos,
             LeadNoCaminhoDeMensagem leads,
             AtendenteParaTransferenciaRepositorio destinos,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio,
+            UsuarioContext usuarios) {
         this.atendimentos = atendimentos;
         this.leads = leads;
         this.destinos = destinos;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.usuarios = usuarios;
     }
 
     /**
@@ -100,12 +104,17 @@ public class TransferirAtendimentoUseCase {
             return antes;
         }
 
+        recusarDistribuicaoDePotencial(antes, paraAtendenteId, atorId, atorTipo);
+
         if (paraAtendenteId != null) {
             destinos.exigirAtendenteAtivo(paraAtendenteId);
         }
 
         Atendimento depois =
                 paraAtendenteId == null ? antes.devolverParaIa() : antes.transferirPara(paraAtendenteId);
+        // A leitura acima usou o papel real (404 se nao enxerga). A gravacao de troca de dono
+        // precisa de SERVICO: a RLS recusa o UPDATE cuja linha nova o atendente ja nao enxerga.
+        atendimentos.elevarRlsParaEscritaDeNovoDono();
         atendimentos.salvar(depois);
 
         if (paraAtendenteId == null) {
@@ -126,5 +135,24 @@ public class TransferirAtendimentoUseCase {
                 agora));
 
         return depois;
+    }
+
+    /**
+     * A RLS deixa qualquer atendente ler o grupo {@code EM_IA}. Sem esta recusa, ele entregaria um
+     * Potencial a um colega escolhido a dedo. Transferir a conversa que já é dele para um colega
+     * ativo continua permitido; devolver para a IA ou assumir para si também.
+     */
+    private void recusarDistribuicaoDePotencial(
+            Atendimento antes, UUID paraAtendenteId, UUID atorId, OrigemEvento atorTipo) {
+        if (atorTipo != OrigemEvento.USUARIO || paraAtendenteId == null || atorId == null) {
+            return;
+        }
+        if (paraAtendenteId.equals(atorId) || antes.status() != StatusAtendimento.EM_IA) {
+            return;
+        }
+        if (usuarios.atual().enxergaTodosOsLeads()) {
+            return;
+        }
+        throw new TransferenciaDePotencialProibidaException();
     }
 }

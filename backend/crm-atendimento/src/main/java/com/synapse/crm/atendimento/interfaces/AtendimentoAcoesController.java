@@ -43,6 +43,7 @@ import com.synapse.crm.atendimento.application.IniciarNovoContatoUseCase;
 import com.synapse.crm.atendimento.application.PedidoDeNovoContatoInvalidoException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarAvaliacaoUseCase;
+import com.synapse.crm.atendimento.application.TransferenciaDePotencialProibidaException;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
 import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
@@ -264,10 +265,10 @@ class AtendimentoAcoesController {
     /** {@code paraAtendenteId} ausente devolve o atendimento para a IA. */
     @Operation(
             summary = "Transferir atendimento",
-            description = "Transfere para o atendente informado; corpo ausente ou paraAtendenteId nulo devolve para a IA. Atendente comum só pode assumir para si ou devolver.",
+            description = "Transfere para o atendente informado; corpo ausente ou paraAtendenteId nulo devolve para a IA. Atendente transfere a conversa que enxerga para um colega ativo; em Potenciais, só assume para si ou devolve.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
-                @ApiResponse(responseCode = "403", description = "Destino não permitido para atendente comum."),
+                @ApiResponse(responseCode = "403", description = "Atendente tentou escolher o destino de um Potencial."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
                 @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE."),
                 @ApiResponse(responseCode = "409", description = "Atendimento já finalizado.")
@@ -278,28 +279,8 @@ class AtendimentoAcoesController {
             @RequestBody(required = false) TransferenciaRequisicao requisicao) {
         UUID paraAtendenteId = requisicao == null ? null : requisicao.paraAtendenteId();
         UUID quemPediu = usuarioContext.atual().id();
-        exigirTransferenciaPermitida(paraAtendenteId, quemPediu);
         Atendimento atualizado = transferir.executar(id, paraAtendenteId, quemPediu);
         return AtendimentoResumo.de(atualizado);
-    }
-
-    /**
-     * So gestor/subgestor/administrador transfere livremente. Um ATENDENTE alcanca atendimentos
-     * {@code EM_IA} (grupo "Potenciais", sem dono) pela mesma RLS que autoriza a leitura — sem esta
-     * trava, ele poderia entregar um potencial a um colega escolhido a dedo, contornando a RN-CRM-06
-     * ("quem responde primeiro assume"). Devolver para a IA ({@code null}) ou assumir para si mesmo
-     * continuam liberados: sao os dois unicos efeitos que um atendente ja conseguiria produzir de
-     * outra forma (mandando mensagem).
-     */
-    private void exigirTransferenciaPermitida(UUID paraAtendenteId, UUID quemPediu) {
-        if (usuarioContext.atual().enxergaTodosOsLeads()) {
-            return;
-        }
-        boolean paraSiMesmoOuParaIa = paraAtendenteId == null || paraAtendenteId.equals(quemPediu);
-        if (!paraSiMesmoOuParaIa) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "atendente so pode devolver para a IA ou assumir para si");
-        }
     }
 
     @Operation(
@@ -457,6 +438,13 @@ class AtendimentoAcoesController {
         problema.setTitle("Destino invalido");
         problema.setProperty("atendenteId", e.atendenteId());
         problema.setProperty("motivo", e.motivo().descricao());
+        return problema;
+    }
+
+    @ExceptionHandler(TransferenciaDePotencialProibidaException.class)
+    ProblemDetail aoRecusarDistribuicaoDePotencial(TransferenciaDePotencialProibidaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problema.setTitle("Transferencia de potencial proibida");
         return problema;
     }
 
