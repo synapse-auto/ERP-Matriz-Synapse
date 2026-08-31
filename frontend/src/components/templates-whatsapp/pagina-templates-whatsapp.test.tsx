@@ -13,6 +13,14 @@ vi.mock("@/lib/atendimento/api", () => ({
         corpo: "Olá {{1}}, o orçamento ficou pronto.",
         quantidadeDeParametros: 1,
       },
+      {
+        nome: "promo_agosto",
+        idioma: "pt_BR",
+        categoria: "MARKETING",
+        status: "APROVADO",
+        corpo: "Promoção da semana.",
+        quantidadeDeParametros: 0,
+      },
     ]),
   criarTemplateWhatsApp: vi.fn(),
 }));
@@ -28,6 +36,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
       erro: "Erro",
       dica: "Depois de aprovado aparece no composer.",
       avisoPendente: "Aguardando Meta",
+      busca: "Buscar template",
+      semResultados: "Nenhum template encontrado.",
       categorias: { UTILIDADE: "Utilidade", MARKETING: "Marketing", AUTENTICACAO: "Autenticação" },
       status: {
         APROVADO: "Aprovado",
@@ -70,6 +80,19 @@ describe("pagina de templates WhatsApp", () => {
     expect(await screen.findByText("retorno_orcamento")).toBeInTheDocument();
     expect(screen.getByText("Pendente")).toBeInTheDocument();
     expect(screen.getByText("Olá {{1}}, o orçamento ficou pronto.")).toBeInTheDocument();
+  });
+
+  it("agrupa pela categoria que o backend devolve e filtra pela busca", async () => {
+    renderizar();
+    expect(await screen.findByText("Utilidade · 1")).toBeInTheDocument();
+    expect(screen.getByText("Marketing · 1")).toBeInTheDocument();
+    expect(screen.getByText("Aprovado")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Buscar template"), {
+      target: { value: "promo" },
+    });
+    expect(screen.getByText("promo_agosto")).toBeInTheDocument();
+    expect(screen.queryByText("retorno_orcamento")).not.toBeInTheDocument();
   });
 
   it("lista todas as variaveis presentes no corpo", async () => {

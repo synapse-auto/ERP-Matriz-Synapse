@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   analisarVariaveisDoCorpo,
   interpolarCatalogo,
+  interpolarCorpoDoTemplate,
+  parametrosDoTemplatePreenchidos,
   rotulosDasVariaveis,
+  trechoDaVariavel,
 } from "./variaveis-do-template";
 
 describe("variaveis do template", () => {
@@ -32,5 +35,24 @@ describe("variaveis do template", () => {
         lista: "{{1}}, {{2}}, {{3}}, {{4}}",
       }),
     ).toBe("Variáveis sequenciais: {{1}}, {{2}}, {{3}}, {{4}}");
+  });
+});
+
+describe("prévia e contexto das variáveis", () => {
+  it("substitui o marcador preenchido e mantém o vazio", () => {
+    expect(
+      interpolarCorpoDoTemplate("Olá {{1}}, o pedido {{2}} ficou pronto.", ["Maria", ""]),
+    ).toBe("Olá Maria, o pedido {{2}} ficou pronto.");
+  });
+
+  it("mostra o trecho do corpo em que a variável cai", () => {
+    expect(trechoDaVariavel("Olá {{1}}, o orçamento ficou pronto.", 1)).toContain("{{1}}");
+    expect(trechoDaVariavel("Olá {{1}}, o orçamento ficou pronto.", 1)).toContain("Olá");
+  });
+
+  it("considera preenchido só quando nenhum valor está em branco", () => {
+    expect(parametrosDoTemplatePreenchidos(["Maria", "42"])).toBe(true);
+    expect(parametrosDoTemplatePreenchidos(["Maria", "  "])).toBe(false);
+    expect(parametrosDoTemplatePreenchidos([])).toBe(true);
   });
 });

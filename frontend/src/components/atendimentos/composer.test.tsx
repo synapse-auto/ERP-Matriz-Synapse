@@ -45,6 +45,7 @@ vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
 
 vi.mock("@/lib/atendimento/janela-24h", () => ({
   janelaTextoLivreAberta: () => true,
+  estadoDaJanelaTextoLivre: () => "aberta",
 }));
 
 vi.mock("@/lib/atendimento/api", () => ({
@@ -129,12 +130,20 @@ vi.mock("@/lib/config/textos-provider", () => ({
         audioExcedeuLimite: "Áudio excedeu o limite.",
         audioLimiteDuracao: "Duração máxima atingida.",
         emoji: "Emoji",
-        janelaFechadaTitulo: "",
-        janelaFechadaDescricao: "",
+        janelaAberta: "Janela de texto livre aberta",
+        janelaFechadaTitulo: "A janela de 24h encerrou",
+        janelaFechadaDescricao: "A regra é da Meta.",
+        janelaInexistenteTitulo: "Ainda sem mensagem do cliente",
+        janelaInexistenteDescricao: "Este contato ainda não escreveu.",
         semTemplates: "Nenhum template aprovado ainda.",
+        templatesCarregando: "Carregando templates...",
         escolherTemplate: "Enviar template",
         enviarTemplate: "Enviar este template",
-        parametroTemplate: "Parâmetro {indice}",
+        parametroTemplate: "Variável {indice}",
+        parametroObrigatorio: "Preencha esta variável para enviar.",
+        previaTemplate: "Prévia",
+        buscaTemplate: "Buscar template",
+        semResultadosTemplate: "Nenhum template encontrado.",
         criarTemplate: "Criar template",
         templatesErro: "Erro templates",
         templatePendente: "Pendente",
@@ -194,6 +203,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
         erro: "Erro",
         cancelar: "Cancelar",
         salvar: "Salvar",
+      },
+    },
+    templatesWhatsApp: {
+      categorias: {
+        UTILIDADE: "Utilidade",
+        MARKETING: "Marketing",
+        AUTENTICACAO: "Autenticação",
       },
     },
   }),
