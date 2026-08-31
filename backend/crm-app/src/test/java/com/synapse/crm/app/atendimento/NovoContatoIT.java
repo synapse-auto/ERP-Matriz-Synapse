@@ -154,8 +154,9 @@ class NovoContatoIT extends PostgresIT {
         var resposta = iniciarComo(EMAIL_BRUNO, Map.of("nome", PREFIXO + "tentativa", "telefone", telefone));
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(resposta.getBody()).contains("nao encontrado");
-        assertThat(resposta.getBody()).doesNotContain(idAna.toString());
+        assertThat(resposta.getBody())
+                .contains("Numero indisponivel para iniciar atendimento. Procure a gestao.")
+                .doesNotContain(idAna.toString(), idBruno.toString(), PREFIXO + "da ana", "existe", "responsavel");
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE telefone = ?", UUID.class, canonico))
                 .isEqualTo(idAna);

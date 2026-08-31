@@ -35,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
+import com.synapse.crm.atendimento.application.ContatoIndisponivelParaInicioException;
 import com.synapse.crm.atendimento.application.EncaminharMensagemUseCase;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
@@ -429,6 +430,13 @@ class AtendimentoAcoesController {
     ProblemDetail aoNaoEncontrar(RecursoDeAtendimentoIndisponivelException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problema.setTitle("Nao encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(ContatoIndisponivelParaInicioException.class)
+    ProblemDetail aoRecusarInicioDeContato(ContatoIndisponivelParaInicioException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+        problema.setTitle("Contato indisponivel");
         return problema;
     }
 

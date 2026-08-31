@@ -32,7 +32,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * modo humano e o composer oferece os templates.
  *
  * <p>Telefone de colega: a RLS esconde a linha e o indice unico impede o insert — os dois casos
- * viram o mesmo 404 da {@link RecursoDeAtendimentoIndisponivelException}.
+ * viram o mesmo 404 da {@link ContatoIndisponivelParaInicioException}.
  */
 @Service
 public class IniciarNovoContatoUseCase {
@@ -111,7 +111,7 @@ public class IniciarNovoContatoUseCase {
         CanalEntradaAtiva canalAtivo = canaisAtivos.primeiraAtiva().orElse(null);
         UUID leadId = existente.orElseGet(() -> leads.criarParaAtendente(
                         nome, telefone, quemPediu, canalAtivo == null ? null : canalAtivo.canalId())
-                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead")));
+                .orElseThrow(ContatoIndisponivelParaInicioException::new));
 
         assumirLead(leadId, quemPediu);
 
@@ -142,7 +142,7 @@ public class IniciarNovoContatoUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado abrirParaLeadExistente(UUID leadId) {
         if (leadId == null) {
-            throw new RecursoDeAtendimentoIndisponivelException("lead");
+            throw new ContatoIndisponivelParaInicioException();
         }
         UUID quemPediu = usuarioContext.atual().id();
         Instant agora = Instant.now(relogio);
@@ -155,7 +155,7 @@ public class IniciarNovoContatoUseCase {
     private void assumirLead(UUID leadId, UUID quemPediu) {
         LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, quemPediu);
         if (!transferencia.aconteceu()) {
-            throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
+            throw new ContatoIndisponivelParaInicioException();
         }
     }
 

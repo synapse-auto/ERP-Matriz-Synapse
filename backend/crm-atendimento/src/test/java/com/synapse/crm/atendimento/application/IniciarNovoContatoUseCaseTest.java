@@ -142,8 +142,8 @@ class IniciarNovoContatoUseCaseTest {
                 .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.naoAlcancado());
 
         assertThatThrownBy(() -> useCase.abrirParaLeadExistente(leadId))
-                .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class)
-                .hasMessageContaining("lead");
+                .isInstanceOf(ContatoIndisponivelParaInicioException.class)
+                .hasMessage("Numero indisponivel para iniciar atendimento. Procure a gestao.");
 
         verify(atendimentos, never()).abertoDoLead(any());
         verify(atendimentos, never()).salvar(any());
@@ -157,8 +157,8 @@ class IniciarNovoContatoUseCaseTest {
 
         assertThatThrownBy(() ->
                         useCase.executar(new IniciarNovoContatoUseCase.Pedido("Maria", TELEFONE_MASCARA, null, null)))
-                .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class)
-                .hasMessage("lead nao encontrado");
+                .isInstanceOf(ContatoIndisponivelParaInicioException.class)
+                .hasMessage("Numero indisponivel para iniciar atendimento. Procure a gestao.");
         verify(enviar, never()).executar(any(UUID.class), any(String.class));
     }
 
