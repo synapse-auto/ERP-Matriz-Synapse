@@ -21,7 +21,7 @@ import {
   FileText,
 } from "lucide-react";
 
-import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { FotoDoLeadClicavel } from "./visualizador-midia";
 import {
   Dialog,
   DialogContent,
@@ -113,11 +113,10 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
         <div className="flex flex-col items-center gap-2 text-center">
-          <AvatarIniciais
+          <FotoDoLeadClicavel
             id={lead.data.id}
             nome={lead.data.nome}
             fotoUrl={lead.data.fotoUrl}
-            fotoAlt={lead.data.nome}
             className="flex size-16 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
           />
           <div>

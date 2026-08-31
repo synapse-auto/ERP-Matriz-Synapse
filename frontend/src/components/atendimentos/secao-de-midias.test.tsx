@@ -28,6 +28,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         baixar: "Baixar",
         imagem: "Imagem",
         audio: "Áudio",
+        visualizador: { abrirMidia: "Abrir {nome}" },
       },
     },
   }),

@@ -1,6 +1,7 @@
 "use client";
 
-import { Download, FileText } from "lucide-react";
+import { useState } from "react";
+import { FileText } from "lucide-react";
 
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
@@ -11,6 +12,7 @@ import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { StatusEntregaIcone } from "./status-entrega";
 import { PlayerAudio } from "./player-audio";
+import { VisualizadorMidia, type ItemDoVisualizador } from "./visualizador-midia";
 
 interface MidiaMetadados {
   nome?: string;
@@ -54,6 +56,7 @@ function opcoesInterativas(json: string | null): OpcaoInterativa[] {
 
 type Props = {
   mensagem: MensagemResposta;
+  leadId?: string;
   onReenviar?: () => void;
   nomeDoRemetente?: string | null;
   onDefinirReacao: (emoji: string) => Promise<void>;
@@ -73,6 +76,7 @@ export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | nu
 /** Texto, imagem, áudio ou documento — a bolha renderiza os quatro tipos que o backend já entrega. */
 export function BolhaMensagem({
   mensagem,
+  leadId,
   onReenviar,
   nomeDoRemetente,
   onDefinirReacao,
@@ -82,16 +86,20 @@ export function BolhaMensagem({
 }: Props) {
   const catalogo = useTextos().atendimentos;
   const textos = catalogo.media;
+  const [visualizadorAberto, setVisualizadorAberto] = useState(false);
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
   const opcoes = opcoesInterativas(mensagem.opcoes);
   const midiaUrl = urlSegura(mensagem.midiaUrl);
+  const itemDoVisualizador = itemDaBolha(leadId, mensagem, metadados);
+  const podeAbrir = Boolean(itemDoVisualizador);
   const hora = new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
   return (
+    <>
     <InteracaoMensagem
       alinhadaADireita={doAtendente}
       textoCopiavel={textoCopiavelDaMensagem(mensagem)}
@@ -123,12 +131,28 @@ export function BolhaMensagem({
         {mensagem.tipo === "IMAGEM" && (
           <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
             {midiaUrl && (
-              // eslint-disable-next-line @next/next/no-img-element -- mídia externa do provedor, sem domínio fixo para o loader do Next
-              <img
-                src={midiaUrl}
-                alt={metadados.legenda ?? textos.imagem}
-                className="max-h-64 w-full rounded-md object-cover"
-              />
+              podeAbrir ? (
+                <button
+                  type="button"
+                  className="block w-full cursor-pointer"
+                  aria-label={preencher(textos.visualizador.abrirMidia, { nome: metadados.nome ?? metadados.legenda ?? textos.imagem })}
+                  onClick={() => setVisualizadorAberto(true)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- mídia externa do provedor, sem domínio fixo para o loader do Next */}
+                  <img
+                    src={midiaUrl}
+                    alt={metadados.legenda ?? textos.imagem}
+                    className="max-h-64 w-full rounded-md object-cover"
+                  />
+                </button>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- mídia externa do provedor, sem domínio fixo para o loader do Next
+                <img
+                  src={midiaUrl}
+                  alt={metadados.legenda ?? textos.imagem}
+                  className="max-h-64 w-full rounded-md object-cover"
+                />
+              )
             )}
             {metadados.legenda && <p>{metadados.legenda}</p>}
           </div>
@@ -148,13 +172,13 @@ export function BolhaMensagem({
           ))}
 
         {mensagem.tipo === "DOCUMENTO" && (
-          <a
-            href={midiaUrl ?? "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={textos.baixar}
-            aria-label={`${textos.baixar}: ${metadados.nome ?? textos.documento}`}
-            className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 no-underline"
+          <button
+            type="button"
+            disabled={!podeAbrir}
+            onClick={() => podeAbrir && setVisualizadorAberto(true)}
+            title={preencher(textos.visualizador.abrirMidia, { nome: metadados.nome ?? textos.documento })}
+            aria-label={preencher(textos.visualizador.abrirMidia, { nome: metadados.nome ?? textos.documento })}
+            className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 text-left"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/15">
               <FileText className="size-5" aria-hidden />
@@ -174,8 +198,7 @@ export function BolhaMensagem({
                 </span>
               )}
             </span>
-            <Download className="size-4 shrink-0" aria-hidden />
-          </a>
+          </button>
         )}
 
         {mensagem.tipo === "TEXTO" && (
@@ -219,7 +242,43 @@ export function BolhaMensagem({
         </div>
       </div>
     </InteracaoMensagem>
+    {itemDoVisualizador && (
+      <VisualizadorMidia
+        aberto={visualizadorAberto}
+        onFechar={() => setVisualizadorAberto(false)}
+        itens={[itemDoVisualizador]}
+        indice={0}
+      />
+    )}
+    </>
   );
+}
+
+function preencher(modelo: string, valores: Record<string, string>): string {
+  return Object.entries(valores).reduce(
+    (texto, [chave, valor]) => texto.replaceAll(`{${chave}}`, valor),
+    modelo,
+  );
+}
+
+function itemDaBolha(
+  leadId: string | undefined,
+  mensagem: MensagemResposta,
+  metadados: MidiaMetadados,
+): ItemDoVisualizador | null {
+  if (!leadId) return null;
+  if (mensagem.tipo !== "IMAGEM" && mensagem.tipo !== "DOCUMENTO" && mensagem.tipo !== "AUDIO") {
+    return null;
+  }
+  return {
+    id: mensagem.id,
+    nome: metadados.nome ?? metadados.legenda ?? null,
+    mimetype: metadados.mimetype ?? null,
+    tamanho: metadados.tamanho ?? null,
+    enviadoEm: mensagem.enviadoEm,
+    tipoMensagem: mensagem.tipo,
+    origem: { tipo: "mensagem", leadId, mensagemId: mensagem.id },
+  };
 }
 
 function tamanhoLegivel(bytes: number): string {

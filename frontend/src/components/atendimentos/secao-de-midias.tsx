@@ -11,12 +11,15 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
 
 import { MidiaComUrlAssinada } from "./midia-com-url-assinada";
+import { VisualizadorMidia, type ItemDoVisualizador } from "./visualizador-midia";
 
 export function ListaDeMidiasDoLead({ leadId }: { leadId: string }) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.painel;
+  const vis = catalogo.atendimentos.media.visualizador;
   const midias = useMidiasDoLead(leadId);
   const itens = midias.data?.pages.flat() ?? [];
+  const [indiceAberto, setIndiceAberto] = useState<number | null>(null);
 
   if (midias.isLoading) {
     return <p className="p-2 text-xs text-muted-foreground">{textos.carregandoMidias}</p>;
@@ -35,10 +38,27 @@ export function ListaDeMidiasDoLead({ leadId }: { leadId: string }) {
       </p>
     );
   }
+
+  const itensDoVisualizador: ItemDoVisualizador[] = itens.map((item) => ({
+    id: item.mensagemId,
+    nome: item.nome,
+    mimetype: item.mimetype,
+    tamanho: item.tamanho,
+    enviadoEm: item.enviadoEm,
+    tipoMensagem: item.tipo,
+    origem: { tipo: "mensagem", leadId, mensagemId: item.mensagemId },
+  }));
+
   return (
     <div className="space-y-1.5">
-      {itens.map((item) => (
-        <ItemDeMidia key={item.mensagemId} leadId={leadId} item={item} />
+      {itens.map((item, indice) => (
+        <ItemDeMidia
+          key={item.mensagemId}
+          leadId={leadId}
+          item={item}
+          rotuloAbrir={vis.abrirMidia.replace("{nome}", item.nome ?? item.tipo)}
+          onAbrir={() => setIndiceAberto(indice)}
+        />
       ))}
       {midias.hasNextPage && (
         <Button
@@ -52,11 +72,30 @@ export function ListaDeMidiasDoLead({ leadId }: { leadId: string }) {
           {textos.carregarMaisMidias ?? textos.adicionar}
         </Button>
       )}
+      {indiceAberto !== null && (
+        <VisualizadorMidia
+          aberto
+          itens={itensDoVisualizador}
+          indice={indiceAberto}
+          onIndiceChange={setIndiceAberto}
+          onFechar={() => setIndiceAberto(null)}
+        />
+      )}
     </div>
   );
 }
 
-export function ItemDeMidia({ leadId, item }: { leadId: string; item: MidiaDoLead }) {
+export function ItemDeMidia({
+  leadId,
+  item,
+  rotuloAbrir,
+  onAbrir,
+}: {
+  leadId: string;
+  item: MidiaDoLead;
+  rotuloAbrir: string;
+  onAbrir: () => void;
+}) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.painel;
   const imagem = item.tipo === "IMAGEM";
@@ -70,7 +109,14 @@ export function ItemDeMidia({ leadId, item }: { leadId: string; item: MidiaDoLea
         ) : (
           <FileText className="size-(--tamanho-icone-interface) text-muted-foreground" aria-hidden />
         )}
-        <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.nome ?? item.tipo}</span>
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-xs font-medium"
+          aria-label={rotuloAbrir}
+          onClick={onAbrir}
+        >
+          {item.nome ?? item.tipo}
+        </button>
         <BotaoBaixarMidia leadId={leadId} mensagemId={item.mensagemId} rotulo={rotuloBaixar} />
       </div>
       <p className="mt-1 text-[0.65rem] text-muted-foreground">
@@ -79,11 +125,22 @@ export function ItemDeMidia({ leadId, item }: { leadId: string; item: MidiaDoLea
         {item.tamanho ? ` · ${Math.ceil(item.tamanho / 1024)} KB` : ""} ·{" "}
         {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(item.enviadoEm))}
       </p>
-      {(imagem || audio) && (
+      {imagem && (
+        <button type="button" className="block w-full cursor-pointer text-left" onClick={onAbrir} aria-label={rotuloAbrir}>
+          <MidiaComUrlAssinada
+            leadId={leadId}
+            mensagemId={item.mensagemId}
+            tipo="IMAGEM"
+            alt={item.legenda ?? item.nome ?? catalogo.atendimentos.media.imagem}
+            rotuloAudio={catalogo.atendimentos.media.audio}
+          />
+        </button>
+      )}
+      {audio && (
         <MidiaComUrlAssinada
           leadId={leadId}
           mensagemId={item.mensagemId}
-          tipo={imagem ? "IMAGEM" : "AUDIO"}
+          tipo="AUDIO"
           alt={item.legenda ?? item.nome ?? catalogo.atendimentos.media.imagem}
           rotuloAudio={catalogo.atendimentos.media.audio}
         />

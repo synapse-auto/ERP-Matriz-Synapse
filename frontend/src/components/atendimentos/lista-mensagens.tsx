@@ -26,6 +26,7 @@ type Props = {
   canalTipo: string | null;
   atendenteId: string | null;
   atendenteNome: string | null;
+  leadId?: string;
   onResponder?: (mensagem: MensagemResposta) => void;
   onEncaminhar?: (mensagem: MensagemResposta) => void;
 };
@@ -50,6 +51,7 @@ export function ListaMensagens({
   canalTipo,
   atendenteId,
   atendenteNome,
+  leadId,
   onResponder,
   onEncaminhar,
 }: Props) {
@@ -188,6 +190,7 @@ export function ListaMensagens({
                     )}
                     <BolhaMensagem
                       mensagem={mensagem}
+                      leadId={leadId}
                       nomeDoRemetente={nomeDoRemetente}
                       onReenviar={
                         mensagem.statusEntrega === "FALHOU"
