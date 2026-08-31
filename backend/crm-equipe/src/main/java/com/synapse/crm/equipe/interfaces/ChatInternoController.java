@@ -190,6 +190,8 @@ public class ChatInternoController {
             String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm,
             List<ResumoReacaoResposta> reacoes) {
         static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r, ArmazenamentoDeMidia armazenamento) {
+            // Espelha synapse.midia.expiracao-leitura. MidiaProperties vive em crm-atendimento;
+            // puxa-la para ca criaria ciclo (atendimento ja depende de equipe).
             String midiaUrl = r.midiaUrl() == null ? null : armazenamento.urlAssinada(r.midiaUrl(), Duration.ofHours(1));
             return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm(),
                     r.reacoes().stream().map(ResumoReacaoResposta::de).toList());

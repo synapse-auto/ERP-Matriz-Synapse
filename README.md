@@ -398,7 +398,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
-| `MIDIA_S3_EXPIRACAO_LEITURA` | `5m` | Validade das URLs assinadas de anexos. |
+| `MIDIA_S3_EXPIRACAO_LEITURA` | `1h` | Validade das URLs assinadas de anexos (bolha do chat e painel). |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
 | `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |
 | `BACKEND_REPLICAS`, `FRONTEND_REPLICAS` | `1` | Escala horizontal; o Redis já é o backplane do WebSocket. |
