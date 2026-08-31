@@ -18,8 +18,6 @@ import {
   StickyNote,
   Trash2,
   UserRound,
-  Download,
-  Image as ImageIcon,
   FileText,
 } from "lucide-react";
 
@@ -52,6 +50,7 @@ import type {
 } from "@/lib/suporte/types";
 
 import { AtalhoTags } from "./atalho-tags";
+import { ListaDeMidiasDoLead } from "./secao-de-midias";
 import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
@@ -274,35 +273,16 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
 }
 
 function SecaoDeMidias({ leadId }: { leadId: string }) {
-  const catalogo = useTextos();
-  const textos = catalogo.atendimentos.painel;
+  const textos = useTextos().atendimentos.painel;
   const midias = useMidiasDoLead(leadId);
   const itens = midias.data?.pages.flat() ?? [];
   return (
-    <SecaoColapsavel icone={<FileText className="size-(--tamanho-icone-interface) text-primary" />} titulo={textos.secoes.midias ?? textos.secoes.resumo} contagem={itens.length}>
-      {midias.isLoading ? <p className="p-2 text-xs text-muted-foreground">{textos.carregandoMidias}</p> : midias.isError ? (
-        <p role="alert" className="p-2 text-xs text-destructive">{textos.erroMidias ?? textos.erroOperacao}</p>
-      ) : itens.length === 0 ? <p className="p-2 text-center text-xs text-muted-foreground">{textos.vazioMidias ?? textos.vazioLembretes}</p> : (
-        <div className="space-y-1.5">
-          {itens.map((item) => {
-            const imagem = item.tipo === "IMAGEM";
-            const audio = item.tipo === "AUDIO";
-            return <div key={item.mensagemId} className="rounded-lg border border-border bg-muted/30 p-2">
-              <div className="flex items-center gap-2">
-                {imagem ? <ImageIcon className="size-(--tamanho-icone-interface) text-primary" aria-hidden /> : <FileText className="size-(--tamanho-icone-interface) text-muted-foreground" aria-hidden />}
-                <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.nome ?? item.tipo}</span>
-                <a href={item.urlDownload} download={item.nome ?? undefined} className="inline-flex size-7 items-center justify-center rounded-md hover:bg-muted" aria-label={`${imagem ? textos.salvarImagem : catalogo.atendimentos.media.baixar}: ${item.nome ?? item.tipo}`}>
-                  <Download className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-                </a>
-              </div>
-              <p className="mt-1 text-[0.65rem] text-muted-foreground">{item.tipo}{item.origem ? ` · ${textos.origemMidia}: ${item.origem}` : ""} · {item.tamanho ? `${Math.ceil(item.tamanho / 1024)} KB` : ""} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(item.enviadoEm))}</p>
-              {audio && <audio className="mt-1 h-8 w-full" controls src={item.urlDownload} aria-label={catalogo.atendimentos.media.audio} />}
-              {imagem && <a href={item.urlDownload} target="_blank" rel="noreferrer" className="mt-1 block"><img src={item.urlDownload} alt={item.legenda ?? item.nome ?? catalogo.atendimentos.media.imagem} className="max-h-28 w-full rounded object-contain" /></a>}
-            </div>;
-          })}
-          {midias.hasNextPage && <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => void midias.fetchNextPage()} disabled={midias.isFetchingNextPage}>{textos.carregarMaisMidias ?? textos.adicionar}</Button>}
-        </div>
-      )}
+    <SecaoColapsavel
+      icone={<FileText className="size-(--tamanho-icone-interface) text-primary" />}
+      titulo={textos.secoes.midias ?? textos.secoes.resumo}
+      contagem={itens.length}
+    >
+      <ListaDeMidiasDoLead leadId={leadId} />
     </SecaoColapsavel>
   );
 }

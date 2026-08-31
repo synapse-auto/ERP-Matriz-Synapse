@@ -113,6 +113,26 @@ describe("BolhaMensagem", () => {
     expect(screen.getByText("Orcamento_2231.pdf")).toBeInTheDocument();
     expect(screen.getByText("1.5 MB")).toBeInTheDocument();
     expect(screen.getByText("Box temperado 8mm · 2 vãos")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Baixar: Orcamento_2231.pdf" });
+    expect(link).toHaveAttribute("href", "https://example.test/orcamento.pdf");
+    expect(link.getAttribute("href")).not.toMatch(/\/api\//);
+  });
+
+  it("não coloca caminho /api/ em src nem href mesmo se a API devolver um", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "IMAGEM",
+          conteudo: null,
+          midiaUrl: "/api/v1/leads/x/midias/y/download",
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector("[src*='/api/']")).toBeNull();
+    expect(document.querySelector("[href*='/api/']")).toBeNull();
   });
 
   it("mostra imagem com legenda", () => {

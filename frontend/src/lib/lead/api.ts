@@ -9,6 +9,7 @@ import type {
   PaginaTimeline,
   TagDoLead,
   MidiaDoLead,
+  UrlAssinadaDaMidia,
 } from "./types";
 
 export function obterLead(id: string): Promise<LeadFicha> {
@@ -17,6 +18,10 @@ export function obterLead(id: string): Promise<LeadFicha> {
 
 export function listarMidiasDoLead(id: string, pagina = 0, tamanho = 20): Promise<MidiaDoLead[]> {
   return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
+}
+
+export function emitirUrlAssinadaDaMidia(leadId: string, mensagemId: string): Promise<UrlAssinadaDaMidia> {
+  return apiFetch<UrlAssinadaDaMidia>(`/api/v1/leads/${leadId}/midias/${mensagemId}/url`);
 }
 
 export function atualizarLead(id: string, dados: AtualizacaoLead): Promise<LeadFicha> {

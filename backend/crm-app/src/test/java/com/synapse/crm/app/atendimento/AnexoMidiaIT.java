@@ -287,6 +287,95 @@ class AnexoMidiaIT extends PostgresIT {
         assertThat(comoBruno.getBody()).doesNotContain("fake-storage.local");
     }
 
+    @Test
+    @DisplayName("listagem de midias nao devolve caminho /api protegido")
+    void listarMidias_naoExpoeUrlDeDownloadProtegida() {
+        enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
+
+        ResponseEntity<String> resposta =
+                autenticado(EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).doesNotContain("/download");
+        assertThat(resposta.getBody()).doesNotContain("urlDownload");
+        assertThat(resposta.getBody()).doesNotContain("/api/v1/leads/" + leadDaAna + "/midias/");
+    }
+
+    @Test
+    @DisplayName("URL emitida sob demanda resolve o arquivo certo")
+    void emitirUrl_resolveArquivoCerto() {
+        enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
+        UUID mensagemId = mensagemDeMidiaDoLead(leadDaAna);
+
+        ResponseEntity<String> resposta = autenticado(
+                EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String url = extrairUrlEmitida(resposta.getBody());
+        assertThat(url).contains("fake-storage.local");
+        assertThat(url).contains("token=");
+        assertThat(armazenamento.baixarPelaUrlAssinada(url)).contains(PNG_VALIDO);
+    }
+
+    @Test
+    @DisplayName("quem nao enxerga o lead nao emite URL — 404, nao 403")
+    void emitirUrl_colegaoNaoEnxerga_retorna404() {
+        enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
+        UUID mensagemId = mensagemDeMidiaDoLead(leadDaAna);
+
+        ResponseEntity<String> resposta = autenticado(
+                EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(resposta.getBody()).doesNotContain("fake-storage.local");
+        assertThat(resposta.getStatusCode()).isNotEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("mensagemId de outro lead falha mesmo com leadId correto no caminho")
+    void emitirUrl_mensagemDeOutroLead_retorna404() {
+        enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
+        UUID mensagemDaAna = mensagemDeMidiaDoLead(leadDaAna);
+
+        UUID leadDois = UUID.randomUUID();
+        jdbc.update(
+                """
+                INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico,
+                                  ultima_interacao_em)
+                VALUES (?, ?, ?, ?, 'EM_ATENDIMENTO', now())
+                """,
+                leadDois,
+                PREFIXO + "Outro cliente da Ana",
+                "5561977770000",
+                idAna);
+        UUID atendimentoDois = UUID.randomUUID();
+        jdbc.update(
+                """
+                INSERT INTO atendimento (id, lead_id, canal_id, atendente_id, status, iniciado_em)
+                SELECT ?, ?, a.canal_id, ?, 'EM_ATENDIMENTO', now()
+                  FROM atendimento a WHERE a.lead_id = ? LIMIT 1
+                """,
+                atendimentoDois,
+                leadDois,
+                idAna,
+                leadDaAna);
+        UUID mensagemAlheia = UUID.randomUUID();
+        jdbc.update(
+                """
+                INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, midia_url, enviado_em, status_entrega)
+                VALUES (?, ?, 'ATENDENTE', 'IMAGEM', 'fake/outro.png', now(), 'ENVIADO')
+                """,
+                mensagemAlheia,
+                atendimentoDois);
+
+        ResponseEntity<String> resposta = autenticado(
+                EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemAlheia + "/url");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(resposta.getBody()).doesNotContain("fake-storage.local");
+        assertThat(mensagemDaAna).isNotEqualTo(mensagemAlheia);
+    }
+
     // --- apoio ------------------------------------------------------------
 
     private static ConditionFactory esperar() {
@@ -348,6 +437,30 @@ class AnexoMidiaIT extends PostgresIT {
                 "SELECT id FROM atendimento WHERE lead_id = ?",
                 (rs, i) -> (UUID) rs.getObject("id"),
                 leadDaAna).stream().findFirst().orElse(null);
+    }
+
+    private ResponseEntity<String> autenticado(String email, HttpMethod metodo, String url) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        return http.exchange(url, metodo, new HttpEntity<>(cabecalhos), String.class);
+    }
+
+    private UUID mensagemDeMidiaDoLead(UUID leadId) {
+        return jdbc.queryForObject(
+                """
+                SELECT m.id FROM mensagem m
+                  JOIN atendimento a ON a.id = m.atendimento_id
+                 WHERE a.lead_id = ? AND m.midia_url IS NOT NULL
+                 ORDER BY m.enviado_em DESC, m.id DESC
+                 LIMIT 1
+                """,
+                UUID.class,
+                leadId);
+    }
+
+    private static String extrairUrlEmitida(String json) {
+        return json.replaceAll(".*\"url\":\"([^\"]+)\".*", "$1").replace("\\u0026", "&");
     }
 
     private ResponseEntity<String> mensagensComo(String email, UUID atendimentoId) {
