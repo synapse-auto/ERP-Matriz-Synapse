@@ -41,7 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ErroDeApi } from "@/lib/api/errors";
-import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
+import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
 import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta } from "@/lib/atendimento/citacao";
@@ -117,7 +117,8 @@ export function Composer({
   });
   const lead = useLead(conversa.leadId);
   const [variaveisPendentes, setVariaveisPendentes] = useState<string[]>([]);
-  const janelaAberta = janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm);
+  const estadoDaJanela = estadoDaJanelaTextoLivre(conversa.ultimaMensagemDoLeadEm);
+  const janelaAberta = estadoDaJanela === "aberta";
   const templates = useQuery({
     queryKey: ["whatsapp-templates"],
     queryFn: listarTemplatesWhatsApp,
@@ -330,17 +331,21 @@ export function Composer({
         );
 
   if (!janelaAberta) {
+    const semJanela = estadoDaJanela === "inexistente";
     return (
       <div className="min-h-0 overflow-y-auto bg-background px-4 pb-4 pt-3">
-        <div className="mx-auto max-w-[780px] space-y-3 rounded-xl border border-input bg-card p-3 shadow-md">
-          <p className="text-sm font-medium text-foreground">
-            {textos.janelaFechadaTitulo}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {textos.janelaFechadaDescricao}
-          </p>
+        <div className="mx-auto max-w-[780px] space-y-4 rounded-xl border border-border bg-card p-4 shadow-md">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              {semJanela ? textos.janelaInexistenteTitulo : textos.janelaFechadaTitulo}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {semJanela ? textos.janelaInexistenteDescricao : textos.janelaFechadaDescricao}
+            </p>
+          </div>
           <ListaTemplatesWhatsApp
             textos={textos}
+            rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
             templates={templates}
             parametros={parametros}
             onParametros={(chave, valores) =>
@@ -367,7 +372,14 @@ export function Composer({
 
   return (
     <div className="shrink-0 bg-background px-4 pb-4 pt-3">
-      <div className="relative mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 shadow-md">
+      <div className="relative mx-auto max-w-[780px]">
+        <p
+          className="mb-1.5 flex items-center gap-1.5 px-1 text-xs text-muted-foreground"
+        >
+          <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
+          {textos.janelaAberta}
+        </p>
+        <div className="rounded-xl border border-input bg-card p-3 shadow-md">
         {citacaoResposta && (
           <div className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
             <div className="min-w-0 flex-1 text-muted-foreground">
@@ -694,12 +706,13 @@ export function Composer({
           </p>
         )}
         <Dialog open={painelTemplateAberto} onOpenChange={setPainelTemplateAberto}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{textos.escolherTemplate}</DialogTitle>
             </DialogHeader>
             <ListaTemplatesWhatsApp
               textos={textos}
+              rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
               templates={templates}
               parametros={parametros}
               onParametros={(chave, valores) =>
@@ -731,6 +744,7 @@ export function Composer({
           onFechar={() => setAgendamentoAberto(false)}
           onSalvo={() => setTexto("")}
         />
+        </div>
       </div>
     </div>
   );
