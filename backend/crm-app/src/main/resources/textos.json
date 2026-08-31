@@ -477,7 +477,19 @@
       "documento": "Documento",
       "baixar": "Baixar",
       "botoes": "Opções",
-      "lista": "Lista"
+      "lista": "Lista",
+      "visualizador": {
+        "fechar": "Fechar visualizador",
+        "anterior": "Mídia anterior",
+        "proxima": "Próxima mídia",
+        "carregando": "Carregando mídia...",
+        "pdfIndisponivel": "Não foi possível exibir o PDF neste navegador. Baixe o arquivo para abrir.",
+        "documentoNaoRenderizavel": "Este tipo de arquivo não pode ser aberto aqui. Baixe para visualizar.",
+        "erroAoCarregar": "Não foi possível carregar a mídia.",
+        "video": "Vídeo",
+        "abrirFoto": "Ampliar foto de {nome}",
+        "abrirMidia": "Abrir {nome}"
+      }
     },
     "painel": {
       "titulo": "Detalhes do lead",

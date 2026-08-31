@@ -7,7 +7,29 @@ import type { MensagemResposta } from "@/lib/atendimento/types";
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
-      media: { imagem: "Imagem", audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", documento: "Documento", baixar: "Baixar", botoes: "Opções", lista: "Lista" },
+      media: {
+        imagem: "Imagem",
+        audio: "Áudio",
+        reproduzir: "Reproduzir áudio",
+        pausar: "Pausar áudio",
+        posicao: "Posição do áudio",
+        documento: "Documento",
+        baixar: "Baixar",
+        botoes: "Opções",
+        lista: "Lista",
+        visualizador: {
+          fechar: "Fechar visualizador",
+          anterior: "Mídia anterior",
+          proxima: "Próxima mídia",
+          carregando: "Carregando mídia...",
+          pdfIndisponivel: "PDF indisponível",
+          documentoNaoRenderizavel: "Não pode ser aberto aqui",
+          erroAoCarregar: "Não foi possível carregar a mídia.",
+          video: "Vídeo",
+          abrirFoto: "Ampliar foto de {nome}",
+          abrirMidia: "Abrir {nome}",
+        },
+      },
       mensagem: {
         status: {
           pendente: "Enviando",
@@ -113,9 +135,9 @@ describe("BolhaMensagem", () => {
     expect(screen.getByText("Orcamento_2231.pdf")).toBeInTheDocument();
     expect(screen.getByText("1.5 MB")).toBeInTheDocument();
     expect(screen.getByText("Box temperado 8mm · 2 vãos")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "Baixar: Orcamento_2231.pdf" });
-    expect(link).toHaveAttribute("href", "https://example.test/orcamento.pdf");
-    expect(link.getAttribute("href")).not.toMatch(/\/api\//);
+    expect(screen.getByRole("button", { name: "Abrir Orcamento_2231.pdf" })).toBeInTheDocument();
+    expect(document.querySelector("a[target='_blank']")).toBeNull();
+    expect(document.querySelector("[href*='/api/']")).toBeNull();
   });
 
   it("não coloca caminho /api/ em src nem href mesmo se a API devolver um", () => {

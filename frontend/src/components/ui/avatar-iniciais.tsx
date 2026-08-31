@@ -2,7 +2,8 @@ import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetchBlob } from "@/lib/api/http-client";
-import { iniciaisDoNome, urlSegura } from "@/lib/utils";
+import { classificarOrigemDeRecursoVisual } from "@/lib/midia/origem-de-recurso-visual";
+import { iniciaisDoNome } from "@/lib/utils";
 
 /**
  * Avatar com as iniciais de uma pessoa e um tom de cor determinístico (E17b §Bloco 4 — extraído na
@@ -71,14 +72,14 @@ function FotoCarregada({
   fotoAlt: string;
   fallback: string;
 }) {
-  if (fotoUrl.startsWith("/") && !fotoUrl.startsWith("//")) {
-    return <FotoAutenticada fotoUrl={fotoUrl} fotoAlt={fotoAlt} fallback={fallback} />;
+  const origem = classificarOrigemDeRecursoVisual(fotoUrl);
+  if (origem.tipo === "autenticada") {
+    return <FotoAutenticada fotoUrl={origem.caminho} fotoAlt={fotoAlt} fallback={fallback} />;
   }
-  const externa = urlSegura(fotoUrl);
-  if (!externa) return <>{fallback}</>;
-  // A URL externa foi limitada a http(s) por urlSegura; nao passa pelo proxy de imagens.
+  if (origem.tipo !== "absoluta") return <>{fallback}</>;
+  // A URL externa foi limitada a http(s); nao passa pelo proxy de imagens.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={externa} alt={fotoAlt} className="absolute inset-0 size-full object-cover" />;
+  return <img src={origem.url} alt={fotoAlt} className="absolute inset-0 size-full object-cover" />;
 }
 
 function FotoAutenticada({

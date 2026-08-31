@@ -435,6 +435,7 @@ export function PaginaAtendimentosCliente({
                 onEncaminhar={(mensagem) =>
                   setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
                 }
+                leadId={conversa.leadId}
               />
               {atendimentoAtivo ? (
                 <Composer

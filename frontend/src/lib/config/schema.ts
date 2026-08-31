@@ -487,6 +487,18 @@ export const TextosSchema = z.object({
       baixar: z.string(),
       botoes: z.string(),
       lista: z.string(),
+      visualizador: z.object({
+        fechar: z.string(),
+        anterior: z.string(),
+        proxima: z.string(),
+        carregando: z.string(),
+        pdfIndisponivel: z.string(),
+        documentoNaoRenderizavel: z.string(),
+        erroAoCarregar: z.string(),
+        video: z.string(),
+        abrirFoto: z.string(),
+        abrirMidia: z.string(),
+      }),
     }),
     painel: z.object({
       titulo: z.string(),
