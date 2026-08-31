@@ -8,6 +8,7 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -237,6 +238,59 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains(idBruno.toString());
+    }
+
+    @Test
+    @DisplayName("transferir: atendente passa a conversa propria para um colega ativo")
+    void transferir_atendenteParaColegaAtivo_retorna200() {
+        UUID lead = criarLead("lead colega " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                Map.of("paraAtendenteId", idBruno.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(idBruno.toString());
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idBruno);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(idBruno);
+        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> assertThat(jdbc.queryForObject(
+                        "SELECT ator_id FROM evento_timeline WHERE lead_id = ? AND tipo = 'ATENDIMENTO_TRANSFERIDO'",
+                        UUID.class,
+                        lead))
+                .isEqualTo(idAna));
+    }
+
+    @Test
+    @DisplayName("transferir: atendente para destino que nao e atendente ativo segue o caminho da E53")
+    void transferir_atendenteDestinoInvalido_retorna422() {
+        assertDestinoInvalido(idDoUsuario(EMAIL_GESTOR), "papel nao elegivel", EMAIL_ANA, SENHA_ATENDENTE);
+    }
+
+    @Test
+    @DisplayName("transferir: atendente continua devolvendo para a IA")
+    void transferir_atendenteDestinoNulo_devolveParaIa() {
+        UUID lead = criarLead("lead ana devolve ia " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT status_basico FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("IA");
     }
 
     @Test

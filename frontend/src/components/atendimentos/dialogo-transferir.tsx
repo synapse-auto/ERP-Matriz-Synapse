@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { listarUsuarios } from "@/lib/atendimento/api";
+import { listarDestinosDeTransferencia } from "@/lib/atendimento/api";
 import { useTransferirAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -24,26 +24,18 @@ type Props = {
 
 export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
   const textos = useTextos().atendimentos.transferir;
-  const email = useAuthStore((estado) => estado.email);
   const papel = useAuthStore((estado) => estado.papel);
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const transferir = useTransferirAtendimento();
-  // GET /api/v1/usuarios é restrito a quem enxerga toda a equipe — um ATENDENTE toma 403 nele. Para
-  // esse papel a trava de autorização do backend só permite devolver pra IA de qualquer forma, então
-  // a lista de colegas nem apareceria com efeito — pular a chamada evita o 403 sem perder nada.
-  const podeVerEquipe = papel !== null && papel !== "ATENDENTE";
-  const { data: usuarios } = useQuery({
-    queryKey: ["usuarios"],
-    queryFn: listarUsuarios,
-    enabled: aberto && podeVerEquipe,
+  // Lista estreita (id + nome). GET /api/v1/usuarios continua restrito à gestão e não cabe aqui.
+  const { data: destinos } = useQuery({
+    queryKey: ["destinos-de-transferencia"],
+    queryFn: listarDestinosDeTransferencia,
+    enabled: aberto,
   });
 
-  const candidatos = (usuarios ?? []).filter((usuario) => usuario.papel === "ATENDENTE" && usuario.ativo);
-  const eu = papel === "ATENDENTE"
-    ? usuarioId
-      ? { id: usuarioId }
-      : usuarios?.find((usuario) => usuario.email === email && usuario.papel === "ATENDENTE" && usuario.ativo)
-    : undefined;
+  const candidatos = (destinos ?? []).filter((destino) => destino.id !== usuarioId);
+  const eu = papel === "ATENDENTE" && usuarioId ? { id: usuarioId } : undefined;
 
   function transferirPara(paraAtendenteId: string | null) {
     transferir.mutate({ atendimentoId, paraAtendenteId }, { onSuccess: onFechar });
@@ -78,16 +70,16 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
               {textos.assumirParaMim}
             </Button>
           )}
-          {candidatos.map((usuario) => (
+          {candidatos.map((destino) => (
             <Button
-              key={usuario.id}
+              key={destino.id}
               type="button"
               variant="outline"
               className="w-full justify-start"
               disabled={transferir.isPending}
-              onClick={() => transferirPara(usuario.id)}
+              onClick={() => transferirPara(destino.id)}
             >
-              {usuario.nome}
+              {destino.nome}
             </Button>
           ))}
         </div>

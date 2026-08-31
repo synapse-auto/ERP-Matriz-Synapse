@@ -188,6 +188,12 @@ export interface PedidoEntradaAtendimento {
   solicitadoEm: string;
 }
 
+/** Espelha DestinosDeTransferenciaController.DestinoResposta. */
+export interface DestinoDeTransferencia {
+  id: string;
+  nome: string;
+}
+
 /** Espelha UsuarioController.UsuarioResposta — GET /api/v1/usuarios. */
 export interface UsuarioResposta {
   id: string;

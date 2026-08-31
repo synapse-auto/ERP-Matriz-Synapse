@@ -11,6 +11,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -63,18 +64,29 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                     SET lido_ate = GREATEST(atendimento_leitura.lido_ate, EXCLUDED.lido_ate)
             """;
 
-    // Upsert: o caso de uso nao precisa saber se esta abrindo ou atualizando.
-    private static final String SQL_SALVAR =
+    /**
+     * Atualiza a linha que quem pede ja enxerga. Nao usar {@code INSERT ON CONFLICT}: o Postgres
+     * avalia a politica RLS na tupla proposta (dono novo, {@code EM_ATENDIMENTO}), e o atendente
+     * que transfere para um colega deixa de passar no {@code USING} — 500 em vez de gravar.
+     * {@code WITH CHECK (TRUE)} so cobre INSERT/UPDATE puros; o upsert mistura os dois.
+     */
+    private static final String SQL_ATUALIZAR =
+            """
+            UPDATE atendimento
+               SET atendente_id  = ?,
+                   status        = ?::status_atendimento,
+                   finalizado_em = ?
+             WHERE id = ? AND status <> 'FINALIZADO'
+            """;
+
+    private static final String SQL_INSERIR =
             """
             INSERT INTO atendimento (id, lead_id, canal_id, canal_credencial_id, atendente_id,
                                      status, iniciado_em, finalizado_em)
                  VALUES (?, ?, ?, ?, ?, ?::status_atendimento, ?, ?)
-            ON CONFLICT (id) DO UPDATE
-                    SET atendente_id  = EXCLUDED.atendente_id,
-                        status        = EXCLUDED.status,
-                        finalizado_em = EXCLUDED.finalizado_em
-                  WHERE atendimento.status <> 'FINALIZADO'
             """;
+
+    private static final String SQL_ELEVAR_SERVICO = "SELECT set_config('app.papel', 'SERVICO', TRUE)";
 
     private static final RowMapper<Atendimento> MAPEADOR = AtendimentoRepositorioJdbc::paraDominio;
 
@@ -101,7 +113,7 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
         TransacaoObrigatoria.exigir("porIdParaAlteracao");
         // FOR NO KEY UPDATE serializa escritores do agregado (status, atendente_id,
         // finalizado_em) sem conflitar com o KEY SHARE da FK de mensagem — o INSERT
-        // so referencia atendimento.id, que esta leitura nao altera. O upsert em
+        // so referencia atendimento.id, que esta leitura nao altera. O UPDATE em
         // salvar continua recusando copia antiga via WHERE status <> 'FINALIZADO'.
         // FOR UPDATE aqui formava ciclo com o UPDATE posterior do lead.
         return primeiro(chat.query(SQL_POR_ID + " FOR NO KEY UPDATE", MAPEADOR, atendimentoId));
@@ -138,19 +150,37 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     }
 
     @Override
+    public void elevarRlsParaEscritaDeNovoDono() {
+        TransacaoObrigatoria.exigir("elevarRlsParaEscritaDeNovoDono");
+        chat.queryForObject(SQL_ELEVAR_SERVICO, String.class);
+    }
+
+    @Override
     public Atendimento salvar(Atendimento atendimento) {
         TransacaoObrigatoria.exigir("salvar");
+        Timestamp finalizadoEm =
+                atendimento.finalizadoEm() == null ? null : Timestamp.from(atendimento.finalizadoEm());
         int alterados = chat.update(
-                SQL_SALVAR,
-                atendimento.id(),
-                atendimento.leadId(),
-                atendimento.canalId(),
-                atendimento.canalCredencialId(),
+                SQL_ATUALIZAR,
                 atendimento.atendenteId(),
                 atendimento.status().name(),
-                Timestamp.from(atendimento.iniciadoEm()),
-                atendimento.finalizadoEm() == null ? null : Timestamp.from(atendimento.finalizadoEm()));
-        if (alterados == 0) {
+                finalizadoEm,
+                atendimento.id());
+        if (alterados > 0) {
+            return atendimento;
+        }
+        try {
+            chat.update(
+                    SQL_INSERIR,
+                    atendimento.id(),
+                    atendimento.leadId(),
+                    atendimento.canalId(),
+                    atendimento.canalCredencialId(),
+                    atendimento.atendenteId(),
+                    atendimento.status().name(),
+                    Timestamp.from(atendimento.iniciadoEm()),
+                    finalizadoEm);
+        } catch (DuplicateKeyException e) {
             throw new AtendimentoJaFinalizadoException(atendimento.id(), "atualizacao concorrente");
         }
         return atendimento;

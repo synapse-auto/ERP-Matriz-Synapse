@@ -53,6 +53,16 @@ public interface AtendimentoRepositorio {
     /** Registra a leitura do usuario corrente, independentemente do dono comercial do atendimento. */
     void marcarComoLido(UUID atendimentoId, UUID usuarioId, Instant quando);
 
+    /**
+     * Publica {@code app.papel = SERVICO} no resto da transação.
+     *
+     * <p>A RLS de {@code atendimento} aplica {@code USING} também à linha nova do UPDATE: um
+     * atendente que transfere para um colega deixa de "enxergar" o registro no mesmo comando, e o
+     * Postgres responde 500. A leitura e as recusas (404, destino inválido, potencial) já
+     * rodaram com o papel real; daqui pra frente só gravamos o que já foi autorizado.
+     */
+    void elevarRlsParaEscritaDeNovoDono();
+
     /** Insere ou atualiza. Devolve o estado gravado. */
     Atendimento salvar(Atendimento atendimento);
 }

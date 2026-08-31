@@ -22,6 +22,7 @@ import type {
   TagResposta,
   TemplateWhatsApp,
   UsuarioResposta,
+  DestinoDeTransferencia,
   VisaoAtendimento,
 } from "./types";
 
@@ -296,6 +297,10 @@ export function entrarAtendimento(atendimentoId: string) { return apiFetch(`/api
 export function sairAtendimento(atendimentoId: string) { return apiFetch(`/api/v1/atendimentos/${atendimentoId}/sair`, { method: "POST" }); }
 export function aprovarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/aprovar`, { method: "POST" }); }
 export function recusarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/recusar`, { method: "POST" }); }
+
+export function listarDestinosDeTransferencia(): Promise<DestinoDeTransferencia[]> {
+  return apiFetch<DestinoDeTransferencia[]>("/api/v1/atendimentos/destinos-de-transferencia");
+}
 
 export function listarUsuarios(): Promise<UsuarioResposta[]> {
   return apiFetch<UsuarioResposta[]>("/api/v1/usuarios");
