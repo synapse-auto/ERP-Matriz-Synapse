@@ -127,6 +127,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String WHERE_POTENCIAIS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_IA')";
 
+    private static final String WHERE_TODOS_PROPRIOS = " WHERE (l.atendente_responsavel_id = ?"
+            + " OR EXISTS (SELECT 1 FROM atendimento_participante participante"
+            + " WHERE participante.atendimento_id = a.id AND participante.usuario_id = ?"
+            + " AND participante.saiu_em IS NULL))";
+
     private static final String SQL_ATIVOS = agrupar(CAMPOS + ORIGEM + WHERE_ATIVOS);
 
     private static final String SQL_PENDENTES_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS);
@@ -136,6 +141,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_POTENCIAIS = agrupar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
     private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
+
+    private static final String SQL_TODOS_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_TODOS_PROPRIOS);
 
     private static final String COLUNAS_CARTAO =
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
@@ -152,6 +159,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_CONTAR_POTENCIAIS = contar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
     private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
+
+    private static final String SQL_CONTAR_TODOS_PROPRIOS = contar(CAMPOS + ORIGEM + WHERE_TODOS_PROPRIOS);
 
     private static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
@@ -182,7 +191,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId)
                     : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
-            case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
+            case TODOS -> restritoAoProprioAtendente
+                    ? chat.query(SQL_TODOS_PROPRIOS, MAPEADOR, usuarioId, usuarioId, usuarioId)
+                    : chat.query(SQL_TODOS, MAPEADOR, usuarioId);
         };
     }
 
@@ -195,13 +206,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case ATIVOS -> WHERE_ATIVOS;
             case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
             case POTENCIAIS -> WHERE_POTENCIAIS;
-            case TODOS -> "";
+            case TODOS -> restritoAoProprioAtendente ? WHERE_TODOS_PROPRIOS : "";
         };
         String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
                 + ") cartoes WHERE linha_do_lead = 1";
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)) {
+            parametros.add(usuarioId);
+        }
+        if (visao == VisaoAtendimento.TODOS && restritoAoProprioAtendente) {
+            parametros.add(usuarioId);
             parametros.add(usuarioId);
         }
         if (depoisDoId != null) {
@@ -236,7 +251,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId)
                     : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
             case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
-            case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);
+            case TODOS -> restritoAoProprioAtendente
+                    ? queryForCount(SQL_CONTAR_TODOS_PROPRIOS, usuarioId, usuarioId, usuarioId)
+                    : queryForCount(SQL_CONTAR_TODOS, usuarioId);
         };
     }
 
