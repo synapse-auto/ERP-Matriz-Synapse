@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -190,6 +190,14 @@ export function ListaConversas({
       );
     });
   }, [busca, cartoes, filtroAtendente, filtroEtapa]);
+  const indicePrimeiroFinalizado = visao === "TODOS"
+    ? filtrados.findIndex(
+        (cartao) =>
+          cartao.tipo !== "EQUIPE_INTERNA"
+          && (cartao.atendimentoAtivoId === null
+            || (cartao.atendimentoAtivoId === undefined && cartao.status === "FINALIZADO")),
+      )
+    : -1;
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col overflow-hidden border-r border-border bg-background", className)}>
@@ -331,13 +339,26 @@ export function ListaConversas({
               {textos.cartao.vazio}
             </p>
           ) : (
-            filtrados.map((cartao) => (
-              <CartaoConversa
+            filtrados.map((cartao, indice) => (
+              <Fragment
                 key={cartao.tipo === "EQUIPE_INTERNA" ? `equipe-${cartao.conversaId}` : `cliente-${cartao.leadId}`}
-                cartao={cartao}
-                selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
-                onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
-              />
+              >
+                {indice === indicePrimeiroFinalizado && (
+                  <div
+                    className="mx-4 mb-1 mt-4 flex items-center gap-3 text-xs font-semibold text-muted-foreground"
+                    role="separator"
+                    aria-label={textos.lista.finalizados}
+                  >
+                    <span>{textos.lista.finalizados}</span>
+                    <span className="h-px flex-1 bg-border" aria-hidden />
+                  </div>
+                )}
+                <CartaoConversa
+                  cartao={cartao}
+                  selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
+                  onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
+                />
+              </Fragment>
             ))
           )}
           {visao === "TODOS" && hasNextPage && (

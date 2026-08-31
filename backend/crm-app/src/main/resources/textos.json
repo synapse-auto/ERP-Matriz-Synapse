@@ -240,7 +240,8 @@
       "busca": "Buscar cliente ou protocolo...",
       "filtros": "Filtros da lista",
       "carregarMais": "Carregar mais conversas",
-      "carregandoMais": "Carregando conversas..."
+      "carregandoMais": "Carregando conversas...",
+      "finalizados": "Finalizados"
     },
     "novoContato": {
       "botao": "Novo atendimento",
@@ -292,6 +293,7 @@
       "recusado": "Pedido recusado",
       "aprovarEntrada": "Aceitar pedido",
       "recusarEntrada": "Recusar pedido",
+      "novoAtendimento": "Reativar atendimento",
       "voltar": "Voltar para a lista"
     },
     "transferir": {

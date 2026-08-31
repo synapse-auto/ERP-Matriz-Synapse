@@ -97,7 +97,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ) ultima_lead ON true
             """;
 
-    private static final String ORDEM = " ORDER BY COALESCE(ultima_mensagem_em, iniciado_em) DESC";
+    private static final String GRUPO_FINALIZADO =
+            "CASE WHEN atendimento_ativo_id IS NULL THEN 1 ELSE 0 END";
+
+    private static final String ORDEM = " ORDER BY " + GRUPO_FINALIZADO
+            + " ASC, ultima_mensagem_em DESC NULLS LAST, atendimento_id DESC";
 
     /**
      * As mesmas quatro condicoes de visao usadas em {@link #listar}, isoladas para que a contagem
@@ -184,7 +188,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     @Override
     public List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
-            boolean restritoAoProprioAtendente, Instant depoisDe, UUID depoisDoId, int limite) {
+            boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
+            Instant depoisDe, UUID depoisDoId, int limite) {
         TransacaoObrigatoria.exigir("listarPaginado");
         String filtro = switch (visao) {
             case ATIVOS -> WHERE_ATIVOS;
@@ -200,18 +205,24 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             parametros.add(usuarioId);
         }
         if (depoisDoId != null) {
+            int grupoDoCursor = depoisSemAtendimentoAberto ? 1 : 0;
+            consulta += " AND (" + GRUPO_FINALIZADO + " > ? OR (" + GRUPO_FINALIZADO
+                    + " = ? AND (";
+            parametros.add(grupoDoCursor);
+            parametros.add(grupoDoCursor);
             if (depoisDe == null) {
-                consulta += " AND ultima_mensagem_em IS NULL AND atendimento_id < ?";
+                consulta += "ultima_mensagem_em IS NULL AND atendimento_id < ?";
                 parametros.add(depoisDoId);
             } else {
-                consulta += " AND (ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
-                        + " OR ultima_mensagem_em IS NULL)";
+                consulta += "ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
+                        + " OR ultima_mensagem_em IS NULL";
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(depoisDoId);
             }
+            consulta += ")))";
         }
-        consulta += " ORDER BY ultima_mensagem_em DESC NULLS LAST, atendimento_id DESC LIMIT ?";
+        consulta += ORDEM + " LIMIT ?";
         parametros.add(Math.min(101, Math.max(1, limite)));
         return chat.query(consulta, MAPEADOR, parametros.toArray());
     }

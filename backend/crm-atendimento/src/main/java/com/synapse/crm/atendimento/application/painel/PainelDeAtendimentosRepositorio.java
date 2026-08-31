@@ -25,9 +25,14 @@ public interface PainelDeAtendimentosRepositorio {
     List<CartaoAtendimento> listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
 
-    /** Leitura limitada para composição da inbox; a chave é (última mensagem, atendimento). */
+    /**
+     * Leitura limitada para composição da inbox; a chave é (sem atendimento aberto, última
+     * mensagem, atendimento). O primeiro componente mantém os finalizados depois dos cartões
+     * operacionais também quando a fronteira cai entre duas páginas.
+     */
     List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
-            boolean restritoAoProprioAtendente, Instant depoisDe, UUID depoisDoId, int limite);
+            boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
+            Instant depoisDe, UUID depoisDoId, int limite);
 
     /**
      * Quantos cartoes {@link #listar} devolveria para a mesma visao — os badges das abas (E17b §Bloco

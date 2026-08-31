@@ -17,7 +17,7 @@ import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquiv
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
-import { definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
+import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import type {
@@ -114,6 +114,15 @@ export function PaginaAtendimentosCliente({
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       setLeadParaAbrir(resposta.leadId);
       setLeadParaAbrirGatilho((atual) => atual + 1);
+    },
+  });
+  const abrirNovoAtendimento = useMutation({
+    mutationFn: abrirAtendimentoParaLead,
+    onSuccess: (resposta) => {
+      setLeadSelecionadoId(resposta.leadId);
+      setLeadParaAbrir(resposta.leadId);
+      setLeadParaAbrirGatilho((atual) => atual + 1);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
 
@@ -381,6 +390,12 @@ export function PaginaAtendimentosCliente({
               onAlternarPainelDetalhes={() =>
                 setPainelDetalhesAberto(!(painelDetalhesAberto ?? !telaEstreita))
               }
+              onAbrirNovoAtendimento={
+                atendimentoAtivo
+                  ? undefined
+                  : () => abrirNovoAtendimento.mutate(conversa.leadId)
+              }
+              abrindoNovoAtendimento={abrirNovoAtendimento.isPending}
               onVoltar={
                 telaEstreita
                   ? () => {

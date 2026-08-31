@@ -31,7 +31,8 @@ class ListarInboxUnificadaUseCaseTest {
     void ordenaGlobalmentePorUltimaMensagemEPaginaComCursor() {
         UUID lead = UUID.randomUUID();
         UUID conversa = UUID.randomUUID();
-        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.any(), Mockito.any()))
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.any(), Mockito.any()))
                 .thenReturn(List.of(cartao(lead, Instant.parse("2026-01-01T10:00:00Z"))));
         when(features.habilitadas()).thenReturn(List.of("chat_interno"));
         when(equipe.executarPaginado(Mockito.anyInt(), Mockito.any(), Mockito.any())).thenReturn(List.of(new ChatInternoRepositorio.ConversaResumo(
@@ -53,7 +54,8 @@ class ListarInboxUnificadaUseCaseTest {
     @Test
     void falhaDoChatInternoNaoEscondeClientes() {
         UUID lead = UUID.randomUUID();
-        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.isNull(), Mockito.isNull()))
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull()))
                 .thenReturn(List.of(cartao(lead, null)));
         when(features.habilitadas()).thenReturn(List.of("chat_interno"));
         when(equipe.executarPaginado(Mockito.anyInt(), Mockito.isNull(), Mockito.isNull())).thenThrow(new IllegalStateException("indisponível"));
@@ -66,7 +68,8 @@ class ListarInboxUnificadaUseCaseTest {
     @Test
     void flagDesligadaNaoIncluiConversasInternas() {
         UUID lead = UUID.randomUUID();
-        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.isNull(), Mockito.isNull()))
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull()))
                 .thenReturn(List.of(cartao(lead, null)));
         when(features.habilitadas()).thenReturn(List.of());
 
@@ -80,7 +83,8 @@ class ListarInboxUnificadaUseCaseTest {
         Instant instante = Instant.parse("2026-01-01T10:00:00Z");
         UUID primeiro = UUID.randomUUID();
         UUID segundo = UUID.randomUUID();
-        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.any(), Mockito.any()))
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.any(), Mockito.any()))
                 .thenReturn(List.of(cartao(primeiro, instante), cartao(segundo, instante)));
         when(features.habilitadas()).thenReturn(List.of());
 
@@ -97,7 +101,8 @@ class ListarInboxUnificadaUseCaseTest {
     void mensagensNulasFicamNoFimEUsamIdComoDesempate() {
         UUID primeiro = UUID.randomUUID();
         UUID segundo = UUID.randomUUID();
-        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.any(), Mockito.any()))
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.any(), Mockito.any()))
                 .thenReturn(List.of(cartao(primeiro, null), cartao(segundo, null)));
         when(features.habilitadas()).thenReturn(List.of());
 
@@ -110,9 +115,51 @@ class ListarInboxUnificadaUseCaseTest {
                 .isNotEqualTo(primeira.itens().getFirst().identificadorVisual());
     }
 
+    @Test
+    void atendimentoAbertoVemAntesDoFinalizadoMesmoComMensagemMaisAntiga() {
+        UUID aberto = UUID.randomUUID();
+        UUID finalizado = UUID.randomUUID();
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.any(), Mockito.any()))
+                .thenReturn(List.of(
+                        cartaoFinalizado(finalizado, Instant.parse("2026-01-02T10:00:00Z")),
+                        cartao(aberto, Instant.parse("2026-01-01T10:00:00Z"))));
+        when(features.habilitadas()).thenReturn(List.of());
+
+        InboxUnificada primeira = caso.executar(VisaoAtendimento.TODOS, 1, null);
+        InboxUnificada segunda = caso.executar(VisaoAtendimento.TODOS, 1, primeira.proximoCursor());
+
+        assertThat(primeira.itens().getFirst().leadId()).isEqualTo(aberto);
+        assertThat(segunda.itens().getFirst().leadId()).isEqualTo(finalizado);
+    }
+
+    @Test
+    void cursorLegadoReiniciaSemDerrubarAConsulta() {
+        UUID lead = UUID.randomUUID();
+        String cursorLegado = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+                ("2026-01-01T10:00:00Z|" + UUID.randomUUID())
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
+                Mockito.eq(false), Mockito.isNull(), Mockito.isNull()))
+                .thenReturn(List.of(cartao(lead, null)));
+        when(features.habilitadas()).thenReturn(List.of());
+
+        assertThat(caso.executar(VisaoAtendimento.TODOS, 10, cursorLegado).itens())
+                .singleElement()
+                .extracting(InboxUnificada.Item::leadId)
+                .isEqualTo(lead);
+    }
+
     private static CartaoAtendimento cartao(UUID lead, Instant ultimaMensagem) {
+        UUID atendimento = UUID.randomUUID();
+        return new CartaoAtendimento(atendimento, lead, "Lead", null, null, null, "WHATSAPP", null,
+                null, null, StatusAtendimento.EM_ATENDIMENTO, null, null, atendimento, "mensagem", "LEAD",
+                ultimaMensagem, null, 0);
+    }
+
+    private static CartaoAtendimento cartaoFinalizado(UUID lead, Instant ultimaMensagem) {
         return new CartaoAtendimento(UUID.randomUUID(), lead, "Lead", null, null, null, "WHATSAPP", null,
-                null, null, StatusAtendimento.EM_ATENDIMENTO, null, null, null, "mensagem", "LEAD",
+                null, null, StatusAtendimento.FINALIZADO, null, null, null, "mensagem", "LEAD",
                 ultimaMensagem, null, 0);
     }
 }

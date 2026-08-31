@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
@@ -24,7 +25,8 @@ import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 public class ListarInboxUnificadaUseCase {
     private static final Logger LOG = LoggerFactory.getLogger(ListarInboxUnificadaUseCase.class);
     private static final Comparator<InboxUnificada.Item> ORDEM = Comparator
-            .comparing(InboxUnificada.Item::ultimaMensagemEm,
+            .comparingInt(InboxUnificada.Item::grupoDeOrdenacao)
+            .thenComparing(InboxUnificada.Item::ultimaMensagemEm,
                     Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(InboxUnificada.Item::identificadorVisual, Comparator.reverseOrder());
 
@@ -47,12 +49,17 @@ public class ListarInboxUnificadaUseCase {
         List<InboxUnificada.Item> itens = new ArrayList<>();
         Cursor apos = decodificar(cursor);
         try {
-            clientes.executarPaginado(visao, tamanho + 1, apos == null ? null : apos.data(),
-                    apos == null ? null : apos.id()).stream().map(InboxUnificada.Item::cliente).forEach(itens::add);
+            clientes.executarPaginado(visao, tamanho + 1,
+                    apos != null && apos.grupo() == 1,
+                    apos == null ? null : apos.data(),
+                    apos == null ? null : apos.id()).stream()
+                    .map(InboxUnificada.Item::cliente)
+                    .forEach(itens::add);
         } catch (RuntimeException erro) {
             LOG.warn("Não foi possível carregar a fonte de atendimentos da inbox", erro);
         }
-        if (visao == VisaoAtendimento.TODOS && chatHabilitado()) {
+        if (visao == VisaoAtendimento.TODOS && (apos == null || apos.grupo() == 0)
+                && chatHabilitado()) {
             try {
                 equipe.executarPaginado(tamanho + 1, apos == null ? null : apos.data(),
                         apos == null ? null : apos.id()).stream().map(this::paraEquipe).forEach(itens::add);
@@ -92,7 +99,8 @@ public class ListarInboxUnificadaUseCase {
     }
 
     private static String codificar(InboxUnificada.Item item) {
-        String valor = (item.ultimaMensagemEm() == null ? "" : item.ultimaMensagemEm().toString())
+        String valor = item.grupoDeOrdenacao() + "|"
+                + (item.ultimaMensagemEm() == null ? "" : item.ultimaMensagemEm().toString())
                 + "|" + item.identificadorVisual();
         return Base64.getUrlEncoder().withoutPadding().encodeToString(valor.getBytes(StandardCharsets.UTF_8));
     }
@@ -101,16 +109,52 @@ public class ListarInboxUnificadaUseCase {
         if (cursor == null || cursor.isBlank()) return null;
         try {
             String valor = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            String[] partes = valor.split("\\|", 2);
-            return new Cursor(partes[0].isBlank() ? null : Instant.parse(partes[0]), UUID.fromString(partes[1]));
+            String[] partes = valor.split("\\|", 3);
+            if (partes.length != 3) {
+                // Cursor anterior ao agrupamento: reinicia de forma segura, sem derrubar a aba
+                // que ficou aberta durante o deploy.
+                return null;
+            }
+            int grupo = Integer.parseInt(partes[0]);
+            if (grupo < 0 || grupo > 1) return null;
+            return new Cursor(grupo, partes[1].isBlank() ? null : Instant.parse(partes[1]),
+                    UUID.fromString(partes[2]));
         } catch (RuntimeException erro) {
             return null;
         }
     }
 
-    private record Cursor(Instant data, UUID id) {
+    private record Cursor(int grupo, Instant data, UUID id) {
         InboxUnificada.Item item() {
-            return InboxUnificada.Item.equipe(id, "", "", data, 0, "DIRETA", null);
+            InboxUnificada.Item base = InboxUnificada.Item.equipe(id, "", "", data, 0, "DIRETA", null);
+            if (grupo == 0) return base;
+            return new InboxUnificada.Item(
+                    InboxUnificada.Tipo.CLIENTE,
+                    id,
+                    null,
+                    "",
+                    null,
+                    id.toString(),
+                    "",
+                    null,
+                    data,
+                    null,
+                    0,
+                    id,
+                    "",
+                    null,
+                    null,
+                    null,
+                    null,
+                    StatusAtendimento.FINALIZADO,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null);
         }
     }
 }

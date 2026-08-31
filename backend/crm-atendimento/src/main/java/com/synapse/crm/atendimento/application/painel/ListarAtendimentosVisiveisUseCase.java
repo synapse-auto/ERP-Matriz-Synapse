@@ -41,9 +41,9 @@ public class ListarAtendimentosVisiveisUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<CartaoAtendimento> executarPaginado(VisaoAtendimento visao, int limite,
-            Instant depoisDe, UUID depoisDoId) {
+            boolean depoisSemAtendimentoAberto, Instant depoisDe, UUID depoisDoId) {
         UsuarioAutenticado atual = usuarioContext.atual();
-        return painel.listarPaginado(visao, atual.id(), !atual.enxergaTodosOsLeads(), depoisDe,
-                depoisDoId, limite);
+        return painel.listarPaginado(visao, atual.id(), !atual.enxergaTodosOsLeads(),
+                depoisSemAtendimentoAberto, depoisDe, depoisDoId, limite);
     }
 }

@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   CheckCheck,
   MessageCircleMore,
+  MessageCirclePlus,
   PanelRightOpen,
   Phone,
   Search,
@@ -43,6 +44,8 @@ type Props = {
   painelDetalhesAberto: boolean;
   onAlternarPainelDetalhes: () => void;
   onVoltar?: () => void;
+  onAbrirNovoAtendimento?: () => void;
+  abrindoNovoAtendimento?: boolean;
 };
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
@@ -53,6 +56,8 @@ export function CabecalhoConversa({
   painelDetalhesAberto,
   onAlternarPainelDetalhes,
   onVoltar,
+  onAbrirNovoAtendimento,
+  abrindoNovoAtendimento = false,
 }: Props) {
   const catalogo = useTextos();
   const textos = {
@@ -221,6 +226,18 @@ export function CabecalhoConversa({
           >
             <Star className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
             {catalogo.atendimentos.avaliacao.registrar}
+          </Button>
+        )}
+        {finalizado && onAbrirNovoAtendimento && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAbrirNovoAtendimento}
+            disabled={abrindoNovoAtendimento}
+          >
+            <MessageCirclePlus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+            {textos.novoAtendimento}
           </Button>
         )}
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />
