@@ -153,6 +153,8 @@ INSERT INTO configuracao_automacao
      'Chave geral da automacao. Desligar pausa toda a operacao automatica.'),
     ('ia.preenchimento_automatico', 'false', NULL, 'BOOLEAN', NULL, NULL,
      'Permite que a automacao preencha dados do cliente a partir da conversa.'),
+    ('transferencia.por_lista', 'false', NULL, 'BOOLEAN', NULL, NULL,
+     'Modo de transferencia usado pela Automacao: ligado, ela usa o modo por lista; desligado, mantem o modo padrao de hoje. Quem executa a transferencia e a Automacao; o CRM apenas publica a escolha.'),
                  ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
                   NULL, NULL, 'Primeira mensagem enviada pela IA.'),
                  ('automacao.comando_reset', '#reset', NULL, 'TEXT',
