@@ -89,7 +89,10 @@ export interface MidiaDoLead {
   mimetype: string | null;
   tamanho: number;
   legenda: string | null;
-  urlDownload: string;
   enviadoEm: string;
   origem: string | null;
+}
+
+export interface UrlAssinadaDaMidia {
+  url: string;
 }
