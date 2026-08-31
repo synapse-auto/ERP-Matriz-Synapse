@@ -18,11 +18,9 @@ import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 /** Prepara, valida e deduplica o CSV antes de qualquer acesso ao banco. */
 public final class PrepararImportacaoLeadsCsv {
 
-    private final String ddiPadrao;
     private final TelefoneCanonico telefoneCanonico;
 
     public PrepararImportacaoLeadsCsv(String ddiPadrao) {
-        this.ddiPadrao = ddiPadrao;
         this.telefoneCanonico = new TelefoneCanonico(ddiPadrao);
     }
 
@@ -72,7 +70,6 @@ public final class PrepararImportacaoLeadsCsv {
                 if (telefoneRecebido.codePoints().anyMatch(Character::isLetter)) {
                     throw new LinhaInvalidaException("telefone contem letras");
                 }
-                recusarSemNonoDigitoQuandoAmbiguo(telefoneRecebido);
                 String telefone = normalizar(telefoneRecebido);
                 if (!telefonesDoArquivo.add(telefone)) {
                     throw new LinhaInvalidaException("telefone duplicado no arquivo");
@@ -91,32 +88,6 @@ public final class PrepararImportacaoLeadsCsv {
         } catch (TelefoneInvalidoException e) {
             throw new LinhaInvalidaException("telefone curto ou ilegivel");
         }
-    }
-
-    /**
-     * O dominio nao inventa o nono digito. Para a importacao em massa, um numero nacional de dez
-     * digitos e recusado: aceitar as duas grafias criaria duas identidades validas e distintas.
-     */
-    private void recusarSemNonoDigitoQuandoAmbiguo(String telefone) {
-        String digitos = somenteDigitosAscii(telefone);
-        boolean nacionalSemDdi = digitos.length() == 10;
-        boolean comDdiEDezDigitos = digitos.startsWith(ddiPadrao)
-                && digitos.length() == ddiPadrao.length() + 10;
-        if (nacionalSemDdi || comDdiEDezDigitos) {
-            throw new LinhaInvalidaException(
-                    "telefone nacional com dez digitos e ambiguo; confirme o nono digito");
-        }
-    }
-
-    private static String somenteDigitosAscii(String valor) {
-        StringBuilder resultado = new StringBuilder(valor.length());
-        for (int i = 0; i < valor.length(); i++) {
-            char caractere = valor.charAt(i);
-            if (caractere >= '0' && caractere <= '9') {
-                resultado.append(caractere);
-            }
-        }
-        return resultado.toString();
     }
 
     private static Map<String, Integer> indices(List<String> colunas) {

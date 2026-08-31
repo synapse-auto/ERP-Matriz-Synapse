@@ -94,9 +94,9 @@ virgula e ponto e virgula sao aceitos como delimitador. Colunas extras sao ignor
 O comando compila e usa diretamente o `TelefoneCanonico` de `crm-core`, com o mesmo
 `TELEFONE_DDI_PADRAO` do deploy. Nao existe uma segunda normalizacao em SQL. Linhas com nome ou
 telefone vazio, telefone curto, letras, CSV malformado e telefone duplicado no arquivo sao
-recusadas individualmente. Um telefone nacional de dez digitos tambem e recusado: o importador nao
-inventa o nono digito e nao cria uma segunda identidade para o mesmo cliente. O log informa apenas
-linha e motivo, nunca o telefone completo.
+recusadas individualmente. Telefone segue a mesma regra do dominio: celular brasileiro de oito
+digitos ganha o nono; fixo fica como esta. O log informa apenas linha e motivo, nunca o telefone
+completo.
 
 Carregue primeiro as variaveis da instancia e execute em homologacao. Simulacao e o modo padrao e
 termina com `ROLLBACK`:
@@ -215,6 +215,10 @@ O que conferir na saida, nesta ordem:
 3. **Secao 3** e o **unico** registro do que sera descartado: o nome do lead
    apagado e todo campo preenchido nos dois lados. **Guarde a saida**; depois do
    deploy ela nao existe mais em lugar nenhum.
+4. **Secao 4b** lista, por par, o atendimento que fica aberto e os que serao
+   finalizados (id, atendente, mensagens, `iniciado_em`). E a lista que a gestao
+   aprova junto com os nomes. Nada e apagado: o historico do atendimento fechado
+   continua no cliente.
 
 A saida tambem serve de lista de trabalho para a operacao: o nome nao e fundido
 de proposito, entao os pares da secao 3 com `nome_do_campo = nome` sao os leads

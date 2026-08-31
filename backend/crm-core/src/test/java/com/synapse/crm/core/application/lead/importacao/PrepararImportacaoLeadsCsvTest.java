@@ -29,22 +29,20 @@ class PrepararImportacaoLeadsCsvTest {
     }
 
     @Test
-    void telefoneSemNonoDigitoEhRecusadoEmVezDeCriarSegundaIdentidade() throws Exception {
+    void telefoneDeDezDigitosSegueARegraDoDominio() throws Exception {
         var resultado = importacao.executar(new StringReader("""
                 nome,telefone
-                Sem DDI,6199999999
-                Com DDI,556199999999
-                Com nono,61999999999
+                Fixo,6132241234
+                Celular,6181536371
+                Curto,123
                 """));
 
         assertThat(resultado.aceitos())
                 .extracting(PrepararImportacaoLeadsCsv.LeadImportavel::telefone)
-                .containsExactly("5561999999999");
+                .containsExactly("556132241234", "5561981536371");
         assertThat(resultado.recusados())
                 .extracting(PrepararImportacaoLeadsCsv.LinhaRecusada::motivo)
-                .containsExactly(
-                        "telefone nacional com dez digitos e ambiguo; confirme o nono digito",
-                        "telefone nacional com dez digitos e ambiguo; confirme o nono digito");
+                .containsExactly("telefone curto ou ilegivel");
     }
 
     @Test

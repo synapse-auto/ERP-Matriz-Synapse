@@ -49,7 +49,7 @@ END $$;
 -- reprova o build se os dois textos divergirem em um caractere.
 --
 -- A contraparte Java e TelefoneCanonico; quem prova que as duas concordam e
--- TelefoneCanonicoParidadeIT, que roda a mesma tabela de casos nas duas implementacoes.
+-- TelefoneNonoDigitoIT.Paridade, que roda a mesma tabela de casos nas duas implementacoes.
 
 -- Somente digitos, mais o DDI da instancia quando o numero veio local. Espelha as duas primeiras
 -- etapas de TelefoneCanonico.normalizar. NULL significa "sem telefone ou curto demais para ser um":
@@ -98,7 +98,7 @@ $$;
 
 COMMENT ON FUNCTION app_telefone_canonico(TEXT, TEXT) IS
     'Telefone canonico do CRM, incluindo o nono digito de celular brasileiro. '
-    'Espelha TelefoneCanonico do dominio; TelefoneCanonicoParidadeIT reprova se so um mudar.';
+    'Espelha TelefoneCanonico do dominio; TelefoneNonoDigitoIT.Paridade reprova se so um mudar.';
 
 DO $$
 DECLARE
@@ -111,10 +111,12 @@ DECLARE
         'lead_tag',
         'lembrete',
         'mensagem_programada'];
-    problema       TEXT;
-    par            RECORD;
-    fundidos       INT := 0;
-    normalizados   INT := 0;
+    problema                   TEXT;
+    par                        RECORD;
+    extra                      RECORD;
+    fundidos                   INT := 0;
+    normalizados               INT := 0;
+    atendimentos_finalizados   INT := 0;
 BEGIN
     IF ddi_padrao !~ '^[0-9]{1,3}$' THEN
         RAISE EXCEPTION 'DDI padrao deve conter de um a tres digitos; recebido: %', ddi_padrao;
@@ -256,6 +258,48 @@ BEGIN
         -- mensagem aponta para atendimento, nao para lead: mover o atendimento leva as mensagens.
         UPDATE atendimento         SET lead_id = par.sobrevivente WHERE lead_id = par.perdedor;
 
+        -- Conversa unica por lead e invariante de aplicacao, nao do schema. Depois de mover, o
+        -- sobrevivente pode ter dois (ou mais) nao-finalizados. A aplicacao escolhe o mais recente
+        -- (V36), e o do perdedor costuma ser esse: nasceu agora, quando o atendente tentou puxar o
+        -- cliente. Sem isto a fusao entregaria o lead certo com a conversa em branco.
+        --
+        -- Fica aberto o de mais mensagens; empate, o de iniciado_em mais antigo; empate, o menor
+        -- id. Os demais sao FINALIZADO — nada e apagado. A participacao aberta e encerrada junto:
+        -- senao o recorte da aba Todos continua casando pela participacao e a conversa vazia
+        -- reaparece na lista de quem so participava.
+        --
+        -- Nao aborta: a maioria dos pares cai neste caminho. Abortar aqui e um deploy que nunca
+        -- acontece.
+        FOR extra IN
+            SELECT ranqueados.id, ranqueados.atendente_id, ranqueados.mensagens
+              FROM (
+                    SELECT a.id,
+                           a.atendente_id,
+                           count(m.id) AS mensagens,
+                           row_number() OVER (
+                               ORDER BY count(m.id) DESC, a.iniciado_em ASC, a.id ASC) AS posicao
+                      FROM atendimento a
+                      LEFT JOIN mensagem m ON m.atendimento_id = a.id
+                     WHERE a.lead_id = par.sobrevivente
+                       AND a.status <> 'FINALIZADO'
+                     GROUP BY a.id
+                   ) ranqueados
+             WHERE ranqueados.posicao > 1
+        LOOP
+            UPDATE atendimento
+               SET status = 'FINALIZADO',
+                   finalizado_em = now()
+             WHERE id = extra.id;
+            UPDATE atendimento_participante
+               SET saiu_em = now()
+             WHERE atendimento_id = extra.id
+               AND saiu_em IS NULL;
+            atendimentos_finalizados := atendimentos_finalizados + 1;
+            RAISE NOTICE
+                'atendimento finalizado % : mensagens %, dono % (par %)',
+                extra.id, extra.mensagens, extra.atendente_id, par.canonico;
+        END LOOP;
+
         -- audit_log nao tem FK para lead; lead_id ali e coluna de filtro. Reapontar mantem o
         -- historico do cliente alcancavel. entidade_id nao e tocado: ele registra em qual linha a
         -- acao aconteceu, e aquela linha existiu.
@@ -317,5 +361,7 @@ BEGIN
        AND telefone IS DISTINCT FROM app_telefone_canonico(telefone, ddi_padrao);
     GET DIAGNOSTICS normalizados = ROW_COUNT;
 
-    RAISE NOTICE 'nono digito: % pares fundidos, % telefones normalizados', fundidos, normalizados;
+    RAISE NOTICE
+        'nono digito: % pares fundidos, % telefones normalizados, % atendimentos finalizados',
+        fundidos, normalizados, atendimentos_finalizados;
 END $$;

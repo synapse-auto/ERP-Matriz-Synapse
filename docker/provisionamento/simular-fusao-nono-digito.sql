@@ -46,7 +46,7 @@ END $$;
 -- reprova o build se os dois textos divergirem em um caractere.
 --
 -- A contraparte Java e TelefoneCanonico; quem prova que as duas concordam e
--- TelefoneCanonicoParidadeIT, que roda a mesma tabela de casos nas duas implementacoes.
+-- TelefoneNonoDigitoIT.Paridade, que roda a mesma tabela de casos nas duas implementacoes.
 
 -- Somente digitos, mais o DDI da instancia quando o numero veio local. Espelha as duas primeiras
 -- etapas de TelefoneCanonico.normalizar. NULL significa "sem telefone ou curto demais para ser um":
@@ -347,6 +347,59 @@ SELECT par.canonico, par.id_p AS perdedor, origem.tabela, origem.linhas
  ORDER BY par.canonico, origem.tabela;
 
 \echo ''
+\echo '--- 4b. ATENDIMENTOS: QUAL FICA ABERTO E QUAIS SERAO FINALIZADOS ---------'
+\echo '    Depois de mover os atendimentos do perdedor para o sobrevivente, so um'
+\echo '    nao-finalizado permanece aberto. Fica o de mais mensagens; empate, o'
+\echo '    mais antigo; empate, o menor id. Os demais viram FINALIZADO (nada e'
+\echo '    apagado). Esta e a lista que a gestao aprova antes do deploy.'
+\echo ''
+
+CREATE TEMP TABLE sim_atendimento_aberto_do_par AS
+SELECT par.canonico,
+       par.nome_s AS cliente,
+       a.id AS atendimento_id,
+       coalesce(u.nome, '(sem dono)') AS atendente,
+       a.iniciado_em,
+       (SELECT count(*) FROM mensagem m WHERE m.atendimento_id = a.id) AS mensagens,
+       row_number() OVER (
+           PARTITION BY par.canonico
+           ORDER BY (SELECT count(*) FROM mensagem m WHERE m.atendimento_id = a.id) DESC,
+                    a.iniciado_em ASC,
+                    a.id ASC) AS posicao
+  FROM sim_par par
+  JOIN atendimento a ON a.lead_id IN (par.id_s, par.id_p)
+                    AND a.status <> 'FINALIZADO'
+  LEFT JOIN usuario u ON u.id = a.atendente_id;
+
+\echo 'Ficam abertos (um por par, quando ha atendimento aberto):'
+\echo ''
+
+SELECT canonico,
+       cliente,
+       atendente,
+       mensagens,
+       iniciado_em,
+       atendimento_id
+  FROM sim_atendimento_aberto_do_par
+ WHERE posicao = 1
+ ORDER BY canonico;
+
+\echo ''
+\echo 'Serao finalizados (historico permanece no cliente; a conversa some da aba'
+\echo 'Todos de quem so participava, porque a participacao e encerrada):'
+\echo ''
+
+SELECT canonico,
+       cliente,
+       atendente,
+       mensagens,
+       iniciado_em,
+       atendimento_id
+  FROM sim_atendimento_aberto_do_par
+ WHERE posicao > 1
+ ORDER BY canonico, mensagens ASC, iniciado_em ASC;
+
+\echo ''
 \echo '--- 5. LEADS NORMALIZADOS SEM FUSAO --------------------------------------'
 \echo ''
 
@@ -367,6 +420,8 @@ SELECT (SELECT count(*) FROM sim_par) AS pares_a_fundir,
        (SELECT count(*) FROM sim_par) AS leads_a_apagar,
        (SELECT count(*) FROM sim_lead WHERE telefone IS DISTINCT FROM canonico)
            AS telefones_a_normalizar,
+       (SELECT count(*) FROM sim_atendimento_aberto_do_par WHERE posicao > 1)
+           AS atendimentos_a_finalizar,
        (SELECT count(*) FROM sim_lead
          WHERE telefone !~ '^[0-9]+$' OR com_ddi IS NULL OR app_telefone_fora_da_regra(com_ddi))
            AS casos_que_abortam;

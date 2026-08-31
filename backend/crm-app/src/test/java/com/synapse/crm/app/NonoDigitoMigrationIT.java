@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,6 +37,11 @@ class NonoDigitoMigrationIT extends PostgresIT {
     private static final String SEM_O_NONO = "556181536371";
 
     private static final String COM_O_NONO = "5561981536371";
+
+    /** O atendimento vazio criado ao puxar o duplicado costuma ser o mais recente. */
+    private static final Instant INICIO_ANTIGO = Instant.parse("2025-03-01T12:00:00Z");
+
+    private static final Instant INICIO_RECENTE = Instant.parse("2026-08-31T12:10:00Z");
 
     private String banco;
     private String url;
@@ -140,6 +147,122 @@ class NonoDigitoMigrationIT extends PostgresIT {
         assertThat(contar("SELECT count(*) FROM audit_log WHERE lead_id = ?", comConversa))
                 .as("a auditoria do perdedor continua alcancavel pelo cliente")
                 .isEqualTo(2);
+    }
+
+    /**
+     * O caso perigoso medido em producao: os dois lados tem atendimento aberto e o vazio e o mais
+     * recente. Sem a conversa unica, {@code app_atendimento_aberto_do_lead} devolveria o em branco.
+     */
+    @Test
+    @DisplayName("dois abertos, o vazio e o mais recente: fica o que tem as mensagens")
+    void migration_doisAbertosVazioMaisRecente_ficaOQueTemMensagens() {
+        UUID comConversa = criarLead("Adjair", SEM_O_NONO, ana);
+        UUID atendimentoCheio = criarAtendimento(comConversa, ana, INICIO_ANTIGO);
+        criarMensagens(atendimentoCheio, 3);
+
+        UUID cadastroNovo = criarLead("Jair puxado agora", COM_O_NONO, bruno);
+        UUID atendimentoVazio = criarAtendimento(cadastroNovo, bruno, INICIO_RECENTE);
+
+        flyway(null).migrate();
+
+        assertThat(existe(cadastroNovo)).isFalse();
+        assertThat(abertoDoLead(comConversa))
+                .as("o aberto e o que tem as mensagens, nao o mais recente")
+                .isEqualTo(atendimentoCheio);
+        assertThat(statusDoAtendimento(atendimentoCheio)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(statusDoAtendimento(atendimentoVazio)).isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject(
+                        "SELECT finalizado_em FROM atendimento WHERE id = ?",
+                        Timestamp.class,
+                        atendimentoVazio))
+                .isNotNull();
+        assertThat(contar("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", atendimentoCheio))
+                .isEqualTo(3);
+    }
+
+    /**
+     * A mensagem de template que o atendente mandou continua no historico, num atendimento fechado.
+     * Sem encerrar a participacao, o recorte da aba Todos (E106) traria essa conversa vazia de
+     * volta para quem so participava.
+     */
+    @Test
+    @DisplayName("atendimento finalizado pela fusao mantem mensagens e encerra a participacao")
+    void migration_atendimentoFinalizado_mantemMensagensEEncerraParticipacao() {
+        UUID comConversa = criarLead("Adjair", SEM_O_NONO, ana);
+        UUID atendimentoCheio = criarAtendimento(comConversa, ana, INICIO_ANTIGO);
+        criarMensagens(atendimentoCheio, 3);
+
+        UUID cadastroNovo = criarLead("Jair puxado agora", COM_O_NONO, bruno);
+        UUID atendimentoComTemplate = criarAtendimento(cadastroNovo, bruno, INICIO_RECENTE);
+        criarMensagem(atendimentoComTemplate);
+        criarParticipante(atendimentoComTemplate, bruno);
+
+        flyway(null).migrate();
+
+        assertThat(statusDoAtendimento(atendimentoComTemplate)).isEqualTo("FINALIZADO");
+        assertThat(contar("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", atendimentoComTemplate))
+                .as("a mensagem de template permanece no atendimento fechado")
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT saiu_em FROM atendimento_participante"
+                                + " WHERE atendimento_id = ? AND usuario_id = ?",
+                        Timestamp.class,
+                        atendimentoComTemplate,
+                        bruno))
+                .as("a participacao e encerrada junto")
+                .isNotNull();
+        assertThat(contar(
+                        "SELECT count(*) FROM atendimento a JOIN lead l ON l.id = a.lead_id"
+                                + " WHERE a.id = ? AND (l.atendente_responsavel_id = ?"
+                                + " OR EXISTS (SELECT 1 FROM atendimento_participante p"
+                                + " WHERE p.atendimento_id = a.id AND p.usuario_id = ?"
+                                + " AND p.saiu_em IS NULL))",
+                        atendimentoComTemplate,
+                        bruno,
+                        bruno))
+                .as("o recorte da aba Todos nao traz o atendimento finalizado para quem so participava")
+                .isZero();
+        assertThat(abertoDoLead(comConversa)).isEqualTo(atendimentoCheio);
+    }
+
+    @Test
+    @DisplayName("so um lado tem atendimento aberto: nada e finalizado")
+    void migration_soUmAberto_naoFinalizaNada() {
+        UUID comConversa = criarLead("Adjair", SEM_O_NONO, ana);
+        UUID atendimento = criarAtendimento(comConversa, ana, INICIO_ANTIGO);
+        criarMensagem(atendimento);
+        criarLead("Cadastro vazio", COM_O_NONO, bruno);
+
+        flyway(null).migrate();
+
+        assertThat(statusDoAtendimento(atendimento)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject(
+                        "SELECT finalizado_em FROM atendimento WHERE id = ?", Timestamp.class, atendimento))
+                .isNull();
+        assertThat(abertoDoLead(comConversa)).isEqualTo(atendimento);
+        assertThat(contar("SELECT count(*) FROM atendimento WHERE status = 'FINALIZADO'")).isZero();
+    }
+
+    @Test
+    @DisplayName("nenhum lado tem atendimento aberto: a fusao roda e nao finaliza nada")
+    void migration_nenhumAberto_fundeENaoFinaliza() {
+        UUID maisAntigo = criarLead("Adjair", SEM_O_NONO, ana);
+        UUID maisNovo = criarLead("Jair", COM_O_NONO, bruno);
+        jdbc.update(
+                "UPDATE lead SET criado_em = ? WHERE id = ?",
+                Timestamp.from(INICIO_ANTIGO),
+                maisAntigo);
+        jdbc.update(
+                "UPDATE lead SET criado_em = ? WHERE id = ?",
+                Timestamp.from(INICIO_RECENTE),
+                maisNovo);
+
+        flyway(null).migrate();
+
+        assertThat(existe(maisAntigo)).isTrue();
+        assertThat(existe(maisNovo)).isFalse();
+        assertThat(contar("SELECT count(*) FROM atendimento")).isZero();
+        assertThat(abertoDoLead(maisAntigo)).isNull();
     }
 
     @Test
@@ -273,14 +396,42 @@ class NonoDigitoMigrationIT extends PostgresIT {
     }
 
     private UUID criarAtendimento(UUID leadId, UUID atendenteId) {
+        return criarAtendimento(leadId, atendenteId, Instant.now());
+    }
+
+    private UUID criarAtendimento(UUID leadId, UUID atendenteId, Instant iniciadoEm) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO atendimento (id, lead_id, atendente_id, status)"
-                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)"
+                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO', ?)",
                 id,
                 leadId,
-                atendenteId);
+                atendenteId,
+                Timestamp.from(iniciadoEm));
         return id;
+    }
+
+    private void criarMensagens(UUID atendimentoId, int quantas) {
+        for (int i = 0; i < quantas; i++) {
+            criarMensagem(atendimentoId);
+        }
+    }
+
+    private void criarParticipante(UUID atendimentoId, UUID usuarioId) {
+        jdbc.update(
+                "INSERT INTO atendimento_participante (atendimento_id, usuario_id) VALUES (?, ?)",
+                atendimentoId,
+                usuarioId);
+    }
+
+    private UUID abertoDoLead(UUID leadId) {
+        return jdbc.queryForObject(
+                "SELECT app_atendimento_aberto_do_lead(?)", UUID.class, leadId);
+    }
+
+    private String statusDoAtendimento(UUID atendimentoId) {
+        return jdbc.queryForObject(
+                "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId);
     }
 
     private void criarMensagem(UUID atendimentoId) {

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * textos caractere a caractere. Editar um e esquecer o outro reprova o build.
  *
  * <p>A terceira implementacao da mesma regra e {@code TelefoneCanonico}, em Java, que nao pode ser
- * comparada por texto: quem prova que ela concorda com o SQL e {@code TelefoneCanonicoParidadeIT}.
+ * comparada por texto: quem prova que ela concorda com o SQL e {@code TelefoneNonoDigitoIT.Paridade}.
  */
 class RegraDoNonoDigitoCompartilhadaTest {
 

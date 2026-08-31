@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * <p>A regra do nono digito e a mesma implementada em SQL por {@code app_telefone_canonico}, criada
  * na V50. Duas implementacoes existem porque o caminho critico normaliza em Java, sem ida ao banco,
  * e a migration normaliza antes de a aplicacao subir. O que impede as duas de divergirem e o teste
- * de paridade {@code TelefoneCanonicoParidadeIT}, que roda a mesma tabela de casos nas duas.
+ * de paridade {@code TelefoneNonoDigitoIT.Paridade}, que roda a mesma tabela de casos nas duas.
  */
 public final class TelefoneCanonico {
 
