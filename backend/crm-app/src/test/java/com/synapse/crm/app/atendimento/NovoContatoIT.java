@@ -106,8 +106,8 @@ class NovoContatoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("atendente assume lead em IA pelo telefone visivel")
-    void novoContato_leadDaIa_assumeParaSi() {
+    @DisplayName("atendente puxa por telefone o lead em IA oculto em Todos sem criar duplicado")
+    void novoContato_leadDaIaOcultoEmTodos_reaproveitaEAssumeParaSi() {
         String telefone = telefoneNacional();
         String canonico = "55" + telefone.replaceAll("\\D", "");
         UUID leadIa = UUID.randomUUID();
@@ -117,11 +117,23 @@ class NovoContatoIT extends PostgresIT {
                 leadIa,
                 PREFIXO + "potencial",
                 canonico);
+        UUID atendimentoIa = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, status, iniciado_em) "
+                        + "VALUES (?, ?, 'EM_IA'::status_atendimento, now())",
+                atendimentoIa,
+                leadIa);
+
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        assertThat(listarAtendimentos(token, "TODOS")).doesNotContain(atendimentoIa.toString());
+        assertThat(listarAtendimentos(token, "POTENCIAIS")).contains(atendimentoIa.toString());
 
         var resposta = iniciarComo(EMAIL_ANA, Map.of("nome", PREFIXO + "potencial", "telefone", telefone));
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains("\"leadCriado\":false").contains(leadIa.toString());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM lead WHERE telefone = ?", Integer.class, canonico))
+                .isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadIa))
                 .isEqualTo(idAna);
     }
@@ -199,6 +211,16 @@ class NovoContatoIT extends PostgresIT {
                 HttpMethod.POST,
                 new HttpEntity<>(corpo, cabecalhos),
                 String.class);
+    }
+
+    private String listarAtendimentos(String token, String visao) {
+        return ApoioAutenticacao.comToken(
+                        http,
+                        token,
+                        HttpMethod.GET,
+                        "/api/v1/atendimentos?visao=" + visao,
+                        String.class)
+                .getBody();
     }
 
     private static UUID extrairUuid(String json, String campo) {
