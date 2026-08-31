@@ -225,7 +225,12 @@ synapse:
     # casa com MINIO_ROOT_USER/PASSWORD do docker-compose. Producao sobrescreve.
     access-key: ${MIDIA_S3_ACCESS_KEY:minioadmin}
     secret-key: ${MIDIA_S3_SECRET_KEY:minioadmin}
-    expiracao-leitura: ${MIDIA_S3_EXPIRACAO_LEITURA:5m}
+    # A URL assinada da acesso a um objeto so, nao e adivinhavel, e so chega ao
+    # browser de quem ja autenticou e cuja RLS ja autorizou aquele lead.
+    # 5 minutos nao comprava seguranca real e quebrava a bolha de conversa
+    # aberta (rolar um PDF antigo, baixar um anexo, imagem ainda nao renderizada).
+    # 1 hora e o mesmo valor que o chat interno ja usa, sem incidente.
+    expiracao-leitura: ${MIDIA_S3_EXPIRACAO_LEITURA:1h}
 
   alertas:
     webhook-grupo: ${ALERTA_WEBHOOK:}

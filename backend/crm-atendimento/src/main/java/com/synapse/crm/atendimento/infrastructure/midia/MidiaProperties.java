@@ -16,8 +16,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param bucket nome do bucket desta instancia — um por cliente, nunca compartilhado
  * @param accessKey / secretKey credenciais do storage; sem default, mesmo padrao de
  *     {@code CanalProperties.webhookSecret}
- * @param expiracaoLeitura validade da URL assinada — curta de proposito, para um link vazado
- *     parar de funcionar sozinho
+ * @param expiracaoLeitura validade da URL assinada. Default 1 hora — o mesmo do chat interno.
+ *     Cinco minutos quebrava a bolha de conversa aberta sem ganho de seguranca (ver
+ *     {@code application.yml}).
  */
 @ConfigurationProperties("synapse.midia")
 public record MidiaProperties(
@@ -28,6 +29,6 @@ public record MidiaProperties(
         endpoint = (endpoint == null || endpoint.isBlank()) ? "http://localhost:9000" : endpoint;
         urlPublica = (urlPublica == null || urlPublica.isBlank()) ? endpoint : urlPublica;
         bucket = (bucket == null || bucket.isBlank()) ? "synapse-crm-midia" : bucket;
-        expiracaoLeitura = expiracaoLeitura == null ? Duration.ofMinutes(5) : expiracaoLeitura;
+        expiracaoLeitura = expiracaoLeitura == null ? Duration.ofHours(1) : expiracaoLeitura;
     }
 }
