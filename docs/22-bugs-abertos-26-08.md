@@ -135,16 +135,23 @@ não é mais escrita, e deve sair numa migration futura.
 `AtalhoTags`, modo painel, renderiza o ícone `<Plus/>` **e** o texto do catálogo, que já é "+ Tag".
 Tira um dos dois.
 
-## 7. Um chat por atendimento — é o desenho, e os dados estão sãos
+## 7. Um chat por atendimento — é o desenho, mas os dados **não** estavam sãos
+
+> **Correção de 31/08 (E111).** A conclusão abaixo estava errada, e o motivo é instrutivo: a
+> verificação foi feita **por nome**, e a consulta por telefone foi dispensada com o argumento de
+> que "só mudaria a resposta se dois leads tivessem nomes diferentes". Era exatamente esse o caso.
+> Rodada de fato, `SELECT right(telefone, 8), count(*) FROM lead GROUP BY 1 HAVING count(*) > 1`
+> devolveu **23 pares** — o mesmo número com e sem o nono dígito, sob nomes diferentes
+> (`{5561981536371, 556181536371}` = "Jair real 1814" / "Adjair"). A hipótese do nono dígito estava
+> **confirmada**, não descartada, e é a causa do "não consigo puxar o cliente" da E105 Parte 1.
+> Corrigida pela V50 (fusão dos pares) mais a regra do nono dígito em `TelefoneCanonico`.
+>
+> A lição do falso negativo: verificação por atributo escolhido pelo humano (`nome`) não substitui
+> verificação pela chave que o sistema usa (`telefone`).
 
 A consulta de leads com nome repetido voltou **zero linhas**. Como a lista mostra "Lucas Rezende"
 duas vezes e nenhum nome existe em dois leads, as duas linhas são **o mesmo lead com dois
-atendimentos**. Não há duplicação de lead, nem falha de canonicalização de telefone. A hipótese do
-nono dígito está descartada — o que é uma boa notícia: não existe dado sujo para reconciliar.
-
-(Se quiser a confirmação pelo telefone em vez do nome, a consulta é
-`SELECT right(telefone, 8), count(*) FROM lead GROUP BY 1 HAVING count(*) > 1;` — mas ela só mudaria
-a resposta se dois leads tivessem nomes diferentes, e os da tela têm o mesmo.)
+atendimentos** — o que continua valendo para o caso do "Lucas Rezende" na tela.
 
 Então o que resta é o desenho: a lista é `key={cartao.atendimentoId}`, uma linha por atendimento,
 como está desde a E11. Você quer o comportamento do WhatsApp — uma conversa por número, com os

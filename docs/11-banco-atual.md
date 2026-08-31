@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 47 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V47__lead_codigo.sql`
+**Estado:** 50 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V50__telefone_nono_digito.sql`
 
 ---
 
@@ -58,6 +58,9 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V45__reacoes_de_mensagem` | `mensagem_reacao` (FK composta da partição) e `chat_interno_mensagem_reacao` (RLS de participação) |
 | `V46__referencia_e_id_externo_de_mensagem` | `mensagem_id_externo` (wamid) e `mensagem_referencia` (citação/encaminhamento) |
 | `V47__lead_codigo` | `lead.codigo VARCHAR(20)`, CHECK somente dígitos, nullable |
+| `V48__foto_de_perfil_do_lead` | `lead.foto_referencia`, `lead.foto_hash`, `lead.foto_atualizada_em` |
+| `V49__modo_de_transferencia` | parâmetro de modo de transferência da Automação |
+| `V50__telefone_nono_digito` | funde os pares com/sem nono dígito e normaliza `lead.telefone`; cria `app_telefone_com_ddi`, `app_telefone_canonico` e `app_telefone_fora_da_regra` |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -110,14 +113,15 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.3 CRM Core
 
-**`lead`** — 20 colunas:
+**`lead`** — 23 colunas:
 
-`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18)
+`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18), **`foto_referencia`**, **`foto_hash`**, **`foto_atualizada_em`** (V48)
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
 > `codigo` entra no card da lista de Atendimentos (`leadCodigo` na inbox). **Não** entra em `LeadResumo` (Agenda). Sem unique e sem índice de busca — o campo não é critério de filtro.
 > Constraint `lead_codigo_somente_digitos`: `NULL` ou `^[0-9]+$`. A aplicação normaliza string vazia para `NULL` (`CodigoDoLead`).
+> `telefone` é canônico desde a V24/V26 (somente dígitos, com DDI) e, desde a V50, inclui o **nono dígito** de celular brasileiro. A regra vive em `TelefoneCanonico` (domínio) e em `app_telefone_canonico(entrada, ddi_padrao)` (SQL); `TelefoneNonoDigitoIT` reprova o build se as duas divergirem. `ux_lead_telefone` (único parcial) continua sendo a identidade de contato.
 
 **`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only; `ator_id` identifica quem executou e `dados` JSONB guarda, em `ETAPA_ALTERADA`, etapas anterior/nova e `responsavel_id` comercial) · **`preferencia_usuario`** · **`arquivo_banco`**
 
