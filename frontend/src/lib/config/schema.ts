@@ -82,7 +82,7 @@ export type Tema = z.infer<typeof TemaSchema>;
 /** Espelha textos.json — catálogo de strings de UI. Cresce conforme novas telas nascem. */
 export const TextosSchema = z.object({
   novidades: z.object({
-    titulo: z.string(),
+    titulo: z.string().optional(),
     subtituloNovidades: z.string(),
     subtituloEmBreve: z.string(),
     abas: z.object({ novidades: z.string(), embreve: z.string() }),

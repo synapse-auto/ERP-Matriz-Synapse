@@ -307,29 +307,31 @@ export function Sidebar({
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
         />
-        <div className="mb-2 mt-2">
-          <ul className="flex flex-col gap-0.5">
-            <li>
-              <button
-                type="button"
-                onClick={() => setNovidadesAberto(true)}
-                aria-label={retraida ? (textos.novidades?.titulo || "Novidades") : undefined}
-                title={textos.novidades?.titulo || "Novidades"}
-                className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
-              >
-                <Sparkles className="size-(--tamanho-icone-sidebar) shrink-0" />
-                <span
-                  className="flex-1 truncate text-left whitespace-nowrap"
-                  style={estiloDoRotuloDaSidebar(retraida)}
-                  aria-hidden={retraida}
-                  data-slot="rotulo-sidebar"
+        {textos.novidades?.titulo && (
+          <div className="mb-2 mt-2">
+            <ul className="flex flex-col gap-0.5">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setNovidadesAberto(true)}
+                  aria-label={retraida ? textos.novidades.titulo : undefined}
+                  title={textos.novidades.titulo}
+                  className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
                 >
-                  {textos.novidades?.titulo || "Novidades"}
-                </span>
-              </button>
-            </li>
-          </ul>
-        </div>
+                  <Sparkles className="size-(--tamanho-icone-sidebar) shrink-0" />
+                  <span
+                    className="flex-1 truncate text-left whitespace-nowrap"
+                    style={estiloDoRotuloDaSidebar(retraida)}
+                    aria-hidden={retraida}
+                    data-slot="rotulo-sidebar"
+                  >
+                    {textos.novidades.titulo}
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        )}
       </nav>
 
       <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>

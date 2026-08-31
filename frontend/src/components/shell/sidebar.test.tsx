@@ -12,6 +12,9 @@ const authMock = vi.hoisted(() => ({
 }));
 const fetchMock = vi.hoisted(() => vi.fn());
 const contagemMock = vi.hoisted(() => vi.fn());
+const textosNovidades = vi.hoisted(() => ({ titulo: undefined as string | undefined }));
+
+const ROTULO_NOVIDADES_TESTE = "O que há de novo";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/atendimentos",
@@ -81,7 +84,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       presenca: { rotulo: "Status de presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
     configuracoes: { abrir: "Abrir configurações" },
+    novidades: textosNovidades.titulo ? { titulo: textosNovidades.titulo } : undefined,
   }),
+}));
+
+vi.mock("./novidades-dialog", () => ({
+  NovidadesDialog: ({ aberto }: { aberto: boolean }) =>
+    aberto ? <div data-testid="novidades-dialog">dialog</div> : null,
 }));
 
 import { Sidebar } from "./sidebar";
@@ -122,6 +131,7 @@ describe("sidebar", () => {
 
   beforeEach(() => {
     authMock.papel = "ATENDENTE";
+    textosNovidades.titulo = undefined;
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(["dashboard", "banco_arquivos"]), {
@@ -329,6 +339,24 @@ describe("sidebar", () => {
     renderSidebar();
 
     expect(await screen.findByRole("link", { name: /Atendimentos/ })).toHaveTextContent("7");
+  });
+
+  it("não mostra o botão de novidades quando o título está ausente nos textos", async () => {
+    renderSidebar();
+
+    await screen.findByText("Agenda de Contatos");
+    expect(screen.queryByRole("button", { name: ROTULO_NOVIDADES_TESTE })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("novidades-dialog")).not.toBeInTheDocument();
+  });
+
+  it("mostra o botão de novidades e abre o dialog quando o título existe", async () => {
+    textosNovidades.titulo = ROTULO_NOVIDADES_TESTE;
+    renderSidebar();
+
+    const botao = await screen.findByRole("button", { name: ROTULO_NOVIDADES_TESTE });
+    expect(botao).toHaveAttribute("title", ROTULO_NOVIDADES_TESTE);
+    fireEvent.click(botao);
+    expect(screen.getByTestId("novidades-dialog")).toBeInTheDocument();
   });
 
   it("omite o badge quando a contagem falha", async () => {

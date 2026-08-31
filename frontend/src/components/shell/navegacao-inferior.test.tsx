@@ -9,6 +9,9 @@ const authMock = vi.hoisted(() => ({
 }));
 const fetchMock = vi.hoisted(() => vi.fn());
 const contagemMock = vi.hoisted(() => vi.fn());
+const textosNovidades = vi.hoisted(() => ({ titulo: undefined as string | undefined }));
+
+const ROTULO_NOVIDADES_TESTE = "O que há de novo";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/atendimentos",
@@ -61,11 +64,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       presenca: { rotulo: "Presença", online: "Online", ausente: "Ausente", offline: "Offline" },
     },
     configuracoes: { abrir: "Abrir configurações" },
+    novidades: textosNovidades.titulo ? { titulo: textosNovidades.titulo } : undefined,
   }),
 }));
 
 vi.mock("./novidades-dialog", () => ({
-  NovidadesDialog: () => null,
+  NovidadesDialog: ({ aberto }: { aberto: boolean }) =>
+    aberto ? <div data-testid="novidades-dialog">dialog</div> : null,
 }));
 
 import { NavegacaoInferior } from "./navegacao-inferior";
@@ -82,6 +87,7 @@ function renderizar() {
 describe("NavegacaoInferior", () => {
   beforeEach(() => {
     authMock.papel = "ATENDENTE";
+    textosNovidades.titulo = undefined;
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(["dashboard"]), {
@@ -130,5 +136,26 @@ describe("NavegacaoInferior", () => {
       "/configuracoes",
     );
     expect(screen.queryByRole("link", { name: "Equipe" })).not.toBeInTheDocument();
+  });
+
+  it("não mostra o botão de novidades no menu Mais quando o título está ausente", async () => {
+    renderizar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mais" }));
+
+    expect(screen.queryByRole("button", { name: ROTULO_NOVIDADES_TESTE })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Feedbacks" })).toBeInTheDocument();
+    expect(screen.queryByTestId("novidades-dialog")).not.toBeInTheDocument();
+  });
+
+  it("mostra o botão de novidades no menu Mais e abre o dialog quando o título existe", async () => {
+    textosNovidades.titulo = ROTULO_NOVIDADES_TESTE;
+    renderizar();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mais" }));
+
+    const botao = screen.getByRole("button", { name: ROTULO_NOVIDADES_TESTE });
+    fireEvent.click(botao);
+    expect(screen.getByTestId("novidades-dialog")).toBeInTheDocument();
   });
 });
