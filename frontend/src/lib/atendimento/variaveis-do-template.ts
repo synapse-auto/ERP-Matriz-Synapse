@@ -37,6 +37,34 @@ export function interpolarCatalogo(modelo: string, valores: Record<string, strin
   );
 }
 
+/** Substitui `{{n}}` pelo valor correspondente; marcador vazio permanece no texto. */
+export function interpolarCorpoDoTemplate(corpo: string, valores: string[]): string {
+  return corpo.replace(/\{\{(\d+)\}\}/g, (marcador, bruto: string) => {
+    const valor = valores[Number(bruto) - 1];
+    return valor?.trim() ? valor : marcador;
+  });
+}
+
+const RAIO_DO_TRECHO = 22;
+
+/** Trecho do corpo em que a variável cai, para o atendente parear campo e posição. */
+export function trechoDaVariavel(corpo: string, indice: number): string {
+  const marcador = `{{${indice}}}`;
+  const posicao = corpo.indexOf(marcador);
+  if (posicao < 0) {
+    return marcador;
+  }
+  const inicio = Math.max(0, posicao - RAIO_DO_TRECHO);
+  const fim = Math.min(corpo.length, posicao + marcador.length + RAIO_DO_TRECHO);
+  const prefixo = inicio > 0 ? "…" : "";
+  const sufixo = fim < corpo.length ? "…" : "";
+  return `${prefixo}${corpo.slice(inicio, fim)}${sufixo}`;
+}
+
+export function parametrosDoTemplatePreenchidos(valores: string[]): boolean {
+  return valores.every((valor) => valor.trim() !== "");
+}
+
 function indicesUnicos(corpo: string): number[] {
   const vistos = new Set<number>();
   for (const casamento of corpo.matchAll(VARIAVEL_DO_CORPO)) {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { LayoutTemplate } from "lucide-react";
+import { LayoutTemplate, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ import {
 import type {
   CategoriaTemplateWhatsApp,
   StatusTemplateWhatsApp,
+  TemplateWhatsApp,
 } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -39,11 +40,18 @@ const TOM_DO_STATUS: Record<StatusTemplateWhatsApp, TomDePill> = {
   DESCONHECIDO: "neutro",
 };
 
+const ORDEM_DAS_CATEGORIAS: CategoriaTemplateWhatsApp[] = [
+  "UTILIDADE",
+  "MARKETING",
+  "AUTENTICACAO",
+];
+
 export function PaginaTemplatesWhatsApp() {
   const t = useTextos().templatesWhatsApp;
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
 
   const consulta = useQuery({
     queryKey: ["whatsapp-templates"],
@@ -61,6 +69,10 @@ export function PaginaTemplatesWhatsApp() {
     },
   });
 
+  const todos = consulta.data ?? [];
+  const filtrados = filtrarTemplates(todos, busca, t.categorias, t.status);
+  const grupos = agruparPorCategoria(filtrados);
+
   return (
     <div className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -68,12 +80,26 @@ export function PaginaTemplatesWhatsApp() {
           <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
-        <Button onClick={() => setAberto(true)}>{t.novo}</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {todos.length > 1 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(evento) => setBusca(evento.target.value)}
+                placeholder={t.busca}
+                className="w-56 bg-muted/40 pl-9"
+                aria-label={t.busca}
+              />
+            </div>
+          )}
+          <Button onClick={() => setAberto(true)}>{t.novo}</Button>
+        </div>
       </header>
 
-      <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/15 p-3">
-        <LayoutTemplate className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-primary" />
-        <p className="text-sm text-primary">{t.dica}</p>
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+        <LayoutTemplate className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">{t.dica}</p>
       </div>
 
       {aviso && (
@@ -89,31 +115,46 @@ export function PaginaTemplatesWhatsApp() {
           mensagem={t.erro}
           onTentarNovamente={() => consulta.refetch()}
         />
-      ) : !consulta.data?.length ? (
+      ) : !todos.length ? (
         <p className="text-muted-foreground">{t.vazio}</p>
+      ) : filtrados.length === 0 ? (
+        <p className="text-muted-foreground">{t.semResultados}</p>
       ) : (
-        <ul className="space-y-2">
-          {consulta.data.map((template) => (
-            <li
-              key={`${template.nome}:${template.idioma}`}
-              className="rounded-xl border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold">{template.nome}</p>
-                <div className="flex gap-1.5">
-                  <PillDeStatus tom="info">
-                    {t.categorias[template.categoria]}
-                  </PillDeStatus>
-                  <PillDeStatus tom={TOM_DO_STATUS[template.status]}>
-                    {t.status[template.status]}
-                  </PillDeStatus>
-                </div>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{template.corpo}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{template.idioma}</p>
-            </li>
+        <div className="space-y-6">
+          {grupos.map((grupo) => (
+            <section key={grupo.categoria} className="space-y-2">
+              {grupos.length > 1 && (
+                <p className="px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                  {t.categorias[grupo.categoria]} · {grupo.itens.length}
+                </p>
+              )}
+              <ul className="space-y-2">
+                {grupo.itens.map((template) => (
+                  <li
+                    key={`${template.nome}:${template.idioma}`}
+                    className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold">{template.nome}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{template.idioma}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {grupos.length === 1 && (
+                          <PillDeStatus tom="neutro">{t.categorias[template.categoria]}</PillDeStatus>
+                        )}
+                        <PillDeStatus tom={TOM_DO_STATUS[template.status]}>
+                          {t.status[template.status]}
+                        </PillDeStatus>
+                      </div>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{template.corpo}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
 
       <FormularioTemplate
@@ -131,6 +172,41 @@ export function PaginaTemplatesWhatsApp() {
         onSalvar={(pedido) => criar.mutate(pedido)}
       />
     </div>
+  );
+}
+
+function filtrarTemplates(
+  templates: TemplateWhatsApp[],
+  busca: string,
+  categorias: ReturnType<typeof useTextos>["templatesWhatsApp"]["categorias"],
+  status: ReturnType<typeof useTextos>["templatesWhatsApp"]["status"],
+): TemplateWhatsApp[] {
+  const termo = busca.trim().toLowerCase();
+  if (!termo) {
+    return templates;
+  }
+  return templates.filter((template) => {
+    return (
+      template.nome.toLowerCase().includes(termo)
+      || template.corpo.toLowerCase().includes(termo)
+      || template.idioma.toLowerCase().includes(termo)
+      || categorias[template.categoria].toLowerCase().includes(termo)
+      || status[template.status].toLowerCase().includes(termo)
+    );
+  });
+}
+
+function agruparPorCategoria(
+  templates: TemplateWhatsApp[],
+): { categoria: CategoriaTemplateWhatsApp; itens: TemplateWhatsApp[] }[] {
+  const porCategoria = new Map<CategoriaTemplateWhatsApp, TemplateWhatsApp[]>();
+  for (const template of templates) {
+    const itens = porCategoria.get(template.categoria) ?? [];
+    itens.push(template);
+    porCategoria.set(template.categoria, itens);
+  }
+  return ORDEM_DAS_CATEGORIAS.filter((categoria) => porCategoria.has(categoria)).map(
+    (categoria) => ({ categoria, itens: porCategoria.get(categoria) ?? [] }),
   );
 }
 
