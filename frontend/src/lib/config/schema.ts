@@ -250,6 +250,7 @@ export const TextosSchema = z.object({
       filtros: z.string(),
       carregarMais: z.string(),
       carregandoMais: z.string(),
+      finalizados: z.string(),
     }),
     novoContato: z.object({
       botao: z.string(),
@@ -301,6 +302,7 @@ export const TextosSchema = z.object({
       recusado: z.string(),
       aprovarEntrada: z.string(),
       recusarEntrada: z.string(),
+      novoAtendimento: z.string(),
       voltar: z.string(),
     }),
     transferir: z.object({

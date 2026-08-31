@@ -152,6 +152,20 @@ class AtendimentoAcoesController {
     }
 
     @Operation(
+            summary = "Abrir atendimento novo para lead existente",
+            description = "Cria ou reutiliza o atendimento aberto do lead visível em modo humano, transfere a propriedade para quem pediu e não envia mensagem. O histórico finalizado permanece intacto.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Atendimento humano aberto sem envio de mensagem."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+            })
+    @PostMapping("/leads/{leadId}/novo")
+    NovoContatoResposta abrirParaLeadExistente(
+            @Parameter(description = "Lead visível que receberá o atendimento novo.", required = true)
+                    @PathVariable UUID leadId) {
+        return NovoContatoResposta.de(novoContato.abrirParaLeadExistente(leadId));
+    }
+
+    @Operation(
             summary = "Enviar mensagem de texto",
             description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o lead para quem enviou.",
             responses = {

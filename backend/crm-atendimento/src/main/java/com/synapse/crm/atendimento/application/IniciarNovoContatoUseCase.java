@@ -113,10 +113,7 @@ public class IniciarNovoContatoUseCase {
                         nome, telefone, quemPediu, canalAtivo == null ? null : canalAtivo.canalId())
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead")));
 
-        LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, quemPediu);
-        if (!transferencia.aconteceu()) {
-            throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
-        }
+        assumirLead(leadId, quemPediu);
 
         if (temLivre) {
             EnviarMensagemUseCase.Resultado envio = enviar.executar(leadId, mensagemLivre);
@@ -130,6 +127,40 @@ public class IniciarNovoContatoUseCase {
             return new Resultado(leadId, envio.atendimento(), envio.mensagem(), existente.isEmpty());
         }
 
+        Atendimento aberto = abrirSemMensagem(leadId, quemPediu, agora, canalAtivo);
+        // Sem mensagem do cliente e sem envio: nao toca ultima_interacao_em. Registrar agora
+        // fingiria janela de 24h aberta — a Meta so abre essa janela quando o usuario fala.
+        return new Resultado(leadId, aberto, null, existente.isEmpty());
+    }
+
+    /**
+     * Abre um atendimento novo para um lead visível, sem alterar o atendimento finalizado anterior
+     * e sem enviar mensagem. É uma segunda entrada do mesmo caso de uso porque a tela já conhece o
+     * lead; o caminho por telefone continua atendendo contatos ainda não cadastrados.
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado abrirParaLeadExistente(UUID leadId) {
+        if (leadId == null) {
+            throw new RecursoDeAtendimentoIndisponivelException("lead");
+        }
+        UUID quemPediu = usuarioContext.atual().id();
+        Instant agora = Instant.now(relogio);
+        assumirLead(leadId, quemPediu);
+        CanalEntradaAtiva canalAtivo = canaisAtivos.primeiraAtiva().orElse(null);
+        Atendimento aberto = abrirSemMensagem(leadId, quemPediu, agora, canalAtivo);
+        return new Resultado(leadId, aberto, null, false);
+    }
+
+    private void assumirLead(UUID leadId, UUID quemPediu) {
+        LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, quemPediu);
+        if (!transferencia.aconteceu()) {
+            throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
+        }
+    }
+
+    private Atendimento abrirSemMensagem(
+            UUID leadId, UUID quemPediu, Instant agora, CanalEntradaAtiva canalAtivo) {
         Atendimento aberto = atendimentos
                 .abertoDoLead(leadId)
                 .orElseGet(() -> atendimentos.salvar(Atendimento.abrirComIa(
@@ -142,9 +173,7 @@ public class IniciarNovoContatoUseCase {
         if (!aberto.pertenceA(quemPediu)) {
             aberto = atendimentos.salvar(aberto.transferirPara(quemPediu));
         }
-        // Sem mensagem do cliente e sem envio: nao toca ultima_interacao_em. Registrar agora
-        // fingiria janela de 24h aberta — a Meta so abre essa janela quando o usuario fala.
-        return new Resultado(leadId, aberto, null, existente.isEmpty());
+        return aberto;
     }
 
     private static boolean preenchido(String valor) {

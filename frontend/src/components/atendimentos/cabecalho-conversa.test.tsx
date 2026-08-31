@@ -25,6 +25,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         transferir: "Transferir",
         finalizar: "Finalizar",
         buscar: "Buscar na conversa",
+        novoAtendimento: "Reativar atendimento",
       },
       finalizar: {
         titulo: "Finalizar atendimento",
@@ -161,5 +162,23 @@ describe("CabecalhoConversa", () => {
     expect(controle).toHaveAttribute("aria-controls", "painel-detalhes-lead");
     fireEvent.click(controle);
     expect(onAlternar).toHaveBeenCalledOnce();
+  });
+
+  it("abre um atendimento novo a partir do finalizado sem alterar o significado do estado", () => {
+    const abrirNovo = vi.fn();
+    render(
+      <CabecalhoConversa
+        conversa={{ ...conversa, status: "FINALIZADO" }}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+        onAbrirNovoAtendimento={abrirNovo}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
+    expect(abrirNovo).toHaveBeenCalledOnce();
   });
 });

@@ -40,6 +40,11 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
             String participantes,
             String tipoConversa) {
 
+        /** Conversas internas e leads operacionais vêm antes dos leads sem atendimento aberto. */
+        int grupoDeOrdenacao() {
+            return tipo == Tipo.CLIENTE && atendimentoAtivoId == null ? 1 : 0;
+        }
+
         public static Item cliente(CartaoAtendimento cartao) {
             return new Item(
                     Tipo.CLIENTE,

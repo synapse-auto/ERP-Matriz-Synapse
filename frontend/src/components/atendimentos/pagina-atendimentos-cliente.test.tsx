@@ -14,6 +14,7 @@ const callbacks = vi.hoisted(() => ({
   atualizarLista: undefined as ((cartoes: ItemInbox[]) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
 }));
+const abrirExistente = vi.hoisted(() => vi.fn());
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -99,13 +100,18 @@ vi.mock("./cabecalho-conversa", () => ({
     conversa,
     painelDetalhesAberto,
     onAlternarPainelDetalhes,
+    onAbrirNovoAtendimento,
   }: {
     conversa: CartaoAtendimento;
     painelDetalhesAberto: boolean;
     onAlternarPainelDetalhes: () => void;
+    onAbrirNovoAtendimento?: () => void;
   }) => (
     <div data-testid="responsavel-cabecalho">
       {conversa.atendenteNome}
+      {conversa.status === "FINALIZADO" && onAbrirNovoAtendimento && (
+        <button type="button" onClick={onAbrirNovoAtendimento}>Reativar atendimento</button>
+      )}
       {!painelDetalhesAberto && (
         <button type="button" onClick={onAlternarPainelDetalhes}>
           Reabrir detalhes do lead
@@ -136,6 +142,7 @@ vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> })
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: vi.fn(),
+  abrirAtendimentoParaLead: abrirExistente,
 }));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
   useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
@@ -225,6 +232,13 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.mensagens = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
+    abrirExistente.mockReset();
+    abrirExistente.mockResolvedValue({
+      leadId: "lead-1",
+      atendimentoId: "atendimento-novo",
+      mensagemId: null,
+      leadCriado: false,
+    });
   });
 
   it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
@@ -476,6 +490,36 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
     expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+  });
+
+  it("pede atendimento novo para o lead finalizado e mantém o envio fora do botão", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+      ultimaMensagemDoLeadEm: "2026-01-01T00:00:00Z",
+    };
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
+
+    await waitFor(() =>
+      expect(abrirExistente).toHaveBeenCalledWith("lead-1", expect.anything()),
+    );
+    act(() =>
+      callbacks.atualizarLista?.([
+        {
+          ...finalizado,
+          atendimentoId: "atendimento-novo",
+          atendimentoAtivoId: "atendimento-novo",
+          status: "EM_ATENDIMENTO",
+        },
+      ]),
+    );
+    await waitFor(() => expect(screen.getByTestId("composer")).toBeInTheDocument());
   });
 
   it("no celular mostra só a lista e troca para a conversa em tela cheia", () => {

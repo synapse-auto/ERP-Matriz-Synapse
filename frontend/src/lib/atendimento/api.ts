@@ -142,6 +142,12 @@ export function iniciarNovoContato(pedido: PedidoDeNovoContato): Promise<NovoCon
   });
 }
 
+export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoResposta> {
+  return apiFetch<NovoContatoResposta>(`/api/v1/atendimentos/leads/${leadId}/novo`, {
+    method: "POST",
+  });
+}
+
 export function enviarTemplate(
   leadId: string,
   nome: string,

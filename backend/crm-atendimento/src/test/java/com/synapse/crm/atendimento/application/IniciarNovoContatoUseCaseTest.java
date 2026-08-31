@@ -115,6 +115,41 @@ class IniciarNovoContatoUseCaseTest {
     }
 
     @Test
+    void leadExistenteSemAberto_criaAtendimentoHumanoSemEnviarMesmoForaDaJanela() {
+        UUID leadId = UUID.randomUUID();
+        when(leads.transferirPara(leadId, quemPediu))
+                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(quemPediu));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.empty());
+        when(atendimentos.salvar(any(Atendimento.class)))
+                .thenAnswer(invocacao -> invocacao.getArgument(0));
+
+        IniciarNovoContatoUseCase.Resultado resultado = useCase.abrirParaLeadExistente(leadId);
+
+        assertThat(resultado.leadId()).isEqualTo(leadId);
+        assertThat(resultado.leadCriado()).isFalse();
+        assertThat(resultado.mensagem()).isNull();
+        assertThat(resultado.atendimento().pertenceA(quemPediu)).isTrue();
+        assertThat(resultado.atendimento().status().name()).isEqualTo("EM_ATENDIMENTO");
+        verify(canal, never()).aceitaTextoLivre(any(), any());
+        verify(enviar, never()).executar(any(UUID.class), any(String.class));
+        verify(enviar, never()).executar(any(UUID.class), any(ConteudoDeEnvio.class));
+    }
+
+    @Test
+    void leadExistenteInvisivel_vira404SemConsultarOuCriarAtendimento() {
+        UUID leadId = UUID.randomUUID();
+        when(leads.transferirPara(leadId, quemPediu))
+                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.naoAlcancado());
+
+        assertThatThrownBy(() -> useCase.abrirParaLeadExistente(leadId))
+                .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class)
+                .hasMessageContaining("lead");
+
+        verify(atendimentos, never()).abertoDoLead(any());
+        verify(atendimentos, never()).salvar(any());
+    }
+
+    @Test
     void telefoneDeColega_vira404SemDistinguirExistencia() {
         when(leads.visivelPorTelefone(TELEFONE_CANONICO)).thenReturn(Optional.empty());
         when(leads.criarParaAtendente(eq("Maria"), eq(TELEFONE_CANONICO), eq(quemPediu), isNull()))

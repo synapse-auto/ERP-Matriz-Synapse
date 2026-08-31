@@ -23,6 +23,7 @@ const cartoes: ItemInbox[] = [
     etapaNome: "Negociação",
     etapaCor: "#2563eb",
     status: "EM_ATENDIMENTO",
+    atendimentoAtivoId: "protocolo-001",
     atendenteId: "usuario-1",
     atendenteNome: "Jardel Lima",
     ultimaMensagemPreview: "Preciso do orçamento",
@@ -42,6 +43,7 @@ const cartoes: ItemInbox[] = [
     etapaNome: null,
     etapaCor: null,
     status: "EM_IA",
+    atendimentoAtivoId: "protocolo-002",
     atendenteId: null,
     atendenteNome: null,
     ultimaMensagemPreview: null,
@@ -63,6 +65,46 @@ const cartoes: ItemInbox[] = [
     participantes: "Ana, Bruno",
     tipoConversa: "GRUPO",
   },
+  {
+    atendimentoId: "protocolo-finalizado-com-ativo",
+    atendimentoAtivoId: "protocolo-novo-ativo",
+    leadId: "lead-3",
+    leadNome: "Carla com histórico",
+    leadFotoUrl: null,
+    leadEmpresa: null,
+    canalTipo: "WHATSAPP",
+    etapaId: null,
+    etapaNome: null,
+    etapaCor: null,
+    status: "FINALIZADO",
+    atendenteId: "usuario-1",
+    atendenteNome: "Jardel Lima",
+    ultimaMensagemPreview: "Histórico antigo",
+    ultimaMensagemRemetenteTipo: "LEAD",
+    ultimaMensagemEm: "2026-08-16T12:00:00Z",
+    ultimaMensagemDoLeadEm: "2026-08-16T12:00:00Z",
+    naoLidas: 0,
+  },
+  {
+    atendimentoId: "protocolo-finalizado",
+    atendimentoAtivoId: null,
+    leadId: "lead-4",
+    leadNome: "Daniela finalizada",
+    leadFotoUrl: null,
+    leadEmpresa: null,
+    canalTipo: "WHATSAPP",
+    etapaId: null,
+    etapaNome: null,
+    etapaCor: null,
+    status: "FINALIZADO",
+    atendenteId: "usuario-1",
+    atendenteNome: "Jardel Lima",
+    ultimaMensagemPreview: "Conversa encerrada",
+    ultimaMensagemRemetenteTipo: "ATENDENTE",
+    ultimaMensagemEm: "2026-08-16T11:00:00Z",
+    ultimaMensagemDoLeadEm: "2026-08-15T10:00:00Z",
+    naoLidas: 0,
+  },
 ];
 
 vi.mock("@/lib/atendimento/use-atendimentos", () => ({
@@ -82,6 +124,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         filtros: "Filtros da lista",
         carregarMais: "Carregar mais conversas",
         carregandoMais: "Carregando conversas...",
+        finalizados: "Finalizados",
       },
       visoes: {
         todos: "Todos",
@@ -256,5 +299,26 @@ describe("ListaConversas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Novo atendimento" }));
     expect(novo).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Nova conversa" })).toBeInTheDocument();
+  });
+
+  it("separa apenas em Todos os leads sem atendimento aberto e suaviza somente o nome deles", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    expect(screen.getAllByRole("separator", { name: "Finalizados" })).toHaveLength(1);
+    expect(screen.getByText("Daniela finalizada")).toHaveClass("text-muted-foreground");
+    expect(screen.getByText("Carla com histórico")).toHaveClass("text-foreground");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
+    expect(screen.queryByRole("separator", { name: "Finalizados" })).not.toBeInTheDocument();
+  });
+
+  it("não mostra cabeçalho solto quando a busca remove todos os finalizados", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("Buscar cliente ou protocolo..."), {
+      target: { value: "Ana Vidros" },
+    });
+
+    expect(screen.getByText("Ana Vidros")).toBeInTheDocument();
+    expect(screen.queryByRole("separator", { name: "Finalizados" })).not.toBeInTheDocument();
   });
 });

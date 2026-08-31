@@ -67,6 +67,8 @@ export function CartaoConversa({
   );
   const canal =
     cartao.canalTipo === "WHATSAPP" ? textos.canais.whatsapp : cartao.canalTipo;
+  const semAtendimentoAberto = cartao.atendimentoAtivoId === null
+    || (cartao.atendimentoAtivoId === undefined && cartao.status === "FINALIZADO");
 
   return (
     <button
@@ -99,7 +101,12 @@ export function CartaoConversa({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-bold text-foreground">
+          <p
+            className={cn(
+              "truncate text-sm font-bold",
+              semAtendimentoAberto ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
             {cartao.leadNome}
           </p>
           <span className="flex shrink-0 items-center gap-1.5">
