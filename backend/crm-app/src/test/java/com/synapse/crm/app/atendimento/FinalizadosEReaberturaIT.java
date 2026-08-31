@@ -2,7 +2,9 @@ package com.synapse.crm.app.atendimento;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.sql.Timestamp;
@@ -181,6 +183,46 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 .isEqualTo(bruno);
     }
 
+    @Test
+    void gestorReabreLeadFinalizadoDeOutroAtendenteESemDono() {
+        UUID bruno = usuario(EMAIL_BRUNO);
+        UUID gestor = usuario(EMAIL_GESTOR);
+        UUID canal = canal();
+        UUID leadDoBruno = lead("gestor-reabre-colega", bruno, "FINALIZADO", null);
+        UUID leadSemDono = lead("gestor-reabre-sem-dono", null, "FINALIZADO", null);
+        atendimento(
+                leadDoBruno,
+                canal,
+                bruno,
+                "FINALIZADO",
+                Instant.parse("2026-08-20T10:00:00Z"),
+                Instant.parse("2026-08-20T11:00:00Z"));
+        atendimento(
+                leadSemDono,
+                canal,
+                null,
+                "FINALIZADO",
+                Instant.parse("2026-08-20T12:00:00Z"),
+                Instant.parse("2026-08-20T13:00:00Z"));
+
+        assertThat(post(tokenGestor(), "/api/v1/atendimentos/leads/" + leadDoBruno + "/novo").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(post(tokenGestor(), "/api/v1/atendimentos/leads/" + leadSemDono + "/novo").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForList(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id IN (?, ?)",
+                        UUID.class,
+                        leadDoBruno,
+                        leadSemDono))
+                .containsOnly(gestor);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM atendimento WHERE lead_id IN (?, ?) AND status = 'EM_ATENDIMENTO'",
+                        Integer.class,
+                        leadDoBruno,
+                        leadSemDono))
+                .isEqualTo(2);
+    }
+
     private List<String> percorrerInbox(String token) throws Exception {
         List<String> ids = new ArrayList<>();
         Set<String> cursores = new HashSet<>();
@@ -258,6 +300,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
 
     private String token(String email) {
         return ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+    }
+
+    private String tokenGestor() {
+        return ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
     }
 
     private ResponseEntity<String> get(String token, String rota) {

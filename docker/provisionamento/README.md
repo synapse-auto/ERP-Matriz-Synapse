@@ -85,6 +85,47 @@ docker exec "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" -c \
 Rode o mesmo executor uma segunda vez: as quantidades nao devem crescer.
 Este e o teste operacional de idempotencia.
 
+## Importar leads de um CSV externo
+
+`importar-leads-csv.sh` importa uma carteira para uma unica instancia. O arquivo real e passado por
+caminho absoluto, fica fora do repositorio e precisa conter as colunas `nome` e `telefone` em UTF-8;
+virgula e ponto e virgula sao aceitos como delimitador. Colunas extras sao ignoradas.
+
+O comando compila e usa diretamente o `TelefoneCanonico` de `crm-core`, com o mesmo
+`TELEFONE_DDI_PADRAO` do deploy. Nao existe uma segunda normalizacao em SQL. Linhas com nome ou
+telefone vazio, telefone curto, letras, CSV malformado e telefone duplicado no arquivo sao
+recusadas individualmente. Um telefone nacional de dez digitos tambem e recusado: o importador nao
+inventa o nono digito e nao cria uma segunda identidade para o mesmo cliente. O log informa apenas
+linha e motivo, nunca o telefone completo.
+
+Carregue primeiro as variaveis da instancia e execute em homologacao. Simulacao e o modo padrao e
+termina com `ROLLBACK`:
+
+```bash
+./docker/provisionamento/importar-leads-csv.sh \
+  --arquivo /caminho/seguro/fora-do-git/leads.csv \
+  --simular
+```
+
+O resumo informa linhas validas, ja existentes, inseridas e recusadas. Depois de revisar as
+contagens em homologacao, repita a simulacao em producao e mostre o resultado ao responsavel pela
+operacao. Nada deve ser aplicado antes da autorizacao dele.
+
+O modo real exige um caminho novo para backup e cria o `pg_dump` antes de abrir a transacao de
+importacao:
+
+```bash
+./docker/provisionamento/importar-leads-csv.sh \
+  --arquivo /caminho/seguro/fora-do-git/leads.csv \
+  --aplicar \
+  --backup /caminho/seguro/backups/antes-importacao-$(date +%Y%m%d-%H%M%S).dump
+```
+
+O insert usa `ON CONFLICT (telefone) ... DO NOTHING`: um lead existente preserva nome, status,
+dono, historico e contadores. Leads novos nascem em `IA`, sem dono e sem atendimento. Por isso eles
+aparecem na Agenda para todos os papeis conforme a RLS vigente, mas nao criam cartao em Atendimentos.
+Rodar o mesmo arquivo novamente insere zero linhas.
+
 Os limites de midia do exemplo sao 5 MB (imagem), 16 MB (audio) e 100 MB
 (documento), os valores atuais do seed. Confirme-os na documentacao atual da
 Meta antes do primeiro dado real; o script exige que os tres sejam declarados
