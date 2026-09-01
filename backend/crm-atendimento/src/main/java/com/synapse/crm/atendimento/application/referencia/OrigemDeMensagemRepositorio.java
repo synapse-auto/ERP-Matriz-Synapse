@@ -7,4 +7,6 @@ import java.util.UUID;
 public interface OrigemDeMensagemRepositorio {
 
     Optional<OrigemDeMensagem> buscar(UUID mensagemId, Instant enviadoEm);
+
+    Optional<OrigemDeMensagem> buscarPorWamid(String wamid);
 }

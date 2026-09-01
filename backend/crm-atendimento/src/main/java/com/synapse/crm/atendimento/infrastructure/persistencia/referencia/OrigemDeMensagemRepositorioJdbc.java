@@ -38,6 +38,19 @@ class OrigemDeMensagemRepositorioJdbc implements OrigemDeMensagemRepositorio {
              WHERE m.id = ? AND m.enviado_em = ?
             """;
 
+    private static final String SQL_BUSCAR_POR_WAMID =
+            """
+            SELECT m.id, m.atendimento_id, m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,
+                   m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,
+                   a.lead_id, l.nome AS lead_nome, u.nome AS remetente_nome
+              FROM mensagem_id_externo x
+              JOIN mensagem m ON m.id = x.mensagem_id AND m.enviado_em = x.mensagem_enviada_em
+              JOIN atendimento a ON a.id = m.atendimento_id
+              JOIN lead l ON l.id = a.lead_id
+              LEFT JOIN usuario u ON u.id = m.remetente_id
+             WHERE x.wamid = ?
+            """;
+
     private final JdbcTemplate chat;
 
     OrigemDeMensagemRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
@@ -49,6 +62,12 @@ class OrigemDeMensagemRepositorioJdbc implements OrigemDeMensagemRepositorio {
         TransacaoObrigatoria.exigir("buscar origem");
         return chat.query(SQL_BUSCAR, this::mapear, mensagemId, Timestamp.from(enviadoEm)).stream()
                 .findFirst();
+    }
+
+    @Override
+    public Optional<OrigemDeMensagem> buscarPorWamid(String wamid) {
+        TransacaoObrigatoria.exigir("buscar origem por identificador externo");
+        return chat.query(SQL_BUSCAR_POR_WAMID, this::mapear, wamid).stream().findFirst();
     }
 
     private OrigemDeMensagem mapear(ResultSet linha, int indice) throws SQLException {

@@ -81,6 +81,8 @@ public interface TradutorDeCanal {
      * @param nomeArquivo so preenchido para documento
      * @param legenda caption enviada junto com a midia, se houver
      * @param identificadorDestino identificador externo do numero que recebeu a mensagem
+     * @param contextoWamid identificador externo da mensagem citada, quando o cliente respondeu a
+     *     uma mensagem anterior
      */
     record MensagemRecebidaDoCanal(
             String idExterno,
@@ -93,7 +95,36 @@ public interface TradutorDeCanal {
             String nomeArquivo,
             String legenda,
             Instant enviadoEm,
-            String identificadorDestino) {
+            String identificadorDestino,
+            String contextoWamid) {
+
+        /** Compatibilidade para tradutores e fixtures que nao oferecem contexto. */
+        public MensagemRecebidaDoCanal(
+                String idExterno,
+                String telefoneRemetente,
+                String nomeExibicao,
+                String texto,
+                String tipo,
+                String midiaIdExterno,
+                String mimetype,
+                String nomeArquivo,
+                String legenda,
+                Instant enviadoEm,
+                String identificadorDestino) {
+            this(
+                    idExterno,
+                    telefoneRemetente,
+                    nomeExibicao,
+                    texto,
+                    tipo,
+                    midiaIdExterno,
+                    mimetype,
+                    nomeArquivo,
+                    legenda,
+                    enviadoEm,
+                    identificadorDestino,
+                    null);
+        }
 
         /** Atalho para o caso comum: mensagem de texto, sem nenhum campo de midia. */
         public static MensagemRecebidaDoCanal texto(
@@ -101,7 +132,7 @@ public interface TradutorDeCanal {
                 Instant enviadoEm) {
             return new MensagemRecebidaDoCanal(
                     idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
-                    enviadoEm, null);
+                    enviadoEm, null, null);
         }
 
         public static MensagemRecebidaDoCanal texto(
@@ -113,7 +144,20 @@ public interface TradutorDeCanal {
                 Instant enviadoEm) {
             return new MensagemRecebidaDoCanal(
                     idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
-                    enviadoEm, identificadorDestino);
+                    enviadoEm, identificadorDestino, null);
+        }
+
+        public static MensagemRecebidaDoCanal texto(
+                String idExterno,
+                String identificadorDestino,
+                String telefoneRemetente,
+                String nomeExibicao,
+                String texto,
+                Instant enviadoEm,
+                String contextoWamid) {
+            return new MensagemRecebidaDoCanal(
+                    idExterno, telefoneRemetente, nomeExibicao, texto, "TEXTO", null, null, null, null,
+                    enviadoEm, identificadorDestino, contextoWamid);
         }
 
         public boolean ehMidia() {

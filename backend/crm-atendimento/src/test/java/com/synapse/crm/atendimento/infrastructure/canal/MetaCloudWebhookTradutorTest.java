@@ -96,6 +96,30 @@ class MetaCloudWebhookTradutorTest {
         assertThat(mensagens.get(0).identificadorDestino()).isEqualTo("999999999999999");
     }
 
+    @Test
+    void preservaWamidDaMensagemCitada() {
+        var mensagens = tradutor.traduzir("""
+                {"entry":[{"changes":[{"value":{"messages":[
+                  {"from":"5561000000001","id":"wamid-resposta","type":"text",
+                   "text":{"body":"pode ser"},"context":{"id":"wamid-origem"}}
+                ]}}]}]}
+                """);
+
+        assertThat(mensagens).singleElement()
+                .extracting(TradutorDeCanal.MensagemRecebidaDoCanal::contextoWamid)
+                .isEqualTo("wamid-origem");
+    }
+
+    @Test
+    void mensagemSemContextoContinuaSemReferencia() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                "{\"from\":\"5561000000001\",\"id\":\"sem-contexto\",\"type\":\"text\",\"text\":{\"body\":\"oi\"}}"));
+
+        assertThat(mensagens).singleElement()
+                .extracting(TradutorDeCanal.MensagemRecebidaDoCanal::contextoWamid)
+                .isNull();
+    }
+
     private static String payload(String tipo, String titulo, String id) {
         return """
                 {"entry":[{"changes":[{"value":{

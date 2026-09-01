@@ -26,8 +26,11 @@ import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
+import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
+import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -63,6 +66,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
     private final MensagemIdExternoRepositorio idsExternos;
+    private final OrigemDeMensagemRepositorio origens;
     private final AtendimentoRepositorio atendimentos;
     private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset;
     private final TransferirAtendimentoUseCase transferirAtendimento;
@@ -82,6 +86,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
             MensagemIdExternoRepositorio idsExternos,
+            OrigemDeMensagemRepositorio origens,
             AtendimentoRepositorio atendimentos,
             ConfiguracaoDoComandoResetRepositorio configuracaoDoReset,
             TransferirAtendimentoUseCase transferirAtendimento,
@@ -99,6 +104,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.idempotencia = idempotencia;
         this.registrar = registrar;
         this.idsExternos = idsExternos;
+        this.origens = origens;
         this.atendimentos = atendimentos;
         this.configuracaoDoReset = configuracaoDoReset;
         this.transferirAtendimento = transferirAtendimento;
@@ -155,13 +161,18 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     .porIdentificadorExterno(mensagem.identificadorDestino())
                     .orElseThrow(() -> new IllegalStateException(
                             "canal de entrada nao configurado: " + mensagem.identificadorDestino()));
+            ReferenciaDeMensagem referencia = referenciaDaMensagem(mensagem, leadId);
             RegistrarMensagemRecebidaUseCase.Resultado resultado = registrar.executar(mensagem.ehMidia()
-                    ? mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada)
+                    ? mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia)
                     : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                             leadId,
                             canalEntrada.canalId(),
                             canalEntrada.canalCredencialId(),
-                            mensagem.texto()));
+                            mensagem.texto(),
+                            TipoMensagem.TEXTO,
+                            null,
+                            null,
+                            referencia));
             idsExternos.gravar(
                     mensagem.idExterno(),
                     resultado.mensagem().id(),
@@ -199,10 +210,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private RegistrarMensagemRecebidaUseCase.MensagemRecebida mensagemRecebidaDeMidia(
             UUID leadId,
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem,
-            CanalEntradaAtiva canalEntrada) {
+            CanalEntradaAtiva canalEntrada,
+            ReferenciaDeMensagem referenciaDaMensagem) {
         CanalGateway.MidiaRecebida baixada = canal.baixarMidiaRecebida(mensagem.midiaIdExterno());
         TipoMensagem tipo = TipoMensagem.valueOf(mensagem.tipo());
-        String referencia = armazenamento.salvar(baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
+        String referenciaStorage = armazenamento.salvar(
+                baixada.conteudo(), mensagem.nomeArquivo(), baixada.mimetype());
 
         ObjectNode metadados = json.createObjectNode();
         if (mensagem.nomeArquivo() != null) {
@@ -220,8 +233,21 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                 canalEntrada.canalCredencialId(),
                 null,
                 tipo,
-                referencia,
-                metadados.toString());
+                referenciaStorage,
+                metadados.toString(),
+                referenciaDaMensagem);
+    }
+
+    private ReferenciaDeMensagem referenciaDaMensagem(
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem, UUID leadId) {
+        String contextoWamid = mensagem.contextoWamid();
+        if (contextoWamid == null || contextoWamid.isBlank()) {
+            return null;
+        }
+        return origens.buscarPorWamid(contextoWamid)
+                .filter(origem -> leadId.equals(origem.leadId()))
+                .map(origem -> MontadorDeReferenciaDeMensagem.resposta(origem, null))
+                .orElse(null);
     }
 
     private void falhar(WebhookEntrada.Pendente pendente, Instant agora, RuntimeException e) {
