@@ -44,6 +44,7 @@ public sealed interface EventoDeAtendimento {
      *
      * @param donoAnterior de quem era o lead antes de a RN-CRM-06 agir; vazio se nao tinha dono
      * @param transferiu se a RN-CRM-06 de fato mudou o dono
+     * @param participante se o remetente ja era participante ativo e por isso nao transferiu
      */
     record MensagemEnviada(
             UUID leadId,
@@ -53,6 +54,7 @@ public sealed interface EventoDeAtendimento {
             UUID remetenteId,
             Optional<UUID> donoAnterior,
             boolean transferiu,
+            boolean participante,
             Instant ocorridoEm)
             implements EventoDeAtendimento {}
 

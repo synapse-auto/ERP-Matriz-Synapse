@@ -71,15 +71,21 @@ class TimelineDeAtendimentoListener {
             case EventoDeAtendimento.MensagemEnviada enviada -> {
                 Map<String, Object> dados = new LinkedHashMap<>();
                 dados.put("transferiu", enviada.transferiu());
+                dados.put("participante", enviada.participante());
                 dados.put("tinhaDonoAnterior", enviada.donoAnterior().isPresent());
                 dados.put("donoAnteriorId", enviada.donoAnterior().map(UUID::toString).orElse(null));
                 String ator = nome(enviada.remetenteId());
-                String descricao = enviada.transferiu()
-                        ? "Atendente " + ator + " enviou mensagem e assumiu o lead"
-                                + enviada.donoAnterior()
-                                        .map(anterior -> ", antes de " + nome(anterior) + ".")
-                                        .orElse(", que estava sem responsavel.")
-                        : "Atendente " + ator + " enviou uma mensagem.";
+                String descricao;
+                if (enviada.participante()) {
+                    descricao = "Participante " + ator + " enviou uma mensagem.";
+                } else if (enviada.transferiu()) {
+                    descricao = "Atendente " + ator + " enviou mensagem e assumiu o lead"
+                            + enviada.donoAnterior()
+                                    .map(anterior -> ", antes de " + nome(anterior) + ".")
+                                    .orElse(", que estava sem responsavel.");
+                } else {
+                    descricao = "Atendente " + ator + " enviou uma mensagem.";
+                }
                 yield new Anotacao(
                         enviada.transferiu() ? "LEAD_TRANSFERIDO_POR_ENVIO" : "MENSAGEM_ENVIADA",
                         descricao,
