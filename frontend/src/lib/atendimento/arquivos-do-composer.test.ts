@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   arquivoCompativel,
+  arquivosDaAreaDeTransferencia,
   arquivosDeDataTransfer,
   filtrarArquivos,
 } from "./arquivos-do-composer";
@@ -35,5 +36,26 @@ describe("arquivos-do-composer", () => {
     } as unknown as DataTransfer;
     const { aceitos } = arquivosDeDataTransfer(data, ACCEPT);
     expect(aceitos.map((item) => item.name)).toEqual(["a.png", "b.txt"]);
+  });
+
+  it("gera nome legivel com extensao do MIME para arquivos colados", () => {
+    const data = { files: [arquivo("image.png", "image/jpeg")] } as unknown as DataTransfer;
+
+    const arquivos = arquivosDaAreaDeTransferencia(data);
+
+    expect(arquivos).toHaveLength(1);
+    expect(arquivos[0]?.name).toBe("imagem-colada.jpg");
+    expect(arquivos[0]?.type).toBe("image/jpeg");
+  });
+
+  it("numera arquivos colados quando o clipboard fornece mais de um", () => {
+    const data = {
+      files: [arquivo("", "image/png"), arquivo("", "application/pdf")],
+    } as unknown as DataTransfer;
+
+    expect(arquivosDaAreaDeTransferencia(data).map((item) => item.name)).toEqual([
+      "imagem-colada-1.png",
+      "arquivo-colado-2.pdf",
+    ]);
   });
 });

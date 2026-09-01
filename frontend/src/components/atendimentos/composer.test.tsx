@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { fireEvent, render, screen, waitFor, act } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -498,6 +498,61 @@ describe("Composer — anexo", () => {
 
     expect(screen.getByText("arrastada.png")).toBeInTheDocument();
     expect(screen.queryByText("setup.exe")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
+  });
+
+  it("cola imagem como anexo com preview e nao envia automaticamente", () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    const imagem = arquivoFake("image.png", "image/jpeg");
+
+    fireEvent.paste(campo, {
+      clipboardData: { files: [imagem] },
+    });
+
+    expect(screen.getByText("imagem-colada.jpg")).toBeInTheDocument();
+    expect(mutateMidia).not.toHaveBeenCalled();
+    expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("cola varios arquivos pelo mesmo caminho do anexo", () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+
+    fireEvent.paste(campo, {
+      clipboardData: {
+        files: [arquivoFake("image.png", "image/png"), arquivoFake("arquivo.pdf", "application/pdf")],
+      },
+    });
+
+    expect(screen.getByText("imagem-colada-1.png")).toBeInTheDocument();
+    expect(screen.getByText("arquivo-colado-2.pdf")).toBeInTheDocument();
+  });
+
+  it("mantem colagem de texto no campo sem criar anexo", () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+
+    const evento = createEvent.paste(campo, {
+      clipboardData: { files: [], getData: () => "texto colado" },
+    });
+    const prevenir = vi.spyOn(evento, "preventDefault");
+    fireEvent(campo, evento);
+
+    expect(screen.queryByText(/colada/)).not.toBeInTheDocument();
+    expect(mutateMidia).not.toHaveBeenCalled();
+    expect(prevenir).not.toHaveBeenCalled();
+  });
+
+  it("recusa tipo colado nao permitido com a mesma mensagem do seletor", () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+
+    fireEvent.paste(campo, {
+      clipboardData: { files: [arquivoFake("planilha.csv", "text/csv")] },
+    });
+
+    expect(screen.queryByText("arquivo-colado.csv")).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Tipo nao aceito.");
   });
 
