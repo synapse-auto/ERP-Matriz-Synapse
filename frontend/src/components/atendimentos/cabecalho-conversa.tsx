@@ -15,6 +15,7 @@ import {
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
@@ -70,6 +71,24 @@ export function CabecalhoConversa({
     aprovarEntrada: catalogo.atendimentos.cabecalho.aprovarEntrada ?? catalogo.atendimentos.cabecalho.finalizar,
     recusarEntrada: catalogo.atendimentos.cabecalho.recusarEntrada ?? catalogo.atendimentos.cabecalho.transferir,
     voltar: catalogo.atendimentos.cabecalho.voltar,
+    participantes: catalogo.atendimentos.cabecalho.participantes ?? "Participantes",
+    participando: catalogo.atendimentos.cabecalho.participando ?? "Você está participando",
+    entrarDescricao: catalogo.atendimentos.cabecalho.entrarDescricao ?? "Entrar adiciona você como participante; o responsável não muda.",
+    pedirEntradaDescricao: catalogo.atendimentos.cabecalho.pedirEntradaDescricao ?? "O responsável precisa aprovar; o atendimento não será transferido.",
+    pedidoEnviado: catalogo.atendimentos.cabecalho.pedidoEnviado ?? "Pedido enviado ao responsável {nome}.",
+    pedidoValidadeConfigurada: catalogo.atendimentos.cabecalho.pedidoValidadeConfigurada ?? "A validade segue a configuração da instância.",
+    pedidoRecebido: catalogo.atendimentos.cabecalho.pedidoRecebido ?? "{nome} pediu para entrar",
+    pedidoSolicitadoEm: catalogo.atendimentos.cabecalho.pedidoSolicitadoEm ?? "Solicitado em {horario}",
+    avisoEnviarAssume: catalogo.atendimentos.cabecalho.avisoEnviarAssume ?? "Ao enviar agora, você assume este atendimento.",
+    sucessoEntrou: catalogo.atendimentos.cabecalho.sucessoEntrou ?? "Você entrou no atendimento.",
+    sucessoPedido: catalogo.atendimentos.cabecalho.sucessoPedido ?? "Pedido enviado. O responsável será avisado.",
+    sucessoSaiu: catalogo.atendimentos.cabecalho.sucessoSaiu ?? "Você saiu do atendimento.",
+    sucessoAprovado: catalogo.atendimentos.cabecalho.sucessoAprovado ?? "{nome} agora participa do atendimento.",
+    sucessoRecusado: catalogo.atendimentos.cabecalho.sucessoRecusado ?? "Pedido de {nome} recusado.",
+    erroSemPermissao: catalogo.atendimentos.cabecalho.erroSemPermissao ?? "Você não tem permissão para entrar diretamente neste atendimento.",
+    erroPedidoExpirado: catalogo.atendimentos.cabecalho.erroPedidoExpirado ?? "Esse pedido expirou. Solicite novamente.",
+    erroParticipacaoNaoEncontrada: catalogo.atendimentos.cabecalho.erroParticipacaoNaoEncontrada ?? "Sua participação não está mais ativa.",
+    erroParticipacao: catalogo.atendimentos.cabecalho.erroParticipacao ?? "Não foi possível atualizar sua participação.",
   };
   const [transferirAberto, setTransferirAberto] = useState(false);
   const [avaliacaoAberta, setAvaliacaoAberta] = useState(false);
@@ -82,6 +101,7 @@ export function CabecalhoConversa({
   const pedidosPendentes = usePedidosPendentes(conversa.atendimentoId);
   const [estadoLocal, setEstadoLocal] = useState<"SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO">("SEM_PEDIDO");
   const [processandoParticipacao, setProcessandoParticipacao] = useState(false);
+  const [feedbackParticipacao, setFeedbackParticipacao] = useState<{ tipo: "erro" | "sucesso"; texto: string } | null>(null);
   const finalizado = conversa.status === "FINALIZADO";
   const telefone = lead.data?.telefone ?? null;
   const nomeDoLead = lead.data?.nome ?? conversa.leadNome;
@@ -90,7 +110,7 @@ export function CabecalhoConversa({
       ? catalogo.atendimentos.canais.whatsapp
       : conversa.canalTipo;
 
-  const usuarioId = idDoToken(token);
+  const usuarioId = useAuthStore((estado) => estado.usuarioId) ?? idDoToken(token);
   const estaDentro = participantes.data.some((participante) => participante.usuarioId === usuarioId);
   const estadoPersistido = estaDentro
     ? "DENTRO"
@@ -101,14 +121,24 @@ export function CabecalhoConversa({
         : estadoLocal;
   const podeEntrarDireto = papel !== "ATENDENTE" && !estaDentro;
 
-  async function executarParticipacao(acao: () => Promise<unknown>, proximo: "SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO") {
+  async function executarParticipacao(
+    acao: () => Promise<unknown>,
+    proximo: "SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO",
+    sucesso: string,
+  ) {
     setProcessandoParticipacao(true);
+    setFeedbackParticipacao(null);
     try {
       await acao();
       setEstadoLocal(proximo);
+      setFeedbackParticipacao({ tipo: "sucesso", texto: sucesso });
       invalidarParticipacao(conversa.atendimentoId);
       await participantes.recarregar();
-    } finally { setProcessandoParticipacao(false); }
+    } catch (erro) {
+      setFeedbackParticipacao({ tipo: "erro", texto: mensagemDeErroParticipacao(erro, textos) });
+    } finally {
+      setProcessandoParticipacao(false);
+    }
   }
 
   const subtitulo = [
@@ -123,10 +153,10 @@ export function CabecalhoConversa({
 
   return (
     <div
-      className="flex h-[72px] shrink-0 items-center justify-between border-b border-border bg-background px-5"
+      className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-background px-3 py-2 sm:px-5"
       data-slot="cabecalho-conversa"
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {onVoltar && (
           <Button
             type="button"
@@ -159,34 +189,65 @@ export function CabecalhoConversa({
           </div>
           <p className="truncate text-xs text-muted-foreground">{subtitulo}</p>
           {participantes.data && participantes.data.length > 0 && (
-            <div className="mt-1 flex items-center gap-1" aria-label={textos.atendidoPor}>
+            <div className="mt-1 flex min-w-0 items-center gap-1 text-[0.65rem] text-muted-foreground" aria-label={textos.participantes}>
+              <span className="shrink-0 font-medium">{textos.participantes}:</span>
+              <span className="min-w-0 truncate">
+                {participantes.data.map((participante) => participante.nome).join(", ")}
+              </span>
+              <div className="flex shrink-0 items-center gap-1" aria-hidden="true">
               {participantes.data.map((participante) => (
                 <AvatarIniciais key={participante.usuarioId} id={participante.usuarioId} nome={participante.nome} fotoUrl={participante.fotoUrl} className="flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white" />
               ))}
+              </div>
             </div>
+          )}
+          {estaDentro && (
+            <span className="mt-1 inline-flex w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-medium text-primary">
+              {textos.participando}
+            </span>
+          )}
+          {!estaDentro && !finalizado && (
+            <p className="mt-1 truncate text-[0.65rem] text-muted-foreground">{textos.avisoEnviarAssume}</p>
           )}
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
         {!finalizado && estadoPersistido === "SEM_PEDIDO" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => podeEntrarDireto ? entrarAtendimento(conversa.atendimentoId) : pedirEntrada(conversa.atendimentoId), podeEntrarDireto ? "DENTRO" : "PENDENTE")} disabled={processandoParticipacao}>
+          <span className="flex max-w-56 flex-col items-end gap-0.5 text-right">
+            <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => podeEntrarDireto ? entrarAtendimento(conversa.atendimentoId) : pedirEntrada(conversa.atendimentoId), podeEntrarDireto ? "DENTRO" : "PENDENTE", podeEntrarDireto ? textos.sucessoEntrou : textos.sucessoPedido)} disabled={processandoParticipacao}>
             {podeEntrarDireto ? textos.entrar : textos.pedirEntrada}
-          </Button>
+            </Button>
+            <span className="text-[0.65rem] leading-tight text-muted-foreground">{podeEntrarDireto ? textos.entrarDescricao : textos.pedirEntradaDescricao}</span>
+          </span>
         )}
-        {!finalizado && estadoPersistido === "PENDENTE" && <Button type="button" variant="outline" size="sm" disabled>{textos.pedidoPendente}</Button>}
+        {!finalizado && estadoPersistido === "PENDENTE" && (
+          <span className="flex max-w-64 flex-col items-end gap-0.5 text-right text-[0.65rem] text-muted-foreground">
+            <Button type="button" variant="outline" size="sm" disabled>{textos.pedidoPendente}</Button>
+            <span className="truncate">{textos.pedidoEnviado.replace("{nome}", conversa.atendenteNome ?? textos.semAtendente)}</span>
+            {meuPedido?.solicitadoEm && <span>{textos.pedidoSolicitadoEm.replace("{horario}", formatarHorario(meuPedido.solicitadoEm))}</span>}
+            <span>{textos.pedidoValidadeConfigurada}</span>
+          </span>
+        )}
         {!finalizado && estadoPersistido === "RECUSADO" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => pedirEntrada(conversa.atendimentoId), "PENDENTE")} disabled={processandoParticipacao}>{textos.recusado}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => pedirEntrada(conversa.atendimentoId), "PENDENTE", textos.sucessoPedido)} disabled={processandoParticipacao}>{textos.recusado}</Button>
         )}
         {!finalizado && estadoPersistido === "DENTRO" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => sairAtendimento(conversa.atendimentoId), "SEM_PEDIDO")} disabled={processandoParticipacao}>{textos.sair}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => sairAtendimento(conversa.atendimentoId), "SEM_PEDIDO", textos.sucessoSaiu)} disabled={processandoParticipacao}>{textos.sair}</Button>
         )}
         {!finalizado && pedidosPendentes.length > 0 && conversa.atendenteId === usuarioId && pedidosPendentes.map((pedido) => (
-          <span key={pedido.id} className="flex items-center gap-1">
-            <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => aprovarPedido(pedido.id), "SEM_PEDIDO")} disabled={processandoParticipacao}>{textos.aprovarEntrada}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => executarParticipacao(() => recusarPedido(pedido.id), "SEM_PEDIDO")} disabled={processandoParticipacao}>{textos.recusarEntrada}</Button>
+          <span key={pedido.id} className="flex min-w-0 flex-wrap items-center justify-end gap-1 rounded-md border border-border/60 px-2 py-1">
+            <span className="max-w-32 truncate text-xs font-medium" title={pedido.solicitanteNome}>{pedido.solicitanteNome}</span>
+            <span className="sr-only">{textos.pedidoRecebido.replace("{nome}", pedido.solicitanteNome)}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => aprovarPedido(pedido.id), "SEM_PEDIDO", textos.sucessoAprovado.replace("{nome}", pedido.solicitanteNome))} disabled={processandoParticipacao}>{textos.aprovarEntrada}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => executarParticipacao(() => recusarPedido(pedido.id), "SEM_PEDIDO", textos.sucessoRecusado.replace("{nome}", pedido.solicitanteNome))} disabled={processandoParticipacao}>{textos.recusarEntrada}</Button>
           </span>
         ))}
+        {feedbackParticipacao && (
+          <p role={feedbackParticipacao.tipo === "erro" ? "alert" : "status"} aria-live="polite" className={cn("max-w-64 text-xs", feedbackParticipacao.tipo === "erro" ? "text-destructive" : "text-cor-sucesso")}>
+            {feedbackParticipacao.texto}
+          </p>
+        )}
         {!finalizado && (
           <>
             <Button
@@ -297,4 +358,27 @@ function idDoToken(token: string | null): string | null {
     const parte = token.split(".")[1];
     return JSON.parse(atob(parte.replace(/-/g, "+").replace(/_/g, "/"))).sub ?? null;
   } catch { return null; }
+}
+
+function formatarHorario(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(data);
+}
+
+function mensagemDeErroParticipacao(
+  erro: unknown,
+  textos: {
+    erroSemPermissao: string;
+    erroPedidoExpirado: string;
+    erroParticipacaoNaoEncontrada: string;
+    erroParticipacao: string;
+  },
+): string {
+  const status = erro instanceof ErroDeApi ? erro.status : undefined;
+  const detalhe = erro instanceof Error ? erro.message.toLocaleLowerCase("pt-BR") : "";
+  if (status === 403 || detalhe.includes("permiss") || detalhe.includes("alçada")) return textos.erroSemPermissao;
+  if (detalhe.includes("expirad")) return textos.erroPedidoExpirado;
+  if (status === 404 || detalhe.includes("participa")) return textos.erroParticipacaoNaoEncontrada;
+  return textos.erroParticipacao;
 }

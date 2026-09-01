@@ -1,9 +1,43 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
 
 const finalizar = vi.fn();
+const participacao = vi.hoisted(() => ({
+  usuarioId: "usuario-1",
+  papel: "GESTOR",
+  participantes: [] as Array<{ usuarioId: string; nome: string; fotoUrl?: string | null }>,
+  meuPedido: null as { status: "PENDENTE" | "RECUSADO"; solicitanteNome?: string; solicitadoEm?: string } | null,
+  pedidosPendentes: [] as Array<{ id: string; solicitanteNome: string; solicitadoEm: string }>,
+  recarregar: vi.fn(),
+  invalidar: vi.fn(),
+  pedir: vi.fn(),
+  entrar: vi.fn(),
+  sair: vi.fn(),
+  aprovar: vi.fn(),
+  recusar: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: { accessToken: string | null; papel: string; usuarioId: string }) => unknown) =>
+    seletor({ accessToken: null, papel: participacao.papel, usuarioId: participacao.usuarioId }),
+}));
+
+vi.mock("@/lib/atendimento/use-participantes", () => ({
+  useParticipantes: () => ({ data: participacao.participantes, recarregar: participacao.recarregar }),
+}));
+
+vi.mock("@/lib/atendimento/use-participacao", () => ({
+  aprovarPedido: participacao.aprovar,
+  entrarAtendimento: participacao.entrar,
+  invalidarParticipacao: participacao.invalidar,
+  pedirEntrada: participacao.pedir,
+  recusarPedido: participacao.recusar,
+  sairAtendimento: participacao.sair,
+  useMeuPedido: () => participacao.meuPedido,
+  usePedidosPendentes: () => participacao.pedidosPendentes,
+}));
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
@@ -26,6 +60,31 @@ vi.mock("@/lib/config/textos-provider", () => ({
         finalizar: "Finalizar",
         buscar: "Buscar na conversa",
         novoAtendimento: "Reativar atendimento",
+        participantes: "Participantes",
+        participando: "Você está participando",
+        pedirEntrada: "Pedir para entrar",
+        pedidoPendente: "Pedido pendente",
+        entrar: "Entrar no atendimento",
+        entrarDescricao: "Entrar adiciona você como participante; o responsável não muda.",
+        pedirEntradaDescricao: "O responsável precisa aprovar; o atendimento não será transferido.",
+        sair: "Sair do atendimento",
+        recusado: "Pedido recusado",
+        aprovarEntrada: "Aceitar pedido",
+        recusarEntrada: "Recusar pedido",
+        pedidoEnviado: "Pedido enviado ao responsável {nome}.",
+        pedidoValidadeConfigurada: "A validade segue a configuração da instância.",
+        pedidoRecebido: "{nome} pediu para entrar",
+        pedidoSolicitadoEm: "Solicitado em {horario}",
+        avisoEnviarAssume: "Ao enviar agora, você assume este atendimento.",
+        sucessoEntrou: "Você entrou no atendimento.",
+        sucessoPedido: "Pedido enviado. O responsável será avisado.",
+        sucessoSaiu: "Você saiu do atendimento.",
+        sucessoAprovado: "{nome} agora participa do atendimento.",
+        sucessoRecusado: "Pedido de {nome} recusado.",
+        erroSemPermissao: "Você não tem permissão para entrar diretamente neste atendimento.",
+        erroPedidoExpirado: "Esse pedido expirou. Solicite novamente.",
+        erroParticipacaoNaoEncontrada: "Sua participação não está mais ativa.",
+        erroParticipacao: "Não foi possível atualizar sua participação.",
       },
       finalizar: {
         titulo: "Finalizar atendimento",
@@ -97,6 +156,20 @@ const conversa: CartaoAtendimento = {
 };
 
 describe("CabecalhoConversa", () => {
+  beforeEach(() => {
+    participacao.papel = "GESTOR";
+    participacao.participantes = [];
+    participacao.meuPedido = null;
+    participacao.pedidosPendentes = [];
+    participacao.recarregar.mockReset().mockResolvedValue(undefined);
+    participacao.invalidar.mockReset();
+    participacao.pedir.mockReset().mockResolvedValue(undefined);
+    participacao.entrar.mockReset().mockResolvedValue(undefined);
+    participacao.sair.mockReset().mockResolvedValue(undefined);
+    participacao.aprovar.mockReset().mockResolvedValue(undefined);
+    participacao.recusar.mockReset().mockResolvedValue(undefined);
+  });
+
   it("mostra contexto real e oferece ações funcionais do protótipo", () => {
     const alternarBusca = vi.fn();
     render(
@@ -180,5 +253,116 @@ describe("CabecalhoConversa", () => {
     expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
     expect(abrirNovo).toHaveBeenCalledOnce();
+  });
+
+  it("mostra erro legível ao falhar a entrada e mantém o estado fora", async () => {
+    participacao.entrar.mockRejectedValueOnce(new Error("sem alçada para entrar diretamente"));
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no atendimento" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Você não tem permissão para entrar diretamente neste atendimento.");
+    expect(screen.queryByRole("button", { name: "Sair do atendimento" })).not.toBeInTheDocument();
+  });
+
+  it("confirma a entrada e oferece sair do atendimento", async () => {
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no atendimento" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Você entrou no atendimento.");
+    expect(await screen.findByRole("button", { name: "Sair do atendimento" })).toBeInTheDocument();
+  });
+
+  it("distingue participantes do responsável", () => {
+    participacao.participantes = [{ usuarioId: "usuario-2", nome: "Ana Beatriz" }];
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Atendido por Jardel Lima/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Participantes")).toBeInTheDocument();
+    expect(screen.getByText("Ana Beatriz")).toBeInTheDocument();
+  });
+
+  it("mostra o nome de cada solicitante ao responsável", () => {
+    participacao.pedidosPendentes = [
+      { id: "pedido-1", solicitanteNome: "Ana Beatriz", solicitadoEm: "2026-09-01T10:00:00Z" },
+      { id: "pedido-2", solicitanteNome: "Carlos Silva", solicitadoEm: "2026-09-01T10:01:00Z" },
+    ];
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Ana Beatriz")).toBeInTheDocument();
+    expect(screen.getByText("Carlos Silva")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Aceitar pedido" })).toHaveLength(2);
+  });
+
+  it("avisa que o envio assume o atendimento somente fora da participação", () => {
+    const { rerender } = render(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Ao enviar agora, você assume este atendimento.")).toBeInTheDocument();
+    participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima" }];
+    rerender(
+      <CabecalhoConversa
+        conversa={conversa}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Ao enviar agora, você assume este atendimento.")).not.toBeInTheDocument();
+  });
+
+  it("mantém o cabeçalho legível em viewport móvel", () => {
+    render(
+      <CabecalhoConversa
+        conversa={{ ...conversa, leadNome: "Cliente com um nome bastante comprido para testar o cabeçalho" }}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="cabecalho-conversa"]')).toHaveClass("flex-wrap", "min-h-[72px]");
   });
 });
