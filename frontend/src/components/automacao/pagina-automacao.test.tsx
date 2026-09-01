@@ -90,14 +90,16 @@ describe("pagina de automacao", () => {
     expect(screen.getByText("Offline")).toBeInTheDocument();
   });
 
-  it("lista apenas atendentes ativos e altera a disponibilidade pela mutacao existente", () => {
+  it("lista atendentes e subgestores ativos e altera a disponibilidade pela mutacao existente", () => {
     render(<PaginaAutomacao />);
     expect(screen.getByText("Ana Atendente")).toBeInTheDocument();
+    expect(screen.getByText("Sara Subgestora")).toBeInTheDocument();
     expect(screen.getByText("Consultora")).toBeInTheDocument();
-    expect(screen.getByText("1 de 1 disponíveis")).toBeInTheDocument();
+    expect(screen.getByText("1 de 2 disponíveis")).toBeInTheDocument();
     expect(screen.queryByText("Bia Inativa")).not.toBeInTheDocument();
     expect(screen.queryByText("Gil Gestor")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sara Subgestora")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "Disponibilidade IA: Sara Subgestora" }));
+    expect(atualizarDisponibilidade).toHaveBeenCalledWith({ id: "sub", disponivelParaIa: true });
     fireEvent.click(screen.getByRole("switch", { name: "Disponibilidade IA: Ana Atendente" }));
     expect(atualizarDisponibilidade).toHaveBeenCalledWith({ id: "ana", disponivelParaIa: false });
   });

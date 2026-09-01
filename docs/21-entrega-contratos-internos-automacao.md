@@ -200,8 +200,8 @@ conceito certo.
 Esse ponto estava descrito errado no documento anterior e foi corrigido:
 
 - `POST /internal/v1/atendimentos/{id}/transferir` — **exige `atendenteId` no corpo** e honra a
-  escolha. Só aceita usuário **ativo** com papel `ATENDENTE`; gestor, subgestor, IA e UUID
-  inexistente respondem **422**.
+  escolha. Só aceita usuário **ativo** com papel `ATENDENTE` ou `SUBGESTOR`; gestor,
+  administrador, IA e UUID inexistente respondem **422**.
 - `POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` — **não aceita destinatário**. O
   CRM escolhe: menor quantidade de atendimentos abertos, depois quem está há mais tempo sem receber,
   depois o `id` para desempate determinístico. Quem nunca recebeu vem antes de quem já recebeu.

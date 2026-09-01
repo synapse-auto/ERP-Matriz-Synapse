@@ -95,7 +95,8 @@ Content-Type: application/json
 ```
 
 Para entregar a conversa a uma pessoa, informe somente um usuário ativo com
-papel `ATENDENTE`; gestor, subgestor, IA e UUID inexistente são recusados:
+papel `ATENDENTE` ou `SUBGESTOR`; gestor, administrador, IA e UUID inexistente
+são recusados:
 
 ```text
 POST /internal/v1/atendimentos/{atendimentoId}/transferir

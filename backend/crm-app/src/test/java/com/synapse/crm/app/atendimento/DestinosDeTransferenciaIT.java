@@ -52,8 +52,8 @@ class DestinosDeTransferenciaIT extends PostgresIT {
             assertThat(campos).containsExactlyInAnyOrder("id", "nome");
             nomes.add(item.get("nome").asText());
         }
-        assertThat(nomes).contains("Ana Atendente", "Bruno Atendente");
-        assertThat(nomes).doesNotContain("Gestora", "Subgestora", "Administrador");
+        assertThat(nomes).contains("Ana Atendente", "Bruno Atendente", "Subgestora");
+        assertThat(nomes).doesNotContain("Gestora", "Administrador");
         assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
     }
 
@@ -71,7 +71,10 @@ class DestinosDeTransferenciaIT extends PostgresIT {
         ResponseEntity<String> resposta = chamar(EMAIL_GESTOR, SENHA_GESTOR, "/api/v1/atendimentos/destinos-de-transferencia");
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resposta.getBody()).contains("Ana Atendente").contains("Bruno Atendente");
+        assertThat(resposta.getBody())
+                .contains("Ana Atendente")
+                .contains("Bruno Atendente")
+                .contains("Subgestora");
         assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
     }
 

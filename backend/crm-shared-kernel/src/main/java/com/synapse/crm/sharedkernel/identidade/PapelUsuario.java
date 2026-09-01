@@ -23,4 +23,15 @@ public enum PapelUsuario {
     public boolean enxergaTodosOsLeads() {
         return this != ATENDENTE;
     }
+
+    /**
+     * Quem pode receber lead: entrar na fila da IA e ser destino de transferencia.
+     *
+     * <p>Separada de enxergaTodosOsLeads() de proposito. Sao duas perguntas diferentes sobre o mesmo
+     * papel, e desde que o subgestor passou a atender elas deixaram de ter a mesma resposta: ele
+     * recebe lead E continua enxergando a base inteira.
+     */
+    public boolean recebeAtendimento() {
+        return this == ATENDENTE || this == SUBGESTOR;
+    }
 }

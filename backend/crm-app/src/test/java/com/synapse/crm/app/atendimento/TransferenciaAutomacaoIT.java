@@ -123,6 +123,33 @@ class TransferenciaAutomacaoIT extends PostgresIT {
         assertThat(quantidadeDeTransferencias(atendimento)).isZero();
     }
 
+    @Test
+    @DisplayName("subgestor ativo e aceito como destino da automacao")
+    void subgestorAtivoEAceito() {
+        UUID sub = criarUsuarioDisponivel("SUB-DESTINO", "SUBGESTOR");
+        UUID atendimento = criarAtendimentoDaIa("SUB-ALVO");
+
+        ResponseEntity<String> resposta = chamarComToken(
+                TOKEN, atendimento, Map.of("atendenteId", sub.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isEqualTo(sub);
+    }
+
+    @Test
+    @DisplayName("gestor continua recusado com 422")
+    void gestorContinuaRecusado() {
+        UUID gestor = criarUsuarioDisponivel("GESTOR-DESTINO", "GESTOR");
+        UUID atendimento = criarAtendimentoDaIa("GESTOR-ALVO");
+
+        ResponseEntity<String> resposta = chamarComToken(
+                TOKEN, atendimento, Map.of("atendenteId", gestor.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(dono(atendimento)).isNull();
+        assertThat(quantidadeDeTransferencias(atendimento)).isZero();
+    }
+
     private ResponseEntity<String> chamarComToken(String token, UUID atendimento, Object corpo) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.set("X-Synapse-Token", token);
@@ -137,15 +164,20 @@ class TransferenciaAutomacaoIT extends PostgresIT {
     }
 
     private UUID criarAtendenteDisponivel(String marcador) {
+        return criarUsuarioDisponivel(marcador, "ATENDENTE");
+    }
+
+    private UUID criarUsuarioDisponivel(String marcador, String papel) {
         UUID id = UUID.randomUUID();
         String senha = jdbc.queryForObject(
                 "SELECT senha_hash FROM usuario WHERE email = ?", String.class, EMAIL_GESTOR);
         jdbc.update(
-                "INSERT INTO usuario (id,nome,email,senha_hash,papel,status_presenca) VALUES (?,?,?,?, 'ATENDENTE','ONLINE')",
+                "INSERT INTO usuario (id,nome,email,senha_hash,papel,status_presenca) VALUES (?,?,?,?, CAST(? AS papel_usuario),'ONLINE')",
                 id,
                 PREFIXO + marcador,
                 id + "@e21b.invalid",
-                senha);
+                senha,
+                papel);
         jdbc.update(
                 "INSERT INTO disponibilidade_atendente_ia(atendente_id,disponivel_para_ia) VALUES (?,TRUE)",
                 id);

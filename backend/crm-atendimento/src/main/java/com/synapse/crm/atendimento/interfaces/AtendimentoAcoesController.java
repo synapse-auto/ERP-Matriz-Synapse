@@ -271,7 +271,7 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "403", description = "Atendente tentou escolher o destino de um Potencial."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
-                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE."),
+                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE ou SUBGESTOR."),
                 @ApiResponse(responseCode = "409", description = "Atendimento já finalizado.")
             })
     @PostMapping("/{id}/transferir")

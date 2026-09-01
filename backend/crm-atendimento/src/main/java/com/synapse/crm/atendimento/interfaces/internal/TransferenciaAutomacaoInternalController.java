@@ -72,14 +72,14 @@ class TransferenciaAutomacaoInternalController {
 
     @Operation(
             summary = "Transferir para atendente",
-            description = "Transfere um atendimento da IA para o atendente ativo informado. Gestores, subgestores e IA não são destinos aceitos.",
+            description = "Transfere um atendimento da IA para o usuário ativo informado (papel ATENDENTE ou SUBGESTOR). Gestores, administradores e IA não são destinos aceitos.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "400", description = "Corpo ou Idempotency-Key inválido."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
                 @ApiResponse(responseCode = "409", description = "Atendimento não está sob responsabilidade da IA ou chave reutilizada."),
-                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE.")
+                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE ou SUBGESTOR.")
             })
     @PostMapping("/{id}/transferir")
     ComandosAutomacaoUseCase.TransferenciaResposta transferir(
@@ -171,7 +171,7 @@ class TransferenciaAutomacaoInternalController {
                     @NotBlank String conteudo) {}
 
     record TransferirRequisicao(
-            @Schema(description = "UUID de um usuário ativo com papel ATENDENTE.", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @Schema(description = "UUID de um usuário ativo com papel ATENDENTE ou SUBGESTOR.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull UUID atendenteId) {}
 
     record ModoIaRequisicao() {}

@@ -3,6 +3,7 @@ package com.synapse.crm.app.equipe;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,14 +46,26 @@ class DisponibilidadeParaIaIT extends PostgresIT {
     private UUID ana;
     private UUID bruno;
     private UUID gestor;
+    private UUID subgestor;
 
     @BeforeEach
     void preparar() {
         ana = jdbc.queryForObject("SELECT id FROM usuario WHERE email=?", UUID.class, EMAIL_ANA);
         bruno = jdbc.queryForObject("SELECT id FROM usuario WHERE email=?", UUID.class, EMAIL_BRUNO);
         gestor = jdbc.queryForObject("SELECT id FROM usuario WHERE email=?", UUID.class, EMAIL_GESTOR);
-        jdbc.update("DELETE FROM disponibilidade_atendente_ia WHERE atendente_id IN (?, ?, ?)", ana, bruno, gestor);
-        jdbc.update("UPDATE usuario SET status_presenca='OFFLINE' WHERE id IN (?, ?, ?)", ana, bruno, gestor);
+        subgestor = jdbc.queryForObject("SELECT id FROM usuario WHERE email=?", UUID.class, EMAIL_SUBGESTOR);
+        jdbc.update(
+                "DELETE FROM disponibilidade_atendente_ia WHERE atendente_id IN (?, ?, ?, ?)",
+                ana,
+                bruno,
+                gestor,
+                subgestor);
+        jdbc.update(
+                "UPDATE usuario SET status_presenca='OFFLINE' WHERE id IN (?, ?, ?, ?)",
+                ana,
+                bruno,
+                gestor,
+                subgestor);
     }
 
     @Test
@@ -104,6 +117,34 @@ class DisponibilidadeParaIaIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM disponibilidade_atendente_ia WHERE atendente_id=?", Integer.class, gestor)).isZero();
+    }
+
+    @Test
+    void patchSubgestorPersisteENaoConfundeComGestor() {
+        ResponseEntity<String> resposta = patchComoGestor(subgestor, true);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id=?",
+                        Boolean.class,
+                        subgestor))
+                .isTrue();
+    }
+
+    @Test
+    void subgestorOnlineComToggleLigadoEntraNaFilaDaIa() {
+        jdbc.update("UPDATE usuario SET status_presenca='ONLINE' WHERE id=?", subgestor);
+        patchComoGestor(subgestor, true);
+
+        assertThat(disponiveis()).contains(subgestor.toString());
+    }
+
+    @Test
+    void subgestorOnlineComToggleDesligadoNaoEntraNaFilaDaIa() {
+        jdbc.update("UPDATE usuario SET status_presenca='ONLINE' WHERE id=?", subgestor);
+        patchComoGestor(subgestor, false);
+
+        assertThat(disponiveis()).doesNotContain(subgestor.toString());
     }
 
     @Test
