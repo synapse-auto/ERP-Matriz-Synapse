@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
 /**
  * A metade de entrada do provedor falso.
@@ -54,6 +55,11 @@ public class TradutorFake implements TradutorDeCanal {
     @Override
     public List<String> idsExternos(String payloadCru) {
         return campo(payloadCru, "\"id\":").stream().toList();
+    }
+
+    @Override
+    public List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru) {
+        return List.of();
     }
 
     @Override

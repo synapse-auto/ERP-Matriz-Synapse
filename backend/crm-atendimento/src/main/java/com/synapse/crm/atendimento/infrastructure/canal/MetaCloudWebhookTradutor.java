@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
 /**
  * Traducao do webhook da Meta Cloud API. A outra metade do ACL.
@@ -123,6 +124,56 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 .map(mensagem -> mensagem.path("id").asText(null))
                 .filter(id -> id != null && !id.isBlank())
                 .toList();
+    }
+
+    @Override
+    public List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru) {
+        List<StatusDeEntregaDoCanal> resultado = new ArrayList<>();
+        for (JsonNode entrada : entradas(payloadCru)) {
+            JsonNode mudancas = entrada.path("changes");
+            if (!mudancas.isArray()) {
+                continue;
+            }
+            for (JsonNode mudanca : mudancas) {
+                JsonNode statuses = mudanca.path("value").path("statuses");
+                if (!statuses.isArray()) {
+                    continue;
+                }
+                for (JsonNode status : statuses) {
+                    StatusDeEntregaDoCanal traduzido = traduzirStatus(status);
+                    if (traduzido != null) {
+                        resultado.add(traduzido);
+                    }
+                }
+            }
+        }
+        return List.copyOf(resultado);
+    }
+
+    private static final Map<String, String> STATUS_META_PARA_CRM =
+            Map.of("sent", "ENVIADO", "delivered", "ENTREGUE", "read", "LIDO", "failed", "FALHOU");
+
+    private static StatusDeEntregaDoCanal traduzirStatus(JsonNode status) {
+        String wamid = status.path("id").asText(null);
+        if (wamid == null || wamid.isBlank()) {
+            return null;
+        }
+        String crm = STATUS_META_PARA_CRM.get(status.path("status").asText());
+        if (crm == null) {
+            return null;
+        }
+        Integer codigo = null;
+        String titulo = null;
+        JsonNode erros = status.path("errors");
+        if (erros.isArray() && !erros.isEmpty()) {
+            JsonNode primeiro = erros.get(0);
+            if (primeiro.path("code").canConvertToInt()) {
+                codigo = primeiro.path("code").asInt();
+            }
+            String lido = primeiro.path("title").asText(null);
+            titulo = (lido == null || lido.isBlank()) ? null : lido;
+        }
+        return new StatusDeEntregaDoCanal(wamid, crm, codigo, titulo);
     }
 
     /** {@code type} da Meta -> {@code TipoMensagem} do CRM. {@code null} para tipo desconhecido. */

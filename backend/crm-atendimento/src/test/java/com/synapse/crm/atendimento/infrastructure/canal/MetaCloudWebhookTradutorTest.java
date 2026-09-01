@@ -87,6 +87,48 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void statusesSoComEntregaTraduzSentDeliveredReadFailed() {
+        var statuses = tradutor.statusDeEntrega(
+                """
+                {"entry":[{"changes":[{"value":{"statuses":[
+                  {"id":"wamid.s","status":"sent"},
+                  {"id":"wamid.d","status":"delivered"},
+                  {"id":"wamid.r","status":"read"},
+                  {"id":"wamid.f","status":"failed","errors":[{"code":131053,"title":"Media upload error"}]}
+                ]}}]}]}
+                """);
+
+        assertThat(statuses).extracting(TradutorDeCanal.StatusDeEntregaDoCanal::wamid)
+                .containsExactly("wamid.s", "wamid.d", "wamid.r", "wamid.f");
+        assertThat(statuses).extracting(TradutorDeCanal.StatusDeEntregaDoCanal::statusEntrega)
+                .containsExactly("ENVIADO", "ENTREGUE", "LIDO", "FALHOU");
+        assertThat(statuses.get(3).codigoErro()).isEqualTo(131053);
+        assertThat(statuses.get(3).tituloErro()).isEqualTo("Media upload error");
+    }
+
+    @Test
+    void payloadSemStatusesDevolveListaVazia() {
+        assertThat(tradutor.statusDeEntrega(payloadComMensagens(
+                        """
+                        {"from":"5561000000001","id":"A","type":"text","text":{"body":"ok"}}
+                        """)))
+                .isEmpty();
+    }
+
+    @Test
+    void statusDesconhecidoDaMetaEIgnorado() {
+        var statuses = tradutor.statusDeEntrega(
+                """
+                {"entry":[{"changes":[{"value":{"statuses":[
+                  {"id":"wamid.p","status":"played"},
+                  {"id":"wamid.d","status":"delivered"}
+                ]}}]}]}
+                """);
+
+        assertThat(statuses).extracting(TradutorDeCanal.StatusDeEntregaDoCanal::wamid).containsExactly("wamid.d");
+    }
+
+    @Test
     void preservaONumeroDeDestinoDaMeta() {
         var mensagens = tradutor.traduzir("""
                 {"entry":[{"changes":[{"value":{"metadata":{"phone_number_id":"999999999999999"},
