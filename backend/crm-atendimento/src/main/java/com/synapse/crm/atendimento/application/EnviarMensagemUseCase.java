@@ -17,6 +17,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepo
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
@@ -31,12 +32,14 @@ import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoReferencia;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
  * Alguem da equipe mandou mensagem. Se essa pessoa ainda nao esta na conversa, o lead passa a ser
- * dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o dono continua o dono.
+ * dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o dono continua o dono — mas
+ * qualquer fala humana tira a conversa de {@code EM_IA}, senão a automacao responde por cima.
  *
  * <p>A transferencia e a contrapartida do isolamento de agenda: a RN-CRM-01 impede pegar o lead do
  * colega, e esta regra garante que quem falou sem ter entrado nao some deixando a conversa orfa.
@@ -185,6 +188,13 @@ public class EnviarMensagemUseCase {
         if (participanteAtivo) {
             donoAnterior = Optional.ofNullable(aberto.atendenteId());
             trocouDeDono = false;
+            // Posse e IA sao coisas diferentes: participante nao herda o lead, mas qualquer
+            // humano que fala tira a conversa da IA. Sem isso o ramo de cima deixava EM_IA
+            // intacto e a automacao respondia por cima de quem acabou de entrar.
+            if (aberto.status() == StatusAtendimento.EM_IA) {
+                aberto = atendimentos.salvar(aberto.retirarDaIa());
+                leads.marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
+            }
         } else {
             // RN-CRM-06: se o lead nao e alcancavel por quem esta enviando, nada mais
             // acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o

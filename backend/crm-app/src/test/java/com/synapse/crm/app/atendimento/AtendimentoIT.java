@@ -318,6 +318,29 @@ class AtendimentoIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("participante fala em EM_IA: tira da IA e nao herda o lead")
+        void participanteFalaEmAtendimentoEmIa_tiraDaIaSemHerdar() {
+            var aberto = comoServico(() -> registrarRecebida.executar(entrada(leadSemDono)));
+            UUID atendimentoId = aberto.atendimento().id();
+            assertThat(aberto.atendimento().status()).isEqualTo(StatusAtendimento.EM_IA);
+
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            participacao.entrar(atendimentoId);
+            var resultado = enviar.executar(leadSemDono, "humano na conversa da IA");
+
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.mensagem().remetente().id()).isEqualTo(idGestor);
+            assertThat(donoDoLead(leadSemDono)).isNull();
+            assertThat(statusDoLead(leadSemDono)).isEqualTo("EM_ATENDIMENTO");
+            assertThat(resultado.atendimento().status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
+            assertThat(jdbc.queryForObject(
+                            "SELECT atendente_id IS NULL FROM atendimento WHERE id = ?",
+                            Boolean.class,
+                            atendimentoId))
+                    .isTrue();
+        }
+
+        @Test
         @DisplayName("atendente convidado fala sem tomar o lead do colega")
         void atendenteParticipante_enviaSemTransferir() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);

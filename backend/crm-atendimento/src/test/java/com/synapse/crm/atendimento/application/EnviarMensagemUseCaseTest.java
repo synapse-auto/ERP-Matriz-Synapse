@@ -26,6 +26,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -118,6 +119,7 @@ class EnviarMensagemUseCaseTest {
         assertThat(resultado.mensagem().remetente()).isEqualTo(Remetente.atendente(participante));
         verify(leads, never()).transferirPara(leadId, participante);
         verify(leads).bloquearParaAtendimento(leadId);
+        verify(leads, never()).marcarStatus(any(), any());
         verify(atendimentos, never()).salvar(any());
 
         ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
@@ -130,6 +132,48 @@ class EnviarMensagemUseCaseTest {
             assertThat(mensagem.donoAnterior()).contains(dono);
             assertThat(mensagem.remetenteId()).isEqualTo(participante);
         });
+    }
+
+    @Test
+    void participanteFalaEmAtendimentoEmIa_tiraDaIaSemHerdarPosse() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID participante = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+
+        Atendimento emIa = Atendimento.abrirComIa(
+                atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), agora.minusSeconds(60));
+        when(contexto.atual())
+                .thenReturn(new UsuarioAutenticado(participante, PapelUsuario.GESTOR, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(emIa));
+        when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(true);
+
+        EnviarMensagemUseCase useCase = novoUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
+
+        EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "humano na conversa");
+
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isNull();
+        assertThat(resultado.atendimento().status())
+                .isEqualTo(com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.EM_ATENDIMENTO);
+        assertThat(resultado.mensagem().remetente()).isEqualTo(Remetente.atendente(participante));
+        verify(leads, never()).transferirPara(leadId, participante);
+        verify(leads).marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
+        verify(atendimentos).salvar(any(Atendimento.class));
     }
 
     @Test
