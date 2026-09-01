@@ -10,10 +10,8 @@ import {
 
 import type { ConfiguracaoComposer } from "@/lib/atendimento/types";
 
-const FORMATOS_ACEITOS_PELA_META = [
-  "audio/mp4;codecs=mp4a.40.2",
-  "audio/mp4",
-] as const;
+import { FORMATOS_ACEITOS_PELA_META, arquivoDaGravacao } from "./gravacao-audio";
+
 const semAssinatura = () => () => {};
 const semFormatoNoServidor = () => null;
 
@@ -139,13 +137,7 @@ export function useGravadorAudio(
         const blob = new Blob(partesRef.current, {
           type: recorder.mimeType || mimeType,
         });
-        const gravacao = new File(
-          [blob],
-          `gravacao-${Date.now()}.m4a`,
-          {
-            type: blob.type,
-          },
-        );
+        const gravacao = arquivoDaGravacao(blob, recorder.mimeType || mimeType);
         const url = URL.createObjectURL(gravacao);
         previewUrlRef.current = url;
         setArquivo(gravacao);

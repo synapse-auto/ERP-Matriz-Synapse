@@ -605,7 +605,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(screen.getByLabelText("Enviar"));
 
     const variaveis = mutateMidia.mock.calls[0]?.[0] as { arquivo: File };
-    expect(variaveis.arquivo.type).toBe("audio/mp4;codecs=mp4a.40.2");
+    expect(variaveis.arquivo.type).toBe("audio/mp4");
     expect(mutateMidia).toHaveBeenCalledTimes(1);
   });
 

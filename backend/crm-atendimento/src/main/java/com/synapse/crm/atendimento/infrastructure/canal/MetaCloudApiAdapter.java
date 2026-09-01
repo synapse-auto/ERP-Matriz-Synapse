@@ -259,6 +259,13 @@ class MetaCloudApiAdapter implements CanalGateway {
                         && !midia.legenda().isBlank()) {
                     midiaNo.put("caption", midia.legenda());
                 }
+                if (midia.tipo() == TipoMensagem.AUDIO
+                        && MetaCloudMidiaUpload.ehNotaDeVoz(
+                                campoDeMetadados(midia.metadados(), "mimetype"))) {
+                    // Nota de voz: OGG Opus com voice=true. M4A/AAC e audio basico — a Meta
+                    // recusa voice=true nesses containers.
+                    midiaNo.put("voice", true);
+                }
                 if (midia.tipo() == TipoMensagem.DOCUMENTO) {
                     String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
                     if (nomeArquivo != null) {
@@ -286,15 +293,37 @@ class MetaCloudApiAdapter implements CanalGateway {
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
         String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
 
+        if (midia.tipo() == TipoMensagem.AUDIO && AacAdtsDeIsoBmff.contemMoof(conteudo)) {
+            var aac = AacAdtsDeIsoBmff.extrairSeFragmentado(conteudo);
+            if (aac.isPresent()) {
+                conteudo = aac.get();
+                mimetype = "audio/aac";
+                log.info(
+                        "audio ISO-BMFF fragmentado reconstruido como AAC ADTS ({} bytes)",
+                        conteudo.length);
+            } else {
+                log.warn("audio ISO-BMFF fragmentado nao reconstruido; enviando bytes originais");
+            }
+        }
+
+        String tipoDoCampo = MetaCloudMidiaUpload.tipoDoCampo(mimetype, midia.tipo());
+        String tipoDoArquivo = MetaCloudMidiaUpload.tipoDoArquivo(tipoDoCampo);
+        String nomeParaMeta = MetaCloudMidiaUpload.nomeDoArquivo(nomeArquivo, tipoDoArquivo);
+        MediaType contentType = MetaCloudMidiaUpload.contentType(tipoDoArquivo);
+
         MultipartBodyBuilder multipart = new MultipartBodyBuilder();
         multipart.part("messaging_product", "whatsapp");
-        multipart.part("type", mimetype);
-        multipart.part("file", new ByteArrayResource(conteudo) {
-            @Override
-            public String getFilename() {
-                return nomeArquivo;
-            }
-        });
+        multipart.part("type", tipoDoCampo);
+        final byte[] bytesDoArquivo = conteudo;
+        multipart.part(
+                "file",
+                new ByteArrayResource(bytesDoArquivo) {
+                    @Override
+                    public String getFilename() {
+                        return nomeParaMeta;
+                    }
+                },
+                contentType);
 
         String resposta = http.post()
                 .uri("/{numero}/media", propriedades.numeroPrincipal())

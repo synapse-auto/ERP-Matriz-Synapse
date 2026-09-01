@@ -80,6 +80,7 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("type").asText()).isEqualTo("audio");
         assertThat(payload.path("audio").path("id").asText()).isEqualTo("media-id");
         assertThat(payload.path("audio").has("caption")).isFalse();
+        assertThat(payload.path("audio").path("voice").asBoolean()).isTrue();
     }
 
     @Test
@@ -89,6 +90,51 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("type").asText()).isEqualTo("audio");
         assertThat(payload.path("audio").path("id").asText()).isEqualTo("media-id");
         assertThat(payload.path("audio").has("caption")).isFalse();
+    }
+
+    @Test
+    void audioOggSobeComCodecsOpusENotaDeVoz() {
+        String corpoUpload = enviarMidiaCapturandoUpload(TipoMensagem.AUDIO, "audio/ogg", "anexo", null);
+
+        assertThat(corpoUpload).contains("audio/ogg; codecs=opus");
+        assertThat(corpoUpload).contains("filename=\"anexo.ogg\"");
+        assertThat(corpoUpload).contains("Content-Type: audio/ogg");
+    }
+
+    @Test
+    void audioMp4SobeComContentTypeESemVoice() {
+        String metadados = "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4;codecs=mp4a.40.2\"}";
+        String[] upload = {null};
+        JsonNode payload = enviarMidiaComMetadados(TipoMensagem.AUDIO, metadados, upload);
+
+        assertThat(upload[0]).contains("Content-Type: audio/mp4");
+        assertThat(upload[0]).contains("filename=\"gravacao.m4a\"");
+        assertThat(upload[0]).doesNotContain("codecs=mp4a");
+        assertThat(payload.path("audio").has("voice")).isFalse();
+    }
+
+    @Test
+    void audioFragmentadoEReconstruidoComoAacAntesDoUpload() {
+        byte[] fmp4 = AacAdtsDeIsoBmffTest.fmp4ComUmFrame(new byte[] {0x21, 0x10, 0x04, 0x60});
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        String[] upload = {null};
+        enviarMidiaComMetadados(
+                TipoMensagem.AUDIO,
+                "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
+                upload);
+
+        assertThat(upload[0]).contains("Content-Type: audio/aac");
+        assertThat(upload[0]).contains("filename=\"gravacao.aac\"");
+        assertThat(upload[0]).contains("audio/aac");
+        assertThat(upload[0]).contains(new String(new byte[] {(byte) 0xFF, (byte) 0xF1}, java.nio.charset.StandardCharsets.ISO_8859_1));
+    }
+
+    @Test
+    void nomeAusenteRecebeExtensaoDoMime() {
+        String corpoUpload = enviarMidiaCapturandoUpload(TipoMensagem.AUDIO, "audio/mp4", null, null);
+
+        assertThat(corpoUpload).contains("filename=\"audio.m4a\"");
+        assertThat(corpoUpload).contains("Content-Type: audio/mp4");
     }
 
     @Test
@@ -108,8 +154,35 @@ class MetaCloudApiAdapterTest {
     }
 
     private JsonNode enviarMidia(TipoMensagem tipo, String mimetype, String legenda) {
+        return enviarMidiaComMetadados(
+                tipo, "{\"nome\":\"anexo\",\"mimetype\":\"" + mimetype + "\"}", null, legenda);
+    }
+
+    private String enviarMidiaCapturandoUpload(
+            TipoMensagem tipo, String mimetype, String nome, String legenda) {
+        String nomeJson = nome == null ? "" : "\"nome\":\"" + nome + "\",";
+        String[] upload = {null};
+        enviarMidiaComMetadados(
+                tipo, "{" + nomeJson + "\"mimetype\":\"" + mimetype + "\"}", upload, legenda);
+        return upload[0];
+    }
+
+    private JsonNode enviarMidiaComMetadados(
+            TipoMensagem tipo, String metadados, String[] uploadCapturado) {
+        return enviarMidiaComMetadados(tipo, metadados, uploadCapturado, null);
+    }
+
+    private JsonNode enviarMidiaComMetadados(
+            TipoMensagem tipo, String metadados, String[] uploadCapturado, String legenda) {
         servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/media"))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> {
+                    if (uploadCapturado != null) {
+                        uploadCapturado[0] = new String(
+                                ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
+                                java.nio.charset.StandardCharsets.ISO_8859_1);
+                    }
+                })
                 .andRespond(withSuccess("{\"id\":\"media-id\"}", MediaType.APPLICATION_JSON));
 
         final JsonNode[] payloadCapturado = new JsonNode[1];
@@ -121,7 +194,6 @@ class MetaCloudApiAdapterTest {
                 .andRespond(withSuccess(
                         "{\"messages\":[{\"id\":\"wamid.1\"}]}", MediaType.APPLICATION_JSON));
 
-        String metadados = "{\"nome\":\"anexo\",\"mimetype\":\"" + mimetype + "\"}";
         ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
                 UUID.randomUUID(),
                 "5561999999999",
