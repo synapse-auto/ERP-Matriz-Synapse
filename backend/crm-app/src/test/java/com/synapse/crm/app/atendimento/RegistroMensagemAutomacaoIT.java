@@ -82,6 +82,23 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("saída registrada pela Automação não assume o atendimento nem desliga a IA")
+    void saidaDaAutomacao_naoAlteraModoNemResponsavel() {
+        UUID atendimento = criarAtendimento("NAO-ASSUME");
+        UUID lead = jdbc.queryForObject("SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+
+        ResponseEntity<String> resposta = chamar(TOKEN, atendimento, corpo("wamid.E30-nao-assume"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isEqualTo("EM_IA");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isNull();
+    }
+
+    @Test
     @DisplayName("wamid repetido devolve a mesma mensagem sem duplicar")
     void wamidRepetidoEIdempotente() {
         UUID atendimento = criarAtendimento("IDEMPOTENTE");

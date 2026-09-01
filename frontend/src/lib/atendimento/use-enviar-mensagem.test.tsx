@@ -11,6 +11,7 @@ import type { EventoTempoReal, MensagemResposta } from "./types";
 
 vi.mock("./api", () => ({
   enviarMensagem: vi.fn(),
+  enviarTemplate: vi.fn(),
   paginaMensagens: vi.fn(),
   mensagensDesde: vi.fn(),
 }));
@@ -69,6 +70,32 @@ describe("useEnviarMensagem", () => {
     expect(mensagens).toHaveLength(1);
     expect(mensagens?.[0].id).toBe("msg-1");
     expect(mensagens?.[0].statusEntrega).toBe("PENDENTE");
+  });
+
+  it("template humano que assume o lead invalida a lista para refletir responsável e modo reais", async () => {
+    vi.mocked(api.enviarTemplate).mockResolvedValue({
+      atendimentoId: "at-template",
+      mensagemId: "msg-template",
+      statusEntrega: "PENDENTE",
+      enviadoEm: "2026-08-31T00:00:00Z",
+      transferiuOLead: true,
+    });
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-template");
+    const invalidar = vi.spyOn(queryClient, "invalidateQueries");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+
+    result.current.mutate({
+      atendimentoId: "at-template",
+      leadId: "lead-template",
+      conteudo: "Olá, Cliente",
+      template: { nome: "reativacao", idioma: "pt_BR", parametros: ["Cliente"] },
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(api.enviarTemplate).toHaveBeenCalledWith("lead-template", "reativacao", "pt_BR", ["Cliente"]);
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
   });
 
   it("remove a bolha otimista quando a resposta é recusada, sem deixar vínculo falso", async () => {

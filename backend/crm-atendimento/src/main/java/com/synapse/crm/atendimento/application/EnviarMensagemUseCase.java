@@ -37,9 +37,10 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Alguem da equipe mandou mensagem. Se essa pessoa ainda nao esta na conversa, o lead passa a ser
- * dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o dono continua o dono — mas
- * qualquer fala humana tira a conversa de {@code EM_IA}, senão a automacao responde por cima.
+ * Alguem da equipe mandou uma mensagem ou template manual. Se essa pessoa ainda nao esta na
+ * conversa, o lead passa a ser dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o
+ * dono continua o dono — mas qualquer fala humana tira a conversa de {@code EM_IA}, senão a
+ * automacao responde por cima.
  *
  * <p>A transferencia e a contrapartida do isolamento de agenda: a RN-CRM-01 impede pegar o lead do
  * colega, e esta regra garante que quem falou sem ter entrado nao some deixando a conversa orfa.
