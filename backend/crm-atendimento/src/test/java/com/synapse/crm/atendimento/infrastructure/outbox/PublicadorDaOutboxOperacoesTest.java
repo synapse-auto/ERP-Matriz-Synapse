@@ -43,6 +43,7 @@ class PublicadorDaOutboxOperacoesTest {
     void linhaLentaNaoBloqueiaOutraDoMesmoLote() throws Exception {
         PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
         CanalGateway canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
         Outbox.EnvioPendente lenta = pendente();
         Outbox.EnvioPendente rapida = pendente();
         CountDownLatch iniciouRapida = new CountDownLatch(1);
@@ -50,6 +51,15 @@ class PublicadorDaOutboxOperacoesTest {
 
         when(transacoes.reservar(AGORA)).thenReturn(List.of(lenta, rapida));
         when(canal.provedor()).thenReturn("teste");
+        when(compositor.montar(any())).thenAnswer(invocacao -> {
+            Outbox.EnvioPendente pendente = invocacao.getArgument(0);
+            return new CanalGateway.Envio(
+                    pendente.mensagemId(),
+                    pendente.telefoneDestino(),
+                    pendente.conteudo(),
+                    pendente.credencialId(),
+                    pendente.contextoWamid());
+        });
         when(canal.enviar(any())).thenAnswer(invocacao -> {
             CanalGateway.Envio envio = invocacao.getArgument(0);
             if (envio.mensagemId().equals(lenta.mensagemId())) {
@@ -65,6 +75,7 @@ class PublicadorDaOutboxOperacoesTest {
             PublicadorDaOutboxOperacoes operacoes = new PublicadorDaOutboxOperacoes(
                     transacoes,
                     canal,
+                    compositor,
                     RELOGIO,
                     executor);
             var rodada = CompletableFuture.runAsync(operacoes::rodada);

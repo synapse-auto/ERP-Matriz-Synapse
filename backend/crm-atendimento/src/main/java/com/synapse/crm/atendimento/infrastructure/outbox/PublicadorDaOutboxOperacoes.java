@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal;
 import com.synapse.crm.atendimento.application.Outbox;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -33,16 +34,19 @@ public class PublicadorDaOutboxOperacoes {
 
     private final PublicadorDaOutboxTransacoes transacoes;
     private final CanalGateway canal;
+    private final CompositorDeEnvioParaCanal compositor;
     private final Clock relogio;
     private final Executor executor;
 
     public PublicadorDaOutboxOperacoes(
             PublicadorDaOutboxTransacoes transacoes,
             CanalGateway canal,
+            CompositorDeEnvioParaCanal compositor,
             Clock relogio,
             @Qualifier("publicadorDaOutboxExecutor") Executor executor) {
         this.transacoes = transacoes;
         this.canal = canal;
+        this.compositor = compositor;
         this.relogio = relogio;
         this.executor = executor;
     }
@@ -71,12 +75,7 @@ public class PublicadorDaOutboxOperacoes {
     /** Uma excecao do adaptador vira recusa temporaria; uma linha nao derruba as demais. */
     private ResultadoDeEnvio enviarSemDeixarEscapar(Outbox.EnvioPendente pendente) {
         try {
-            return canal.enviar(new CanalGateway.Envio(
-                    pendente.mensagemId(),
-                    pendente.telefoneDestino(),
-                    pendente.conteudo(),
-                    pendente.credencialId(),
-                    pendente.contextoWamid()));
+            return canal.enviar(compositor.montar(pendente));
         } catch (RuntimeException e) {
             log.warn("Falha nao tratada ao enviar a mensagem {}.", pendente.mensagemId(), e);
             return ResultadoDeEnvio.Recusado.temporario(
