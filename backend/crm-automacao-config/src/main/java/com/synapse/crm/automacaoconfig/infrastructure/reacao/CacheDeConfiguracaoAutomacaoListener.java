@@ -35,9 +35,9 @@ class CacheDeConfiguracaoAutomacaoListener {
             redis.delete(ChavesDeCacheConfiguracaoAutomacao.porChave(evento.chave()));
             redis.delete(ChavesDeCacheConfiguracaoAutomacao.TODAS);
         } catch (RuntimeException e) {
-            // Redis fora do ar aqui significa cache desatualizado ate expirar/ser
-            // reescrito na proxima leitura — nunca motivo para reprovar uma alteracao
-            // que ja esta gravada e confirmada no banco.
+            // Redis fora do ar aqui significa cache desatualizado ate o TTL expirar ou ate
+            // a proxima leitura repovoar apos o DELETE — nunca motivo para reprovar uma
+            // alteracao que ja esta gravada e confirmada no banco.
             log.warn("Falha ao invalidar cache de configuracao de automacao apos atualizar '{}'.",
                     evento.chave(), e);
         }

@@ -360,6 +360,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
 | `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
 | `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
+| `AUTOMACAO_CONFIG_CACHE_TTL` | TTL do cache Redis de `configuracao_automacao` (default `5m`). Rede de segurança; invalidação por evento continua. |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
 | `AUTOMACAO_AVALIACAO_URL` | Opcional, vazio desliga pesquisas após encerramento individual; não é o repasse cru. |
 | `AUTOMACAO_AVALIACAO_TOKEN` | Segredo privado do webhook de avaliação, somente no ambiente; default vazio. |
