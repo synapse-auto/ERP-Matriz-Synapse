@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -274,11 +275,12 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
         UUID lead = criarLead("agenda", ana, null);
         UUID atendimento = criarAtendimento(lead, ana, "EM_ATENDIMENTO", agora.minus(Duration.ofDays(40)));
         inserirMensagemLead(atendimento, lead, agora.minus(Duration.ofDays(40)));
-        Instant saida = agora.minus(Duration.ofDays(2));
+        Instant saida = agora.minus(Duration.ofDays(2)).truncatedTo(ChronoUnit.MICROS);
         inserirMensagemSaida(atendimento, ana, saida);
 
         Instant interacao = coluna(lead, "ultima_interacao_em");
         Instant doCliente = coluna(lead, "ultima_mensagem_do_lead_em");
+        // Postgres timestamptz guarda micros; Instant.now() traz nanos — truncar na entrada.
         assertThat(interacao).isEqualTo(saida);
         assertThat(doCliente).isBefore(agora.minus(JANELA));
         assertThat(aceitaPelaFonte(lead, agora)).isFalse();
@@ -296,7 +298,7 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
     @DisplayName("8: backfill preenche a ultima LEAD; rodar de novo nao altera")
     void backfillIdempotente() {
         UUID ana = idDoUsuario(EMAIL_ANA);
-        Instant agora = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+        Instant agora = Instant.now().truncatedTo(ChronoUnit.MICROS);
         UUID lead = criarLead("backfill", ana, null);
         UUID atendimento = criarAtendimento(lead, ana, "EM_ATENDIMENTO", agora.minus(Duration.ofHours(5)));
         Instant ultimaLead = agora.minus(Duration.ofHours(3));
@@ -404,7 +406,8 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
     }
 
     private void inserirMensagemLead(UUID atendimentoId, UUID leadId, Instant enviadoEm) {
-        inserirMensagemLeadSemColuna(atendimentoId, enviadoEm);
+        Instant quando = enviadoEm.truncatedTo(ChronoUnit.MICROS);
+        inserirMensagemLeadSemColuna(atendimentoId, quando);
         jdbc.update(
                 """
                 UPDATE lead
@@ -414,14 +417,15 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
                        GREATEST(COALESCE(ultima_interacao_em, ?), ?)
                  WHERE id = ?
                 """,
-                Timestamp.from(enviadoEm),
-                Timestamp.from(enviadoEm),
-                Timestamp.from(enviadoEm),
-                Timestamp.from(enviadoEm),
+                Timestamp.from(quando),
+                Timestamp.from(quando),
+                Timestamp.from(quando),
+                Timestamp.from(quando),
                 leadId);
     }
 
     private void inserirMensagemLeadSemColuna(UUID atendimentoId, Instant enviadoEm) {
+        Instant quando = enviadoEm.truncatedTo(ChronoUnit.MICROS);
         jdbc.update(
                 "INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, conteudo,"
                         + " status_entrega, enviado_em)"
@@ -430,10 +434,11 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
                 UUID.randomUUID(),
                 atendimentoId,
                 "msg cliente",
-                Timestamp.from(enviadoEm));
+                Timestamp.from(quando));
     }
 
     private void inserirMensagemSaida(UUID atendimentoId, UUID atendenteId, Instant enviadoEm) {
+        Instant quando = enviadoEm.truncatedTo(ChronoUnit.MICROS);
         jdbc.update(
                 "INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,"
                         + " conteudo, status_entrega, enviado_em)"
@@ -443,7 +448,7 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
                 atendimentoId,
                 atendenteId,
                 "msg saida",
-                Timestamp.from(enviadoEm));
+                Timestamp.from(quando));
         jdbc.update(
                 """
                 UPDATE lead
@@ -452,8 +457,8 @@ class JanelaDe24hSoClienteIT extends PostgresIT {
                        num_mensagens = num_mensagens + 1
                  WHERE id = (SELECT lead_id FROM atendimento WHERE id = ?)
                 """,
-                Timestamp.from(enviadoEm),
-                Timestamp.from(enviadoEm),
+                Timestamp.from(quando),
+                Timestamp.from(quando),
                 atendimentoId);
     }
 }
