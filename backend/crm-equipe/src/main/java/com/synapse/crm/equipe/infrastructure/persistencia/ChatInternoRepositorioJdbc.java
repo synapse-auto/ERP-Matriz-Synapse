@@ -19,7 +19,9 @@ import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     private static final String SQL_LISTAR_CONVERSAS = """
             SELECT c.id, c.tipo::text,
-                   COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '') AS participantes,
+                   CASE WHEN c.tipo = 'GRUPO' THEN c.nome
+                        ELSE COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '')
+                   END AS participantes,
                    ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
                    COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
                        WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
@@ -33,7 +35,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
               LEFT JOIN usuario u ON u.id = outros.usuario_id
               LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
                 WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
-             GROUP BY c.id, c.tipo, ultima.conteudo, ultima.enviado_em, cp.lido_ate
+             GROUP BY c.id, c.tipo, c.nome, ultima.conteudo, ultima.enviado_em, cp.lido_ate
             """;
     private final JdbcTemplate jdbc;
 
@@ -101,8 +103,26 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     }
 
     @Override
+    public UUID criarConversaGrupo(String nome, List<UUID> participantes) {
+        String literal = participantes.stream()
+                .map(UUID::toString)
+                .collect(java.util.stream.Collectors.joining(",", "{", "}"));
+        return jdbc.queryForObject(
+                "SELECT app_criar_conversa_grupo(?, ?::uuid[])", UUID.class, nome, literal);
+    }
+
+    @Override
     public boolean usuarioExiste(UUID usuarioId) {
         return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM usuario WHERE id=? AND ativo)", Boolean.class, usuarioId));
+    }
+
+    @Override
+    public Optional<String> nomeDoUsuario(UUID usuarioId) {
+        List<String> nomes = jdbc.query(
+                "SELECT nome FROM usuario WHERE id=?",
+                (r, i) -> r.getString(1),
+                usuarioId);
+        return nomes.stream().findFirst();
     }
 
     @Override
@@ -116,6 +136,52 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     public List<UUID> participantes(UUID conversaId) {
         return jdbc.query("SELECT usuario_id FROM chat_interno_participante WHERE conversa_id=?",
                 (r, i) -> r.getObject(1, UUID.class), conversaId);
+    }
+
+    @Override
+    public Optional<TipoConversaChat> tipoDaConversa(UUID conversaId) {
+        List<TipoConversaChat> tipos = jdbc.query(
+                "SELECT tipo::text FROM chat_interno_conversa WHERE id=?",
+                (r, i) -> TipoConversaChat.valueOf(r.getString(1)),
+                conversaId);
+        return tipos.stream().findFirst();
+    }
+
+    @Override
+    public Optional<String> nomeDoGrupo(UUID conversaId) {
+        List<String> nomes = jdbc.query(
+                "SELECT nome FROM chat_interno_conversa WHERE id=?",
+                (r, i) -> r.getString(1),
+                conversaId);
+        return nomes.stream().findFirst();
+    }
+
+    @Override
+    public void adicionarParticipante(UUID conversaId, UUID usuarioId) {
+        jdbc.update(
+                "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)",
+                conversaId,
+                usuarioId);
+    }
+
+    @Override
+    public void removerParticipante(UUID conversaId, UUID usuarioId) {
+        jdbc.update(
+                "DELETE FROM chat_interno_participante WHERE conversa_id=? AND usuario_id=?",
+                conversaId,
+                usuarioId);
+    }
+
+    @Override
+    public void renomearGrupo(UUID conversaId, String nome) {
+        jdbc.update("UPDATE chat_interno_conversa SET nome=? WHERE id=? AND tipo='GRUPO'", nome, conversaId);
+    }
+
+    @Override
+    public boolean apagarSeSemParticipantes(UUID conversaId) {
+        Boolean apagou = jdbc.queryForObject(
+                "SELECT app_apagar_conversa_chat_se_vazia(?)", Boolean.class, conversaId);
+        return Boolean.TRUE.equals(apagou);
     }
 
     @Override
@@ -141,15 +207,38 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
 
     @Override
     public MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo) {
+        return inserirMensagem(conversaId, remetenteId, "TEXTO", conteudo);
+    }
+
+    @Override
+    public MensagemResumo salvarMensagemSistema(UUID conversaId, UUID atorId, String conteudoJson) {
+        return inserirMensagem(conversaId, atorId, "SISTEMA", conteudoJson);
+    }
+
+    private MensagemResumo inserirMensagem(UUID conversaId, UUID remetenteId, String tipo, String conteudo) {
         UUID id = UUID.randomUUID();
-        jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo) VALUES (?, ?, ?, 'TEXTO', ?)",
-                id, conversaId, remetenteId, conteudo);
-        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
-                (r, i) -> new MensagemResumo(r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
-                        r.getObject("remetente_id", UUID.class), r.getString("nome"),
-                        r.getString("tipo"), r.getString("conteudo"),
-                        r.getString("midia_url"), r.getString("midia_metadados"),
-                        instant(r, "enviado_em")), id);
+        jdbc.update(
+                "INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo)"
+                        + " VALUES (?, ?, ?, ?::tipo_mensagem, ?)",
+                id,
+                conversaId,
+                remetenteId,
+                tipo,
+                conteudo);
+        return jdbc.queryForObject(
+                "SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em"
+                        + " FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+                (r, i) -> new MensagemResumo(
+                        r.getObject("id", UUID.class),
+                        r.getObject("conversa_id", UUID.class),
+                        r.getObject("remetente_id", UUID.class),
+                        r.getString("nome"),
+                        r.getString("tipo"),
+                        r.getString("conteudo"),
+                        r.getString("midia_url"),
+                        r.getString("midia_metadados"),
+                        instant(r, "enviado_em")),
+                id);
     }
 
     @Override

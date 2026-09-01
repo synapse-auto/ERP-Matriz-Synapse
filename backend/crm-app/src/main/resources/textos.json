@@ -854,6 +854,22 @@
   "chatInterno": {
     "titulo": "Chat interno",
     "novaConversa": "Nova conversa",
+    "novoGrupo": "Novo grupo",
+    "criarGrupo": "Criar grupo",
+    "nomeDoGrupo": "Nome do grupo",
+    "nomeDoGrupoPlaceholder": "Ex.: Operação, Vendas…",
+    "selecionarParticipantes": "Participantes",
+    "selecionarParticipantesDescricao": "Escolha quem entra no grupo. Qualquer membro poderá gerenciar depois.",
+    "participantesMinimos": "Selecione ao menos uma outra pessoa.",
+    "erroCriarGrupo": "Não foi possível criar o grupo. Tente novamente.",
+    "participantesDoGrupo": "Participantes do grupo",
+    "adicionarParticipante": "Adicionar pessoa",
+    "removerParticipante": "Remover",
+    "sairDoGrupo": "Sair do grupo",
+    "voce": "você",
+    "renomearGrupo": "Renomear grupo",
+    "salvarNome": "Salvar nome",
+    "erroParticipantes": "Não foi possível atualizar os participantes.",
     "selecionarPessoa": "Selecione uma pessoa da equipe",
     "selecionarPessoaDescricao": "Escolha alguém da equipe para iniciar uma conversa direta.",
     "buscarPessoa": "Buscar por nome...",
@@ -874,7 +890,17 @@
     "carregando": "Carregando conversas...",
     "erro": "Não foi possível carregar o chat interno.",
     "erroEnviar": "Não foi possível enviar a mensagem.",
-    "naoLidas": "{quantidade} não lidas"
+    "naoLidas": "{quantidade} não lidas",
+    "tipoGrupo": "Grupo",
+    "tipoDireta": "Conversa direta",
+    "sistema": {
+      "grupoCriado": "criou o grupo {nome}",
+      "participanteAdicionado": "adicionou {alvo}",
+      "participanteRemovido": "removeu {alvo}",
+      "participanteSaiu": "{alvo} saiu do grupo",
+      "nomeAlterado": "renomeou o grupo para {nome}",
+      "eventoDesconhecido": "atualização do grupo"
+    }
   },
   "dashboard": {
     "titulo": "Dashboard",

@@ -31,6 +31,17 @@ const mockTextosCompletos = {
     placeholder: "Escreva uma mensagem...",
     enviar: "Enviar",
     erroEnviar: "Não foi possível enviar a mensagem.",
+    tipoGrupo: "Grupo",
+    tipoDireta: "Conversa direta",
+    participantesDoGrupo: "Participantes do grupo",
+    sistema: {
+      grupoCriado: "criou o grupo {nome}",
+      participanteAdicionado: "adicionou {alvo}",
+      participanteRemovido: "removeu {alvo}",
+      participanteSaiu: "{alvo} saiu do grupo",
+      nomeAlterado: "renomeou o grupo para {nome}",
+      eventoDesconhecido: "atualização do grupo",
+    },
   },
   atendimentos: {
     composer: {
@@ -77,10 +88,30 @@ describe("componentes de apresentação do chat interno", () => {
     render(<CabecalhoChatInterno textos={textos} conversa={{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 0 }} />);
 
     expect(screen.getByText("Bruno Almeida")).toBeInTheDocument();
+    expect(screen.getByText("Conversa direta")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
     expect(screen.queryByText("Finalizar todos")).not.toBeInTheDocument();
+  });
+
+  it("renderiza mensagem de sistema do grupo no centro", () => {
+    const sistema: ChatMensagem[] = [{
+      id: "s1",
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "SISTEMA",
+      conteudo: JSON.stringify({ evento: "GRUPO_CRIADO", nome: "Ops" }),
+      enviadoEm: "2026-09-01T12:00:00Z",
+    }];
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno mensagens={sistema} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
+      </TextosProvider>,
+    );
+    expect(screen.getByText("Ana criou o grupo Ops")).toBeInTheDocument();
+    expect(screen.getByText("Ana criou o grupo Ops").closest("[data-slot='mensagem-sistema-chat']")).toBeTruthy();
   });
 
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {

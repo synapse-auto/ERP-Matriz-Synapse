@@ -325,6 +325,75 @@ class RlsIsolamentoIT extends PostgresIT {
                 .isInstanceOf(DataAccessException.class);
     }
 
+    @Test
+    @DisplayName("E122: criacao de grupo exige criador entre os iniciais")
+    void criarConversaGrupo_criadorAusente_ehRecusado() {
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        String membros = "{" + bruno + "," + gestor + "}";
+
+        assertThatThrownBy(() -> transacao.execute(status -> {
+                    jdbc.queryForObject(
+                            "SELECT app_criar_conversa_grupo(?, ?::uuid[])",
+                            UUID.class,
+                            "Hack",
+                            membros);
+                    return null;
+                }))
+                .isInstanceOf(DataAccessException.class);
+    }
+
+    @Test
+    @DisplayName("E122: participante de GRUPO adiciona; DIRETA e nao-participante nao")
+    void chat_participanteDeGrupo_consegueAdicionarOutro() {
+        UUID grupo = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO chat_interno_conversa(id, tipo, nome) VALUES (?, 'GRUPO', 'Ops')",
+                grupo);
+        jdbc.update(
+                "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?), (?, ?)",
+                grupo, bruno, grupo, gestor);
+
+        ApoioRls.entrarComo(bruno, PapelUsuario.ATENDENTE);
+        transacao.execute(status -> {
+            jdbc.update(
+                    "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)",
+                    grupo, ana);
+            return null;
+        });
+        Integer noGrupo = transacao.execute(status -> jdbc.queryForObject(
+                "SELECT count(*) FROM chat_interno_participante WHERE conversa_id=? AND usuario_id=?",
+                Integer.class, grupo, ana));
+        assertThat(noGrupo).isEqualTo(1);
+
+        UUID direta = UUID.randomUUID();
+        ApoioRls.sair();
+        jdbc.update("INSERT INTO chat_interno_conversa(id, tipo) VALUES (?, 'DIRETA')", direta);
+        jdbc.update(
+                "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?), (?, ?)",
+                direta, bruno, direta, gestor);
+
+        ApoioRls.entrarComo(bruno, PapelUsuario.ATENDENTE);
+        assertThatThrownBy(() -> transacao.execute(status -> {
+                    jdbc.update(
+                            "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)",
+                            direta, ana);
+                    return null;
+                }))
+                .isInstanceOf(DataAccessException.class);
+
+        ApoioRls.sair();
+        jdbc.update("DELETE FROM chat_interno_participante WHERE conversa_id=? AND usuario_id=?", grupo, ana);
+
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        assertThatThrownBy(() -> transacao.execute(status -> {
+                    jdbc.update(
+                            "INSERT INTO chat_interno_participante(conversa_id, usuario_id) VALUES (?, ?)",
+                            grupo, ana);
+                    return null;
+                }))
+                .isInstanceOf(DataAccessException.class);
+    }
+
     private String contagemDeLeads() {
         return "SELECT count(*) FROM lead WHERE nome LIKE '" + marcador + "%'";
     }

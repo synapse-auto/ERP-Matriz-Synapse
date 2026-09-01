@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type Ref } from "react";
-import { Mic, Paperclip, Send, Square, Trash2, Users, X, Download, FileText } from "lucide-react";
+import { Mic, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { urlSegura, cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { PlayerAudio } from "@/components/atendimentos/player-audio";
 import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import type { Textos } from "@/lib/config/schema";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
+import { parseEventoSistema, textoEventoSistema } from "@/lib/chat-interno/mensagem-sistema";
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
@@ -32,18 +33,38 @@ export function duracaoLegivel(segundos: number): string {
 }
 
 
-export function CabecalhoChatInterno({ conversa, textos }: { conversa?: ChatConversa; textos: TextosChat }) {
+export function CabecalhoChatInterno({
+  conversa,
+  textos,
+  onGerenciarGrupo,
+}: {
+  conversa?: ChatConversa;
+  textos: TextosChat;
+  onGerenciarGrupo?: () => void;
+}) {
   const nome = conversa?.participantes?.trim() || textos.titulo;
+  const grupo = conversa?.tipo === "GRUPO";
   return (
     <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-background px-5">
-      <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
-      <div className="min-w-0">
+      {grupo ? (
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
+          <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)]" />
+        </span>
+      ) : (
+        <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
+      )}
+      <div className="min-w-0 flex-1">
         <h2 className="flex items-center gap-2 truncate font-semibold text-foreground">
           <Users className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
           <span className="truncate">{nome}</span>
         </h2>
-        <p className="text-xs text-muted-foreground">{textos.titulo}</p>
+        <p className="text-xs text-muted-foreground">{grupo ? textos.tipoGrupo : textos.tipoDireta}</p>
       </div>
+      {grupo && onGerenciarGrupo && (
+        <Button type="button" variant="outline" size="sm" onClick={onGerenciarGrupo}>
+          {textos.participantesDoGrupo}
+        </Button>
+      )}
     </header>
   );
 }
@@ -73,6 +94,21 @@ export function ListaMensagensChatInterno({
       {mensagens.map((mensagem) => {
         const propria = mensagem.remetenteId === usuarioAtual;
         const tipo = mensagem.tipo ?? "TEXTO";
+        if (tipo === "SISTEMA") {
+          const evento = parseEventoSistema(mensagem.conteudo);
+          const texto = evento
+            ? textoEventoSistema(evento, mensagem.remetenteNome, textos.sistema)
+            : mensagem.conteudo ?? textos.sistema.eventoDesconhecido;
+          return (
+            <p
+              key={mensagem.id}
+              className="px-4 text-center text-xs text-muted-foreground"
+              data-slot="mensagem-sistema-chat"
+            >
+              {texto}
+            </p>
+          );
+        }
         const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
         const metadados = (typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados as string); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {})) as { legenda?: string; nome?: string; tamanho?: number };
         const textoCopiavel = mensagem.conteudo?.trim()

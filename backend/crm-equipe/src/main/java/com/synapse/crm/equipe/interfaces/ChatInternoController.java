@@ -30,16 +30,22 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.equipe.application.chat.AbrirConversaDiretaUseCase;
+import com.synapse.crm.equipe.application.chat.AdicionarParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
+import com.synapse.crm.equipe.application.chat.CriarGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
+import com.synapse.crm.equipe.application.chat.ListarParticipantesChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
+import com.synapse.crm.equipe.application.chat.OperacaoDeGrupoInvalidaException;
+import com.synapse.crm.equipe.application.chat.RemoverParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
+import com.synapse.crm.equipe.application.chat.RenomearGrupoChatUseCase;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
@@ -47,12 +53,17 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 @RestController
 @RequestMapping("/api/v1/chat-interno")
-@Tag(name = "Chat interno", description = "Conversas diretas de texto entre integrantes da equipe.")
+@Tag(name = "Chat interno", description = "Conversas diretas e grupos entre integrantes da equipe.")
 @SecurityRequirement(name = "bearerAuth")
 public class ChatInternoController {
     private final ListarConversasChatUseCase listar;
     private final ListarContatosChatUseCase contatos;
     private final AbrirConversaDiretaUseCase abrir;
+    private final CriarGrupoChatUseCase criarGrupo;
+    private final ListarParticipantesChatUseCase listarParticipantes;
+    private final AdicionarParticipanteGrupoChatUseCase adicionarParticipante;
+    private final RemoverParticipanteGrupoChatUseCase removerParticipante;
+    private final RenomearGrupoChatUseCase renomearGrupo;
     private final ListarMensagensChatUseCase mensagens;
     private final EnviarMensagemChatUseCase enviar;
     private final EnviarMidiaChatUseCase enviarMidia;
@@ -61,12 +72,37 @@ public class ChatInternoController {
     private final RemoverReacaoChatUseCase removerReacaoUseCase;
     private final ArmazenamentoDeMidia armazenamento;
 
-    ChatInternoController(ListarConversasChatUseCase listar, ListarContatosChatUseCase contatos, AbrirConversaDiretaUseCase abrir,
-            ListarMensagensChatUseCase mensagens, EnviarMensagemChatUseCase enviar, EnviarMidiaChatUseCase enviarMidia,
-            MarcarConversaChatComoLidaUseCase ler, DefinirReacaoChatUseCase definirReacaoUseCase,
-            RemoverReacaoChatUseCase removerReacaoUseCase, ArmazenamentoDeMidia armazenamento) {
-        this.listar = listar; this.contatos = contatos; this.abrir = abrir; this.mensagens = mensagens; this.enviar = enviar; this.enviarMidia = enviarMidia; this.ler = ler;
-        this.definirReacaoUseCase = definirReacaoUseCase; this.removerReacaoUseCase = removerReacaoUseCase; this.armazenamento = armazenamento;
+    ChatInternoController(
+            ListarConversasChatUseCase listar,
+            ListarContatosChatUseCase contatos,
+            AbrirConversaDiretaUseCase abrir,
+            CriarGrupoChatUseCase criarGrupo,
+            ListarParticipantesChatUseCase listarParticipantes,
+            AdicionarParticipanteGrupoChatUseCase adicionarParticipante,
+            RemoverParticipanteGrupoChatUseCase removerParticipante,
+            RenomearGrupoChatUseCase renomearGrupo,
+            ListarMensagensChatUseCase mensagens,
+            EnviarMensagemChatUseCase enviar,
+            EnviarMidiaChatUseCase enviarMidia,
+            MarcarConversaChatComoLidaUseCase ler,
+            DefinirReacaoChatUseCase definirReacaoUseCase,
+            RemoverReacaoChatUseCase removerReacaoUseCase,
+            ArmazenamentoDeMidia armazenamento) {
+        this.listar = listar;
+        this.contatos = contatos;
+        this.abrir = abrir;
+        this.criarGrupo = criarGrupo;
+        this.listarParticipantes = listarParticipantes;
+        this.adicionarParticipante = adicionarParticipante;
+        this.removerParticipante = removerParticipante;
+        this.renomearGrupo = renomearGrupo;
+        this.mensagens = mensagens;
+        this.enviar = enviar;
+        this.enviarMidia = enviarMidia;
+        this.ler = ler;
+        this.definirReacaoUseCase = definirReacaoUseCase;
+        this.removerReacaoUseCase = removerReacaoUseCase;
+        this.armazenamento = armazenamento;
     }
 
     @Operation(summary = "Listar conversas", description = "Lista as conversas internas das quais o usuário autenticado participa, com última mensagem e contador individual de não lidas.", responses = @ApiResponse(responseCode = "200", description = "Conversas das quais o usuário participa."))
@@ -86,6 +122,55 @@ public class ChatInternoController {
     @PostMapping("/conversas/direta")
     ConversaCriada abrir(@Valid @RequestBody AbrirRequisicao requisicao) {
         return new ConversaCriada(abrir.executar(requisicao.usuarioId()));
+    }
+
+    @Operation(summary = "Criar grupo", description = "Cria um grupo com nome e participantes iniciais. O criador precisa estar entre eles. Sem hierarquia interna.", responses = {
+            @ApiResponse(responseCode = "201", description = "Grupo criado."),
+            @ApiResponse(responseCode = "400", description = "Nome ou participantes inválidos.")})
+    @PostMapping("/conversas/grupo")
+    @ResponseStatus(HttpStatus.CREATED)
+    ConversaCriada criarGrupo(@Valid @RequestBody CriarGrupoRequisicao requisicao) {
+        return new ConversaCriada(criarGrupo.executar(requisicao.nome(), requisicao.participantes()));
+    }
+
+    @Operation(summary = "Listar participantes", description = "Lista quem está na conversa. Só para quem já participa.", responses = {
+            @ApiResponse(responseCode = "200", description = "Participantes."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @GetMapping("/conversas/{id}/participantes")
+    List<ParticipanteResposta> participantes(@PathVariable UUID id) {
+        return listarParticipantes.executar(id).stream()
+                .map(p -> new ParticipanteResposta(p.id(), p.nome()))
+                .toList();
+    }
+
+    @Operation(summary = "Adicionar participante ao grupo", description = "Qualquer participante do grupo pode adicionar. Conversa DIRETA recusa.", responses = {
+            @ApiResponse(responseCode = "204", description = "Participante adicionado."),
+            @ApiResponse(responseCode = "400", description = "Operação inválida."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @PostMapping("/conversas/{id}/participantes")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void adicionar(@PathVariable UUID id, @Valid @RequestBody ParticipanteRequisicao requisicao) {
+        adicionarParticipante.executar(id, requisicao.usuarioId());
+    }
+
+    @Operation(summary = "Remover participante ou sair", description = "Qualquer participante remove outro ou a si mesmo. Sem administrador.", responses = {
+            @ApiResponse(responseCode = "204", description = "Participante removido."),
+            @ApiResponse(responseCode = "400", description = "Operação inválida."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @DeleteMapping("/conversas/{id}/participantes/{usuarioId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void remover(@PathVariable UUID id, @PathVariable UUID usuarioId) {
+        removerParticipante.executar(id, usuarioId);
+    }
+
+    @Operation(summary = "Renomear grupo", description = "Qualquer participante renomeia. Sem papel de administrador.", responses = {
+            @ApiResponse(responseCode = "204", description = "Nome atualizado."),
+            @ApiResponse(responseCode = "400", description = "Nome inválido."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @PutMapping("/conversas/{id}/nome")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void renomear(@PathVariable UUID id, @Valid @RequestBody RenomearGrupoRequisicao requisicao) {
+        renomearGrupo.executar(id, requisicao.nome());
     }
 
     @Operation(summary = "Listar mensagens", description = "Consulta o histórico paginado da conversa em ordem cronológica; o cursor permite buscar mensagens anteriores sem acessar conversas alheias.", responses = {
@@ -154,12 +239,24 @@ public class ChatInternoController {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
+    @ExceptionHandler(OperacaoDeGrupoInvalidaException.class)
+    ProblemDetail grupoInvalido(OperacaoDeGrupoInvalidaException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
     @ExceptionHandler(EmojiInvalidoException.class)
     ProblemDetail emojiInvalido(EmojiInvalidoException erro) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
     }
 
     record AbrirRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
+    record CriarGrupoRequisicao(
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 120) String nome,
+            @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<UUID> participantes) {}
+    record ParticipanteRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
+    record RenomearGrupoRequisicao(
+            @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 120) String nome) {}
+    record ParticipanteResposta(UUID id, String nome) {}
     record MensagemRequisicao(@NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 10000) String conteudo) {}
     record ReacaoRequisicao(String emoji) {}
     record ResumoReacaoResposta(String emoji, int quantidade, boolean reagi) {
