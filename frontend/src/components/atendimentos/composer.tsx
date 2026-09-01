@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, type KeyboardEvent, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { type ChangeEvent, type ClipboardEvent, type KeyboardEvent, type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -43,7 +43,7 @@ import {
 import { ErroDeApi } from "@/lib/api/errors";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
-import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta } from "@/lib/atendimento/citacao";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -222,6 +222,13 @@ export function Composer({
   function aoSelecionarArquivo(evento: ChangeEvent<HTMLInputElement>) {
     adicionarArquivos(Array.from(evento.target.files ?? []));
     evento.target.value = "";
+  }
+
+  function aoColar(evento: ClipboardEvent<HTMLTextAreaElement>) {
+    const arquivosColados = arquivosDaAreaDeTransferencia(evento.clipboardData);
+    if (arquivosColados.length === 0) return;
+    evento.preventDefault();
+    adicionarArquivos(arquivosColados);
   }
 
   function removerArquivo(indice: number) {
@@ -629,6 +636,7 @@ export function Composer({
                 setVariaveisPendentes([]);
                 setAtalhoSelecionado(0);
               }}
+              onPaste={aoColar}
               onKeyDown={aoPressionarTecla}
               placeholder={
                 arquivos.length > 0 ? textos.anexoLegendaPlaceholder : textos.placeholder
