@@ -395,6 +395,109 @@ class CanalWhatsAppIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("resposta do cliente a mensagem nossa persiste a citacao")
+        void webhook_respostaDeMensagemNossa_persisteCitacao() {
+            Cenario origem = criarMensagemDeOrigem("ATENDENTE", "orçamento enviado", "wamid.E119-nossa");
+            postarWebhook(
+                    payloadComContexto("ext-E119-nossa", "pode ser", "wamid.E119-nossa"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                UUID mensagemId = mensagemMaisRecenteDoLead();
+                assertThat(jdbc.queryForObject(
+                                "SELECT tipo FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .isEqualTo("RESPOSTA");
+                assertThat(jdbc.queryForObject(
+                                "SELECT citacao_autor FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .contains("Ana");
+                assertThat(jdbc.queryForObject(
+                                "SELECT citacao_previa FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .isEqualTo("orçamento enviado");
+            });
+            assertThat(origem.mensagemId()).isNotEqualTo(mensagemMaisRecenteDoLead());
+        }
+
+        @Test
+        @DisplayName("resposta do cliente a mensagem do proprio cliente persiste autor e previa")
+        void webhook_respostaDeMensagemDoCliente_persisteCitacao() {
+            criarMensagemDeOrigem("LEAD", "preciso de um orçamento", "wamid.E119-cliente");
+            postarWebhook(
+                    payloadComContexto("ext-E119-cliente", "pode ser", "wamid.E119-cliente"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                UUID mensagemId = mensagemMaisRecenteDoLead();
+                assertThat(jdbc.queryForObject(
+                                "SELECT citacao_autor FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .isEqualTo(PREFIXO + "Cliente da Ana");
+                assertThat(jdbc.queryForObject(
+                                "SELECT citacao_tipo FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .isEqualTo("TEXTO");
+                assertThat(jdbc.queryForObject(
+                                "SELECT citacao_previa FROM mensagem_referencia WHERE mensagem_id = ?",
+                                String.class,
+                                mensagemId))
+                        .isEqualTo("preciso de um orçamento");
+            });
+        }
+
+        @Test
+        @DisplayName("contexto desconhecido nao impede a mensagem e nao cria citacao")
+        void webhook_contextoDesconhecido_mensagemEntraSemCitacao() {
+            postarWebhook(
+                    payloadComContexto("ext-E119-desconhecido", "pode ser", "wamid.inexistente"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(mensagensDoLead()).isEqualTo(1);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM mensagem_referencia r JOIN mensagem m ON m.id = r.mensagem_id "
+                                        + "JOIN atendimento a ON a.id = m.atendimento_id WHERE a.lead_id = ?",
+                                Integer.class,
+                                leadDaAna))
+                        .isZero();
+            });
+        }
+
+        @Test
+        @DisplayName("reentrega da resposta nao duplica mensagem nem referencia")
+        void webhook_respostaReentregue_naoDuplicaReferencia() {
+            criarMensagemDeOrigem("ATENDENTE", "mensagem original", "wamid.E119-idempotente");
+            String payload = payloadComContexto(
+                    "ext-E119-idempotente", "respondo agora", "wamid.E119-idempotente");
+            postarWebhook(payload, CanalFake.ASSINATURA_VALIDA);
+            postarWebhook(payload, CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                UUID mensagemId = mensagemMaisRecenteDoLead();
+                assertThat(mensagensDoLead()).isEqualTo(2);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM mensagem_referencia r JOIN mensagem m ON m.id = r.mensagem_id "
+                                        + "JOIN atendimento a ON a.id = m.atendimento_id WHERE a.lead_id = ?",
+                                Integer.class,
+                                leadDaAna))
+                        .isEqualTo(1);
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM mensagem WHERE id = ?", Integer.class, mensagemId))
+                        .isEqualTo(1);
+            });
+        }
+
+        @Test
         @DisplayName("#reset exato grava a mensagem, devolve para IA e registra os fatos")
         void webhook_resetExato_devolveParaIaComTimelineEAuditoria() {
             postarWebhook(payload("ext-reset-inicial", "bom dia"), CanalFake.ASSINATURA_VALIDA);
@@ -608,6 +711,11 @@ class CanalWhatsAppIT extends PostgresIT {
                 + texto + "\"}";
     }
 
+    private static String payloadComContexto(String id, String texto, String contextoWamid) {
+        return "{\"id\":\"" + id + "\",\"de\":\"" + TELEFONE + "\",\"nome\":\"Cliente\",\"texto\":\""
+                + texto + "\",\"contextoWamid\":\"" + contextoWamid + "\"}";
+    }
+
     private ResponseEntity<String> postarWebhook(String payload, String assinatura) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
@@ -651,6 +759,41 @@ class CanalWhatsAppIT extends PostgresIT {
                 """,
                 Integer.class,
                 leadDaAna);
+    }
+
+    private UUID mensagemMaisRecenteDoLead() {
+        return jdbc.queryForObject(
+                "SELECT m.id FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id "
+                        + "WHERE a.lead_id = ? ORDER BY m.enviado_em DESC, m.id DESC LIMIT 1",
+                UUID.class,
+                leadDaAna);
+    }
+
+    private Cenario criarMensagemDeOrigem(String remetenteTipo, String conteudo, String wamid) {
+        UUID atendimentoId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
+                atendimentoId,
+                leadDaAna,
+                idAna);
+        UUID mensagemId = UUID.randomUUID();
+        Instant enviadoEm = Instant.now().minusSeconds(10);
+        jdbc.update(
+                "INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo, "
+                        + "status_entrega, enviado_em) VALUES (?, ?, ?::remetente_tipo, ?, 'TEXTO', ?, 'ENVIADO', ?)",
+                mensagemId,
+                atendimentoId,
+                remetenteTipo,
+                "ATENDENTE".equals(remetenteTipo) ? idAna : null,
+                conteudo,
+                Timestamp.from(enviadoEm));
+        jdbc.update(
+                "INSERT INTO mensagem_id_externo (wamid, mensagem_id, mensagem_enviada_em, atendimento_id) VALUES (?, ?, ?, ?)",
+                wamid,
+                mensagemId,
+                Timestamp.from(enviadoEm),
+                atendimentoId);
+        return new Cenario(leadDaAna, atendimentoId, mensagemId, enviadoEm);
     }
 
     private UUID criarCanal() {
@@ -712,4 +855,6 @@ class CanalWhatsAppIT extends PostgresIT {
         jdbc.update("DELETE FROM canal_credencial WHERE token_ref = 'secret://dev/token'");
         jdbc.update("DELETE FROM canal WHERE nome LIKE ?", PREFIXO + "%");
     }
+
+    private record Cenario(UUID leadId, UUID atendimentoId, UUID mensagemId, Instant enviadoEm) {}
 }

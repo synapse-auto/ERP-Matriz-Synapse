@@ -8,10 +8,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
+import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
@@ -38,18 +41,21 @@ public class RegistrarMensagemRecebidaUseCase {
     private final LeadNoCaminhoDeMensagem leads;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
+    private final MensagemReferenciaRepositorio referencias;
 
     public RegistrarMensagemRecebidaUseCase(
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
-            Clock relogio) {
+            Clock relogio,
+            MensagemReferenciaRepositorio referencias) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
         this.eventos = eventos;
         this.relogio = relogio;
+        this.referencias = referencias;
     }
 
     /**
@@ -86,6 +92,10 @@ public class RegistrarMensagemRecebidaUseCase {
                 : Mensagem.texto(
                         UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.conteudo(), agora));
 
+        if (entrada.referencia() != null) {
+            referencias.gravar(gravada.id(), gravada.enviadoEm(), entrada.referencia());
+        }
+
         // A divida da E03b, paga na MESMA transacao e na MESMA conexao: enquanto
         // ultima_interacao_em ficava nula, o filtro semRetornoDias media "criado ha N
         // dias" e mandava lead ativo para campanha de reativacao.
@@ -108,7 +118,8 @@ public class RegistrarMensagemRecebidaUseCase {
                 gravada.midiaMetadados(),
                 gravada.opcoes(),
                 gravada.statusEntrega().name(),
-                agora));
+                agora,
+                MontadorDeReferenciaDeMensagem.citacaoDe(entrada.referencia())));
 
         return new Resultado(aberto, gravada, abriu);
     }
@@ -130,11 +141,23 @@ public class RegistrarMensagemRecebidaUseCase {
             String conteudo,
             TipoMensagem tipo,
             String midiaUrl,
-            String midiaMetadados) {
+            String midiaMetadados,
+            ReferenciaDeMensagem referencia) {
+
+        public MensagemRecebida(
+                UUID leadId,
+                UUID canalId,
+                UUID canalCredencialId,
+                String conteudo,
+                TipoMensagem tipo,
+                String midiaUrl,
+                String midiaMetadados) {
+            this(leadId, canalId, canalCredencialId, conteudo, tipo, midiaUrl, midiaMetadados, null);
+        }
 
         /** Atalho para o caso comum: mensagem de texto, sem nenhum campo de midia. */
         public MensagemRecebida(UUID leadId, UUID canalId, UUID canalCredencialId, String conteudo) {
-            this(leadId, canalId, canalCredencialId, conteudo, TipoMensagem.TEXTO, null, null);
+            this(leadId, canalId, canalCredencialId, conteudo, TipoMensagem.TEXTO, null, null, null);
         }
 
         public boolean ehMidia() {

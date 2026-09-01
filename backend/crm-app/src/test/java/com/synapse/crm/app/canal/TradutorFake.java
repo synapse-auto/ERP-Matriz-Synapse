@@ -71,7 +71,8 @@ public class TradutorFake implements TradutorDeCanal {
         if (tipo.isEmpty() || "TEXTO".equals(tipo.get())) {
             return List.of(MensagemRecebidaDoCanal.texto(
                     ids.get(0), IDENTIFICADOR_DESTINO, telefone, nome,
-                    campo(payloadCru, "\"texto\":").orElse(""), Instant.now()));
+                    campo(payloadCru, "\"texto\":").orElse(""), Instant.now(),
+                    campo(payloadCru, "\"contextoWamid\":").orElse(null)));
         }
         return List.of(new MensagemRecebidaDoCanal(
                 ids.get(0),

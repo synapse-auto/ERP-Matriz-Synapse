@@ -222,6 +222,9 @@ describe("BolhaMensagem", () => {
     render(
       <BolhaMensagem
         mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
           conteudo: "combinado",
           citacao: {
             origemId: "origem-1",

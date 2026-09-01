@@ -14,6 +14,7 @@ import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendime
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
+import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
@@ -23,14 +24,12 @@ import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
-import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.RespostaAoCanalIndevidaException;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
-import com.synapse.crm.atendimento.domain.mensagem.TipoReferencia;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -296,7 +295,7 @@ public class EnviarMensagemUseCase {
                 gravada.opcoes(),
                 gravada.statusEntrega().name(),
                 agora,
-                citacaoDe(referencia)));
+                MontadorDeReferenciaDeMensagem.citacaoDe(referencia)));
 
         return new Resultado(aberto, gravada, trocouDeDono);
     }
@@ -319,30 +318,7 @@ public class EnviarMensagemUseCase {
                 .filter(id -> !id.isBlank())
                 .orElseThrow(() -> new RespostaAoCanalIndevidaException(
                         "a origem nao tem identificador externo para responder no canal"));
-        Mensagem mensagem = origem.mensagem();
-        return new ReferenciaDeMensagem(
-                TipoReferencia.RESPOSTA,
-                mensagem.id(),
-                mensagem.enviadoEm(),
-                mensagem.atendimentoId(),
-                CitacaoDeMensagem.autorDe(
-                        mensagem.remetente().tipo(), origem.leadNome(), origem.remetenteNome()),
-                mensagem.tipo().name(),
-                CitacaoDeMensagem.previaDe(
-                        mensagem.tipo(), mensagem.conteudo(), mensagem.midiaMetadados()),
-                wamid);
-    }
-
-    private static CitacaoDeMensagem citacaoDe(ReferenciaDeMensagem referencia) {
-        if (referencia == null) {
-            return null;
-        }
-        return new CitacaoDeMensagem(
-                referencia.origemMensagemId(),
-                referencia.tipo().name(),
-                referencia.citacaoAutor(),
-                referencia.citacaoTipo(),
-                referencia.citacaoPrevia());
+        return MontadorDeReferenciaDeMensagem.resposta(origem, wamid);
     }
 
     private static TipoMensagem tipoDe(ConteudoDeEnvio conteudo) {
