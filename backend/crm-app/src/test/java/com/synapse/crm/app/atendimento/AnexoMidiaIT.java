@@ -153,7 +153,9 @@ class AnexoMidiaIT extends PostgresIT {
         esperar().untilAsserted(() -> {
             assertThat(canal.enviados()).hasSize(1);
             assertThat(canal.enviados().get(0).conteudo())
-                    .isInstanceOf(ConteudoDeEnvio.MensagemMidia.class);
+                    .isInstanceOfSatisfying(
+                            ConteudoDeEnvio.MensagemMidia.class,
+                            midia -> assertThat(midia.legenda()).isEqualTo("*Ana Atendente:*\n\nvao 1"));
         });
     }
 

@@ -393,6 +393,7 @@ export const TextosSchema = z.object({
       trocaAtendimento: z.string(),
       ia: z.string(),
       responsavelAtual: z.string(),
+      prefixoAtendente: z.string(),
       status: z.object({
         pendente: z.string(),
         enviado: z.string(),

@@ -358,6 +358,7 @@
       "trocaAtendimento": "Novo atendimento iniciado",
       "ia": "IA",
       "responsavelAtual": "Responsável atual: {nome}",
+      "prefixoAtendente": "*{nome}:*\n\n{mensagem}",
       "status": {
         "pendente": "Enviando",
         "enviado": "Enviado",

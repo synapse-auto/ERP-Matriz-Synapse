@@ -20,5 +20,7 @@ describe("TextosSchema", () => {
     expect(textos.automacao.regras.novo).toBe("Nova regra");
     expect(textos.automacao.disponibilidade.contagem).toContain("{disponiveis}");
     expect(textos.automacao.regras.visualizacaoWhatsapp).toBe("VISUALIZAÇÃO NO WHATSAPP");
+    expect(textos.atendimentos.mensagem.prefixoAtendente).toContain("{nome}");
+    expect(textos.atendimentos.mensagem.prefixoAtendente).toContain("{mensagem}");
   });
 });

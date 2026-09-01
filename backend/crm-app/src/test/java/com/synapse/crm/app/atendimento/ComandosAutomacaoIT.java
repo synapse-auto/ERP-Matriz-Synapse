@@ -23,6 +23,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import com.synapse.crm.app.PostgresIT;
+import com.synapse.crm.app.canal.CanalFake;
+import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 
 /** Ponta a ponta dos quatro comandos internos, incluindo autorização, rollback e retry. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -41,9 +44,12 @@ class ComandosAutomacaoIT extends PostgresIT {
 
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private CanalFake canal;
+    @Autowired private PublicadorDaOutbox publicador;
 
     @AfterEach
     void limpar() {
+        canal.limpar();
         jdbc.update("DELETE FROM comando_automacao_idempotencia WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?))", PREFIXO + "%");
         jdbc.update("DELETE FROM outbox_evento");
         jdbc.update("DELETE FROM audit_log WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)", PREFIXO + "%");
@@ -75,6 +81,15 @@ class ComandosAutomacaoIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento)).isNull();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo LIKE '%TRANSFERIDO%'", Integer.class, atendimento)).isZero();
         await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'MENSAGEM_ENVIADA' AND origem = 'AUTOMACAO'", Integer.class, atendimento)).isEqualTo(1));
+
+        publicador.publicarPendentes();
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> {
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(canal.enviados().get(0).conteudo())
+                    .isInstanceOfSatisfying(
+                            ConteudoDeEnvio.MensagemLivre.class,
+                            mensagem -> assertThat(mensagem.texto()).isEqualTo("Mensagem da automacao"));
+        });
     }
 
     @Test

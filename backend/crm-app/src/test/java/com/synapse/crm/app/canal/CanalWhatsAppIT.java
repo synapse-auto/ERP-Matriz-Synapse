@@ -145,9 +145,16 @@ class CanalWhatsAppIT extends PostgresIT {
 
             esperar().untilAsserted(() -> {
                 assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).conteudo())
+                        .isInstanceOfSatisfying(
+                                ConteudoDeEnvio.MensagemLivre.class,
+                                texto -> assertThat(texto.texto()).isEqualTo("*Ana Atendente:*\n\nbom dia"));
                 assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
                 assertThat(pendentesNaOutbox()).isZero();
             });
+            assertThat(jdbc.queryForObject(
+                            "SELECT conteudo FROM mensagem WHERE id = ?", String.class, mensagemId))
+                    .isEqualTo("bom dia");
         }
 
         /**
