@@ -33,7 +33,8 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Alguem da equipe mandou mensagem — e por isso o lead passa a ser dele (RN-CRM-06).
+ * Alguem da equipe mandou uma mensagem ou template manual — e por isso o lead passa a ser dele
+ * (RN-CRM-06).
  *
  * <p>A transferencia e a contrapartida do isolamento de agenda: a RN-CRM-01 impede pegar o lead do
  * colega, e esta regra garante que quem trabalhou fica com ele. Como os atendentes trabalham por

@@ -7,12 +7,14 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,6 +57,7 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
     private UUID idAna;
     private UUID idBruno;
+    private UUID idSubgestor;
 
     @BeforeEach
     void prepararUsuarios() {
@@ -63,6 +66,7 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
         limpar();
         idAna = idDoUsuario(EMAIL_ANA);
         idBruno = idDoUsuario(EMAIL_BRUNO);
+        idSubgestor = idDoUsuario(EMAIL_SUBGESTOR);
     }
 
     @AfterEach
@@ -110,6 +114,85 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(resposta.getBody()).contains("Fora da janela de 24 horas");
+    }
+
+    @Test
+    @DisplayName("template manual: atendente assume o Potencial, desliga a IA e enfileira a entrega")
+    void enviarTemplate_atendenteEmAtendimentoIa_assumeEEnfileira() {
+        UUID atendimentoId = criarAtendimentoPotencial("template atendente " + sufixo());
+        UUID leadId = leadDoAtendimento(atendimentoId);
+
+        ResponseEntity<String> resposta = enviarTemplateComo(EMAIL_ANA, SENHA_ATENDENTE, leadId);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"transferiuOLead\":true");
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isOne();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isOne();
+        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            assertThat(contarTimeline(leadId, "LEAD_TRANSFERIDO_POR_ENVIO")).isOne();
+            assertThat(contarAuditoria(leadId, "ENVIO_COM_TRANSFERENCIA_DE_LEAD")).isOne();
+        });
+
+    }
+
+    @Test
+    @DisplayName("template manual: gestor e subgestor assumem o Potencial conforme a RN-CRM-06")
+    void enviarTemplate_gestorESubgestor_assumemOAtendimento() {
+        assertTemplateAssume(EMAIL_GESTOR, SENHA_GESTOR, idDoUsuario(EMAIL_GESTOR));
+        assertTemplateAssume(EMAIL_SUBGESTOR, SENHA_SUBGESTOR, idSubgestor);
+    }
+
+    @Test
+    @DisplayName("template manual: validação recusada não altera modo, responsável, mensagem ou outbox")
+    void enviarTemplate_invalido_naoAlteraAtendimentoIa() {
+        UUID atendimentoId = criarAtendimentoPotencial("template inválido " + sufixo());
+        UUID leadId = leadDoAtendimento(atendimentoId);
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/mensagens/template",
+                Map.of("leadId", leadId.toString(), "nome", "", "idioma", "pt_BR", "parametros", List.of()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertAtendimentoPermaneceComIa(atendimentoId, leadId);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isZero();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("template manual: atendente não alcança lead de colega pela RN-CRM-01")
+    void enviarTemplate_leadDeColega_retorna404SemEfeito() {
+        UUID leadId = criarLead("template colega " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(leadId);
+        long mensagensAntes = jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId);
+
+        ResponseEntity<String> resposta = enviarTemplateComo(EMAIL_BRUNO, SENHA_ATENDENTE, leadId);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isEqualTo(mensagensAntes);
     }
 
     @Test
@@ -425,6 +508,57 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
                 HttpMethod.POST,
                 "/api/v1/atendimentos/mensagens",
                 Map.of("leadId", leadId.toString(), "conteudo", conteudo));
+    }
+
+    private ResponseEntity<String> enviarTemplateComo(String email, String senha, UUID leadId) {
+        return chamar(
+                email,
+                senha,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/mensagens/template",
+                Map.of(
+                        "leadId", leadId.toString(),
+                        "nome", "reativacao",
+                        "idioma", "pt_BR",
+                        "parametros", List.of("Cliente")));
+    }
+
+    private void assertTemplateAssume(String email, String senha, UUID responsavelEsperado) {
+        UUID atendimentoId = criarAtendimentoPotencial("template gestão " + sufixo());
+        UUID leadId = leadDoAtendimento(atendimentoId);
+
+        ResponseEntity<String> resposta = enviarTemplateComo(email, senha, leadId);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(responsavelEsperado);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isEqualTo(responsavelEsperado);
+    }
+
+    private void assertAtendimentoPermaneceComIa(UUID atendimentoId, UUID leadId) {
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("EM_IA");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isNull();
+    }
+
+    private long contarTimeline(UUID leadId, String tipo) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM evento_timeline WHERE lead_id = ? AND tipo = ?", Long.class, leadId, tipo);
+    }
+
+    private long contarAuditoria(UUID leadId, String acao) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM audit_log WHERE lead_id = ? AND acao = ?", Long.class, leadId, acao);
+    }
+
+    private UUID leadDoAtendimento(UUID atendimentoId) {
+        return jdbc.queryForObject("SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId);
     }
 
     private ResponseEntity<String> chamar(

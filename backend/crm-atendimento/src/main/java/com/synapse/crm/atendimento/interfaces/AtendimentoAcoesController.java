@@ -189,7 +189,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Enviar template do WhatsApp",
-            description = "Envia um template já aprovado. Não exige janela de 24h; o provedor recusa se o modelo não estiver aprovado.",
+            description = "Envia um template já aprovado. Não exige janela de 24h; como toda ação humana de envio, assume o lead e coloca o atendimento em modo humano antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Template aceito para entrega."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
