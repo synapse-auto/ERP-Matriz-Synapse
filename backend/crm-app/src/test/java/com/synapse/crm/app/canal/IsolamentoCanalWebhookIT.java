@@ -51,7 +51,15 @@ class IsolamentoCanalWebhookIT extends PostgresIT {
     private static final String PHONE_NUMBER_ID = "1307417749115229";
     private static final String OUTRO_PHONE_NUMBER_ID = "111111111111111";
     private static final String PREFIXO_ID = "wamid.E27-";
-    private static final String PREFIXO_TELEFONE = "5561987600";
+
+    /**
+     * Precisa ser canonico com o sufixo de dois digitos que cada teste anexa: 55 + DDD + nove
+     * digitos. Desde a E111, um numero brasileiro de doze digitos e um celular <b>sem</b> o nono
+     * digito, e o CRM o completa ao gravar — as consultas por {@code telefone} desta suite nao
+     * achariam mais o lead. Esta suite testa isolamento de canal, nao normalizacao de telefone; quem
+     * cobre a regra do nono digito e {@code TelefoneNonoDigitoIT}.
+     */
+    private static final String PREFIXO_TELEFONE = "55619987600";
 
     @Autowired
     private TestRestTemplate http;

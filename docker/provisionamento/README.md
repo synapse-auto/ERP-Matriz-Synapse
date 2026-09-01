@@ -94,9 +94,9 @@ virgula e ponto e virgula sao aceitos como delimitador. Colunas extras sao ignor
 O comando compila e usa diretamente o `TelefoneCanonico` de `crm-core`, com o mesmo
 `TELEFONE_DDI_PADRAO` do deploy. Nao existe uma segunda normalizacao em SQL. Linhas com nome ou
 telefone vazio, telefone curto, letras, CSV malformado e telefone duplicado no arquivo sao
-recusadas individualmente. Um telefone nacional de dez digitos tambem e recusado: o importador nao
-inventa o nono digito e nao cria uma segunda identidade para o mesmo cliente. O log informa apenas
-linha e motivo, nunca o telefone completo.
+recusadas individualmente. Telefone segue a mesma regra do dominio: celular brasileiro de oito
+digitos ganha o nono; fixo fica como esta. O log informa apenas linha e motivo, nunca o telefone
+completo.
 
 Carregue primeiro as variaveis da instancia e execute em homologacao. Simulacao e o modo padrao e
 termina com `ROLLBACK`:
@@ -193,3 +193,33 @@ docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
 Idempotente nos dois sentidos: rodar o seed de novo reconcilia (nunca
 duplica); rodar a limpeza de novo com o seed ja removido nao falha, so
 não encontra linhas para apagar.
+
+## Simular a fusao do nono digito (E111, antes do deploy da V50)
+
+A V50 **funde e apaga leads**. Antes de autorizar o deploy que a leva, rode a
+simulacao: ela mostra exatamente o que a migration faria com os dados desta
+instancia, sem gravar nada (tudo dentro de `BEGIN ... ROLLBACK`).
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  -v ddi="${TELEFONE_DDI_PADRAO:-55}" \
+  < docker/provisionamento/simular-fusao-nono-digito.sql
+```
+
+O que conferir na saida, nesta ordem:
+
+1. **Secao 1** tem de estar toda vazia. Qualquer linha ali derruba o deploy, de
+   proposito: a migration aborta em vez de adivinhar.
+2. **Secao 2** lista os pares e quem sobrevive. Sobrevive quem tem a conversa —
+   confira se o dono resultante e quem de fato vem atendendo.
+3. **Secao 3** e o **unico** registro do que sera descartado: o nome do lead
+   apagado e todo campo preenchido nos dois lados. **Guarde a saida**; depois do
+   deploy ela nao existe mais em lugar nenhum.
+4. **Secao 4b** lista, por par, o atendimento que fica aberto e os que serao
+   finalizados (id, atendente, mensagens, `iniciado_em`). E a lista que a gestao
+   aprova junto com os nomes. Nada e apagado: o historico do atendimento fechado
+   continua no cliente.
+
+A saida tambem serve de lista de trabalho para a operacao: o nome nao e fundido
+de proposito, entao os pares da secao 3 com `nome_do_campo = nome` sao os leads
+cujo nome pode precisar de ajuste pela tela depois do deploy.
