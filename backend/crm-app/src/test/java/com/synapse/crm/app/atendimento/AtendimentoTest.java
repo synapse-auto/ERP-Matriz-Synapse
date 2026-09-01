@@ -52,6 +52,29 @@ class AtendimentoTest {
         assertThat(comAna.status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
     }
 
+    @Test
+    @DisplayName("humano que fala tira da IA sem criar dono")
+    void retirarDaIa_mudaStatusEPreservaAtendente() {
+        Atendimento semDono = Atendimento.abrirComIa(UUID.randomUUID(), LEAD, null, null, AGORA);
+
+        Atendimento depois = semDono.retirarDaIa();
+
+        assertThat(depois.status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
+        assertThat(depois.atendenteId()).isNull();
+        assertThat(semDono.status()).isEqualTo(StatusAtendimento.EM_IA);
+        assertThat(depois.retirarDaIa()).isSameAs(depois);
+    }
+
+    @Test
+    @DisplayName("retirar da IA recusa atendimento finalizado")
+    void retirarDaIa_aposFinalizar_recusa() {
+        Atendimento finalizado =
+                Atendimento.abrirComIa(UUID.randomUUID(), LEAD, null, null, AGORA).finalizar(AGORA);
+
+        assertThatThrownBy(() -> finalizado.retirarDaIa())
+                .isInstanceOf(AtendimentoJaFinalizadoException.class);
+    }
+
     /** Imutabilidade: a transicao devolve outro objeto e o original nao muda. */
     @Test
     @DisplayName("transicao nao altera a instancia anterior")

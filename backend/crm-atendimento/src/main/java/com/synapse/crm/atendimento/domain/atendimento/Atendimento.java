@@ -9,9 +9,10 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 /**
  * Uma conversa com um lead, do primeiro contato ate o encerramento.
  *
- * <p>O comportamento mora aqui, e nao num servico: {@link #transferirPara(UUID)} e {@link
- * #finalizar(Instant)} sao as unicas formas de mudar de estado, e as duas recusam atendimento ja
- * finalizado. Se a regra vivesse no caso de uso, o proximo caso de uso teria de lembrar dela.
+ * <p>O comportamento mora aqui, e nao num servico: {@link #transferirPara(UUID)}, {@link
+ * #retirarDaIa()}, {@link #devolverParaIa()} e {@link #finalizar(Instant)} sao as unicas formas de
+ * mudar de estado, e recusam atendimento ja finalizado. Se a regra vivesse no caso de uso, o proximo
+ * caso de uso teria de lembrar dela.
  *
  * <p>Imutavel: cada transicao devolve uma instancia nova. E o que permite o caso de uso comparar o
  * antes e o depois para decidir que evento publicar, sem guardar copia manual do estado anterior.
@@ -57,6 +58,28 @@ public record Atendimento(
                 canalId,
                 canalCredencialId,
                 novoAtendenteId,
+                StatusAtendimento.EM_ATENDIMENTO,
+                iniciadoEm,
+                finalizadoEm);
+    }
+
+    /**
+     * Humano falou: a IA sai, o dono permanece quem era — inclusive ninguem.
+     *
+     * <p>Separado de {@link #transferirPara(UUID)} de proposito. Participante nao herda a posse, mas
+     * deixar {@code EM_IA} depois de um humano responder faria a automacao continuar falando por cima.
+     */
+    public Atendimento retirarDaIa() {
+        exigirAberto("retirada da IA");
+        if (status != StatusAtendimento.EM_IA) {
+            return this;
+        }
+        return new Atendimento(
+                id,
+                leadId,
+                canalId,
+                canalCredencialId,
+                atendenteId,
                 StatusAtendimento.EM_ATENDIMENTO,
                 iniciadoEm,
                 finalizadoEm);

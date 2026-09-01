@@ -30,8 +30,10 @@ import com.synapse.crm.atendimento.application.FinalizarAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.participacao.GerenciarParticipacaoAtendimentoUseCase;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -74,6 +76,9 @@ class AtendimentoIT extends PostgresIT {
     private AtendimentoRepositorio atendimentos;
 
     @Autowired
+    private GerenciarParticipacaoAtendimentoUseCase participacao;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     @Autowired
@@ -84,6 +89,7 @@ class AtendimentoIT extends PostgresIT {
     private UUID idAna;
     private UUID idBruno;
     private UUID idGestor;
+    private UUID idSubgestor;
     private UUID leadDaAna;
     private UUID leadSemDono;
 
@@ -95,6 +101,7 @@ class AtendimentoIT extends PostgresIT {
         idAna = idDoUsuario("ana@dev.local");
         idBruno = idDoUsuario("bruno@dev.local");
         idGestor = idDoUsuario("gestor@dev.local");
+        idSubgestor = idDoUsuario("subgestor@dev.local");
 
         leadDaAna = criarLead("Cliente da Ana", idAna, "EM_ATENDIMENTO");
         // Grupo "Potenciais": sem dono, visivel a qualquer atendente.
@@ -278,6 +285,123 @@ class AtendimentoIT extends PostgresIT {
     }
 
     @Nested
+    @DisplayName("participante ativo fala sem assumir o atendimento")
+    class ParticipanteFalaSemAssumir {
+
+        @Test
+        @DisplayName("subgestora entra e fala: mensagem e dela, o lead continua da Ana")
+        void participanteAtivo_enviaSemTransferir() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
+
+            ApoioRls.entrarComo(idSubgestor, PapelUsuario.SUBGESTOR);
+            participacao.entrar(atendimentoId);
+            var resultado = enviar.executar(leadDaAna, "Michele na conversa");
+
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.mensagem().remetente().tipo()).isEqualTo(RemetenteTipo.ATENDENTE);
+            assertThat(resultado.mensagem().remetente().id()).isEqualTo(idSubgestor);
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+            assertThat(tiposDaTimeline(leadDaAna))
+                    .contains("MENSAGEM_ENVIADA")
+                    .doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
+            assertThat(jdbc.queryForObject(
+                            "SELECT dados->>'participante' FROM evento_timeline"
+                                    + " WHERE lead_id = ? AND tipo = 'MENSAGEM_ENVIADA'"
+                                    + " ORDER BY criado_em DESC LIMIT 1",
+                            String.class,
+                            leadDaAna))
+                    .isEqualTo("true");
+            assertThat(contarAuditoria(leadDaAna, "MENSAGEM_ENVIADA_POR_PARTICIPANTE")).isEqualTo(1);
+            assertThat(contarAuditoria(leadDaAna, "ENVIO_COM_TRANSFERENCIA_DE_LEAD")).isZero();
+        }
+
+        @Test
+        @DisplayName("participante fala em EM_IA: tira da IA e nao herda o lead")
+        void participanteFalaEmAtendimentoEmIa_tiraDaIaSemHerdar() {
+            var aberto = comoServico(() -> registrarRecebida.executar(entrada(leadSemDono)));
+            UUID atendimentoId = aberto.atendimento().id();
+            assertThat(aberto.atendimento().status()).isEqualTo(StatusAtendimento.EM_IA);
+
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            participacao.entrar(atendimentoId);
+            var resultado = enviar.executar(leadSemDono, "humano na conversa da IA");
+
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.mensagem().remetente().id()).isEqualTo(idGestor);
+            assertThat(donoDoLead(leadSemDono)).isNull();
+            assertThat(statusDoLead(leadSemDono)).isEqualTo("EM_ATENDIMENTO");
+            assertThat(resultado.atendimento().status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
+            assertThat(jdbc.queryForObject(
+                            "SELECT atendente_id IS NULL FROM atendimento WHERE id = ?",
+                            Boolean.class,
+                            atendimentoId))
+                    .isTrue();
+        }
+
+        @Test
+        @DisplayName("atendente convidado fala sem tomar o lead do colega")
+        void atendenteParticipante_enviaSemTransferir() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
+            ApoioRls.sair();
+            jdbc.update(
+                    "INSERT INTO atendimento_participante (atendimento_id, usuario_id) VALUES (?, ?)",
+                    atendimentoId,
+                    idBruno);
+
+            ApoioRls.entrarComo(idBruno, PapelUsuario.ATENDENTE);
+            var resultado = enviar.executar(leadDaAna, "Bruno ajudando");
+
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.mensagem().remetente().id()).isEqualTo(idBruno);
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+        }
+
+        @Test
+        @DisplayName("participar de outro atendimento nao libera o lead do colega")
+        void participanteDeOutroAtendimento_naoAlcancaLeadAlheio() {
+            UUID leadDoGestor = criarLead("Cliente do Gestor", idGestor, "EM_ATENDIMENTO");
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            UUID atendimentoDoGestor = enviar.executar(leadDoGestor, CONTEUDO).atendimento().id();
+            ApoioRls.sair();
+            jdbc.update(
+                    "INSERT INTO atendimento_participante (atendimento_id, usuario_id) VALUES (?, ?)",
+                    atendimentoDoGestor,
+                    idBruno);
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, CONTEUDO);
+
+            ApoioRls.entrarComo(idBruno, PapelUsuario.ATENDENTE);
+            assertThatThrownBy(() -> enviar.executar(leadDaAna, CONTEUDO))
+                    .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class);
+
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(contador(leadDaAna, "num_mensagens")).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("quem saiu da conversa volta a assumir ao enviar")
+        void participanteQueSaiu_voltaATransferir() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
+
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            participacao.entrar(atendimentoId);
+            participacao.sair(atendimentoId);
+            var resultado = enviar.executar(leadDaAna, "assumo daqui");
+
+            assertThat(resultado.transferiuOLead()).isTrue();
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idGestor);
+            assertThat(tiposDaTimeline(leadDaAna)).contains("LEAD_TRANSFERIDO_POR_ENVIO");
+        }
+    }
+
+    @Nested
     @DisplayName("transferencia e finalizacao")
     class Ciclo {
 
@@ -435,6 +559,11 @@ class AtendimentoIT extends PostgresIT {
     private UUID donoDoLead(UUID leadId) {
         return jdbc.queryForObject(
                 "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId);
+    }
+
+    private UUID atendenteDoAtendimento(UUID atendimentoId) {
+        return jdbc.queryForObject(
+                "SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId);
     }
 
     private String statusDoLead(UUID leadId) {

@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -9,12 +10,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
@@ -29,23 +32,27 @@ import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoReferencia;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Alguem da equipe mandou uma mensagem ou template manual — e por isso o lead passa a ser dele
- * (RN-CRM-06).
+ * Alguem da equipe mandou uma mensagem ou template manual. Se essa pessoa ainda nao esta na
+ * conversa, o lead passa a ser dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o
+ * dono continua o dono — mas qualquer fala humana tira a conversa de {@code EM_IA}, senão a
+ * automacao responde por cima.
  *
  * <p>A transferencia e a contrapartida do isolamento de agenda: a RN-CRM-01 impede pegar o lead do
- * colega, e esta regra garante que quem trabalhou fica com ele. Como os atendentes trabalham por
- * comissao, as duas juntas sao politica comercial da casa do cliente, nao preferencia tecnica.
+ * colega, e esta regra garante que quem falou sem ter entrado nao some deixando a conversa orfa.
+ * Participar e o mecanismo que a operacao pediu para ajudar sem herdar a comissao — entrar sozinho
+ * nao transfere; enviar sendo participante tampouco. Quem nao entrou continua assumindo ao falar.
  *
  * <p><b>Quem o remetente alcanca continua sendo decidido pela RN-CRM-01.</b> A transferencia acontece
  * dentro do recorte de visibilidade, nao por cima dele: um atendente manda mensagem no proprio lead
  * (transferencia sem efeito) ou num lead sem dono do grupo "Potenciais" (e o lead passa a ser dele).
  * Um lead que ja e de um colega nao e alcancavel — o {@code UPDATE} nao encontra a linha e o caso de
  * uso responde como se nao existisse. Quem enxerga a base inteira (gestor) alcanca qualquer lead, e
- * para esse a regra transfere de fato.
+ * para esse a regra transfere de fato — a menos que ele ja tenha entrado como participante.
  */
 @Service
 public class EnviarMensagemUseCase {
@@ -61,6 +68,7 @@ public class EnviarMensagemUseCase {
     private final OrigemDeMensagemRepositorio origens;
     private final MensagemIdExternoRepositorio idsExternos;
     private final MensagemReferenciaRepositorio referencias;
+    private final ParticipacaoAtendimentoRepositorio participacoes;
 
     public EnviarMensagemUseCase(
             AtendimentoRepositorio atendimentos,
@@ -73,7 +81,8 @@ public class EnviarMensagemUseCase {
             Clock relogio,
             OrigemDeMensagemRepositorio origens,
             MensagemIdExternoRepositorio idsExternos,
-            MensagemReferenciaRepositorio referencias) {
+            MensagemReferenciaRepositorio referencias,
+            ParticipacaoAtendimentoRepositorio participacoes) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
@@ -87,6 +96,7 @@ public class EnviarMensagemUseCase {
         this.origens = origens;
         this.idsExternos = idsExternos;
         this.referencias = referencias;
+        this.participacoes = participacoes;
     }
 
     /**
@@ -161,27 +171,52 @@ public class EnviarMensagemUseCase {
             throw new ForaDaJanelaException(leadId);
         }
 
-        // RN-CRM-06: se o lead nao e alcancavel por quem esta enviando, nada mais
-        // acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o
-        // remetente nao pode tocar.
-        LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, remetenteId);
-        if (!transferencia.aconteceu()) {
+        // Trava o lead visivel antes de olhar a conversa. Sem o FOR UPDATE, o envio lia o
+        // atendimento aberto e so depois tentava a posse — uma finalizacao concorrente
+        // encerrava a linha e o envio tentava transferir atendimento ja morto (409).
+        // bloquearParaAtendimento e a RN-CRM-01 com trava: a mesma RLS de alcancavel, com
+        // o lock que serializa com finalizar/transferir.
+        if (!leads.bloquearParaAtendimento(leadId)) {
             throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
         }
-        boolean trocouDeDono = transferencia
-                .donoAnterior()
-                .map(anterior -> !anterior.equals(remetenteId))
-                .orElse(true);
 
-        Atendimento aberto = atendimentos
-                .abertoDoLead(leadId)
-                .orElseGet(() -> atendimentos.salvar(
-                        Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora)));
+        Atendimento aberto = atendimentos.abertoDoLead(leadId).orElse(null);
+        boolean participanteAtivo =
+                aberto != null && participacoes.eParticipanteAtivo(aberto.id(), remetenteId);
 
-        // O atendimento acompanha o lead: deixar a conversa com a IA depois de um humano
-        // responder faria a automacao continuar falando por cima do atendente.
-        if (!aberto.pertenceA(remetenteId)) {
-            aberto = atendimentos.salvar(aberto.transferirPara(remetenteId));
+        Optional<UUID> donoAnterior;
+        boolean trocouDeDono;
+        if (participanteAtivo) {
+            donoAnterior = Optional.ofNullable(aberto.atendenteId());
+            trocouDeDono = false;
+            // Posse e IA sao coisas diferentes: participante nao herda o lead, mas qualquer
+            // humano que fala tira a conversa da IA. Sem isso o ramo de cima deixava EM_IA
+            // intacto e a automacao respondia por cima de quem acabou de entrar.
+            if (aberto.status() == StatusAtendimento.EM_IA) {
+                aberto = atendimentos.salvar(aberto.retirarDaIa());
+                leads.marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
+            }
+        } else {
+            // RN-CRM-06: se o lead nao e alcancavel por quem esta enviando, nada mais
+            // acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o
+            // remetente nao pode tocar.
+            LeadNoCaminhoDeMensagem.Transferencia transferencia =
+                    leads.transferirPara(leadId, remetenteId);
+            if (!transferencia.aconteceu()) {
+                throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
+            }
+            donoAnterior = transferencia.donoAnterior();
+            trocouDeDono = donoAnterior.map(anterior -> !anterior.equals(remetenteId)).orElse(true);
+
+            if (aberto == null) {
+                aberto = atendimentos.salvar(
+                        Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora));
+            }
+            // O atendimento acompanha o lead: deixar a conversa com a IA depois de um humano
+            // responder faria a automacao continuar falando por cima do atendente.
+            if (!aberto.pertenceA(remetenteId)) {
+                aberto = atendimentos.salvar(aberto.transferirPara(remetenteId));
+            }
         }
 
         // PENDENTE, nao ENVIADO: nenhum provedor viu esta mensagem ainda. Gravar ENVIADO
@@ -241,8 +276,9 @@ public class EnviarMensagemUseCase {
                 aberto.id(),
                 gravada.id(),
                 remetenteId,
-                transferencia.donoAnterior(),
+                donoAnterior,
                 trocouDeDono,
+                participanteAtivo,
                 agora));
 
         // Evento a parte, so para a tela: o WebSocket (E06) entrega isto sem

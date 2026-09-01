@@ -25,7 +25,7 @@ class RelayDeTempoRealListenerTest {
         UUID atendimento = UUID.randomUUID(); UUID lead = UUID.randomUUID(); UUID antigo = UUID.randomUUID(); UUID novo = UUID.randomUUID();
         listener.aoEnviarComTransferencia(new EventoDeAtendimento.MensagemEnviada(
                 lead, "Lead de teste", atendimento, UUID.randomUUID(), novo, Optional.of(antigo), true,
-                Instant.parse("2026-08-24T12:00:00Z")));
+                false, Instant.parse("2026-08-24T12:00:00Z")));
 
         ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
         verify(redis).convertAndSend(eq(CanaisRedis.doAtendimento(atendimento)), payload.capture());

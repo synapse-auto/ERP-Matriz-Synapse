@@ -120,7 +120,7 @@
 | RN-CRM-03 | ✅ | Autorização em `GestaoDeTagsUseCases` | `TagsEEtapasIT` (atendente recebe 403 em criar/editar/excluir tag) |
 | RN-CRM-04 | ✅ | Filtro por `atendente_id` em `MensagemRapidaController` (`?minhas=true`) | `MensagensRapidasIT::gestor` (prova que `minhas=true` restringe mesmo o gestor vendo tudo por padrão) |
 | RN-CRM-05 | ✅ (fora do escopo de backend) | Frontend — mesma evidência de RF-CRM-06 | Nenhum teste de backend |
-| RN-CRM-06 | ✅ | `EnviarMensagemUseCase` (atualiza `atendimento.atendente_id` ao enviar) | `AtendimentoTest` (unitário), `AtendimentoAcoesControllerIT` |
+| RN-CRM-06 | ✅ | `EnviarMensagemUseCase` transfere `lead.atendente_responsavel_id` e `atendimento.atendente_id` ao enviar, **exceto** participante ativo (`atendimento_participante.saiu_em IS NULL`). Posse e IA são coisas diferentes: participante não herda o lead, mas qualquer fala humana em `EM_IA` promove o atendimento a `EM_ATENDIMENTO` | `AtendimentoIT.EnvioTransfereLead` (não-participante), `AtendimentoIT.ParticipanteFalaSemAssumir` (inclui `participanteFalaEmAtendimentoEmIa_tiraDaIaSemHerdar`), `EnviarMensagemUseCaseTest` |
 | RN-CRM-07 | ✅ | `configuracao_automacao` + `/internal/v1/automation-config` | `ContratoAutomacaoIT` |
 
 ## Requisitos Internos (Base PAI / Synapse)
