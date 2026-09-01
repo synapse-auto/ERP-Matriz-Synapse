@@ -54,6 +54,7 @@ pela operação.
 | Correção de templates | RFC 7807 para falhas de templates | PR #22: `bc89ba6` |
 | E89–E91 | prompts preservados, mas sem merge identificado com esse rótulo no histórico de `main` | não confirmado como etapas independentes; verificar os commits/PRs que absorveram cada ajuste |
 | E93 | documentação e regras de migration | PR #29: `ed02ac3` |
+| E124 | pausa do gatilho de avaliação no caminho do atendente | branch `codex/e124-remover-avaliacao` |
 
 Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
 prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens
@@ -67,9 +68,10 @@ Confirmado pela árvore de `origin/main`:
 - **Templates da Meta:** administração em `/api/v1/whatsapp/templates`, listagem/criação
   pelo WABA ID configurado, tratamento de indisponibilidade em RFC 7807 e catálogo de
   variáveis posicionais. Isso não é uma rota do contrato interno do n8n.
-- **Avaliação de atendimento:** registro de CSAT da Automação após finalização elegível,
+- **Avaliação de atendimento:** registro de CSAT continua disponível para a Automação,
   com intenção durável/outbox, reserva e idempotência; o contrato de gravação é
-  `POST /internal/v1/atendimentos/{id}/avaliacao`.
+  `POST /internal/v1/atendimentos/{id}/avaliacao`. Desde a E124, finalizar um atendimento
+  não cria automaticamente uma solicitação: o n8n deve disparar o fluxo de forma explícita.
 - **Reações:** reações de mensagens do atendimento e do chat interno, com persistência,
   autorização por participação/visibilidade e publicação em tempo real.
 - **Responder e encaminhar:** citação persistida, `wamid` para `context.message_id` da

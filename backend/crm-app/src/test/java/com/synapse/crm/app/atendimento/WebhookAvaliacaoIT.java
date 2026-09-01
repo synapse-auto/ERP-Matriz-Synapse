@@ -10,7 +10,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -24,7 +26,6 @@ import java.util.function.Supplier;
 
 import javax.sql.DataSource;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -101,6 +102,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     @Autowired CanalFake canal;
     @Autowired RegistrarMensagemRecebidaUseCase registrar;
     @Autowired ProcessadorDeWebhookEntrada processador;
+    @Autowired SolicitacaoDeAvaliacao solicitacao;
     @Autowired CircuitBreakerRegistry circuitos;
     @Autowired @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager manager;
     @Autowired @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDs;
@@ -156,31 +158,16 @@ class WebhookAvaliacaoIT extends PostgresIT {
     @AfterAll static void parar() { SERVIDOR.fechar(); }
 
     @Test
-    void postIndividualDoGestor_capturaResponsavelContratoExatoEColetaInterna() throws Exception {
+    void postIndividualDoGestor_naoSolicitaAvaliacaoMasColetaRespostaInterna() throws Exception {
         UUID id = criar(ana, "5561988881101");
         assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
         assertThat(SERVIDOR.recebidas).isEmpty();
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(dono(id)).isEqualTo(ana);
         publicador.publicarPendentes();
         aguardarWorkers();
-        assertThat(SERVIDOR.recebidas).hasSize(1);
-        Recebida recebida = SERVIDOR.recebidas.getFirst();
-        JsonNode corpo = json.readTree(recebida.corpo());
-        assertThat(corpo.size()).isEqualTo(6);
-        assertThat(corpo.path("modo").asText()).isEqualTo("INICIAR_AVALIACAO");
-        assertThat(corpo.path("status_finalizacao").asText()).isEqualTo("FINALIZADO");
-        assertThat(corpo.path("atendimento_id").asText()).isEqualTo(id.toString());
-        assertThat(corpo.path("lead_id").asText()).isEqualTo(leads.getFirst().toString());
-        assertThat(corpo.path("atendente_id").asText()).isEqualTo(ana.toString());
-        assertThat(corpo.path("wa_id").asText()).isEqualTo("5561988881101");
-        assertThat(recebida.header()).isEqualTo("avaliacao-saida-fixture");
-        assertThat(recebida.tipo()).isEqualTo("application/json");
-        assertThat(recebida.metodo()).isEqualTo("POST");
-        assertThat(recebida.assinaturaMeta()).isNull();
-        assertThat(linha(id).get("publicado_em")).isNotNull();
-        assertThat(linha(id).get("payload").toString()).doesNotContain("fixture", "auth", "http");
+        assertThat(SERVIDOR.recebidas).isEmpty();
 
         assertThat(avaliar(id, null, 5).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(avaliar(id, "errado", 5).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -192,7 +179,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM avaliacao WHERE atendimento_id = ?", UUID.class, id))
                 .isEqualTo(ana);
         assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
     }
 
     @ParameterizedTest @ValueSource(ints = {1, 3})
@@ -237,6 +224,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void configuracaoAusente_naoEnfileiraENaoRetomaPendenciasComoEntregues() {
         UUID pendente = criar(ana, "5561988881401");
         finalizar(pendente, tokenAna);
+        prepararAvaliacao(pendente);
         doReturn(false).when(config).configurada();
         UUID novo = criar(ana, "5561988881402");
         assertThat(finalizar(novo, tokenAna).getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -270,15 +258,16 @@ class WebhookAvaliacaoIT extends PostgresIT {
     }
 
     @Test
-    void erroDepoisDeGravarIntencao_fazRollbackDaFinalizacaoEDaOutbox() {
+    void finalizacaoNaoDependeMaisDaIntencaoDeAvaliacao() {
         UUID id = criar(ana, "5561988881601");
         doAnswer(inv -> { inv.callRealMethod(); throw new DataIntegrityViolationException("falha local fixture"); })
                 .when(outbox).enfileirar(eq(id), any(), any(), anyString(), any());
-        assertThat(finalizar(id, tokenAna).getStatusCode().is5xxServerError()).isTrue();
-        assertThat(status(id)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(finalizar(id, tokenAna).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(total(id)).isZero();
         assertThat(jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, leads.getFirst()))
-                .isEqualTo("EM_ATENDIMENTO");
+                .isEqualTo("FINALIZADO");
+        verify(outbox, never()).enfileirar(eq(id), any(), any(), anyString(), any());
         publicador.publicarPendentes();
         aguardarWorkers();
         assertThat(SERVIDOR.recebidas).isEmpty();
@@ -300,7 +289,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
             assertThat(List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS)))
                     .containsExactlyInAnyOrder(200, 409);
         }
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
         assertThat(dono(id)).isEqualTo(ana);
     }
 
@@ -308,6 +297,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void leaseConcorrente_expiraRecuperaERecusaResultadosAntigos() throws Exception {
         UUID id = criar(ana, "5561988881801");
         finalizar(id, tokenAna);
+        prepararAvaliacao(id);
         var inicio = new CountDownLatch(1);
         List<OutboxDeAvaliacao.Reserva> reservas;
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -333,6 +323,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void recuperavel_respeitaBackoffEsgotaSemApagarNemMarcarPublicado(int statusHttp) {
         UUID id = criar(ana, "5561988881901");
         finalizar(id, tokenAna);
+        prepararAvaliacao(id);
         SERVIDOR.status = statusHttp;
         for (int tentativa = 1; tentativa <= 3; tentativa++) {
             publicador.publicarPendentes();
@@ -354,6 +345,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void permanente_umaTentativaSemSeguirRedirectOuVazarResposta(int statusHttp) {
         UUID id = criar(ana, "5561988882001");
         finalizar(id, tokenAna);
+        prepararAvaliacao(id);
         SERVIDOR.status = statusHttp;
         publicador.publicarPendentes();
         aguardarWorkers();
@@ -373,6 +365,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         UUID id = criar(ana, "5561988882101");
         SERVIDOR.bloquear();
         assertThat(finalizar(id, tokenAna).getStatusCode()).isEqualTo(HttpStatus.OK);
+        prepararAvaliacao(id);
         assertThat(SERVIDOR.recebidas).isEmpty();
         publicador.publicarPendentes(); // ponto @Scheduled real, nao operacao interna
         assertThat(SERVIDOR.entrou.await(5, TimeUnit.SECONDS)).isTrue();
@@ -408,6 +401,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void morteEmTodaReserva_temLimiteEPendenciaInspecionavel() {
         UUID id = criar(ana, "5561988882201");
         finalizar(id, tokenAna);
+        prepararAvaliacao(id);
         for (int i = 0; i < 3; i++) {
             assertThat(reservar()).hasSize(1);
             relogio.avancar(Duration.ofSeconds(11));
@@ -498,10 +492,9 @@ class WebhookAvaliacaoIT extends PostgresIT {
         UUID esperado = transferenciaPrimeiro ? bruno : ana;
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(dono(id)).isEqualTo(esperado);
-        assertThat(json.readTree(linha(id).get("payload").toString()).path("atendente_id").asText())
-                .isEqualTo(esperado.toString());
         assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leads.getFirst()))
                 .isEqualTo(esperado);
+        assertThat(total(id)).isZero();
     }
 
     @Test
@@ -526,10 +519,9 @@ class WebhookAvaliacaoIT extends PostgresIT {
         } finally { liberar.countDown(); }
         assertThat(dono(id)).isEqualTo(ana);
         assertThat(status(id)).isEqualTo("FINALIZADO");
-        assertThat(json.readTree(linha(id).get("payload").toString()).path("atendente_id").asText()).isEqualTo(ana.toString());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM atendimento WHERE lead_id = ? AND status <> 'FINALIZADO'",
                 Integer.class, leads.getFirst())).isEqualTo(1);
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
     }
 
     void esperarDisputaNoBanco() {
@@ -539,9 +531,10 @@ class WebhookAvaliacaoIT extends PostgresIT {
     }
 
     @Test
-    void chaveDuravelNaoReescreveSnapshot_eNovoAtendimentoDoMesmoLeadPodeGerarPesquisa() {
+    void chaveDuravelNaoReescreveSnapshot_eSolicitacoesExplicitasUsamAtendimentosDistintos() {
         UUID primeiro = criar(ana, "5561988882801");
         finalizar(primeiro, tokenGestor);
+        prepararAvaliacao(primeiro);
         UUID lead = leads.getFirst();
         Object original = linha(primeiro).get("payload");
         servico(() -> {
@@ -554,6 +547,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         jdbc.update("INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'EM_ATENDIMENTO')",
                 segundo, lead, bruno);
         assertThat(finalizar(segundo, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+        prepararAvaliacao(segundo);
         assertThat(total(segundo)).isEqualTo(1);
         assertThat(linha(segundo).get("id")).isNotEqualTo(linha(primeiro).get("id"));
     }
@@ -562,6 +556,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void circuitoDaAvaliacaoAberto_ePayloadCorrompido_naoEnviamHttp() {
         UUID id = criar(ana, "5561988882901");
         finalizar(id, tokenAna);
+        prepararAvaliacao(id);
         circuitos.circuitBreaker("automacao-avaliacao").transitionToOpenState();
         publicador.publicarPendentes();
         aguardarWorkers();
@@ -618,7 +613,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(dono(id)).isEqualTo(ana);
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
         assertThat(contador(lead, "num_mensagens")).isEqualTo(mensagensAntes + 1);
         assertThat(jdbc.queryForObject(
                         "SELECT processado_em IS NOT NULL FROM webhook_entrada WHERE id_externo = ?",
@@ -630,7 +625,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
                 .isZero();
         publicador.publicarPendentes();
         aguardarWorkers();
-        assertThat(SERVIDOR.recebidas).hasSize(1);
+        assertThat(SERVIDOR.recebidas).isEmpty();
     }
 
     @Test
@@ -639,14 +634,12 @@ class WebhookAvaliacaoIT extends PostgresIT {
         UUID id = criar(ana, telefone);
         UUID lead = leads.getLast();
         assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
-        Object snapshot = linha(id).get("payload");
         String wamid = PREFIXO + "rx-depois-" + id;
         postarWebhookRecebido(wamid, telefone, "nova conversa apos encerramento");
         processador.processarPendentes();
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(dono(id)).isEqualTo(ana);
-        assertThat(linha(id).get("payload").toString()).isEqualTo(snapshot.toString());
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM atendimento WHERE lead_id = ? AND status <> 'FINALIZADO'",
                         Integer.class,
@@ -700,7 +693,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
                     assertThat(registro.getBody()).contains("\"idempotente\":false");
                 });
         assertThat(status(id)).isEqualTo("FINALIZADO");
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
         assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
         var repeticao = postInterno("/internal/v1/atendimentos/" + id + "/mensagens-enviadas", null,
                 Map.of("wamid", wamid, "tipo", "TEXTO", "conteudo", "ja enviada pela IA"));
@@ -799,7 +792,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
                 });
         assertThat(quantidadeDeMensagens(id)).isEqualTo(1);
         assertThat(status(id)).isEqualTo("FINALIZADO");
-        assertThat(total(id)).isEqualTo(1);
+        assertThat(total(id)).isZero();
     }
 
     <M, A> void executarDisputaDeterministica(
@@ -874,6 +867,13 @@ class WebhookAvaliacaoIT extends PostgresIT {
 
     List<OutboxDeAvaliacao.Reserva> reservar() {
         return servico(() -> outbox.reservar(1, 3, relogio.instant(), relogio.instant().plusSeconds(10)));
+    }
+    void prepararAvaliacao(UUID atendimentoId) {
+        var finalizado = servico(() -> atendimentos.porId(atendimentoId).orElseThrow());
+        servico(() -> {
+            solicitacao.preparar(finalizado);
+            return null;
+        });
     }
     <T> T servico(Supplier<T> acao) {
         return ContextoDeServico.buscarComo("teste-avaliacao",
