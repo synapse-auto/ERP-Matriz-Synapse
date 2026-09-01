@@ -241,11 +241,13 @@ class AvaliacaoAtendimentoIT extends PostgresIT {
     private UUID criarLead(String nome, UUID dono, Instant ultimaInteracao) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico, ultima_interacao_em)"
-                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead, ?)",
+                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico, ultima_interacao_em,"
+                        + " ultima_mensagem_do_lead_em)"
+                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead, ?, ?)",
                 id,
                 PREFIXO + nome,
                 dono,
+                Timestamp.from(ultimaInteracao),
                 Timestamp.from(ultimaInteracao));
         return id;
     }

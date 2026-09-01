@@ -98,11 +98,11 @@ public class IniciarNovoContatoUseCase {
         UUID quemPediu = usuarioContext.atual().id();
 
         Optional<UUID> existente = leads.visivelPorTelefone(telefone);
-        Optional<Instant> ultimaInteracao = existente
+        Optional<Instant> ultimaMensagemDoLead = existente
                 .flatMap(leads::contatoParaEnvio)
-                .flatMap(LeadNoCaminhoDeMensagem.ContatoParaEnvio::ultimaInteracao);
+                .flatMap(LeadNoCaminhoDeMensagem.ContatoParaEnvio::ultimaMensagemDoLead);
 
-        if (temLivre && !canal.aceitaTextoLivre(ultimaInteracao, agora)) {
+        if (temLivre && !canal.aceitaTextoLivre(ultimaMensagemDoLead, agora)) {
             throw existente
                     .map(ForaDaJanelaException::new)
                     .orElseGet(ForaDaJanelaException::new);

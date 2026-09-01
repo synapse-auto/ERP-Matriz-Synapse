@@ -301,11 +301,12 @@ class ContratosInternosAutomacaoIT extends PostgresIT {
     private UUID criarAtendimento(String marcador, String status, UUID responsavel, Instant inicio) {
         UUID lead = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO lead (id,nome,atendente_responsavel_id,status_basico,ultima_interacao_em) VALUES (?,?,?,?::status_basico_lead,?)",
+                "INSERT INTO lead (id,nome,atendente_responsavel_id,status_basico,ultima_interacao_em,ultima_mensagem_do_lead_em) VALUES (?,?,?,?::status_basico_lead,?,?)",
                 lead,
                 PREFIXO + marcador,
                 responsavel,
                 responsavel == null ? "IA" : status,
+                Timestamp.from(inicio),
                 Timestamp.from(inicio));
         UUID atendimento = UUID.randomUUID();
         jdbc.update(

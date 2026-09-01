@@ -166,7 +166,7 @@ public class EnviarMensagemUseCase {
         // entender que precisava de um template. Quem responde e o adaptador do provedor
         // ativo: um filho com provedor nao oficial responde sempre sim.
         if (conteudo instanceof ConteudoDeEnvio.MensagemLivre
-                && !canal.aceitaTextoLivre(contato.ultimaInteracao(), agora)) {
+                && !canal.aceitaTextoLivre(contato.ultimaMensagemDoLead(), agora)) {
             throw new ForaDaJanelaException(leadId);
         }
 

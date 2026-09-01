@@ -123,7 +123,8 @@ class TempoRealIT extends PostgresIT {
         leadDaAna = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico,"
-                        + " ultima_interacao_em) VALUES (?, ?, ?, 'EM_ATENDIMENTO', now())",
+                        + " ultima_interacao_em, ultima_mensagem_do_lead_em)"
+                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO', now(), now())",
                 leadDaAna,
                 PREFIXO + "Cliente da Ana",
                 idAna);

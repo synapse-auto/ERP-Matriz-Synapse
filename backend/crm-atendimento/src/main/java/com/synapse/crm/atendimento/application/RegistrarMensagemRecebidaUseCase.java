@@ -100,6 +100,8 @@ public class RegistrarMensagemRecebidaUseCase {
         // ultima_interacao_em ficava nula, o filtro semRetornoDias media "criado ha N
         // dias" e mandava lead ativo para campanha de reativacao.
         leads.registrarInteracao(entrada.leadId(), agora, abriu ? 1 : 0, 1);
+        // E121: so mensagem do cliente renova a janela de 24h. Saida nao chama isto.
+        leads.registrarMensagemDoLead(entrada.leadId(), agora);
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemRecebida(
                 entrada.leadId(), aberto.id(), gravada.id(), abriu, agora));

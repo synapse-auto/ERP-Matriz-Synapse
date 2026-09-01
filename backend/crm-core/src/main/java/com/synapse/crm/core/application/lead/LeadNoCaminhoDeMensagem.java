@@ -37,8 +37,18 @@ public interface LeadNoCaminhoDeMensagem {
      *
      * <p>Os contadores sao somados de forma relativa ({@code num_mensagens + ?}), nunca com valor
      * calculado em memoria: duas mensagens concorrentes somam duas, e nao uma.
+     *
+     * <p><b>Nao</b> avanca {@code ultima_mensagem_do_lead_em}. Esse campo e so mensagem do cliente
+     * (E121) e alimenta a janela de 24h; {@code ultima_interacao_em} continua contando movimento de
+     * qualquer lado para a Agenda.
      */
     void registrarInteracao(UUID leadId, Instant quando, int atendimentosASomar, int mensagensASomar);
+
+    /**
+     * Marca o instante da ultima mensagem do cliente. So {@code RegistrarMensagemRecebidaUseCase}
+     * chama — saida de atendente/IA nao estende a janela de 24h da Meta.
+     */
+    void registrarMensagemDoLead(UUID leadId, Instant quando);
 
     /**
      * RN-CRM-06: o lead passa a ser de quem mandou a mensagem.
@@ -97,11 +107,12 @@ public interface LeadNoCaminhoDeMensagem {
 
     /**
      * @param telefone destino no canal; sem ele nao ha para onde enviar
-     * @param ultimaInteracao base da janela de 24h da Meta. Vazio quando o lead nunca interagiu, o
-     *     que para a janela equivale a fechada. Quem decide se a janela esta aberta e o adaptador de
-     *     canal — aqui so se le o instante.
+     * @param ultimaMensagemDoLead base da janela de 24h da Meta ({@code lead.ultima_mensagem_do_lead_em}).
+     *     Vazio quando o lead nunca escreveu — janela fechada. Nao e {@code ultima_interacao_em}:
+     *     aquele avanca tambem em saida e serve ao filtro {@code semRetornoDias}. Quem decide se a
+     *     janela esta aberta e o adaptador de canal — aqui so se le o instante.
      */
-    record ContatoParaEnvio(String telefone, Optional<Instant> ultimaInteracao) {}
+    record ContatoParaEnvio(String telefone, Optional<Instant> ultimaMensagemDoLead) {}
 
     /**
      * Resultado de uma transferencia.

@@ -69,7 +69,7 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
         Instant agora = Instant.now(relogio);
         ConteudoDeEnvio.MensagemLivre envio = new ConteudoDeEnvio.MensagemLivre(conteudo.trim());
-        if (!canal.aceitaTextoLivre(contato.ultimaInteracao(), agora)) {
+        if (!canal.aceitaTextoLivre(contato.ultimaMensagemDoLead(), agora)) {
             throw new ForaDaJanelaException(atendimento.leadId());
         }
 

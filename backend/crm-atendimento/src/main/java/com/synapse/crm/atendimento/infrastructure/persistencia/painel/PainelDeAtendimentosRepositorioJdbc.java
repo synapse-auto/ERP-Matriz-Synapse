@@ -62,7 +62,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ultima.conteudo AS ultima_mensagem_preview,
             ultima.remetente_tipo AS ultima_mensagem_remetente_tipo,
             ultima.enviado_em AS ultima_mensagem_em,
-            ultima_lead.enviado_em AS ultima_mensagem_do_lead_em,
+            -- E121: mesma fonte do envio (lead.ultima_mensagem_do_lead_em). A LATERAL da E114
+            -- saiu de proposito — duas definicoes de "janela aberta" divergem com o tempo.
+            l.ultima_mensagem_do_lead_em AS ultima_mensagem_do_lead_em,
             (
                 SELECT COALESCE(SUM((
                     SELECT count(*) FROM mensagem nao_lida
@@ -93,20 +95,6 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 SELECT conteudo, remetente_tipo, enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
             ) ultima ON true
-            -- E114: a janela de 24h e do LEAD, nao do atendimento. Recorta por a.lead_id
-            -- (percorrendo os atendimentos do lead, como nao_lidas ja faz), e nao por
-            -- a.id — senao um atendimento novo, sem mensagem do cliente ainda, devolveria
-            -- nulo e a tela mandaria template mesmo com o cliente tendo escrito ha minutos
-            -- num atendimento finalizado. Fonte deliberadamente a mensagem do cliente, e
-            -- nao lead.ultima_interacao_em: esse campo tambem avanca em envio de saida
-            -- (EnviarMensagem/ResponderAutomacao chamam registrarInteracao), entao usa-lo
-            -- fingiria janela aberta so porque um template saiu.
-            LEFT JOIN LATERAL (
-                SELECT m2.enviado_em FROM mensagem m2
-                 JOIN atendimento atendimento_do_lead ON atendimento_do_lead.id = m2.atendimento_id
-                 WHERE atendimento_do_lead.lead_id = a.lead_id AND m2.remetente_tipo = 'LEAD'
-                 ORDER BY m2.enviado_em DESC LIMIT 1
-            ) ultima_lead ON true
             """;
 
     private static final String GRUPO_FINALIZADO =
