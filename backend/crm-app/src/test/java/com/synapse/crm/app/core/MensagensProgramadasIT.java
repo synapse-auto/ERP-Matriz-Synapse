@@ -70,7 +70,7 @@ class MensagensProgramadasIT extends PostgresIT {
         canal.limpar();
         UUID lead = UUID.randomUUID();
         UUID id = UUID.randomUUID();
-        jdbc.update("INSERT INTO lead(id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em) VALUES(?,?,?,?,'EM_ATENDIMENTO',now())", lead, "E60 agendada", "5561999888777", ana);
+        jdbc.update("INSERT INTO lead(id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em,ultima_mensagem_do_lead_em) VALUES(?,?,?,?,'EM_ATENDIMENTO',now(),now())", lead, "E60 agendada", "5561999888777", ana);
         jdbc.update("INSERT INTO mensagem_programada(id,lead_id,atendente_id,conteudo,data_envio) VALUES(?,?,?,?,?)", id, lead, ana, "Lembrete vencido", Timestamp.from(Instant.now().minusSeconds(30)));
 
         agendador.processarPendentes();

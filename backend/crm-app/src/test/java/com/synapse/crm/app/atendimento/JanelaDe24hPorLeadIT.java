@@ -268,5 +268,30 @@ class JanelaDe24hPorLeadIT extends PostgresIT {
                 remetenteId,
                 conteudo,
                 Timestamp.from(enviadoEm));
+        if ("LEAD".equals(remetenteTipo)) {
+            // E121: a tela e o envio leem lead.ultima_mensagem_do_lead_em — a LATERAL saiu.
+            jdbc.update(
+                    """
+                    UPDATE lead
+                       SET ultima_mensagem_do_lead_em =
+                           GREATEST(COALESCE(ultima_mensagem_do_lead_em, ?), ?)
+                     WHERE id = (SELECT lead_id FROM atendimento WHERE id = ?)
+                    """,
+                    Timestamp.from(enviadoEm),
+                    Timestamp.from(enviadoEm),
+                    atendimentoId);
+        }
+        if ("ATENDENTE".equals(remetenteTipo) || "IA".equals(remetenteTipo)) {
+            jdbc.update(
+                    """
+                    UPDATE lead
+                       SET ultima_interacao_em =
+                           GREATEST(COALESCE(ultima_interacao_em, ?), ?)
+                     WHERE id = (SELECT lead_id FROM atendimento WHERE id = ?)
+                    """,
+                    Timestamp.from(enviadoEm),
+                    Timestamp.from(enviadoEm),
+                    atendimentoId);
+        }
     }
 }

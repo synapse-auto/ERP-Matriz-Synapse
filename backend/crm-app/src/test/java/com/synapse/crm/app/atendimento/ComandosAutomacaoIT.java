@@ -192,7 +192,7 @@ class ComandosAutomacaoIT extends PostgresIT {
     private UUID criarAtendimento(String marcador, String status, UUID dono, boolean comCanal) {
         UUID lead = UUID.randomUUID();
         String telefone = "55619033" + String.format("%05d", Math.abs(marcador.hashCode()) % 100000);
-        jdbc.update("INSERT INTO lead (id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em) VALUES (?,?,?,?::uuid,?::status_basico_lead,now())", lead, PREFIXO + marcador, telefone, dono, dono == null ? "IA" : "EM_ATENDIMENTO");
+        jdbc.update("INSERT INTO lead (id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em,ultima_mensagem_do_lead_em) VALUES (?,?,?,?::uuid,?::status_basico_lead,now(),now())", lead, PREFIXO + marcador, telefone, dono, dono == null ? "IA" : "EM_ATENDIMENTO");
         UUID credencial = comCanal ? criarCredencial(marcador, telefone) : null;
         UUID atendimento = UUID.randomUUID();
         jdbc.update("INSERT INTO atendimento (id,lead_id,canal_credencial_id,atendente_id,status,iniciado_em) VALUES (?,?,?,?::uuid,?::status_atendimento,now())", atendimento, lead, credencial, dono, status);

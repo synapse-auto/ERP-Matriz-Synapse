@@ -220,8 +220,9 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
         UUID lead = UUID.randomUUID();
         String telefone = "55619037" + String.format("%06d", sequencia.incrementAndGet());
         jdbc.update(
-                "INSERT INTO lead (id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em) VALUES (?,?,?,?::uuid,?::status_basico_lead,?)",
-                lead, PREFIXO + marcador, telefone, dono, dono == null ? "IA" : "EM_ATENDIMENTO", Timestamp.from(iniciadoEm));
+                "INSERT INTO lead (id,nome,telefone,atendente_responsavel_id,status_basico,ultima_interacao_em,ultima_mensagem_do_lead_em) VALUES (?,?,?,?::uuid,?::status_basico_lead,?,?)",
+                lead, PREFIXO + marcador, telefone, dono, dono == null ? "IA" : "EM_ATENDIMENTO",
+                Timestamp.from(iniciadoEm), Timestamp.from(iniciadoEm));
         UUID atendimento = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO atendimento (id,lead_id,atendente_id,status,iniciado_em) VALUES (?,?,?,?::status_atendimento,?)",

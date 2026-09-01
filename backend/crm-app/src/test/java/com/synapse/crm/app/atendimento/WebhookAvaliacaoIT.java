@@ -890,10 +890,11 @@ class WebhookAvaliacaoIT extends PostgresIT {
         UUID atendimento = UUID.randomUUID();
         leads.add(lead);
         jdbc.update("""
-                INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico, ultima_interacao_em)
-                VALUES (?, ?, ?, ?, ?::status_basico_lead, ?)
+                INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico,
+                                  ultima_interacao_em, ultima_mensagem_do_lead_em)
+                VALUES (?, ?, ?, ?, ?::status_basico_lead, ?, ?)
                 """, lead, PREFIXO + lead, telefone, dono, dono == null ? "IA" : "EM_ATENDIMENTO",
-                Timestamp.from(relogio.instant()));
+                Timestamp.from(relogio.instant()), Timestamp.from(relogio.instant()));
         jdbc.update("""
                 INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)
                 VALUES (?, ?, ?, ?::status_atendimento, ?)

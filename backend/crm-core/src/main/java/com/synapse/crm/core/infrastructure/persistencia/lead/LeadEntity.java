@@ -114,6 +114,13 @@ class LeadEntity {
     @Column(name = "ultima_interacao_em")
     private Instant ultimaInteracaoEm;
 
+    /**
+     * Ultima mensagem com remetente LEAD. Base da janela de 24h da Meta (E121). Fora de
+     * {@link #paraDominio()}/{@link #aplicar(Lead)}: so o caminho critico escreve, e a Agenda nao le.
+     */
+    @Column(name = "ultima_mensagem_do_lead_em")
+    private Instant ultimaMensagemDoLeadEm;
+
     /** Mapeado via {@code FormatMapper} do Hibernate 6 (Jackson no classpath) — sem JSON manual aqui. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "dados_customizados", nullable = false)

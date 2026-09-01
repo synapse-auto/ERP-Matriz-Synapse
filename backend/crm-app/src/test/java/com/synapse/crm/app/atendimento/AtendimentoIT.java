@@ -157,6 +157,7 @@ class AtendimentoIT extends PostgresIT {
             assertThat(contador(leadDaAna, "num_atendimentos")).isEqualTo(1);
             assertThat(contador(leadDaAna, "num_mensagens")).isEqualTo(1);
             assertThat(ultimaInteracao(leadDaAna)).isNotNull().isAfter(antes);
+            assertThat(ultimaMensagemDoLead(leadDaAna)).isNotNull().isAfter(antes);
 
             // Segunda mensagem: soma mensagem, nao soma atendimento.
             comoServico(() -> registrarRecebida.executar(entrada(leadDaAna)));
@@ -530,15 +531,17 @@ class AtendimentoIT extends PostgresIT {
     }
 
     /**
-     * {@code ultima_interacao_em} preenchida de proposito: desde a E05, mandar texto livre exige a
-     * janela de 24h aberta. Esta suite testa a RN-CRM-06, nao a janela — e um lead que acabou de
-     * falar com a empresa e justamente o cenario em que o atendente responde.
+     * {@code ultima_mensagem_do_lead_em} (e ultima_interacao_em) preenchidas de proposito: desde a
+     * E05/E121, mandar texto livre exige a janela de 24h aberta pela mensagem do cliente. Esta suite
+     * testa a RN-CRM-06, nao a janela — e um lead que acabou de falar com a empresa e justamente o
+     * cenario em que o atendente responde.
      */
     private UUID criarLead(String nome, UUID dono, String status) {
         UUID id = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico,"
-                        + " ultima_interacao_em) VALUES (?, ?, ?, ?::status_basico_lead, now())",
+                        + " ultima_interacao_em, ultima_mensagem_do_lead_em)"
+                        + " VALUES (?, ?, ?, ?::status_basico_lead, now(), now())",
                 id,
                 PREFIXO + nome,
                 dono,
@@ -553,6 +556,12 @@ class AtendimentoIT extends PostgresIT {
     private Instant ultimaInteracao(UUID leadId) {
         Timestamp valor = jdbc.queryForObject(
                 "SELECT ultima_interacao_em FROM lead WHERE id = ?", Timestamp.class, leadId);
+        return valor == null ? null : valor.toInstant();
+    }
+
+    private Instant ultimaMensagemDoLead(UUID leadId) {
+        Timestamp valor = jdbc.queryForObject(
+                "SELECT ultima_mensagem_do_lead_em FROM lead WHERE id = ?", Timestamp.class, leadId);
         return valor == null ? null : valor.toInstant();
     }
 

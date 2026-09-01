@@ -247,12 +247,14 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     private UUID lead(String sufixo, UUID atendente, String status, Instant ultimaInteracao) {
         UUID id = UUID.randomUUID();
         jdbc.update(
-                "INSERT INTO lead(id,nome,status_basico,atendente_responsavel_id,ultima_interacao_em) "
-                        + "VALUES (?, ?, ?::status_basico_lead, ?, ?)",
+                "INSERT INTO lead(id,nome,status_basico,atendente_responsavel_id,ultima_interacao_em,"
+                        + "ultima_mensagem_do_lead_em) "
+                        + "VALUES (?, ?, ?::status_basico_lead, ?, ?, ?)",
                 id,
                 MARCADOR + sufixo,
                 status,
                 atendente,
+                timestamp(ultimaInteracao),
                 timestamp(ultimaInteracao));
         return id;
     }

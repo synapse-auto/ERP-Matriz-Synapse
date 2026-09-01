@@ -279,12 +279,14 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
         UUID mensagemId = UUID.randomUUID();
         Instant enviadoEm = Instant.parse("2026-08-29T15:00:00Z");
         jdbc.update(
-                "INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico, ultima_interacao_em)"
-                        + " VALUES (?, ?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead, ?)",
+                "INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico,"
+                        + " ultima_interacao_em, ultima_mensagem_do_lead_em)"
+                        + " VALUES (?, ?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead, ?, ?)",
                 leadId,
                 PREFIXO + nome + " " + leadId,
                 "5599" + String.format("%09d", Math.floorMod(leadId.getLeastSignificantBits(), 1_000_000_000L)),
                 dono,
+                Timestamp.from(Instant.now()),
                 Timestamp.from(Instant.now()));
         jdbc.update(
                 "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)"

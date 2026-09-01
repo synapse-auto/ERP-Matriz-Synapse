@@ -54,6 +54,18 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
              WHERE id = ?
             """;
 
+    /**
+     * So mensagem do cliente. {@code GREATEST} pelos mesmos motivos de {@link #SQL_INTERACAO}:
+     * reentrega fora de ordem nao pode empurrar a janela para o passado.
+     */
+    private static final String SQL_MENSAGEM_DO_LEAD =
+            """
+            UPDATE lead
+               SET ultima_mensagem_do_lead_em =
+                   GREATEST(COALESCE(ultima_mensagem_do_lead_em, ?), ?)
+             WHERE id = ?
+            """;
+
     // FOR UPDATE porque o dono lido aqui vira o "de quem para quem" da timeline e a
     // condicao da transferencia logo abaixo. Sem o lock, duas mensagens simultaneas no
     // mesmo lead registrariam dois donos anteriores diferentes para uma transferencia so.
@@ -74,7 +86,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     private static final String SQL_ALCANCAVEL = "SELECT 1 FROM lead WHERE id = ?";
 
     private static final String SQL_CONTATO =
-            "SELECT telefone, ultima_interacao_em FROM lead WHERE id = ?";
+            "SELECT telefone, ultima_mensagem_do_lead_em FROM lead WHERE id = ?";
 
     private static final String SQL_NOME = "SELECT nome FROM lead WHERE id = ?";
 
@@ -108,6 +120,13 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
         TransacaoObrigatoria.exigir("registrarInteracao");
         Timestamp instante = Timestamp.from(quando);
         chat.update(SQL_INTERACAO, atendimentosASomar, mensagensASomar, instante, instante, leadId);
+    }
+
+    @Override
+    public void registrarMensagemDoLead(UUID leadId, Instant quando) {
+        TransacaoObrigatoria.exigir("registrarMensagemDoLead");
+        Timestamp instante = Timestamp.from(quando);
+        chat.update(SQL_MENSAGEM_DO_LEAD, instante, instante, leadId);
     }
 
     @Override
@@ -213,9 +232,9 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     /**
      * Telefone e janela, numa consulta so.
      *
-     * <p>{@code ultima_interacao_em} e a coluna que a E04 passou a manter. Antes dela, a pergunta
-     * "a janela de 24h esta aberta?" nao tinha resposta honesta: {@code criado_em} responderia "o
-     * lead foi criado ha 2 dias", que nao e a mesma coisa.
+     * <p>A janela le {@code ultima_mensagem_do_lead_em} (E121), nao {@code ultima_interacao_em}.
+     * Aquele segundo campo avanca tambem em saida e alimenta {@code semRetornoDias}; usa-lo aqui
+     * deixaria a janela aberta enquanto a equipe falasse.
      */
     @Override
     public Optional<ContatoParaEnvio> contatoParaEnvio(UUID leadId) {
@@ -225,7 +244,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                         SQL_CONTATO,
                         (linha, indice) -> new ContatoParaEnvio(
                                 linha.getString("telefone"),
-                                Optional.ofNullable(linha.getTimestamp("ultima_interacao_em"))
+                                Optional.ofNullable(linha.getTimestamp("ultima_mensagem_do_lead_em"))
                                         .map(Timestamp::toInstant)),
                         leadId)
                 .stream()
