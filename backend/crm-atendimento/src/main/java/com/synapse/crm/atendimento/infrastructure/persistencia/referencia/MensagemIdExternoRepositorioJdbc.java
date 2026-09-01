@@ -31,6 +31,8 @@ class MensagemIdExternoRepositorioJdbc implements MensagemIdExternoRepositorio {
     private static final String SQL_BUSCAR =
             "SELECT wamid FROM mensagem_id_externo WHERE mensagem_id = ? AND mensagem_enviada_em = ?";
 
+    private static final String SQL_EXISTE = "SELECT 1 FROM mensagem_id_externo WHERE wamid = ?";
+
     private final JdbcTemplate chat;
 
     MensagemIdExternoRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
@@ -55,5 +57,14 @@ class MensagemIdExternoRepositorioJdbc implements MensagemIdExternoRepositorio {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public boolean existe(String wamid) {
+        TransacaoObrigatoria.exigir("existe id externo");
+        if (wamid == null || wamid.isBlank()) {
+            return false;
+        }
+        return !chat.queryForList(SQL_EXISTE, Integer.class, wamid).isEmpty();
     }
 }

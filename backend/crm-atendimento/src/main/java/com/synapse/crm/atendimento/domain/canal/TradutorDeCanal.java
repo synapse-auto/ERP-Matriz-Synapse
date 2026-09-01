@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.domain.canal;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A metade de entrada do ACL: transforma o que o provedor manda no que o CRM entende.
@@ -50,8 +51,34 @@ public interface TradutorDeCanal {
     /** IDs das mensagens presentes no POST; a fila usa o primeiro para a chave da linha do POST. */
     List<String> idsExternos(String payloadCru);
 
+    /**
+     * Atualizacoes de entrega ({@code statuses[]} na Meta), ja em vocabulario do CRM.
+     *
+     * <p>Vazio quando o POST nao traz status. O dominio nao conhece {@code sent}/{@code delivered}/
+     * {@code read}/{@code failed}: quem mapeia e o adaptador.
+     */
+    List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru);
+
     /** Traduz todas as mensagens, na ordem do payload. Vazio quando nao ha mensagens de cliente. */
     List<MensagemRecebidaDoCanal> traduzir(String payloadCru);
+
+    /**
+     * Uma atualizacao de entrega, ja traduzida.
+     *
+     * @param statusEntrega nome de {@code StatusEntrega} ({@code ENVIADO}, {@code ENTREGUE},
+     *     {@code LIDO}, {@code FALHOU}); o ACL nao vaza o literal do provedor
+     * @param codigoErro codigo do provedor quando {@code statusEntrega} e {@code FALHOU}; senao
+     *     {@code null}
+     * @param tituloErro titulo do provedor quando falhou; senao {@code null}
+     */
+    record StatusDeEntregaDoCanal(
+            String wamid, String statusEntrega, Integer codigoErro, String tituloErro) {
+
+        public StatusDeEntregaDoCanal {
+            Objects.requireNonNull(wamid, "wamid e obrigatorio");
+            Objects.requireNonNull(statusEntrega, "status de entrega e obrigatorio");
+        }
+    }
 
     record DestinosDoWebhook(int quantidadeEventos, List<String> identificadores) {
 

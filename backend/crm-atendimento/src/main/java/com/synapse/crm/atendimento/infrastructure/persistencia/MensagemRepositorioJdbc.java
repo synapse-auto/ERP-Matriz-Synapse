@@ -2,6 +2,8 @@ package com.synapse.crm.atendimento.infrastructure.persistencia;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -44,6 +46,42 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     private static final String SQL_STATUS_ENTREGA =
             "UPDATE mensagem SET status_entrega = ?::status_entrega WHERE id = ? AND enviado_em = ?";
 
+    /**
+     * A monotonia e a mesma de {@link StatusEntrega#ehPosteriorA(StatusEntrega)}, no SQL, para duas
+     * entregas concorrentes (read antes de delivered) nao se atropelarem entre o SELECT e o UPDATE.
+     * O JOIN em atendimento e o que faz a RLS negar a escrita sem contexto de servico.
+     */
+    private static final String SQL_APLICAR_STATUS_PROVEDOR =
+            """
+            UPDATE mensagem m
+               SET status_entrega = ?::status_entrega,
+                   erro_entrega = CASE
+                       WHEN ?::status_entrega = 'FALHOU'
+                       THEN jsonb_strip_nulls(jsonb_build_object('codigo', ?::integer, 'titulo', ?::text))
+                       ELSE m.erro_entrega
+                   END
+              FROM mensagem_id_externo e
+              JOIN atendimento a ON a.id = e.atendimento_id
+             WHERE e.wamid = ?
+               AND m.id = e.mensagem_id
+               AND m.enviado_em = e.mensagem_enviada_em
+               AND (
+                    CASE m.status_entrega
+                        WHEN 'LIDO' THEN FALSE
+                        WHEN 'FALHOU' THEN FALSE
+                        ELSE CASE ?::status_entrega
+                            WHEN m.status_entrega THEN FALSE
+                            WHEN 'FALHOU' THEN m.status_entrega IN ('PENDENTE', 'ENVIADO')
+                            WHEN 'LIDO' THEN m.status_entrega IN ('PENDENTE', 'ENVIADO', 'ENTREGUE')
+                            WHEN 'ENTREGUE' THEN m.status_entrega IN ('PENDENTE', 'ENVIADO')
+                            WHEN 'ENVIADO' THEN m.status_entrega = 'PENDENTE'
+                            ELSE FALSE
+                        END
+                    END
+               )
+            RETURNING m.id, e.atendimento_id, a.lead_id, m.status_entrega
+            """;
+
     private final JdbcTemplate chat;
 
     MensagemRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
@@ -80,5 +118,28 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     public void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status) {
         TransacaoObrigatoria.exigir("atualizarStatusEntrega");
         chat.update(SQL_STATUS_ENTREGA, status.name(), mensagemId, Timestamp.from(enviadoEm));
+    }
+
+    @Override
+    public Optional<StatusDeEntregaAplicado> aplicarStatusDoProvedor(
+            String wamid, StatusEntrega novo, Integer codigoErro, String tituloErro) {
+        TransacaoObrigatoria.exigir("aplicarStatusDoProvedor");
+        if (wamid == null || wamid.isBlank() || novo == null) {
+            return Optional.empty();
+        }
+        List<StatusDeEntregaAplicado> aplicados = chat.query(
+                SQL_APLICAR_STATUS_PROVEDOR,
+                (rs, i) -> new StatusDeEntregaAplicado(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("atendimento_id", UUID.class),
+                        rs.getObject("lead_id", UUID.class),
+                        StatusEntrega.valueOf(rs.getString("status_entrega"))),
+                novo.name(),
+                novo.name(),
+                codigoErro,
+                tituloErro,
+                wamid,
+                novo.name());
+        return aplicados.stream().findFirst();
     }
 }

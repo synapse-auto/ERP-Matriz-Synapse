@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.application;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -29,4 +30,18 @@ public interface MensagemRepositorio {
      * @param enviadoEm chave de particao da mensagem; sem ela o banco varre todas as particoes
      */
     void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status);
+
+    /**
+     * Avanca o ciclo de entrega a partir do {@code wamid} que o provedor mandou em {@code statuses[]}.
+     *
+     * <p>So grava se o novo status for posterior ao atual — a Meta entrega fora de ordem. Junta
+     * {@code atendimento} de proposito: sem contexto de servico a RLS esconde a linha e o UPDATE
+     * vira no-op, o mesmo padrao da V50. Devolve vazio quando o wamid nao e nosso, quando o status
+     * nao avanca, ou quando a RLS negou a escrita.
+     */
+    Optional<StatusDeEntregaAplicado> aplicarStatusDoProvedor(
+            String wamid, StatusEntrega novo, Integer codigoErro, String tituloErro);
+
+    record StatusDeEntregaAplicado(
+            UUID mensagemId, UUID atendimentoId, UUID leadId, StatusEntrega status) {}
 }

@@ -25,18 +25,22 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.AgendarRepasseWebhookAutomacaoUseCase;
+import com.synapse.crm.atendimento.application.AplicarStatusDeEntregaDoCanalUseCase;
 import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
 import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase.Decisao;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
  * A porta de entrada do canal. Rota publica — e tratada como tal.
  *
- * <p>Faz tres coisas, nessa ordem, e nada mais: confere a assinatura, grava o payload cru, responde
- * 200. A traducao e o registro da mensagem acontecem depois, num job.
+ * <p>Confere a assinatura, aplica {@code statuses[]} de entrega (UPDATE local no mapa wamid),
+ * grava o payload cru de mensagem nova e responde 200. A traducao da mensagem do cliente continua
+ * no job — status e sincrono porque nao chama o provedor, e o POST so com {@code statuses[]} nao
+ * tem mensagem para enfileirar.
  *
  * <p>A ordem importa. Assinatura <b>antes</b> de qualquer processamento e antes de gravar: sem isso,
  * qualquer um na internet injeta mensagem falsa na conversa de um cliente com um {@code curl}, ou
@@ -57,6 +61,7 @@ public class WebhookCanalController {
     private final WebhookEntrada entrada;
     private final AgendarRepasseWebhookAutomacaoUseCase agendarRepasse;
     private final ValidarDestinoWebhookUseCase validarDestino;
+    private final AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
     private final Clock relogio;
 
     public WebhookCanalController(
@@ -64,11 +69,13 @@ public class WebhookCanalController {
             WebhookEntrada entrada,
             AgendarRepasseWebhookAutomacaoUseCase agendarRepasse,
             ValidarDestinoWebhookUseCase validarDestino,
+            AplicarStatusDeEntregaDoCanalUseCase aplicarStatus,
             Clock relogio) {
         this.tradutor = tradutor;
         this.entrada = entrada;
         this.agendarRepasse = agendarRepasse;
         this.validarDestino = validarDestino;
+        this.aplicarStatus = aplicarStatus;
         this.relogio = relogio;
     }
 
@@ -168,6 +175,21 @@ public class WebhookCanalController {
 
         Instant recebidoEm = Instant.now(relogio);
         agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
+
+        List<StatusDeEntregaDoCanal> statuses = tradutor.statusDeEntrega(payloadCru);
+        if (!statuses.isEmpty()) {
+            // Depois do HMAC e do filtro de destino, antes da saida por messages[] vazio.
+            // REQUIRES_NEW no caso de uso precisa do contexto ja marcado: a transacao deste
+            // metodo comecou sem usuario.
+            try {
+                ContextoDeServico.executarComo(
+                        "webhook-status-entrega", () -> aplicarStatus.executar(statuses));
+            } catch (RuntimeException e) {
+                // Assinatura ja conferiu: responder 5xx faria a Meta reentregar e, no limite,
+                // desativar o webhook. A mensagem continua ENVIADO ate o proximo status.
+                log.error("Falha ao aplicar statuses[] do webhook; payload aceito mesmo assim.", e);
+            }
+        }
 
         List<String> idsExternos = tradutor.idsExternos(payloadCru);
         if (idsExternos.isEmpty()) {

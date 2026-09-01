@@ -34,4 +34,22 @@ public enum StatusEntrega {
     public boolean emTransito() {
         return this == PENDENTE;
     }
+
+    /**
+     * A Meta entrega {@code statuses[]} fora de ordem: {@code read} pode chegar antes de
+     * {@code delivered}. So avanca; nunca rebaixa. {@code FALHOU} cabe a partir de
+     * {@code PENDENTE} ou {@code ENVIADO} — o provedor aceitou e depois recusou o arquivo — mas
+     * nao depois de {@code ENTREGUE} ou {@code LIDO}, que ja comprovam que chegou.
+     */
+    public boolean ehPosteriorA(StatusEntrega atual) {
+        if (atual == null || this == atual) {
+            return false;
+        }
+        return switch (atual) {
+            case LIDO, FALHOU -> false;
+            case PENDENTE -> this == ENVIADO || this == ENTREGUE || this == LIDO || this == FALHOU;
+            case ENVIADO -> this == ENTREGUE || this == LIDO || this == FALHOU;
+            case ENTREGUE -> this == LIDO;
+        };
+    }
 }

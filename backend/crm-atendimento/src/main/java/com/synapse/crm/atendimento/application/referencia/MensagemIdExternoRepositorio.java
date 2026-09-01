@@ -9,4 +9,6 @@ public interface MensagemIdExternoRepositorio {
     void gravar(String wamid, UUID mensagemId, Instant enviadoEm, UUID atendimentoId);
 
     Optional<String> wamidDe(UUID mensagemId, Instant enviadoEm);
+
+    boolean existe(String wamid);
 }
