@@ -15,6 +15,7 @@ import { listarDestinosDeTransferencia } from "@/lib/atendimento/api";
 import { useTransferirAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { recebeAtendimento } from "@/lib/equipe/papel";
 
 type Props = {
   atendimentoId: string;
@@ -35,7 +36,7 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
   });
 
   const candidatos = (destinos ?? []).filter((destino) => destino.id !== usuarioId);
-  const eu = papel === "ATENDENTE" && usuarioId ? { id: usuarioId } : undefined;
+  const eu = recebeAtendimento(papel) && usuarioId ? { id: usuarioId } : undefined;
 
   function transferirPara(paraAtendenteId: string | null) {
     transferir.mutate({ atendimentoId, paraAtendenteId }, { onSuccess: onFechar });

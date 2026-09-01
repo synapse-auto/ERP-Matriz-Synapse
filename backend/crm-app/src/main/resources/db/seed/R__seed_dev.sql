@@ -82,14 +82,14 @@ ON CONFLICT (id) DO UPDATE
         ativo = EXCLUDED.ativo,
         senha_alterada_em = EXCLUDED.senha_alterada_em;
 
--- V34 backfills tenants that already exist at deploy time. In a fresh
+-- V34/V51 backfill tenants that already exist at deploy time. In a fresh
 -- development database the repeatable seed runs after versioned migrations,
--- so keep the same default for the demonstration attendants as well.
+-- so keep the same default (PapelUsuario.recebeAtendimento()) here as well.
 INSERT INTO disponibilidade_atendente_ia (atendente_id, disponivel_para_ia)
 SELECT id, TRUE
 FROM usuario
 WHERE ativo = TRUE
-  AND papel = 'ATENDENTE'
+  AND papel IN ('ATENDENTE', 'SUBGESTOR')
 ON CONFLICT (atendente_id) DO UPDATE
 SET disponivel_para_ia = TRUE,
     atualizado_em = now();

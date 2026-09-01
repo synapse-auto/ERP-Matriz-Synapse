@@ -5,6 +5,7 @@ const criarMutate = vi.fn();
 const editarMutate = vi.fn();
 const desativarMutate = vi.fn();
 const gerarSenhaMutate = vi.fn();
+const disponibilidadeMutate = vi.fn();
 
 const USUARIOS = [
   {
@@ -23,6 +24,15 @@ const USUARIOS = [
     papel: "SUBGESTOR",
     statusPresenca: "OFFLINE",
     ativo: false,
+    disponivelParaIa: false,
+  },
+  {
+    id: "u3",
+    nome: "Gil Gestor",
+    email: "gil@estruturalvidros.com.br",
+    papel: "GESTOR",
+    statusPresenca: "ONLINE",
+    ativo: true,
     disponivelParaIa: false,
   },
 ];
@@ -112,7 +122,7 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
   useEditarUsuario: () => ({ mutate: editarMutate, isPending: false, isError: false }),
   useDesativarUsuario: () => ({ mutate: desativarMutate, isPending: false, isError: false }),
   useGerarSenhaProvisoria: () => ({ mutate: gerarSenhaMutate, isPending: false, isError: false }),
-  useAtualizarDisponibilidadeParaIa: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+  useAtualizarDisponibilidadeParaIa: () => ({ mutate: disponibilidadeMutate, isPending: false, isError: false }),
 }));
 
 import { PaginaEquipe } from "./pagina-equipe";
@@ -172,5 +182,17 @@ describe("pagina de equipe", () => {
     render(<PaginaEquipe />);
 
     expect(screen.queryByRole("button", { name: "Desativar Bruno Costa" })).not.toBeInTheDocument();
+  });
+
+  it("mostra o toggle de IA para subgestor e dispara a mesma mutacao", () => {
+    render(<PaginaEquipe />);
+
+    const toggleSub = screen.getByRole("switch", { name: "Disponibilidade IA Bruno Costa" });
+    fireEvent.click(toggleSub);
+    expect(disponibilidadeMutate).toHaveBeenCalledWith({ id: "u2", disponivelParaIa: true });
+
+    expect(screen.getByRole("switch", { name: "Disponibilidade IA Ana Beatriz" })).toBeInTheDocument();
+    expect(screen.queryByText("Gil Gestor")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /Gil Gestor/ })).not.toBeInTheDocument();
   });
 });

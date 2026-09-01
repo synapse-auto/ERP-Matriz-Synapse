@@ -143,9 +143,26 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("transferir: destino subgestor e recusado antes de alterar atendimento ou lead")
-    void transferir_destinoSubgestor_retorna422SemEscritas() {
-        assertDestinoInvalido(idDoUsuario(EMAIL_SUBGESTOR), "papel nao elegivel", EMAIL_GESTOR, SENHA_GESTOR);
+    @DisplayName("transferir: destino subgestor e aceito e persiste no atendimento e no lead")
+    void transferir_destinoSubgestor_retorna200() {
+        UUID destino = idDoUsuario(EMAIL_SUBGESTOR);
+        UUID lead = criarLead("lead transferir subgestor " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        var resposta = chamar(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                Map.of("paraAtendenteId", destino.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(destino.toString());
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(destino);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(destino);
     }
 
     @Test

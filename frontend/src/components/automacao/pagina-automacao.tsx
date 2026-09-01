@@ -30,6 +30,7 @@ import type {
 import { useTextos } from "@/lib/config/textos-provider";
 import type { Textos } from "@/lib/config/schema";
 import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
+import { recebeAtendimento } from "@/lib/equipe/papel";
 import { useAtualizarDisponibilidadeParaIa, useEquipe } from "@/lib/equipe/use-equipe";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { cn } from "@/lib/utils";
@@ -152,7 +153,7 @@ function AtendentesDisponiveis({ textos }: { textos: Textos }) {
   const equipe = useEquipe();
   const atualizar = useAtualizarDisponibilidadeParaIa();
   const t = textos.automacao.disponibilidade;
-  const atendentes = (equipe.data ?? []).filter((usuario) => usuario.ativo && usuario.papel === "ATENDENTE");
+  const atendentes = (equipe.data ?? []).filter((usuario) => usuario.ativo && recebeAtendimento(usuario.papel));
   const disponiveis = atendentes.filter((usuario) => usuario.disponivelParaIa).length;
   const contagem = interpolar(t.contagem, { disponiveis: String(disponiveis), total: String(atendentes.length) });
 

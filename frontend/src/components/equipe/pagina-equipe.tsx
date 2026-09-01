@@ -31,6 +31,7 @@ import {
   useGerarSenhaProvisoria,
   useAtualizarDisponibilidadeParaIa,
 } from "@/lib/equipe/use-equipe";
+import { recebeAtendimento } from "@/lib/equipe/papel";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
 
 const PRESENCA_COR: Record<StatusPresenca, string> = {
@@ -53,9 +54,7 @@ export function PaginaEquipe() {
   const [senhaGeradaPara, setSenhaGeradaPara] = useState<UsuarioEquipe | null>(null);
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
 
-  const usuarios = (equipe.data ?? []).filter(
-    (u) => u.papel === "ATENDENTE" || u.papel === "SUBGESTOR",
-  );
+  const usuarios = (equipe.data ?? []).filter((u) => recebeAtendimento(u.papel));
   const ativos = usuarios.filter((u) => u.ativo);
   const online = usuarios.filter((u) => u.statusPresenca === "ONLINE").length;
 
@@ -400,7 +399,7 @@ function TabelaDeUsuarios({
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {usuario.papel === "ATENDENTE" ? (
+                  {recebeAtendimento(usuario.papel) ? (
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={usuario.disponivelParaIa ?? false}

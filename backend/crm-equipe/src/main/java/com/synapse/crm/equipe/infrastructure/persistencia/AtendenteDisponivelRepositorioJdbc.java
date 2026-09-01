@@ -54,7 +54,8 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
               LEFT JOIN carga c ON c.atendente_id = u.id
               LEFT JOIN recebimentos r ON r.atendente_id = u.id
              WHERE d.disponivel_para_ia = TRUE AND u.ativo = TRUE
-               AND u.papel = 'ATENDENTE' AND u.status_presenca = 'ONLINE'
+               -- Espelha PapelUsuario.recebeAtendimento()
+               AND u.papel IN ('ATENDENTE', 'SUBGESTOR') AND u.status_presenca = 'ONLINE'
              ORDER BY COALESCE(c.atendimentos_abertos, 0),
                       r.ultimo_recebido_em NULLS FIRST,
                       u.id

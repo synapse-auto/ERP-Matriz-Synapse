@@ -16,7 +16,8 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Repository
 class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransferenciaRepositorio {
 
-    private static final String ELEGIVEL = "ativo = TRUE AND papel = 'ATENDENTE'";
+    /** Espelha {@link com.synapse.crm.sharedkernel.identidade.PapelUsuario#recebeAtendimento()}. */
+    private static final String ELEGIVEL = "ativo = TRUE AND papel IN ('ATENDENTE','SUBGESTOR')";
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " ORDER BY nome, id";

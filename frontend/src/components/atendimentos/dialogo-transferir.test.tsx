@@ -66,6 +66,20 @@ describe("DialogoTransferir", () => {
     expect(screen.getByRole("button", { name: "Ana Atendente" })).toBeInTheDocument();
   });
 
+  it("oferece assumir para mim a subgestora autenticada", () => {
+    estado.papel = "SUBGESTOR";
+    estado.usuarioId = "michele-1";
+    estado.destinos = [{ id: "michele-1", nome: "Michele Subgestora" }];
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
   it("oferece assumir para mim somente a atendente autenticada", () => {
     estado.papel = "ATENDENTE";
     estado.usuarioId = "ana-1";
