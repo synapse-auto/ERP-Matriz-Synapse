@@ -29,7 +29,10 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * <p>{@code mensagem} nao tem RLS propria (so {@code lead}/{@code atendimento}/{@code lembrete}/
  * {@code mensagem_programada}, desde a V12). Seguro aqui porque o {@code FROM} sempre parte de
  * {@code atendimento}, que tem a politica — os dois {@code LEFT JOIN LATERAL} em {@code mensagem} so
- * alcancam linhas de atendimentos que a RLS ja deixou passar.
+ * alcancam linhas de atendimentos que a RLS ja deixou passar. O {@code ultima_lead} passou a
+ * atravessar {@code atendimento} pelo {@code lead_id} (como o {@code nao_lidas} sempre fez, E114):
+ * continua gated pela mesma RLS de {@code atendimento}, porque a linha base {@code a} so entra se o
+ * lead for visivel, e os demais atendimentos do mesmo lead herdam essa visibilidade.
  */
 @Repository
 class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosRepositorio {
@@ -90,9 +93,18 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 SELECT conteudo, remetente_tipo, enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
             ) ultima ON true
+            -- E114: a janela de 24h e do LEAD, nao do atendimento. Recorta por a.lead_id
+            -- (percorrendo os atendimentos do lead, como nao_lidas ja faz), e nao por
+            -- a.id — senao um atendimento novo, sem mensagem do cliente ainda, devolveria
+            -- nulo e a tela mandaria template mesmo com o cliente tendo escrito ha minutos
+            -- num atendimento finalizado. Fonte deliberadamente a mensagem do cliente, e
+            -- nao lead.ultima_interacao_em: esse campo tambem avanca em envio de saida
+            -- (EnviarMensagem/ResponderAutomacao chamam registrarInteracao), entao usa-lo
+            -- fingiria janela aberta so porque um template saiu.
             LEFT JOIN LATERAL (
-                SELECT enviado_em FROM mensagem m2
-                 WHERE m2.atendimento_id = a.id AND m2.remetente_tipo = 'LEAD'
+                SELECT m2.enviado_em FROM mensagem m2
+                 JOIN atendimento atendimento_do_lead ON atendimento_do_lead.id = m2.atendimento_id
+                 WHERE atendimento_do_lead.lead_id = a.lead_id AND m2.remetente_tipo = 'LEAD'
                  ORDER BY m2.enviado_em DESC LIMIT 1
             ) ultima_lead ON true
             """;

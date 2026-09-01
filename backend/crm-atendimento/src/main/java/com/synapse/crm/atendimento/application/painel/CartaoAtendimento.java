@@ -10,9 +10,11 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
  * mensagem sao nulos quando nao ha o dado (lead sem etapa, atendimento sem dono, atendimento sem
  * mensagem ainda).
  *
- * @param ultimaMensagemDoLeadEm instante da ultima mensagem com {@code remetenteTipo = LEAD} — usado
- *     pelo frontend para estimar a janela de 24h antes de o atendente digitar; a autoridade real
- *     continua sendo a checagem no {@code EnviarMensagemUseCase}.
+ * @param ultimaMensagemDoLeadEm instante da ultima mensagem com {@code remetenteTipo = LEAD} em
+ *     <b>qualquer atendimento do lead</b>, e nao so no atendimento do cartao (E114): a janela de 24h
+ *     e do cliente, entao um atendimento novo reaberto para um lead que escreveu ha minutos precisa
+ *     herdar essa janela. Usado pelo frontend para estimar a janela antes de o atendente digitar; a
+ *     autoridade real continua sendo a checagem no {@code EnviarMensagemUseCase}.
  */
 public record CartaoAtendimento(
         UUID atendimentoId,
