@@ -1,10 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SeletorData } from "./seletor-data";
 
 describe("SeletorData", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("formata a data e localiza o calendário em pt-BR com domingo primeiro", async () => {
+    // O calendário tem de abrir no mês do valor, não no de hoje. Sem isso o teste
+    // passa em agosto e quebra no CI no dia 1º de setembro (UTC).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 1));
+
     render(
       <SeletorData
         valor="2026-08-10"

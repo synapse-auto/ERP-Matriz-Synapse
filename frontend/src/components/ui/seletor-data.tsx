@@ -71,6 +71,7 @@ export function SeletorData({
           locale={ptBR}
           weekStartsOn={0}
           selected={selecionada}
+          defaultMonth={selecionada}
           onSelect={(data) => onChange(data ? paraIsoLocal(data) : "")}
         />
       </PopoverContent>
