@@ -16,11 +16,21 @@ public interface ChatInternoRepositorio {
     List<ContatoResumo> listarContatos(UUID usuarioId);
     Optional<UUID> conversaDireta(UUID primeiroUsuario, UUID segundoUsuario);
     UUID criarConversaDireta(UUID primeiroUsuario, UUID segundoUsuario);
+    UUID criarConversaGrupo(String nome, List<UUID> participantes);
     boolean usuarioExiste(UUID usuarioId);
+    Optional<String> nomeDoUsuario(UUID usuarioId);
     boolean participante(UUID conversaId, UUID usuarioId);
     List<UUID> participantes(UUID conversaId);
+    Optional<TipoConversaChat> tipoDaConversa(UUID conversaId);
+    Optional<String> nomeDoGrupo(UUID conversaId);
+    void adicionarParticipante(UUID conversaId, UUID usuarioId);
+    void removerParticipante(UUID conversaId, UUID usuarioId);
+    void renomearGrupo(UUID conversaId, String nome);
+    /** Apaga a conversa se nao restou ninguem — evita linha orfa invisivel. */
+    boolean apagarSeSemParticipantes(UUID conversaId);
     PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite);
     MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo);
+    MensagemResumo salvarMensagemSistema(UUID conversaId, UUID atorId, String conteudoJson);
     MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados);
     void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando);
 
