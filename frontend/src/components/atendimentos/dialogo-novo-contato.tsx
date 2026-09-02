@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
+import type { TemplateWhatsApp } from "@/lib/atendimento/types";
 import type { PedidoDeNovoContato } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+
+import { ListaTemplatesWhatsApp } from "./lista-templates-whatsapp";
 
 type Props = {
   aberto: boolean;
@@ -68,11 +73,24 @@ function FormularioNovoContato({
   pendente,
   erro,
 }: Omit<Props, "aberto">) {
-  const textos = useTextos().atendimentos.novoContato;
+  const catalogo = useTextos();
+  const textos = catalogo.atendimentos.novoContato;
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [primeiraMensagem, setPrimeiraMensagem] = useState("");
+  const [templateSelecionado, setTemplateSelecionado] = useState<TemplateWhatsApp | null>(null);
+  const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
+  const capacidade = useQuery({
+    queryKey: ["config", "canal"],
+    queryFn: obterCapacidadeDoCanal,
+  });
+  const exigeTemplate = capacidade.data?.exigeTemplateForaDaJanela === true;
+  const templates = useQuery({
+    queryKey: ["whatsapp-templates"],
+    queryFn: listarTemplatesWhatsApp,
+    enabled: exigeTemplate,
+  });
 
   const nomeValido = nome.trim().length > 0;
   const telefoneValido = telefone.replace(/\D/g, "").length >= 10;
@@ -83,10 +101,27 @@ function FormularioNovoContato({
     setTentouEnviar(true);
     if (!nomeValido || !telefoneValido || pendente) return;
     const mensagem = primeiraMensagem.trim();
+    const valoresDoTemplate = templateSelecionado
+      ? parametros[`${templateSelecionado.nome}:${templateSelecionado.idioma}`]
+        ?? Array(templateSelecionado.quantidadeDeParametros).fill("")
+      : undefined;
+    if (exigeTemplate && templateSelecionado && valoresDoTemplate?.some((valor) => valor.trim() === "")) {
+      return;
+    }
     onConfirmar({
       nome: nome.trim(),
       telefone,
-      ...(mensagem ? { primeiraMensagem: mensagem } : {}),
+      ...(exigeTemplate && templateSelecionado
+        ? {
+            template: {
+              nome: templateSelecionado.nome,
+              idioma: templateSelecionado.idioma,
+              parametros: valoresDoTemplate ?? [],
+            },
+          }
+        : !exigeTemplate && mensagem
+          ? { primeiraMensagem: mensagem }
+          : {}),
     });
   }
 
@@ -143,16 +178,55 @@ function FormularioNovoContato({
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="novo-contato-mensagem">{textos.primeiraMensagem}</Label>
-          <Textarea
-            id="novo-contato-mensagem"
-            value={primeiraMensagem}
-            onChange={(evento) => setPrimeiraMensagem(evento.target.value)}
-            placeholder={textos.primeiraMensagemPlaceholder}
-          />
-        </div>
-        <div className="rounded-xl border border-primary/20 bg-primary/10 p-3">
-          <p className="text-sm text-foreground">{textos.avisoTemplate}</p>
+          {exigeTemplate ? (
+            <Label>{textos.primeiraMensagem}</Label>
+          ) : (
+            <Label htmlFor="novo-contato-mensagem">{textos.primeiraMensagem}</Label>
+          )}
+          {capacidade.isPending ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {catalogo.atendimentos.composer.templatesCarregando}
+            </p>
+          ) : capacidade.isError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {catalogo.atendimentos.composer.templatesErro}
+            </p>
+          ) : exigeTemplate ? (
+            <ListaTemplatesWhatsApp
+              textos={catalogo.atendimentos.composer}
+              rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
+              templates={templates}
+              parametros={parametros}
+              onParametros={(chave, valores) =>
+                setParametros((atual) => ({ ...atual, [chave]: valores }))
+              }
+              enviando={Boolean(pendente)}
+              modoSelecao
+              templateSelecionado={
+                templateSelecionado
+                  ? `${templateSelecionado.nome}:${templateSelecionado.idioma}`
+                  : null
+              }
+              rotuloAcao={catalogo.atendimentos.composer.escolherTemplate}
+              onEnviar={(template, valores) => {
+                const chave = `${template.nome}:${template.idioma}`;
+                setParametros((atual) => ({ ...atual, [chave]: valores }));
+                setTemplateSelecionado(template);
+              }}
+            />
+          ) : (
+            <>
+              <Textarea
+                id="novo-contato-mensagem"
+                value={primeiraMensagem}
+                onChange={(evento) => setPrimeiraMensagem(evento.target.value)}
+                placeholder={textos.primeiraMensagemPlaceholder}
+              />
+              <div className="rounded-xl border border-primary/20 bg-primary/10 p-3">
+                <p className="text-sm text-foreground">{textos.avisoTemplate}</p>
+              </div>
+            </>
+          )}
         </div>
         {erro && (
           <p role="alert" className="text-sm text-destructive">

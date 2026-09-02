@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
+import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 
@@ -21,7 +22,18 @@ class ConfigInstanciaControllerTest {
 
     private final FeatureService features = mock(FeatureService.class);
     private final ConfiguracaoDeInstanciaResources recursos = mock(ConfiguracaoDeInstanciaResources.class);
-    private final ConfigInstanciaController controller = new ConfigInstanciaController(features, recursos);
+    private final CanalGateway canal = mock(CanalGateway.class);
+    private final ConfigInstanciaController controller = new ConfigInstanciaController(features, recursos, canal);
+
+    @Test
+    @DisplayName("canal devolve apenas a capacidade de exigir template")
+    void canal_devolveCapacidadeDoGateway() {
+        when(canal.exigeTemplateForaDaJanela()).thenReturn(true);
+
+        var resposta = controller.canal();
+
+        assertThat(resposta.exigeTemplateForaDaJanela()).isTrue();
+    }
 
     @Test
     @DisplayName("logo presente: 200, Content-Type image/png, corpo com os bytes do arquivo")

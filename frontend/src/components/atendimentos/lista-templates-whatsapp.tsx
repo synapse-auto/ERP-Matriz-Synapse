@@ -31,6 +31,10 @@ type Props = {
   onParametros: (chave: string, valores: string[]) => void;
   enviando: boolean;
   onEnviar: (template: TemplateWhatsApp, valores: string[]) => void;
+  /** No diálogo de novo contato, o botão escolhe o template; no composer continua enviando. */
+  modoSelecao?: boolean;
+  templateSelecionado?: string | null;
+  rotuloAcao?: string;
 };
 
 const ORDEM_DAS_CATEGORIAS: CategoriaTemplateWhatsApp[] = [
@@ -47,6 +51,9 @@ export function ListaTemplatesWhatsApp({
   onParametros,
   enviando,
   onEnviar,
+  modoSelecao = false,
+  templateSelecionado = null,
+  rotuloAcao,
 }: Props) {
   const [busca, setBusca] = useState("");
   const [tocados, setTocados] = useState<Record<string, boolean>>({});
@@ -101,8 +108,10 @@ export function ListaTemplatesWhatsApp({
                             grupos.length === 1 ? rotulosDeCategoria?.[template.categoria] : undefined
                           }
                           valores={valores}
+                          selecionado={templateSelecionado === chave}
                           tocado={Boolean(tocados[chave])}
                           enviando={enviando}
+                          rotuloAcao={modoSelecao ? rotuloAcao : undefined}
                           onTocar={() => setTocados((atual) => ({ ...atual, [chave]: true }))}
                           onParametros={(proximo) => onParametros(chave, proximo)}
                           onEnviar={() => onEnviar(template, valores)}
@@ -131,8 +140,10 @@ function CartaoDeTemplate({
   textos,
   rotuloDeCategoria,
   valores,
+  selecionado,
   tocado,
   enviando,
+  rotuloAcao,
   onTocar,
   onParametros,
   onEnviar,
@@ -141,8 +152,10 @@ function CartaoDeTemplate({
   textos: TextosComposer;
   rotuloDeCategoria?: string;
   valores: string[];
+  selecionado: boolean;
   tocado: boolean;
   enviando: boolean;
+  rotuloAcao?: string;
   onTocar: () => void;
   onParametros: (valores: string[]) => void;
   onEnviar: () => void;
@@ -151,7 +164,10 @@ function CartaoDeTemplate({
   const previa = interpolarCorpoDoTemplate(template.corpo, valores);
 
   return (
-    <article className="rounded-xl border border-border bg-muted/30 p-3">
+    <article
+      className={`rounded-xl border bg-muted/30 p-3 ${selecionado ? "border-primary ring-1 ring-primary/30" : "border-border"}`}
+      data-selecionado={selecionado ? "true" : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-sm font-medium text-foreground">{template.nome}</p>
         {rotuloDeCategoria && (
@@ -212,7 +228,7 @@ function CartaoDeTemplate({
           onEnviar();
         }}
       >
-        {textos.enviarTemplate}
+        {rotuloAcao ?? textos.enviarTemplate}
       </Button>
     </article>
   );

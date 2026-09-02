@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 
@@ -29,10 +30,13 @@ class ConfigInstanciaController {
 
     private final FeatureService features;
     private final ConfiguracaoDeInstanciaResources recursos;
+    private final CanalGateway canal;
 
-    ConfigInstanciaController(FeatureService features, ConfiguracaoDeInstanciaResources recursos) {
+    ConfigInstanciaController(
+            FeatureService features, ConfiguracaoDeInstanciaResources recursos, CanalGateway canal) {
         this.features = features;
         this.recursos = recursos;
+        this.canal = canal;
     }
 
     @Operation(
@@ -43,6 +47,16 @@ class ConfigInstanciaController {
     @GetMapping("/features")
     List<String> features() {
         return features.habilitadas();
+    }
+
+    @Operation(
+            summary = "Obter capacidades do canal",
+            description = "Retorna as capacidades do canal ativo que orientam a composição da primeira mensagem.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = @ApiResponse(responseCode = "200", description = "Capacidades do canal ativo."))
+    @GetMapping("/canal")
+    CapacidadeDoCanal canal() {
+        return new CapacidadeDoCanal(canal.exigeTemplateForaDaJanela());
     }
 
     @Operation(
@@ -81,4 +95,6 @@ class ConfigInstanciaController {
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic())
                 .body(logo);
     }
+
+    record CapacidadeDoCanal(boolean exigeTemplateForaDaJanela) {}
 }
