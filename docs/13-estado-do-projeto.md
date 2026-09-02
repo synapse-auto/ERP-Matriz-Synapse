@@ -56,6 +56,7 @@ pela operação.
 | E93 | documentação e regras de migration | PR #29: `ed02ac3` |
 | E124 | pausa do gatilho de avaliação no caminho do atendente | PR #58: `0eeed43` |
 | E126 | religação do gatilho no contrato EV-08, payload de 8 campos e toggle V55 | branch `feat/avaliacao-ev08` |
+| E133 | sonda de saúde isolada do tráfego de mídia/envio; disjuntor aberto não gasta tentativa da fila | branch `fix/sonda-de-saude-derruba-midia` |
 
 Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
 prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens

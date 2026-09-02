@@ -5,21 +5,29 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.ExpectedCount.times;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,6 +40,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
+import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
@@ -646,4 +655,182 @@ class MetaCloudApiAdapterTest {
                         .get(0))
                 .hasSize(4);
     }
+
+    @Test
+    void identidadeDoCanalComJsonValidoAceitaCredencial() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "?fields=id"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"id\":\"phone-id\"}",
+                        new MediaType("application", "json", StandardCharsets.UTF_8)));
+
+        CanalGateway.AutenticacaoDoCanal autenticacao = adapter.verificarAutenticacao();
+
+        servidor.verify();
+        assertThat(autenticacao.autenticada()).isTrue();
+    }
+
+    @Test
+    void identidadeDoCanalComCorpoIlegivelRecusaSemSubirExcecaoELogaACausa() {
+        Logger logger = (Logger) LoggerFactory.getLogger(MetaCloudApiAdapter.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "?fields=id"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("<html>indisponivel</html>", MediaType.TEXT_HTML));
+
+        CanalGateway.AutenticacaoDoCanal autenticacao;
+        try {
+            autenticacao = adapter.verificarAutenticacao();
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        servidor.verify();
+        assertThat(autenticacao.autenticada()).isFalse();
+        assertThat(autenticacao.detalhe()).contains("IllegalStateException");
+        assertThat(appender.list)
+                .anySatisfy(evento -> {
+                    assertThat(evento.getLevel()).isEqualTo(Level.WARN);
+                    assertThat(evento.getThrowableProxy()).isNotNull();
+                    assertThat(evento.getThrowableProxy().getClassName())
+                            .contains("IllegalStateException");
+                    assertThat(evento.getThrowableProxy().getCause().getClassName())
+                            .contains("Json");
+                });
+    }
+
+    @Test
+    void sondaDeSaudeFalhandoNaoAbreDisjuntorDeEnvioNemDeMidia() {
+        CircuitBreakerRegistry breakers = breakersSensiveis();
+        AdaptadorLocal local = novoAdaptador(breakers);
+        local.servidor
+                .expect(times(5), requestTo(URL_BASE + "/" + NUMERO + "?fields=id"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+        esperarEnvioDeTexto(local.servidor);
+        esperarDownloadDeMidia(local.servidor, "midia-sonda");
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(local.adapter.verificarAutenticacao().autenticada()).isFalse();
+        }
+
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-saude").getState())
+                .isEqualTo(CircuitBreaker.State.OPEN);
+        assertThat(enviarTexto(local.adapter).aceito()).isTrue();
+        assertThat(local.adapter.baixarMidiaRecebida("midia-sonda").mimetype()).isEqualTo("image/jpeg");
+        local.servidor.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-midia").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void falhaDeEnvioNaoAbreDisjuntorDeMidia() {
+        CircuitBreakerRegistry breakers = breakersSensiveis();
+        AdaptadorLocal local = novoAdaptador(breakers);
+        local.servidor
+                .expect(times(5), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("read timed out");
+                });
+        esperarDownloadDeMidia(local.servidor, "midia-envio");
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> enviarTexto(local.adapter)).isInstanceOf(ResourceAccessException.class);
+        }
+
+        assertThat(breakers.circuitBreaker("canal-meta-cloud").getState())
+                .isEqualTo(CircuitBreaker.State.OPEN);
+        assertThat(local.adapter.baixarMidiaRecebida("midia-envio").conteudo()).isEqualTo(new byte[] {1, 2, 3});
+        local.servidor.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-midia").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void falhaDeMidiaNaoAbreDisjuntorDeEnvio() {
+        CircuitBreakerRegistry breakers = breakersSensiveis();
+        AdaptadorLocal local = novoAdaptador(breakers);
+        local.servidor
+                .expect(times(5), requestTo(URL_BASE + "/midia-falha"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
+        esperarEnvioDeTexto(local.servidor);
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> local.adapter.baixarMidiaRecebida("midia-falha"))
+                    .isInstanceOf(RuntimeException.class);
+        }
+
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-midia").getState())
+                .isEqualTo(CircuitBreaker.State.OPEN);
+        assertThat(enviarTexto(local.adapter).aceito()).isTrue();
+        local.servidor.verify();
+        assertThat(breakers.circuitBreaker("canal-meta-cloud").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        assertThatThrownBy(() -> local.adapter.baixarMidiaRecebida("midia-falha"))
+                .isInstanceOf(ProvedorTemporariamenteIndisponivelException.class);
+    }
+
+    private ResultadoDeEnvio enviarTexto(MetaCloudApiAdapter alvo) {
+        return alvo.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemLivre("oi"),
+                UUID.randomUUID()));
+    }
+
+    private void esperarEnvioDeTexto(MockRestServiceServer alvo) {
+        alvo.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.1\"}]}", MediaType.APPLICATION_JSON));
+    }
+
+    private void esperarDownloadDeMidia(MockRestServiceServer alvo, String midiaId) {
+        alvo.expect(once(), requestTo(URL_BASE + "/" + midiaId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"url\":\"https://cdn.example.test/arquivo.bin\",\"mime_type\":\"image/jpeg\"}",
+                        MediaType.APPLICATION_JSON));
+        alvo.expect(once(), requestTo("https://cdn.example.test/arquivo.bin"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_JPEG));
+    }
+
+    private AdaptadorLocal novoAdaptador(CircuitBreakerRegistry breakers) {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer local = MockRestServiceServer.bindTo(builder).build();
+        CanalProperties propriedades = new CanalProperties(
+                MetaCloudApiAdapter.PROVEDOR,
+                URL_BASE,
+                NUMERO,
+                "token-de-teste",
+                "verify",
+                "secret",
+                Duration.ofHours(24),
+                Duration.ofSeconds(10),
+                "waba-teste");
+        return new AdaptadorLocal(
+                new MetaCloudApiAdapter(builder, propriedades, json, breakers, armazenamento), local);
+    }
+
+    private static CircuitBreakerRegistry breakersSensiveis() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(10)
+                .minimumNumberOfCalls(5)
+                .failureRateThreshold(50f)
+                .waitDurationInOpenState(Duration.ofSeconds(30))
+                .permittedNumberOfCallsInHalfOpenState(2)
+                .automaticTransitionFromOpenToHalfOpenEnabled(true)
+                .build();
+        return CircuitBreakerRegistry.of(config);
+    }
+
+    private record AdaptadorLocal(MetaCloudApiAdapter adapter, MockRestServiceServer servidor) {}
 }

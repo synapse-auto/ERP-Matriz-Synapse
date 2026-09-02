@@ -32,10 +32,20 @@ public interface WebhookEntrada {
 
     void reagendar(String idExterno, String erro);
 
+    /**
+     * Volta para a fila sem gastar tentativa. O provedor nao foi consultado (disjuntor aberto);
+     * contar como falha esgotaria a linha enquanto a Meta estava saudavel.
+     *
+     * <p>{@code webhook_entrada} nao tem {@code proxima_tentativa_em} — essa coluna e da outbox, e
+     * criar uma exigiria migration, que esta etapa nao faz. A linha permanece elegivel na proxima
+     * rodada; o prazo absoluto a partir de {@code recebido_em} e a guarda contra fila eterna.
+     */
+    void adiar(String idExterno, String erro);
+
     /** Desistiu. A linha fica, com o erro, para alguem olhar. */
     void esgotar(String idExterno, Instant quando, String erro);
 
     long quantidadeEsgotada();
 
-    record Pendente(String idExterno, String payloadCru, int tentativas) {}
+    record Pendente(String idExterno, String payloadCru, int tentativas, Instant recebidoEm) {}
 }
