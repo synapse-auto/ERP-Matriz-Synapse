@@ -38,7 +38,7 @@ const PAYLOAD_COM_DADOS = {
   periodo: { ano: 2040, meses: [8] },
   atendimentos: { noPeriodo: 12, acumulado: 40, comparativo: { valor: 20, unidade: "PERCENTUAL" } },
   tempoMedioAtendimento: { segundos: 5400, comparativo: { valor: -10, unidade: "PERCENTUAL" } },
-  avaliacaoMedia: { media: 4.5, escalaMaxima: 5, quantidade: 8, comparativo: null },
+  avaliacaoMedia: { media: 4.5, escalaMaxima: 10, quantidade: 8, comparativo: null },
   resolucaoPorIa: { percentual: 75, resolvidosSemTransferencia: 9, atendimentosFinalizados: 12, comparativo: { valor: 5, unidade: "PONTOS_PERCENTUAIS" } },
   vendasFechadas: { noPeriodo: 3, acumulado: 9, comparativo: null },
   taxaConversao: { percentual: 50, vendas: 3, leadsRecebidos: 6, comparativo: { valor: 25, unidade: "PONTOS_PERCENTUAIS" } },
@@ -60,7 +60,7 @@ const PAYLOAD_ZERADO = {
   periodo: { ano: 2040, meses: [8] },
   atendimentos: { noPeriodo: 0, acumulado: 0, comparativo: null },
   tempoMedioAtendimento: { segundos: null, comparativo: null },
-  avaliacaoMedia: { media: null, escalaMaxima: 5, quantidade: 0, comparativo: null },
+  avaliacaoMedia: { media: null, escalaMaxima: 10, quantidade: 0, comparativo: null },
   resolucaoPorIa: { percentual: null, resolvidosSemTransferencia: 0, atendimentosFinalizados: 0, comparativo: null },
   vendasFechadas: { noPeriodo: 0, acumulado: 0, comparativo: null },
   taxaConversao: { percentual: 0, vendas: 0, leadsRecebidos: 0, comparativo: null },
@@ -86,7 +86,7 @@ describe("PaginaDashboard", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("1h 30min")).toBeInTheDocument();
     expect(screen.getByText("Avaliação")).toBeInTheDocument();
-    expect(screen.getByText("4,5/5")).toBeInTheDocument();
+    expect(screen.getByText("4,5/10")).toBeInTheDocument();
     // 50,0% aparece duas vezes: taxa de conversão (KPI) e passagem da etapa (funil).
     expect(screen.getAllByText("50,0%")).toHaveLength(2);
     expect(screen.queryByText("Vendas fechadas")).not.toBeInTheDocument();

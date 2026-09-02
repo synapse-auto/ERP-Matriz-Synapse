@@ -19,6 +19,7 @@ import com.synapse.crm.relatorios.domain.dashboard.Comparativo;
 import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 import com.synapse.crm.relatorios.domain.vendas.AgregacaoDeVendas;
+import com.synapse.crm.sharedkernel.avaliacao.EscalaDeAvaliacao;
 
 /** Read model SQL consolidado; nenhuma consulta participa do caminho crítico de mensagens. */
 @Repository
@@ -74,7 +75,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         Comparativo.percentual(atual.mediaSegundos(), anterior.mediaSegundos())),
                 new VisaoGeralDashboard.AvaliacaoMedia(
                         escala(avaliacaoAtual.media()),
-                        5,
+                        EscalaDeAvaliacao.NOTA_MAXIMA,
                         avaliacaoAtual.quantidade(),
                         Comparativo.pontos(avaliacaoAtual.media(), avaliacaoAnterior.media())),
                 new VisaoGeralDashboard.ResolucaoPorIa(

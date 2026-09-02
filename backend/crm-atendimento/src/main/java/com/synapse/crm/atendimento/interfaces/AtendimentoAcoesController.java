@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -301,7 +299,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Consultar avaliação do atendimento",
-            description = "Devolve a nota 1–5 se já existir. Ausência e atendimento invisível respondem 404 iguais.",
+            description = "Devolve a nota 0–10 se já existir. Ausência e atendimento invisível respondem 404 iguais.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Avaliação existente."),
                 @ApiResponse(responseCode = "404", description = "Atendimento invisível ou ainda sem nota.")
@@ -317,7 +315,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Registrar avaliação do atendimento",
-            description = "Grava uma única nota 1–5 no atendente dono da conversa já finalizada. Não substitui nota existente.",
+            description = "Grava uma única nota 0–10 no atendente dono da conversa já finalizada. Não substitui nota existente.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
@@ -645,8 +643,8 @@ class AtendimentoAcoesController {
     record FinalizacaoEmLoteResposta(int solicitados, int finalizados, int recusados) {}
 
     record AvaliacaoRequisicao(
-            @Schema(description = "Nota de 1 a 5.", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull @Min(1) @Max(5) Integer nota,
+            @Schema(description = "Nota de 0 a 10.", example = "7", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull Integer nota,
             @Schema(description = "Comentário opcional do cliente ou do atendente.", example = "Atendimento rápido")
                     @Size(max = 2000) String comentario) {}
 

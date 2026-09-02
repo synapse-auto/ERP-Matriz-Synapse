@@ -191,7 +191,8 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(avaliar(id, "errado", 5).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(post("/internal/v1/atendimentos/" + id + "/avaliacao", tokenGestor, Map.of("nota", 5))
                 .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(avaliar(id, "avaliacao-interno-fixture", 6).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(avaliar(id, "avaliacao-interno-fixture", 11).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(avaliar(id, "avaliacao-interno-fixture", 5).getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(avaliar(id, "avaliacao-interno-fixture", 1).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM avaliacao WHERE atendimento_id = ?", UUID.class, id))

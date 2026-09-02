@@ -74,7 +74,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         equipeLabel: "Equipe",
         onlineLabel: "{online} online · {ativos} ativos",
         avaliacaoMedia: "Avaliação média",
-        rankingAvaliacao: "Ranking · avaliação (1–5)",
+        rankingAvaliacao: "Ranking · avaliação (0–10)",
         rankingVendas: "Ranking · vendas fechadas",
       },
       grade: { titulo: "USUÁRIOS" },
@@ -149,7 +149,7 @@ describe("pagina de equipe", () => {
 
     expect(screen.getByText("1 online · 1 ativos")).toBeInTheDocument();
     expect(screen.getByText("9.2")).toBeInTheDocument();
-    expect(screen.getByText("Ranking · avaliação (1–5)")).toBeInTheDocument();
+    expect(screen.getByText("Ranking · avaliação (0–10)")).toBeInTheDocument();
     expect(screen.getByText("Ranking · vendas fechadas")).toBeInTheDocument();
   });
 

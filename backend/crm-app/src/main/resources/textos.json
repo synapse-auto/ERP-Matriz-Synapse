@@ -342,11 +342,11 @@
     },
     "avaliacao": {
       "titulo": "Avaliação do atendimento",
-      "descricao": "Registre a nota de 1 a 5 que o cliente deu a este atendimento.",
+      "descricao": "Registre a nota de 0 a 10 que o cliente deu a este atendimento.",
       "registrar": "Avaliar",
       "confirmar": "Salvar avaliação",
       "cancelar": "Agora não",
-      "jaRegistrada": "Avaliação registrada: {nota}/5",
+      "jaRegistrada": "Avaliação registrada: {nota}/10",
       "sucesso": "Avaliação registrada.",
       "erro": "Não foi possível registrar a avaliação.",
       "nota": "Nota {nota}"
@@ -803,7 +803,7 @@
       "equipeLabel": "Equipe",
       "onlineLabel": "{online} online · {ativos} ativos",
       "avaliacaoMedia": "Avaliação média",
-      "rankingAvaliacao": "Ranking · avaliação (1–5)",
+      "rankingAvaliacao": "Ranking · avaliação (0–10)",
       "rankingVendas": "Ranking · vendas fechadas"
     },
     "grade": {

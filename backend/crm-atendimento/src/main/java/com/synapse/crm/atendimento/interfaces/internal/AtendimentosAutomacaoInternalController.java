@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -147,7 +146,7 @@ class AtendimentosAutomacaoInternalController {
 
     @Operation(
             summary = "Registrar avaliação do atendimento",
-            description = "Coleta CSAT da Automação (WhatsApp) na escala 1–5, no atendente dono da conversa já finalizada.",
+            description = "Coleta CSAT da Automação (WhatsApp) na escala 0–10, no atendente dono da conversa já finalizada.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
@@ -227,8 +226,8 @@ class AtendimentosAutomacaoInternalController {
                     @NotBlank String resumo) {}
 
     record AvaliacaoRequisicao(
-            @Schema(description = "Nota de 1 a 5.", example = "5", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull @Min(1) @Max(5) Integer nota,
+            @Schema(description = "Nota de 0 a 10.", example = "7", requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull Integer nota,
             @Schema(description = "Comentário opcional.", example = "Atendimento rápido")
                     @Size(max = 2000) String comentario) {}
 

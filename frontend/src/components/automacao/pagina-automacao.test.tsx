@@ -104,13 +104,16 @@ describe("pagina de automacao", () => {
     expect(atualizarDisponibilidade).toHaveBeenCalledWith({ id: "ana", disponivelParaIa: false });
   });
 
-  it("mantem parametros avancados fechados e ainda salva automacao.habilitada", () => {
+  it("mantem parametros avancados fechados e ainda salva automacao.habilitada via Switch", () => {
     const { container } = render(<PaginaAutomacao />);
     const detalhes = container.querySelector("details");
     expect(detalhes).not.toHaveAttribute("open");
     fireEvent.click(screen.getByText("Parâmetros avançados"));
     expect(detalhes).toHaveAttribute("open");
-    fireEvent.click(screen.getByLabelText("Ativado"));
+    const interruptor = screen.getByRole("switch", { name: "Chave geral da automação." });
+    expect(interruptor).toBeChecked();
+    fireEvent.click(interruptor);
+    expect(interruptor).not.toBeChecked();
     const salvar = screen.getAllByRole("button", { name: "Salvar" }).find((botao) => !botao.hasAttribute("disabled"));
     expect(salvar).toBeDefined();
     fireEvent.click(salvar!);

@@ -109,7 +109,7 @@ class RegistrarAvaliacaoUseCaseTest {
         when(avaliacoes.porAtendimento(atendimentoId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
-                        .executar(atendimentoId, 0, null))
+                        .executar(atendimentoId, 11, null))
                 .isInstanceOf(NotaDeAvaliacaoInvalidaException.class);
         verify(avaliacoes, never()).salvar(any());
     }

@@ -491,7 +491,19 @@ function LinhaParametro({ parametro }: { parametro: ParametroAutomacao }) {
 
 function CampoValor({ parametro, valor, onChange }: { parametro: ParametroAutomacao; valor: string; onChange: (valor: string) => void }) {
   const t = useTextos().automacao;
-  if (parametro.tipo === "BOOLEAN") return <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={valor === "true"} onChange={(evento) => onChange(evento.target.checked ? "true" : "false")} />{valor === "true" ? t.ativado : t.desativado}</label>;
+  if (parametro.tipo === "BOOLEAN") {
+    const ligado = valor === "true";
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <Switch
+          checked={ligado}
+          aria-label={parametro.descricao ?? parametro.chave}
+          onCheckedChange={(proximo) => onChange(proximo ? "true" : "false")}
+        />
+        <span>{ligado ? t.ativado : t.desativado}</span>
+      </div>
+    );
+  }
   if (parametro.tipo === "TEXT") return <Textarea value={valor} onChange={(evento) => onChange(evento.target.value)} rows={2} className="min-w-64 flex-1" />;
   return <Input type="number" inputMode="decimal" step={parametro.tipo === "DECIMAL" ? "any" : "1"} min={parametro.valorMin ?? undefined} max={parametro.valorMax ?? undefined} value={valor} onChange={(evento) => onChange(evento.target.value)} className="w-32" />;
 }
