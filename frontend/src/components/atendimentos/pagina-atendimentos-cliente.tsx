@@ -233,6 +233,8 @@ export function PaginaAtendimentosCliente({
   );
   const enviar = useEnviarMensagem();
   const aposMensagemEnviada = useCallback(() => {
+    // PR #71: só PENDENTES → ATIVOS após envio bem-sucedido. FINALIZADOS (e as demais
+    // visões) permanecem — o usuário não é expulso da lista de finalizados por um envio.
     if (visaoAtendimento === "PENDENTES") {
       setVisaoAtendimento("ATIVOS");
     }

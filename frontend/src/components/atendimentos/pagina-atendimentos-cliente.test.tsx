@@ -305,6 +305,21 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
+  it("preserva FINALIZADOS quando o envio bem-sucedido não partiu de Pendentes", () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="FINALIZADOS" />
+      </QueryClientProvider>,
+    );
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    act(() => callbacks.alterarVisao?.("FINALIZADOS"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Simular envio" }));
+
+    expect(callbacks.visaoAtual).toBe("FINALIZADOS");
+  });
+
   it("mantém conversa e visão Pendentes quando o envio falha", () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>

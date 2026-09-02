@@ -6,6 +6,10 @@ import type { ItemInbox } from "@/lib/atendimento/types";
 const finalizarTodos = vi.fn();
 const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
+const atendimentosMock = vi.hoisted(() => ({
+  visao: "TODOS" as string,
+  data: [] as ItemInbox[],
+}));
 
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (seletor: (estado: typeof authMock) => unknown) => seletor(authMock),
@@ -113,9 +117,18 @@ const cartoes: ItemInbox[] = [
 ];
 
 vi.mock("@/lib/atendimento/use-atendimentos", () => ({
-  useAtendimentos: () => ({ data: cartoes, isLoading: false }),
+  useAtendimentos: (visao: string) => {
+    atendimentosMock.visao = visao;
+    return {
+      data: atendimentosMock.data,
+      isLoading: false,
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage: async () => undefined,
+    };
+  },
   useContagemDeAtendimentos: () => ({
-    data: { TODOS: 2, ATIVOS: 1, PENDENTES: 1, POTENCIAIS: 1 },
+    data: { TODOS: 2, ATIVOS: 1, PENDENTES: 1, POTENCIAIS: 1, FINALIZADOS: 1 },
   }),
 }));
 
@@ -170,6 +183,8 @@ import { ListaConversas } from "./lista-conversas";
 describe("ListaConversas", () => {
   beforeEach(() => {
     authMock.papel = "GESTOR";
+    atendimentosMock.visao = "TODOS";
+    atendimentosMock.data = cartoes;
   });
 
   it("mostra as quatro visões e busca por cliente, empresa ou protocolo", () => {
@@ -227,6 +242,50 @@ describe("ListaConversas", () => {
     ]);
     expect(screen.getByRole("tab", { name: /Ativos/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Potenciais/ })).toBeInTheDocument();
+  });
+
+  it("mostra Finalizados no menu para atendente e gestor sem virar aba", () => {
+    for (const papel of ["ATENDENTE", "GESTOR"] as const) {
+      authMock.papel = papel;
+      const { unmount } = render(
+        <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+      expect(screen.getByRole("menuitem", { name: "Finalizados" })).toBeInTheDocument();
+      expect(screen.queryByRole("tab", { name: /Finalizados/ })).not.toBeInTheDocument();
+      if (papel === "ATENDENTE") {
+        expect(screen.getAllByRole("tab")).toHaveLength(3);
+      } else {
+        expect(screen.getAllByRole("tab")).toHaveLength(4);
+      }
+      unmount();
+    }
+  });
+
+  it("acionar Finalizados consulta a visão e desmarca as abas; clicar numa aba volta", () => {
+    const onVisao = vi.fn();
+    render(
+      <ListaConversas
+        selecionadoId={null}
+        onAbrirAtendimento={vi.fn()}
+        onVisaoAlterada={onVisao}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizados" }));
+
+    expect(atendimentosMock.visao).toBe("FINALIZADOS");
+    expect(onVisao).toHaveBeenCalledWith("FINALIZADOS");
+    expect(screen.queryByRole("tab", { selected: true })).not.toBeInTheDocument();
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).not.toHaveAttribute("data-active");
+    }
+
+    fireEvent.click(screen.getByRole("tab", { name: /Pendentes/ }));
+    expect(atendimentosMock.visao).toBe("PENDENTES");
+    expect(onVisao).toHaveBeenCalledWith("PENDENTES");
+    expect(screen.getByRole("tab", { name: /Pendentes/ })).toHaveAttribute("data-active");
   });
 
   it("abre a finalização global na barra da lista com a quantidade real", () => {

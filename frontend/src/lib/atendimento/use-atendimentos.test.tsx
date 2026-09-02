@@ -60,6 +60,20 @@ describe("useAtendimentos — paginação da inbox", () => {
     expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1");
   });
 
+  it("usa a inbox paginada também para FINALIZADOS", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [cliente("fim", "2026-08-26T12:00:00Z")],
+      proximoCursor: null,
+    });
+    vi.mocked(api.listarAtendimentos).mockResolvedValue([]);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("FINALIZADOS"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null);
+    expect(api.listarAtendimentos).not.toHaveBeenCalled();
+  });
+
   it("mantém a inbox íntegra após invalidação sem misturar o cache da lista legada", async () => {
     vi.mocked(api.listarInboxUnificada).mockResolvedValue({
       itens: [cliente("um", "2026-08-26T12:00:00Z")],

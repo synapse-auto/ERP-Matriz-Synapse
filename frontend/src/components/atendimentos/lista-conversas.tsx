@@ -33,6 +33,11 @@ import {
   useQuantidadeAtendimentosFinalizaveis,
 } from "@/lib/atendimento/use-transferir-finalizar";
 import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
+import {
+  ABAS_ATENDENTE,
+  ABAS_GESTAO,
+  ehAbaDeAtendimento,
+} from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
@@ -61,8 +66,10 @@ type Props = {
   className?: string;
 };
 
+type VisaoDeAba = Exclude<VisaoAtendimento, "FINALIZADOS">;
+
 const ROTULO_VISAO: Record<
-  VisaoAtendimento,
+  VisaoDeAba,
   keyof ReturnType<typeof useTextos>["atendimentos"]["visoes"]
 > = {
   ATIVOS: "ativos",
@@ -97,21 +104,23 @@ export function ListaConversas({
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
   const papelAmplo = papel != null && papel !== "ATENDENTE";
-  const visoes = useMemo<VisaoAtendimento[]>(
-    () => papelAmplo
-      ? ["TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"]
-      : ["ATIVOS", "PENDENTES", "POTENCIAIS"],
+  const abas = useMemo<VisaoDeAba[]>(
+    () => (papelAmplo ? ABAS_GESTAO : ABAS_ATENDENTE) as VisaoDeAba[],
     [papelAmplo],
   );
   const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(
     visaoInicial ?? null,
   );
-  const visao =
-    visaoAtual && visoes.includes(visaoAtual)
-      ? visaoAtual
-      : visaoEscolhida && visoes.includes(visaoEscolhida)
-        ? visaoEscolhida
-        : visoes[0];
+  // FINALIZADOS não entra em `abas`, mas é visão válida (menu). Sem este recorte, o fallback
+  // para abas[0] expulsava o usuário da lista de finalizados (E136 × PR #71).
+  const visaoSolicitavel = (candidata: VisaoAtendimento | null | undefined): candidata is VisaoAtendimento =>
+    candidata != null && (candidata === "FINALIZADOS" || abas.includes(candidata as VisaoDeAba));
+  const visao: VisaoAtendimento = visaoSolicitavel(visaoAtual)
+    ? visaoAtual
+    : visaoSolicitavel(visaoEscolhida)
+      ? visaoEscolhida
+      : abas[0];
+  const abaAtiva = ehAbaDeAtendimento(visao) ? visao : "";
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
@@ -131,9 +140,10 @@ export function ListaConversas({
   const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis();
 
   const fimDaLista = useRef<HTMLDivElement>(null);
+  const paginaComCursor = visao === "TODOS" || visao === "FINALIZADOS";
   useEffect(() => {
     const alvo = fimDaLista.current;
-    if (!alvo || visao !== "TODOS" || !hasNextPage) return;
+    if (!alvo || !paginaComCursor || !hasNextPage) return;
     const observador = new IntersectionObserver(
       (entradas) => {
         if (entradas[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
@@ -142,7 +152,7 @@ export function ListaConversas({
     );
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, visao]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, paginaComCursor]);
 
   useEffect(() => {
     onVisaoAlterada?.(visao);
@@ -164,6 +174,11 @@ export function ListaConversas({
       onAbrirAtendimento(cartao);
     }
   }, [cartoes, leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
+
+  function escolherVisao(proxima: VisaoAtendimento) {
+    setVisaoEscolhida(proxima);
+    onVisaoAlterada?.(proxima);
+  }
 
   const etapas = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -227,6 +242,9 @@ export function ListaConversas({
                 <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => escolherVisao("FINALIZADOS")}>
+                  {textos.lista.finalizados}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
                     setResultadoFinalizacao(null);
@@ -285,11 +303,9 @@ export function ListaConversas({
       </div>
 
       <Tabs
-        value={visao}
+        value={abaAtiva}
         onValueChange={(valor) => {
-          const proximaVisao = valor as VisaoAtendimento;
-          setVisaoEscolhida(proximaVisao);
-          onVisaoAlterada?.(proximaVisao);
+          escolherVisao(valor as VisaoAtendimento);
         }}
       >
         <TabsList
@@ -299,7 +315,7 @@ export function ListaConversas({
             papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
           )}
         >
-          {visoes.map((item) => (
+          {abas.map((item) => (
             <TabsTrigger
               key={item}
               value={item}
@@ -380,7 +396,7 @@ export function ListaConversas({
               </Fragment>
             ))
           )}
-          {visao === "TODOS" && hasNextPage && (
+          {paginaComCursor && hasNextPage && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>

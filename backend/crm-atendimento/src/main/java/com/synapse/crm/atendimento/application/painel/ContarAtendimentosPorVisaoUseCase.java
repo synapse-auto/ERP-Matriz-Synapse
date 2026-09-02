@@ -37,7 +37,9 @@ public class ContarAtendimentosPorVisaoUseCase {
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
 
         Map<VisaoAtendimento, Long> contagens = new EnumMap<>(VisaoAtendimento.class);
-        for (VisaoAtendimento visao : VisaoAtendimento.disponiveisPara(atual)) {
+        // solicitaveisPor (nao abasPara): FINALIZADOS tambem precisa de contagem coerente com a
+        // listagem, embora nao vire badge de aba — a tela so exibe as chaves das abas.
+        for (VisaoAtendimento visao : VisaoAtendimento.solicitaveisPor(atual)) {
             contagens.put(visao, painel.contar(visao, atual.id(), restritoAoProprioAtendente));
         }
         return contagens;

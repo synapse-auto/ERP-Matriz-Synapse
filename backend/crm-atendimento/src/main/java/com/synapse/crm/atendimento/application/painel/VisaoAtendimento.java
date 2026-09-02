@@ -28,14 +28,22 @@ public enum VisaoAtendimento {
     POTENCIAIS,
 
     /** Tudo que a RLS deixa um usuario de gestao alcancar, sem filtro extra. */
-    TODOS;
+    TODOS,
+
+    /**
+     * Leads sem atendimento aberto ({@code EM_ATENDIMENTO}/{@code EM_IA}). "Meus" para atendente
+     * (ultimo atendimento e dele), "de todos" para gestao. Nao e aba — e estado alternativo da
+     * lista, acionado pelo menu (E136).
+     */
+    FINALIZADOS;
 
     /**
      * Confere a autorizacao da visao antes de qualquer adaptador de leitura.
      *
      * <p>A visao {@code TODOS} e uma capacidade de gestao, nao uma forma alternativa de pedir a
      * mesma lista. Centralizar a pergunta aqui impede que o endpoint legado, a inbox unificada e
-     * a contagem acabem com regras diferentes quando surgir outro papel.
+     * a contagem acabem com regras diferentes quando surgir outro papel. {@code FINALIZADOS} e
+     * solicitavel por qualquer papel — o recorte muda, a capacidade nao.
      */
     public void exigirAcesso(UsuarioAutenticado usuario) {
         if (!podeSerSolicitadaPor(usuario)) {
@@ -47,8 +55,18 @@ public enum VisaoAtendimento {
         return this != TODOS || usuario.enxergaTodosOsLeads();
     }
 
-    /** As visoes que a tela pode exibir para o papel autenticado. */
-    public static List<VisaoAtendimento> disponiveisPara(UsuarioAutenticado usuario) {
+    /**
+     * As visoes que a tela mostra como <em>aba</em>. {@link #FINALIZADOS} fica de fora — e estado
+     * do menu, nao aba (E136).
+     */
+    public static List<VisaoAtendimento> abasPara(UsuarioAutenticado usuario) {
+        return Arrays.stream(values())
+                .filter(visao -> visao != FINALIZADOS && visao.podeSerSolicitadaPor(usuario))
+                .toList();
+    }
+
+    /** Tudo que o papel autenticado pode pedir a API, incluindo {@link #FINALIZADOS}. */
+    public static List<VisaoAtendimento> solicitaveisPor(UsuarioAutenticado usuario) {
         return Arrays.stream(values()).filter(visao -> visao.podeSerSolicitadaPor(usuario)).toList();
     }
 }

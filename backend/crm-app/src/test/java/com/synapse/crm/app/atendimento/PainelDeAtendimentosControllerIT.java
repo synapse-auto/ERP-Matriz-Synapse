@@ -390,11 +390,11 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
             assertContagemBateComListagem(
                     EMAIL_ANA,
                     SENHA_ATENDENTE,
-                    List.of("ATIVOS", "PENDENTES", "POTENCIAIS"));
+                    List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "FINALIZADOS"));
             assertContagemBateComListagem(
                     EMAIL_GESTOR,
                     SENHA_GESTOR,
-                    List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"));
+                    List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS", "FINALIZADOS"));
         }
 
         @Test
@@ -431,6 +431,133 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
         private int quantidadeDeCartoes(String corpoJson) {
             return corpoJson.split("\"atendimentoId\"", -1).length - 1;
+        }
+    }
+
+    @Nested
+    @DisplayName("FINALIZADOS (E136)")
+    class Finalizados {
+
+        private UUID leadFinalizadoDaAna;
+        private UUID atendimentoFinalizadoDaAna;
+        private UUID leadFinalizadoDoBruno;
+        private UUID atendimentoFinalizadoDoBruno;
+        private UUID leadComHistoricoEAberto;
+        private UUID atendimentoAbertoDoHistorico;
+
+        @BeforeEach
+        void prepararFinalizados() {
+            Instant base = Instant.parse("2026-09-01T10:00:00Z");
+
+            leadFinalizadoDaAna = criarLead("Finalizado Ana", idAna, "FINALIZADO");
+            atendimentoFinalizadoDaAna = criarAtendimento(leadFinalizadoDaAna, idAna, "FINALIZADO");
+            definirInicio(atendimentoFinalizadoDaAna, base);
+            inserirMensagem(atendimentoFinalizadoDaAna, "ATENDENTE", idAna, "encerrado pela Ana");
+            definirUltimaMensagem(atendimentoFinalizadoDaAna, base.plusSeconds(1));
+
+            leadFinalizadoDoBruno = criarLead("Finalizado Bruno", idBruno, "FINALIZADO");
+            atendimentoFinalizadoDoBruno = criarAtendimento(leadFinalizadoDoBruno, idBruno, "FINALIZADO");
+            definirInicio(atendimentoFinalizadoDoBruno, base.plusSeconds(10));
+            inserirMensagem(atendimentoFinalizadoDoBruno, "ATENDENTE", idBruno, "encerrado pelo Bruno");
+            definirUltimaMensagem(atendimentoFinalizadoDoBruno, base.plusSeconds(11));
+
+            leadComHistoricoEAberto = criarLead("Historico com aberto", idAna, "EM_ATENDIMENTO");
+            UUID historico = criarAtendimento(leadComHistoricoEAberto, idAna, "FINALIZADO");
+            atendimentoAbertoDoHistorico = criarAtendimento(leadComHistoricoEAberto, idAna, "EM_ATENDIMENTO");
+            definirInicio(historico, base.plusSeconds(20));
+            definirInicio(atendimentoAbertoDoHistorico, base.plusSeconds(30));
+            inserirMensagem(historico, "LEAD", null, "mensagem antiga");
+            inserirMensagem(atendimentoAbertoDoHistorico, "ATENDENTE", idAna, "ainda aberto");
+            definirUltimaMensagem(historico, base.plusSeconds(21));
+            definirUltimaMensagem(atendimentoAbertoDoHistorico, base.plusSeconds(31));
+        }
+
+        @Test
+        @DisplayName("atendente ve so leads sem aberto cujo ultimo atendimento e dele")
+        void atendente_veSomenteOsPropriosSemAberto() {
+            String corpo = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "FINALIZADOS");
+
+            assertThat(corpo).contains(atendimentoFinalizadoDaAna.toString());
+            assertThat(corpo).doesNotContain(atendimentoFinalizadoDoBruno.toString());
+            assertThat(corpo).doesNotContain(atendimentoAbertoDoHistorico.toString());
+            assertThat(corpo).doesNotContain(leadComHistoricoEAberto.toString());
+        }
+
+        @Test
+        @DisplayName("gestor ve finalizados de outros atendentes tambem")
+        void gestor_veDeTodos() {
+            String corpo = listarComo(EMAIL_GESTOR, SENHA_GESTOR, "FINALIZADOS");
+
+            assertThat(corpo).contains(atendimentoFinalizadoDaAna.toString());
+            assertThat(corpo).contains(atendimentoFinalizadoDoBruno.toString());
+            assertThat(corpo).doesNotContain(atendimentoAbertoDoHistorico.toString());
+        }
+
+        @Test
+        @DisplayName("lead com finalizado e outro aberto nao entra em FINALIZADOS e permanece em ATIVOS")
+        void leadComAberto_naoApareceEmFinalizadosEPermaneceEmAtivos() {
+            String finalizados = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "FINALIZADOS");
+            String ativos = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS");
+
+            assertThat(finalizados).doesNotContain(leadComHistoricoEAberto.toString());
+            assertThat(ativos).contains(atendimentoAbertoDoHistorico.toString());
+        }
+
+        @Test
+        @DisplayName("contagem de FINALIZADOS bate com a listagem para os dois papeis")
+        void contagem_bateComListagemParaOsDoisPapeis() throws Exception {
+            assertContagemFinalizados(EMAIL_ANA, SENHA_ATENDENTE);
+            assertContagemFinalizados(EMAIL_GESTOR, SENHA_GESTOR);
+        }
+
+        @Test
+        @DisplayName("paginacao por cursor devolve o mesmo conjunto da listagem sem paginacao")
+        void paginacao_devolveOMesmoConjunto() throws Exception {
+            String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+            JsonNode listaCompleta = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "FINALIZADOS"));
+            java.util.Set<String> idsEsperados = new java.util.LinkedHashSet<>();
+            listaCompleta.forEach(cartao -> idsEsperados.add(cartao.path("atendimentoId").asText()));
+
+            java.util.Set<String> idsPaginados = new java.util.LinkedHashSet<>();
+            String cursor = null;
+            for (int pagina = 0; pagina < 50; pagina++) {
+                String url = "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50"
+                        + (cursor == null ? "" : "&cursor=" + cursor);
+                JsonNode corpo = json.readTree(ApoioAutenticacao.comToken(
+                                http, token, HttpMethod.GET, url, String.class)
+                        .getBody());
+                for (JsonNode item : corpo.path("itens")) {
+                    if (!"EQUIPE_INTERNA".equals(item.path("tipo").asText())) {
+                        idsPaginados.add(item.path("atendimentoId").asText());
+                    }
+                }
+                if (corpo.path("proximoCursor").isNull()
+                        || corpo.path("proximoCursor").asText("").isBlank()) {
+                    break;
+                }
+                cursor = corpo.path("proximoCursor").asText();
+            }
+
+            assertThat(idsPaginados).containsExactlyInAnyOrderElementsOf(idsEsperados);
+        }
+
+        @Test
+        @DisplayName("TODOS continua barrada para atendente")
+        void todos_continuaBarradaParaAtendente() {
+            ResponseEntity<String> resposta = respostaListarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+
+        private void assertContagemFinalizados(String email, String senha) throws Exception {
+            String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+            String contagemJson = ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                    .getBody();
+            String listagem = ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=FINALIZADOS", String.class)
+                    .getBody();
+            assertThat(json.readTree(contagemJson).path("FINALIZADOS").asLong())
+                    .isEqualTo(json.readTree(listagem).size());
         }
     }
 
