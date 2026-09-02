@@ -17,7 +17,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { AtendimentoResumo, CartaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useLead } from "@/lib/lead/use-painel-lead";
 import { useParticipantes } from "@/lib/atendimento/use-participantes";
@@ -45,6 +45,7 @@ type Props = {
   onVoltar?: () => void;
   onAbrirNovoAtendimento?: () => void;
   abrindoNovoAtendimento?: boolean;
+  onAtendimentoFinalizado?: (resumo: AtendimentoResumo) => void;
 };
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
@@ -57,6 +58,7 @@ export function CabecalhoConversa({
   onVoltar,
   onAbrirNovoAtendimento,
   abrindoNovoAtendimento = false,
+  onAtendimentoFinalizado,
 }: Props) {
   const catalogo = useTextos();
   const textos = {
@@ -89,7 +91,7 @@ export function CabecalhoConversa({
     erroParticipacao: catalogo.atendimentos.cabecalho.erroParticipacao ?? "Não foi possível atualizar sua participação.",
   };
   const [transferirAberto, setTransferirAberto] = useState(false);
-  const finalizar = useFinalizarAtendimento();
+  const finalizar = useFinalizarAtendimento(onAtendimentoFinalizado);
   const token = useAuthStore((estado) => estado.accessToken);
   const papel = useAuthStore((estado) => estado.papel);
   const lead = useLead(conversa.leadId);

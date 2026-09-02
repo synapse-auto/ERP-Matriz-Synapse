@@ -8,6 +8,7 @@ import {
   finalizarAtendimentosVisiveis,
   transferirAtendimento,
 } from "./api";
+import type { AtendimentoResumo } from "./types";
 
 export function useTransferirAtendimento() {
   const queryClient = useQueryClient();
@@ -25,12 +26,15 @@ export function useTransferirAtendimento() {
   });
 }
 
-export function useFinalizarAtendimento() {
+export function useFinalizarAtendimento(
+  onAtendimentoFinalizado?: (resumo: AtendimentoResumo) => void,
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (atendimentoId: string) => finalizarAtendimento(atendimentoId),
-    onSuccess: () => {
+    onSuccess: (resumo) => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+      onAtendimentoFinalizado?.(resumo);
     },
   });
 }

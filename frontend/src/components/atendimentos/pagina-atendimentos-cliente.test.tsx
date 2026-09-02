@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  AtendimentoResumo,
   CartaoAtendimento,
   ItemInbox,
   NotificacaoTempoReal,
@@ -14,6 +15,7 @@ const callbacks = vi.hoisted(() => ({
   atualizarLista: undefined as ((cartoes: ItemInbox[]) => void) | undefined,
   alterarVisao: undefined as ((visao: string) => void) | undefined,
   visaoAtual: undefined as string | undefined,
+  finalizar: undefined as ((resumo: AtendimentoResumo) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
@@ -109,14 +111,26 @@ vi.mock("./cabecalho-conversa", () => ({
     painelDetalhesAberto,
     onAlternarPainelDetalhes,
     onAbrirNovoAtendimento,
+    onAtendimentoFinalizado,
   }: {
     conversa: CartaoAtendimento;
     painelDetalhesAberto: boolean;
     onAlternarPainelDetalhes: () => void;
     onAbrirNovoAtendimento?: () => void;
-  }) => (
-    <div data-testid="responsavel-cabecalho">
+    onAtendimentoFinalizado?: (resumo: AtendimentoResumo) => void;
+  }) => {
+    callbacks.finalizar = onAtendimentoFinalizado;
+    return (
+      <div data-testid="responsavel-cabecalho">
       {conversa.atendenteNome}
+      {conversa.status !== "FINALIZADO" && onAtendimentoFinalizado && (
+        <button
+          type="button"
+          onClick={() => onAtendimentoFinalizado({ id: conversa.atendimentoId, status: "FINALIZADO", atendenteId: conversa.atendenteId })}
+        >
+          Simular finalização
+        </button>
+      )}
       {conversa.status === "FINALIZADO" && onAbrirNovoAtendimento && (
         <button type="button" onClick={onAbrirNovoAtendimento}>Reativar atendimento</button>
       )}
@@ -125,8 +139,9 @@ vi.mock("./cabecalho-conversa", () => ({
           Reabrir detalhes do lead
         </button>
       )}
-    </div>
-  ),
+      </div>
+    );
+  },
 }));
 vi.mock("./painel-da-conversa", () => ({
   PainelDaConversa: ({
@@ -145,7 +160,7 @@ vi.mock("./painel-da-conversa", () => ({
 vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
   PainelConversaInterna: () => <div data-testid="conversa-interna" />,
 }));
-vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
+vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => <div data-testid="historico" /> }));
 vi.mock("./composer", () => ({
   Composer: ({ onMensagemEnviada }: { onMensagemEnviada?: () => void }) => (
     <>
@@ -250,6 +265,7 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.atualizarLista = undefined;
     callbacks.alterarVisao = undefined;
     callbacks.visaoAtual = undefined;
+    callbacks.finalizar = undefined;
     callbacks.mensagens = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
@@ -272,6 +288,21 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
     expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+  });
+
+  it("encerra o composer quando a finalização bem-sucedida remove o cartão da lista", () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Simular finalização" }));
+    act(() => callbacks.atualizarLista?.([]));
+
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("historico")).toBeInTheDocument();
   });
 
   it("mantém a conversa aberta quando o atendimento muda de visão após o envio", () => {
