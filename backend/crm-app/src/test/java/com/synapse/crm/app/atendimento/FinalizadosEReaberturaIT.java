@@ -95,7 +95,8 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 Instant.parse("2026-08-30T11:00:00Z"));
         mensagem(finalizado, "ATENDENTE", ana, "finalizado mais recente", Instant.parse("2026-08-30T10:01:00Z"));
 
-        String token = token(EMAIL_ANA);
+        // Finalizados continuam acessíveis pela visão TODOS da gestão; atendente já não possui essa aba.
+        String token = tokenGestor();
         JsonNode lista = json.readTree(get(token, "/api/v1/atendimentos?visao=TODOS").getBody());
         List<String> leads = valores(lista, "leadId");
 

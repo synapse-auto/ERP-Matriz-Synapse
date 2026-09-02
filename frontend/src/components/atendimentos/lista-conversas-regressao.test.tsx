@@ -10,6 +10,12 @@ vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: 0 }, isLoading: false }),
 }));
 
+const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: typeof authMock) => unknown) => seletor(authMock),
+}));
+
 vi.mock("@/lib/atendimento/api", () => ({
   listarInboxUnificada: vi.fn(),
   listarAtendimentos: vi.fn(),

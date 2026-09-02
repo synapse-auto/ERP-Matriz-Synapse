@@ -70,6 +70,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         templatesWhatsApp: "Templates WhatsApp",
         mensagensProgramadas: "Mensagens Programadas",
         lembretes: "Lembretes",
+        chatInterno: "Chat interno",
         equipe: "Equipe",
         automacao: "Automação",
         feedbacks: "Feedbacks",
@@ -174,6 +175,20 @@ describe("sidebar", () => {
 
     await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Automação")).not.toBeInTheDocument();
+  });
+
+  it("mostra o chat interno quando a flag está habilitada", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(["chat_interno"]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    renderSidebar();
+
+    const chat = await screen.findByRole("link", { name: "Chat interno" });
+    expect(chat).toHaveAttribute("href", "/chat-interno");
   });
 
   it("oferece Feedbacks para qualquer papel autenticado", async () => {

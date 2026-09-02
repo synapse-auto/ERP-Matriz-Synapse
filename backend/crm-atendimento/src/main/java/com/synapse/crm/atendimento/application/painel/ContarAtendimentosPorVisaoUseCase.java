@@ -37,7 +37,7 @@ public class ContarAtendimentosPorVisaoUseCase {
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
 
         Map<VisaoAtendimento, Long> contagens = new EnumMap<>(VisaoAtendimento.class);
-        for (VisaoAtendimento visao : VisaoAtendimento.values()) {
+        for (VisaoAtendimento visao : VisaoAtendimento.disponiveisPara(atual)) {
             contagens.put(visao, painel.contar(visao, atual.id(), restritoAoProprioAtendente));
         }
         return contagens;

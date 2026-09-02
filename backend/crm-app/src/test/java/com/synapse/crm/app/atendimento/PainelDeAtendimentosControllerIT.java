@@ -153,16 +153,16 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("TODOS: gestor ve tudo; atendente pedindo TODOS nao contorna a RN-CRM-01")
-    void todos_gestorVeTudoAtendenteNao() {
+    @DisplayName("TODOS: gestor ve tudo; atendente pedindo TODOS recebe 403")
+    void todos_gestorVeTudoAtendenteRecebe403() {
         String comoGestor = listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
         assertThat(comoGestor)
                 .contains(atendimentoAtivoDaAna.toString())
                 .contains(atendimentoPendenteDoBruno.toString())
                 .contains(atendimentoPotencial.toString());
 
-        String comoAna = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
-        assertThat(comoAna).doesNotContain(atendimentoPendenteDoBruno.toString());
+        ResponseEntity<String> comoAna = respostaListarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
+        assertThat(comoAna.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -350,10 +350,8 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
     /**
      * {@code GET /api/v1/atendimentos/contagem} (E17b §Bloco 6) — os badges das abas. O teste
-     * negativo do enunciado: contagem pedida por atendente devolve o numero restrito, gestor devolve
-     * o total. Comparacao relativa, e nao numero fixo, porque a suite roda contra o mesmo Postgres
-     * que outras IT (e o seed de demonstracao) tambem povoam — o que importa e que Ana nunca alcanca
-     * o que so o gestor alcanca, nao a contagem exata de um instante.
+     * negativo do enunciado: a contagem pedida por atendente omite a visao TODOS, enquanto a de
+     * gestao continua incluindo-a.
      */
     @Nested
     @DisplayName("GET /api/v1/atendimentos/contagem")
@@ -369,27 +367,34 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("TODOS: atendente recebe numero restrito, gestor recebe o total")
-        void todos_atendenteRestritoGestorTotal() {
-            long paraAna = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "TODOS");
-            long paraGestor = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
+        @DisplayName("TODOS: atendente nao recebe a chave, gestor recebe o total")
+        void todos_atendenteNaoRecebeChaveGestorRecebe() throws Exception {
+            String paraAna = corpoContagem(EMAIL_ANA, SENHA_ATENDENTE);
+            String paraGestor = corpoContagem(EMAIL_GESTOR, SENHA_GESTOR);
 
-            assertThat(paraAna).isLessThan(paraGestor);
+            assertThat(json.readTree(paraAna).has("TODOS")).isFalse();
+            assertThat(json.readTree(paraGestor).has("TODOS")).isTrue();
+        }
+
+        private long contarComo(String email, String senha, String visao) {
+            String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+            String corpo = ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                    .getBody();
+            return Long.parseLong(corpo.replaceAll(".*\"" + visao + "\":(\\d+).*", "$1"));
         }
 
         @Test
         @DisplayName("a contagem de cada visao bate com o tamanho da listagem")
-        void contagem_bateComOTamanhoDaListagem() {
-            String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
-
-            for (String visao : List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "TODOS")) {
-                long contagem = contarComToken(token, visao);
-                String listagem = ApoioAutenticacao.comToken(
-                                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
-                        .getBody();
-
-                assertThat(contagem).as("visao %s", visao).isEqualTo(quantidadeDeCartoes(listagem));
-            }
+        void contagem_bateComOTamanhoDaListagem() throws Exception {
+            assertContagemBateComListagem(
+                    EMAIL_ANA,
+                    SENHA_ATENDENTE,
+                    List.of("ATIVOS", "PENDENTES", "POTENCIAIS"));
+            assertContagemBateComListagem(
+                    EMAIL_GESTOR,
+                    SENHA_GESTOR,
+                    List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"));
         }
 
         @Test
@@ -401,16 +406,27 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
 
-        private long contarComo(String email, String senha, String visao) {
+        private String corpoContagem(String email, String senha) {
             String token = ApoioAutenticacao.login(http, email, senha).accessToken();
-            return contarComToken(token, visao);
-        }
-
-        private long contarComToken(String token, String visaoQualquer) {
-            String corpo = ApoioAutenticacao.comToken(
+            return ApoioAutenticacao.comToken(
                             http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
                     .getBody();
-            return Long.parseLong(corpo.replaceAll(".*\"" + visaoQualquer + "\":(\\d+).*", "$1"));
+        }
+
+        private void assertContagemBateComListagem(
+                String email, String senha, List<String> visoes) throws Exception {
+            String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+            String corpo = ApoioAutenticacao.comToken(
+                    http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class).getBody();
+            JsonNode contagens = json.readTree(corpo);
+            for (String visao : visoes) {
+                String listagem = ApoioAutenticacao.comToken(
+                                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
+                        .getBody();
+                assertThat(contagens.path(visao).asLong())
+                        .as("visao %s para %s", visao, email)
+                        .isEqualTo(quantidadeDeCartoes(listagem));
+            }
         }
 
         private int quantidadeDeCartoes(String corpoJson) {
@@ -421,10 +437,13 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     // --- apoio ------------------------------------------------------------
 
     private String listarComo(String email, String senha, String visao) {
+        return respostaListarComo(email, senha, visao).getBody();
+    }
+
+    private ResponseEntity<String> respostaListarComo(String email, String senha, String visao) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         return ApoioAutenticacao.comToken(
-                        http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
-                .getBody();
+                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class);
     }
 
     private ResponseEntity<String> marcarComoLidoComo(

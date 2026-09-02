@@ -1,10 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
 
 const finalizarTodos = vi.fn();
 const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
+const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: typeof authMock) => unknown) => seletor(authMock),
+}));
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
@@ -163,6 +168,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
 import { ListaConversas } from "./lista-conversas";
 
 describe("ListaConversas", () => {
+  beforeEach(() => {
+    authMock.papel = "GESTOR";
+  });
+
   it("mostra as quatro visões e busca por cliente, empresa ou protocolo", () => {
     const abrir = vi.fn();
     render(
@@ -196,6 +205,23 @@ describe("ListaConversas", () => {
     expect(screen.queryByText("Ana Vidros")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));
     expect(abrir).toHaveBeenCalledWith(cartoes[1]);
+  });
+
+  it("oferece somente as visões permitidas e ignora Todos na URL para atendente", () => {
+    authMock.papel = "ATENDENTE";
+    render(
+      <ListaConversas
+        selecionadoId={null}
+        visaoInicial="TODOS"
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.queryByRole("tab", { name: /Todos/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Pendentes/ })).toHaveAttribute("data-active");
+    expect(screen.getByRole("tab", { name: /Ativos/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Potenciais/ })).toBeInTheDocument();
   });
 
   it("abre a finalização global na barra da lista com a quantidade real", () => {

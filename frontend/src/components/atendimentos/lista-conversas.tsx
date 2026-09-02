@@ -34,6 +34,7 @@ import {
 } from "@/lib/atendimento/use-transferir-finalizar";
 import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { cn } from "@/lib/utils";
 import type { ChatContato } from "@/lib/chat-interno/types";
@@ -58,13 +59,6 @@ type Props = {
   className?: string;
 };
 
-const VISOES: VisaoAtendimento[] = [
-  "TODOS",
-  "ATIVOS",
-  "PENDENTES",
-  "POTENCIAIS",
-];
-
 const ROTULO_VISAO: Record<
   VisaoAtendimento,
   keyof ReturnType<typeof useTextos>["atendimentos"]["visoes"]
@@ -76,8 +70,8 @@ const ROTULO_VISAO: Record<
 };
 
 /**
- * As quatro visões são sempre apresentadas. O servidor mantém o recorte por papel e propriedade
- * (RN-CRM-01); esta lista nunca amplia a visibilidade recebida da API.
+ * A lista de visões acompanha o papel da mesma sessão que a Agenda e a Sidebar usam. O servidor
+ * continua sendo a autoridade final: esta lista só evita oferecer uma visão que a API recusaria.
  */
 export function ListaConversas({
   selecionadoId,
@@ -97,13 +91,21 @@ export function ListaConversas({
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
+  const papel = useAuthStore((estado) => estado.papel);
+  const papelAmplo = papel != null && papel !== "ATENDENTE";
+  const visoes = useMemo<VisaoAtendimento[]>(
+    () => papelAmplo
+      ? ["TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"]
+      : ["PENDENTES", "ATIVOS", "POTENCIAIS"],
+    [papelAmplo],
+  );
   const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(
     visaoInicial ?? null,
   );
   const visao =
-    visaoEscolhida && VISOES.includes(visaoEscolhida)
+    visaoEscolhida && visoes.includes(visaoEscolhida)
       ? visaoEscolhida
-      : VISOES[0];
+      : visoes[0];
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
@@ -278,9 +280,12 @@ export function ListaConversas({
       >
         <TabsList
           variant="line"
-          className="mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:grid-cols-4 md:gap-1 md:overflow-x-hidden"
+          className={cn(
+            "mx-4 mt-3 flex h-auto w-[calc(100%-2rem)] justify-start gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden p-0 md:grid md:gap-1 md:overflow-x-hidden",
+            papelAmplo ? "md:grid-cols-4" : "md:grid-cols-3",
+          )}
         >
-          {VISOES.map((item) => (
+          {visoes.map((item) => (
             <TabsTrigger
               key={item}
               value={item}
