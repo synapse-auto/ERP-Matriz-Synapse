@@ -125,7 +125,10 @@ class NovoContatoIT extends PostgresIT {
                 leadIa);
 
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
-        assertThat(listarAtendimentos(token, "TODOS")).doesNotContain(atendimentoIa.toString());
+        assertThat(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=TODOS", String.class)
+                .getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(listarAtendimentos(token, "POTENCIAIS")).contains(atendimentoIa.toString());
 
         var resposta = iniciarComo(EMAIL_ANA, Map.of("nome", PREFIXO + "potencial", "telefone", telefone));

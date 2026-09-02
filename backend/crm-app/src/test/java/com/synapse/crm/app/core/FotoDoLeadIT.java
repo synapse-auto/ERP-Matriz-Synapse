@@ -2,7 +2,9 @@ package com.synapse.crm.app.core;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.awt.Color;
@@ -246,11 +248,12 @@ class FotoDoLeadIT extends PostgresIT {
 
     private String fotoNaInboxComoAna() throws Exception {
         JsonNode resposta = json.readTree(chamarComJwt(
-                        EMAIL_ANA,
+                        EMAIL_GESTOR,
                         HttpMethod.GET,
                         "/api/v1/atendimentos/inbox?visao=TODOS&limite=50",
                         null,
-                        String.class)
+                        String.class,
+                        SENHA_GESTOR)
                 .getBody());
         return java.util.stream.StreamSupport.stream(resposta.path("itens").spliterator(), false)
                 .filter(item -> leadDaAna.toString().equals(item.path("leadId").asText()))
@@ -262,8 +265,13 @@ class FotoDoLeadIT extends PostgresIT {
 
     private <T> ResponseEntity<T> chamarComJwt(
             String email, HttpMethod metodo, String caminho, Object corpo, Class<T> tipo) {
+        return chamarComJwt(email, metodo, caminho, corpo, tipo, SENHA_ATENDENTE);
+    }
+
+    private <T> ResponseEntity<T> chamarComJwt(
+            String email, HttpMethod metodo, String caminho, Object corpo, Class<T> tipo, String senha) {
         HttpHeaders cabecalhos = new HttpHeaders();
-        cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken());
+        cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, email, senha).accessToken());
         if (corpo != null) {
             cabecalhos.setContentType(MediaType.APPLICATION_JSON);
         }
