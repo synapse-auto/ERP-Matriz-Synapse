@@ -4,11 +4,13 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.synapse.crm.sharedkernel.avaliacao.EscalaDeAvaliacao;
+
 /**
- * Nota 1–5 do atendimento, atribuida ao atendente dono no instante da coleta.
+ * Nota 0–10 do atendimento, atribuida ao atendente dono no instante da coleta.
  *
- * <p>A escala e a do {@code CHECK (nota BETWEEN 1 AND 5)} — o prototipo 0–10 nao entra aqui para
- * nao forcar migracao de dado depois que houver nota real.
+ * <p>A escala e a mesma do {@code CHECK (nota BETWEEN 0 AND 10)} e do contrato EV-08 (n8n):
+ * Ruim = 2, Bom = 7, Otimo = 10. Constantes canonicas em {@link EscalaDeAvaliacao}.
  */
 public record Avaliacao(
         UUID id,
@@ -18,8 +20,8 @@ public record Avaliacao(
         String comentario,
         Instant criadoEm) {
 
-    public static final int NOTA_MINIMA = 1;
-    public static final int NOTA_MAXIMA = 5;
+    public static final int NOTA_MINIMA = EscalaDeAvaliacao.NOTA_MINIMA;
+    public static final int NOTA_MAXIMA = EscalaDeAvaliacao.NOTA_MAXIMA;
 
     public Avaliacao {
         Objects.requireNonNull(id, "id da avaliacao e obrigatorio");

@@ -17,7 +17,7 @@ import com.synapse.crm.atendimento.domain.avaliacao.AvaliacaoJaRegistradaExcepti
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Grava a nota 1–5 do atendimento no atendente dono.
+ * Grava a nota 0–10 do atendimento no atendente dono.
  *
  * <p>Nao entra no caminho de mensagem: a coleta acontece depois de finalizar, no CRM ou pela
  * Automacao. A visibilidade segue o {@code porId} com RLS — atendente nao avalia conversa de colega.

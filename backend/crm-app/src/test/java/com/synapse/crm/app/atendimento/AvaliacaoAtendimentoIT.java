@@ -30,7 +30,7 @@ import org.springframework.test.context.TestPropertySource;
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 
-/** Coleta 1–5 pelo HTTP humano e pela Automacao, incluindo os negativos de visibilidade. */
+/** Coleta 0–10 pelo HTTP humano e pela Automacao, incluindo os negativos de visibilidade. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
 @TestPropertySource(properties = "synapse.seguranca.token-interno=token-avaliacao-csat")
@@ -158,8 +158,8 @@ class AvaliacaoAtendimentoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("nota 6 e rejeitada na validacao HTTP")
-    void registrar_notaForaDaFaixa_retorna400() {
+    @DisplayName("nota 11 e rejeitada com 422 (faixa 0–10)")
+    void registrar_notaForaDaFaixa_retorna422() {
         UUID atendimentoId = finalizarComoAna();
 
         var resposta = chamar(
@@ -167,12 +167,43 @@ class AvaliacaoAtendimentoIT extends PostgresIT {
                 SENHA_ATENDENTE,
                 HttpMethod.POST,
                 "/api/v1/atendimentos/" + atendimentoId + "/avaliacao",
-                Map.of("nota", 6));
+                Map.of("nota", 11));
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Long.class, atendimentoId))
                 .isZero();
+    }
+
+    @Test
+    @DisplayName("Automacao grava Bom=7 e Otimo=10 (EV-08) com X-Synapse-Token")
+    void automacao_gravaNotasDoContratoEv08() {
+        UUID atendimentoBom = finalizarComoAna();
+        UUID atendimentoOtimo = finalizarComoAna();
+
+        HttpHeaders internos = new HttpHeaders();
+        internos.set("X-Synapse-Token", TOKEN);
+        internos.setContentType(MediaType.APPLICATION_JSON);
+
+        var bom = http.exchange(
+                "/internal/v1/atendimentos/" + atendimentoBom + "/avaliacao",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of("nota", 7), internos),
+                String.class);
+        assertThat(bom.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(jdbc.queryForObject(
+                        "SELECT nota FROM avaliacao WHERE atendimento_id = ?", Integer.class, atendimentoBom))
+                .isEqualTo(7);
+
+        var otimo = http.exchange(
+                "/internal/v1/atendimentos/" + atendimentoOtimo + "/avaliacao",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of("nota", 10), internos),
+                String.class);
+        assertThat(otimo.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(jdbc.queryForObject(
+                        "SELECT nota FROM avaliacao WHERE atendimento_id = ?", Integer.class, atendimentoOtimo))
+                .isEqualTo(10);
     }
 
     @Test

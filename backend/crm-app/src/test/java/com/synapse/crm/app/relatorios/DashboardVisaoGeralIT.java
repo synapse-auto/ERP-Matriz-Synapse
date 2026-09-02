@@ -122,7 +122,7 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 .isEqualTo("PERCENTUAL");
         assertThat(resposta.at("/tempoMedioAtendimento/segundos").asLong()).isEqualTo(1500);
         assertThat(resposta.at("/avaliacaoMedia/media").decimalValue()).isEqualByComparingTo("4.50");
-        assertThat(resposta.at("/avaliacaoMedia/escalaMaxima").asInt()).isEqualTo(5);
+        assertThat(resposta.at("/avaliacaoMedia/escalaMaxima").asInt()).isEqualTo(10);
 
         // Um dos quatro finalizados teve transferencia: permanece no denominador e sai apenas do
         // numerador. Os dois finalizados de julho nao tiveram transferencia, portanto o comparativo

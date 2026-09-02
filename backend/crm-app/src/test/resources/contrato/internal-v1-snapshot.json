@@ -737,10 +737,8 @@
           "type" : "string"
         },
         "nota" : {
-          "example" : 5,
+          "example" : 7,
           "format" : "int32",
-          "maximum" : 5,
-          "minimum" : 1,
           "type" : "integer"
         }
       },
