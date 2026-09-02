@@ -32,13 +32,20 @@ class OutboxDeAvaliacaoJdbc implements OutboxDeAvaliacao {
     public void enfileirar(UUID atendimentoId, UUID leadId, UUID atendenteId, String telefone, Instant quando) {
         TransacaoObrigatoria.exigir("enfileirarAvaliacao");
         UUID id = UUID.nameUUIDFromBytes((TIPO + ":" + atendimentoId).getBytes(StandardCharsets.UTF_8));
+        // EV-08 §3/§8: o id da linha e a chave de idempotencia e agora viaja no corpo como
+        // evento_id: deterministico por atendimento, igual em toda retentativa do mesmo evento.
+        // operacao e finalizacao_em_massa sao constantes de proposito: o unico caminho que chega
+        // aqui e a finalizacao individual (FinalizarAtendimentoUseCase.Origem.INDIVIDUAL). Sao
+        // redundancia defensiva pedida pelo n8n, nao um interruptor para passar a disparar em lote.
         var payload = json.createObjectNode()
-                .put("modo", "INICIAR_AVALIACAO")
-                .put("status_finalizacao", "FINALIZADO")
+                .put("evento_id", id.toString())
                 .put("atendimento_id", atendimentoId.toString())
                 .put("lead_id", leadId.toString())
                 .put("atendente_id", atendenteId.toString())
-                .put("wa_id", telefone);
+                .put("wa_id", telefone)
+                .put("status_finalizacao", "FINALIZADO")
+                .put("operacao", "FINALIZAR_INDIVIDUAL")
+                .put("finalizacao_em_massa", false);
         jdbc.update("""
                 INSERT INTO outbox_evento (id, tipo, payload, criado_em, proxima_tentativa_em)
                 VALUES (?, ?, ?::jsonb, ?, ?) ON CONFLICT (id) DO NOTHING

@@ -2,20 +2,20 @@
 
 ## Regra aprovada e sequência
 
-Desde a E124, a finalização de atendimento **não cria automaticamente** uma solicitação de
-pesquisa. O n8n decide quando iniciar o fluxo e pode usar o contrato interno existente;
-o responsável continua sendo o do atendimento encerrado, nunca o gestor que clicou.
-Finalizar todos (mesmo um item), atendimento sem responsável, transferência, devolução à IA,
-saída e chat interno não iniciam pesquisa por conta própria. A coleta existente continua na
-escala 1–5 e aceita uma nota por atendimento.
+Desde a E126, a finalização **individual** de atendimento enfileira a solicitação de pesquisa
+(contrato EV-08 §1.1). O responsável é o do atendimento encerrado, nunca o gestor que clicou.
+**Finalizar todos nunca dispara**, nem com um único item (§1.5) — foi o defeito que motivou a
+pausa da E124. Atendimento sem responsável, transferência, devolução à IA, saída e chat interno
+também não iniciam pesquisa. A coleta continua na escala 1–5 e aceita uma nota por atendimento.
 
-n8n inicia o fluxo autorizado → workflow envia/coleta pesquisa → POST interno de avaliação.
+Encerramento individual → outbox → POST ao n8n → workflow envia/coleta → POST interno de avaliação.
 
-O worker e a outbox continuam sendo a infraestrutura para solicitações já enfileiradas e para
-um eventual disparo explícito futuro; a finalização humana não é mais produtora dessa fila.
+A E124 desligou apenas o gatilho; a máquina (outbox, lease, backoff, circuit breaker) nunca saiu
+do ar. A E126 religou o gatilho e trocou o formato do corpo.
 
-Solicitações já enfileiradas antes da E124 permanecem na outbox e seguem a política de retry;
-o deploy não limpa nem fabrica novas solicitações a partir de finalizações antigas.
+Linhas enfileiradas no formato antigo de 6 campos (com `modo`) e ainda paradas na outbox são
+**recusadas permanentemente** pela guarda de forma do publisher (`PAYLOAD_INVALIDO`): esgotam sem
+retentativa e ficam inspecionáveis. O deploy não limpa nem fabrica solicitações retroativas.
 
 O CRM não envia uma segunda mensagem de pesquisa pelo canal. Opt-in, janela, template
 WhatsApp e o envio efetivo são responsabilidade do workflow de Dylan.
@@ -30,14 +30,25 @@ Redirecionamentos não são seguidos.
 
 | Campo JSON | Fonte |
 |---|---|
-| modo | INICIAR_AVALIACAO |
-| status_finalizacao | FINALIZADO |
+| evento_id | Id da linha da outbox, determinístico por atendimento; é a chave de idempotência do §8 |
 | atendimento_id | UUID encerrado, capturado no backend |
 | lead_id | Lead do atendimento |
 | atendente_id | Responsável do atendimento no encerramento |
 | wa_id | Telefone persistido, DDI/dígitos, sem + |
+| status_finalizacao | Sempre FINALIZADO — VENDA_CONCLUIDA não existe no CRM (ver abaixo) |
+| operacao | Sempre FINALIZAR_INDIVIDUAL |
+| finalizacao_em_massa | Sempre false |
 
-Esses seis campos são o corpo inteiro. Não há token no corpo/outbox. O retry utiliza
+Esses oito campos são o corpo inteiro; o campo `modo` saiu na E126. `operacao` e
+`finalizacao_em_massa` são constantes porque o CRM só dispara no caso individual — são a
+redundância defensiva pedida pelo n8n, não um interruptor para passar a disparar em lote.
+A ordem das chaves na rede é a que o `jsonb` do Postgres devolve, não a de escrita.
+
+Três pontos do documento EV-08 **não** estão implementados, de propósito:
+`VENDA_CONCLUIDA` não tem origem no CRM (`StatusAtendimento` é `EM_IA`/`EM_ATENDIMENTO`/
+`FINALIZADO`); a escala `Ruim=2/Bom=7/Otimo=10` do §6 conflita com
+`CHECK (nota BETWEEN 1 AND 5)` e é pendência do lado do n8n; e o endpoint de gravação da nota
+já existe, contrariando o §6 — não foi criado outro. Não há token no corpo/outbox. O retry utiliza
 o mesmo snapshot; não consulta o dono atual do lead. A validação de destino exige
 10–15 dígitos ASCII, primeiro não zero; não completa nem inventa DDI.
 
@@ -48,8 +59,10 @@ Sem responsável, a coleta continua recusando a avaliação.
 
 ## Configuração / ação necessária no Dokploy
 
-Nada é obrigatório para iniciar o CRM. Sem URL, token ou header válidos, o fluxo explícito
-da Automação não cria intenção/HTTP. Finalizações humanas continuam funcionando sem chamada
+Nada é obrigatório para iniciar o CRM. Sem URL, token ou header válidos, a finalização
+individual não cria intenção nem HTTP. Este gate é do CRM e **não** é a chave
+`avaliacao_atendimento.habilitada` (V55): essa é lida pelo n8n em
+`GET /internal/v1/automation-config` e nasce `false`; o CRM não a consulta (RN-CRM-07). Finalizações humanas continuam funcionando sem chamada
 externa. Não há chamadas com token vazio.
 Todas as variáveis abaixo têm defaults opcionais no stack; nenhuma usa :?obrigatoria.
 Valores já estão em .env.example, application.yml e docker/dokploy-stack.yml.
@@ -125,7 +138,7 @@ SELECT id AS evento_id, payload->>'atendimento_id' AS atendimento_id,
 
 | Estado | Evidência / ação |
 |---|---|
-| Não enfileirado | Lote não gera intenção; individual sem dono/telefone/configuração gera diagnóstico sem PII |
+| Não enfileirado | Lote nunca gera intenção; individual sem dono/telefone/configuração gera diagnóstico sem PII |
 | Pendente/reservado | publicado_em e esgotado_em nulos; proxima_tentativa_em controla lease/backoff |
 | Recebido pelo n8n | publicado_em preenchido após 2xx; conferir execução do workflow pelo atendimento_id |
 | Recuperável | TIMEOUT, FALHA_TRANSPORTE, INTERROMPIDO, CIRCUITO_ABERTO, HTTP_408/429/5xx |
