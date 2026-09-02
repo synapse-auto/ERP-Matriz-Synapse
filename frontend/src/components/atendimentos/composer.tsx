@@ -59,6 +59,7 @@ type Props = {
   conversa: CartaoAtendimento;
   resposta?: MensagemResposta | null;
   onCancelarResposta?: () => void;
+  onMensagemEnviada?: () => void;
   ref?: Ref<ComposerHandle>;
 };
 
@@ -86,6 +87,7 @@ export function Composer({
   conversa,
   resposta = null,
   onCancelarResposta,
+  onMensagemEnviada,
   ref,
 }: Props) {
   const catalogo = useTextos();
@@ -101,7 +103,7 @@ export function Composer({
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const enviar = useEnviarMensagem();
+  const enviar = useEnviarMensagem(onMensagemEnviada);
   const enviarMidia = useEnviarMidia();
   const configuracaoComposer = useConfiguracaoComposer();
   const gravador = useGravadorAudio(configuracaoComposer.data);
@@ -182,6 +184,7 @@ export function Composer({
             citacao: indice === 0 ? citacaoResposta : undefined,
           });
           if (indice === 0) {
+            onMensagemEnviada?.();
             setTexto("");
             onCancelarResposta?.();
           }
@@ -243,6 +246,7 @@ export function Composer({
       },
       {
         onSuccess: () => {
+          onMensagemEnviada?.();
           gravador.descartar();
           setProgresso(null);
         },

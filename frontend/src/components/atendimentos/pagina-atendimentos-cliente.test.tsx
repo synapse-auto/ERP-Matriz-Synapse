@@ -12,6 +12,8 @@ import type {
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: ItemInbox) => void) | undefined,
   atualizarLista: undefined as ((cartoes: ItemInbox[]) => void) | undefined,
+  alterarVisao: undefined as ((visao: string) => void) | undefined,
+  visaoAtual: undefined as string | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
@@ -79,14 +81,20 @@ vi.mock("./lista-conversas", () => ({
     leadInicialGatilho = 0,
     onAbrirAtendimento,
     onAtendimentosAtualizados,
+    onVisaoAlterada,
+    visaoAtual,
   }: {
     leadInicialGatilho?: number;
     onAbrirAtendimento: (cartao: ItemInbox) => void;
     onAtendimentosAtualizados?: (cartoes: ItemInbox[]) => void;
+    onVisaoAlterada?: (visao: string) => void;
+    visaoAtual?: string;
   }) => {
     const gatilhoAnterior = useRef(leadInicialGatilho);
     callbacks.abrir = onAbrirAtendimento;
     callbacks.atualizarLista = onAtendimentosAtualizados;
+    callbacks.alterarVisao = onVisaoAlterada;
+    callbacks.visaoAtual = visaoAtual;
     useEffect(() => {
       if (leadInicialGatilho === gatilhoAnterior.current) return;
       gatilhoAnterior.current = leadInicialGatilho;
@@ -138,7 +146,18 @@ vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
   PainelConversaInterna: () => <div data-testid="conversa-interna" />,
 }));
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => null }));
-vi.mock("./composer", () => ({ Composer: () => <div data-testid="composer" /> }));
+vi.mock("./composer", () => ({
+  Composer: ({ onMensagemEnviada }: { onMensagemEnviada?: () => void }) => (
+    <>
+      <div data-testid="composer" />
+      {onMensagemEnviada && (
+        <button type="button" onClick={onMensagemEnviada}>
+          Simular envio
+        </button>
+      )}
+    </>
+  ),
+}));
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: vi.fn(),
@@ -229,6 +248,8 @@ describe("PaginaAtendimentosCliente", () => {
   beforeEach(() => {
     callbacks.abrir = undefined;
     callbacks.atualizarLista = undefined;
+    callbacks.alterarVisao = undefined;
+    callbacks.visaoAtual = undefined;
     callbacks.mensagens = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
@@ -253,7 +274,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
   });
 
-  it("fecha a superfície da conversa quando o atendimento desaparece da visão", () => {
+  it("mantém a conversa aberta quando o atendimento muda de visão após o envio", () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
@@ -261,8 +282,27 @@ describe("PaginaAtendimentosCliente", () => {
 
     act(() => callbacks.atualizarLista?.([]));
 
-    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("responsavel-painel")).toBeInTheDocument();
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
+  it("preserva a conversa selecionada enquanto a lista é refiltrada depois da primeira resposta", () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+      </QueryClientProvider>,
+    );
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    act(() => callbacks.alterarVisao?.("PENDENTES"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Simular envio" }));
+    act(() => callbacks.atualizarLista?.([]));
+
+    expect(callbacks.visaoAtual).toBe("ATIVOS");
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
   it("retrai e reabre os detalhes sem perder a conversa, o histórico ou o composer", () => {
