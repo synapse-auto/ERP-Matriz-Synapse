@@ -39,7 +39,7 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
 
     private static final String SQL_RESERVAR =
             """
-            SELECT id_externo, payload, tentativas
+            SELECT id_externo, payload, tentativas, recebido_em
               FROM webhook_entrada
              WHERE processado_em IS NULL AND esgotado_em IS NULL
              ORDER BY recebido_em
@@ -53,6 +53,9 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     private static final String SQL_REAGENDAR =
             "UPDATE webhook_entrada SET tentativas = tentativas + 1, ultimo_erro = ?"
                     + " WHERE id_externo = ?";
+
+    private static final String SQL_ADIAR =
+            "UPDATE webhook_entrada SET ultimo_erro = ? WHERE id_externo = ?";
 
     private static final String SQL_ESGOTAR =
             "UPDATE webhook_entrada SET tentativas = tentativas + 1, esgotado_em = ?, ultimo_erro = ?"
@@ -84,7 +87,8 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
                 (linha, indice) -> new Pendente(
                         linha.getString("id_externo"),
                         linha.getString("payload"),
-                        linha.getInt("tentativas")),
+                        linha.getInt("tentativas"),
+                        linha.getTimestamp("recebido_em").toInstant()),
                 limite);
     }
 
@@ -98,6 +102,12 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     public void reagendar(String idExterno, String erro) {
         TransacaoObrigatoria.exigir("reagendar");
         chat.update(SQL_REAGENDAR, erro, idExterno);
+    }
+
+    @Override
+    public void adiar(String idExterno, String erro) {
+        TransacaoObrigatoria.exigir("adiar");
+        chat.update(SQL_ADIAR, erro, idExterno);
     }
 
     @Override

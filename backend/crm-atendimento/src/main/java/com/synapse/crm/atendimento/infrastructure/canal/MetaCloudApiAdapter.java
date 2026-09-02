@@ -33,6 +33,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
+import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
@@ -55,9 +56,10 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
  *   <li><b>template posicional</b> — nome, idioma e parametros na ordem declarada.
  * </ul>
  *
- * <p>O circuit breaker cobre toda chamada de saida. Quando abre, o metodo devolve recusa
- * <em>temporaria</em>: a mensagem permanece na outbox e sai quando o provedor voltar. Nao ha excecao
- * subindo ate a tela — degradacao explicita, nao erro de usuario.
+ * <p>Cada familia de chamada de saida tem o proprio circuit breaker. Quando o do envio abre, a
+ * mensagem permanece na outbox e sai quando o provedor voltar. Quando o de midia abre, a fila de
+ * entrada adia sem gastar tentativa. A sonda de saude nunca abre os outros dois — observar o canal
+ * e diagnostico, nao operacao de negocio.
  */
 @Component
 class MetaCloudApiAdapter implements CanalGateway {
@@ -68,6 +70,10 @@ class MetaCloudApiAdapter implements CanalGateway {
     private static final String NOME_DO_BREAKER = "canal-meta-cloud";
     /** Listar/criar template nao pode abrir o breaker do envio — a aba Atendimentos continua. */
     private static final String NOME_DO_BREAKER_TEMPLATES = "canal-meta-cloud-templates";
+    /** Sonda de saude nao pode abrir o breaker de envio nem o de midia. */
+    private static final String NOME_DO_BREAKER_SAUDE = "canal-meta-cloud-saude";
+    /** Download de midia recebida: falha de envio nao apaga a foto que o cliente mandou. */
+    private static final String NOME_DO_BREAKER_MIDIA = "canal-meta-cloud-midia";
     private static final int EXCESSO_DE_CHAMADAS = 429;
     private static final int TRECHO_MAXIMO_DO_CORPO = 240;
     private static final Pattern VARIAVEL_DO_CORPO = Pattern.compile("\\{\\{(\\d+)\\}\\}");
@@ -82,6 +88,8 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final ObjectMapper json;
     private final CircuitBreaker breaker;
     private final CircuitBreaker breakerTemplates;
+    private final CircuitBreaker breakerSaude;
+    private final CircuitBreaker breakerMidia;
     private final ArmazenamentoDeMidia armazenamento;
 
     MetaCloudApiAdapter(
@@ -95,6 +103,8 @@ class MetaCloudApiAdapter implements CanalGateway {
         this.json = json;
         this.breaker = breakers.circuitBreaker(NOME_DO_BREAKER);
         this.breakerTemplates = breakers.circuitBreaker(NOME_DO_BREAKER_TEMPLATES);
+        this.breakerSaude = breakers.circuitBreaker(NOME_DO_BREAKER_SAUDE);
+        this.breakerMidia = breakers.circuitBreaker(NOME_DO_BREAKER_MIDIA);
         this.armazenamento = armazenamento;
     }
 
@@ -131,24 +141,34 @@ class MetaCloudApiAdapter implements CanalGateway {
             return AutenticacaoDoCanal.recusada("token ou identificador do canal ausente");
         }
         try {
-            return breaker.executeSupplier(this::consultarIdentidadeDoCanal);
+            return breakerSaude.executeSupplier(this::consultarIdentidadeDoCanal);
         } catch (CallNotPermittedException e) {
             return AutenticacaoDoCanal.recusada("circuit breaker do provedor aberto");
         } catch (RestClientResponseException e) {
             return AutenticacaoDoCanal.recusada(
                     "provedor recusou a credencial com HTTP " + e.getStatusCode().value());
         } catch (RuntimeException e) {
+            log.warn(
+                    "Falha ao verificar autenticacao do canal; a sonda continua, o trafego nao e afetado.",
+                    e);
             return AutenticacaoDoCanal.recusada(
                     "provedor indisponivel: " + e.getClass().getSimpleName());
         }
     }
 
     private AutenticacaoDoCanal consultarIdentidadeDoCanal() {
-        JsonNode resposta = http.get()
+        String corpo = http.get()
                 .uri("/{numero}?fields=id", propriedades.numeroPrincipal())
                 .header("Authorization", "Bearer " + propriedades.token())
                 .retrieve()
-                .body(JsonNode.class);
+                .body(String.class);
+        JsonNode resposta;
+        try {
+            resposta = json.readTree(corpo);
+        } catch (RuntimeException | JsonProcessingException e) {
+            throw new IllegalStateException(
+                    "resposta da Meta ilegivel ao consultar identidade do canal", e);
+        }
         if (resposta == null || resposta.path("id").asText().isBlank()) {
             return AutenticacaoDoCanal.recusada("provedor respondeu sem identificar o canal");
         }
@@ -651,14 +671,15 @@ class MetaCloudApiAdapter implements CanalGateway {
     @Override
     public CanalGateway.MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
         try {
-            return breaker.executeSupplier(() -> buscarMidiaRecebida(midiaIdExterno));
+            return breakerMidia.executeSupplier(() -> buscarMidiaRecebida(midiaIdExterno));
         } catch (CallNotPermittedException breakerAberto) {
             // Diferente de enviar(): nao ha "recusa temporaria" para o webhook — quem chama
-            // (ProcessadorDeWebhookEntradaOperacoes) ja tem seu proprio retry com backoff.
-            // Lancar deixa esse mecanismo cuidar de tentar de novo mais tarde.
-            throw new IllegalStateException(
+            // (ProcessadorDeWebhookEntradaOperacoes) ja tem seu proprio retry. O tipo proprio
+            // diz "nem falou com a Meta": a fila adia sem gastar tentativa.
+            throw new ProvedorTemporariamenteIndisponivelException(
                     "circuit breaker aberto para " + PROVEDOR + "; midia " + midiaIdExterno
-                            + " sera retentada");
+                            + " sera retentada",
+                    breakerAberto);
         }
     }
 

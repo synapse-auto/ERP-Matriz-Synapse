@@ -81,6 +81,22 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
         ignore-exceptions:
           - com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException
+      canal-meta-cloud-saude:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      canal-meta-cloud-midia:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
       automacao-webhook:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${AUTOMACAO_WEBHOOK_CB_JANELA:10}
@@ -165,6 +181,10 @@ synapse:
       intervalo-ms: ${WEBHOOK_INTERVALO_MS:1000}
       lote: ${WEBHOOK_LOTE:50}
       maximo-de-tentativas: ${WEBHOOK_MAX_TENTATIVAS:5}
+      # Guarda contra fila eterna quando o disjuntor de midia fica aberto e a linha
+      # nao gasta tentativa. 2h cobre uma queda longa da Meta (wait do breaker e 30s)
+      # sem retentar no dia seguinte um payload cuja URL de download ja expirou.
+      prazo-absoluto: ${WEBHOOK_PRAZO_ABSOLUTO:2h}
 
   # Bulkhead do WebSocket (E06): executores proprios, nunca o pool HTTP nem o
   # do publisher da outbox. Ver DataSourceConfig para a mesma logica aplicada

@@ -397,6 +397,9 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
+| `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
+| `WEBHOOK_PRAZO_ABSOLUTO` | `2h` | Esgota a linha de `webhook_entrada` mesmo com o disjuntor aberto, a partir de `recebido_em`. |
+| `SAUDE_INTERVALO_MONITORAMENTO` | `30s` | Intervalo da sonda de saúde. Isolada dos disjuntores de envio e de mídia. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
 | `MIDIA_S3_EXPIRACAO_LEITURA` | `1h` | Validade das URLs assinadas de anexos (bolha do chat e painel). |

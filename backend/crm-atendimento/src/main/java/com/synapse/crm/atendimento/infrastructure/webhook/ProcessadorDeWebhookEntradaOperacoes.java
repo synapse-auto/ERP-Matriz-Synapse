@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.webhook;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -29,6 +30,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepos
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -78,6 +80,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Clock relogio;
     private final int lote;
     private final int maximoDeTentativas;
+    private final Duration prazoAbsoluto;
     private final TransactionTemplate transacoes;
 
     public ProcessadorDeWebhookEntradaOperacoes(
@@ -98,7 +101,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             Clock relogio,
             @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager chatTransactionManager,
             @Value("${synapse.canal.webhook.lote:50}") int lote,
-            @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas) {
+            @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas,
+            @Value("${synapse.canal.webhook.prazo-absoluto:2h}") Duration prazoAbsoluto) {
         this.entrada = entrada;
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
@@ -116,6 +120,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.relogio = relogio;
         this.lote = lote;
         this.maximoDeTentativas = maximoDeTentativas;
+        this.prazoAbsoluto = prazoAbsoluto;
         this.transacoes = new TransactionTemplate(chatTransactionManager);
         this.transacoes.setName("processar webhook de entrada");
     }
@@ -251,6 +256,28 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     }
 
     private void falhar(WebhookEntrada.Pendente pendente, Instant agora, RuntimeException e) {
+        if (e instanceof ProvedorTemporariamenteIndisponivelException) {
+            if (prazoAbsolutoEstourado(pendente, agora)) {
+                entrada.esgotar(pendente.idExterno(), agora, e.toString());
+                log.error(
+                        "{} evento {} esgotou o prazo absoluto de {} a partir de recebido_em sem o"
+                                + " disjuntor fechar. O payload cru fica em webhook_entrada para"
+                                + " reprocessamento manual. Ultimo erro: {}",
+                        MARCADOR_ALARME,
+                        pendente.idExterno(),
+                        prazoAbsoluto,
+                        e.toString());
+            } else {
+                entrada.adiar(pendente.idExterno(), e.toString());
+                log.warn(
+                        "Disjuntor aberto ao processar o evento {}; a linha volta para a fila sem"
+                                + " gastar tentativa.",
+                        pendente.idExterno(),
+                        e);
+            }
+            return;
+        }
+
         int tentativasFeitas = pendente.tentativas() + 1;
 
         if (tentativasFeitas >= maximoDeTentativas) {
@@ -267,6 +294,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             entrada.reagendar(pendente.idExterno(), e.toString());
             log.warn("Falha ao processar o evento {}; sera retentado.", pendente.idExterno(), e);
         }
+    }
+
+    private boolean prazoAbsolutoEstourado(WebhookEntrada.Pendente pendente, Instant agora) {
+        return !agora.isBefore(pendente.recebidoEm().plus(prazoAbsoluto));
     }
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)

@@ -173,6 +173,10 @@ services:
       WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
       # WABA ID. Vazio desabilita apenas listar/criar templates; nao tornar obrigatoria no stack.
       WHATSAPP_CONTA_NEGOCIO: ${WHATSAPP_CONTA_NEGOCIO:-}
+      # Fila de entrada. Default seguro; ausencia no painel nao derruba o deploy.
+      WEBHOOK_MAX_TENTATIVAS: ${WEBHOOK_MAX_TENTATIVAS:-5}
+      WEBHOOK_PRAZO_ABSOLUTO: ${WEBHOOK_PRAZO_ABSOLUTO:-2h}
+      SAUDE_INTERVALO_MONITORAMENTO: ${SAUDE_INTERVALO_MONITORAMENTO:-30s}
       AUTOMACAO_URL: http://synapse-n8n-internal:5678
       AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
       # E104: teto do cache de parametros. Default seguro; nao e :? — ausencia usa 5m.
