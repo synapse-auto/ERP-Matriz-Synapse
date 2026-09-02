@@ -597,6 +597,7 @@ Falhar fechado é deliberado: tela vazia é visível e diagnosticável em segund
 ### 4.4 Decisões de escopo
 
 - **`WITH CHECK (TRUE)`, `USING` restritivo.** Leitura, atualização e exclusão exigem visibilidade; `INSERT` livre. A ameaça é leitura, e prender o `INSERT` quebraria migrations de dados e fixtures sem cobrir nada.
+- **`UPDATE` que tira a linha da visibilidade de quem executa é recusado** — mesmo com `WITH CHECK (TRUE)`. O Postgres aplica o `USING` também à tupla nova. Transferir para um colega e finalizar um `EM_IA` (atendente nulo → `FINALIZADO`) batem nessa parede; a gravação sobe `app.papel = SERVICO` só depois da leitura/autorização com o papel real. "Finalizar todos" lista só `EM_ATENDIMENTO`, senão o primeiro Potencial derruba o lote inteiro.
 - **`lembrete` e `mensagem_programada` sem o escape de "lead em IA"** — são pessoais (`RN-CRM-04`), deliberadamente mais restritivos que `lead`.
 - **Paridade testada contra a regra de domínio, não contra a Specification** — comparar os dois caminhos com RLS ativo em ambos mascararia um erro na Specification.
 

@@ -3,6 +3,7 @@ package com.synapse.crm.app;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,15 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 @ActiveProfiles("dev")
 class SeedDesenvolvimentoIT extends PostgresIT {
+
+    /**
+     * E-mails do {@code R__seed_dev}. Nao usar {@code LIKE '%@dev.local'}: fixtures de RLS e de
+     * primeiro acesso reutilizam o dominio e deixam {@code senha_hash = 'x'} no container
+     * compartilhado.
+     */
+    private static final String FILTRO_EMAILS_SEED =
+            "email IN ('admin@dev.local', 'gestor@dev.local', 'subgestor@dev.local',"
+                    + " 'ana@dev.local', 'bruno@dev.local')";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -51,7 +61,7 @@ class SeedDesenvolvimentoIT extends PostgresIT {
     @DisplayName("existe um usuario para cada papel")
     void usuarios_seedAplicado_cobremTodosOsPapeis() {
         List<String> papeis = jdbc.queryForList(
-                "SELECT DISTINCT papel::text FROM usuario WHERE email LIKE '%@dev.local'", String.class);
+                "SELECT DISTINCT papel::text FROM usuario WHERE " + FILTRO_EMAILS_SEED, String.class);
 
         assertThat(papeis)
                 .containsExactlyInAnyOrder("ADMINISTRADOR", "GESTOR", "SUBGESTOR", "ATENDENTE");
@@ -60,10 +70,30 @@ class SeedDesenvolvimentoIT extends PostgresIT {
     @Test
     @DisplayName("as senhas do seed sao hashes BCrypt, nunca texto puro")
     void usuarios_seedAplicado_guardamBcrypt() {
-        List<String> hashes = jdbc.queryForList(
-                "SELECT senha_hash FROM usuario WHERE email LIKE '%@dev.local'", String.class);
+        List<String> hashes = hashesDoSeed();
 
         assertThat(hashes).isNotEmpty().allMatch(hash -> hash.startsWith("$2a$"));
+    }
+
+    /**
+     * {@code RlsIsolamentoIT} (e qualquer fixture) nao pode quebrar este teste so porque o e-mail
+     * termina em {@code @dev.local}. O LIKE antigo pega hash {@code x} deixado no Postgres
+     * compartilhado e o CI fica intermitente.
+     */
+    @Test
+    @DisplayName("fixture com @dev.local e hash x nao e confundida com o seed")
+    void usuarios_seedAplicado_ignoramHashDeFixtureNoMesmoDominio() {
+        UUID id = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO usuario (id, nome, email, senha_hash, papel)"
+                        + " VALUES (?, 'fixture rls', ?, 'x', CAST('ATENDENTE' AS papel_usuario))",
+                id,
+                "rls-" + id + "@dev.local");
+        try {
+            assertThat(hashesDoSeed()).isNotEmpty().allMatch(hash -> hash.startsWith("$2a$"));
+        } finally {
+            jdbc.update("DELETE FROM usuario WHERE id = ?", id);
+        }
     }
 
     @Test
@@ -106,5 +136,9 @@ class SeedDesenvolvimentoIT extends PostgresIT {
                 "SELECT token_ref FROM canal_credencial WHERE token_ref IS NOT NULL", String.class);
 
         assertThat(refs).isNotEmpty().allMatch(ref -> ref.startsWith("secret://"));
+    }
+
+    private List<String> hashesDoSeed() {
+        return jdbc.queryForList("SELECT senha_hash FROM usuario WHERE " + FILTRO_EMAILS_SEED, String.class);
     }
 }

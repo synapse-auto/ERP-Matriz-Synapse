@@ -35,7 +35,12 @@ public interface AtendimentoRepositorio {
     /** Rele o estado sob lock, depois de bloquear o lead; preserva o recorte RLS. */
     Optional<Atendimento> porIdParaAlteracao(UUID atendimentoId);
 
-    /** Atendimentos ainda abertos que o contexto RLS do usuario atual alcanca. */
+    /**
+     * Atendimentos em atendimento humano que o contexto RLS do usuario atual alcanca.
+     *
+     * <p>Nao inclui {@code EM_IA}: o lote de finalizacao nao pode encerrar a fila da IA, e o
+     * {@code UPDATE} que tira a linha da visibilidade do atendente e recusado pela RLS.
+     */
     List<Atendimento> abertosVisiveis();
 
     /**

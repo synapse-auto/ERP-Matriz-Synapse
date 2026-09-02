@@ -331,8 +331,8 @@ class AtendimentoAcoesController {
     }
 
     @Operation(
-            summary = "Contar atendimentos abertos finalizáveis",
-            description = "Retorna quantos atendimentos abertos o usuário autenticado alcança; a contagem serve para confirmação da finalização em lote.",
+            summary = "Contar atendimentos em atendimento finalizáveis",
+            description = "Retorna quantos atendimentos EM_ATENDIMENTO o usuário autenticado alcança. Potenciais (EM_IA) ficam de fora: o lote não encerra a fila da IA.",
             responses = @ApiResponse(responseCode = "200", description = "Quantidade de atendimentos visíveis."))
     @GetMapping("/finalizar-lote")
     FinalizacaoEmLotePrevia contarFinalizacaoEmLote() {
@@ -341,7 +341,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Finalizar atendimentos visíveis em lote",
-            description = "Finaliza todos os atendimentos abertos visíveis ao usuário autenticado. Cada item reaproveita a mesma autorização, regra de estado terminal e evento da finalização individual.",
+            description = "Finaliza os atendimentos EM_ATENDIMENTO visíveis ao usuário autenticado. Potenciais (EM_IA) não entram no lote. Cada item reaproveita a mesma autorização, regra de estado terminal e evento da finalização individual.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Resultado com itens finalizados e recusados."),
                 @ApiResponse(responseCode = "401", description = "Usuário não autenticado.")
