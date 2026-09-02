@@ -7,6 +7,14 @@ import type { ChatContato } from "@/lib/chat-interno/types";
 import { DialogoSelecionarPessoa } from "./dialogo-selecionar-pessoa";
 
 const textos = {
+  novoGrupo: "Novo grupo",
+  criarGrupo: "Criar grupo",
+  nomeDoGrupo: "Nome do grupo",
+  nomeDoGrupoPlaceholder: "Ex.",
+  selecionarParticipantes: "Participantes",
+  selecionarParticipantesDescricao: "Escolha quem entra.",
+  participantesMinimos: "Selecione ao menos uma outra pessoa.",
+  erroCriarGrupo: "Erro ao criar",
   selecionarPessoa: "Selecionar pessoa",
   selecionarPessoaDescricao: "Escolha alguém",
   buscarPessoa: "Buscar por nome...",
@@ -84,5 +92,31 @@ describe("DialogoSelecionarPessoa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ana, Online" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Erro ao abrir conversa"));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("leva ao criador de grupo e preserva a busca ao voltar para pessoas", async () => {
+    renderDialog({ onCriarGrupo: vi.fn(() => Promise.resolve()) });
+    const busca = screen.getByRole("textbox", { name: "Buscar por nome..." });
+    fireEvent.change(busca, { target: { value: "Ana" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo grupo" }));
+    expect(screen.getByRole("textbox", { name: "Nome do grupo" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fechar seletor" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Buscar por nome..." })).toHaveValue("Ana"),
+    );
+  });
+
+  it("envia nome e participantes ao criar grupo", async () => {
+    const criar = vi.fn(() => Promise.resolve({ id: "grupo-1" }));
+    renderDialog({ onCriarGrupo: criar });
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo grupo" }));
+    fireEvent.change(screen.getByLabelText("Nome do grupo"), { target: { value: "Operação" } });
+    fireEvent.click(screen.getByRole("button", { name: /Ana/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar grupo" }));
+
+    await waitFor(() => expect(criar).toHaveBeenCalledWith("Operação", ["u-online-a"]));
   });
 });

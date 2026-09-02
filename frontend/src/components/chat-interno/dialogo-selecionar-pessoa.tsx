@@ -17,6 +17,8 @@ import type { ChatContato, StatusPresencaChat } from "@/lib/chat-interno/types";
 import type { Textos } from "@/lib/config/schema";
 import { cn } from "@/lib/utils";
 
+import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
+
 type TextosChat = Textos["chatInterno"];
 
 type Props = {
@@ -27,6 +29,7 @@ type Props = {
   erro?: boolean;
   onTentarNovamente?: () => void;
   onSelecionar: (id: string) => Promise<unknown>;
+  onCriarGrupo?: (nome: string, participantes: string[]) => Promise<unknown>;
   textos: TextosChat;
 };
 
@@ -50,11 +53,13 @@ export function DialogoSelecionarPessoa({
   erro = false,
   onTentarNovamente,
   onSelecionar,
+  onCriarGrupo,
   textos,
 }: Props) {
   const [busca, setBusca] = useState("");
   const [selecionandoId, setSelecionandoId] = useState<string | null>(null);
   const [erroAoAbrir, setErroAoAbrir] = useState(false);
+  const [modoGrupo, setModoGrupo] = useState(false);
 
   const pessoas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
@@ -71,7 +76,14 @@ export function DialogoSelecionarPessoa({
     setBusca("");
     setErroAoAbrir(false);
     setSelecionandoId(null);
+    setModoGrupo(false);
     onFechar();
+  }
+
+  async function criarGrupo(nome: string, participantes: string[]) {
+    if (!onCriarGrupo) return;
+    await onCriarGrupo(nome, participantes);
+    fechar();
   }
 
   async function selecionar(contato: ChatContato) {
@@ -94,81 +106,106 @@ export function DialogoSelecionarPessoa({
   };
 
   return (
-    <Dialog open={aberto} onOpenChange={(abertoAgora) => !abertoAgora && fechar()}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden p-0" showCloseButton={false}>
-        <DialogHeader className="border-b border-border px-5 py-4 pr-12">
-          <DialogTitle className="flex items-center gap-2">
-            <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" aria-hidden />
-            {textos.selecionarPessoa}
-          </DialogTitle>
-          <DialogDescription>{textos.selecionarPessoaDescricao}</DialogDescription>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-3 top-3"
-            aria-label={textos.fecharSeletor}
-            onClick={fechar}
-          >
-            <X className="size-(--tamanho-icone-interface)" aria-hidden />
-          </Button>
-        </DialogHeader>
+    <>
+      <Dialog open={aberto && !modoGrupo} onOpenChange={(abertoAgora) => !abertoAgora && fechar()}>
+        <DialogContent className="max-w-md gap-0 overflow-hidden p-0" showCloseButton={false}>
+          <DialogHeader className="border-b border-border px-5 py-4 pr-12">
+            <DialogTitle className="flex items-center gap-2">
+              <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" aria-hidden />
+              {textos.selecionarPessoa}
+            </DialogTitle>
+            <DialogDescription>{textos.selecionarPessoaDescricao}</DialogDescription>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute right-3 top-3"
+              aria-label={textos.fecharSeletor}
+              onClick={fechar}
+            >
+              <X className="size-(--tamanho-icone-interface)" aria-hidden />
+            </Button>
+          </DialogHeader>
 
-        <div className="space-y-3 p-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input
-              autoFocus
-              value={busca}
-              onChange={(evento) => setBusca(evento.target.value)}
-              placeholder={textos.buscarPessoa}
-              aria-label={textos.buscarPessoa}
-              className="h-10 rounded-xl pl-9"
-            />
-          </div>
-
-          {erroAoAbrir && <p role="alert" className="text-sm text-cor-erro">{textos.erroAbrirConversa}</p>}
-
-          {carregando ? (
-            <p className="py-8 text-center text-sm text-muted-foreground" aria-live="polite">{textos.carregando}</p>
-          ) : erro ? (
-            <div className="space-y-3 py-6 text-center">
-              <p role="alert" className="text-sm text-cor-erro">{textos.erroContatos}</p>
-              <Button type="button" variant="outline" onClick={onTentarNovamente}>{textos.tentarNovamente}</Button>
+          <div className="space-y-3 p-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-(--tamanho-icone-interface) -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input
+                autoFocus
+                value={busca}
+                onChange={(evento) => setBusca(evento.target.value)}
+                placeholder={textos.buscarPessoa}
+                aria-label={textos.buscarPessoa}
+                className="h-10 rounded-xl pl-9"
+              />
             </div>
-          ) : pessoas.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">{textos.semPessoas}</p>
-          ) : (
-            <ul className="max-h-72 space-y-1 overflow-y-auto" aria-label={textos.selecionarPessoa}>
-              {pessoas.map((contato) => {
-                const presenca = contato.presenca ?? "OFFLINE";
-                const rotulo = rotuloPresenca(presenca);
-                return (
-                  <li key={contato.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60"
-                      onClick={() => void selecionar(contato)}
-                      disabled={Boolean(selecionandoId)}
-                      aria-label={`${contato.nome}, ${rotulo}`}
-                    >
-                      <span className="relative shrink-0">
-                        <AvatarIniciais id={contato.id} nome={contato.nome} fotoUrl={contato.fotoUrl} className="flex size-10 items-center justify-center rounded-xl text-xs font-bold text-white" />
-                        <span className={cn("absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-popover", CLASSE_PRESENCA[presenca])} aria-hidden />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">{contato.nome}</span>
-                        <span className="block text-xs text-muted-foreground">{rotulo}</span>
-                      </span>
-                      {selecionandoId === contato.id && <span className="text-xs text-muted-foreground" aria-live="polite">{textos.carregando}</span>}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+
+            {erroAoAbrir && <p role="alert" className="text-sm text-cor-erro">{textos.erroAbrirConversa}</p>}
+
+            {carregando ? (
+              <p className="py-8 text-center text-sm text-muted-foreground" aria-live="polite">{textos.carregando}</p>
+            ) : erro ? (
+              <div className="space-y-3 py-6 text-center">
+                <p role="alert" className="text-sm text-cor-erro">{textos.erroContatos}</p>
+                <Button type="button" variant="outline" onClick={onTentarNovamente}>{textos.tentarNovamente}</Button>
+              </div>
+            ) : pessoas.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{textos.semPessoas}</p>
+            ) : (
+              <ul className="max-h-72 space-y-1 overflow-y-auto" aria-label={textos.selecionarPessoa}>
+                {pessoas.map((contato) => {
+                  const presenca = contato.presenca ?? "OFFLINE";
+                  const rotulo = rotuloPresenca(presenca);
+                  return (
+                    <li key={contato.id}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60"
+                        onClick={() => void selecionar(contato)}
+                        disabled={Boolean(selecionandoId)}
+                        aria-label={`${contato.nome}, ${rotulo}`}
+                      >
+                        <span className="relative shrink-0">
+                          <AvatarIniciais id={contato.id} nome={contato.nome} fotoUrl={contato.fotoUrl} className="flex size-10 items-center justify-center rounded-xl text-xs font-bold text-white" />
+                          <span className={cn("absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-popover", CLASSE_PRESENCA[presenca])} aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-foreground">{contato.nome}</span>
+                          <span className="block text-xs text-muted-foreground">{rotulo}</span>
+                        </span>
+                        {selecionandoId === contato.id && <span className="text-xs text-muted-foreground" aria-live="polite">{textos.carregando}</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {onCriarGrupo && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={Boolean(selecionandoId)}
+                onClick={() => setModoGrupo(true)}
+              >
+                <UsersRound className="size-(--tamanho-icone-interface)" aria-hidden />
+                {textos.novoGrupo}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {onCriarGrupo && (
+        <DialogoCriarGrupo
+          aberto={aberto && modoGrupo}
+          onFechar={() => setModoGrupo(false)}
+          contatos={contatos}
+          onCriar={criarGrupo}
+          textos={textos}
+        />
+      )}
+    </>
   );
 }

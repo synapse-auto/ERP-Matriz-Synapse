@@ -54,6 +54,7 @@ type Props = {
   contatosInternosErro?: boolean;
   onRecarregarContatos?: () => void;
   onCriarConversaInterna?: (usuarioId: string) => Promise<unknown>;
+  onCriarGrupoInterna?: (nome: string, participantes: string[]) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
 };
@@ -92,6 +93,7 @@ export function ListaConversas({
   contatosInternosErro = false,
   onRecarregarContatos,
   onCriarConversaInterna,
+  onCriarGrupoInterna,
   onNovoContato,
   className,
 }: Props) {
@@ -378,6 +380,7 @@ export function ListaConversas({
           erro={contatosInternosErro}
           onTentarNovamente={onRecarregarContatos}
           onSelecionar={(usuarioId) => onCriarConversaInterna?.(usuarioId) ?? Promise.resolve()}
+          onCriarGrupo={onCriarGrupoInterna}
           textos={catalogo.chatInterno}
         />
       )}

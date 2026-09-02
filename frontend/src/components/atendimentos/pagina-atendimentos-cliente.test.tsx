@@ -12,9 +12,11 @@ import type {
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: ItemInbox) => void) | undefined,
   atualizarLista: undefined as ((cartoes: ItemInbox[]) => void) | undefined,
+  criarGrupo: undefined as ((nome: string, participantes: string[]) => Promise<unknown>) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
+const criarGrupoChat = vi.hoisted(() => vi.fn());
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -79,14 +81,17 @@ vi.mock("./lista-conversas", () => ({
     leadInicialGatilho = 0,
     onAbrirAtendimento,
     onAtendimentosAtualizados,
+    onCriarGrupoInterna,
   }: {
     leadInicialGatilho?: number;
     onAbrirAtendimento: (cartao: ItemInbox) => void;
     onAtendimentosAtualizados?: (cartoes: ItemInbox[]) => void;
+    onCriarGrupoInterna?: (nome: string, participantes: string[]) => Promise<unknown>;
   }) => {
     const gatilhoAnterior = useRef(leadInicialGatilho);
     callbacks.abrir = onAbrirAtendimento;
     callbacks.atualizarLista = onAtendimentosAtualizados;
+    callbacks.criarGrupo = onCriarGrupoInterna;
     useEffect(() => {
       if (leadInicialGatilho === gatilhoAnterior.current) return;
       gatilhoAnterior.current = leadInicialGatilho;
@@ -143,6 +148,11 @@ vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: vi.fn(),
   abrirAtendimentoParaLead: abrirExistente,
+}));
+vi.mock("@/lib/chat-interno/api", () => ({
+  listarContatosChat: vi.fn(() => Promise.resolve([])),
+  abrirConversaDireta: vi.fn(),
+  criarGrupoChat,
 }));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
   useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
@@ -229,6 +239,7 @@ describe("PaginaAtendimentosCliente", () => {
   beforeEach(() => {
     callbacks.abrir = undefined;
     callbacks.atualizarLista = undefined;
+    callbacks.criarGrupo = undefined;
     callbacks.mensagens = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
@@ -239,6 +250,7 @@ describe("PaginaAtendimentosCliente", () => {
       mensagemId: null,
       leadCriado: false,
     });
+    criarGrupoChat.mockReset();
   });
 
   it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
@@ -338,6 +350,18 @@ describe("PaginaAtendimentosCliente", () => {
     expect(
       screen.queryByRole("button", { name: /detalhes do lead/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("cria o grupo pela mutation da inbox e abre a conversa criada", async () => {
+    criarGrupoChat.mockResolvedValue({ id: "grupo-1" });
+    renderPagina();
+
+    await act(async () => {
+      await callbacks.criarGrupo?.("Operação", ["usuario-2"]);
+    });
+
+    expect(criarGrupoChat).toHaveBeenCalledWith("Operação", ["usuario-2"]);
+    expect(screen.getByTestId("conversa-interna")).toBeInTheDocument();
   });
 
   it("abre a transferência e limpa o aviso", async () => {
