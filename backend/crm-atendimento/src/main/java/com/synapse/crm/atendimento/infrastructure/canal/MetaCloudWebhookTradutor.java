@@ -178,7 +178,12 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
 
     /** {@code type} da Meta -> {@code TipoMensagem} do CRM. {@code null} para tipo desconhecido. */
     private static final Map<String, String> TIPO_META_PARA_CRM =
-            Map.of("image", "IMAGEM", "audio", "AUDIO", "document", "DOCUMENTO");
+            Map.of(
+                    "image", "IMAGEM",
+                    "audio", "AUDIO",
+                    "document", "DOCUMENTO",
+                    "video", "VIDEO",
+                    "sticker", "IMAGEM");
 
     @Override
     public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
@@ -218,7 +223,7 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
 
             String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
             if (tipoCrm == null) {
-                // Nem texto, nem midia suportada (status, reacao, sticker, etc.). Ignorar
+                // Nem texto, nem midia suportada (status, reacao, etc.). Ignorar
                 // somente este item preserva as mensagens boas que vierem no mesmo POST.
                 continue;
             }

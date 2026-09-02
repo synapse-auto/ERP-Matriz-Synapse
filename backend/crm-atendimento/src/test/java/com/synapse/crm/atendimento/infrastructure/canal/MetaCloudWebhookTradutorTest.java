@@ -74,6 +74,63 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void tipoDesconhecidoUnsupportedContinuaSendoIgnorado() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"U","type":"unsupported","unsupported":{}},
+                {"from":"5561000000001","id":"A","type":"text","text":{"body":"ok"}}
+                """));
+
+        assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+    }
+
+    @Test
+    void videoEhTraduzidoComoVideoComMetadadosDaMeta() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"V","type":"video",
+                 "video":{"id":"media-video","mime_type":"video/mp4","caption":"Veja isto"}}
+                """));
+
+        assertThat(mensagens).singleElement().satisfies(mensagem -> {
+            assertThat(mensagem.tipo()).isEqualTo("VIDEO");
+            assertThat(mensagem.midiaIdExterno()).isEqualTo("media-video");
+            assertThat(mensagem.mimetype()).isEqualTo("video/mp4");
+            assertThat(mensagem.legenda()).isEqualTo("Veja isto");
+            assertThat(mensagem.texto()).isNull();
+        });
+    }
+
+    @Test
+    void figurinhaEhTraduzidaComoImagem() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"S","type":"sticker",
+                 "sticker":{"id":"media-sticker","mime_type":"image/webp","sha256":"hash"}}
+                """));
+
+        assertThat(mensagens).singleElement().satisfies(mensagem -> {
+            assertThat(mensagem.tipo()).isEqualTo("IMAGEM");
+            assertThat(mensagem.midiaIdExterno()).isEqualTo("media-sticker");
+            assertThat(mensagem.mimetype()).isEqualTo("image/webp");
+            assertThat(mensagem.legenda()).isNull();
+        });
+    }
+
+    @Test
+    void videoETextoNaMesmaChangeSaoTraduzidos() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"V","type":"video","video":{"id":"media-video"}},
+                {"from":"5561000000001","id":"T","type":"text","text":{"body":"depois"}}
+                """));
+
+        assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::tipo)
+                .containsExactly("VIDEO", "TEXTO");
+    }
+
+    @Test
     void mensagensDeDuasEntriesSaoPercorridas() {
         var mensagens = tradutor.traduzir("""
                 {"entry":[

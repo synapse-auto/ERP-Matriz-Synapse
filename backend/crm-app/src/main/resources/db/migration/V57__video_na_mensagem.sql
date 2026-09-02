@@ -1,0 +1,1 @@
+ALTER TYPE tipo_mensagem ADD VALUE IF NOT EXISTS 'VIDEO';

@@ -6,12 +6,13 @@ public enum TipoMensagem {
     AUDIO,
     IMAGEM,
     DOCUMENTO,
+    VIDEO,
     BOTOES,
     LISTA;
 
     /** Tipos de mídia carregam arquivo e precisam de {@code midiaUrl}. */
     public boolean exigeMidia() {
-        return this == AUDIO || this == IMAGEM || this == DOCUMENTO;
+        return this == AUDIO || this == IMAGEM || this == DOCUMENTO || this == VIDEO;
     }
 
     public boolean exigeOpcoes() {

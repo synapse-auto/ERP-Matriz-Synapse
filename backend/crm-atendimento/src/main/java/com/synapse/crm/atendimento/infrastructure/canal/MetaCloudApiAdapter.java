@@ -254,7 +254,9 @@ class MetaCloudApiAdapter implements CanalGateway {
                 // A API da Meta so admite caption em image, video e document. Audio com esse
                 // campo e rejeitado por inteiro; a legenda continua no historico do CRM, mas nao
                 // pode fazer parte deste payload.
-                if (midia.tipo() != TipoMensagem.AUDIO
+                if ((midia.tipo() == TipoMensagem.IMAGEM
+                                || midia.tipo() == TipoMensagem.VIDEO
+                                || midia.tipo() == TipoMensagem.DOCUMENTO)
                         && midia.legenda() != null
                         && !midia.legenda().isBlank()) {
                     midiaNo.put("caption", midia.legenda());
@@ -282,6 +284,7 @@ class MetaCloudApiAdapter implements CanalGateway {
             case IMAGEM -> "image";
             case AUDIO -> "audio";
             case DOCUMENTO -> "document";
+            case VIDEO -> "video";
             case TEXTO -> throw new IllegalArgumentException("TEXTO nao e um tipo de midia");
             case BOTOES, LISTA -> throw new IllegalArgumentException("mensagem interativa nao e midia");
         };

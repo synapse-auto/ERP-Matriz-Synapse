@@ -153,6 +153,15 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("document").path("caption").asText()).isEqualTo("Nota do documento");
     }
 
+    @Test
+    void videoComLegendaMantemCaption() {
+        JsonNode payload = enviarMidia(TipoMensagem.VIDEO, "video/mp4", "Legenda do video");
+
+        assertThat(payload.path("type").asText()).isEqualTo("video");
+        assertThat(payload.path("video").path("id").asText()).isEqualTo("media-id");
+        assertThat(payload.path("video").path("caption").asText()).isEqualTo("Legenda do video");
+    }
+
     private JsonNode enviarMidia(TipoMensagem tipo, String mimetype, String legenda) {
         return enviarMidiaComMetadados(
                 tipo, "{\"nome\":\"anexo\",\"mimetype\":\"" + mimetype + "\"}", null, legenda);

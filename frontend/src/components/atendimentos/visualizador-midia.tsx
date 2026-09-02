@@ -345,6 +345,7 @@ function ConteudoDoVisualizador({
     return (
       <video
         controls
+        preload="metadata"
         src={src}
         aria-label={item?.nome ?? vis.video}
         className="max-h-[min(70vh,40rem)] max-w-full"

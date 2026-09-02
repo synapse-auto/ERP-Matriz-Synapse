@@ -27,6 +27,7 @@ final class MetaCloudMidiaUpload {
             case AUDIO -> "audio/mp4";
             case IMAGEM -> "image/jpeg";
             case DOCUMENTO -> "application/octet-stream";
+            case VIDEO -> "video/mp4";
             case TEXTO, BOTOES, LISTA -> "application/octet-stream";
         };
     }
@@ -79,6 +80,9 @@ final class MetaCloudMidiaUpload {
             case "image/jpeg" -> ".jpg";
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
+            case "video/mp4" -> ".mp4";
+            case "video/webm" -> ".webm";
+            case "video/quicktime" -> ".mov";
             case "application/pdf" -> ".pdf";
             default -> "";
         };
@@ -91,6 +95,9 @@ final class MetaCloudMidiaUpload {
         }
         if (principal.startsWith("image/")) {
             return "imagem";
+        }
+        if (principal.startsWith("video/")) {
+            return "video";
         }
         return "arquivo";
     }

@@ -97,7 +97,8 @@ public interface TradutorDeCanal {
      *     nosso id
      * @param nomeExibicao como o cliente aparece no WhatsApp; serve para nomear um lead novo
      * @param texto {@code null} quando a mensagem e midia
-     * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"} ou {@code "DOCUMENTO"} — nome
+     * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"}, {@code "DOCUMENTO"} ou
+     *     {@code "VIDEO"} — nome
      *     de {@code TipoMensagem} como String, e nao o enum em si, para o dominio de canal nao
      *     depender do de mensagem so por causa disto; quem converte e
      *     {@code ProcessadorDeWebhookEntradaOperacoes}
