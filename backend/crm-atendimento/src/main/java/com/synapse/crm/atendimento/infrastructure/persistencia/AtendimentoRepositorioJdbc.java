@@ -51,8 +51,15 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String SQL_POR_ID = "SELECT " + COLUNAS + " FROM atendimento WHERE id = ?";
 
+    /**
+     * So {@code EM_ATENDIMENTO}. {@code EM_IA} (Potenciais) o atendente enxerga pela RLS, mas o
+     * {@code UPDATE} para {@code FINALIZADO} tira a linha da visibilidade — o Postgres recusa com
+     * {@code new row violates row-level security policy} mesmo com {@code WITH CHECK (TRUE)}. Incluir
+     * Potenciais no lote derruba o "Finalizar todos" inteiro (a transacao e uma so) sempre que houver
+     * um lead na IA, que e o estado normal do expediente.
+     */
     private static final String SQL_ABERTOS_VISIVEIS = "SELECT " + COLUNAS
-            + " FROM atendimento WHERE status <> 'FINALIZADO' ORDER BY iniciado_em, id";
+            + " FROM atendimento WHERE status = 'EM_ATENDIMENTO' ORDER BY iniciado_em, id";
 
     private static final String SQL_MARCAR_COMO_LIDO =
             """

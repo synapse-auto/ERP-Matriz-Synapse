@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
@@ -74,6 +75,14 @@ public class FinalizarAtendimentoUseCase {
     private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         Instant agora = Instant.now(relogio);
+
+        // Mesma parede da transferencia (E107): UPDATE que tira a linha da visibilidade de quem
+        // executa e recusado mesmo com WITH CHECK (TRUE). EM_IA + atendente_id nulo deixa de
+        // passar no USING depois de virar FINALIZADO. A leitura e o 404 ja rodaram com o papel
+        // real; daqui so gravamos o que ja foi autorizado.
+        if (aberto.status() == StatusAtendimento.EM_IA) {
+            atendimentos.elevarRlsParaEscritaDeNovoDono();
+        }
 
         Atendimento finalizado = atendimentos.salvar(aberto.finalizar(agora));
         leads.marcarStatus(aberto.leadId(), StatusBasicoLead.FINALIZADO);

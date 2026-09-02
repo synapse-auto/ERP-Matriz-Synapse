@@ -438,7 +438,7 @@ class RlsIsolamentoIT extends PostgresIT {
                         + " VALUES (?, ?, ?, 'x', CAST(? AS papel_usuario))",
                 id,
                 nome,
-                marcador + "-" + nome + "@dev.local",
+                marcador + "-" + nome + "@rls.test",
                 papel.name());
         return id;
     }

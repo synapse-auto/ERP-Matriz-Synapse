@@ -10,7 +10,12 @@ import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoExc
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
-/** Finaliza, em uma operacao, os atendimentos abertos visiveis ao usuario atual. */
+/**
+ * Finaliza, em uma operacao, os atendimentos {@code EM_ATENDIMENTO} visiveis ao usuario atual.
+ *
+ * <p>Potenciais ({@code EM_IA}) ficam de fora de proposito: o atendente os enxerga, mas encerra-los
+ * em massa esvaziaria a fila da IA e o {@code UPDATE} para {@code FINALIZADO} e recusado pela RLS.
+ */
 @Service
 public class FinalizarAtendimentosVisiveisUseCase {
 

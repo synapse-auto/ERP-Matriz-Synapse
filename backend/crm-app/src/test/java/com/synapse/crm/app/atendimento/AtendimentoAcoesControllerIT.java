@@ -469,6 +469,55 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
                 .isEqualTo("EM_ATENDIMENTO");
     }
 
+    @Test
+    @DisplayName("finalizar em lote ignora Potencial visivel e nao vira 500")
+    void finalizarEmLote_potencialVisivel_permaneceEmIa() {
+        UUID potencial = criarAtendimentoPotencial("lead lote potencial " + sufixo());
+        UUID leadDaAna = criarLead("lead lote ana com ia " + sufixo(), idAna, Instant.now());
+        UUID atendimentoDaAna = criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadDaAna);
+
+        var previa = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.GET,
+                "/api/v1/atendimentos/finalizar-lote",
+                null);
+        assertThat(previa.getStatusCode()).isEqualTo(HttpStatus.OK);
+        int quantidadeVisivel = extrairInt(previa.getBody(), "quantidade");
+        assertThat(quantidadeVisivel).isGreaterThanOrEqualTo(1);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/finalizar-lote",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"recusados\":0");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDaAna))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, potencial))
+                .isEqualTo("EM_IA");
+    }
+
+    @Test
+    @DisplayName("finalizar individual um Potencial nao vira 500 para o atendente")
+    void finalizar_potencial_atendente_retorna200() {
+        UUID potencial = criarAtendimentoPotencial("lead finalizar potencial " + sufixo());
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + potencial + "/finalizar",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, potencial))
+                .isEqualTo("FINALIZADO");
+    }
+
     // --- apoio ------------------------------------------------------------
 
     private UUID criarAtendimentoViaEnvio(UUID leadId) {
