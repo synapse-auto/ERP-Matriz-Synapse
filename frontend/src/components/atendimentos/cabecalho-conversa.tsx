@@ -10,7 +10,6 @@ import {
   PanelRightOpen,
   Phone,
   Search,
-  Star,
 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
@@ -35,7 +34,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { DialogoTransferir } from "./dialogo-transferir";
-import { DialogoAvaliacao } from "./dialogo-avaliacao";
 import { AtalhoTags } from "./atalho-tags";
 
 type Props = {
@@ -91,7 +89,6 @@ export function CabecalhoConversa({
     erroParticipacao: catalogo.atendimentos.cabecalho.erroParticipacao ?? "Não foi possível atualizar sua participação.",
   };
   const [transferirAberto, setTransferirAberto] = useState(false);
-  const [avaliacaoAberta, setAvaliacaoAberta] = useState(false);
   const finalizar = useFinalizarAtendimento();
   const token = useAuthStore((estado) => estado.accessToken);
   const papel = useAuthStore((estado) => estado.papel);
@@ -264,30 +261,13 @@ export function CabecalhoConversa({
               variant="outline"
               size="sm"
               className="border-cor-sucesso/25 bg-cor-sucesso/10 text-cor-sucesso hover:bg-cor-sucesso/15 hover:text-cor-sucesso"
-              onClick={() =>
-                finalizar.mutate(conversa.atendimentoId, {
-                  onSuccess: () => {
-                    if (conversa.atendenteId) setAvaliacaoAberta(true);
-                  },
-                })
-              }
+              onClick={() => finalizar.mutate(conversa.atendimentoId)}
               disabled={finalizar.isPending}
             >
               <CheckCheck className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
               {textos.finalizar}
             </Button>
           </>
-        )}
-        {finalizado && conversa.atendenteId && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setAvaliacaoAberta(true)}
-          >
-            <Star className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-            {catalogo.atendimentos.avaliacao.registrar}
-          </Button>
         )}
         {finalizado && onAbrirNovoAtendimento && (
           <Button
@@ -342,11 +322,6 @@ export function CabecalhoConversa({
         atendimentoId={conversa.atendimentoId}
         aberto={transferirAberto}
         onFechar={() => setTransferirAberto(false)}
-      />
-      <DialogoAvaliacao
-        atendimentoId={conversa.atendimentoId}
-        aberto={avaliacaoAberta}
-        onFechar={() => setAvaliacaoAberta(false)}
       />
     </div>
   );

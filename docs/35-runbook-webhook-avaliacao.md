@@ -1,15 +1,21 @@
-# E83 — Avaliação após encerramento
+# Avaliação conduzida pela Automação após encerramento
 
 ## Regra aprovada e sequência
 
-Somente a finalização **individual** de atendimento com responsável e telefone canônico
-válido cria pesquisa, quando a integração está configurada. O responsável é o do
-atendimento encerrado, nunca o gestor que clicou. Finalizar todos (mesmo um item),
-atendimento sem responsável, transferência, devolução à IA, saída e chat interno não
-iniciam pesquisa. A coleta existente continua na escala 1–5 e aceita uma nota por atendimento.
+Desde a E124, a finalização de atendimento **não cria automaticamente** uma solicitação de
+pesquisa. O n8n decide quando iniciar o fluxo e pode usar o contrato interno existente;
+o responsável continua sendo o do atendimento encerrado, nunca o gestor que clicou.
+Finalizar todos (mesmo um item), atendimento sem responsável, transferência, devolução à IA,
+saída e chat interno não iniciam pesquisa por conta própria. A coleta existente continua na
+escala 1–5 e aceita uma nota por atendimento.
 
-CRM finaliza → grava intenção na mesma transação → commit → worker da avaliação reserva
-a intenção → POST ao n8n → workflow envia/coleta pesquisa → POST interno de avaliação.
+n8n inicia o fluxo autorizado → workflow envia/coleta pesquisa → POST interno de avaliação.
+
+O worker e a outbox continuam sendo a infraestrutura para solicitações já enfileiradas e para
+um eventual disparo explícito futuro; a finalização humana não é mais produtora dessa fila.
+
+Solicitações já enfileiradas antes da E124 permanecem na outbox e seguem a política de retry;
+o deploy não limpa nem fabrica novas solicitações a partir de finalizações antigas.
 
 O CRM não envia uma segunda mensagem de pesquisa pelo canal. Opt-in, janela, template
 WhatsApp e o envio efetivo são responsabilidade do workflow de Dylan.
@@ -42,8 +48,9 @@ Sem responsável, a coleta continua recusando a avaliação.
 
 ## Configuração / ação necessária no Dokploy
 
-Nada é obrigatório para iniciar o CRM. Sem URL, token ou header válidos, novas finalizações
-continuam funcionando sem intenção/HTTP. Não há chamadas com token vazio.
+Nada é obrigatório para iniciar o CRM. Sem URL, token ou header válidos, o fluxo explícito
+da Automação não cria intenção/HTTP. Finalizações humanas continuam funcionando sem chamada
+externa. Não há chamadas com token vazio.
 Todas as variáveis abaixo têm defaults opcionais no stack; nenhuma usa :?obrigatoria.
 Valores já estão em .env.example, application.yml e docker/dokploy-stack.yml.
 

@@ -129,10 +129,6 @@ vi.mock("./dialogo-transferir", () => ({
   DialogoTransferir: () => null,
 }));
 
-vi.mock("./dialogo-avaliacao", () => ({
-  DialogoAvaliacao: () => null,
-}));
-
 import { CabecalhoConversa } from "./cabecalho-conversa";
 
 const conversa: CartaoAtendimento = {
@@ -197,7 +193,7 @@ describe("CabecalhoConversa", () => {
     expect(alternarBusca).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
-    expect(finalizar).toHaveBeenCalledWith("atendimento-1", expect.any(Object));
+    expect(finalizar).toHaveBeenCalledWith("atendimento-1");
   });
 
   it("mantém a ação individual e não oferece o menu global de finalização", () => {
@@ -251,6 +247,7 @@ describe("CabecalhoConversa", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Avaliar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
     expect(abrirNovo).toHaveBeenCalledOnce();
   });

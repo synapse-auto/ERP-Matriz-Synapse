@@ -30,19 +30,16 @@ public class FinalizarAtendimentoUseCase {
     private final LeadNoCaminhoDeMensagem leads;
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
-    private final SolicitacaoDeAvaliacao avaliacao;
 
     public FinalizarAtendimentoUseCase(
             AtendimentoRepositorio atendimentos,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
-            Clock relogio,
-            SolicitacaoDeAvaliacao avaliacao) {
+            Clock relogio) {
         this.atendimentos = atendimentos;
         this.leads = leads;
         this.eventos = eventos;
         this.relogio = relogio;
-        this.avaliacao = avaliacao;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -52,7 +49,7 @@ public class FinalizarAtendimentoUseCase {
                 AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
             })
     public Atendimento executar(UUID atendimentoId, UUID quemFinalizou) {
-        return finalizar(atendimentoId, quemFinalizou, Origem.INDIVIDUAL);
+        return finalizar(atendimentoId, quemFinalizou);
     }
 
     /** Entrada exclusiva do caso de uso de lote; nao exposta como parametro HTTP. */
@@ -63,24 +60,19 @@ public class FinalizarAtendimentoUseCase {
                 AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
             })
     public Atendimento executarEmLote(UUID atendimentoId, UUID quemFinalizou) {
-        return finalizar(atendimentoId, quemFinalizou, Origem.LOTE);
+        return finalizar(atendimentoId, quemFinalizou);
     }
 
-    private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
+    private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         Instant agora = Instant.now(relogio);
 
         Atendimento finalizado = atendimentos.salvar(aberto.finalizar(agora));
         leads.marcarStatus(aberto.leadId(), StatusBasicoLead.FINALIZADO);
-        if (origem == Origem.INDIVIDUAL) {
-            avaliacao.preparar(finalizado);
-        }
 
         eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizado(
                 aberto.leadId(), aberto.id(), quemFinalizou, agora));
 
         return finalizado;
     }
-
-    private enum Origem { INDIVIDUAL, LOTE }
 }

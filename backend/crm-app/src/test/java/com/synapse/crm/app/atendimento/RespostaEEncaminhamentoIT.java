@@ -117,8 +117,12 @@ class RespostaEEncaminhamentoIT extends PostgresIT {
 
         publicador.publicarPendentes();
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertThat(canal.enviados()).isNotEmpty();
-            assertThat(canal.enviados().getLast().contextoWamid()).isEqualTo("wamid.E87-origem");
+            var envioDaResposta = canal.enviados().stream()
+                    .filter(envio -> novaId.equals(envio.mensagemId()))
+                    .findFirst()
+                    .orElse(null);
+            assertThat(envioDaResposta).as("resposta publicada no canal fake").isNotNull();
+            assertThat(envioDaResposta.contextoWamid()).isEqualTo("wamid.E87-origem");
         });
 
         var historico = chamar(
