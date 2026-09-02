@@ -305,6 +305,24 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
+  it("mantém conversa e visão Pendentes quando o envio falha", () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+      </QueryClientProvider>,
+    );
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    act(() => callbacks.alterarVisao?.("PENDENTES"));
+
+    // Falha de envio não chama onMensagemEnviada; o refetch ainda pode retirar o cartão da visão.
+    act(() => callbacks.atualizarLista?.([]));
+
+    expect(callbacks.visaoAtual).toBe("PENDENTES");
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
   it("retrai e reabre os detalhes sem perder a conversa, o histórico ou o composer", () => {
     const pagina = renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
