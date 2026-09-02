@@ -1,5 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 
 import type { Textos } from "@/lib/config/schema";
 
@@ -37,6 +37,25 @@ vi.mock("emoji-mart", () => {
   return { Picker };
 });
 
+/** Simula um host que nasce com largura 0 (primeiro passe do popover) e só depois ganha largura
+ * real — o cenário que deixava a grade do emoji-mart nascida estreita para sempre. */
+class ResizeObserverMock {
+  static instancias: ResizeObserverMock[] = [];
+  observe = vi.fn();
+  disconnect = vi.fn();
+  unobserve = vi.fn();
+  constructor(private callback: ResizeObserverCallback) {
+    ResizeObserverMock.instancias.push(this);
+  }
+  disparar() {
+    this.callback([], this as unknown as ResizeObserver);
+  }
+}
+
+function definirLargura(elemento: HTMLElement, largura: number) {
+  Object.defineProperty(elemento, "offsetWidth", { configurable: true, value: largura });
+}
+
 const i18n: Textos["atendimentos"]["mensagem"]["acoes"]["seletor"] = {
   search: "Buscar emoji",
   searchNoResults: "Nenhum",
@@ -59,6 +78,10 @@ const i18n: Textos["atendimentos"]["mensagem"]["acoes"]["seletor"] = {
 };
 
 describe("SeletorEmojiCompleto", () => {
+  afterEach(() => {
+    document.documentElement.classList.remove("dark");
+  });
+
   it("extrai o Unicode nativo com modificador de tom de pele", () => {
     expect(nativoSelecionado({ native: "👍🏽" })).toBe("👍🏽");
     expect(nativoSelecionado({ native: "" })).toBeNull();
@@ -73,12 +96,87 @@ describe("SeletorEmojiCompleto", () => {
       expect(document.querySelector("[data-slot='seletor-emoji'] em-emoji-picker")).not.toBeNull();
     });
     expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-set")).toBe("native");
-    expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-theme")).toBe("auto");
     expect(screen.getByLabelText("Buscar emoji")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pessoas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Natureza" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "👍🏽" }));
     expect(onEscolher).toHaveBeenCalledWith("👍🏽");
+  });
+
+  it("constrói o picker com theme='dark' quando a raiz do documento tem a classe dark", async () => {
+    document.documentElement.classList.add("dark");
+    render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(document.querySelector("em-emoji-picker")).not.toBeNull();
+    });
+    expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-theme")).toBe("dark");
+  });
+
+  it("constrói o picker com theme='light' quando a raiz do documento não tem a classe dark", async () => {
+    document.documentElement.classList.remove("dark");
+    render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(document.querySelector("em-emoji-picker")).not.toBeNull();
+    });
+    // Nunca "auto": auto segue prefers-color-scheme do SO, não a classe dark do CRM.
+    expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-theme")).toBe("light");
+  });
+
+  describe("largura do host medida depois de existir", () => {
+    const resizeObserverOriginal = globalThis.ResizeObserver;
+
+    beforeEach(() => {
+      ResizeObserverMock.instancias = [];
+      (globalThis as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverMock;
+    });
+
+    afterEach(() => {
+      (globalThis as { ResizeObserver: unknown }).ResizeObserver = resizeObserverOriginal;
+    });
+
+    it("não constrói o picker enquanto o host está com largura zero", () => {
+      const { container } = render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
+      const host = container.querySelector("[data-slot='seletor-emoji']") as HTMLElement;
+      definirLargura(host, 0);
+
+      // O efeito já rodou (useEffect síncrono após o commit em ambiente de teste); com largura
+      // zero e ResizeObserver disponível, ele deve esperar em vez de construir estreito.
+      expect(host.querySelector("em-emoji-picker")).toBeNull();
+      expect(ResizeObserverMock.instancias).toHaveLength(1);
+      expect(ResizeObserverMock.instancias[0]!.observe).toHaveBeenCalledWith(host);
+    });
+
+    it("constrói o picker assim que o ResizeObserver reporta largura real", () => {
+      const { container } = render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
+      const host = container.querySelector("[data-slot='seletor-emoji']") as HTMLElement;
+      definirLargura(host, 0);
+
+      const observer = ResizeObserverMock.instancias[0]!;
+      expect(host.querySelector("em-emoji-picker")).toBeNull();
+
+      definirLargura(host, 352);
+      observer.disparar();
+
+      expect(host.querySelector("em-emoji-picker")).not.toBeNull();
+      expect(observer.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignora um segundo disparo do ResizeObserver depois de já ter construído", () => {
+      const { container } = render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
+      const host = container.querySelector("[data-slot='seletor-emoji']") as HTMLElement;
+      definirLargura(host, 352);
+
+      const observer = ResizeObserverMock.instancias[0]!;
+      observer.disparar();
+      const pickerUnico = host.querySelector("em-emoji-picker");
+      expect(pickerUnico).not.toBeNull();
+
+      observer.disparar();
+      expect(host.querySelectorAll("em-emoji-picker")).toHaveLength(1);
+      expect(host.querySelector("em-emoji-picker")).toBe(pickerUnico);
+    });
   });
 });

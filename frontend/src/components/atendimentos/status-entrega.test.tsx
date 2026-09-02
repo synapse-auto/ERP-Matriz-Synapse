@@ -127,4 +127,41 @@ describe("StatusEntregaIcone", () => {
     renderComTextos(<StatusEntregaIcone status="FALHOU" />);
     expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
+
+  // O balão de saída é sempre bg-primary (azul). Estes quatro testes provam o motivo real do
+  // "só fica com um traço": as cores antigas eram pensadas para fundo claro.
+  it("LIDO não carrega mais text-primary — era a própria cor do balão, ícone azul sobre balão azul", () => {
+    renderComTextos(<StatusEntregaIcone status="LIDO" />);
+    const icone = screen.getByTitle("Lido").querySelector("svg");
+    expect(icone).not.toBeNull();
+    expect(icone).not.toHaveClass("text-primary");
+  });
+
+  it("LIDO se distingue de ENTREGUE herdando a MESMA cor do balão, mas sem a opacidade reduzida", () => {
+    renderComTextos(<StatusEntregaIcone status="LIDO" />);
+    expect(screen.getByTitle("Lido").querySelector("svg")).toHaveClass("text-primary-foreground");
+  });
+
+  it("ENTREGUE não define cor própria — herda text-primary-foreground/70 do rodapé do balão", () => {
+    renderComTextos(<StatusEntregaIcone status="ENTREGUE" />);
+    const icone = screen.getByTitle("Entregue").querySelector("svg");
+    expect(icone).not.toHaveClass("text-primary-foreground");
+    expect(icone).not.toHaveClass("text-primary");
+  });
+
+  it("o <span> externo não força mais text-muted-foreground — herda a cor do rodapé do balão", () => {
+    renderComTextos(<StatusEntregaIcone status="ENTREGUE" />);
+    expect(screen.getByTitle("Entregue")).not.toHaveClass("text-muted-foreground");
+  });
+
+  it("FALHOU usa o token de erro calibrado para superfície escura, não text-destructive", () => {
+    const onReenviar = vi.fn();
+    renderComTextos(<StatusEntregaIcone status="FALHOU" onReenviar={onReenviar} />);
+    const rotulo = screen.getByText("Falha ao enviar").closest("span");
+    expect(rotulo).toHaveClass("text-sidebar-item-texto-perigo");
+    expect(rotulo).not.toHaveClass("text-destructive");
+    expect(screen.getByRole("button", { name: "Reenviar" })).toHaveClass(
+      "text-sidebar-item-texto-perigo",
+    );
+  });
 });
