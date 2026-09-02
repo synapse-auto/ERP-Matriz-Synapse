@@ -57,7 +57,7 @@ describe("trava: estado, não horário", () => {
   const fontes = [
     "src/lib/atendimento/janela-24h.ts",
     "src/components/atendimentos/composer.tsx",
-    "src/components/atendimentos/lista-templates-whatsapp.tsx",
+    "src/components/atendimentos/modal-de-templates.tsx",
     "src/components/templates-whatsapp/pagina-templates-whatsapp.tsx",
   ].map((arquivo) => ({
     arquivo,

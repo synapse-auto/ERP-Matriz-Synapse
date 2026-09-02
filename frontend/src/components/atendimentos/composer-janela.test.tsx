@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -101,6 +101,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         buscaTemplate: "Buscar template",
         semResultadosTemplate: "Nenhum template encontrado.",
         criarTemplate: "Criar template",
+        colunaTemplates: "Templates",
+        colunaConfiguracao: "Configuração de envio",
+        colunaPrevia: "Prévia",
+        parametroEnvio: "Mensagem — variável {indice}",
+        marcadorVariavelVazia: "[variável {indice}]",
+        configuracaoSemSelecao: "Escolha um template para preencher as variáveis de envio.",
+        previaSemSelecao: "Escolha um template para ver como a mensagem chega.",
+        configuracaoSemVariaveis: "Não há nada a preencher neste template.",
+        novaMensagem: "Nova mensagem",
+        cancelarTemplate: "Cancelar",
         templatesErro: "Erro templates",
         templatePendente: "Pendente",
         agendar: "Agendar mensagem",
@@ -116,6 +126,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
     mensagensProgramadas: { formulario: { tituloCriar: "Programar", cancelar: "Cancelar", salvar: "Salvar" } },
     templatesWhatsApp: {
       categorias: { UTILIDADE: "Utilidade", MARKETING: "Marketing", AUTENTICACAO: "Autenticação" },
+      status: {
+        APROVADO: "Aprovado",
+        PENDENTE: "Pendente",
+        REJEITADO: "Rejeitado",
+        PAUSADO: "Pausado",
+        DESCONHECIDO: "Desconhecido",
+      },
     },
   }),
 }));
@@ -171,12 +188,17 @@ describe("Composer — janela de 24h", () => {
     expect(screen.getByText("A janela de 24h encerrou")).toBeInTheDocument();
     expect(screen.getByText(/A regra é da Meta/)).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Digite uma mensagem...")).not.toBeInTheDocument();
-    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
+    expect(screen.queryByText("boas_vindas")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nova mensagem" })).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/\d{1,2}:\d{2}/);
     expect(container.textContent).not.toMatch(/faltam \d/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Nova mensagem" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
   });
 
-  it("não trata lead que nunca escreveu como janela fechada com cara de erro", async () => {
+  it("não trata lead que nunca escreveu como janela fechada com cara de erro", () => {
     renderizar({ ...base, ultimaMensagemDoLeadEm: null });
 
     expect(screen.getByText("Ainda sem mensagem do cliente")).toBeInTheDocument();
@@ -184,6 +206,7 @@ describe("Composer — janela de 24h", () => {
     expect(screen.queryByText("A janela de 24h encerrou")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Digite uma mensagem...")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
+    expect(screen.queryByText("boas_vindas")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nova mensagem" })).toBeInTheDocument();
   });
 });

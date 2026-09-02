@@ -21,7 +21,7 @@ import type { TemplateWhatsApp } from "@/lib/atendimento/types";
 import type { PedidoDeNovoContato } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
-import { ListaTemplatesWhatsApp } from "./lista-templates-whatsapp";
+import { chaveDoTemplate, ModalDeTemplates } from "./modal-de-templates";
 
 type Props = {
   aberto: boolean;
@@ -81,6 +81,7 @@ function FormularioNovoContato({
   const [templateSelecionado, setTemplateSelecionado] = useState<TemplateWhatsApp | null>(null);
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const [tentouEnviar, setTentouEnviar] = useState(false);
+  const [modalDeTemplateAberto, setModalDeTemplateAberto] = useState(false);
   const capacidade = useQuery({
     queryKey: ["config", "canal"],
     queryFn: obterCapacidadeDoCanal,
@@ -91,6 +92,7 @@ function FormularioNovoContato({
     queryFn: listarTemplatesWhatsApp,
     enabled: exigeTemplate,
   });
+  const temTemplateAprovado = (templates.data ?? []).some((item) => item.status === "APROVADO");
 
   const nomeValido = nome.trim().length > 0;
   const telefoneValido = telefone.replace(/\D/g, "").length >= 10;
@@ -192,28 +194,57 @@ function FormularioNovoContato({
               {catalogo.atendimentos.composer.templatesErro}
             </p>
           ) : exigeTemplate ? (
-            <ListaTemplatesWhatsApp
-              textos={catalogo.atendimentos.composer}
-              rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
-              templates={templates}
-              parametros={parametros}
-              onParametros={(chave, valores) =>
-                setParametros((atual) => ({ ...atual, [chave]: valores }))
-              }
-              enviando={Boolean(pendente)}
-              modoSelecao
-              templateSelecionado={
-                templateSelecionado
-                  ? `${templateSelecionado.nome}:${templateSelecionado.idioma}`
-                  : null
-              }
-              rotuloAcao={catalogo.atendimentos.composer.escolherTemplate}
-              onEnviar={(template, valores) => {
-                const chave = `${template.nome}:${template.idioma}`;
-                setParametros((atual) => ({ ...atual, [chave]: valores }));
-                setTemplateSelecionado(template);
-              }}
-            />
+            templates.isLoading ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                {catalogo.atendimentos.composer.templatesCarregando}
+              </p>
+            ) : templates.isError ? (
+              <p className="text-sm text-destructive" role="alert">
+                {catalogo.atendimentos.composer.templatesErro}
+              </p>
+            ) : temTemplateAprovado ? (
+              <>
+                {templateSelecionado && (
+                  <p className="text-sm text-foreground">{templateSelecionado.nome}</p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setModalDeTemplateAberto(true)}
+                >
+                  {catalogo.atendimentos.composer.escolherTemplate}
+                </Button>
+                <ModalDeTemplates
+                  aberto={modalDeTemplateAberto}
+                  onAbertoChange={setModalDeTemplateAberto}
+                  textos={catalogo.atendimentos.composer}
+                  rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
+                  rotulosDeStatus={catalogo.templatesWhatsApp.status}
+                  templates={templates}
+                  parametros={parametros}
+                  onParametros={(chave, valores) =>
+                    setParametros((atual) => ({ ...atual, [chave]: valores }))
+                  }
+                  enviando={Boolean(pendente)}
+                  templateSelecionado={
+                    templateSelecionado ? chaveDoTemplate(templateSelecionado) : null
+                  }
+                  rotuloAcao={catalogo.atendimentos.composer.escolherTemplate}
+                  onEnviar={(template, valores) => {
+                    setParametros((atual) => ({
+                      ...atual,
+                      [chaveDoTemplate(template)]: valores,
+                    }));
+                    setTemplateSelecionado(template);
+                    setModalDeTemplateAberto(false);
+                  }}
+                />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {catalogo.atendimentos.composer.semTemplates}
+              </p>
+            )
           ) : (
             <>
               <Textarea

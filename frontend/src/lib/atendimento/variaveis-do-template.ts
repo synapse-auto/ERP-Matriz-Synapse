@@ -45,6 +45,24 @@ export function interpolarCorpoDoTemplate(corpo: string, valores: string[]): str
   });
 }
 
+/**
+ * Prévia para o atendente: valor preenchido entra no texto; vazio vira o marcador
+ * do catálogo (`[variável n]`). Não reusa o resultado de `interpolarCorpoDoTemplate`
+ * para não reescrever um valor que o próprio atendente tenha digitado com `{{n}}`.
+ */
+export function interpolarPreviaDoTemplate(
+  corpo: string,
+  valores: string[],
+  modeloMarcadorVazio: string,
+): string {
+  return corpo.replace(/\{\{(\d+)\}\}/g, (_marcador, bruto: string) => {
+    const valor = valores[Number(bruto) - 1];
+    return valor?.trim()
+      ? valor
+      : interpolarCatalogo(modeloMarcadorVazio, { indice: bruto });
+  });
+}
+
 const RAIO_DO_TRECHO = 22;
 
 /** Trecho do corpo em que a variável cai, para o atendente parear campo e posição. */
