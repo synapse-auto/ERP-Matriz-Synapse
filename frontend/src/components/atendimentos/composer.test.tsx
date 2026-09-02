@@ -145,6 +145,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
         buscaTemplate: "Buscar template",
         semResultadosTemplate: "Nenhum template encontrado.",
         criarTemplate: "Criar template",
+        colunaTemplates: "Templates",
+        colunaConfiguracao: "Configuração de envio",
+        colunaPrevia: "Prévia",
+        parametroEnvio: "Mensagem — variável {indice}",
+        marcadorVariavelVazia: "[variável {indice}]",
+        configuracaoSemSelecao: "Escolha um template para preencher as variáveis de envio.",
+        previaSemSelecao: "Escolha um template para ver como a mensagem chega.",
+        configuracaoSemVariaveis: "Não há nada a preencher neste template.",
+        novaMensagem: "Nova mensagem",
+        cancelarTemplate: "Cancelar",
         templatesErro: "Erro templates",
         templatePendente: "Pendente",
         agendar: "Agendar mensagem",
@@ -210,6 +220,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
         UTILIDADE: "Utilidade",
         MARKETING: "Marketing",
         AUTENTICACAO: "Autenticação",
+      },
+      status: {
+        APROVADO: "Aprovado",
+        PENDENTE: "Pendente",
+        REJEITADO: "Rejeitado",
+        PAUSADO: "Pausado",
+        DESCONHECIDO: "Desconhecido",
       },
     },
   }),
@@ -332,7 +349,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Templates" }));
 
     expect(await screen.findByRole("heading", { name: "Enviar template" })).toBeInTheDocument();
-    expect(await screen.findByText("boas_vindas")).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("boas_vindas"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar este template" }));
 
     expect(mutateTexto).toHaveBeenCalledWith(

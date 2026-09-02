@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,16 @@ const textosComposer = {
   buscaTemplate: "Buscar template",
   semResultadosTemplate: "Nenhum resultado.",
   criarTemplate: "Criar template",
+  colunaTemplates: "Templates",
+  colunaConfiguracao: "Configuração de envio",
+  colunaPrevia: "Prévia",
+  parametroEnvio: "Mensagem — variável {indice}",
+  marcadorVariavelVazia: "[variável {indice}]",
+  configuracaoSemSelecao: "Escolha um template para preencher as variáveis de envio.",
+  previaSemSelecao: "Escolha um template para ver como a mensagem chega.",
+  configuracaoSemVariaveis: "Não há nada a preencher neste template.",
+  novaMensagem: "Nova mensagem",
+  cancelarTemplate: "Cancelar",
 };
 
 const textos = {
@@ -43,7 +53,16 @@ const textos = {
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: { novoContato: textos, composer: textosComposer },
-    templatesWhatsApp: { categorias: { UTILIDADE: "Utilidade", MARKETING: "Marketing", AUTENTICACAO: "Autenticação" } },
+    templatesWhatsApp: {
+      categorias: { UTILIDADE: "Utilidade", MARKETING: "Marketing", AUTENTICACAO: "Autenticação" },
+      status: {
+        APROVADO: "Aprovado",
+        PENDENTE: "Pendente",
+        REJEITADO: "Rejeitado",
+        PAUSADO: "Pausado",
+        DESCONHECIDO: "Desconhecido",
+      },
+    },
   }),
 }));
 
@@ -174,6 +193,9 @@ describe("DialogoNovoContato", () => {
     expect(await screen.findByRole("button", { name: "Escolher template" })).toBeInTheDocument();
     preencherContato();
     fireEvent.click(screen.getByRole("button", { name: "Escolher template" }));
+    const modal = await screen.findByRole("dialog", { name: "Escolher template" });
+    fireEvent.click(within(modal).getByRole("button", { name: /boas_vindas/ }));
+    fireEvent.click(within(modal).getByRole("button", { name: "Escolher template" }));
     expect(confirmar).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
@@ -209,12 +231,20 @@ describe("DialogoNovoContato", () => {
     ]);
     const confirmar = vi.fn();
     renderDialog(<DialogoNovoContato aberto onFechar={vi.fn()} onConfirmar={confirmar} />, true);
-    await screen.findByText("orcamento");
+    expect(await screen.findByRole("button", { name: "Escolher template" })).toBeInTheDocument();
     preencherContato();
-    const parametro = screen.getByLabelText("Parâmetro 1");
-    fireEvent.change(parametro, { target: { value: "Maria" } });
     fireEvent.click(screen.getByRole("button", { name: "Escolher template" }));
-    fireEvent.change(parametro, { target: { value: "" } });
+    const modal = await screen.findByRole("dialog", { name: "Escolher template" });
+    fireEvent.click(within(modal).getByRole("button", { name: /orcamento/ }));
+    const parametro = within(modal).getByLabelText("Mensagem — variável 1");
+    fireEvent.change(parametro, { target: { value: "Maria" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Escolher template" }));
+    fireEvent.click(screen.getByRole("button", { name: "Escolher template" }));
+    const modalAberto = await screen.findByRole("dialog", { name: "Escolher template" });
+    fireEvent.change(within(modalAberto).getByLabelText("Mensagem — variável 1"), {
+      target: { value: "" },
+    });
+    fireEvent.click(within(modalAberto).getByRole("button", { name: "Cancelar" }));
     fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     expect(confirmar).not.toHaveBeenCalled();
   });

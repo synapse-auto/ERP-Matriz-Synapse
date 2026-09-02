@@ -18,12 +18,6 @@ import {
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -58,7 +52,7 @@ import { FormularioMensagemProgramada } from "@/components/mensagens-programadas
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
-import { ListaTemplatesWhatsApp } from "./lista-templates-whatsapp";
+import { ModalDeTemplates } from "./modal-de-templates";
 import { useGravadorAudio } from "./use-gravador-audio";
 
 type Props = {
@@ -337,42 +331,64 @@ export function Composer({
           m.palavraChave.toLowerCase().includes(termoAtalho),
         );
 
+  function enviarTemplateEscolhido(
+    template: { nome: string; idioma: string; corpo: string },
+    valores: string[],
+  ) {
+    enviar.mutate({
+      atendimentoId: conversa.atendimentoId,
+      leadId: conversa.leadId,
+      conteudo: template.corpo,
+      template: {
+        nome: template.nome,
+        idioma: template.idioma,
+        parametros: valores,
+      },
+    });
+    setPainelTemplateAberto(false);
+  }
+
+  const modalDeTemplates = (
+    <ModalDeTemplates
+      aberto={painelTemplateAberto}
+      onAbertoChange={setPainelTemplateAberto}
+      textos={textos}
+      rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
+      rotulosDeStatus={catalogo.templatesWhatsApp.status}
+      templates={templates}
+      parametros={parametros}
+      onParametros={(chave, valores) =>
+        setParametros((atual) => ({ ...atual, [chave]: valores }))
+      }
+      enviando={enviar.isPending}
+      onEnviar={enviarTemplateEscolhido}
+    />
+  );
+
   if (!janelaAberta) {
     const semJanela = estadoDaJanela === "inexistente";
     return (
       <div className="min-h-0 overflow-y-auto bg-background px-4 pb-4 pt-3">
-        <div className="mx-auto max-w-[780px] space-y-4 rounded-xl border border-border bg-card p-4 shadow-md">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">
-              {semJanela ? textos.janelaInexistenteTitulo : textos.janelaFechadaTitulo}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {semJanela ? textos.janelaInexistenteDescricao : textos.janelaFechadaDescricao}
-            </p>
+        <div className="mx-auto max-w-[780px] rounded-xl border border-border bg-card p-4 shadow-md">
+          <div className="flex items-start gap-3">
+            <Clock
+              className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {semJanela ? textos.janelaInexistenteTitulo : textos.janelaFechadaTitulo}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {semJanela ? textos.janelaInexistenteDescricao : textos.janelaFechadaDescricao}
+              </p>
+            </div>
           </div>
-          <ListaTemplatesWhatsApp
-            textos={textos}
-            rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
-            templates={templates}
-            parametros={parametros}
-            onParametros={(chave, valores) =>
-              setParametros((atual) => ({ ...atual, [chave]: valores }))
-            }
-            enviando={enviar.isPending}
-            onEnviar={(template, valores) =>
-              enviar.mutate({
-                atendimentoId: conversa.atendimentoId,
-                leadId: conversa.leadId,
-                conteudo: template.corpo,
-                template: {
-                  nome: template.nome,
-                  idioma: template.idioma,
-                  parametros: valores,
-                },
-              })
-            }
-          />
+          <Button type="button" className="mt-4" onClick={() => setPainelTemplateAberto(true)}>
+            {textos.novaMensagem}
+          </Button>
         </div>
+        {modalDeTemplates}
       </div>
     );
   }
@@ -713,36 +729,7 @@ export function Composer({
             {catalogo.mensagensRapidas.variaveisPendentes.replace("{variaveis}", variaveisPendentes.map((item) => `{${item}}`).join(", "))}
           </p>
         )}
-        <Dialog open={painelTemplateAberto} onOpenChange={setPainelTemplateAberto}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{textos.escolherTemplate}</DialogTitle>
-            </DialogHeader>
-            <ListaTemplatesWhatsApp
-              textos={textos}
-              rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
-              templates={templates}
-              parametros={parametros}
-              onParametros={(chave, valores) =>
-                setParametros((atual) => ({ ...atual, [chave]: valores }))
-              }
-              enviando={enviar.isPending}
-              onEnviar={(template, valores) => {
-                enviar.mutate({
-                  atendimentoId: conversa.atendimentoId,
-                  leadId: conversa.leadId,
-                  conteudo: template.corpo,
-                  template: {
-                    nome: template.nome,
-                    idioma: template.idioma,
-                    parametros: valores,
-                  },
-                });
-                setPainelTemplateAberto(false);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+        {modalDeTemplates}
         <FormularioMensagemProgramada
           key={agendamentoAberto ? "agendamento-aberto" : "agendamento-fechado"}
           aberto={agendamentoAberto}

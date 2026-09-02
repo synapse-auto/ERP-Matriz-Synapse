@@ -4,6 +4,7 @@ import {
   analisarVariaveisDoCorpo,
   interpolarCatalogo,
   interpolarCorpoDoTemplate,
+  interpolarPreviaDoTemplate,
   parametrosDoTemplatePreenchidos,
   rotulosDasVariaveis,
   trechoDaVariavel,
@@ -40,6 +41,19 @@ describe("variaveis do template", () => {
 
 describe("prévia e contexto das variáveis", () => {
   it("substitui o marcador preenchido e mantém o vazio", () => {
+    expect(
+      interpolarCorpoDoTemplate("Olá {{1}}, o pedido {{2}} ficou pronto.", ["Maria", ""]),
+    ).toBe("Olá Maria, o pedido {{2}} ficou pronto.");
+  });
+
+  it("na prévia troca o marcador vazio por um rótulo legível, sem alterar o interpolador cru", () => {
+    expect(
+      interpolarPreviaDoTemplate(
+        "Olá {{1}}, o pedido {{2}} ficou pronto.",
+        ["Maria", ""],
+        "[variável {indice}]",
+      ),
+    ).toBe("Olá Maria, o pedido [variável 2] ficou pronto.");
     expect(
       interpolarCorpoDoTemplate("Olá {{1}}, o pedido {{2}} ficou pronto.", ["Maria", ""]),
     ).toBe("Olá Maria, o pedido {{2}} ficou pronto.");
