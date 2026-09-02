@@ -251,7 +251,7 @@ public class EnviarMensagemUseCase {
                     agora,
                     aberto.id(),
                     leadId,
-                    contato.telefone(),
+                    contato.telefoneDestino(),
                     aberto.canalCredencialId(),
                     conteudo,
                     contextoWamid);
@@ -261,7 +261,7 @@ public class EnviarMensagemUseCase {
                     agora,
                     aberto.id(),
                     leadId,
-                    contato.telefone(),
+                    contato.telefoneDestino(),
                     aberto.canalCredencialId(),
                     conteudo,
                     mensagemProgramadaId);

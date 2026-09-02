@@ -178,6 +178,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                             null,
                             null,
                             referencia));
+            // O endereco cru e parte do mesmo commit da mensagem. A escrita fica depois do registro
+            // para nao tomar o lock do lead antes que o caminho critico atualize seus contadores.
+            // Assim a concorrencia de recebimento e finalizacao conserva a ordem de locks existente.
+            leads.registrarTelefoneProvedor(leadId, mensagem.telefoneRemetente());
             idsExternos.gravar(
                     mensagem.idExterno(),
                     resultado.mensagem().id(),

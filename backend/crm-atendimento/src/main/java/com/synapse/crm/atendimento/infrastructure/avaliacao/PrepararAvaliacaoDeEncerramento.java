@@ -57,7 +57,7 @@ class PrepararAvaliacaoDeEncerramento implements SolicitacaoDeAvaliacao {
             return;
         }
         String telefone = leads.contatoParaEnvio(atendimento.leadId())
-                .map(LeadNoCaminhoDeMensagem.ContatoParaEnvio::telefone).orElse(null);
+                .map(LeadNoCaminhoDeMensagem.ContatoParaEnvio::telefoneDestino).orElse(null);
         // Contrato wa_id/E.164. Nao normalizar nem inventar DDI aqui: a escrita do lead ja o faz.
         if (telefone == null || !telefone.matches("[1-9][0-9]{9,14}")) {
             log.warn("Avaliacao nao enfileirada: atendimento={} motivo=SEM_TELEFONE_VALIDO", atendimento.id());

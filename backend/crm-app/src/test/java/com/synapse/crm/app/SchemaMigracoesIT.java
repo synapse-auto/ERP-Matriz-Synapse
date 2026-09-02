@@ -208,6 +208,31 @@ class SchemaMigracoesIT extends PostgresIT {
             assertThat(flyway.getConfiguration().getLocations())
                     .noneMatch(local -> local.getDescriptor().contains("db/seed"));
         }
+
+        @Test
+        @DisplayName("lead tem endereco opcional de envio do provedor")
+        void lead_temEnderecoDeEnvioDoProvedor() {
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT data_type
+                              FROM information_schema.columns
+                             WHERE table_schema = 'public'
+                               AND table_name = 'lead'
+                               AND column_name = 'telefone_provedor'
+                            """,
+                            String.class))
+                    .isEqualTo("character varying");
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT d.description
+                              FROM pg_description d
+                              JOIN pg_class c ON c.oid = d.objoid
+                              JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = d.objsubid
+                             WHERE c.relname = 'lead' AND a.attname = 'telefone_provedor'
+                            """,
+                            String.class))
+                    .contains("Identificador do destinatario no provedor");
+        }
     }
 
     @Nested
