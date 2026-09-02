@@ -9,6 +9,7 @@ import type {
   ItemInbox,
   NotificacaoTempoReal,
 } from "@/lib/atendimento/types";
+import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: ItemInbox) => void) | undefined,
@@ -161,8 +162,15 @@ vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
   PainelConversaInterna: () => <div data-testid="conversa-interna" />,
 }));
 vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => <div data-testid="historico" /> }));
-vi.mock("./composer", () => ({
-  Composer: ({ onMensagemEnviada }: { onMensagemEnviada?: () => void }) => (
+function ComposerDeTeste({
+  conversa,
+  onMensagemEnviada,
+}: {
+  conversa: CartaoAtendimento;
+  onMensagemEnviada?: () => void;
+}) {
+  const enviar = useEnviarMensagem(onMensagemEnviada);
+  return (
     <>
       <div data-testid="composer" />
       {onMensagemEnviada && (
@@ -170,13 +178,40 @@ vi.mock("./composer", () => ({
           Simular envio
         </button>
       )}
+      <button
+        type="button"
+        onClick={() =>
+          enviar.mutate({
+            atendimentoId: conversa.atendimentoId,
+            leadId: conversa.leadId,
+            conteudo: "mensagem que falha",
+          })
+        }
+      >
+        Simular falha real
+      </button>
+      {enviar.isError && <span data-testid="erro-envio-real">Falha de envio</span>}
     </>
+  );
+}
+
+vi.mock("./composer", () => ({
+  Composer: ({
+    conversa,
+    onMensagemEnviada,
+  }: {
+    conversa: CartaoAtendimento;
+    onMensagemEnviada?: () => void;
+  }) => (
+    <ComposerDeTeste conversa={conversa} onMensagemEnviada={onMensagemEnviada} />
   ),
 }));
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: vi.fn(),
   abrirAtendimentoParaLead: abrirExistente,
+  enviarMensagem: vi.fn(() => Promise.reject(new Error("falha de rede"))),
+  enviarTemplate: vi.fn(),
 }));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
   useConfiguracaoComposer: () => ({ data: { tempoNotificacaoSegundos: 8 } }),
@@ -189,9 +224,6 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
     };
     return { data: [], isLoading: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() };
   },
-}));
-vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
-  useEnviarMensagem: () => ({ mutate: vi.fn() }),
 }));
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: { getState: () => ({ accessToken: "token" }) },
@@ -336,7 +368,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
-  it("mantém conversa e visão Pendentes quando o envio falha", () => {
+  it("mantém conversa e visão Pendentes quando o envio real falha", async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
@@ -346,8 +378,8 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.abrir?.(cartaoInicial));
     act(() => callbacks.alterarVisao?.("PENDENTES"));
 
-    // Falha de envio não chama onMensagemEnviada; o refetch ainda pode retirar o cartão da visão.
-    act(() => callbacks.atualizarLista?.([]));
+    fireEvent.click(screen.getByRole("button", { name: "Simular falha real" }));
+    await waitFor(() => expect(screen.getByTestId("erro-envio-real")).toBeInTheDocument());
 
     expect(callbacks.visaoAtual).toBe("PENDENTES");
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
