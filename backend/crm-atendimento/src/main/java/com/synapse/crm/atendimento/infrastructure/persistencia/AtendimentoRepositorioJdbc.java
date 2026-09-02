@@ -57,9 +57,28 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
      * {@code new row violates row-level security policy} mesmo com {@code WITH CHECK (TRUE)}. Incluir
      * Potenciais no lote derruba o "Finalizar todos" inteiro (a transacao e uma so) sempre que houver
      * um lead na IA, que e o estado normal do expediente.
+     *
+     * <p>O filtro opcional de dono ({@code ? IS NULL OR atendente_id = ?}) e adicional a RLS: quem
+     * nao alcanca o colega continua com zero linhas (E137).
      */
+    private static final String WHERE_ABERTOS_VISIVEIS =
+            " WHERE status = 'EM_ATENDIMENTO' AND (?::uuid IS NULL OR atendente_id = ?)";
+
     private static final String SQL_ABERTOS_VISIVEIS = "SELECT " + COLUNAS
-            + " FROM atendimento WHERE status = 'EM_ATENDIMENTO' ORDER BY iniciado_em, id";
+            + " FROM atendimento" + WHERE_ABERTOS_VISIVEIS + " ORDER BY iniciado_em, id";
+
+    /** Mesma populacao base de {@link #SQL_ABERTOS_VISIVEIS} sem filtro de dono, agregada. */
+    private static final String SQL_CONTAR_ABERTOS_POR_ATENDENTE =
+            """
+            SELECT a.atendente_id AS atendente_id,
+                   COALESCE(u.nome, '') AS nome,
+                   count(*) AS quantidade
+              FROM atendimento a
+              LEFT JOIN usuario u ON u.id = a.atendente_id
+             WHERE a.status = 'EM_ATENDIMENTO'
+             GROUP BY a.atendente_id, u.nome
+             ORDER BY u.nome NULLS LAST, a.atendente_id
+            """;
 
     private static final String SQL_MARCAR_COMO_LIDO =
             """
@@ -127,9 +146,20 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     }
 
     @Override
-    public List<Atendimento> abertosVisiveis() {
+    public List<Atendimento> abertosVisiveis(UUID atendenteIdFiltro) {
         TransacaoObrigatoria.exigir("abertosVisiveis");
-        return chat.query(SQL_ABERTOS_VISIVEIS, MAPEADOR);
+        return chat.query(SQL_ABERTOS_VISIVEIS, MAPEADOR, atendenteIdFiltro, atendenteIdFiltro);
+    }
+
+    @Override
+    public List<ContagemPorAtendente> contagemAbertosVisiveisPorAtendente() {
+        TransacaoObrigatoria.exigir("contagemAbertosVisiveisPorAtendente");
+        return chat.query(
+                SQL_CONTAR_ABERTOS_POR_ATENDENTE,
+                (rs, i) -> new ContagemPorAtendente(
+                        rs.getObject("atendente_id", UUID.class),
+                        rs.getString("nome"),
+                        rs.getLong("quantidade")));
     }
 
     @Override

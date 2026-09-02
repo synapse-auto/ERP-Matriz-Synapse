@@ -332,11 +332,11 @@
       "sucesso": "Atendimento finalizado.",
       "erro": "Não foi possível finalizar.",
       "todosMenu": "Mais ações",
-      "todos": "Finalizar todos os atendimentos visíveis",
+      "todos": "Finalizar Todos",
       "todosTitulo": "Finalizar atendimentos",
       "todosDescricao": "Esta ação encerrará {quantidade} atendimento(s) aberto(s) que você pode visualizar. O estado é definitivo.",
       "todosConfirmar": "Finalizar {quantidade}",
-      "todosCancelar": "Cancelar",
+      "todosCancelar": "Voltar",
       "todosResultado": "{finalizados} atendimento(s) finalizado(s); {recusados} recusado(s).",
       "todosErro": "Não foi possível finalizar os atendimentos visíveis."
     },

@@ -94,11 +94,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         sucesso: "Finalizado",
         erro: "Erro",
         todosMenu: "Mais ações",
-        todos: "Finalizar todos",
+        todos: "Finalizar Todos",
         todosTitulo: "Finalizar atendimentos",
         todosDescricao: "Encerrar {quantidade}",
         todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Cancelar",
+        todosCancelar: "Voltar",
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
@@ -208,7 +208,7 @@ describe("CabecalhoConversa", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Finalizar todos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Finalizar Todos")).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finalizar" })).toBeEnabled();
     expect(screen.getAllByRole("button", { name: "Transferir" }).length).toBeGreaterThan(0);

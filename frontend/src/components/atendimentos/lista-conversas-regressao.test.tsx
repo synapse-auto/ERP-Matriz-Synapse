@@ -7,7 +7,10 @@ import type { ItemInbox } from "@/lib/atendimento/types";
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimentosVisiveis: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
-  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: 0 }, isLoading: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({
+    data: { quantidade: 0, porAtendente: [] },
+    isLoading: false,
+  }),
 }));
 
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
@@ -41,11 +44,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
       novoContato: { botao: "Novo atendimento" },
       finalizar: {
         todosMenu: "Mais ações",
-        todos: "Finalizar todos",
+        todos: "Finalizar Todos",
         todosTitulo: "Finalizar atendimentos",
         todosDescricao: "Encerrar {quantidade}",
         todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Cancelar",
+        todosCancelar: "Voltar",
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },

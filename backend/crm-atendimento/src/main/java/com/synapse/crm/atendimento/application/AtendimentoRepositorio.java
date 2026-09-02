@@ -40,8 +40,21 @@ public interface AtendimentoRepositorio {
      *
      * <p>Nao inclui {@code EM_IA}: o lote de finalizacao nao pode encerrar a fila da IA, e o
      * {@code UPDATE} que tira a linha da visibilidade do atendente e recusado pela RLS.
+     *
+     * @param atendenteIdFiltro filtro adicional sobre o dono; {@code null} = todos os visiveis.
+     *     Nunca amplia o alcance da RLS: um id de colega para quem so ve a propria carteira
+     *     devolve lista vazia.
      */
-    List<Atendimento> abertosVisiveis();
+    List<Atendimento> abertosVisiveis(UUID atendenteIdFiltro);
+
+    /**
+     * Quebra da mesma populacao de {@link #abertosVisiveis(UUID)} sem filtro de dono — uma linha
+     * por {@code atendente_id}, com nome, para alimentar o seletor do lote (E137).
+     */
+    List<ContagemPorAtendente> contagemAbertosVisiveisPorAtendente();
+
+    /** Contagem agregada de {@link #abertosVisiveis(UUID)} — mesma definicao, sem carregar as linhas. */
+    record ContagemPorAtendente(UUID atendenteId, String nome, long quantidade) {}
 
     /**
      * Serializa a escolha de destino feita pela Automacao.

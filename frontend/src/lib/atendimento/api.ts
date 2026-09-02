@@ -279,9 +279,12 @@ export function contarAtendimentosFinalizaveis(): Promise<FinalizacaoEmLotePrevi
   return apiFetch<FinalizacaoEmLotePrevia>("/api/v1/atendimentos/finalizar-lote");
 }
 
-export function finalizarAtendimentosVisiveis(): Promise<FinalizacaoEmLoteResposta> {
+export function finalizarAtendimentosVisiveis(
+  atendenteId?: string | null,
+): Promise<FinalizacaoEmLoteResposta> {
   return apiFetch<FinalizacaoEmLoteResposta>("/api/v1/atendimentos/finalizar-lote", {
     method: "POST",
+    body: atendenteId ? JSON.stringify({ atendenteId }) : undefined,
   });
 }
 

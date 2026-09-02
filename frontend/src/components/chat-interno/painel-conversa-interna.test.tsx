@@ -51,7 +51,7 @@ describe("PainelConversaInterna", () => {
     expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Finalizar todos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Finalizar Todos")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /lead/i })).not.toBeInTheDocument();
   });
 });

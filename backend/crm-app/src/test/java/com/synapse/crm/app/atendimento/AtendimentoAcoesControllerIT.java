@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -470,6 +472,73 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("gestor finaliza em lote filtrando por um atendente")
+    void finalizarEmLote_gestorComAtendenteId_finalizaSomenteDaquele() {
+        UUID leadDaAna = criarLead("lead lote filtro ana " + sufixo(), idAna, Instant.now());
+        UUID atendimentoDaAna = criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadDaAna);
+        UUID leadDoBruno = criarLead("lead lote filtro bruno " + sufixo(), idBruno, Instant.now());
+        UUID atendimentoDoBruno = criarAtendimentoViaEnvioComo(EMAIL_BRUNO, SENHA_ATENDENTE, leadDoBruno);
+
+        var resposta = chamar(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/finalizar-lote",
+                Map.of("atendenteId", idAna.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDaAna))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDoBruno))
+                .isEqualTo("EM_ATENDIMENTO");
+    }
+
+    @Test
+    @DisplayName("atendente com id de colega finaliza zero sem revelar existencia")
+    void finalizarEmLote_atendenteComIdDeColega_finalizaZero() {
+        UUID leadDoBruno = criarLead("lead lote id colega " + sufixo(), idBruno, Instant.now());
+        UUID atendimentoDoBruno = criarAtendimentoViaEnvioComo(EMAIL_BRUNO, SENHA_ATENDENTE, leadDoBruno);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/finalizar-lote",
+                Map.of("atendenteId", idBruno.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody())
+                .contains("\"solicitados\":0", "\"finalizados\":0", "\"recusados\":0");
+        assertThat(resposta.getBody()).doesNotContain(idBruno.toString());
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDoBruno))
+                .isEqualTo("EM_ATENDIMENTO");
+    }
+
+    @Test
+    @DisplayName("previa: soma porAtendente bate com quantidade; atendente tem uma entrada")
+    void previaFinalizarLote_somaEQuebraPorPapel() throws Exception {
+        UUID leadDaAna = criarLead("lead previa ana " + sufixo(), idAna, Instant.now());
+        criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadDaAna);
+        UUID leadDoBruno = criarLead("lead previa bruno " + sufixo(), idBruno, Instant.now());
+        criarAtendimentoViaEnvioComo(EMAIL_BRUNO, SENHA_ATENDENTE, leadDoBruno);
+
+        var comoAna = chamar(EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, "/api/v1/atendimentos/finalizar-lote", null);
+        assertThat(comoAna.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode previaAna = new ObjectMapper().readTree(comoAna.getBody());
+        assertThat(somaPorAtendente(previaAna)).isEqualTo(previaAna.path("quantidade").asInt());
+        assertThat(previaAna.path("porAtendente")).hasSize(1);
+        assertThat(previaAna.path("porAtendente").get(0).path("atendenteId").asText())
+                .isEqualTo(idAna.toString());
+
+        var comoGestor = chamar(EMAIL_GESTOR, SENHA_GESTOR, HttpMethod.GET, "/api/v1/atendimentos/finalizar-lote", null);
+        assertThat(comoGestor.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode previaGestor = new ObjectMapper().readTree(comoGestor.getBody());
+        assertThat(somaPorAtendente(previaGestor)).isEqualTo(previaGestor.path("quantidade").asInt());
+        assertThat(previaGestor.path("porAtendente").size()).isGreaterThanOrEqualTo(2);
+        assertThat(idsPorAtendente(previaGestor)).contains(idAna.toString(), idBruno.toString());
+    }
+
+    @Test
     @DisplayName("finalizar em lote ignora Potencial visivel e nao vira 500")
     void finalizarEmLote_potencialVisivel_permaneceEmIa() {
         UUID potencial = criarAtendimentoPotencial("lead lote potencial " + sufixo());
@@ -495,6 +564,27 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains("\"recusados\":0");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDaAna))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, potencial))
+                .isEqualTo("EM_IA");
+    }
+
+    @Test
+    @DisplayName("finalizar em lote com filtro tambem ignora Potencial")
+    void finalizarEmLote_comFiltro_potencialPermaneceEmIa() {
+        UUID potencial = criarAtendimentoPotencial("lead lote potencial filtro " + sufixo());
+        UUID leadDaAna = criarLead("lead lote ana filtro ia " + sufixo(), idAna, Instant.now());
+        UUID atendimentoDaAna = criarAtendimentoViaEnvioComo(EMAIL_ANA, SENHA_ATENDENTE, leadDaAna);
+
+        var resposta = chamar(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/finalizar-lote",
+                Map.of("atendenteId", idAna.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, atendimentoDaAna))
                 .isEqualTo("FINALIZADO");
         assertThat(jdbc.queryForObject("SELECT status FROM atendimento WHERE id = ?", String.class, potencial))
@@ -625,6 +715,20 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
     private static int extrairInt(String json, String campo) {
         return Integer.parseInt(json.replaceAll(".*\"" + campo + "\":([0-9]+).*", "$1"));
+    }
+
+    private static int somaPorAtendente(JsonNode previa) {
+        int soma = 0;
+        for (JsonNode item : previa.path("porAtendente")) {
+            soma += item.path("quantidade").asInt();
+        }
+        return soma;
+    }
+
+    private static java.util.Set<String> idsPorAtendente(JsonNode previa) {
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        previa.path("porAtendente").forEach(item -> ids.add(item.path("atendenteId").asText()));
+        return ids;
     }
 
     private static String sufixo() {

@@ -185,8 +185,15 @@ export interface AtendimentoResumo {
   atendenteId: string | null;
 }
 
+export interface ContagemFinalizacaoPorAtendente {
+  atendenteId: string;
+  nome: string;
+  quantidade: number;
+}
+
 export interface FinalizacaoEmLotePrevia {
   quantidade: number;
+  porAtendente: ContagemFinalizacaoPorAtendente[];
 }
 
 export interface FinalizacaoEmLoteResposta {

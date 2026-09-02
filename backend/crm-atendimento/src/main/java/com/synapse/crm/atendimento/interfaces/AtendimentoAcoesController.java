@@ -332,23 +332,37 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Contar atendimentos em atendimento finalizáveis",
-            description = "Retorna quantos atendimentos EM_ATENDIMENTO o usuário autenticado alcança. Potenciais (EM_IA) ficam de fora: o lote não encerra a fila da IA.",
-            responses = @ApiResponse(responseCode = "200", description = "Quantidade de atendimentos visíveis."))
+            description = "Retorna quantos atendimentos EM_ATENDIMENTO o usuário autenticado alcança,"
+                    + " com a quebra por atendente no mesmo recorte RLS. Potenciais (EM_IA) ficam de"
+                    + " fora: o lote não encerra a fila da IA.",
+            responses = @ApiResponse(responseCode = "200", description = "Quantidade e quebra por atendente."))
     @GetMapping("/finalizar-lote")
     FinalizacaoEmLotePrevia contarFinalizacaoEmLote() {
-        return new FinalizacaoEmLotePrevia(finalizarLote.quantidade());
+        FinalizarAtendimentosVisiveisUseCase.Previa previa = finalizarLote.previa();
+        return new FinalizacaoEmLotePrevia(
+                previa.quantidade(),
+                previa.porAtendente().stream()
+                        .map(c -> new PorAtendenteFinalizacao(
+                                c.atendenteId(), c.nome(), Math.toIntExact(c.quantidade())))
+                        .toList());
     }
 
     @Operation(
             summary = "Finalizar atendimentos visíveis em lote",
-            description = "Finaliza os atendimentos EM_ATENDIMENTO visíveis ao usuário autenticado. Potenciais (EM_IA) não entram no lote. Cada item reaproveita a mesma autorização, regra de estado terminal e evento da finalização individual.",
+            description = "Finaliza os atendimentos EM_ATENDIMENTO visíveis ao usuário autenticado."
+                    + " Corpo opcional com atendenteId aplica filtro adicional sobre o recorte RLS"
+                    + " (nunca amplia o alcance). Sem corpo, comportamento idêntico ao lote completo."
+                    + " Potenciais (EM_IA) não entram no lote. Cada item reaproveita a mesma"
+                    + " autorização, regra de estado terminal e evento da finalização individual.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Resultado com itens finalizados e recusados."),
                 @ApiResponse(responseCode = "401", description = "Usuário não autenticado.")
             })
     @PostMapping("/finalizar-lote")
-    FinalizacaoEmLoteResposta finalizarEmLote() {
-        FinalizarAtendimentosVisiveisUseCase.Resultado resultado = finalizarLote.executar();
+    FinalizacaoEmLoteResposta finalizarEmLote(
+            @RequestBody(required = false) FinalizacaoEmLoteRequisicao requisicao) {
+        UUID filtro = requisicao == null ? null : requisicao.atendenteId();
+        FinalizarAtendimentosVisiveisUseCase.Resultado resultado = finalizarLote.executar(filtro);
         return new FinalizacaoEmLoteResposta(
                 resultado.solicitados(), resultado.finalizados(), resultado.recusados());
     }
@@ -638,7 +652,11 @@ class AtendimentoAcoesController {
         }
     }
 
-    record FinalizacaoEmLotePrevia(int quantidade) {}
+    record FinalizacaoEmLoteRequisicao(UUID atendenteId) {}
+
+    record PorAtendenteFinalizacao(UUID atendenteId, String nome, int quantidade) {}
+
+    record FinalizacaoEmLotePrevia(int quantidade, List<PorAtendenteFinalizacao> porAtendente) {}
 
     record FinalizacaoEmLoteResposta(int solicitados, int finalizados, int recusados) {}
 

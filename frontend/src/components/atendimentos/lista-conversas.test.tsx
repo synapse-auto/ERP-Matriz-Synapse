@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ItemInbox } from "@/lib/atendimento/types";
 
 const finalizarTodos = vi.fn();
-const quantidadeFinalizavel = vi.hoisted(() => ({ valor: 2 }));
+const quantidadeFinalizavel = vi.hoisted(() => ({
+  valor: 2,
+  porAtendente: [
+    { atendenteId: "u-ana", nome: "Ana", quantidade: 1 },
+    { atendenteId: "u-bruno", nome: "Bruno", quantidade: 1 },
+  ],
+}));
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
 const atendimentosMock = vi.hoisted(() => ({
   visao: "TODOS" as string,
@@ -17,7 +23,13 @@ vi.mock("@/lib/auth/auth-store", () => ({
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
-  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: quantidadeFinalizavel.valor }, isLoading: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({
+    data: {
+      quantidade: quantidadeFinalizavel.valor,
+      porAtendente: quantidadeFinalizavel.porAtendente,
+    },
+    isLoading: false,
+  }),
 }));
 
 const cartoes: ItemInbox[] = [
@@ -153,11 +165,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       finalizar: {
         todosMenu: "Mais ações",
-        todos: "Finalizar todos",
+        todos: "Finalizar Todos",
         todosTitulo: "Finalizar atendimentos",
         todosDescricao: "Encerrar {quantidade}",
         todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Cancelar",
+        todosCancelar: "Voltar",
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
@@ -185,6 +197,12 @@ describe("ListaConversas", () => {
     authMock.papel = "GESTOR";
     atendimentosMock.visao = "TODOS";
     atendimentosMock.data = cartoes;
+    quantidadeFinalizavel.valor = 2;
+    quantidadeFinalizavel.porAtendente = [
+      { atendenteId: "u-ana", nome: "Ana", quantidade: 1 },
+      { atendenteId: "u-bruno", nome: "Bruno", quantidade: 1 },
+    ];
+    finalizarTodos.mockClear();
   });
 
   it("mostra as quatro visões e busca por cliente, empresa ou protocolo", () => {
@@ -292,11 +310,44 @@ describe("ListaConversas", () => {
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar todos" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
 
     expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
-    expect(finalizarTodos).toHaveBeenCalledTimes(1);
+    expect(finalizarTodos).toHaveBeenCalledWith(null, expect.any(Object));
+  });
+
+  it("trocar o rádio muda o número e envia o atendenteId selecionado", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
+
+    fireEvent.click(screen.getByRole("radio", { name: /Bruno/ }));
+    expect(screen.getByText("Encerrar 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar 1" }));
+    expect(finalizarTodos).toHaveBeenCalledWith("u-bruno", expect.any(Object));
+  });
+
+  it("seleção com zero atendimentos desabilita o botão de confirmar", () => {
+    quantidadeFinalizavel.valor = 1;
+    quantidadeFinalizavel.porAtendente = [
+      { atendenteId: "u-vazio", nome: "Sem fila", quantidade: 0 },
+      { atendenteId: "u-ok", nome: "Com fila", quantidade: 1 },
+    ];
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Sem fila/ }));
+
+    expect(screen.getByRole("button", { name: "Finalizar 0" })).toBeDisabled();
+  });
+
+  it("o item de menu se chama Finalizar Todos", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    expect(screen.getByRole("menuitem", { name: "Finalizar Todos" })).toBeInTheDocument();
   });
 
   it("coloca o menu global ao lado do título da lista", () => {
