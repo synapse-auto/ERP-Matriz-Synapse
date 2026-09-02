@@ -151,7 +151,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       novoContato: { botao: "Novo atendimento" },
     },
     chatInterno: {
-      titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa",
+      titulo: "Equipe", novaConversa: "Nova conversa", novoGrupo: "Novo grupo", criarGrupo: "Criar grupo",
+      nomeDoGrupo: "Nome do grupo", nomeDoGrupoPlaceholder: "Ex.", selecionarParticipantes: "Participantes",
+      selecionarParticipantesDescricao: "Escolha uma pessoa", participantesMinimos: "Selecione alguém",
+      erroCriarGrupo: "Erro ao criar", participantesDoGrupo: "Participantes do grupo", adicionarParticipante: "Adicionar",
+      removerParticipante: "Remover", sairDoGrupo: "Sair", voce: "Você", renomearGrupo: "Renomear",
+      salvarNome: "Salvar", erroParticipantes: "Erro participantes",
+      selecionarPessoa: "Selecionar pessoa",
       selecionarPessoaDescricao: "Escolha uma pessoa", buscarPessoa: "Buscar por nome...",
       fecharSeletor: "Fechar", online: "Online", ausente: "Ausente", offline: "Offline",
       semPessoas: "Nenhuma pessoa", erroContatos: "Erro ao carregar", erroAbrirConversa: "Erro ao abrir",
@@ -268,6 +274,28 @@ describe("ListaConversas", () => {
 
     fireEvent.click(botaoNova);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("encaminha a criação de grupo pela mesma porta da conversa interna", async () => {
+    const criarGrupo = vi.fn(() => Promise.resolve({ id: "grupo-1" }));
+    render(
+      <ListaConversas
+        selecionadoId={null}
+        onAbrirAtendimento={vi.fn()}
+        chatInternoHabilitado
+        contatosInternos={[{ id: "usuario-2", nome: "Bruno Almeida", presenca: "ONLINE" }]}
+        onCriarGrupoInterna={criarGrupo}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Nova conversa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Novo grupo" }));
+    fireEvent.change(screen.getByLabelText("Nome do grupo"), { target: { value: "Operação" } });
+    fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar grupo" }));
+
+    await waitFor(() => expect(criarGrupo).toHaveBeenCalledWith("Operação", ["usuario-2"]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
   it("não renderiza controles quando o chat interno está desligado e preserva abertura em rerender", () => {

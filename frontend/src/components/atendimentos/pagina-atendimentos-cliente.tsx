@@ -33,7 +33,7 @@ import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { apiFetch } from "@/lib/api/http-client";
-import { listarContatosChat, abrirConversaDireta } from "@/lib/chat-interno/api";
+import { listarContatosChat, abrirConversaDireta, criarGrupoChat } from "@/lib/chat-interno/api";
 import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,15 @@ export function PaginaAtendimentosCliente({
   const contatosInternos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat, enabled: chatInternoHabilitado });
   const abrirConversaInterna = useMutation({
     mutationFn: abrirConversaDireta,
+    onSuccess: (resposta) => {
+      setConversaInternaId(resposta.id);
+      setLeadSelecionadoId(null);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+  });
+  const criarGrupoInterno = useMutation({
+    mutationFn: ({ nome, participantes }: { nome: string; participantes: string[] }) =>
+      criarGrupoChat(nome, participantes),
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
       setLeadSelecionadoId(null);
@@ -345,6 +354,9 @@ export function PaginaAtendimentosCliente({
         contatosInternosErro={contatosInternos.isError}
         onRecarregarContatos={() => void contatosInternos.refetch()}
         onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
+        onCriarGrupoInterna={(nome, participantes) =>
+          criarGrupoInterno.mutateAsync({ nome, participantes })
+        }
         onNovoContato={() => {
           iniciarContato.reset();
           setNovoContatoAberto(true);
