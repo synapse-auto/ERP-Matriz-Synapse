@@ -4,6 +4,7 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type {
   AtendimentoResumo,
+  CapacidadeDoCanal,
   CartaoAtendimento,
   CategoriaTemplateWhatsApp,
   ItemInbox,
@@ -141,6 +142,10 @@ export function iniciarNovoContato(pedido: PedidoDeNovoContato): Promise<NovoCon
     method: "POST",
     body: JSON.stringify(pedido),
   });
+}
+
+export function obterCapacidadeDoCanal(): Promise<CapacidadeDoCanal> {
+  return apiFetch<CapacidadeDoCanal>("/api/v1/config/canal");
 }
 
 export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoResposta> {

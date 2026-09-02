@@ -17,6 +17,11 @@ export interface ConfiguracaoComposer {
   tempoNotificacaoSegundos: number;
 }
 
+/** Espelha ConfigInstanciaController — GET /api/v1/config/canal. */
+export interface CapacidadeDoCanal {
+  exigeTemplateForaDaJanela: boolean;
+}
+
 export type CategoriaTemplateWhatsApp = "UTILIDADE" | "MARKETING" | "AUTENTICACAO";
 export type StatusTemplateWhatsApp =
   | "APROVADO"
@@ -152,6 +157,11 @@ export interface PedidoDeNovoContato {
   nome: string;
   telefone: string;
   primeiraMensagem?: string;
+  template?: {
+    nome: string;
+    idioma: string;
+    parametros: string[];
+  };
 }
 
 /** Espelha AtendimentoAcoesController.AtendimentoResumo — resposta de /transferir e /finalizar. */
