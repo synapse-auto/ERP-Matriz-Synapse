@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
@@ -72,11 +72,8 @@ export function ModalDeTemplates({
 }: Props) {
   const [busca, setBusca] = useState("");
   const [tocados, setTocados] = useState<Record<string, boolean>>({});
-  const [chaveSelecionada, setChaveSelecionada] = useState<string | null>(templateSelecionado);
-
-  useEffect(() => {
-    setChaveSelecionada(templateSelecionado);
-  }, [templateSelecionado]);
+  const [chaveClicada, setChaveClicada] = useState<string | null>(null);
+  const chaveSelecionada = chaveClicada ?? templateSelecionado;
 
   const aprovados = (templates.data ?? []).filter((item) => item.status === "APROVADO");
   const filtrados = filtrarTemplates(aprovados, busca, rotulosDeCategoria);
@@ -155,7 +152,7 @@ export function ModalDeTemplates({
                                     "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                     "data-active:border-primary data-active:ring-1 data-active:ring-primary/30",
                                   )}
-                                  onClick={() => setChaveSelecionada(chave)}
+                                  onClick={() => setChaveClicada(chave)}
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <p className="text-sm font-medium text-foreground">{template.nome}</p>
