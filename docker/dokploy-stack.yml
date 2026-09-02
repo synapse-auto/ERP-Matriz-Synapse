@@ -175,6 +175,8 @@ services:
       WHATSAPP_CONTA_NEGOCIO: ${WHATSAPP_CONTA_NEGOCIO:-}
       AUTOMACAO_URL: http://synapse-n8n-internal:5678
       AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
+      # E104: teto do cache de parametros. Default seguro; nao e :? — ausencia usa 5m.
+      AUTOMACAO_CONFIG_CACHE_TTL: ${AUTOMACAO_CONFIG_CACHE_TTL:-5m}
       # OPCIONAL de proposito. Vazia = repasse desligado, e o CRM funciona igual — a
       # entrada de mensagem nunca depende da Automacao estar configurada. Declarar como
       # `:?obrigatoria` fez o deploy inteiro falhar em 16/08 numa instancia que ainda nao

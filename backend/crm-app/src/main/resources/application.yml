@@ -182,6 +182,10 @@ synapse:
     ttl-assinatura-segundos: ${WS_TTL_ASSINATURA_SEGUNDOS:60}
 
   automacao:
+    # E104: teto do cache de configuracao_automacao. Invalidacao por evento
+    # continua sendo o caminho normal; o TTL evita entrada eterna se algo falhar.
+    configuracao:
+      cache-ttl: ${AUTOMACAO_CONFIG_CACHE_TTL:5m}
     # E83: opcional, independente do repasse cru; nenhum segredo vai ao navegador/outbox.
     avaliacao:
       url: ${AUTOMACAO_AVALIACAO_URL:}
