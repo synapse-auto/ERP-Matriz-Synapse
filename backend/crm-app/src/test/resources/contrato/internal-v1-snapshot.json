@@ -861,7 +861,7 @@
           "type" : "string"
         },
         "tipo" : {
-          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "BOTOES", "LISTA" ],
+          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "VIDEO", "BOTOES", "LISTA" ],
           "type" : "string"
         },
         "wamid" : {

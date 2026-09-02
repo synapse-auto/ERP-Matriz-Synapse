@@ -257,6 +257,27 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("vídeo recebido via webhook é persistido como VIDEO no histórico")
+    void webhookVideo_recebidoPersisteComoVideo() {
+        byte[] conteudoDoCliente = "video-fixture".getBytes(StandardCharsets.UTF_8);
+        canal.programarMidiaRecebida(conteudoDoCliente, "video/mp4");
+
+        String payload = payloadDeMidia("ext-video-1", "VIDEO", "meta-video-id-123", "video/mp4");
+        http.postForEntity(
+                "/webhook/canal",
+                new HttpEntity<>(payload, cabecalhosWebhook(CanalFake.ASSINATURA_VALIDA)),
+                String.class);
+        processador.processarPendentes();
+
+        esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+
+        String corpo = mensagensComo(EMAIL_ANA, atendimentoDoLead()).getBody();
+        assertThat(corpo).contains("\"tipo\":\"VIDEO\"");
+        String midiaUrl = extrairMidiaUrl(corpo);
+        assertThat(armazenamento.baixarPelaUrlAssinada(midiaUrl)).contains(conteudoDoCliente);
+    }
+
+    @Test
     @DisplayName("URL assinada expira e para de entregar o conteudo")
     void urlAssinada_expira_paraDeFuncionar() {
         enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
@@ -495,8 +516,14 @@ class AnexoMidiaIT extends PostgresIT {
      * recebe; o conteudo de verdade vem de {@link CanalFake#programarMidiaRecebida}.
      */
     private String payloadDeImagem(String idExterno, String midiaIdExterno) {
+        return payloadDeMidia(idExterno, "IMAGEM", midiaIdExterno, "image/png");
+    }
+
+    private String payloadDeMidia(
+            String idExterno, String tipo, String midiaIdExterno, String mimetype) {
         return "{\"id\":\"" + idExterno + "\",\"de\":\"" + TELEFONE + "\",\"nome\":\"Cliente\","
-                + "\"tipo\":\"IMAGEM\",\"midiaId\":\"" + midiaIdExterno + "\",\"mimetype\":\"image/png\"}";
+                + "\"tipo\":\"" + tipo + "\",\"midiaId\":\"" + midiaIdExterno
+                + "\",\"mimetype\":\"" + mimetype + "\"}";
     }
 
     private int mensagensDoLead() {

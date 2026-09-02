@@ -33,7 +33,7 @@ public record CitacaoDeMensagem(
         }
         return switch (tipo) {
             case TEXTO -> sanitizar(conteudo);
-            case IMAGEM, AUDIO, DOCUMENTO -> sanitizar(legendaDe(metadados));
+            case IMAGEM, AUDIO, DOCUMENTO, VIDEO -> sanitizar(legendaDe(metadados));
             case BOTOES, LISTA -> sanitizar(conteudo);
         };
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Maximize2 } from "lucide-react";
 
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
@@ -73,7 +73,7 @@ export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | nu
   return legenda ? metadados.legenda! : null;
 }
 
-/** Texto, imagem, áudio ou documento — a bolha renderiza os quatro tipos que o backend já entrega. */
+/** Texto, imagem, áudio, vídeo ou documento — a bolha renderiza os tipos que o backend entrega. */
 export function BolhaMensagem({
   mensagem,
   leadId,
@@ -171,6 +171,37 @@ export function BolhaMensagem({
             <p>{textos.audio}</p>
           ))}
 
+        {mensagem.tipo === "VIDEO" && (
+          <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
+            {midiaUrl ? (
+              <div className="relative">
+                <video
+                  controls
+                  preload="metadata"
+                  src={midiaUrl}
+                  aria-label={metadados.nome ?? textos.visualizador.video}
+                  className="max-h-64 w-full rounded-md object-contain"
+                />
+                {podeAbrir && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-md bg-background/80 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+                    aria-label={preencher(textos.visualizador.abrirMidia, {
+                      nome: metadados.nome ?? textos.visualizador.video,
+                    })}
+                    onClick={() => setVisualizadorAberto(true)}
+                  >
+                    <Maximize2 className="size-4" aria-hidden />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p>{textos.visualizador.video}</p>
+            )}
+            {metadados.legenda && <p>{metadados.legenda}</p>}
+          </div>
+        )}
+
         {mensagem.tipo === "DOCUMENTO" && (
           <button
             type="button"
@@ -267,7 +298,12 @@ function itemDaBolha(
   metadados: MidiaMetadados,
 ): ItemDoVisualizador | null {
   if (!leadId) return null;
-  if (mensagem.tipo !== "IMAGEM" && mensagem.tipo !== "DOCUMENTO" && mensagem.tipo !== "AUDIO") {
+  if (
+    mensagem.tipo !== "IMAGEM" &&
+    mensagem.tipo !== "DOCUMENTO" &&
+    mensagem.tipo !== "AUDIO" &&
+    mensagem.tipo !== "VIDEO"
+  ) {
     return null;
   }
   return {

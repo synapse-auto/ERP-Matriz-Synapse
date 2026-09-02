@@ -56,7 +56,7 @@ public sealed interface ConteudoDeEnvio {
     }
 
     /**
-     * Um anexo — imagem, audio ou documento. O arquivo em si mora no storage (E11b); aqui so viaja
+     * Um anexo — imagem, audio, video ou documento. O arquivo em si mora no storage (E11b); aqui so viaja
      * a referencia opaca, nunca bytes nem URL.
      *
      * @param referenciaStorage chave do objeto no bucket, devolvida por {@code ArmazenamentoDeMidia}

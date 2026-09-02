@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -216,6 +217,36 @@ describe("BolhaMensagem", () => {
     expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
     expect(document.querySelector("audio[controls]")).toBeNull();
     expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toBeInTheDocument();
+  });
+
+  it("mostra vídeo com controles, pré-carrega só metadados e oferece o visualizador", () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <BolhaMensagem
+          mensagem={mensagem({
+            tipo: "VIDEO",
+            conteudo: null,
+            midiaUrl: "https://example.test/video.mp4",
+            midiaMetadados: JSON.stringify({
+              nome: "obra.mp4",
+              mimetype: "video/mp4",
+              legenda: "Confira a instalação",
+            }),
+          })}
+          leadId="lead-1"
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    const video = document.querySelector("video");
+    expect(video).toHaveAttribute("controls");
+    expect(video).toHaveAttribute("preload", "metadata");
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(screen.getByText("Confira a instalação")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir obra.mp4" })).toBeInTheDocument();
   });
 
   it("mostra a citação persistida com autor e prévia, sem HTML da origem", () => {
