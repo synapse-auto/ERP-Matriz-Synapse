@@ -2,8 +2,15 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 
@@ -13,9 +20,26 @@ class MetaCloudWebhookTradutorTest {
             new CanalProperties("meta-cloud", null, null, null, "verify", "secret", null, null, null),
             new ObjectMapper());
 
+    private final ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    private Logger logger;
+
+    @BeforeEach
+    void anexarLog() {
+        logger = (Logger) LoggerFactory.getLogger(MetaCloudWebhookTradutor.class);
+        logs.start();
+        logger.addAppender(logs);
+    }
+
+    @AfterEach
+    void desanexarLog() {
+        logger.detachAppender(logs);
+        logs.stop();
+        logs.list.clear();
+    }
+
     @Test
     void respostaDeBotaoUsaTituloNoHistorico() {
-        var mensagem = tradutor.traduzir(payload("button", "Agendar consulta", "agendar"));
+        var mensagem = tradutor.traduzir(payload("button_reply", "Agendar consulta", "agendar"));
 
         assertThat(mensagem).hasSize(1);
         assertThat(mensagem.get(0).tipo()).isEqualTo("TEXTO");
@@ -25,10 +49,65 @@ class MetaCloudWebhookTradutorTest {
 
     @Test
     void respostaDeListaUsaTituloNoHistorico() {
-        var mensagem = tradutor.traduzir(payload("list", "Orçamento", "orcamento"));
+        var mensagem = tradutor.traduzir(payload("list_reply", "Orçamento", "orcamento"));
 
         assertThat(mensagem).hasSize(1);
         assertThat(mensagem.get(0).texto()).isEqualTo("Orçamento");
+    }
+
+    @Test
+    void payloadLiteralDeProducaoGravaTituloDaEscolhaDoCliente() {
+        // Trecho real de webhook_entrada (02/09): type=list_reply|button_reply — o formato
+        // que a fixture inventada com type=button|list nunca exercitava.
+        var mensagens = tradutor.traduzir(
+                """
+                {"object":"whatsapp_business_account","entry":[{"changes":[{"value":{
+                  "metadata":{"phone_number_id":"1307417749115229"},
+                  "contacts":[{"profile":{"name":"Cliente"},"wa_id":"5561998765432"}],
+                  "messages":[
+                    {"from":"5561998765432","id":"wamid.HBgNNTU2MTk5ODc2NTQzMg==","timestamp":"1756839300",
+                     "type":"interactive",
+                     "interactive":{"type":"list_reply",
+                       "list_reply":{"id":"ev03_atendente_6701a2f8-1234-5678-9abc-def012345678","title":"Michael"}}},
+                    {"from":"5561998765432","id":"wamid.HBgNNTU2MTk5ODc2NTQzMg==.2","timestamp":"1756839400",
+                     "type":"interactive",
+                     "interactive":{"type":"button_reply",
+                       "button_reply":{"id":"ev08_avaliacao_bom","title":"Bom"}}}
+                  ]
+                }}]}]}
+                """);
+
+        assertThat(mensagens).hasSize(2);
+        assertThat(mensagens.get(0).texto()).isEqualTo("Michael");
+        assertThat(mensagens.get(0).tipo()).isEqualTo("TEXTO");
+        assertThat(mensagens.get(0).identificadorDestino()).isEqualTo("1307417749115229");
+        assertThat(mensagens.get(0).telefoneRemetente()).isEqualTo("5561998765432");
+        assertThat(mensagens.get(0).idExterno()).isEqualTo("wamid.HBgNNTU2MTk5ODc2NTQzMg==");
+        assertThat(mensagens.get(1).texto()).isEqualTo("Bom");
+        assertThat(mensagens.get(1).idExterno()).isEqualTo("wamid.HBgNNTU2MTk5ODc2NTQzMg==.2");
+    }
+
+    @Test
+    void interactiveDeTipoDesconhecidoDescartaSemDerrubarAsDemaisELogaWarn() {
+        var mensagens = tradutor.traduzir(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"I","timestamp":"1720000000","type":"interactive",
+                 "interactive":{"type":"produto_reply","produto_reply":{"id":"x","title":"Ignorado"}}},
+                {"from":"5561000000001","id":"A","timestamp":"1720000001","type":"text","text":{"body":"ok"}}
+                """));
+
+        assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+        assertThat(logs.list)
+                .anySatisfy(evento -> {
+                    assertThat(evento.getLevel()).isEqualTo(Level.WARN);
+                    assertThat(evento.getFormattedMessage())
+                            .contains("Resposta interativa sem titulo reconhecido")
+                            .contains("type=produto_reply")
+                            .contains("produto_reply")
+                            .doesNotContain("Ignorado")
+                            .doesNotContain("5561000000001");
+                });
     }
 
     @Test
@@ -71,6 +150,13 @@ class MetaCloudWebhookTradutorTest {
 
         assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
                 .containsExactly("A");
+        assertThat(logs.list)
+                .anySatisfy(evento -> {
+                    assertThat(evento.getLevel()).isEqualTo(Level.WARN);
+                    assertThat(evento.getFormattedMessage())
+                            .contains("Tipo de mensagem Meta desconhecido")
+                            .contains("type=status");
+                });
     }
 
     @Test
@@ -83,6 +169,11 @@ class MetaCloudWebhookTradutorTest {
 
         assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
                 .containsExactly("A");
+        assertThat(logs.list)
+                .anySatisfy(evento -> {
+                    assertThat(evento.getLevel()).isEqualTo(Level.WARN);
+                    assertThat(evento.getFormattedMessage()).contains("type=unsupported");
+                });
     }
 
     @Test
@@ -219,14 +310,19 @@ class MetaCloudWebhookTradutorTest {
                 .isNull();
     }
 
-    private static String payload(String tipo, String titulo, String id) {
+    /**
+     * Fixture no formato real da Meta no webhook de <em>entrada</em>: {@code type} e a chave do
+     * objeto coincidem ({@code button_reply}/{@code list_reply}). A versão antiga usava
+     * {@code type=button|list} e aprovava o defeito da E134.
+     */
+    private static String payload(String tipoResposta, String titulo, String id) {
         return """
                 {"entry":[{"changes":[{"value":{
                   "contacts":[{"profile":{"name":"Cliente"}}],
                   "messages":[{"from":"5561999999999","id":"wamid.interativo", "timestamp":"1720000000",
                     "type":"interactive","interactive":{"type":"%s","%s":{"id":"%s","title":"%s"}}}]
                 }}]}]}
-                """.formatted(tipo, tipo + "_reply", id, titulo);
+                """.formatted(tipoResposta, tipoResposta, id, titulo);
     }
 
     private static String payloadComMensagens(String mensagens) {
