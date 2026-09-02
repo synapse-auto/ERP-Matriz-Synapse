@@ -19,6 +19,7 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /** Compõe páginas limitadas das duas fontes e aplica a ordenação global no backend. */
 @Service
@@ -33,18 +34,24 @@ public class ListarInboxUnificadaUseCase {
     private final ListarAtendimentosVisiveisUseCase clientes;
     private final ListarConversasChatUseCase equipe;
     private final FeatureService features;
+    private final UsuarioContext usuarioContext;
 
     public ListarInboxUnificadaUseCase(
             ListarAtendimentosVisiveisUseCase clientes,
             ListarConversasChatUseCase equipe,
-            FeatureService features) {
+            FeatureService features,
+            UsuarioContext usuarioContext) {
         this.clientes = clientes;
         this.equipe = equipe;
         this.features = features;
+        this.usuarioContext = usuarioContext;
     }
 
     @PreAuthorize("isAuthenticated()")
     public InboxUnificada executar(VisaoAtendimento visao, int limite, String cursor) {
+        // A decisao de acesso precisa ocorrer fora do bloco de degradacao: AccessDeniedException
+        // e autorizacao, nao uma falha auxiliar que possa ser convertida em inbox vazia.
+        visao.exigirAcesso(usuarioContext.atual());
         int tamanho = Math.max(1, Math.min(limite, 100));
         List<InboxUnificada.Item> itens = new ArrayList<>();
         Cursor apos = decodificar(cursor);

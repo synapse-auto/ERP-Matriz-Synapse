@@ -1,6 +1,7 @@
 package com.synapse.crm.app.inbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
@@ -20,12 +22,34 @@ import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 class ListarInboxUnificadaUseCaseTest {
     private final ListarAtendimentosVisiveisUseCase clientes = Mockito.mock(ListarAtendimentosVisiveisUseCase.class);
     private final ListarConversasChatUseCase equipe = Mockito.mock(ListarConversasChatUseCase.class);
     private final FeatureService features = Mockito.mock(FeatureService.class);
-    private final ListarInboxUnificadaUseCase caso = new ListarInboxUnificadaUseCase(clientes, equipe, features);
+    private final UsuarioContext usuarioContext = Mockito.mock(UsuarioContext.class);
+    private final ListarInboxUnificadaUseCase caso = new ListarInboxUnificadaUseCase(
+            clientes, equipe, features, usuarioContext);
+
+    ListarInboxUnificadaUseCaseTest() {
+        when(usuarioContext.atual()).thenReturn(
+                new UsuarioAutenticado(UUID.randomUUID(), PapelUsuario.GESTOR, false));
+    }
+
+    @Test
+    void atendenteNaoPodePedirVisaoTodos() {
+        when(usuarioContext.atual()).thenReturn(
+                new UsuarioAutenticado(UUID.randomUUID(), PapelUsuario.ATENDENTE, false));
+
+        assertThatThrownBy(() -> caso.executar(VisaoAtendimento.TODOS, 50, null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(clientes, never()).executarPaginado(
+                Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(), Mockito.anyBoolean(),
+                Mockito.any(), Mockito.any());
+    }
 
     @Test
     void ordenaGlobalmentePorUltimaMensagemEPaginaComCursor() {

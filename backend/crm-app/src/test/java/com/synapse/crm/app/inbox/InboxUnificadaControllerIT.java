@@ -61,6 +61,8 @@ class InboxUnificadaControllerIT extends PostgresIT {
         jdbc.update("INSERT INTO chat_interno_conversa(id,tipo) VALUES (?, 'DIRETA')", conversa);
         jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?), (?,?)",
                 conversa, ana, conversa, bruno);
+        jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?)",
+                conversa, usuario(EMAIL_GESTOR));
         jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo) VALUES (?, ?, ?, 'TEXTO', ?)",
                 UUID.randomUUID(), conversa, bruno, MARCADOR + "mensagem");
     }
@@ -73,9 +75,9 @@ class InboxUnificadaControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("participante recebe item discriminado e campos de cliente não aparecem")
-    void participante_recebeEquipeNaInbox() throws Exception {
-        JsonNode corpo = json.readTree(listarComo(EMAIL_ANA, SENHA_ATENDENTE));
+    @DisplayName("participante de gestão recebe item discriminado e campos de cliente não aparecem")
+    void participanteDeGestao_recebeEquipeNaInbox() throws Exception {
+        JsonNode corpo = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         JsonNode item = encontrar(corpo, conversa.toString());
 
         assertThat(item.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
@@ -87,6 +89,8 @@ class InboxUnificadaControllerIT extends PostgresIT {
     @Test
     @DisplayName("não participante, mesmo gestor, não recebe conversa interna")
     void gestorNaoParticipante_naoVeConversa() throws Exception {
+        jdbc.update("DELETE FROM chat_interno_participante WHERE conversa_id = ? AND usuario_id = ?",
+                conversa, usuario(EMAIL_GESTOR));
         JsonNode corpo = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         assertThat(encontrarOpcional(corpo, conversa.toString())).isFalse();
 
@@ -95,12 +99,23 @@ class InboxUnificadaControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("a inbox mantém a visibilidade do cliente e só mistura equipe em TODOS")
-    void preservaVisibilidadeDeClienteEVisao() throws Exception {
-        JsonNode todos = json.readTree(listarComo(EMAIL_ANA, SENHA_ATENDENTE));
-        assertThat(ids(todos)).doesNotContain(atendimentoDoBruno.toString());
-
+    @DisplayName("atendente não pode pedir TODOS na inbox unificada")
+    void atendenteNaoPodePedirTodosNaInbox() {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        ResponseEntity<String> resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET,
+                "/api/v1/atendimentos/inbox?visao=TODOS&limite=50", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("a inbox mantém a visibilidade do cliente e só mistura equipe em TODOS para gestão")
+    void preservaVisibilidadeDeClienteEVisao() throws Exception {
+        JsonNode todos = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
+        assertThat(ids(todos)).contains(atendimentoDoBruno.toString());
+
+        String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
         String ativos = ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
                 "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", String.class).getBody();
         assertThat(encontrarOpcional(json.readTree(ativos), conversa.toString())).isFalse();
@@ -109,7 +124,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     @Test
     @DisplayName("cliente mantém os campos exigidos pelo card da inbox")
     void clienteMantemContratoDoCartao() throws Exception {
-        JsonNode corpo = json.readTree(listarComo("bruno@dev.local", SENHA_ATENDENTE));
+        JsonNode corpo = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         JsonNode item = encontrar(corpo, atendimentoDoBruno.toString());
 
         assertThat(item.path("tipo").asText()).isEqualTo("CLIENTE");

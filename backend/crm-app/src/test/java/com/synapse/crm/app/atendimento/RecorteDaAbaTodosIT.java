@@ -93,17 +93,10 @@ class RecorteDaAbaTodosIT extends PostgresIT {
     }
 
     @Test
-    void atendenteVeEmTodosSomentePropriosEParticipadosEMantemPotencialNaAbaCorreta()
-            throws Exception {
+    void atendenteNaoPodePedirTodosEMantemPotencialNaAbaCorreta() throws Exception {
         String token = token(EMAIL_ANA, SENHA_ATENDENTE);
 
-        JsonNode todos = listar(token, "TODOS");
-        assertThat(ids(todos))
-                .contains(atendimentoDaAna.toString(), atendimentoFinalizadoDaAna.toString(),
-                        atendimentoParticipado.toString())
-                .doesNotContain(atendimentoPotencial.toString(), atendimentoDoBruno.toString());
-        assertThat(cartao(todos, atendimentoFinalizadoDaAna).path("atendimentoAtivoId").isNull())
-                .isTrue();
+        assertThat(resposta(token, "TODOS").getStatusCode()).isEqualTo(org.springframework.http.HttpStatus.FORBIDDEN);
 
         assertThat(ids(listar(token, "POTENCIAIS"))).contains(atendimentoPotencial.toString());
     }
@@ -123,14 +116,22 @@ class RecorteDaAbaTodosIT extends PostgresIT {
 
     @Test
     void contadorBateComAListaEmTodasAsAbasParaAtendenteEGestao() throws Exception {
-        for (String token : List.of(
-                token(EMAIL_ANA, SENHA_ATENDENTE), token(EMAIL_GESTOR, SENHA_GESTOR))) {
-            JsonNode contagens = json.readTree(get(token, "/api/v1/atendimentos/contagem"));
-            for (String visao : List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "TODOS")) {
-                assertThat(contagens.path(visao).asLong())
-                        .as("contagem de %s deve usar o mesmo recorte da lista", visao)
-                        .isEqualTo(listar(token, visao).size());
-            }
+        String tokenAna = token(EMAIL_ANA, SENHA_ATENDENTE);
+        JsonNode contagensAna = json.readTree(get(tokenAna, "/api/v1/atendimentos/contagem"));
+        assertThat(contagensAna.has("TODOS")).isFalse();
+        for (String visao : List.of("ATIVOS", "PENDENTES", "POTENCIAIS")) {
+            assertThat(contagensAna.path(visao).asLong())
+                    .as("contagem de %s deve usar o mesmo recorte da lista", visao)
+                    .isEqualTo(listar(tokenAna, visao).size());
+        }
+
+        String tokenGestor = token(EMAIL_GESTOR, SENHA_GESTOR);
+        JsonNode contagensGestor = json.readTree(get(tokenGestor, "/api/v1/atendimentos/contagem"));
+        assertThat(contagensGestor.has("TODOS")).isTrue();
+        for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
+            assertThat(contagensGestor.path(visao).asLong())
+                    .as("contagem de %s deve usar o mesmo recorte da lista", visao)
+                    .isEqualTo(listar(tokenGestor, visao).size());
         }
     }
 
@@ -156,6 +157,11 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         return json.readTree(get(token, "/api/v1/atendimentos?visao=" + visao));
     }
 
+    private org.springframework.http.ResponseEntity<String> resposta(String token, String visao) {
+        return ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class);
+    }
+
     private String get(String token, String rota) {
         return ApoioAutenticacao.comToken(http, token, HttpMethod.GET, rota, String.class)
                 .getBody();
@@ -175,13 +181,6 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
                 .map(item -> item.path("id").asText())
                 .toList();
-    }
-
-    private JsonNode cartao(JsonNode itens, UUID atendimentoId) {
-        return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
-                .filter(item -> atendimentoId.toString().equals(item.path("atendimentoId").asText()))
-                .findFirst()
-                .orElseThrow();
     }
 
     private UUID usuario(String email) {

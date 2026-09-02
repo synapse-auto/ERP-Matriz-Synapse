@@ -43,7 +43,8 @@ export interface TemplateWhatsApp {
 export type RemetenteTipo = "LEAD" | "ATENDENTE" | "SISTEMA" | "IA";
 
 /** Espelha PainelDeAtendimentosController.contagem() — GET /api/v1/atendimentos/contagem. */
-export type ContagemPorVisao = Record<VisaoAtendimento, number>;
+/** A API omite TODOS para atendentes, que não têm essa aba. */
+export type ContagemPorVisao = Partial<Record<VisaoAtendimento, number>>;
 
 /** Espelha PainelDeAtendimentosController.CartaoAtendimento — GET /api/v1/atendimentos?visao=. */
 export interface CartaoAtendimento {

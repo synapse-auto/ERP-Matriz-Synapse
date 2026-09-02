@@ -22,4 +22,10 @@ describe("visibilidade do menu e das áreas de feedback", () => {
     expect(areaDeFeedbackVisivel("EQUIPE", "GESTOR", [])).toBe(true);
     expect(areaDeFeedbackVisivel("EQUIPE", "SUBGESTOR", [])).toBe(false);
   });
+
+  it("requer somente a flag para o chat interno e não cria guarda de papel", () => {
+    expect(itemDeMenuVisivel("chatInterno", "ATENDENTE", ["chat_interno"], "chat_interno")).toBe(true);
+    expect(itemDeMenuVisivel("chatInterno", "GESTOR", ["chat_interno"], "chat_interno")).toBe(true);
+    expect(itemDeMenuVisivel("chatInterno", "ATENDENTE", [], "chat_interno")).toBe(false);
+  });
 });

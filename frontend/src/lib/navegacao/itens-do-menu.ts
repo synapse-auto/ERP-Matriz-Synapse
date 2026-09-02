@@ -15,6 +15,7 @@ export const ITENS_MENU: readonly ItemDeMenuBase[] = [
   { chave: "bancoArquivos", rota: "/banco-arquivos", flag: "banco_arquivos" },
   { chave: "mensagensProgramadas", rota: "/mensagens-programadas" },
   { chave: "lembretes", rota: "/lembretes" },
+  { chave: "chatInterno", rota: "/chat-interno", flag: "chat_interno" },
   { chave: "feedbacks", rota: "/feedbacks" },
 ];
 

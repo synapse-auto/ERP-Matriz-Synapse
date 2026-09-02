@@ -34,6 +34,7 @@ public class ListarAtendimentosVisiveisUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<CartaoAtendimento> executar(VisaoAtendimento visao) {
         UsuarioAutenticado atual = usuarioContext.atual();
+        visao.exigirAcesso(atual);
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
         return painel.listar(visao, atual.id(), restritoAoProprioAtendente);
     }
@@ -43,6 +44,7 @@ public class ListarAtendimentosVisiveisUseCase {
     public List<CartaoAtendimento> executarPaginado(VisaoAtendimento visao, int limite,
             boolean depoisSemAtendimentoAberto, Instant depoisDe, UUID depoisDoId) {
         UsuarioAutenticado atual = usuarioContext.atual();
+        visao.exigirAcesso(atual);
         return painel.listarPaginado(visao, atual.id(), !atual.enxergaTodosOsLeads(),
                 depoisSemAtendimentoAberto, depoisDe, depoisDoId, limite);
     }
