@@ -11,8 +11,24 @@ import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 
+/**
+ * Grava a intencao de avaliacao no outbox, dentro da transacao de finalizacao individual.
+ *
+ * <p><b>O gate desta classe nao e o toggle da tela de Automacao.</b> A chave
+ * {@code avaliacao_atendimento.habilitada} (V55) existe para o n8n ler em
+ * {@code GET /internal/v1/automation-config} e decidir se manda os tres botoes ao cliente
+ * (EV-08 secoes 4 e 5). O CRM nao a le, por RN-CRM-07: "O CRM configura a automacao; nao a
+ * executa." Quem decide aqui e {@code config.configurada()} — URL, token e nome de header
+ * validos. Ligar a chave sem configurar o webhook nao faz o CRM enfileirar; desligar a chave nao
+ * faz o CRM parar. Sao dois interruptores de donos diferentes, e trocar um pelo outro esconderia
+ * a falha de configuracao atras de um toggle verde na tela.
+ *
+ * <p>A {@code IllegalStateException} do {@code catch} reverte a finalizacao de proposito: falha
+ * de <b>banco</b> nao e falha de n8n, e a regra de precedencia so protege o caminho de rede.
+ */
 @Component
 class PrepararAvaliacaoDeEncerramento implements SolicitacaoDeAvaliacao {
+
     private static final Logger log = LoggerFactory.getLogger(PrepararAvaliacaoDeEncerramento.class);
     private final OutboxDeAvaliacao outbox;
     private final LeadNoCaminhoDeMensagem leads;

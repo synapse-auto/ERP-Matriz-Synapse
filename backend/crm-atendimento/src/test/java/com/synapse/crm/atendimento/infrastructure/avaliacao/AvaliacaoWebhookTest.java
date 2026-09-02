@@ -61,8 +61,16 @@ class AvaliacaoWebhookTest {
             adaptador.fechar();
         }
     }
+    /**
+     * As duas entradas com {@code modo} sao o formato <b>antigo</b> de 6 campos (E83), que pode
+     * estar parado no outbox quando este deploy sobe: tem de reprovar como falha permanente, nunca
+     * como retentativa eterna. A ultima, com {@code finalizacao_em_massa = true}, prova que um corpo
+     * marcando lote nao passa — o CRM so enfileira o caso individual.
+     */
     @ParameterizedTest @ValueSource(strings = {"{}", "null", "[]", "invalido",
-        "{\"modo\":\"OUTRO\",\"status_finalizacao\":\"FINALIZADO\",\"atendimento_id\":\"uuid\",\"lead_id\":\"uuid\",\"atendente_id\":\"uuid\",\"wa_id\":\"5561999999999\"}"})
+        "{\"modo\":\"OUTRO\",\"status_finalizacao\":\"FINALIZADO\",\"atendimento_id\":\"uuid\",\"lead_id\":\"uuid\",\"atendente_id\":\"uuid\",\"wa_id\":\"5561999999999\"}",
+        "{\"modo\":\"INICIAR_AVALIACAO\",\"status_finalizacao\":\"FINALIZADO\",\"atendimento_id\":\"11111111-1111-1111-1111-111111111111\",\"lead_id\":\"22222222-2222-2222-2222-222222222222\",\"atendente_id\":\"33333333-3333-3333-3333-333333333333\",\"wa_id\":\"5561999999999\"}",
+        "{\"evento_id\":\"44444444-4444-4444-4444-444444444444\",\"atendimento_id\":\"11111111-1111-1111-1111-111111111111\",\"lead_id\":\"22222222-2222-2222-2222-222222222222\",\"atendente_id\":\"33333333-3333-3333-3333-333333333333\",\"wa_id\":\"5561999999999\",\"status_finalizacao\":\"FINALIZADO\",\"operacao\":\"FINALIZAR_LOTE\",\"finalizacao_em_massa\":true}"})
     void payloadCorrompidoEsgotaSemEnviar(String payload) {
         var adaptador = new AvaliacaoWebhookHttp(config("http://127.0.0.1:1/avaliacao", "fixture", "X-Fixture"),
                 new ObjectMapper(), CircuitBreakerRegistry.ofDefaults());

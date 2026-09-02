@@ -95,16 +95,26 @@ class AvaliacaoWebhookHttp {
         }
     }
 
+    /**
+     * Guarda de forma do contrato EV-08 secao 3, aplicada no momento da publicacao e nao no da gravacao.
+     *
+     * <p>Existe para a linha antiga: uma pendencia enfileirada antes deste deploy carrega o formato
+     * de 6 campos com {@code modo}, e nao pode sair pela rede como se fosse o contrato novo. Ela
+     * reprova aqui e vira falha <b>permanente</b> ({@code PAYLOAD_INVALIDO}), nunca retentativa
+     * eterna: o publicador esgota a linha, que fica inspecionavel no outbox.
+     */
     private boolean payloadValido(String payload) {
         try {
             var no = json.readTree(payload);
-            if (!no.isObject() || no.size() != 6
-                    || !"INICIAR_AVALIACAO".equals(no.path("modo").asText())
+            if (!no.isObject() || no.size() != 8
                     || !"FINALIZADO".equals(no.path("status_finalizacao").asText())
+                    || !"FINALIZAR_INDIVIDUAL".equals(no.path("operacao").asText())
+                    || !no.path("finalizacao_em_massa").isBoolean()
+                    || no.path("finalizacao_em_massa").asBoolean()
                     || !no.path("wa_id").asText().matches("[1-9][0-9]{9,14}")) {
                 return false;
             }
-            for (String campo : Set.of("atendimento_id", "lead_id", "atendente_id")) {
+            for (String campo : Set.of("evento_id", "atendimento_id", "lead_id", "atendente_id")) {
                 UUID.fromString(no.path(campo).asText());
             }
             return true;
