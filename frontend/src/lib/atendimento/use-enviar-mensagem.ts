@@ -26,7 +26,7 @@ function idTemporario(): string {
  * item para `FALHOU`, com o botão de reenviar; sucesso troca o id temporário pelo id real que o
  * backend devolveu, para os eventos de status via WebSocket encontrarem a linha certa depois.
  */
-export function useEnviarMensagem() {
+export function useEnviarMensagem(onMensagemEnviada?: () => void) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -107,6 +107,7 @@ export function useEnviarMensagem() {
       if (resposta.transferiuOLead) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
+      onMensagemEnviada?.();
     },
   });
 }

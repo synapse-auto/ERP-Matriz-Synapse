@@ -75,6 +75,8 @@ export function PaginaAtendimentosCliente({
   const cache = useQueryClient();
   const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
+  const [cartaoSelecionado, setCartaoSelecionado] = useState<CartaoAtendimento | null>(null);
+  const [visaoAtendimento, setVisaoAtendimento] = useState<VisaoAtendimento | null>(null);
   const [conversaInternaId, setConversaInternaId] = useState<string | null>(null);
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
@@ -186,7 +188,11 @@ export function PaginaAtendimentosCliente({
     }
   }, [cache, estado]);
 
-  const conversa = (atendimentos.find((atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId) as CartaoAtendimento | undefined) ?? null;
+  const conversaDaLista = atendimentos.find(
+    (atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId,
+  ) as CartaoAtendimento | undefined;
+  const conversa = conversaDaLista
+    ?? (cartaoSelecionado?.leadId === leadSelecionadoId ? cartaoSelecionado : null);
   const conversaAberta = Boolean(conversa || conversaInternaId);
   const respostaDaTela =
     conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
@@ -226,11 +232,27 @@ export function PaginaAtendimentosCliente({
     atendimentoAtivo?.atendimentoId ?? null,
   );
   const enviar = useEnviarMensagem();
+  const aposMensagemEnviada = useCallback(() => {
+    if (visaoAtendimento === "PENDENTES") {
+      setVisaoAtendimento("ATIVOS");
+    }
+  }, [visaoAtendimento]);
+  const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
+    setAtendimentos(cartoes);
+    setCartaoSelecionado((atual) => {
+      if (!atual) return null;
+      const atualizado = cartoes.find(
+        (item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === atual.leadId,
+      ) as CartaoAtendimento | undefined;
+      return atualizado ?? atual;
+    });
+  }, []);
 
   function abrirAtendimento(cartao: ItemInbox) {
     if (cartao.tipo === "EQUIPE_INTERNA") {
       setConversaInternaId(cartao.conversaId);
       setLeadSelecionadoId(null);
+      setCartaoSelecionado(null);
       setAvisoRevogacao(false);
       setBuscaAberta(false);
       return;
@@ -239,6 +261,7 @@ export function PaginaAtendimentosCliente({
     setConversaInternaId(null);
     setBuscaAberta(false);
     setLeadSelecionadoId(cartao.leadId);
+    setCartaoSelecionado(cartao);
     const idParaLeitura = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
     zerarNaoLidasDoLead(cache, cartao.leadId);
     if (!idParaLeitura) return;
@@ -253,11 +276,14 @@ export function PaginaAtendimentosCliente({
 
   function reenviar(mensagem: MensagemResposta) {
     if (!atendimentoAtivo || !mensagem.conteudo) return;
-    enviar.mutate({
-      atendimentoId: atendimentoAtivo.atendimentoId,
-      leadId: atendimentoAtivo.leadId,
-      conteudo: mensagem.conteudo,
-    });
+    enviar.mutate(
+      {
+        atendimentoId: atendimentoAtivo.atendimentoId,
+        leadId: atendimentoAtivo.leadId,
+        conteudo: mensagem.conteudo,
+      },
+      { onSuccess: aposMensagemEnviada },
+    );
   }
 
   const historicoId = conversa?.atendimentoId ?? null;
@@ -337,7 +363,9 @@ export function PaginaAtendimentosCliente({
         leadInicialId={leadParaAbrir}
         leadInicialGatilho={leadParaAbrirGatilho}
         visaoInicial={visaoInicial}
-        onAtendimentosAtualizados={setAtendimentos}
+        visaoAtual={visaoAtendimento ?? undefined}
+        onVisaoAlterada={setVisaoAtendimento}
+        onAtendimentosAtualizados={atualizarAtendimentos}
         onAbrirAtendimento={abrirAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
         contatosInternos={contatosInternos.data ?? []}
@@ -400,6 +428,7 @@ export function PaginaAtendimentosCliente({
                 telaEstreita
                   ? () => {
                       setLeadSelecionadoId(null);
+                      setCartaoSelecionado(null);
                       setConversaInternaId(null);
                     }
                   : undefined
@@ -443,6 +472,7 @@ export function PaginaAtendimentosCliente({
                   conversa={atendimentoAtivo}
                   resposta={respostaDaTela}
                   onCancelarResposta={() => setRespostaAlvo(null)}
+                  onMensagemEnviada={aposMensagemEnviada}
                 />
               ) : (
                 <div className="shrink-0 bg-background px-4 pb-4 pt-3">

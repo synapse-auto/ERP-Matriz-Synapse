@@ -47,6 +47,8 @@ type Props = {
   leadInicialId?: string | null;
   leadInicialGatilho?: number;
   visaoInicial?: VisaoAtendimento | null;
+  visaoAtual?: VisaoAtendimento;
+  onVisaoAlterada?: (visao: VisaoAtendimento) => void;
   onAtendimentosAtualizados?: (atendimentos: ItemInbox[]) => void;
   onAbrirAtendimento: (cartao: ItemInbox) => void;
   chatInternoHabilitado?: boolean;
@@ -78,6 +80,8 @@ export function ListaConversas({
   leadInicialId,
   leadInicialGatilho = 0,
   visaoInicial,
+  visaoAtual,
+  onVisaoAlterada,
   onAtendimentosAtualizados,
   onAbrirAtendimento,
   chatInternoHabilitado = false,
@@ -96,16 +100,18 @@ export function ListaConversas({
   const visoes = useMemo<VisaoAtendimento[]>(
     () => papelAmplo
       ? ["TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"]
-      : ["PENDENTES", "ATIVOS", "POTENCIAIS"],
+      : ["ATIVOS", "PENDENTES", "POTENCIAIS"],
     [papelAmplo],
   );
   const [visaoEscolhida, setVisaoEscolhida] = useState<VisaoAtendimento | null>(
     visaoInicial ?? null,
   );
   const visao =
-    visaoEscolhida && visoes.includes(visaoEscolhida)
-      ? visaoEscolhida
-      : visoes[0];
+    visaoAtual && visoes.includes(visaoAtual)
+      ? visaoAtual
+      : visaoEscolhida && visoes.includes(visaoEscolhida)
+        ? visaoEscolhida
+        : visoes[0];
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
@@ -137,6 +143,10 @@ export function ListaConversas({
     observador.observe(alvo);
     return () => observador.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, visao]);
+
+  useEffect(() => {
+    onVisaoAlterada?.(visao);
+  }, [onVisaoAlterada, visao]);
 
   useEffect(() => {
     onAtendimentosAtualizados?.(cartoes);
@@ -276,7 +286,11 @@ export function ListaConversas({
 
       <Tabs
         value={visao}
-        onValueChange={(valor) => setVisaoEscolhida(valor as VisaoAtendimento)}
+        onValueChange={(valor) => {
+          const proximaVisao = valor as VisaoAtendimento;
+          setVisaoEscolhida(proximaVisao);
+          onVisaoAlterada?.(proximaVisao);
+        }}
       >
         <TabsList
           variant="line"

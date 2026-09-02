@@ -219,7 +219,12 @@ describe("ListaConversas", () => {
 
     expect(screen.getAllByRole("tab")).toHaveLength(3);
     expect(screen.queryByRole("tab", { name: /Todos/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Pendentes/ })).toHaveAttribute("data-active");
+    expect(screen.getByRole("tab", { name: /Ativos/ })).toHaveAttribute("data-active");
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent?.replace(/\d+$/, ""))).toEqual([
+      "Ativos",
+      "Pendentes",
+      "Potenciais",
+    ]);
     expect(screen.getByRole("tab", { name: /Ativos/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Potenciais/ })).toBeInTheDocument();
   });
