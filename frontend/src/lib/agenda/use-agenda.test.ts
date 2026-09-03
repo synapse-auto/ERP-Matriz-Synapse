@@ -25,7 +25,7 @@ describe("critério da barra da Agenda", () => {
       ),
     ).toEqual({
       tipo: "COMPOSTO",
-      conector: "OR",
+      conector: "OU",
       criterios: [
         { tipo: "SIMPLES", campo: "nome", operador: "CONTEM", valor: "urge" },
         { tipo: "SIMPLES", campo: "telefone", operador: "CONTEM", valor: "urge" },
@@ -62,7 +62,7 @@ describe("critério da barra da Agenda", () => {
       TAGS,
     );
 
-    expect(criterio).toMatchObject({ tipo: "COMPOSTO", conector: "AND" });
+    expect(criterio).toMatchObject({ tipo: "COMPOSTO", conector: "E" });
     if (criterio.tipo !== "COMPOSTO") throw new Error("critério deveria ser composto");
     expect(criterio.criterios).toContainEqual({
       tipo: "SIMPLES",
@@ -72,7 +72,7 @@ describe("critério da barra da Agenda", () => {
     });
     expect(criterio.criterios).toContainEqual({
       tipo: "COMPOSTO",
-      conector: "OR",
+      conector: "OU",
       criterios: [
         {
           tipo: "SIMPLES",
