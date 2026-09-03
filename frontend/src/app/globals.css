@@ -57,6 +57,8 @@
   --color-sidebar-item-overlay-ativo-hover: var(--sidebar-item-overlay-ativo-hover);
   --color-sidebar-item-texto-perigo: var(--sidebar-item-texto-perigo);
   --color-sidebar-item-overlay-perigo: var(--sidebar-item-overlay-perigo);
+  --color-status-lido: var(--cor-status-lido);
+  --color-cor-status-lido: var(--cor-status-lido);
 
   /* Cinco raios (TOKENS.md pede consolidação — os 8 a 20px do protótipo viram estes 5). */
   --radius-sm: var(--raio-sm);
@@ -129,6 +131,9 @@
   --sidebar-accent-foreground: var(--texto-sidebar-item, #C3D6E8);
   --sidebar-border: var(--fundo-sidebar-bloco, #123A5C);
   --sidebar-ring: var(--cor-primaria, #1F74E0);
+
+  /* E143: status de leitura (dois traços verdes) sobre balão primário (#1F74E0). Contraste 3.23:1 (WCAG AA). */
+  --cor-status-lido: #86EFAC;
 }
 
 .dark {

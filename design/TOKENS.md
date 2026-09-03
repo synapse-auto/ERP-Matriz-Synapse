@@ -86,6 +86,16 @@ O protótipo não cobria todos os estados da aplicação real. Quatro tokens ent
 | `--sidebar-item-texto-perigo` | `#E88B7D` | Texto da ação "Sair" no popup de presença (sobre fundo escuro — diferente de `--cor-erro`, calibrado para fundo claro) |
 | `--sidebar-item-overlay-perigo` | `rgba(255,90,70,.12)` | Fundo no hover da mesma ação |
 
+### Acrescentado na E143 — status de leitura sobre o balão primário
+
+O balão de mensagem de saída é sempre `--cor-primaria` (`#1F74E0`, azul). O token semântico `--cor-sucesso` (`#17835A`) foi calibrado para "Finalizado, entregue" sobre superfícies claras; quando aplicado sobre o azul do balão, sua luminância relativa ($L \approx 0.1715$) é praticamente idêntica à do fundo ($L \approx 0.1816$), gerando uma razão de contraste de apenas **1.05:1** (completamente invisível).
+
+Para atender ao pedido de traços verdes de leitura (`CheckCheck` estilo WhatsApp) mantendo contraste e legibilidade, criou-se um token calibrado para superfície escura/azul:
+
+| Token | Valor | Uso / Calibragem |
+|---|---|---|
+| `--cor-status-lido` | `#86EFAC` | Ícone de mensagem lida (`CheckCheck`) no balão de saída (`bg-primary`). Calibrado com razão de contraste de **3.23:1** contra `#1F74E0` (atende ao critério WCAG 2.1 AA 1.4.11 de 3:1 para elementos gráficos e componentes de interface). |
+
 Também corrigido nesta rodada: `--fundo-sidebar` estava documentado como `#0F2438` (valor de uma versão anterior do protótipo); o `Sidebar.html` atual, aprovado pelo cliente, usa `#0C2A43`. `--fundo-sidebar-bloco` foi de `#1B3248` para `#123A5C` pelo mesmo motivo. `--texto-sidebar-item`, que só existia em `tema.json` sem entrar nesta tabela, ganhou registro formal.
 
 ---

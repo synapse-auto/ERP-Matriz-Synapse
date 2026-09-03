@@ -11,7 +11,7 @@ type Props = {
   onReenviar?: () => void;
 };
 
-/** relógio / ✓ / ✓✓ / ✓✓ azul / ⚠ com reenviar — o ciclo de entrega do prompt E11. */
+/** relógio / ✓ / ✓✓ / ✓✓ verde / ⚠ com reenviar — o ciclo de entrega do prompt E11 e E143. */
 export function StatusEntregaIcone({ status, onReenviar }: Props) {
   const textos = useTextos().atendimentos.mensagem;
 
@@ -49,19 +49,19 @@ export function StatusEntregaIcone({ status, onReenviar }: Props) {
       icone: <CheckCheck className="size-3.5" aria-hidden />,
       rotulo: textos.status.entregue,
     },
-    // LIDO precisa se distinguir de ENTREGUE (mesmo ícone CheckCheck). O rodapé do balão já usa
-    // text-primary-foreground/70 para o horário; LIDO fica na MESMA cor sem a opacidade reduzida
-    // — mais "cheio" que os demais, sem sair da paleta do balão (era text-primary, a própria cor
-    // do fundo: ícone azul sobre balão azul, invisível).
+    // LIDO exibe os dois traços verdes sobre o balão azul (bg-primary), comportamento padrão
+    // familiar aos usuários (estilo WhatsApp). Usa o token --cor-status-lido (#86EFAC, contraste
+    // 3.23:1 sobre o azul), pois --cor-sucesso (#17835A) foi calibrado para fundo claro e tem
+    // contraste de apenas 1.05:1 ali (invisível sobre azul).
     LIDO: {
-      icone: <CheckCheck className="size-3.5 text-primary-foreground" aria-hidden />,
+      icone: <CheckCheck className="size-3.5 text-status-lido" aria-hidden />,
       rotulo: textos.status.lido,
     },
   };
 
   const { icone, rotulo } = mapa[status];
   // Sem cor própria: herda text-primary-foreground/70 do rodapé do balão (bolha-mensagem.tsx).
-  // PENDENTE/ENVIADO/ENTREGUE ficam nessa opacidade reduzida; LIDO se destaca por cima (acima).
+  // PENDENTE/ENVIADO/ENTREGUE ficam nessa opacidade reduzida; LIDO se destaca em verde (acima).
   return (
     <span className="inline-flex items-center" title={rotulo}>
       {icone}

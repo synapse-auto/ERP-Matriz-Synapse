@@ -128,25 +128,34 @@ describe("StatusEntregaIcone", () => {
     expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
 
-  // O balão de saída é sempre bg-primary (azul). Estes quatro testes provam o motivo real do
-  // "só fica com um traço": as cores antigas eram pensadas para fundo claro.
-  it("LIDO não carrega mais text-primary — era a própria cor do balão, ícone azul sobre balão azul", () => {
+  // O balão de saída é sempre bg-primary (azul). Estes testes provam o contraste e distinção dos estados.
+  it("LIDO renderiza CheckCheck com a classe do verde novo", () => {
     renderComTextos(<StatusEntregaIcone status="LIDO" />);
     const icone = screen.getByTitle("Lido").querySelector("svg");
     expect(icone).not.toBeNull();
+    expect(icone).toHaveClass("text-status-lido");
+    expect(icone).toHaveClass("lucide-check-check");
     expect(icone).not.toHaveClass("text-primary");
+    expect(icone).not.toHaveClass("text-primary-foreground");
   });
 
-  it("LIDO se distingue de ENTREGUE herdando a MESMA cor do balão, mas sem a opacidade reduzida", () => {
-    renderComTextos(<StatusEntregaIcone status="LIDO" />);
-    expect(screen.getByTitle("Lido").querySelector("svg")).toHaveClass("text-primary-foreground");
-  });
-
-  it("ENTREGUE não define cor própria — herda text-primary-foreground/70 do rodapé do balão", () => {
+  it("ENTREGUE continua sem a cor verde — herda text-primary-foreground/70 do rodapé do balão", () => {
     renderComTextos(<StatusEntregaIcone status="ENTREGUE" />);
     const icone = screen.getByTitle("Entregue").querySelector("svg");
+    expect(icone).not.toBeNull();
+    expect(icone).not.toHaveClass("text-status-lido");
+    expect(icone).toHaveClass("lucide-check-check");
     expect(icone).not.toHaveClass("text-primary-foreground");
     expect(icone).not.toHaveClass("text-primary");
+  });
+
+  it("ENVIADO continua com Check simples", () => {
+    renderComTextos(<StatusEntregaIcone status="ENVIADO" />);
+    const icone = screen.getByTitle("Enviado").querySelector("svg");
+    expect(icone).not.toBeNull();
+    expect(icone).not.toHaveClass("text-status-lido");
+    expect(icone).toHaveClass("lucide-check");
+    expect(icone).not.toHaveClass("lucide-check-check");
   });
 
   it("o <span> externo não força mais text-muted-foreground — herda a cor do rodapé do balão", () => {
