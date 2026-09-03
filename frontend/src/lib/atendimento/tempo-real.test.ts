@@ -42,6 +42,7 @@ function mensagem(
     midiaMetadados: null,
     opcoes: null,
     statusEntrega,
+    erroEntrega: null,
     enviadoEm,
   };
 }

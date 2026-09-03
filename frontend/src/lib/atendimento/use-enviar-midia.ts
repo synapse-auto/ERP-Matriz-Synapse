@@ -66,6 +66,7 @@ export function useEnviarMidia() {
         }),
         opcoes: null,
         statusEntrega: "PENDENTE",
+        erroEntrega: null,
         enviadoEm: new Date().toISOString(),
         citacao: variaveis.citacao ?? null,
       };

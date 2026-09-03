@@ -123,6 +123,12 @@ export interface CitacaoMensagem {
   previa: string;
 }
 
+/** Motivo informado pelo provedor quando a entrega falhou. */
+export interface ErroDeEntrega {
+  codigo: number | null;
+  titulo: string | null;
+}
+
 /** Espelha AtendimentoMensagensController.MensagemResposta — GET /api/v1/atendimentos/{id}/mensagens. */
 export interface MensagemResposta {
   id: string;
@@ -140,6 +146,7 @@ export interface MensagemResposta {
   midiaMetadados: string | null;
   opcoes: string | null;
   statusEntrega: StatusEntrega;
+  erroEntrega: ErroDeEntrega | null;
   enviadoEm: string;
   reacoes?: ResumoReacao[];
   citacao?: CitacaoMensagem | null;

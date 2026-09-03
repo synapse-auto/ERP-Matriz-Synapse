@@ -63,6 +63,7 @@ function mensagem(id: string, conteudo: string): MensagemResposta {
     midiaMetadados: null,
     opcoes: null,
     statusEntrega: "ENTREGUE",
+    erroEntrega: null,
     enviadoEm: "2026-08-28T12:00:00Z",
   };
 }

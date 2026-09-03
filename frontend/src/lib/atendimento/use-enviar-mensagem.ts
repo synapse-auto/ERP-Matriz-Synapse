@@ -54,6 +54,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         midiaMetadados: null,
         opcoes: null,
         statusEntrega: "PENDENTE",
+        erroEntrega: null,
         enviadoEm: new Date().toISOString(),
         citacao: variaveis.citacao ?? null,
       };
@@ -96,6 +97,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
           midiaMetadados: otimista?.midiaMetadados ?? null,
           opcoes: otimista?.opcoes ?? null,
           statusEntrega: resposta.statusEntrega,
+          erroEntrega: null,
           enviadoEm: resposta.enviadoEm,
           citacao: otimista?.citacao ?? variaveis.citacao ?? null,
         };

@@ -29,6 +29,7 @@ function mensagem(reacoes: MensagemResposta["reacoes"]): MensagemResposta {
     midiaMetadados: null,
     opcoes: null,
     statusEntrega: "ENTREGUE",
+    erroEntrega: null,
     enviadoEm: "2026-08-28T15:00:00Z",
     reacoes,
   };

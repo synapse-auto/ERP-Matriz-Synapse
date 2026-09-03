@@ -57,6 +57,7 @@ function opcoesInterativas(json: string | null): OpcaoInterativa[] {
 type Props = {
   mensagem: MensagemResposta;
   leadId?: string;
+  janelaTextoLivreAberta?: boolean;
   onReenviar?: () => void;
   nomeDoRemetente?: string | null;
   onDefinirReacao: (emoji: string) => Promise<void>;
@@ -73,10 +74,25 @@ export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | nu
   return legenda ? metadados.legenda! : null;
 }
 
+function podeReenviar(
+  mensagem: MensagemResposta,
+  janelaTextoLivreAberta: boolean,
+): boolean {
+  if (mensagem.statusEntrega !== "FALHOU") return false;
+  if (mensagem.tipo !== "TEXTO") return false;
+  if (!mensagem.conteudo) return false;
+  if (mensagem.conteudo.startsWith("[template ")) return false;
+  // 131026: número não recebe WhatsApp; 131053: mídia rejeitada — reenviar o mesmo conteúdo não resolve.
+  const codigo = mensagem.erroEntrega?.codigo;
+  if (codigo === 131026 || codigo === 131053) return false;
+  return janelaTextoLivreAberta;
+}
+
 /** Texto, imagem, áudio, vídeo ou documento — a bolha renderiza os tipos que o backend entrega. */
 export function BolhaMensagem({
   mensagem,
   leadId,
+  janelaTextoLivreAberta = true,
   onReenviar,
   nomeDoRemetente,
   onDefinirReacao,
@@ -267,7 +283,10 @@ export function BolhaMensagem({
           {doAtendente && (
             <StatusEntregaIcone
               status={mensagem.statusEntrega}
-              onReenviar={onReenviar}
+              erroEntrega={mensagem.erroEntrega}
+              onReenviar={
+                podeReenviar(mensagem, janelaTextoLivreAberta) ? onReenviar : undefined
+              }
             />
           )}
         </div>

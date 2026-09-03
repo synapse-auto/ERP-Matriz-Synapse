@@ -64,6 +64,7 @@ export function useMensagens(
           midiaMetadados: evento.dados.midiaMetadados,
           opcoes: evento.dados.opcoes,
           statusEntrega: evento.dados.statusEntrega,
+          erroEntrega: null,
           enviadoEm: evento.dados.enviadoEm,
           citacao: evento.dados.citacao ?? null,
         };
@@ -71,6 +72,10 @@ export function useMensagens(
         ultimoInstanteRef.current = evento.dados.enviadoEm;
         onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
+        if (evento.dados.statusEntrega === "FALHOU") {
+          void queryClient.invalidateQueries({ queryKey });
+          return;
+        }
         queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
           atual
             ? {

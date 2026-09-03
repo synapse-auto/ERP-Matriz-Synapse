@@ -16,6 +16,7 @@ public record MensagemDoHistorico(
         Instant atendimentoIniciadoEm,
         Instant atendimentoFinalizadoEm,
         String atendimentoResponsavelNome,
+        ErroDeEntrega erroEntrega,
         List<ResumoDeReacao> reacoes,
         CitacaoDeMensagem citacao) {
 
@@ -37,6 +38,7 @@ public record MensagemDoHistorico(
                 atendimentoIniciadoEm,
                 atendimentoFinalizadoEm,
                 atendimentoResponsavelNome,
+                null,
                 List.of(),
                 null);
     }
@@ -49,6 +51,7 @@ public record MensagemDoHistorico(
                 atendimentoIniciadoEm,
                 atendimentoFinalizadoEm,
                 atendimentoResponsavelNome,
+                erroEntrega,
                 novas,
                 citacao);
     }

@@ -29,6 +29,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.synapse.crm.atendimento.application.ListarHistoricoMensagensUseCase;
 import com.synapse.crm.atendimento.application.MarcarAtendimentoComoLidoUseCase;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.historico.ErroDeEntrega;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.application.reacao.DefinirReacaoDaMensagemUseCase;
 import com.synapse.crm.atendimento.application.reacao.RemoverReacaoDaMensagemUseCase;
@@ -221,6 +222,7 @@ class AtendimentoMensagensController {
             String midiaMetadados,
             String opcoes,
             String statusEntrega,
+            ErroDeEntregaResposta erroEntrega,
             Instant enviadoEm,
             List<ResumoReacaoResposta> reacoes,
             CitacaoResposta citacao) {
@@ -248,9 +250,18 @@ class AtendimentoMensagensController {
                     mensagem.midiaMetadados(),
                     mensagem.opcoes(),
                     mensagem.statusEntrega().name(),
+                    ErroDeEntregaResposta.de(item.erroEntrega()),
                     mensagem.enviadoEm(),
                     item.reacoes().stream().map(ResumoReacaoResposta::de).toList(),
                     CitacaoResposta.de(item.citacao()));
+        }
+    }
+
+    record ErroDeEntregaResposta(Integer codigo, String titulo) {
+        static ErroDeEntregaResposta de(ErroDeEntrega erroEntrega) {
+            return erroEntrega == null
+                    ? null
+                    : new ErroDeEntregaResposta(erroEntrega.codigo(), erroEntrega.titulo());
         }
     }
 
