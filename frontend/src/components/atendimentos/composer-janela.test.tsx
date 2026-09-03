@@ -179,6 +179,17 @@ describe("Composer — janela de 24h", () => {
     expect(screen.getByPlaceholderText("Digite uma mensagem...")).toBeEnabled();
   });
 
+  it("flutua sobre o historico com largura responsiva e escala de icones local", () => {
+    renderizar({ ...base, ultimaMensagemDoLeadEm: new Date().toISOString() });
+
+    const composer = document.querySelector('[data-slot="composer"]');
+    expect(composer).toHaveClass("absolute", "bottom-0", "pointer-events-none");
+    expect(composer).not.toHaveClass("bg-background");
+    expect(composer?.querySelector(".max-w-\\[874px\\]")).toBeInTheDocument();
+    expect(composer?.querySelector('[class*="--tamanho-icone-interface"]')).toBeInTheDocument();
+    expect(screen.getByText("Janela de texto livre aberta").closest("[data-slot=\"composer\"]")?.querySelector(".bg-card")).toBeInTheDocument();
+  });
+
   it("bloqueia o texto livre e explica a regra da Meta quando a janela fechou", async () => {
     const { container } = renderizar({
       ...base,
