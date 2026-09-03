@@ -127,6 +127,29 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String WHERE_POTENCIAIS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_IA')";
 
+    /**
+     * Cartao finalizado = lead sem atendimento aberto (E136 / Bloco 0). Nao e
+     * {@code a.status = 'FINALIZADO'} — isso duplicaria leads que ja tem outro aberto.
+     */
+    private static final String WHERE_SEM_ATENDIMENTO_ABERTO = " WHERE NOT EXISTS (SELECT 1 FROM atendimento aberto"
+            + " WHERE aberto.lead_id = a.lead_id"
+            + " AND aberto.status IN ('EM_ATENDIMENTO', 'EM_IA'))";
+
+    /** Ultimo atendimento do lead (mesma ordem do {@code ROW_NUMBER} em {@link #CAMPOS}). */
+    private static final String SUBQUERY_ATENDENTE_DO_ULTIMO =
+            "(SELECT recente.atendente_id FROM atendimento recente"
+                    + " LEFT JOIN LATERAL (SELECT enviado_em FROM mensagem m_recente"
+                    + " WHERE m_recente.atendimento_id = recente.id"
+                    + " ORDER BY m_recente.enviado_em DESC LIMIT 1) ultima_recente ON true"
+                    + " WHERE recente.lead_id = a.lead_id"
+                    + " ORDER BY COALESCE(ultima_recente.enviado_em, recente.iniciado_em) DESC,"
+                    + " recente.iniciado_em DESC, recente.id DESC LIMIT 1)";
+
+    private static final String WHERE_FINALIZADOS_PROPRIOS =
+            WHERE_SEM_ATENDIMENTO_ABERTO + " AND " + SUBQUERY_ATENDENTE_DO_ULTIMO + " = ?";
+
+    private static final String WHERE_FINALIZADOS_TODOS = WHERE_SEM_ATENDIMENTO_ABERTO;
+
     private static final String SQL_ATIVOS = agrupar(CAMPOS + ORIGEM + WHERE_ATIVOS);
 
     private static final String SQL_PENDENTES_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS);
@@ -136,6 +159,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_POTENCIAIS = agrupar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
     private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
+
+    private static final String SQL_FINALIZADOS_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_PROPRIOS);
+
+    private static final String SQL_FINALIZADOS_TODOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_TODOS);
 
     private static final String COLUNAS_CARTAO =
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
@@ -152,6 +179,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String SQL_CONTAR_POTENCIAIS = contar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
     private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
+
+    private static final String SQL_CONTAR_FINALIZADOS_PROPRIOS =
+            contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_PROPRIOS);
+
+    private static final String SQL_CONTAR_FINALIZADOS_TODOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_TODOS);
 
     private static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
@@ -183,6 +215,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
             case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
+            case FINALIZADOS -> restritoAoProprioAtendente
+                    ? chat.query(SQL_FINALIZADOS_PROPRIOS, MAPEADOR, usuarioId, usuarioId)
+                    : chat.query(SQL_FINALIZADOS_TODOS, MAPEADOR, usuarioId);
         };
     }
 
@@ -196,12 +231,16 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
             case POTENCIAIS -> WHERE_POTENCIAIS;
             case TODOS -> "";
+            case FINALIZADOS ->
+                    restritoAoProprioAtendente ? WHERE_FINALIZADOS_PROPRIOS : WHERE_FINALIZADOS_TODOS;
         };
         String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
                 + ") cartoes WHERE linha_do_lead = 1";
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
-        if (visao == VisaoAtendimento.ATIVOS || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)) {
+        if (visao == VisaoAtendimento.ATIVOS
+                || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)
+                || (visao == VisaoAtendimento.FINALIZADOS && restritoAoProprioAtendente)) {
             parametros.add(usuarioId);
         }
         if (depoisDoId != null) {
@@ -237,6 +276,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
             case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
             case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);
+            case FINALIZADOS -> restritoAoProprioAtendente
+                    ? queryForCount(SQL_CONTAR_FINALIZADOS_PROPRIOS, usuarioId, usuarioId)
+                    : queryForCount(SQL_CONTAR_FINALIZADOS_TODOS, usuarioId);
         };
     }
 

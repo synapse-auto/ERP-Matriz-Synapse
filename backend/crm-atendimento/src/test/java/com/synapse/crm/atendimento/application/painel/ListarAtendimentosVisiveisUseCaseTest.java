@@ -20,18 +20,44 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class ListarAtendimentosVisiveisUseCaseTest {
 
     @Test
-    void visoesDisponiveisCorrespondemAoPapel() {
+    void abasCorrespondemAoPapelSemIncluirFinalizados() {
         UUID atendente = UUID.randomUUID();
         UUID gestor = UUID.randomUUID();
 
-        assertThat(VisaoAtendimento.disponiveisPara(
-                new UsuarioAutenticado(atendente, PapelUsuario.ATENDENTE, false)))
-                .containsExactly(VisaoAtendimento.ATIVOS, VisaoAtendimento.PENDENTES,
-                        VisaoAtendimento.POTENCIAIS);
-        assertThat(VisaoAtendimento.disponiveisPara(
-                new UsuarioAutenticado(gestor, PapelUsuario.GESTOR, false)))
-                .containsExactly(VisaoAtendimento.ATIVOS, VisaoAtendimento.PENDENTES,
-                        VisaoAtendimento.POTENCIAIS, VisaoAtendimento.TODOS);
+        assertThat(VisaoAtendimento.abasPara(
+                        new UsuarioAutenticado(atendente, PapelUsuario.ATENDENTE, false)))
+                .containsExactly(
+                        VisaoAtendimento.ATIVOS,
+                        VisaoAtendimento.PENDENTES,
+                        VisaoAtendimento.POTENCIAIS)
+                .doesNotContain(VisaoAtendimento.FINALIZADOS);
+        assertThat(VisaoAtendimento.abasPara(new UsuarioAutenticado(gestor, PapelUsuario.GESTOR, false)))
+                .containsExactly(
+                        VisaoAtendimento.ATIVOS,
+                        VisaoAtendimento.PENDENTES,
+                        VisaoAtendimento.POTENCIAIS,
+                        VisaoAtendimento.TODOS)
+                .doesNotContain(VisaoAtendimento.FINALIZADOS);
+    }
+
+    @Test
+    void finalizadosESolicitavelPorAtendenteEPorGestao() {
+        UUID atendente = UUID.randomUUID();
+        UUID gestor = UUID.randomUUID();
+
+        assertThat(VisaoAtendimento.solicitaveisPor(
+                        new UsuarioAutenticado(atendente, PapelUsuario.ATENDENTE, false)))
+                .contains(
+                        VisaoAtendimento.ATIVOS,
+                        VisaoAtendimento.PENDENTES,
+                        VisaoAtendimento.POTENCIAIS,
+                        VisaoAtendimento.FINALIZADOS)
+                .doesNotContain(VisaoAtendimento.TODOS);
+        assertThat(VisaoAtendimento.solicitaveisPor(
+                        new UsuarioAutenticado(gestor, PapelUsuario.GESTOR, false)))
+                .contains(
+                        VisaoAtendimento.TODOS,
+                        VisaoAtendimento.FINALIZADOS);
     }
 
     @Test
@@ -74,5 +100,18 @@ class ListarAtendimentosVisiveisUseCaseTest {
 
         verify(painel, never()).listarPaginado(
                 VisaoAtendimento.TODOS, ana, true, false, null, null, 50);
+    }
+
+    @Test
+    void atendente_podePedirVisaoFinalizados() {
+        UUID ana = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
+        when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(List.of());
+
+        new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.FINALIZADOS);
+
+        verify(painel).listar(VisaoAtendimento.FINALIZADOS, ana, true);
     }
 }

@@ -1,5 +1,18 @@
 /** Espelha VisaoAtendimento.java. */
-export type VisaoAtendimento = "ATIVOS" | "PENDENTES" | "POTENCIAIS" | "TODOS";
+export type VisaoAtendimento =
+  | "ATIVOS"
+  | "PENDENTES"
+  | "POTENCIAIS"
+  | "TODOS"
+  | "FINALIZADOS";
+
+/** Abas da lista — FINALIZADOS é estado do menu, não aba (E136). */
+export const ABAS_ATENDENTE: VisaoAtendimento[] = ["ATIVOS", "PENDENTES", "POTENCIAIS"];
+export const ABAS_GESTAO: VisaoAtendimento[] = ["TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS"];
+
+export function ehAbaDeAtendimento(visao: VisaoAtendimento): boolean {
+  return visao !== "FINALIZADOS";
+}
 
 /** Espelha StatusAtendimento.java. */
 export type StatusAtendimento = "EM_IA" | "EM_ATENDIMENTO" | "FINALIZADO";

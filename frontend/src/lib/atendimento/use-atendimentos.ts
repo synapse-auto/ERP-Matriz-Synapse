@@ -11,11 +11,12 @@ const INTERVALO_DE_REVALIDACAO_MS = Number(
 );
 
 export function useAtendimentos(visao: VisaoAtendimento) {
+  const usaInboxPaginada = visao === "TODOS" || visao === "FINALIZADOS";
   const inbox = useInfiniteQuery({
     // Query infinita e query comum não podem compartilhar a mesma chave: os formatos de cache
     // (`pages/pageParams` e array) são incompatíveis e se corrompem no refetch por WebSocket.
     queryKey: ["atendimentos", "inbox", visao],
-    enabled: visao === "TODOS",
+    enabled: usaInboxPaginada,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
@@ -29,11 +30,11 @@ export function useAtendimentos(visao: VisaoAtendimento) {
   );
   const legado = useQuery({
     queryKey: ["atendimentos", "legado", visao],
-    enabled: visao !== "TODOS",
+    enabled: !usaInboxPaginada,
     queryFn: () => listarAtendimentos(visao),
     refetchInterval: INTERVALO_DE_REVALIDACAO_MS,
   });
-  if (visao === "TODOS") {
+  if (usaInboxPaginada) {
     return {
       ...inbox,
       data: itensInbox,
