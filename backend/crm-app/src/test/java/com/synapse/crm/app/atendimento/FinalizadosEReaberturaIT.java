@@ -161,9 +161,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     }
 
     @Test
-    void atendenteRecebe404ParaLeadFinalizadoDeColegaESemEfeitoColateral() {
+    void atendenteReativaLeadFinalizadoDeColegaEAssume() throws Exception {
         UUID bruno = usuario(EMAIL_BRUNO);
-        UUID lead = lead("invisivel", bruno, "FINALIZADO", null);
+        UUID ana = usuario(EMAIL_ANA);
+        UUID lead = lead("reativa-colega", bruno, "FINALIZADO", null);
         UUID antigo = atendimento(
                 lead,
                 canal(),
@@ -171,13 +172,51 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 "FINALIZADO",
                 Instant.parse("2026-08-20T10:00:00Z"),
                 Instant.parse("2026-08-20T11:00:00Z"));
+        mensagem(antigo, "LEAD", null, "conversa antiga do colega", Instant.parse("2026-08-20T10:30:00Z"));
+
+        ResponseEntity<String> resposta = post(
+                token(EMAIL_ANA), "/api/v1/atendimentos/leads/" + lead + "/novo");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode corpo = json.readTree(resposta.getBody());
+        UUID novo = UUID.fromString(corpo.path("atendimentoId").asText());
+        assertThat(novo).isNotEqualTo(antigo);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, antigo))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, antigo))
+                .isEqualTo(bruno);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, novo))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, novo))
+                .isEqualTo(ana);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(ana);
+
+        ResponseEntity<String> historico = get(
+                token(EMAIL_ANA), "/api/v1/atendimentos/" + novo + "/mensagens");
+        assertThat(historico.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(historico.getBody()).contains("conversa antiga do colega");
+    }
+
+    @Test
+    void atendenteNaoEnxergaAtendimentoEmAndamentoDeColega() {
+        UUID bruno = usuario(EMAIL_BRUNO);
+        UUID lead = lead("aberto-colega", bruno, "EM_ATENDIMENTO", null);
+        UUID aberto = atendimento(
+                lead,
+                canal(),
+                bruno,
+                "EM_ATENDIMENTO",
+                Instant.parse("2026-08-20T10:00:00Z"),
+                null);
 
         ResponseEntity<String> resposta = post(
                 token(EMAIL_ANA), "/api/v1/atendimentos/leads/" + lead + "/novo");
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(quantidade("atendimento", "lead_id = ?", lead)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, antigo))
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, aberto))
                 .isEqualTo(bruno);
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))

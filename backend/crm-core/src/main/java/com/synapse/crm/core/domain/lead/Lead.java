@@ -61,9 +61,12 @@ public record Lead(
         return atendenteResponsavelId != null && atendenteResponsavelId.equals(atendenteId);
     }
 
-    /** Sem dono: esta no grupo "Potenciais" e qualquer atendente pode pegar. */
+    /**
+     * Visivel a qualquer atendente sem ser "dono em curso": Potenciais ({@code IA}) e
+     * finalizados (E145 — balcao, igual a policy {@code rls_lead}).
+     */
     public boolean estaDisponivelParaTodos() {
-        return statusBasico == StatusBasicoLead.IA;
+        return statusBasico == StatusBasicoLead.IA || statusBasico == StatusBasicoLead.FINALIZADO;
     }
 
     /**

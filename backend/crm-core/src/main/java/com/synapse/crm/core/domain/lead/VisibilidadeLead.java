@@ -25,9 +25,10 @@ public sealed interface VisibilidadeLead {
     record Ampla() implements VisibilidadeLead {}
 
     /**
-     * Visao do atendente: os leads que sao dele, mais os que ainda nao tem dono.
+     * Visao do atendente: os leads que sao dele, mais Potenciais ({@code IA}) e finalizados
+     * (E145 — balcao, sem dono em curso).
      *
-     * @param atendenteId dono dos leads que este usuario pode ver
+     * @param atendenteId dono dos leads que este usuario pode ver como carteira propria
      */
     record DoAtendente(UUID atendenteId) implements VisibilidadeLead {
         public DoAtendente {

@@ -97,21 +97,34 @@ class AvaliacaoAtendimentoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("atendente nao alcanca avaliacao do colega — 404 e nada gravado")
-    void registrar_leadDeColega_retorna404() {
-        UUID atendimentoId = finalizarComoAna();
+    @DisplayName("E145: avaliacao de EM_ATENDIMENTO do colega continua 404; finalizado do colega passa a ser alcancavel")
+    void registrar_emAndamentoDeColega_retorna404_eFinalizadoDeColegaFicaVisivel() {
+        UUID abertoId = criarAtendimentoViaEnvio(criarLead("aberto-colega " + sufixo(), idAna, Instant.now()));
+        UUID finalizadoId = finalizarComoAna();
 
-        var resposta = chamar(
+        var noAberto = chamar(
                 EMAIL_BRUNO,
                 SENHA_ATENDENTE,
                 HttpMethod.POST,
-                "/api/v1/atendimentos/" + atendimentoId + "/avaliacao",
+                "/api/v1/atendimentos/" + abertoId + "/avaliacao",
                 Map.of("nota", 1));
-
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(noAberto.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Long.class, atendimentoId))
+                        "SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Long.class, abertoId))
                 .isZero();
+
+        var noFinalizado = chamar(
+                EMAIL_BRUNO,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + finalizadoId + "/avaliacao",
+                Map.of("nota", 1));
+        assertThat(noFinalizado.getStatusCode())
+                .as("FINALIZADO e balcao: a policy E145 torna o atendimento alcancavel")
+                .isEqualTo(HttpStatus.CREATED);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Long.class, finalizadoId))
+                .isEqualTo(1L);
     }
 
     @Test

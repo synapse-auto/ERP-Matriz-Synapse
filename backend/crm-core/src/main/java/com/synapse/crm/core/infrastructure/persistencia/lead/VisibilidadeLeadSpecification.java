@@ -26,12 +26,14 @@ final class VisibilidadeLeadSpecification {
         return switch (visibilidade) {
             case VisibilidadeLead.Ampla ignorado -> (raiz, consulta, cb) -> cb.conjunction();
 
-            // O atendente ve o que e dele MAIS o que ainda nao tem dono (grupo
-            // "Potenciais"). O OR e a regra inteira: sem a segunda perna, ninguem
-            // pegaria lead novo; sem a primeira, todos veriam tudo.
+            // O atendente ve o que e dele MAIS Potenciais (IA) MAIS finalizados (E145:
+            // balcao — paridade com rls_lead). O OR e a regra inteira: sem as pernas de
+            // balcao, ninguem pegaria lead novo nem reativaria o de colega; sem a primeira,
+            // todos veriam conversas em andamento.
             case VisibilidadeLead.DoAtendente visao -> (raiz, consulta, cb) -> cb.or(
                     cb.equal(raiz.get(LeadEntity.Campos.ATENDENTE_RESPONSAVEL_ID), visao.atendenteId()),
-                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.IA));
+                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.IA),
+                    cb.equal(raiz.get(LeadEntity.Campos.STATUS_BASICO), StatusBasicoLead.FINALIZADO));
         };
     }
 }
