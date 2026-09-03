@@ -54,7 +54,7 @@ import com.synapse.crm.core.domain.filtro.FiltroInvalidoException;
  */
 @RestController
 @RequestMapping("/api/v1/leads/filtrar")
-@Tag(name = "Filtro de leads", description = "Consultas de leads por árvores AND/OR de critérios.")
+@Tag(name = "Filtro de leads", description = "Consultas de leads por árvores E/OU de critérios.")
 @SecurityRequirement(name = "bearerAuth")
 class FiltroDeLeadsController {
 
@@ -133,7 +133,7 @@ class FiltroDeLeadsController {
                             content = @Content(examples = @ExampleObject(
                                     name = "Status e empresa",
                                     value = """
-                                            {"criterio":{"tipo":"COMPOSTO","conector":"AND","criterios":[{"tipo":"SIMPLES","campo":"status","operador":"IGUAL","valor":"ATIVO"},{"tipo":"SIMPLES","campo":"empresa","operador":"CONTEM","valor":"Exemplo"}]}}
+                                            {"criterio":{"tipo":"COMPOSTO","conector":"E","criterios":[{"tipo":"SIMPLES","campo":"status","operador":"IGUAL","valor":"ATIVO"},{"tipo":"SIMPLES","campo":"empresa","operador":"CONTEM","valor":"Exemplo"}]}}
                                             """)))
                     @Valid @RequestBody FiltroRequisicao requisicao) {
         int pagina = paginaValidada(requisicao.pagina());
@@ -234,7 +234,7 @@ class FiltroDeLeadsController {
             @Schema(description = "Operador compatível com o campo; usado em nó SIMPLES.") String operador,
             @Schema(description = "Valor único; mutuamente exclusivo com valores.") String valor,
             @Schema(description = "Lista para operadores EM e ENTRE; mutuamente exclusiva com valor.") List<String> valores,
-            @Schema(description = "AND ou OR; usado em nó COMPOSTO.", allowableValues = {"AND", "OR"}) String conector,
+            @Schema(description = "E ou OU; usado em nó COMPOSTO.", allowableValues = {"E", "OU"}) String conector,
             @Schema(description = "Filhos do nó COMPOSTO.") List<CriterioRequisicao> criterios) {
 
         private static final String SIMPLES = "SIMPLES";

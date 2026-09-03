@@ -35,7 +35,7 @@ function criterioDosAtendentes(valores: string[]): CriterioRequisicao | null {
     partes.push({ tipo: "SIMPLES", campo: "atendenteResponsavel", operador: "VAZIO" });
   }
   if (partes.length === 0) return null;
-  return partes.length === 1 ? partes[0] : { tipo: "COMPOSTO", conector: "OR", criterios: partes };
+  return partes.length === 1 ? partes[0] : { tipo: "COMPOSTO", conector: "OU", criterios: partes };
 }
 
 function criterioDaBusca(busca: string, tags: TagDoLead[]): CriterioRequisicao | null {
@@ -55,7 +55,7 @@ function criterioDaBusca(busca: string, tags: TagDoLead[]): CriterioRequisicao |
   const porTag = criterioEm("tag", tagsCorrespondentes);
   if (porTag) criterios.push(porTag);
 
-  return { tipo: "COMPOSTO", conector: "OR", criterios };
+  return { tipo: "COMPOSTO", conector: "OU", criterios };
 }
 
 /** Compõe busca em OU e todos os grupos rápidos/avançados em E, no contrato já existente. */
@@ -89,7 +89,7 @@ export function criterioDosFiltrosAtivos(
 
   if (criterios.length === 0) return CRITERIO_SEM_FILTRO;
   if (criterios.length === 1) return criterios[0];
-  return { tipo: "COMPOSTO", conector: "AND", criterios };
+  return { tipo: "COMPOSTO", conector: "E", criterios };
 }
 
 export function useCamposFiltraveis() {

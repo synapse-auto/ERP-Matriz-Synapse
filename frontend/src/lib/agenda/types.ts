@@ -79,7 +79,7 @@ export interface CriterioSimplesRequisicao {
 
 export interface CriterioCompostoRequisicao {
   tipo: "COMPOSTO";
-  conector: "AND" | "OR";
+  conector: "E" | "OU";
   criterios: CriterioRequisicao[];
 }
 
