@@ -101,5 +101,9 @@ describe("ListaMensagens: área útil do histórico", () => {
       "overscroll-contain",
       "scroll-py-4",
     );
+    expect(document.querySelector('[data-slot="historico-mensagens"]')).toHaveStyle({
+      paddingBottom: "calc(0.5rem + var(--altura-composer, 0px))",
+      scrollPaddingBottom: "calc(1rem + var(--altura-composer, 0px))",
+    });
   });
 });

@@ -103,6 +103,7 @@ export function Composer({
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerContainerRef = useRef<HTMLDivElement>(null);
   const enviar = useEnviarMensagem(onMensagemEnviada);
   const enviarMidia = useEnviarMidia();
   const configuracaoComposer = useConfiguracaoComposer();
@@ -137,6 +138,26 @@ export function Composer({
   useEffect(() => {
     if (resposta) textareaRef.current?.focus();
   }, [resposta]);
+
+  useEffect(() => {
+    const composer = composerContainerRef.current;
+    const zona = composer?.parentElement;
+    if (!composer || !zona || conversa.status === "FINALIZADO" || !janelaAberta) return;
+
+    const atualizarAltura = () => {
+      zona.style.setProperty("--altura-composer", `${composer.getBoundingClientRect().height}px`);
+    };
+    atualizarAltura();
+
+    const observador = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(atualizarAltura);
+    observador?.observe(composer);
+    return () => {
+      observador?.disconnect();
+      zona.style.removeProperty("--altura-composer");
+    };
+  }, [conversa.status, janelaAberta]);
 
   if (conversa.status === "FINALIZADO") {
     return (
@@ -398,15 +419,19 @@ export function Composer({
   }
 
   return (
-    <div className="shrink-0 bg-background px-4 pb-4 pt-3">
-      <div className="relative mx-auto max-w-[780px]">
+    <div
+      ref={composerContainerRef}
+      data-slot="composer"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-20 shrink-0 px-4 pb-4 pt-3"
+    >
+      <div className="relative mx-auto w-full max-w-[874px] [--tamanho-icone-composer:var(--tamanho-icone-interface)]">
+        <div className="pointer-events-auto rounded-xl border border-input bg-card p-3 shadow-md [--tamanho-icone-interface:calc(var(--tamanho-icone-composer)*1.1)]">
         <p
           className="mb-1.5 flex items-center gap-1.5 px-1 text-xs text-muted-foreground"
         >
           <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
           {textos.janelaAberta}
         </p>
-        <div className="rounded-xl border border-input bg-card p-3 shadow-md">
         {citacaoResposta && (
           <div className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
             <div className="min-w-0 flex-1 text-muted-foreground">

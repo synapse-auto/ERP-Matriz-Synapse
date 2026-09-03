@@ -109,6 +109,11 @@ export function ListaMensagens({
         ref={containerRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-py-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] px-4 py-2"
         data-slot="historico-mensagens"
+        style={{
+          // O composer flutua sobre a lista; reservar sua altura mantém a última bolha alcançável.
+          paddingBottom: "calc(0.5rem + var(--altura-composer, 0px))",
+          scrollPaddingBottom: "calc(1rem + var(--altura-composer, 0px))",
+        }}
         onScroll={(evento) => {
           if (evento.currentTarget.scrollTop < 80 && temMais && !carregandoMais)
             onCarregarMais();
