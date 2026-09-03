@@ -169,18 +169,42 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 .isEqualTo(nomeDoUsuario(anaId));
     }
 
+    @Test
+    @DisplayName("histórico devolve o motivo da falha quando o provedor o informou")
+    void historico_devolveErroDeEntregaNuloOuPreenchido() throws Exception {
+        inserirFalhou(
+                "falhou-com-motivo",
+                inicio.plusSeconds(20),
+                131026,
+                "Message undeliverable");
+
+        // Página de tamanho 2: a falha (+20s) e original-4 (+4s) são as mais recentes.
+        JsonNode mensagens = pagina(null).path("mensagens");
+        assertThat(textos(mensagens)).contains("falhou-com-motivo", "original-4");
+        JsonNode falhou = mensagemComConteudo(mensagens, "falhou-com-motivo");
+        JsonNode entregue = mensagemComConteudo(mensagens, "original-4");
+
+        assertThat(falhou.path("erroEntrega").path("codigo").asInt()).isEqualTo(131026);
+        assertThat(falhou.path("erroEntrega").path("titulo").asText())
+                .isEqualTo("Message undeliverable");
+        assertThat(entregue.path("erroEntrega").isNull()).isTrue();
+    }
+
     private JsonNode pagina(String cursor) throws Exception {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         String url = "/api/v1/atendimentos/" + atendimentoId + "/mensagens"
                 + (cursor == null ? "" : "?cursor=" + cursor);
-        String corpo = http.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class)
-                .getBody();
-        return json.readTree(corpo);
+        var resposta = http.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        assertThat(resposta.getStatusCode().is2xxSuccessful()).isTrue();
+        return json.readTree(resposta.getBody());
     }
 
     private static java.util.List<String> textos(JsonNode pagina) {
+        if (pagina.isArray()) {
+            return pagina.findValuesAsText("conteudo");
+        }
         return pagina.path("mensagens").findValuesAsText("conteudo");
     }
 
@@ -188,6 +212,15 @@ class HistoricoMensagensCursorIT extends PostgresIT {
         for (JsonNode mensagem : mensagens) {
             if (conteudo.equals(mensagem.path("conteudo").asText())) {
                 return mensagem.path("remetenteNome").asText();
+            }
+        }
+        throw new AssertionError("Mensagem nao encontrada: " + conteudo);
+    }
+
+    private static JsonNode mensagemComConteudo(JsonNode mensagens, String conteudo) {
+        for (JsonNode mensagem : mensagens) {
+            if (conteudo.equals(mensagem.path("conteudo").asText())) {
+                return mensagem;
             }
         }
         throw new AssertionError("Mensagem nao encontrada: " + conteudo);
@@ -212,6 +245,26 @@ class HistoricoMensagensCursorIT extends PostgresIT {
                 idAtendimento,
                 conteudo,
                 Timestamp.from(enviadoEm));
+    }
+
+    private void inserirFalhou(String conteudo, Instant enviadoEm, int codigo, String titulo) {
+        jdbc.update(
+                """
+                INSERT INTO mensagem
+                    (id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo,
+                     status_entrega, erro_entrega, enviado_em)
+                VALUES (?, ?, 'ATENDENTE', ?, 'TEXTO', ?, 'FALHOU', ?::jsonb, ?)
+                """,
+                UUID.randomUUID(),
+                atendimentoId,
+                anaId,
+                conteudo,
+                "{\"codigo\":" + codigo + ",\"titulo\":" + jsonValor(titulo) + "}",
+                Timestamp.from(enviadoEm));
+    }
+
+    private static String jsonValor(String valor) {
+        return "\"" + valor.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
 
     private UUID criarAtendimento(String status, Instant iniciadoEm) {

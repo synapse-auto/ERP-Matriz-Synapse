@@ -40,6 +40,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
           falhou: "Falha ao enviar",
         },
         reenviar: "Reenviar",
+        motivosFalhaEntrega: {
+          "131026": "Número não recebe mensagens no WhatsApp",
+          "131047": "Fora da janela de 24 horas — só template aprovado",
+          "131053": "Formato de arquivo não suportado",
+          "132000": "Template com número de parâmetros diferente do aprovado",
+          "132001": "Template não existe nesse idioma",
+        },
         acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher emoji", seletorFechar: "Fechar", reacaoErro: "erro reação", responder: "Responder", encaminhar: "Encaminhar", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "Custom", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } },
         citacao: { resposta: "Respondendo a {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar resposta", origemIndisponivel: "Mensagem original indisponível", imagem: "Foto", audio: "Áudio", documento: "Documento" },
       },
@@ -65,6 +72,7 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
     midiaMetadados: null,
     opcoes: null,
     statusEntrega: "LIDO",
+    erroEntrega: null,
     enviadoEm: "2026-08-16T12:00:00Z",
     ...parcial,
   };
@@ -295,5 +303,105 @@ describe("BolhaMensagem", () => {
 
     expect(screen.getByText("Respondendo a Mensagem original indisponível")).toBeInTheDocument();
     expect(screen.getByText("Mensagem original indisponível")).toBeInTheDocument();
+  });
+
+  it("traduz 131026 e não oferece reenviar", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          erroEntrega: { codigo: 131026, titulo: "Message undeliverable" },
+        })}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Número não recebe mensagens no WhatsApp")).toBeInTheDocument();
+    expect(screen.getByTitle("131026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+  });
+
+  it("mostra o título do provedor desconhecido como texto, sem interpretar HTML", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          erroEntrega: { codigo: 199999, titulo: "<script>motivo desconhecido</script>" },
+        })}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("<script>motivo desconhecido</script>")).toBeInTheDocument();
+    expect(document.querySelector("script")).toBeNull();
+  });
+
+  it("não oferece reenviar para template que falhou", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          conteudo: "[template reativacao] Cliente",
+          erroEntrega: { codigo: 132000, titulo: "Template parameters mismatch" },
+        })}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+  });
+
+  it("mantém reenviar para texto livre falho dentro da janela", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          erroEntrega: { codigo: 131053, titulo: "Unsupported file format" },
+        })}
+        janelaTextoLivreAberta
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Reenviar" })).toBeInTheDocument();
+  });
+
+  it("não oferece reenviar para texto livre falho fora da janela", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          erroEntrega: { codigo: 131047, titulo: "Re-engagement message" },
+        })}
+        janelaTextoLivreAberta={false}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+  });
+
+  it("não mostra motivo nem reenviar para mensagem entregue", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({ statusEntrega: "ENTREGUE", erroEntrega: null })}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Número não recebe mensagens no WhatsApp")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
 });

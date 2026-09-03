@@ -27,6 +27,7 @@ type Props = {
   atendenteId: string | null;
   atendenteNome: string | null;
   leadId?: string;
+  janelaTextoLivreAberta?: boolean;
   onResponder?: (mensagem: MensagemResposta) => void;
   onEncaminhar?: (mensagem: MensagemResposta) => void;
 };
@@ -52,6 +53,7 @@ export function ListaMensagens({
   atendenteId,
   atendenteNome,
   leadId,
+  janelaTextoLivreAberta = true,
   onResponder,
   onEncaminhar,
 }: Props) {
@@ -191,6 +193,7 @@ export function ListaMensagens({
                     <BolhaMensagem
                       mensagem={mensagem}
                       leadId={leadId}
+                      janelaTextoLivreAberta={janelaTextoLivreAberta}
                       nomeDoRemetente={nomeDoRemetente}
                       onReenviar={
                         mensagem.statusEntrega === "FALHOU"

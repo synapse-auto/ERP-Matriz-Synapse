@@ -304,6 +304,7 @@ describe("VisualizadorMidia", () => {
         midiaMetadados: JSON.stringify({ nome: "medida.jpg", mimetype: "image/jpeg" }),
         opcoes: null,
         statusEntrega: "ENTREGUE",
+        erroEntrega: null,
         enviadoEm: "2026-08-16T12:00:00Z",
         ...parcial,
       };

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.synapse.crm.atendimento.application.historico.ErroDeEntrega;
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
@@ -33,6 +34,8 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                     + " a.finalizado_em AS atendimento_finalizado_em, ua.nome AS atendimento_responsavel_nome,"
                     + " m.remetente_tipo, m.remetente_id, m.tipo, m.conteudo,"
                     + " m.midia_url, m.midia_metadados, m.opcoes, m.status_entrega, m.enviado_em,"
+                    + " m.erro_entrega ->> 'codigo' AS erro_entrega_codigo,"
+                    + " m.erro_entrega ->> 'titulo' AS erro_entrega_titulo,"
                     + " u.nome AS remetente_nome,"
                     + " r.tipo AS citacao_tipo_ref, r.origem_mensagem_id, r.citacao_autor,"
                     + " r.citacao_tipo, r.citacao_previa";
@@ -106,8 +109,17 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                 instante(linha, "atendimento_iniciado_em"),
                 instante(linha, "atendimento_finalizado_em"),
                 linha.getString("atendimento_responsavel_nome"),
+                erroDeEntrega(linha),
                 List.of(),
                 citacaoDe(linha));
+    }
+
+    private static ErroDeEntrega erroDeEntrega(ResultSet linha) throws SQLException {
+        String codigo = linha.getString("erro_entrega_codigo");
+        String titulo = linha.getString("erro_entrega_titulo");
+        return codigo == null && titulo == null
+                ? null
+                : new ErroDeEntrega(codigo == null ? null : Integer.valueOf(codigo), titulo);
     }
 
     private static CitacaoDeMensagem citacaoDe(ResultSet linha) throws SQLException {

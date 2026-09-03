@@ -15,6 +15,7 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
     midiaMetadados: null,
     opcoes: null,
     statusEntrega: "ENTREGUE",
+    erroEntrega: null,
     enviadoEm: "2026-08-29T12:00:00Z",
     ...parcial,
   };

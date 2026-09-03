@@ -402,6 +402,14 @@ export const TextosSchema = z.object({
         falhou: z.string(),
       }),
       reenviar: z.string(),
+      motivosFalhaEntrega: z.object({
+        "131026": z.string(),
+        "131047": z.string(),
+        "131053": z.string(),
+        "132000": z.string(),
+        "132001": z.string(),
+      }),
+      motivoFalhaNaoInformado: z.string(),
       carregarAnteriores: z.string(),
       carregandoAnteriores: z.string(),
       acoes: z.object({

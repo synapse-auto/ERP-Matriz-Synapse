@@ -478,6 +478,9 @@ export function PaginaAtendimentosCliente({
                   setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
                 }
                 leadId={conversa.leadId}
+                janelaTextoLivreAberta={janelaTextoLivreAberta(
+                  conversa.ultimaMensagemDoLeadEm,
+                )}
               />
               {atendimentoAtivo ? (
                 <Composer

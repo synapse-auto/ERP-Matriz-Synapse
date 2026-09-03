@@ -57,6 +57,7 @@ function opcoesInterativas(json: string | null): OpcaoInterativa[] {
 type Props = {
   mensagem: MensagemResposta;
   leadId?: string;
+  janelaTextoLivreAberta?: boolean;
   onReenviar?: () => void;
   nomeDoRemetente?: string | null;
   onDefinirReacao: (emoji: string) => Promise<void>;
@@ -73,10 +74,21 @@ export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | nu
   return legenda ? metadados.legenda! : null;
 }
 
+function podeReenviar(
+  mensagem: MensagemResposta,
+  janelaTextoLivreAberta: boolean,
+): boolean {
+  if (mensagem.statusEntrega !== "FALHOU") return false;
+  if (mensagem.erroEntrega?.codigo === 131026) return false;
+  if (mensagem.conteudo?.startsWith("[template ")) return false;
+  return mensagem.tipo !== "TEXTO" || janelaTextoLivreAberta;
+}
+
 /** Texto, imagem, áudio, vídeo ou documento — a bolha renderiza os tipos que o backend entrega. */
 export function BolhaMensagem({
   mensagem,
   leadId,
+  janelaTextoLivreAberta = true,
   onReenviar,
   nomeDoRemetente,
   onDefinirReacao,
@@ -267,7 +279,10 @@ export function BolhaMensagem({
           {doAtendente && (
             <StatusEntregaIcone
               status={mensagem.statusEntrega}
-              onReenviar={onReenviar}
+              erroEntrega={mensagem.erroEntrega}
+              onReenviar={
+                podeReenviar(mensagem, janelaTextoLivreAberta) ? onReenviar : undefined
+              }
             />
           )}
         </div>
