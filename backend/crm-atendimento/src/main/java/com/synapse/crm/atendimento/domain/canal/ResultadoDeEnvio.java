@@ -17,8 +17,18 @@ package com.synapse.crm.atendimento.domain.canal;
  */
 public sealed interface ResultadoDeEnvio {
 
-    /** @param idExterno id da mensagem no provedor, para casar o callback de entrega depois */
-    record Aceito(String idExterno) implements ResultadoDeEnvio {}
+    /**
+     * @param idExterno id da mensagem no provedor, para casar o callback de entrega depois
+     * @param enderecoDoProvedor endereco que o provedor usa para este destinatario; {@code null}
+     *     quando o provedor nao informa ou a leitura falhou sem invalidar o aceite
+     */
+    record Aceito(String idExterno, String enderecoDoProvedor) implements ResultadoDeEnvio {
+
+        /** Aceite sem endereco — provedor fake, resposta sem contacts, ou leitura falhou. */
+        public Aceito(String idExterno) {
+            this(idExterno, null);
+        }
+    }
 
     record Recusado(String motivo, boolean permanente) implements ResultadoDeEnvio {
 

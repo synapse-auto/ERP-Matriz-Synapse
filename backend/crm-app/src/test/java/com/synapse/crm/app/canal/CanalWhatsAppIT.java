@@ -685,6 +685,139 @@ class CanalWhatsAppIT extends PostgresIT {
     }
 
     @Nested
+    @DisplayName("aprendizado do endereco na resposta do envio")
+    class AprendizadoDoEnderecoNaResposta {
+
+        @Test
+        @DisplayName("Meta resolve: grava wa_id diferente e preserva o telefone canonico")
+        void metaResolve_gravaEnderecoEPreservaCanonico() {
+            assertThat(telefoneProvedorDoLead()).isNull();
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            enviar.executar(leadDaAna, "primeiro contato");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(telefoneProvedorDoLead()).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+                assertThat(jdbc.queryForObject(
+                                "SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                        .isEqualTo(TELEFONE);
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo(TELEFONE);
+            });
+        }
+
+        @Test
+        @DisplayName("Meta ecoa: telefone_provedor permanece nulo")
+        void metaEcoa_naoGravaEnderecoIdentico() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            canal.aceitarComEnderecoDoProvedor(TELEFONE);
+            enviar.executar(leadDaAna, "eco");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(statusDaMensagem(canal.enviados().get(0).mensagemId())).isEqualTo("ENVIADO");
+            });
+            assertThat(telefoneProvedorDoLead()).isNull();
+        }
+
+        @Test
+        @DisplayName("resposta sem contacts: envio aceito e telefone_provedor permanece nulo")
+        void respostaSemContacts_aceitaSemGravar() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            // religar() devolve Aceito sem endereco — equivalente a so messages[0].id
+            enviar.executar(leadDaAna, "sem contacts");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> assertThat(canal.enviados()).hasSize(1));
+            assertThat(telefoneProvedorDoLead()).isNull();
+        }
+
+        @Test
+        @DisplayName("endereco ja conhecido e igual: nao reescreve telefone_provedor")
+        void enderecoJaConhecidoIgual_naoReescreve() {
+            jdbc.update(
+                    "UPDATE lead SET telefone_provedor = ? WHERE id = ?",
+                    TELEFONE_PROVEDOR_SEM_NONO,
+                    leadDaAna);
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            enviar.executar(leadDaAna, "ja conhecido");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino())
+                        .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            });
+            assertThat(telefoneProvedorDoLead()).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+        }
+
+        @Test
+        @DisplayName("segundo envio usa o endereco aprendido no primeiro")
+        void segundoEnvio_usaEnderecoAprendido() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            enviar.executar(leadDaAna, "aprende");
+            rodarPublisher();
+
+            esperar().untilAsserted(
+                    () -> assertThat(telefoneProvedorDoLead()).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO));
+
+            canal.limpar();
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            enviar.executar(leadDaAna, "usa o aprendido");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino())
+                        .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            });
+        }
+
+        @Test
+        @DisplayName("template tambem aprende o endereco na resposta do envio")
+        void template_aprendeEnderecoNaResposta() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            canal.fecharJanela();
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+
+            enviar.executar(leadDaAna, ConteudoDeEnvio.MensagemTemplate.de("reativacao", "pt_BR", "Ana"));
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).conteudo())
+                        .isInstanceOf(ConteudoDeEnvio.MensagemTemplate.class);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo(TELEFONE);
+                assertThat(telefoneProvedorDoLead()).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            });
+
+            canal.limpar();
+            canal.fecharJanela();
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            enviar.executar(
+                    leadDaAna, ConteudoDeEnvio.MensagemTemplate.de("reativacao", "pt_BR", "Ana"));
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino())
+                        .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            });
+        }
+
+        private String telefoneProvedorDoLead() {
+            return jdbc.queryForObject(
+                    "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna);
+        }
+    }
+
+    @Nested
     @DisplayName("credencial e transacao")
     class Infra {
 
