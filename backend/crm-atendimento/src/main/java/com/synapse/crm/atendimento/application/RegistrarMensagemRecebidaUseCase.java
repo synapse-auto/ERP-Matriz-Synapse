@@ -18,6 +18,7 @@ import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -83,6 +84,12 @@ public class RegistrarMensagemRecebidaUseCase {
                     entrada.canalId(),
                     entrada.canalCredencialId(),
                     agora));
+            // Cliente que volta (atendimento anterior ja FINALIZADO) cai em Potenciais e
+            // fica elegivel ao rodizio da automacao, em vez de continuar amarrado ao
+            // atendente que o finalizou. Decisao comercial: o retorno e fila, nao heranca.
+            // Nao limpa atendente_responsavel_id — o historico de quem atendeu por ultimo
+            // continua na ficha, como devolverParaIa tambem nao limpa.
+            leads.marcarStatus(entrada.leadId(), StatusBasicoLead.IA);
         }
 
         Mensagem gravada = mensagens.registrar(entrada.ehMidia()
