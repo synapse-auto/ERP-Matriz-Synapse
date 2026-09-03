@@ -51,6 +51,14 @@ public interface LeadNoCaminhoDeMensagem {
     void registrarMensagemDoLead(UUID leadId, Instant quando);
 
     /**
+     * Guarda o endereco cru informado pelo provedor para o proximo envio.
+     *
+     * <p>O chamador deve executar este metodo na mesma transacao que registra a mensagem de entrada.
+     * O telefone canonico nao e alterado: este valor existe apenas para enderecar o provedor.
+     */
+    void registrarTelefoneProvedor(UUID leadId, String telefoneProvedor);
+
+    /**
      * RN-CRM-06: o lead passa a ser de quem mandou a mensagem.
      *
      * <p>E a contrapartida do isolamento de agenda — o lead fica com quem trabalhou nele. Como
@@ -106,13 +114,22 @@ public interface LeadNoCaminhoDeMensagem {
     Optional<UUID> criarParaAtendente(String nome, String telefone, UUID atendenteId, UUID canalOrigemId);
 
     /**
-     * @param telefone destino no canal; sem ele nao ha para onde enviar
+     * @param telefone telefone canonico do CRM, usado para identidade e janela de atendimento
+     * @param telefoneDestino endereco que o provedor usa para entregar a mensagem; cai no telefone
+     *     canonico quando o cliente nunca escreveu
      * @param ultimaMensagemDoLead base da janela de 24h da Meta ({@code lead.ultima_mensagem_do_lead_em}).
      *     Vazio quando o lead nunca escreveu — janela fechada. Nao e {@code ultima_interacao_em}:
      *     aquele avanca tambem em saida e serve ao filtro {@code semRetornoDias}. Quem decide se a
      *     janela esta aberta e o adaptador de canal — aqui so se le o instante.
      */
-    record ContatoParaEnvio(String telefone, Optional<Instant> ultimaMensagemDoLead) {}
+    record ContatoParaEnvio(
+            String telefone, String telefoneDestino, Optional<Instant> ultimaMensagemDoLead) {
+
+        /** Compatibilidade para chamadores que ainda nao precisam distinguir os enderecos. */
+        public ContatoParaEnvio(String telefone, Optional<Instant> ultimaMensagemDoLead) {
+            this(telefone, telefone, ultimaMensagemDoLead);
+        }
+    }
 
     /**
      * Resultado de uma transferencia.

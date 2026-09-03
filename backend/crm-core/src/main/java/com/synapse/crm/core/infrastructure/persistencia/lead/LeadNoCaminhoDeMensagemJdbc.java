@@ -86,7 +86,8 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     private static final String SQL_ALCANCAVEL = "SELECT 1 FROM lead WHERE id = ?";
 
     private static final String SQL_CONTATO =
-            "SELECT telefone, ultima_mensagem_do_lead_em FROM lead WHERE id = ?";
+            "SELECT telefone, COALESCE(telefone_provedor, telefone) AS telefone_destino, "
+                    + "ultima_mensagem_do_lead_em FROM lead WHERE id = ?";
 
     private static final String SQL_NOME = "SELECT nome FROM lead WHERE id = ?";
 
@@ -96,7 +97,11 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     // Nasce sem responsavel e em IA: grupo "Potenciais", visivel a todos ate alguem
     // responder e assumir pela RN-CRM-06.
     private static final String SQL_CRIAR_POR_TELEFONE =
-            "INSERT INTO lead (id, nome, telefone, status_basico) VALUES (?, ?, ?, 'IA')";
+            "INSERT INTO lead (id, nome, telefone, telefone_provedor, status_basico) "
+                    + "VALUES (?, ?, ?, ?, 'IA')";
+
+    private static final String SQL_ATUALIZAR_TELEFONE_PROVEDOR =
+            "UPDATE lead SET telefone_provedor = ? WHERE id = ?";
 
     private static final String SQL_CRIAR_PARA_ATENDENTE =
             """
@@ -127,6 +132,12 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
         TransacaoObrigatoria.exigir("registrarMensagemDoLead");
         Timestamp instante = Timestamp.from(quando);
         chat.update(SQL_MENSAGEM_DO_LEAD, instante, instante, leadId);
+    }
+
+    @Override
+    public void registrarTelefoneProvedor(UUID leadId, String telefoneProvedor) {
+        TransacaoObrigatoria.exigir("registrarTelefoneProvedor");
+        chat.update(SQL_ATUALIZAR_TELEFONE_PROVEDOR, telefoneProvedor, leadId);
     }
 
     @Override
@@ -192,7 +203,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                 (nomeSugerido == null || nomeSugerido.isBlank())
                         ? telefoneCanonico
                         : nomeSugerido;
-        chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefoneCanonico);
+        chat.update(SQL_CRIAR_POR_TELEFONE, novo, nome, telefoneCanonico, telefone);
         return novo;
     }
 
@@ -244,6 +255,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                         SQL_CONTATO,
                         (linha, indice) -> new ContatoParaEnvio(
                                 linha.getString("telefone"),
+                                linha.getString("telefone_destino"),
                                 Optional.ofNullable(linha.getTimestamp("ultima_mensagem_do_lead_em"))
                                         .map(Timestamp::toInstant)),
                         leadId)
