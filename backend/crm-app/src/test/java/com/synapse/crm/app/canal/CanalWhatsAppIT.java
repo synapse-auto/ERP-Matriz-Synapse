@@ -71,6 +71,7 @@ class CanalWhatsAppIT extends PostgresIT {
 
     private static final String PREFIXO = "E05-";
     private static final String TELEFONE = "5561988887777";
+    private static final String TELEFONE_PROVEDOR_SEM_NONO = "556188887777";
 
     @Autowired
     private EnviarMensagemUseCase enviar;
@@ -145,6 +146,7 @@ class CanalWhatsAppIT extends PostgresIT {
 
             esperar().untilAsserted(() -> {
                 assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo(TELEFONE);
                 assertThat(canal.enviados().get(0).conteudo())
                         .isInstanceOfSatisfying(
                                 ConteudoDeEnvio.MensagemLivre.class,
@@ -399,6 +401,71 @@ class CanalWhatsAppIT extends PostgresIT {
                                 leadDaAna))
                         .isEqualTo(1);
             });
+        }
+
+        @Test
+        @DisplayName("webhook grava o endereco bruto do provedor sem alterar o telefone canonico")
+        void webhook_gravaEnderecoDoProvedor_preservaTelefoneCanonico() {
+            postarWebhook(
+                    payload("ext-E141-endereco", TELEFONE_PROVEDOR_SEM_NONO, "bom dia"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(jdbc.queryForObject(
+                                "SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                        .isEqualTo(TELEFONE);
+                assertThat(jdbc.queryForObject(
+                                "SELECT telefone_provedor FROM lead WHERE id = ?",
+                                String.class,
+                                leadDaAna))
+                        .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            });
+        }
+
+        @Test
+        @DisplayName("segunda mensagem do provedor sobrescreve o endereco conhecido")
+        void webhook_segundoEnderecoDoProvedor_sobrescreveOAnterior() {
+            postarWebhook(
+                    payload("ext-E141-endereco-1", TELEFONE_PROVEDOR_SEM_NONO, "primeira"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(jdbc.queryForObject(
+                            "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna))
+                    .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO));
+
+            postarWebhook(payload("ext-E141-endereco-2", TELEFONE, "segunda"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(jdbc.queryForObject(
+                                "SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                        .isEqualTo(TELEFONE);
+                assertThat(jdbc.queryForObject(
+                                "SELECT telefone_provedor FROM lead WHERE id = ?",
+                                String.class,
+                                leadDaAna))
+                        .isEqualTo(TELEFONE);
+            });
+        }
+
+        @Test
+        @DisplayName("mensagem recebida e envio posterior usam o endereco que a Meta informou")
+        void webhookEEnvio_usamEnderecoDoProvedor() {
+            postarWebhook(
+                    payload("ext-E141-ponta-a-ponta", TELEFONE_PROVEDOR_SEM_NONO, "escrevi"),
+                    CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(jdbc.queryForObject(
+                            "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna))
+                    .isEqualTo(TELEFONE_PROVEDOR_SEM_NONO));
+
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "resposta");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> assertThat(canal.enviados())
+                    .anyMatch(envio -> envio.telefoneDestino().equals(TELEFONE_PROVEDOR_SEM_NONO)));
         }
 
         @Test

@@ -88,7 +88,7 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
                 agora,
                 atendimento.id(),
                 atendimento.leadId(),
-                contato.telefone(),
+                contato.telefoneDestino(),
                 atendimento.canalCredencialId(),
                 envio);
         leads.registrarInteracao(atendimento.leadId(), agora, 0, 1);
