@@ -362,7 +362,8 @@ describe("BolhaMensagem", () => {
       <BolhaMensagem
         mensagem={mensagem({
           statusEntrega: "FALHOU",
-          erroEntrega: { codigo: 131053, titulo: "Unsupported file format" },
+          conteudo: "Oi, tudo bem?",
+          erroEntrega: { codigo: 131047, titulo: "Re-engagement message" },
         })}
         janelaTextoLivreAberta
         onReenviar={vi.fn()}
@@ -372,6 +373,41 @@ describe("BolhaMensagem", () => {
     );
 
     expect(screen.getByRole("button", { name: "Reenviar" })).toBeInTheDocument();
+  });
+
+  it("não oferece reenviar para mídia falha nem para 131053", () => {
+    const { rerender } = render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "IMAGEM",
+          statusEntrega: "FALHOU",
+          conteudo: "[image] legenda",
+          erroEntrega: { codigo: 131053, titulo: "Unsupported file format" },
+        })}
+        janelaTextoLivreAberta
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+
+    rerender(
+      <BolhaMensagem
+        mensagem={mensagem({
+          statusEntrega: "FALHOU",
+          conteudo: "texto qualquer",
+          erroEntrega: { codigo: 131053, titulo: "Unsupported file format" },
+        })}
+        janelaTextoLivreAberta
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
 
   it("não oferece reenviar para texto livre falho fora da janela", () => {

@@ -79,9 +79,13 @@ function podeReenviar(
   janelaTextoLivreAberta: boolean,
 ): boolean {
   if (mensagem.statusEntrega !== "FALHOU") return false;
-  if (mensagem.erroEntrega?.codigo === 131026) return false;
-  if (mensagem.conteudo?.startsWith("[template ")) return false;
-  return mensagem.tipo !== "TEXTO" || janelaTextoLivreAberta;
+  if (mensagem.tipo !== "TEXTO") return false;
+  if (!mensagem.conteudo) return false;
+  if (mensagem.conteudo.startsWith("[template ")) return false;
+  // 131026: número não recebe WhatsApp; 131053: mídia rejeitada — reenviar o mesmo conteúdo não resolve.
+  const codigo = mensagem.erroEntrega?.codigo;
+  if (codigo === 131026 || codigo === 131053) return false;
+  return janelaTextoLivreAberta;
 }
 
 /** Texto, imagem, áudio, vídeo ou documento — a bolha renderiza os tipos que o backend entrega. */
