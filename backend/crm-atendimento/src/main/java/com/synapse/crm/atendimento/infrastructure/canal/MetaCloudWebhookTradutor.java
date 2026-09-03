@@ -202,8 +202,16 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             String contextoWamid = no.path("context").path("id").asText(null);
 
             if ("interactive".equals(tipoMeta)) {
-                String titulo = tituloDaResposta(no.path("interactive"));
+                JsonNode interativa = no.path("interactive");
+                String titulo = tituloDaResposta(interativa);
                 if (titulo == null || titulo.isBlank()) {
+                    // O continue abaixo é metade do bug histórico: sem log, a resposta do
+                    // cliente sumia sem rastro no histórico (E134). type e nomes das chaves
+                    // bastam para diagnosticar; o payload inteiro carrega telefone/conteúdo.
+                    log.warn(
+                            "Resposta interativa sem titulo reconhecido; item descartado. type={} chaves={}",
+                            interativa.path("type").asText(""),
+                            campos(interativa));
                     continue;
                 }
                 // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
@@ -225,6 +233,8 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             if (tipoCrm == null) {
                 // Nem texto, nem midia suportada (status, reacao, etc.). Ignorar
                 // somente este item preserva as mensagens boas que vierem no mesmo POST.
+                // Sem warn, um type novo da Meta some sem rastro (E134).
+                log.warn("Tipo de mensagem Meta desconhecido; item descartado. type={}", tipoMeta);
                 continue;
             }
 
@@ -282,15 +292,30 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         return null;
     }
 
+    /**
+     * Chaves estáveis do objeto de resposta no webhook de entrada. Não usar o valor de
+     * {@code interactive.type}: na mensagem que <em>sai</em> a Meta manda {@code button}/{@code list};
+     * na resposta que <em>chega</em> manda {@code button_reply}/{@code list_reply}. Comparar o
+     * {@code type} descartou em silêncio todas as escolhas do cliente (E134).
+     */
+    private static final List<String> CHAVES_DE_RESPOSTA_INTERATIVA =
+            List.of("list_reply", "button_reply", "nfm_reply");
+
     private static String tituloDaResposta(JsonNode interativa) {
-        String tipo = interativa.path("type").asText();
-        if ("button".equals(tipo)) {
-            return interativa.path("button_reply").path("title").asText(null);
-        }
-        if ("list".equals(tipo)) {
-            return interativa.path("list_reply").path("title").asText(null);
+        for (String chave : CHAVES_DE_RESPOSTA_INTERATIVA) {
+            String titulo = interativa.path(chave).path("title").asText(null);
+            if (titulo != null && !titulo.isBlank()) {
+                return titulo;
+            }
         }
         return null;
+    }
+
+    /** Nomes das chaves do nó — sem valores, para não vazar telefone/conteúdo no log. */
+    private static String campos(JsonNode no) {
+        List<String> nomes = new ArrayList<>();
+        no.fieldNames().forEachRemaining(nomes::add);
+        return nomes.toString();
     }
 
     private record MensagemDoPayload(JsonNode valor, JsonNode mensagem) {}
