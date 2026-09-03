@@ -92,7 +92,7 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.queryByRole("button", { name: "Finalizar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Finalizar todos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Finalizar Todos")).not.toBeInTheDocument();
   });
 
   it("renderiza mensagem de sistema do grupo no centro", () => {

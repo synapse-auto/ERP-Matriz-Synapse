@@ -31,7 +31,10 @@ const conversa = vi.hoisted(
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
   useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
-  useQuantidadeAtendimentosFinalizaveis: () => ({ data: { quantidade: 2 }, isLoading: false }),
+  useQuantidadeAtendimentosFinalizaveis: () => ({
+    data: { quantidade: 2, porAtendente: [{ atendenteId: "u1", nome: "Ana", quantidade: 2 }] },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
@@ -73,11 +76,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         sucesso: "Finalizado",
         erro: "Erro",
         todosMenu: "Mais ações",
-        todos: "Finalizar todos",
+        todos: "Finalizar Todos",
         todosTitulo: "Finalizar atendimentos",
         todosDescricao: "Encerrar {quantidade}",
         todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Cancelar",
+        todosCancelar: "Voltar",
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
@@ -120,7 +123,7 @@ describe("menu global de finalização", () => {
     expect(screen.getByRole("button", { name: "Finalizar" })).toBeInTheDocument();
 
     fireEvent.click(menu[0]);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar todos" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
     expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
   });
 });

@@ -450,7 +450,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         var fechadoAntigo = servico(() -> atendimentos.porId(jaFechado).orElseThrow());
         jdbc.update("UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = now() WHERE id = ?", jaFechado);
         var abertoAntes = servico(() -> atendimentos.porId(aberto).orElseThrow());
-        doReturn(List.of(fechadoAntigo, abertoAntes)).when(atendimentos).abertosVisiveis();
+        doReturn(List.of(fechadoAntigo, abertoAntes)).when(atendimentos).abertosVisiveis(null);
         var resposta = post("/api/v1/atendimentos/finalizar-lote", tokenAna, null);
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains("\"recusados\":1", "\"finalizados\":1");
@@ -468,7 +468,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         UUID segundo = criar(ana, "5561988882502");
         var antesA = servico(() -> atendimentos.porId(primeiro).orElseThrow());
         var antesB = servico(() -> atendimentos.porId(segundo).orElseThrow());
-        doReturn(List.of(antesA, antesB)).when(atendimentos).abertosVisiveis();
+        doReturn(List.of(antesA, antesB)).when(atendimentos).abertosVisiveis(null);
         doThrow(new DataIntegrityViolationException("falha local fixture")).when(atendimentos).porIdParaAlteracao(segundo);
         assertThat(post("/api/v1/atendimentos/finalizar-lote", tokenAna, null).getStatusCode().is5xxServerError()).isTrue();
         for (UUID id : List.of(primeiro, segundo)) {
@@ -776,7 +776,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         jdbc.update("UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = now() WHERE id = ?", jaFechado);
         var abertoAntes = servico(() -> atendimentos.porId(aberto).orElseThrow());
         var fechadoAntes = servico(() -> atendimentos.porId(jaFechado).orElseThrow());
-        doReturn(List.of(abertoAntes, fechadoAntes)).when(atendimentos).abertosVisiveis();
+        doReturn(List.of(abertoAntes, fechadoAntes)).when(atendimentos).abertosVisiveis(null);
         String wamid = PREFIXO + "rx-lote-" + aberto;
         postarWebhookRecebido(wamid, telefone, "mensagem durante lote");
         executarDisputaDeterministica(

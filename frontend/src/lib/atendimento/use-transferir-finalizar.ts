@@ -42,7 +42,7 @@ export function useFinalizarAtendimento(
 export function useFinalizarAtendimentosVisiveis() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: finalizarAtendimentosVisiveis,
+    mutationFn: (atendenteId?: string | null) => finalizarAtendimentosVisiveis(atendenteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
     },
