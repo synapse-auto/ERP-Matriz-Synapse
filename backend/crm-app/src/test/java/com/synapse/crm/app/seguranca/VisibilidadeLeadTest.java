@@ -39,12 +39,19 @@ class VisibilidadeLeadTest {
     }
 
     @Test
-    @DisplayName("atendente NAO ve o lead de outro atendente")
+    @DisplayName("atendente NAO ve o lead EM_ATENDIMENTO de outro atendente")
     void atendente_leadDeColega_naoEnxerga() {
         VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
 
         assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.EM_ATENDIMENTO))).isFalse();
-        assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.FINALIZADO))).isFalse();
+    }
+
+    @Test
+    @DisplayName("atendente ve lead FINALIZADO de colega (E145 — balcao)")
+    void atendente_leadFinalizadoDeColega_enxerga() {
+        VisibilidadeLead visao = VisibilidadeLead.de(new UsuarioAutenticado(ANA, PapelUsuario.ATENDENTE, false));
+
+        assertThat(visao.permite(leadDe(BRUNO, StatusBasicoLead.FINALIZADO))).isTrue();
     }
 
     @Test

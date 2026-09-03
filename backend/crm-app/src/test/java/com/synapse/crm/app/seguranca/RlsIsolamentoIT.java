@@ -80,21 +80,23 @@ class RlsIsolamentoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("atendente enxerga o proprio lead e os em IA, e nada do colega")
+    @DisplayName("atendente enxerga o proprio lead, os em IA e os finalizados de qualquer dono (E145)")
     void sqlCru_atendente_veApenasOSeuMaisOsEmIa() {
         List<UUID> visiveis = lidosComo(ana, PapelUsuario.ATENDENTE);
 
-        assertThat(visiveis).containsExactlyInAnyOrder(id("da ana"), id("potencial"));
-        assertThat(visiveis).doesNotContain(id("do bruno"), id("do bruno finalizado"));
+        assertThat(visiveis)
+                .containsExactlyInAnyOrder(id("da ana"), id("potencial"), id("do bruno finalizado"));
+        assertThat(visiveis).doesNotContain(id("do bruno"));
     }
 
     @Test
-    @DisplayName("o outro atendente enxerga a propria carteira, inclusive finalizados")
+    @DisplayName("o outro atendente enxerga a propria carteira, IA e finalizados dos colegas (E145)")
     void sqlCru_outroAtendente_veApenasAPropriaCarteira() {
         List<UUID> visiveis = lidosComo(bruno, PapelUsuario.ATENDENTE);
 
         assertThat(visiveis)
                 .containsExactlyInAnyOrder(id("do bruno"), id("do bruno finalizado"), id("potencial"));
+        assertThat(visiveis).doesNotContain(id("da ana"));
     }
 
     @Test
@@ -217,6 +219,39 @@ class RlsIsolamentoIT extends PostgresIT {
             }
             conexao.commit();
         }
+    }
+
+    @Test
+    @DisplayName("E145: finalizado de colega e visivel; EM_ATENDIMENTO de colega continua invisivel")
+    void e145_finalizadoDeColegaVisivel_emAndamentoContinuaInvisivel() {
+        UUID leadFinalizado = UUID.randomUUID();
+        UUID atendimentoFinalizado = UUID.randomUUID();
+        UUID leadAberto = UUID.randomUUID();
+        UUID atendimentoAberto = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico) VALUES (?, ?, ?, 'FINALIZADO'::status_basico_lead)",
+                leadFinalizado, marcador + " finalizado do bruno e145", bruno);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'FINALIZADO'::status_atendimento)",
+                atendimentoFinalizado, leadFinalizado, bruno);
+        jdbc.update(
+                "INSERT INTO lead (id, nome, atendente_responsavel_id, status_basico) VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead)",
+                leadAberto, marcador + " aberto do bruno e145", bruno);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status) VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_atendimento)",
+                atendimentoAberto, leadAberto, bruno);
+
+        ApoioRls.entrarComo(ana, PapelUsuario.ATENDENTE);
+        List<UUID> leads = transacao.execute(status -> jdbc.queryForList(
+                "SELECT id FROM lead WHERE id IN (?, ?)", UUID.class, leadFinalizado, leadAberto));
+        List<UUID> atendimentos = transacao.execute(status -> jdbc.queryForList(
+                "SELECT id FROM atendimento WHERE id IN (?, ?)",
+                UUID.class,
+                atendimentoFinalizado,
+                atendimentoAberto));
+
+        assertThat(leads).containsExactly(leadFinalizado);
+        assertThat(atendimentos).containsExactly(atendimentoFinalizado);
     }
 
     @Test
