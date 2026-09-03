@@ -191,7 +191,12 @@ export function PaginaAtendimentosCliente({
   const conversaDaLista = atendimentos.find(
     (atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId,
   ) as CartaoAtendimento | undefined;
-  const conversa = conversaDaLista
+  const snapshotFinalizado = cartaoSelecionado?.leadId === leadSelecionadoId
+    && cartaoSelecionado.status === "FINALIZADO"
+    && cartaoSelecionado.atendimentoAtivoId === null
+    ? cartaoSelecionado
+    : null;
+  const conversa = snapshotFinalizado ?? conversaDaLista
     ?? (cartaoSelecionado?.leadId === leadSelecionadoId ? cartaoSelecionado : null);
   const conversaAberta = Boolean(conversa || conversaInternaId);
   const respostaDaTela =
@@ -237,6 +242,13 @@ export function PaginaAtendimentosCliente({
       setVisaoAtendimento("ATIVOS");
     }
   }, [visaoAtendimento]);
+  const aposAtendimentoFinalizado = useCallback(() => {
+    setCartaoSelecionado((atual) =>
+      atual
+        ? { ...atual, status: "FINALIZADO", atendimentoAtivoId: null }
+        : null,
+    );
+  }, []);
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
     setAtendimentos(cartoes);
     setCartaoSelecionado((atual) => {
@@ -424,6 +436,7 @@ export function PaginaAtendimentosCliente({
                   : () => abrirNovoAtendimento.mutate(conversa.leadId)
               }
               abrindoNovoAtendimento={abrirNovoAtendimento.isPending}
+              onAtendimentoFinalizado={aposAtendimentoFinalizado}
               onVoltar={
                 telaEstreita
                   ? () => {
