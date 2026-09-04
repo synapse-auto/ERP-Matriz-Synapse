@@ -31,9 +31,9 @@ public enum VisaoAtendimento {
     TODOS,
 
     /**
-     * Leads sem atendimento aberto ({@code EM_ATENDIMENTO}/{@code EM_IA}). "Meus" para atendente
-     * (ultimo atendimento e dele), "de todos" para gestao. Nao e aba — e estado alternativo da
-     * lista, acionado pelo menu (E136).
+     * Leads sem atendimento aberto ({@code EM_ATENDIMENTO}/{@code EM_IA}). Balcao de reativacao
+     * para qualquer papel (E145); a RLS continua sendo a autoridade sobre o alcance. Nao e aba —
+     * e estado alternativo da lista, acionado pelo menu (E136).
      */
     FINALIZADOS;
 

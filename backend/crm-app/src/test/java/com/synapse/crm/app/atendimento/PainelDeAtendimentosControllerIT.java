@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -473,12 +474,12 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("atendente ve so leads sem aberto cujo ultimo atendimento e dele")
-        void atendente_veSomenteOsPropriosSemAberto() {
+        @DisplayName("atendente ve finalizados de qualquer colega para poder reativar")
+        void atendente_veFinalizadosDeQualquerColega() {
             String corpo = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "FINALIZADOS");
 
             assertThat(corpo).contains(atendimentoFinalizadoDaAna.toString());
-            assertThat(corpo).doesNotContain(atendimentoFinalizadoDoBruno.toString());
+            assertThat(corpo).contains(atendimentoFinalizadoDoBruno.toString());
             assertThat(corpo).doesNotContain(atendimentoAbertoDoHistorico.toString());
             assertThat(corpo).doesNotContain(leadComHistoricoEAberto.toString());
         }
@@ -539,6 +540,29 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
             }
 
             assertThat(idsPaginados).containsExactlyInAnyOrderElementsOf(idsEsperados);
+        }
+
+        @Test
+        @DisplayName("paginacao de finalizados tambem inclui colega para atendente")
+        void paginacao_deFinalizadosIncluiColegasParaAtendente() throws Exception {
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            Set<String> idsPaginados = new java.util.LinkedHashSet<>();
+            String cursor = null;
+            for (int pagina = 0; pagina < 50; pagina++) {
+                String url = "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50"
+                        + (cursor == null ? "" : "&cursor=" + cursor);
+                String corpo = ApoioAutenticacao.comToken(http, token, HttpMethod.GET, url, String.class)
+                        .getBody();
+                for (JsonNode item : json.readTree(corpo).path("itens")) {
+                    if (!"EQUIPE_INTERNA".equals(item.path("tipo").asText())) {
+                        idsPaginados.add(item.path("atendimentoId").asText());
+                    }
+                }
+                JsonNode proximo = json.readTree(corpo).path("proximoCursor");
+                if (proximo.isNull() || proximo.asText("").isBlank()) break;
+                cursor = proximo.asText();
+            }
+            assertThat(idsPaginados).contains(atendimentoFinalizadoDaAna.toString(), atendimentoFinalizadoDoBruno.toString());
         }
 
         @Test
