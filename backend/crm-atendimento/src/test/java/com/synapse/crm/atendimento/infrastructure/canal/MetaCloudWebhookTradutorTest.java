@@ -365,7 +365,7 @@ class MetaCloudWebhookTradutorTest {
 
         var resultado = tradutor.traduzir(payload);
         assertThat(resultado).hasSize(1);
-        
+
         TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
         assertThat(msg.tipo()).isEqualTo("LOCALIZACAO");
         assertThat(msg.texto()).contains("\"latitude\":-7.115");
@@ -404,7 +404,7 @@ class MetaCloudWebhookTradutorTest {
 
         var resultado = tradutor.traduzir(payload);
         assertThat(resultado).hasSize(1);
-        
+
         TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
         assertThat(msg.tipo()).isEqualTo("LOCALIZACAO");
         assertThat(msg.texto()).contains("\"latitude\":-7.115");
