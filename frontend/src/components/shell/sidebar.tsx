@@ -69,7 +69,6 @@ const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> =
   bancoArquivos: Folder,
   mensagensProgramadas: Clock,
   lembretes: Bell,
-  chatInterno: MessagesSquare,
   feedbacks: MessageSquarePlus,
   equipe: Users,
   campanhas: Megaphone,

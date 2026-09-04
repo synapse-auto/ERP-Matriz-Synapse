@@ -108,6 +108,14 @@ export function PaginaAtendimentosCliente({
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
+  const criarGrupoInterno = useMutation({
+    mutationFn: ({ nome, participantes }: { nome: string; participantes: string[] }) => criarGrupoChat(nome, participantes),
+    onSuccess: (resposta) => {
+      setConversaInternaId(resposta.id);
+      setLeadSelecionadoId(null);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+  });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
 
   /**
@@ -400,6 +408,7 @@ export function PaginaAtendimentosCliente({
         contatosInternosErro={contatosInternos.isError}
         onRecarregarContatos={() => void contatosInternos.refetch()}
         onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
+        onCriarGrupoInterno={(nome, participantes) => criarGrupoInterno.mutateAsync({ nome, participantes })}
         onNovoContato={() => {
           iniciarContato.reset();
           setNovoContatoAberto(true);
