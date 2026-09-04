@@ -367,7 +367,7 @@ class MetaCloudWebhookTradutorTest {
         assertThat(resultado).hasSize(1);
         
         TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
-        assertThat(msg.tipoMensagem()).isEqualTo("LOCALIZACAO");
+        assertThat(msg.tipo()).isEqualTo("LOCALIZACAO");
         assertThat(msg.texto()).contains("\"latitude\":-7.115");
         assertThat(msg.texto()).contains("\"longitude\":-34.864");
         assertThat(msg.texto()).contains("\"nome\":\"Condominio Park Cowboy\"");
@@ -406,7 +406,7 @@ class MetaCloudWebhookTradutorTest {
         assertThat(resultado).hasSize(1);
         
         TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
-        assertThat(msg.tipoMensagem()).isEqualTo("LOCALIZACAO");
+        assertThat(msg.tipo()).isEqualTo("LOCALIZACAO");
         assertThat(msg.texto()).contains("\"latitude\":-7.115");
         assertThat(msg.texto()).contains("\"longitude\":-34.864");
         assertThat(msg.texto()).doesNotContain("nome");
