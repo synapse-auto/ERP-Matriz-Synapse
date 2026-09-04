@@ -19,4 +19,12 @@ public enum TipoMensagem {
     public boolean exigeOpcoes() {
         return this == BOTOES || this == LISTA;
     }
+
+    /**
+     * Tipos que armazenam dados estruturados em {@code midiaMetadados} em vez de texto
+     * livre em {@code conteudo}. Não exigem {@code midiaUrl}.
+     */
+    public boolean exigeMetadados() {
+        return this == LOCALIZACAO;
+    }
 }
