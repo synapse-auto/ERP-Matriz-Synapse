@@ -164,6 +164,24 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     }
 
     @Override
+    public Assuncao assumirSeSemDono(UUID leadId, UUID candidato) {
+        TransacaoObrigatoria.exigir("assumirSeSemDono");
+        List<UUID> donos =
+                chat.query(SQL_DONO_ATUAL, (linha, indice) -> linha.getObject(1, UUID.class), leadId);
+        if (donos.isEmpty()) {
+            return Assuncao.naoAlcancado();
+        }
+
+        UUID donoAtual = donos.get(0);
+        if (donoAtual != null) {
+            return Assuncao.preservado(donoAtual);
+        }
+
+        chat.update(SQL_TRANSFERIR, candidato, leadId);
+        return Assuncao.assumido(candidato);
+    }
+
+    @Override
     public void marcarStatus(UUID leadId, StatusBasicoLead status) {
         TransacaoObrigatoria.exigir("marcarStatus");
         chat.update(SQL_STATUS, status.name(), leadId);

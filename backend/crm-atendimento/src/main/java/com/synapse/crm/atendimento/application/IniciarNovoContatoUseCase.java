@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -31,8 +32,9 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * achar que a mensagem saiu. Template pre-aprovado passa. Sem primeira mensagem, a conversa abre em
  * modo humano e o composer oferece os templates.
  *
- * <p>Telefone de colega: a RLS esconde a linha e o indice unico impede o insert — os dois casos
- * viram o mesmo 404 da {@link ContatoIndisponivelParaInicioException}.
+ * <p>Telefone já presente na Agenda é reutilizado. Quando o contato pertence a outro atendente,
+ * a abertura registra o solicitante como participante e preserva o responsável comercial; somente
+ * uma transferência explícita troca a posse.
  */
 @Service
 public class IniciarNovoContatoUseCase {
@@ -45,6 +47,7 @@ public class IniciarNovoContatoUseCase {
     private final TelefoneCanonico telefoneCanonico;
     private final UsuarioContext usuarioContext;
     private final Clock relogio;
+    private final ParticipacaoAtendimentoRepositorio participacoes;
 
     public IniciarNovoContatoUseCase(
             LeadNoCaminhoDeMensagem leads,
@@ -54,7 +57,8 @@ public class IniciarNovoContatoUseCase {
             CanalCredencialAtivaRepositorio canaisAtivos,
             TelefoneCanonico telefoneCanonico,
             UsuarioContext usuarioContext,
-            Clock relogio) {
+            Clock relogio,
+            ParticipacaoAtendimentoRepositorio participacoes) {
         this.leads = leads;
         this.atendimentos = atendimentos;
         this.enviar = enviar;
@@ -63,6 +67,7 @@ public class IniciarNovoContatoUseCase {
         this.telefoneCanonico = telefoneCanonico;
         this.usuarioContext = usuarioContext;
         this.relogio = relogio;
+        this.participacoes = participacoes;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -113,10 +118,29 @@ public class IniciarNovoContatoUseCase {
                         nome, telefone, quemPediu, canalAtivo == null ? null : canalAtivo.canalId())
                 .orElseThrow(ContatoIndisponivelParaInicioException::new));
 
-        assumirLead(leadId, quemPediu);
+        LeadNoCaminhoDeMensagem.Assuncao assuncao = assumirLead(leadId, quemPediu);
+        if (!assuncao.alcancavel()) {
+            throw new ContatoIndisponivelParaInicioException();
+        }
+        Optional<Atendimento> abertoAtual = atendimentos.abertoDoLead(leadId);
+        if (abertoAtual.isPresent()) {
+            Atendimento atendimentoAtual = abertoAtual.get();
+            // Um lead sem responsável é assumido pelo primeiro atendente que inicia o contato.
+            // O atendimento aberto correspondente precisa refletir a mesma posse; caso contrário,
+            // lead e atendimento ficariam divergentes e a próxima mensagem voltaria à IA.
+            if (assuncao.assumiu() && atendimentoAtual.atendenteId() == null) {
+                atendimentoAtual = atendimentos.salvar(atendimentoAtual.transferirPara(quemPediu));
+            }
+            if (!atendimentoAtual.pertenceA(quemPediu)) {
+                entrarComoColaborador(atendimentoAtual, quemPediu, agora);
+            }
+        }
 
         if (temLivre) {
             EnviarMensagemUseCase.Resultado envio = enviar.executar(leadId, mensagemLivre);
+            if (!envio.atendimento().pertenceA(quemPediu)) {
+                entrarComoColaborador(envio.atendimento(), quemPediu, agora);
+            }
             return new Resultado(leadId, envio.atendimento(), envio.mensagem(), existente.isEmpty());
         }
         if (temTemplate) {
@@ -124,10 +148,18 @@ public class IniciarNovoContatoUseCase {
                     leadId,
                     new ConteudoDeEnvio.MensagemTemplate(
                             modelo.nome().trim(), modelo.idioma().trim(), modelo.parametros()));
+            if (!envio.atendimento().pertenceA(quemPediu)) {
+                entrarComoColaborador(envio.atendimento(), quemPediu, agora);
+            }
             return new Resultado(leadId, envio.atendimento(), envio.mensagem(), existente.isEmpty());
         }
 
-        Atendimento aberto = abrirSemMensagem(leadId, quemPediu, agora, canalAtivo);
+        Atendimento aberto = abrirSemMensagem(
+                leadId,
+                quemPediu,
+                assuncao.responsavelAtual().orElse(quemPediu),
+                agora,
+                canalAtivo);
         // Sem mensagem do cliente e sem envio: nao toca ultima_interacao_em. Registrar agora
         // fingiria janela de 24h aberta — a Meta so abre essa janela quando o usuario fala.
         return new Resultado(leadId, aberto, null, existente.isEmpty());
@@ -146,34 +178,54 @@ public class IniciarNovoContatoUseCase {
         }
         UUID quemPediu = usuarioContext.atual().id();
         Instant agora = Instant.now(relogio);
-        assumirLead(leadId, quemPediu);
+        LeadNoCaminhoDeMensagem.Assuncao assuncao = assumirLead(leadId, quemPediu);
+        if (!assuncao.alcancavel()) {
+            throw new ContatoIndisponivelParaInicioException();
+        }
         CanalEntradaAtiva canalAtivo = canaisAtivos.primeiraAtiva().orElse(null);
-        Atendimento aberto = abrirSemMensagem(leadId, quemPediu, agora, canalAtivo);
+        Atendimento aberto = abrirSemMensagem(
+                leadId,
+                quemPediu,
+                assuncao.responsavelAtual().orElse(quemPediu),
+                agora,
+                canalAtivo);
         return new Resultado(leadId, aberto, null, false);
     }
 
-    private void assumirLead(UUID leadId, UUID quemPediu) {
-        LeadNoCaminhoDeMensagem.Transferencia transferencia = leads.transferirPara(leadId, quemPediu);
-        if (!transferencia.aconteceu()) {
-            throw new ContatoIndisponivelParaInicioException();
-        }
+    private LeadNoCaminhoDeMensagem.Assuncao assumirLead(UUID leadId, UUID quemPediu) {
+        return leads.assumirSeSemDono(leadId, quemPediu);
     }
 
     private Atendimento abrirSemMensagem(
-            UUID leadId, UUID quemPediu, Instant agora, CanalEntradaAtiva canalAtivo) {
-        Atendimento aberto = atendimentos
-                .abertoDoLead(leadId)
-                .orElseGet(() -> atendimentos.salvar(Atendimento.abrirComIa(
-                                UUID.randomUUID(),
-                                leadId,
-                                canalAtivo == null ? null : canalAtivo.canalId(),
-                                canalAtivo == null ? null : canalAtivo.canalCredencialId(),
-                                agora)
-                        .transferirPara(quemPediu)));
+            UUID leadId,
+            UUID quemPediu,
+            UUID responsavelOficial,
+            Instant agora,
+            CanalEntradaAtiva canalAtivo) {
+        Atendimento aberto = atendimentos.abertoDoLead(leadId).orElse(null);
+        if (aberto == null) {
+            aberto = atendimentos.salvar(Atendimento.abrirComIa(
+                            UUID.randomUUID(),
+                            leadId,
+                            canalAtivo == null ? null : canalAtivo.canalId(),
+                            canalAtivo == null ? null : canalAtivo.canalCredencialId(),
+                            agora)
+                    .transferirPara(responsavelOficial));
+        } else if (aberto.atendenteId() == null) {
+            // A assunção do lead sem dono também vale para a conversa já aberta pela IA.
+            aberto = atendimentos.salvar(aberto.transferirPara(responsavelOficial));
+        }
         if (!aberto.pertenceA(quemPediu)) {
-            aberto = atendimentos.salvar(aberto.transferirPara(quemPediu));
+            entrarComoColaborador(aberto, quemPediu, agora);
         }
         return aberto;
+    }
+
+    private void entrarComoColaborador(Atendimento atendimento, UUID usuarioId, Instant agora) {
+        if (participacoes.eParticipanteAtivo(atendimento.id(), usuarioId)) {
+            return;
+        }
+        participacoes.entrar(atendimento.id(), usuarioId, agora);
     }
 
     private static boolean preenchido(String valor) {

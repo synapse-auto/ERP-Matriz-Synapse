@@ -36,22 +36,17 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Alguem da equipe mandou uma mensagem ou template manual. Se essa pessoa ainda nao esta na
- * conversa, o lead passa a ser dela (RN-CRM-06). Se ja e participante ativo, a mensagem e dela e o
- * dono continua o dono — mas qualquer fala humana tira a conversa de {@code EM_IA}, senão a
- * automacao responde por cima.
+ * Alguem da equipe mandou uma mensagem ou template manual. A mensagem tira a conversa da IA, mas
+ * não muda o responsável comercial quando já existe dono; somente uma transferência explícita o
+ * altera. Lead sem responsável é assumido pelo primeiro humano que envia.
  *
- * <p>A transferencia e a contrapartida do isolamento de agenda: a RN-CRM-01 impede pegar o lead do
- * colega, e esta regra garante que quem falou sem ter entrado nao some deixando a conversa orfa.
- * Participar e o mecanismo que a operacao pediu para ajudar sem herdar a comissao — entrar sozinho
- * nao transfere; enviar sendo participante tampouco. Quem nao entrou continua assumindo ao falar.
+ * <p>Participar é o mecanismo que permite colaboração sem herdar a comissão — entrar sozinho e
+ * enviar como participante não transferem. A RN-CRM-01 continua impedindo o alcance fora do recorte
+ * de visibilidade; a Agenda registra a participação antes de abrir a conversa.
  *
- * <p><b>Quem o remetente alcanca continua sendo decidido pela RN-CRM-01.</b> A transferencia acontece
- * dentro do recorte de visibilidade, nao por cima dele: um atendente manda mensagem no proprio lead
- * (transferencia sem efeito) ou num lead sem dono do grupo "Potenciais" (e o lead passa a ser dele).
- * Um lead que ja e de um colega nao e alcancavel — o {@code UPDATE} nao encontra a linha e o caso de
- * uso responde como se nao existisse. Quem enxerga a base inteira (gestor) alcanca qualquer lead, e
- * para esse a regra transfere de fato — a menos que ele ja tenha entrado como participante.
+ * <p><b>Quem o remetente alcança continua sendo decidido pela RN-CRM-01.</b> Um lead de colega só
+ * chega a este caso de uso depois de a participação colaborativa ter sido registrada; sem isso a
+ * consulta do caminho crítico continua respondendo como recurso inexistente.
  */
 @Service
 public class EnviarMensagemUseCase {
@@ -196,25 +191,30 @@ public class EnviarMensagemUseCase {
                 leads.marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
             }
         } else {
-            // RN-CRM-06: se o lead nao e alcancavel por quem esta enviando, nada mais
-            // acontece. Gravar a mensagem antes deixaria mensagem orfa num lead que o
-            // remetente nao pode tocar.
-            LeadNoCaminhoDeMensagem.Transferencia transferencia =
-                    leads.transferirPara(leadId, remetenteId);
-            if (!transferencia.aconteceu()) {
+            // RN-CRM-06: só assume se o lead ainda não tem responsável. Dono existente permanece
+            // dono; troca deliberada passa pelo caso de uso de transferência.
+            LeadNoCaminhoDeMensagem.Assuncao assuncao =
+                    leads.assumirSeSemDono(leadId, remetenteId);
+            if (!assuncao.alcancavel()) {
                 throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
             }
-            donoAnterior = transferencia.donoAnterior();
-            trocouDeDono = donoAnterior.map(anterior -> !anterior.equals(remetenteId)).orElse(true);
+            donoAnterior = assuncao.responsavelAtual();
+            trocouDeDono = assuncao.assumiu();
+            UUID responsavelOficial = assuncao.responsavelAtual().orElse(remetenteId);
 
             if (aberto == null) {
                 aberto = atendimentos.salvar(
-                        Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora));
-            }
-            // O atendimento acompanha o lead: deixar a conversa com a IA depois de um humano
-            // responder faria a automacao continuar falando por cima do atendente.
-            if (!aberto.pertenceA(remetenteId)) {
-                aberto = atendimentos.salvar(aberto.transferirPara(remetenteId));
+                        Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora)
+                                .transferirPara(responsavelOficial));
+            } else if (aberto.status() == StatusAtendimento.EM_IA) {
+                // O atendimento sem dono precisa sair da IA e ganhar o responsavel no mesmo
+                // UPDATE. Persistir primeiro EM_ATENDIMENTO sem atendente violaria a policy RLS;
+                // a transicao atomica tambem evita uma janela em que o lead ficaria sem posse.
+                aberto = aberto.atendenteId() == null
+                        ? aberto.transferirPara(responsavelOficial)
+                        : aberto.retirarDaIa();
+                aberto = atendimentos.salvar(aberto);
+                leads.marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
             }
         }
 

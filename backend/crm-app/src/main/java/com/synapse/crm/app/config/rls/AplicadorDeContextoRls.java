@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -53,6 +54,7 @@ public class AplicadorDeContextoRls {
     private static final String SQL_DEFINIR = "SELECT set_config(?, ?, TRUE)";
     private static final String CHAVE_USUARIO = "app.usuario_id";
     private static final String CHAVE_PAPEL = "app.papel";
+    private static final String CHAVE_AGENDA = "app.contexto_agenda";
 
     private final UsuarioContext usuarioContext;
 
@@ -63,7 +65,7 @@ public class AplicadorDeContextoRls {
     /** Chamado logo apos o inicio da transacao, com a conexao ja ligada ao {@code dataSource}. */
     public void aplicar(DataSource dataSource) {
         if (ContextoDeServico.ativo()) {
-            definir(dataSource, "", ContextoDeServico.PAPEL);
+            definir(dataSource, "", ContextoDeServico.PAPEL, false);
             return;
         }
 
@@ -73,11 +75,15 @@ public class AplicadorDeContextoRls {
             // protegida. Ainda assim assumimos a role: sem isso, uma transacao sem
             // contexto rodaria como dona das tabelas e enxergaria TUDO — o oposto de
             // falhar fechado.
-            definir(dataSource, "", "");
+            definir(dataSource, "", "", false);
             return;
         }
 
-        definir(dataSource, usuario.get().id().toString(), usuario.get().papel().name());
+        definir(
+                dataSource,
+                usuario.get().id().toString(),
+                usuario.get().papel().name(),
+                ContextoDeAgenda.ativo());
     }
 
     private Optional<UsuarioAutenticado> usuarioSeHouver() {
@@ -91,7 +97,7 @@ public class AplicadorDeContextoRls {
         }
     }
 
-    private void definir(DataSource dataSource, String usuarioId, String papel) {
+    private void definir(DataSource dataSource, String usuarioId, String papel, boolean contextoAgenda) {
         Connection conexao = DataSourceUtils.getConnection(dataSource);
 
         // Primeiro deixa de ser dono das tabelas. Enquanto a transacao roda como
@@ -106,6 +112,7 @@ public class AplicadorDeContextoRls {
         try (PreparedStatement comando = conexao.prepareStatement(SQL_DEFINIR)) {
             executar(comando, CHAVE_USUARIO, usuarioId);
             executar(comando, CHAVE_PAPEL, papel);
+            executar(comando, CHAVE_AGENDA, contextoAgenda ? "true" : "");
         } catch (SQLException e) {
             // Sem contexto publicado, as politicas negam tudo. Preferimos abortar a
             // transacao com erro claro a deixar a aplicacao rodando com telas vazias

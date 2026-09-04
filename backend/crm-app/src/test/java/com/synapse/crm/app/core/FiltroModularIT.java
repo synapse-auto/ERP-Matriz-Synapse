@@ -37,9 +37,8 @@ import com.synapse.crm.app.seguranca.ApoioAutenticacao;
  * Filtro modular ponta a ponta (E03b).
  *
  * <p>Duas perguntas dominam esta suite. A primeira e se a arvore aninhada devolve o conjunto certo. A
- * segunda, mais importante, e se ela consegue devolver algo <b>alem</b> do que o usuario ja enxergava
- * — porque este e o ponto onde o isolamento de agenda da E02 poderia vazar depois de toda a
- * blindagem: um {@code OU} do cliente que escapasse do {@code AND} da visibilidade.
+ * segunda, mais importante, e se a Agenda colaborativa preserva o criterio explicito sem duplicar ou
+ * escapar da arvore enviada pelo cliente.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
@@ -62,8 +61,8 @@ class FiltroModularIT extends PostgresIT {
     /**
      * Cinco leads que separam as duas pernas do OU e o corte da janela.
      *
-     * <p>Nenhum fica com {@code status_basico = 'IA'}: lead sem dono e visivel a todo mundo, e um
-     * deles no meio do cenario mascararia justamente o vazamento que a suite procura.
+     * <p>Nenhum fica com {@code status_basico = 'IA'}: o cenario separa os resultados do criterio
+     * explicito e evita que Potenciais mascare a cobertura da Agenda colaborativa.
      */
     @BeforeEach
     void prepararCenario() {
@@ -132,39 +131,37 @@ class FiltroModularIT extends PostgresIT {
     }
 
     @Nested
-    @DisplayName("composicao com a visibilidade (RN-CRM-01)")
+    @DisplayName("Agenda Ampla (V60) + filtro explicito")
     class Visibilidade {
 
         /**
-         * O teste central da etapa. Ana monta o filtro que <em>pegaria</em> os leads do Bruno e
-         * continua sem ver nenhum: o {@code AND} com a visibilidade so consegue tirar linhas.
+         * Agenda global: Ana filtra pelo responsavel Bruno e ve os leads dele. O recorte implicito
+         * do atendente nao se aplica neste endpoint da Agenda.
          */
         @Test
-        @DisplayName("atendente filtrando pelos leads do colega nao ve nenhum")
-        void filtro_atendenteApontandoParaColega_devolveVazio() {
-            Map<String, Object> doColega =
-                    simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString()));
+        @DisplayName("atendente filtrando pelos leads do colega os encontra na Agenda")
+        void filtro_atendenteApontandoParaColega_devolveOsLeads() {
+            Map<String, Object> doColega = filtroDoColegaNoCenario();
 
             ResponseEntity<String> resposta = filtrar(ana(), doColega);
 
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(quantidadeDeLeads(resposta.getBody())).isZero();
-            assertThat(contar(ana(), doColega)).isZero();
+            assertThat(resposta.getBody()).contains(PREFIXO + "Beta").contains(PREFIXO + "Delta");
+            assertThat(contar(ana(), doColega)).isEqualTo(2);
         }
 
         /**
          * A variante que engana: um {@code OU} na raiz. Se o filtro do cliente fosse aplicado no lugar
          * da visibilidade — ou ligado a ela por {@code OU} —, esta chamada devolveria a base inteira.
          *
-         * <p>As duas metades importam. A segunda prova que Ana nao ve os leads do Bruno; a primeira
-         * prova que <b>o filtro sabe traze-los</b>, e portanto que o vazio da Ana veio do {@code AND}
-         * com a visibilidade e nao de um filtro que simplesmente nao casa nada. Sem esse par, o teste
-         * continuaria verde com o interpretador quebrado — que e exatamente o modo de falha que a E00,
-         * a E02b e a E03a ja produziram neste projeto.
+         * <p>As duas metades importam: a primeira garante que a Agenda honra o filtro explícito por
+         * responsável, e a segunda garante que o {@code OU} não é reduzido ao primeiro ramo. Sem esse
+         * par, o teste poderia continuar verde com a Agenda descartando contatos do colega ou com o
+         * interpretador ignorando parte da árvore.
          */
         @Test
-        @DisplayName("OU na raiz nao escapa do AND da visibilidade")
-        void filtro_comOuNaRaiz_naoAmpliaOQueOAtendenteVe() {
+        @DisplayName("OU por dono devolve a uniao tambem para o atendente (Agenda Ampla)")
+        void filtro_comOuNaRaiz_atendenteVeAUniao() {
             Map<String, Object> qualquerDono = composto(
                     "OU",
                     List.of(
@@ -172,19 +169,26 @@ class FiltroModularIT extends PostgresIT {
                             simples("atendenteResponsavel", "IGUAL", List.of(idAna.toString()))));
 
             String paraOGestor = filtrar(gestor(), qualquerDono).getBody();
-            assertThat(paraOGestor).contains(PREFIXO + "Beta").contains(PREFIXO + "Delta");
+            assertThat(paraOGestor)
+                    .contains(PREFIXO + "Beta")
+                    .contains(PREFIXO + "Delta")
+                    .contains(PREFIXO + "Alfa")
+                    .contains(PREFIXO + "Gama");
 
             String paraAAna = filtrar(ana(), qualquerDono).getBody();
-            assertThat(paraAAna).contains(PREFIXO + "Alfa").contains(PREFIXO + "Gama");
-            assertThat(paraAAna).doesNotContain(PREFIXO + "Beta").doesNotContain(PREFIXO + "Delta");
+            assertThat(paraAAna)
+                    .contains(PREFIXO + "Alfa")
+                    .contains(PREFIXO + "Gama")
+                    .contains(PREFIXO + "Beta")
+                    .contains(PREFIXO + "Delta");
         }
 
-        /** O mesmo filtro devolve conjuntos diferentes por papel — e o recorte, nao a permissao. */
+        /** Sob Agenda Ampla, o mesmo filtro rende o mesmo total para Ana e gestor. */
         @Test
-        @DisplayName("o mesmo filtro rende menos para o atendente do que para o gestor")
-        void mesmoFiltro_atendenteEGestor_conjuntosDiferentes() {
+        @DisplayName("o mesmo filtro rende o mesmo total para atendente e gestor na Agenda")
+        void mesmoFiltro_atendenteEGestor_mesmoTotal() {
             assertThat(contar(ana(), filtroDoEnunciado()))
-                    .isLessThan(contar(gestor(), filtroDoEnunciado()));
+                    .isEqualTo(contar(gestor(), filtroDoEnunciado()));
         }
     }
 
@@ -266,8 +270,8 @@ class FiltroModularIT extends PostgresIT {
     }
 
     /**
-     * E16 §Bloco 1: a paginacao entra <b>depois</b> da visibilidade — nao pode virar um caminho
-     * novo para o mesmo vazamento que {@link Visibilidade} ja fecha sem paginacao.
+     * E16 §Bloco 1: a paginacao entra <b>depois</b> do filtro explícito e mantém o mesmo escopo da
+     * Agenda colaborativa; não pode descartar contatos do colega nem ampliar a árvore enviada.
      */
     @Nested
     @DisplayName("paginacao (E16)")
@@ -291,20 +295,17 @@ class FiltroModularIT extends PostgresIT {
         }
 
         /**
-         * O teste central desta secao: atendente pedindo os leads do colega, com paginacao,
-         * continua vazio — LIMIT/OFFSET nunca vira caminho para alcancar o que a visibilidade
-         * ja recusou.
+         * Agenda Ampla: atendente filtrando pelo colega com paginacao encontra o lead.
          */
         @Test
-        @DisplayName("atendente filtrando pelo colega, com paginacao, continua vazio")
-        void atendenteApontandoParaColega_comPaginacao_continuaVazio() {
-            Map<String, Object> doColega =
-                    simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString()));
+        @DisplayName("atendente filtrando pelo colega, com paginacao, encontra o lead")
+        void atendenteApontandoParaColega_comPaginacao_encontra() {
+            Map<String, Object> doColega = filtroDoColegaNoCenario();
 
             String corpo = filtrarPaginado(ana(), doColega, null, 1).getBody();
 
-            assertThat(quantidadeDeLeads(corpo)).isZero();
-            assertThat(corpo).contains("\"temMais\":false").contains("\"pagina\":0");
+            assertThat(quantidadeDeLeads(corpo)).isEqualTo(1);
+            assertThat(corpo).contains("\"temMais\":true").contains("\"pagina\":0");
         }
 
         @Test
@@ -378,8 +379,8 @@ class FiltroModularIT extends PostgresIT {
     class CatalogosDeFiltro {
 
         @Test
-        @DisplayName("cidades e tags respeitam a mesma visibilidade da agenda")
-        void catalogos_atendenteNaoVeValoresExclusivosDoColega() {
+        @DisplayName("cidades e tags da Agenda colaborativa incluem todos os contatos")
+        void catalogos_atendenteVeValoresDoColega() {
             String sufixo = UUID.randomUUID().toString().substring(0, 8);
             String cidadeAna = "Cidade Ana " + sufixo;
             String cidadeBruno = "Cidade Bruno " + sufixo;
@@ -395,7 +396,7 @@ class FiltroModularIT extends PostgresIT {
 
             String paraAna = obterCatalogos(ana());
             assertThat(paraAna).contains(cidadeAna).contains(tagAna.toString());
-            assertThat(paraAna).doesNotContain(cidadeBruno).doesNotContain(tagBruno.toString());
+            assertThat(paraAna).contains(cidadeBruno).contains(tagBruno.toString());
 
             String paraGestor = obterCatalogos(gestor());
             assertThat(paraGestor)
@@ -449,6 +450,19 @@ class FiltroModularIT extends PostgresIT {
                                         simples("etapa", "IGUAL", List.of(QUALIFICACAO)),
                                         simples("tag", "IGUAL", List.of(TAG_URGENTE)))),
                         simples("semRetornoDias", "MAIOR_QUE", List.of("30"))));
+    }
+
+    /**
+     * Restringe o criterio ao cenario criado pelo teste. A Agenda e global e o banco de CI pode
+     * conter outros leads de Bruno; o nome-prefixo impede que dados de outros cenarios alterem a
+     * contagem sem enfraquecer a verificacao do filtro explicito por responsavel.
+     */
+    private Map<String, Object> filtroDoColegaNoCenario() {
+        return composto(
+                "E",
+                List.of(
+                        simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString())),
+                        simples("nome", "CONTEM", List.of(PREFIXO))));
     }
 
     private static Map<String, Object> simples(String campo, String operador, List<String> valores) {

@@ -34,7 +34,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class EnviarMensagemUseCaseTest {
 
     @Test
-    void mensagemDoConvidadoTransfereLeadEPreservaDonoAnteriorNoEvento() {
+    void mensagemDoConvidadoPreservaDonoAnteriorNoEvento() {
         UUID leadId = UUID.randomUUID();
         UUID atendimentoId = UUID.randomUUID();
         UUID donoAnterior = UUID.randomUUID();
@@ -53,8 +53,8 @@ class EnviarMensagemUseCaseTest {
         Atendimento antes = atendimentoAberto(atendimentoId, leadId, donoAnterior, agora);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(convidado, PapelUsuario.ATENDENTE, false));
         prepararEnvioLivre(leads, canal, leadId, agora);
-        when(leads.transferirPara(leadId, convidado))
-                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(donoAnterior));
+        when(leads.assumirSeSemDono(leadId, convidado))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(donoAnterior));
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(antes));
         when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -66,9 +66,9 @@ class EnviarMensagemUseCaseTest {
 
         EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "oi");
 
-        assertThat(resultado.transferiuOLead()).isTrue();
-        assertThat(resultado.atendimento().atendenteId()).isEqualTo(convidado);
-        verify(leads).transferirPara(leadId, convidado);
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isEqualTo(donoAnterior);
+        verify(leads, never()).transferirPara(leadId, convidado);
         verify(leads).bloquearParaAtendimento(leadId);
 
         ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
@@ -76,7 +76,7 @@ class EnviarMensagemUseCaseTest {
         assertThat(eventoCaptor.getAllValues()).anySatisfy(evento -> {
             assertThat(evento).isInstanceOf(EventoDeAtendimento.MensagemEnviada.class);
             EventoDeAtendimento.MensagemEnviada mensagem = (EventoDeAtendimento.MensagemEnviada) evento;
-            assertThat(mensagem.transferiu()).isTrue();
+            assertThat(mensagem.transferiu()).isFalse();
             assertThat(mensagem.participante()).isFalse();
             assertThat(mensagem.donoAnterior()).contains(donoAnterior);
             assertThat(mensagem.remetenteId()).isEqualTo(convidado);
@@ -232,7 +232,8 @@ class EnviarMensagemUseCaseTest {
         Atendimento aberto = atendimentoAberto(atendimentoId, leadId, dono, agora);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(dono, PapelUsuario.ATENDENTE, false));
         prepararEnvioLivre(leads, canal, leadId, agora);
-        when(leads.transferirPara(leadId, dono)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(dono));
+        when(leads.assumirSeSemDono(leadId, dono))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(dono));
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
         when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -245,12 +246,12 @@ class EnviarMensagemUseCaseTest {
 
         assertThat(resultado.transferiuOLead()).isFalse();
         assertThat(resultado.atendimento().atendenteId()).isEqualTo(dono);
-        verify(leads).transferirPara(leadId, dono);
+        verify(leads, never()).transferirPara(leadId, dono);
         verify(atendimentos, never()).salvar(any());
     }
 
     @Test
-    void participanteQueSaiuVoltaATransferirAoEnviar() {
+    void participanteQueSaiuNaoTransfereAoEnviar() {
         UUID leadId = UUID.randomUUID();
         UUID atendimentoId = UUID.randomUUID();
         UUID dono = UUID.randomUUID();
@@ -270,8 +271,8 @@ class EnviarMensagemUseCaseTest {
         when(contexto.atual())
                 .thenReturn(new UsuarioAutenticado(exParticipante, PapelUsuario.GESTOR, false));
         prepararEnvioLivre(leads, canal, leadId, agora);
-        when(leads.transferirPara(leadId, exParticipante))
-                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(dono));
+        when(leads.assumirSeSemDono(leadId, exParticipante))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(dono));
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
         when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -283,9 +284,9 @@ class EnviarMensagemUseCaseTest {
 
         EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "assumo daqui");
 
-        assertThat(resultado.transferiuOLead()).isTrue();
-        assertThat(resultado.atendimento().atendenteId()).isEqualTo(exParticipante);
-        verify(leads).transferirPara(leadId, exParticipante);
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isEqualTo(dono);
+        verify(leads, never()).transferirPara(leadId, exParticipante);
         verify(leads).bloquearParaAtendimento(leadId);
     }
 

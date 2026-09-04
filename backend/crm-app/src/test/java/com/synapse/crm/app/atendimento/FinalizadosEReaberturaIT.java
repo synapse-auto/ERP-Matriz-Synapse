@@ -161,7 +161,7 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     }
 
     @Test
-    void atendenteReativaLeadFinalizadoDeColegaEAssume() throws Exception {
+    void atendenteAbreLeadFinalizadoDeColegaPreservaResponsavel() throws Exception {
         UUID bruno = usuario(EMAIL_BRUNO);
         UUID ana = usuario(EMAIL_ANA);
         UUID lead = lead("reativa-colega", bruno, "FINALIZADO", null);
@@ -188,10 +188,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, novo))
                 .isEqualTo("EM_ATENDIMENTO");
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, novo))
-                .isEqualTo(ana);
+                .isEqualTo(bruno);
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
-                .isEqualTo(ana);
+                .isEqualTo(bruno);
 
         ResponseEntity<String> historico = get(
                 token(EMAIL_ANA), "/api/v1/atendimentos/" + novo + "/mensagens");
@@ -200,7 +200,7 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     }
 
     @Test
-    void atendenteNaoEnxergaAtendimentoEmAndamentoDeColega() {
+    void atendenteAbreAtendimentoEmAndamentoDeColegaSemDuplicar() throws Exception {
         UUID bruno = usuario(EMAIL_BRUNO);
         UUID lead = lead("aberto-colega", bruno, "EM_ATENDIMENTO", null);
         UUID aberto = atendimento(
@@ -214,10 +214,12 @@ class FinalizadosEReaberturaIT extends PostgresIT {
         ResponseEntity<String> resposta = post(
                 token(EMAIL_ANA), "/api/v1/atendimentos/leads/" + lead + "/novo");
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(quantidade("atendimento", "lead_id = ?", lead)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, aberto))
                 .isEqualTo(bruno);
+        assertThat(json.readTree(resposta.getBody()).path("atendimentoId").asText())
+                .isEqualTo(aberto.toString());
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
                 .isEqualTo(bruno);
@@ -254,7 +256,7 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                         UUID.class,
                         leadDoBruno,
                         leadSemDono))
-                .containsOnly(gestor);
+                .containsExactlyInAnyOrder(bruno, gestor);
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM atendimento WHERE lead_id IN (?, ?) AND status = 'EM_ATENDIMENTO'",
                         Integer.class,
