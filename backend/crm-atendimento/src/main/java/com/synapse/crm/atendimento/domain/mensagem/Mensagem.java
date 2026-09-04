@@ -51,8 +51,12 @@ public record Mensagem(
         if (tipo.exigeMidia() && (midiaUrl == null || midiaUrl.isBlank())) {
             throw new IllegalArgumentException("mensagem do tipo " + tipo + " exige midiaUrl");
         }
-        if (!tipo.exigeMidia() && !tipo.exigeOpcoes() && (conteudo == null || conteudo.isBlank())) {
+        if (!tipo.exigeMidia() && !tipo.exigeOpcoes() && !tipo.exigeMetadados()
+                && (conteudo == null || conteudo.isBlank())) {
             throw new IllegalArgumentException("mensagem de texto exige conteudo");
+        }
+        if (tipo.exigeMetadados() && (midiaMetadados == null || midiaMetadados.isBlank())) {
+            throw new IllegalArgumentException("mensagem do tipo " + tipo + " exige midiaMetadados");
         }
         if (tipo.exigeOpcoes() && (opcoes == null || opcoes.isBlank())) {
             throw new IllegalArgumentException("mensagem interativa exige opcoes normalizadas");
