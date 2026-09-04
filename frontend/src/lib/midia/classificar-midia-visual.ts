@@ -8,7 +8,7 @@ export function classificarMidiaVisual(
   const mime = (mimetype ?? "").toLowerCase();
   const arquivo = (nome ?? "").toLowerCase();
 
-  if (mime.startsWith("video/") || arquivo.endsWith(".mp4") || arquivo.endsWith(".webm") || arquivo.endsWith(".mov")) {
+  if (tipoMensagem === "VIDEO" || mime.startsWith("video/") || arquivo.endsWith(".mp4") || arquivo.endsWith(".webm") || arquivo.endsWith(".mov")) {
     return "video";
   }
   if (tipoMensagem === "AUDIO" || mime.startsWith("audio/")) {

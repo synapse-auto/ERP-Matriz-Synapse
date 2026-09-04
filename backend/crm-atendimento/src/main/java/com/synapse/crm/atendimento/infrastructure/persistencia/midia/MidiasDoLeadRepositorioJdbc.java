@@ -26,7 +26,7 @@ class MidiasDoLeadRepositorioJdbc implements MidiasDoLeadRepositorio {
             + "m.midia_metadados, m.enviado_em, c.tipo AS origem";
     private static final String FROM = " FROM mensagem m JOIN atendimento a ON a.id=m.atendimento_id "
             + "LEFT JOIN canal c ON c.id=a.canal_id WHERE a.lead_id=? AND m.midia_url IS NOT NULL "
-            + "AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO')";
+            + "AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')";
     private final JdbcTemplate chat;
     private final ObjectMapper json;
 

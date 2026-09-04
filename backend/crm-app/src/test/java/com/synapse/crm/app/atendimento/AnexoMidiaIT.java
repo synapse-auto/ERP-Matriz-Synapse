@@ -257,7 +257,7 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("vídeo recebido via webhook é persistido como VIDEO no histórico")
+    @DisplayName("vídeo recebido via webhook é persistido como VIDEO, listado em /midias e emite URL assinada válida")
     void webhookVideo_recebidoPersisteComoVideo() {
         byte[] conteudoDoCliente = "video-fixture".getBytes(StandardCharsets.UTF_8);
         canal.programarMidiaRecebida(conteudoDoCliente, "video/mp4");
@@ -275,6 +275,39 @@ class AnexoMidiaIT extends PostgresIT {
         assertThat(corpo).contains("\"tipo\":\"VIDEO\"");
         String midiaUrl = extrairMidiaUrl(corpo);
         assertThat(armazenamento.baixarPelaUrlAssinada(midiaUrl)).contains(conteudoDoCliente);
+
+        UUID mensagemId = mensagemDeMidiaDoLead(leadDaAna);
+
+        // 1. Listar mídias do lead e confirmar que o vídeo aparece
+        ResponseEntity<String> listagem =
+                autenticado(EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias");
+        assertThat(listagem.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(listagem.getBody()).contains("\"tipo\":\"VIDEO\"");
+        assertThat(listagem.getBody()).contains(mensagemId.toString());
+
+        // 2. Chamar a rota /url com o mensagemId do vídeo e confirmar HTTP 200, URL assinada e conteúdo
+        ResponseEntity<String> respostaUrl = autenticado(
+                EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
+        assertThat(respostaUrl.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String urlEmitida = extrairUrlEmitida(respostaUrl.getBody());
+        assertThat(urlEmitida).contains("fake-storage.local");
+        assertThat(urlEmitida).contains("token=");
+        assertThat(armazenamento.baixarPelaUrlAssinada(urlEmitida)).contains(conteudoDoCliente);
+
+        // 3. Negativos: colega sem acesso recebe 404 quando o lead está em atendimento exclusivo da Ana
+        UUID atendimentoId = atendimentoDoLead();
+        jdbc.update("UPDATE atendimento SET atendente_id = ?, status = 'EM_ATENDIMENTO' WHERE id = ?", idAna, atendimentoId);
+        jdbc.update("UPDATE lead SET status_basico = 'EM_ATENDIMENTO' WHERE id = ?", leadDaAna);
+
+        ResponseEntity<String> respostaBruno = autenticado(
+                EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
+        assertThat(respostaBruno.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // 4. Negativos: lead incorreto recebe 404
+        UUID outroLead = UUID.randomUUID();
+        ResponseEntity<String> respostaOutroLead = autenticado(
+                EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + outroLead + "/midias/" + mensagemId + "/url");
+        assertThat(respostaOutroLead.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
