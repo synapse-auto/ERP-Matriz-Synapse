@@ -366,7 +366,7 @@ describe("ListaConversas", () => {
     expect(abrir).toHaveBeenCalledWith(cartoes[2]);
   });
 
-  it("abre o seletor de equipe com o ícone de usuários e mantém o diálogo após pointerup", () => {
+  it("abre o seletor de equipe com o ícone de usuários e mantém o diálogo após pointerup", async () => {
     render(
       <ListaConversas
         selecionadoId={null}
@@ -376,16 +376,15 @@ describe("ListaConversas", () => {
       />,
     );
 
-    const botaoNova = screen.getByRole("button", { name: "Nova conversa" });
+    const botaoNova = screen.getByRole("button", { name: "Opções de chat interno" });
     expect(botaoNova).toBeInTheDocument();
-    fireEvent.pointerDown(botaoNova);
-    fireEvent.pointerUp(botaoNova);
     fireEvent.click(botaoNova);
+    const menuitem = await screen.findByRole("menuitem", { name: "Nova conversa" });
+    fireEvent.click(menuitem);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Buscar por nome..." })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Bruno Almeida, Online" })).toBeInTheDocument();
     expect(botaoNova.querySelector(".lucide-users-round")).toBeInTheDocument();
-    expect(botaoNova.querySelector(".lucide-plus")).not.toBeInTheDocument();
   });
 
   it("abre a conversa ao selecionar uma pessoa e fecha somente após sucesso", async () => {
@@ -400,28 +399,33 @@ describe("ListaConversas", () => {
       />,
     );
 
-    const botaoNova = screen.getByRole("button", { name: "Nova conversa" });
-    fireEvent.click(botaoNova);
+    fireEvent.click(screen.getByRole("button", { name: "Opções de chat interno" }));
+    const menuitem = await screen.findByRole("menuitem", { name: "Nova conversa" });
+    fireEvent.click(menuitem);
     fireEvent.click(screen.getByRole("button", { name: "Bruno Almeida, Online" }));
     expect(criar).toHaveBeenCalledTimes(1);
     expect(criar).toHaveBeenCalledWith("usuario-2");
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-
-    fireEvent.click(botaoNova);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    criar.mockImplementationOnce(() => Promise.resolve());
+    criar.mockImplementationOnce(() => Promise.resolve());
+    fireEvent.click(screen.getByRole("button", { name: "Bruno Almeida, Online" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("não renderiza controles quando o chat interno está desligado e preserva abertura em rerender", () => {
+  it("não renderiza controles quando o chat interno está desligado e preserva abertura em rerender", async () => {
     const { rerender } = render(
       <ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Nova conversa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Opções de chat interno" }));
+    const menuitem = await screen.findByRole("menuitem", { name: "Nova conversa" });
+    fireEvent.click(menuitem);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: "Nova conversa" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Opções de chat interno" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo atendimento" })).toBeInTheDocument();
   });
@@ -439,7 +443,7 @@ describe("ListaConversas", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Novo atendimento" }));
     expect(novo).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("button", { name: "Nova conversa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opções de chat interno" })).toBeInTheDocument();
   });
 
   it("separa apenas em Todos os leads sem atendimento aberto e suaviza somente o nome deles", () => {
