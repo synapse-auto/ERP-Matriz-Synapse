@@ -6,6 +6,7 @@ import { classificarOrigemDeRecursoVisual } from "./origem-de-recurso-visual";
 describe("classificarMidiaVisual", () => {
   it("separa imagem, vídeo, áudio, PDF e o resto", () => {
     expect(classificarMidiaVisual("IMAGEM", "image/jpeg", "a.jpg")).toBe("imagem");
+    expect(classificarMidiaVisual("VIDEO", "video/mp4", "clip.mp4")).toBe("video");
     expect(classificarMidiaVisual("DOCUMENTO", "video/mp4", "clip.mp4")).toBe("video");
     expect(classificarMidiaVisual("AUDIO", "audio/ogg", "voz.ogg")).toBe("audio");
     expect(classificarMidiaVisual("DOCUMENTO", "application/pdf", "x.pdf")).toBe("pdf");

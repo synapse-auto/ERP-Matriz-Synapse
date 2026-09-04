@@ -135,7 +135,7 @@ describe("VisualizadorMidia", () => {
       <VisualizadorMidia
         aberto
         onFechar={vi.fn()}
-        itens={[item({ id: "vid-1", nome: "clip.mp4", mimetype: "video/mp4", tipoMensagem: "DOCUMENTO" })]}
+        itens={[item({ id: "vid-1", nome: "clip.mp4", mimetype: "video/mp4", tipoMensagem: "VIDEO" })]}
         indice={0}
       />,
     );
