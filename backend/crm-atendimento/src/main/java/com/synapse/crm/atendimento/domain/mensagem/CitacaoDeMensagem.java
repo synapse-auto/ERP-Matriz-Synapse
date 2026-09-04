@@ -35,6 +35,7 @@ public record CitacaoDeMensagem(
             case TEXTO -> sanitizar(conteudo);
             case IMAGEM, AUDIO, DOCUMENTO, VIDEO -> sanitizar(legendaDe(metadados));
             case BOTOES, LISTA -> sanitizar(conteudo);
+            case LOCALIZACAO -> "Localização";
         };
     }
 

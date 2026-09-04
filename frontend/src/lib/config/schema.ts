@@ -558,6 +558,9 @@ export const TextosSchema = z.object({
       baixar: z.string(),
       botoes: z.string(),
       lista: z.string(),
+      localizacao: z.string(),
+      localizacaoIncompleta: z.string(),
+      abrirLocalizacao: z.string(),
       visualizador: z.object({
         fechar: z.string(),
         anterior: z.string(),
