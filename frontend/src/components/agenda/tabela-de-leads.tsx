@@ -1,6 +1,9 @@
 "use client";
 
+import { MessageSquare } from "lucide-react";
+
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { Button } from "@/components/ui/button";
 import type { EtapaAtendimento } from "@/lib/lead/types";
 import type { UsuarioEquipe } from "@/lib/equipe/types";
 import type { LeadDaAgenda, StatusBasicoLead } from "@/lib/agenda/types";
@@ -29,6 +32,7 @@ interface Props {
   textos: TextosAgenda;
   onAbrirFicha: (lead: LeadDaAgenda) => void;
   onAbrirAtendimento: (lead: LeadDaAgenda) => void;
+  abrindoLeadId?: string | null;
 }
 
 export function TabelaDeLeads({
@@ -38,6 +42,7 @@ export function TabelaDeLeads({
   textos,
   onAbrirFicha,
   onAbrirAtendimento,
+  abrindoLeadId = null,
 }: Props) {
   const etapaPorId = new Map(etapas.map((etapa) => [etapa.id, etapa]));
   const nomePorAtendenteId = new Map(
@@ -70,6 +75,9 @@ export function TabelaDeLeads({
             <th className="px-5 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
               {textos.colunas.ultimoContato}
             </th>
+            <th className="px-5 py-3 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+              <span className="sr-only">{textos.abrirAtendimento}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -80,12 +88,12 @@ export function TabelaDeLeads({
             const nomeDoAtendente = lead.atendenteResponsavelId
               ? nomePorAtendenteId.get(lead.atendenteResponsavelId)
               : undefined;
+            const abrindo = abrindoLeadId === lead.id;
             return (
               <tr
                 key={lead.id}
                 className="cursor-pointer border-t border-border hover:bg-muted/50"
                 onClick={() => onAbrirFicha(lead)}
-                onDoubleClick={() => onAbrirAtendimento(lead)}
               >
                 <td className="px-5 py-3">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -181,6 +189,23 @@ export function TabelaDeLeads({
                         timeStyle: "short",
                       }).format(new Date(lead.ultimaInteracaoEm))
                     : "—"}
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={abrindoLeadId != null}
+                    aria-busy={abrindo}
+                    onClick={(evento) => {
+                      evento.stopPropagation();
+                      onAbrirAtendimento(lead);
+                    }}
+                  >
+                    <MessageSquare className="mr-1.5 size-(--tamanho-icone-interface)" aria-hidden />
+                    {abrindo ? textos.abrindoAtendimento : textos.abrirAtendimento}
+                  </Button>
                 </td>
               </tr>
             );

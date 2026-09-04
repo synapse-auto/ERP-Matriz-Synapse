@@ -632,6 +632,8 @@
       "lembrete": "Criar lembrete",
       "mensagemProgramada": "Programar mensagem",
       "abrirAtendimento": "Abrir atendimento",
+      "abrindoAtendimento": "Abrindo atendimento...",
+      "erroAbrirAtendimento": "Não foi possível abrir o atendimento.",
       "ligar": "Ligar"
     }
   },
@@ -1016,13 +1018,16 @@
   },
   "agenda": {
     "titulo": "Agenda de contatos",
-    "descricao": "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
+    "descricao": "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
     "vazia": "Nenhum contato encontrado com os filtros atuais.",
     "carregando": "Carregando agenda...",
     "erro": "Não foi possível carregar a agenda.",
     "semResponsavel": "Sem responsável",
     "contador": "Exibindo {exibindo} de {total}",
     "indiceAlfabetico": "Índice alfabético",
+    "abrirAtendimento": "Abrir atendimento",
+    "abrindoAtendimento": "Abrindo atendimento...",
+    "erroAbrirAtendimento": "Não foi possível abrir o atendimento.",
     "entrada": {
       "placeholder": "Buscar contato de outro atendente...",
       "pedir": "Pedir para entrar",

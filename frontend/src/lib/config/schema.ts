@@ -663,7 +663,14 @@ export const TextosSchema = z.object({
         usuario: z.string(),
       }),
     }),
-    acoes: z.object({ lembrete: z.string(), mensagemProgramada: z.string(), abrirAtendimento: z.string(), ligar: z.string() }),
+    acoes: z.object({
+      lembrete: z.string(),
+      mensagemProgramada: z.string(),
+      abrirAtendimento: z.string(),
+      abrindoAtendimento: z.string(),
+      erroAbrirAtendimento: z.string(),
+      ligar: z.string(),
+    }),
   }),
   lembretes: z.object({
     titulo: z.string(), descricao: z.string(), novo: z.string(), carregando: z.string(),
@@ -848,6 +855,9 @@ export const TextosSchema = z.object({
     semResponsavel: z.string(),
     contador: z.string(),
     indiceAlfabetico: z.string(),
+    abrirAtendimento: z.string(),
+    abrindoAtendimento: z.string(),
+    erroAbrirAtendimento: z.string(),
     entrada: z.object({ placeholder: z.string(), pedir: z.string(), responsavel: z.string() }),
     colunas: z.object({
       lead: z.string(),

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { PainelLateralLead } from "@/components/leads/painel-lateral-lead";
 import { useEquipe } from "@/lib/equipe/use-equipe";
-import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCanais, useEtapas } from "@/lib/lead/use-painel-lead";
 import {
@@ -23,7 +23,7 @@ import {
   type FiltrosRapidosAgenda,
   type LeadDaAgenda,
 } from "@/lib/agenda/types";
-import type { VisaoAtendimento } from "@/lib/atendimento/types";
+import { abrirAtendimentoParaLead } from "@/lib/atendimento/api";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
 import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
@@ -51,7 +51,6 @@ export function PaginaAgenda() {
     responsavel: `${t.semResponsavel}: {nome}`,
   };
   const router = useRouter();
-  const papel = useAuthStore((estado) => estado.papel);
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
@@ -64,7 +63,26 @@ export function PaginaAgenda() {
   const telaEstreita = useTelaEstreita();
   const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
   const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
-  async function pedirEntrada(id: string) { setPedidoEmAndamento(id); try { await apiFetch(`/api/v1/atendimentos/pedir-entrada?leadId=${encodeURIComponent(id)}`, { method: "POST" }); } finally { setPedidoEmAndamento(null); } }
+  async function pedirEntrada(id: string) {
+    setPedidoEmAndamento(id);
+    try {
+      await apiFetch(`/api/v1/atendimentos/pedir-entrada?leadId=${encodeURIComponent(id)}`, {
+        method: "POST",
+      });
+    } finally {
+      setPedidoEmAndamento(null);
+    }
+  }
+
+  const abrirAtendimento = useMutation({
+    mutationFn: (leadId: string) => abrirAtendimentoParaLead(leadId),
+    onSuccess: (resposta) => {
+      setLeadNoPainel(null);
+      router.push(
+        `/atendimentos?leadId=${encodeURIComponent(resposta.leadId)}&visao=ATIVOS`,
+      );
+    },
+  });
 
   const campos = useCamposFiltraveis();
   const etapas = useEtapas();
@@ -106,16 +124,13 @@ export function PaginaAgenda() {
   }
 
   function abrirFicha(lead: LeadDaAgenda) {
+    abrirAtendimento.reset();
     setLeadNoPainel(lead.id);
   }
 
-  function abrirAtendimento(lead: LeadDaAgenda) {
-    const papelAmplo = papel && papel !== "ATENDENTE";
-    const visao: VisaoAtendimento =
-      lead.status === "IA" ? "POTENCIAIS" : papelAmplo ? "TODOS" : "ATIVOS";
-    router.push(
-      `/atendimentos?leadId=${encodeURIComponent(lead.id)}&visao=${visao}`,
-    );
+  function solicitarAbrirAtendimento(lead: LeadDaAgenda) {
+    if (abrirAtendimento.isPending) return;
+    abrirAtendimento.mutate(lead.id);
   }
 
   const leads = paginaDeLeads.data?.leads ?? [];
@@ -123,6 +138,12 @@ export function PaginaAgenda() {
   const textoContador = t.contador
     .replace("{exibindo}", String(leads.length))
     .replace("{total}", String(totalExibido));
+  const erroAbrir =
+    abrirAtendimento.isError
+      ? abrirAtendimento.error instanceof Error
+        ? abrirAtendimento.error.message
+        : t.erroAbrirAtendimento
+      : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background p-6 max-sm:p-4">
@@ -224,7 +245,8 @@ export function PaginaAgenda() {
             equipe={equipe.data ?? []}
             textos={t}
             onAbrirFicha={abrirFicha}
-            onAbrirAtendimento={abrirAtendimento}
+            onAbrirAtendimento={solicitarAbrirAtendimento}
+            abrindoLeadId={abrirAtendimento.isPending ? (abrirAtendimento.variables ?? null) : null}
           />
         )}
       </div>
@@ -251,11 +273,17 @@ export function PaginaAgenda() {
       {leadNoPainel && (
         <PainelLateralLead
           leadId={leadNoPainel}
-          onFechar={() => setLeadNoPainel(null)}
-          onAbrirAtendimento={() => {
-            const lead = leads.find((l) => l.id === leadNoPainel);
-            if (lead) abrirAtendimento(lead);
+          onFechar={() => {
+            if (abrirAtendimento.isPending) return;
+            setLeadNoPainel(null);
+            abrirAtendimento.reset();
           }}
+          onAbrirAtendimento={() => {
+            const lead = leads.find((item) => item.id === leadNoPainel);
+            if (lead) solicitarAbrirAtendimento(lead);
+          }}
+          abrindoAtendimento={abrirAtendimento.isPending}
+          erroAbrirAtendimento={erroAbrir}
         />
       )}
     </div>
