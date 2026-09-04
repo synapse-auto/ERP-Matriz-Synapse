@@ -153,7 +153,7 @@ export function ListaConversas({
       : (porAtendente.find((item) => item.atendenteId === selecaoFinalizacao)?.quantidade ?? 0);
 
   const fimDaLista = useRef<HTMLDivElement>(null);
-  const paginaComCursor = visao === "TODOS" || visao === "FINALIZADOS";
+  const paginaComCursor = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
   useEffect(() => {
     const alvo = fimDaLista.current;
     if (!alvo || !paginaComCursor || !hasNextPage) return;

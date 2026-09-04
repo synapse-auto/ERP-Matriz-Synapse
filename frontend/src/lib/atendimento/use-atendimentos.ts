@@ -11,7 +11,7 @@ const INTERVALO_DE_REVALIDACAO_MS = Number(
 );
 
 export function useAtendimentos(visao: VisaoAtendimento) {
-  const usaInboxPaginada = visao === "TODOS" || visao === "FINALIZADOS";
+  const usaInboxPaginada = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
   const inbox = useInfiniteQuery({
     // Query infinita e query comum não podem compartilhar a mesma chave: os formatos de cache
     // (`pages/pageParams` e array) são incompatíveis e se corrompem no refetch por WebSocket.
