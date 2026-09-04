@@ -160,6 +160,29 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void modoIa_segundaExecucaoComChaveNova_permaneceSemResponsavel() {
+        UUID humano = criarAtendente("HUMANO-2");
+        UUID atendimento = criarAtendimento("MODO-IA-2", "EM_ATENDIMENTO", humano, false);
+
+        assertThat(chamar(HttpMethod.PATCH, url(atendimento, "modo-ia"), TOKEN, "modo-ia-a", Map.of())
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isNull();
+
+        ResponseEntity<String> segunda =
+                chamar(HttpMethod.PATCH, url(atendimento, "modo-ia"), TOKEN, "modo-ia-b", Map.of());
+        assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isNull();
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isEqualTo("EM_IA");
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'ATENDIMENTO_TRANSFERIDO'",
+                        Integer.class,
+                        atendimento))
+                .isEqualTo(1);
+    }
+
+    @Test
     void proximoHumanoEscolheDisponivelE409QuandoNaoHa() {
         UUID primeiro = criarAtendente("A-PRIMEIRO");
         UUID segundo = criarAtendente("B-SEGUNDO");

@@ -8,7 +8,7 @@ import { mensagensDesde, paginaMensagens } from "./api";
 import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
 import { atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
-import type { MensagemResposta } from "./types";
+import type { EventoTempoReal, MensagemResposta } from "./types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 /** Historico por cursor, somado ao fluxo incremental do WebSocket e a reconciliacao de reconexao. */
@@ -18,15 +18,21 @@ export function useMensagens(
   estadoConexao: EstadoConexao,
   onMensagemRecebida?: () => void,
   atendimentoParaAssinar: string | null = atendimentoId,
+  onEventoEstado?: (evento: EventoTempoReal) => void,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
   const ultimoInstanteRef = useRef<string | null>(null);
   const onMensagemRecebidaRef = useRef(onMensagemRecebida);
+  const onEventoEstadoRef = useRef(onEventoEstado);
 
   useEffect(() => {
     onMensagemRecebidaRef.current = onMensagemRecebida;
   }, [onMensagemRecebida]);
+
+  useEffect(() => {
+    onEventoEstadoRef.current = onEventoEstado;
+  }, [onEventoEstado]);
 
   const query = useInfiniteQuery({
     queryKey,
@@ -101,7 +107,10 @@ export function useMensagens(
           useAuthStore.getState().usuarioId,
         );
       } else {
-        queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+        // TRANSFERENCIA / FINALIZACAO: o chamador aplica o estado local com guarda de
+        // ocorridoEm; aqui só dispara o callback e reconcilia a inbox via HTTP.
+        onEventoEstadoRef.current?.(evento);
+        void queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
     });
     return () => conexao.fecharConversa();

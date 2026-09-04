@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.timeline.OrigemEvento;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
@@ -151,5 +152,83 @@ class TransferirAtendimentoUseCaseTest {
         verify(destinos, never()).exigirAtendenteAtivo(brunoId);
         verify(atendimentos, never()).elevarRlsParaEscritaDeNovoDono();
         verify(atendimentos, never()).salvar(potencial);
+    }
+
+    @Test
+    void devolverParaIaPelaAutomacao_publicaEventoComAtendimentoELeadSemResponsavel() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        UUID humanoId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        Atendimento antes = Atendimento.abrirComIa(
+                        atendimentoId,
+                        leadId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        Instant.parse("2026-08-23T11:00:00Z"))
+                .transferirPara(humanoId);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(antes));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(antes));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Lead"));
+
+        TransferirAtendimentoUseCase useCase = new TransferirAtendimentoUseCase(
+                atendimentos,
+                leads,
+                mock(AtendenteParaTransferenciaRepositorio.class),
+                eventos,
+                Clock.fixed(Instant.parse("2026-09-04T15:00:00Z"), ZoneOffset.UTC),
+                mock(UsuarioContext.class));
+
+        Atendimento depois = useCase.devolverParaIaPelaAutomacao(atendimentoId);
+
+        assertThat(depois.atendenteId()).isNull();
+        assertThat(depois.status().name()).isEqualTo("EM_IA");
+        verify(atendimentos).salvar(depois);
+        verify(leads).marcarStatus(leadId, StatusBasicoLead.IA);
+
+        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
+        verify(eventos).publishEvent(evento.capture());
+        EventoDeAtendimento.AtendimentoTransferido transferencia =
+                (EventoDeAtendimento.AtendimentoTransferido) evento.getValue();
+        assertThat(transferencia.atendimentoId()).isEqualTo(atendimentoId);
+        assertThat(transferencia.leadId()).isEqualTo(leadId);
+        assertThat(transferencia.deAtendenteId()).isEqualTo(humanoId);
+        assertThat(transferencia.paraAtendenteId()).isNull();
+        assertThat(transferencia.atorTipo()).isEqualTo(OrigemEvento.AUTOMACAO);
+    }
+
+    @Test
+    void devolverParaIaPelaAutomacao_duasVezes_eIdempotenteSemSegundoEvento() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        Atendimento jaNaIa = Atendimento.abrirComIa(
+                atendimentoId,
+                leadId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Instant.parse("2026-08-23T11:00:00Z"));
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(jaNaIa));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(jaNaIa));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+
+        TransferirAtendimentoUseCase useCase = new TransferirAtendimentoUseCase(
+                atendimentos,
+                leads,
+                mock(AtendenteParaTransferenciaRepositorio.class),
+                eventos,
+                Clock.fixed(Instant.parse("2026-09-04T15:00:00Z"), ZoneOffset.UTC),
+                mock(UsuarioContext.class));
+
+        Atendimento depois = useCase.devolverParaIaPelaAutomacao(atendimentoId);
+
+        assertThat(depois.atendenteId()).isNull();
+        verify(atendimentos, never()).salvar(jaNaIa);
+        verify(eventos, never()).publishEvent(org.mockito.ArgumentMatchers.any());
     }
 }
