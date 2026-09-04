@@ -870,7 +870,7 @@
           "type" : "string"
         },
         "tipo" : {
-          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "VIDEO", "BOTOES", "LISTA" ],
+          "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "VIDEO", "BOTOES", "LISTA", "LOCALIZACAO" ],
           "type" : "string"
         },
         "wamid" : {
