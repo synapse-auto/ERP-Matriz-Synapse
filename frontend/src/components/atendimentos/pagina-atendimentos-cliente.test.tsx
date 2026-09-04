@@ -658,6 +658,24 @@ describe("PaginaAtendimentosCliente", () => {
     await waitFor(() => expect(screen.getByTestId("composer")).toBeInTheDocument());
   });
 
+  it("troca Finalizados por Ativos ao reativar antes de refiltrar a lista", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.alterarVisao?.("FINALIZADOS"));
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
+
+    await waitFor(() => expect(abrirExistente).toHaveBeenCalledWith("lead-1", expect.anything()));
+    expect(callbacks.visaoAtual).toBe("ATIVOS");
+  });
+
   it("no celular mostra só a lista e troca para a conversa em tela cheia", () => {
     telaEstreita.atual = true;
     const pagina = renderPagina();

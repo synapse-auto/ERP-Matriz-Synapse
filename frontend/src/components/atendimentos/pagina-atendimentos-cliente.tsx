@@ -121,6 +121,10 @@ export function PaginaAtendimentosCliente({
   const abrirNovoAtendimento = useMutation({
     mutationFn: abrirAtendimentoParaLead,
     onSuccess: (resposta) => {
+      // A reativacao cria um atendimento humano novo. Como o cartao deixa de pertencer
+      // a FINALIZADOS assim que o backend confirma, trocamos a visao antes do refetch para
+      // que a lista encontre o novo cartao e a conversa continue aberta para quem assumiu.
+      setVisaoAtendimento("ATIVOS");
       setLeadSelecionadoId(resposta.leadId);
       setLeadParaAbrir(resposta.leadId);
       setLeadParaAbrirGatilho((atual) => atual + 1);
