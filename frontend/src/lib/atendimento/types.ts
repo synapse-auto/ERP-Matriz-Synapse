@@ -283,6 +283,8 @@ export interface TransferenciaTempoReal {
   leadNome: string;
   deAtendenteId: string | null;
   paraAtendenteId: string | null;
+  /** Presente nos eventos novos do relay; ausente em frames antigos — o cliente infere. */
+  status?: StatusAtendimento | null;
   quemTransferiu: string | null;
   atorTipo: "USUARIO" | "AUTOMACAO" | "SISTEMA";
   ocorridoEm: string;

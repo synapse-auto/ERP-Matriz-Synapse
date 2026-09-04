@@ -67,6 +67,7 @@ class RelayDeTempoRealListenerTest {
         assertThat(envelope.path("dados").path("leadId").asText()).isEqualTo(lead.toString());
         assertThat(envelope.path("dados").path("deAtendenteId").asText()).isEqualTo(antigo.toString());
         assertThat(envelope.path("dados").path("paraAtendenteId").isNull()).isTrue();
+        assertThat(envelope.path("dados").path("status").asText()).isEqualTo("EM_IA");
     }
 
     @Test

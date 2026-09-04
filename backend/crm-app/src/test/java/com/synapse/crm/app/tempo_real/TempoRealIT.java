@@ -48,6 +48,7 @@ import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
@@ -246,6 +247,35 @@ class TempoRealIT extends PostgresIT {
 
             assertThat(capturaBruno.aguardar(ESPERA_CURTA)).contains("agora e comigo");
             assertThat(capturaAna.aguardarNada(ESPERA_NEGATIVA)).isTrue();
+        }
+
+        @Test
+        @DisplayName("devolver para IA entrega TRANSFERENCIA ao assinante e aviso ao dono anterior")
+        void devolverParaIa_entregaTransferenciaEAviso() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+
+            StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
+            Captura capturaAna = assinar(sessaoAna, atendimentoId);
+            Captura notificacoesAna = new Captura();
+            sessaoAna.subscribe("/user/queue/notificacoes", notificacoesAna);
+            aguardarAssinatura();
+
+            ContextoDeServico.executarComo(
+                    "teste-devolver-ia", () -> transferir.devolverParaIaPelaAutomacao(atendimentoId));
+
+            String transferencia = capturaAna.aguardar(ESPERA_CURTA);
+            assertThat(transferencia)
+                    .contains("\"tipo\":\"TRANSFERENCIA\"")
+                    .contains(atendimentoId.toString())
+                    .contains(leadDaAna.toString())
+                    .contains("\"status\":\"EM_IA\"")
+                    .contains("\"paraAtendenteId\":null");
+
+            String aviso = notificacoesAna.aguardar(ESPERA_CURTA);
+            assertThat(aviso)
+                    .contains("ATENDIMENTO_DEVOLVIDO_PARA_IA")
+                    .contains(atendimentoId.toString())
+                    .contains(leadDaAna.toString());
         }
     }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  aplicarMarcaSeNecessario,
   aplicarResponsavelNaLista,
   ehMaisRecenteQue,
   mesclarCartaoComLista,
@@ -108,6 +109,61 @@ describe("sincronizar-responsavel", () => {
       atendenteId: "bruno",
       atendenteNome: "Bruno",
       status: "EM_ATENDIMENTO",
+    });
+  });
+
+  it("trata paraAtendenteId vazio como devolução à IA", () => {
+    const { mudanca } = mudancaTransferencia({
+      atendimentoId: "at-1",
+      leadId: "lead-1",
+      paraAtendenteId: "",
+      ocorridoEm: "2026-09-04T12:00:00Z",
+      status: "EM_IA",
+    });
+    expect(mudanca).toMatchObject({
+      atendenteId: null,
+      atendenteNome: null,
+      status: "EM_IA",
+    });
+  });
+
+  it("aplicarMarcaSeNecessario limpa nome residual mesmo com id já nulo", () => {
+    const registro: RegistroDeMudancas = new Map();
+    const { leadId, mudanca } = mudancaDevolucaoParaIa({
+      atendimentoId: "at-1",
+      leadId: "lead-1",
+      ocorridoEm: "2026-09-04T12:00:00Z",
+    });
+    registrarMudanca(registro, leadId, mudanca);
+    const resultado = aplicarMarcaSeNecessario(
+      cartao({ atendenteId: null, atendenteNome: "Ana", status: "EM_ATENDIMENTO" }),
+      registro,
+    );
+    expect(resultado).toMatchObject({
+      atendenteId: null,
+      atendenteNome: null,
+      status: "EM_IA",
+    });
+  });
+
+  it("mesclarCartaoComLista limpa nome residual quando a API só zera o id", () => {
+    const registro: RegistroDeMudancas = new Map();
+    const { leadId, mudanca } = mudancaDevolucaoParaIa({
+      atendimentoId: "at-1",
+      leadId: "lead-1",
+      ocorridoEm: "2026-09-04T12:00:00Z",
+    });
+    registrarMudanca(registro, leadId, mudanca);
+    const daApi = cartao({
+      atendenteId: null,
+      atendenteNome: "Ana",
+      status: "EM_IA",
+    });
+    const mesclado = mesclarCartaoComLista(cartao(), [daApi], registro);
+    expect(mesclado).toMatchObject({
+      atendenteId: null,
+      atendenteNome: null,
+      status: "EM_IA",
     });
   });
 });

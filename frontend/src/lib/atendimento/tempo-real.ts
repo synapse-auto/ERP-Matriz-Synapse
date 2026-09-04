@@ -124,8 +124,24 @@ export class ConexaoTempoReal {
   private tentativas = 0;
   private timerReconexao: ReturnType<typeof setTimeout> | null = null;
   private desativadoManualmente = false;
+  private opcoes: OpcoesConexaoTempoReal;
 
-  constructor(private readonly opcoes: OpcoesConexaoTempoReal) {}
+  constructor(opcoes: OpcoesConexaoTempoReal) {
+    this.opcoes = opcoes;
+  }
+
+  /**
+   * Atualiza callbacks sem recriar o socket — o hook passa os handlers frescos a cada render
+   * para que {@code #sair}/transferência vejam o estado React atual, não o do mount.
+   */
+  atualizarCallbacks(
+    callbacks: Pick<
+      OpcoesConexaoTempoReal,
+      "obterAccessToken" | "onRevogacao" | "onNotificacao" | "onEstadoMudou"
+    >,
+  ): void {
+    this.opcoes = { ...this.opcoes, ...callbacks };
+  }
 
   conectar(): void {
     this.desativadoManualmente = false;
@@ -236,6 +252,11 @@ export class ConexaoTempoReal {
  * preguiçoso (e não `useRef`) porque o valor participa do render — o React Compiler proíbe ler
  * `ref.current` durante o render; `useState(() => ...)` cria a instância uma única vez e devolve um
  * valor estável do jeito que o render pode consumir diretamente.
+ *
+ * <p>Callbacks de revogação/notificação NÃO podem ser capturados no construtor: a instância da
+ * conexão sobrevive a todos os renders, e um closure congelado no mount deixa de ver
+ * {@code aplicarMudancaDeResponsavel} / estado atual — exatamente o sintoma de cabeçalho parado
+ * até F5 após {@code #sair}.
  */
 export function useConexaoTempoReal(
   obterAccessToken: () => string | null,
@@ -247,12 +268,20 @@ export function useConexaoTempoReal(
     () =>
       new ConexaoTempoReal({
         brokerUrl: process.env.NEXT_PUBLIC_WS_URL ?? "",
-        obterAccessToken,
+        // Stubs: o effect abaixo injeta os callbacks reais antes de conectar.
+        obterAccessToken: () => null,
         onEstadoMudou: setEstado,
-        onRevogacao,
-        onNotificacao,
       }),
   );
+
+  useEffect(() => {
+    conexao.atualizarCallbacks({
+      obterAccessToken,
+      onRevogacao,
+      onNotificacao,
+      onEstadoMudou: setEstado,
+    });
+  }, [conexao, obterAccessToken, onRevogacao, onNotificacao]);
 
   useEffect(() => {
     conexao.conectar();

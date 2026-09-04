@@ -77,14 +77,15 @@ export function mesclarCartaoComLista(
 
   if (daLista) {
     if (!marca) return daLista;
-    // API já reconciliou com o evento: descarta a marca e usa o cartão fresco.
-    if (daLista.atendenteId === marca.atendenteId) {
-      return {
-        ...daLista,
-        status: marca.atendenteId === null ? marca.status : daLista.status,
-      };
+    // Lista alinhada ao evento (mesmo dono): ainda assim aplica a marca se sobrou
+    // nome/status antigo com atendenteId já nulo — evita cabeçalho com avatar fantasma.
+    if (
+      daLista.atendenteId === marca.atendenteId
+      && (marca.atendenteId !== null || daLista.atendenteNome == null)
+      && daLista.status === marca.status
+    ) {
+      return daLista;
     }
-    // Lista ainda atrasada em relação ao WebSocket: impõe o responsável do evento.
     return aplicarResponsavelAoCartao(daLista, marca);
   }
 
@@ -116,11 +117,43 @@ export function patchAtendimentosNoCache(
   });
 }
 
+/** Transferência humana: id do novo dono; nome vem na reconciliação da API se ainda desconhecido. */
+export function mudancaTransferencia(dados: {
+  atendimentoId: string;
+  leadId: string;
+  paraAtendenteId: string | null | undefined;
+  ocorridoEm: string;
+  status?: StatusAtendimento | null;
+  atendenteNome?: string | null;
+}): { leadId: string; mudanca: MudancaDeResponsavel } {
+  const para =
+    dados.paraAtendenteId == null || dados.paraAtendenteId === ""
+      ? null
+      : dados.paraAtendenteId;
+  if (para == null) {
+    return mudancaDevolucaoParaIa({
+      ...dados,
+      status: dados.status === "EM_IA" || dados.status == null ? "EM_IA" : dados.status,
+    });
+  }
+  return {
+    leadId: dados.leadId,
+    mudanca: {
+      ocorridoEm: dados.ocorridoEm,
+      atendimentoId: dados.atendimentoId,
+      atendenteId: para,
+      atendenteNome: dados.atendenteNome ?? null,
+      status: dados.status === "EM_ATENDIMENTO" || dados.status == null ? "EM_ATENDIMENTO" : dados.status,
+    },
+  };
+}
+
 /** Devolução à IA (#sair / modo-ia): remove responsável e marca EM_IA. */
 export function mudancaDevolucaoParaIa(dados: {
   atendimentoId: string;
   leadId: string;
   ocorridoEm: string;
+  status?: StatusAtendimento | null;
 }): { leadId: string; mudanca: MudancaDeResponsavel } {
   return {
     leadId: dados.leadId,
@@ -129,30 +162,28 @@ export function mudancaDevolucaoParaIa(dados: {
       atendimentoId: dados.atendimentoId,
       atendenteId: null,
       atendenteNome: null,
-      status: "EM_IA",
+      status: dados.status ?? "EM_IA",
     },
   };
 }
 
-/** Transferência humana: id do novo dono; nome vem na reconciliação da API se ainda desconhecido. */
-export function mudancaTransferencia(dados: {
-  atendimentoId: string;
-  leadId: string;
-  paraAtendenteId: string | null;
-  ocorridoEm: string;
-  atendenteNome?: string | null;
-}): { leadId: string; mudanca: MudancaDeResponsavel } {
-  if (dados.paraAtendenteId == null) {
-    return mudancaDevolucaoParaIa(dados);
+/**
+ * Garante que o cartão exibido (lista ou snapshot) nunca mostre responsável anterior à
+ * última mudança confirmada por evento — mesmo se a lista React Query ainda estiver atrasada.
+ */
+export function aplicarMarcaSeNecessario(
+  cartao: CartaoAtendimento | null | undefined,
+  registro: RegistroDeMudancas,
+): CartaoAtendimento | null {
+  if (!cartao) return null;
+  const marca = registro.get(cartao.leadId);
+  if (!marca) return cartao;
+  if (
+    cartao.atendenteId === marca.atendenteId
+    && (marca.atendenteId !== null || cartao.atendenteNome == null)
+    && cartao.status === marca.status
+  ) {
+    return cartao;
   }
-  return {
-    leadId: dados.leadId,
-    mudanca: {
-      ocorridoEm: dados.ocorridoEm,
-      atendimentoId: dados.atendimentoId,
-      atendenteId: dados.paraAtendenteId,
-      atendenteNome: dados.atendenteNome ?? null,
-      status: "EM_ATENDIMENTO",
-    },
-  };
+  return aplicarResponsavelAoCartao(cartao, marca);
 }

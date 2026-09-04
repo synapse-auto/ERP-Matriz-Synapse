@@ -17,10 +17,11 @@ import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquiv
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
-import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
+import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, listarAtendimentos, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import {
+  aplicarMarcaSeNecessario,
   aplicarResponsavelAoCartao,
   aplicarResponsavelNaLista,
   mesclarCartaoComLista,
@@ -94,7 +95,10 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
-  const mudancasDeResponsavel = useRef<RegistroDeMudancas>(new Map());
+  /** Guarda de corrida (ocorridoEm) — mutável nos handlers WS. */
+  const marcasRef = useRef<RegistroDeMudancas>(new Map());
+  /** Espelho em state para o render aplicar a marca sem ler ref. */
+  const [marcasResponsavel, setMarcasResponsavel] = useState<RegistroDeMudancas>(() => new Map());
   const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
@@ -166,17 +170,50 @@ export function PaginaAtendimentosCliente({
 
   const aplicarMudancaDeResponsavel = useCallback(
     (leadId: string, mudanca: MudancaDeResponsavel) => {
-      if (!registrarMudanca(mudancasDeResponsavel.current, leadId, mudanca)) {
+      if (!registrarMudanca(marcasRef.current, leadId, mudanca)) {
         return;
       }
+      setMarcasResponsavel(new Map(marcasRef.current));
       patchAtendimentosNoCache(cache, leadId, mudanca);
       setAtendimentos((atual) => aplicarResponsavelNaLista(atual, leadId, mudanca));
       setCartaoSelecionado((atual) =>
         atual && atual.leadId === leadId ? aplicarResponsavelAoCartao(atual, mudanca) : atual,
       );
+      void cache.invalidateQueries({ queryKey: ["atendimentos", "contagem"] });
     },
     [cache],
   );
+
+  const leadSelecionadoIdRef = useRef(leadSelecionadoId);
+  useEffect(() => {
+    leadSelecionadoIdRef.current = leadSelecionadoId;
+  }, [leadSelecionadoId]);
+
+  const reconciliarEstadoDaTela = useCallback(async () => {
+    void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    const leadId = leadSelecionadoIdRef.current;
+    if (!leadId) return;
+    const visoes: VisaoAtendimento[] = ["ATIVOS", "PENDENTES", "POTENCIAIS", "TODOS"];
+    for (const visao of visoes) {
+      try {
+        const lista = await listarAtendimentos(visao);
+        const fresco = lista.find((item) => item.leadId === leadId);
+        if (!fresco) continue;
+        const alinhado = aplicarMarcaSeNecessario(fresco, marcasRef.current) ?? fresco;
+        setCartaoSelecionado(alinhado);
+        setAtendimentos((atual) => {
+          const existe = atual.some((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId);
+          if (!existe) return atual;
+          return atual.map((item) =>
+            item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId ? alinhado : item,
+          );
+        });
+        return;
+      } catch {
+        // Visão indisponível ao papel (ex.: TODOS para atendente) — tenta a próxima.
+      }
+    }
+  }, [cache]);
 
   const aoEventoEstadoDaConversa = useCallback(
     (evento: EventoTempoReal) => {
@@ -190,9 +227,18 @@ export function PaginaAtendimentosCliente({
             ? { ...atual, status: "FINALIZADO", atendimentoAtivoId: null }
             : atual,
         );
+        setAtendimentos((atual) =>
+          atual.map((item) =>
+            item.tipo !== "EQUIPE_INTERNA" && item.atendimentoId === evento.dados.atendimentoId
+              ? { ...item, status: "FINALIZADO", atendimentoAtivoId: null }
+              : item,
+          ),
+        );
+        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+        void cache.invalidateQueries({ queryKey: ["atendimentos", "contagem"] });
       }
     },
-    [aplicarMudancaDeResponsavel],
+    [aplicarMudancaDeResponsavel, cache],
   );
 
   const { conexao, estado } = useConexaoTempoReal(
@@ -243,11 +289,25 @@ export function PaginaAtendimentosCliente({
     },
   );
 
+  const estadoConexaoAnterior = useRef<typeof estado>("desconectado");
   useEffect(() => {
-    if (estado === "conectado") {
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    const reconectou =
+      estado === "conectado" && estadoConexaoAnterior.current !== "conectado";
+    estadoConexaoAnterior.current = estado;
+    if (reconectou) {
+      void reconciliarEstadoDaTela();
     }
-  }, [cache, estado]);
+  }, [estado, reconciliarEstadoDaTela]);
+
+  useEffect(() => {
+    function aoFicarVisivel() {
+      if (document.visibilityState === "visible") {
+        void reconciliarEstadoDaTela();
+      }
+    }
+    document.addEventListener("visibilitychange", aoFicarVisivel);
+    return () => document.removeEventListener("visibilitychange", aoFicarVisivel);
+  }, [reconciliarEstadoDaTela]);
 
   const conversaDaLista = atendimentos.find(
     (atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId,
@@ -257,8 +317,9 @@ export function PaginaAtendimentosCliente({
     && cartaoSelecionado.atendimentoAtivoId === null
     ? cartaoSelecionado
     : null;
-  const conversa = snapshotFinalizado ?? conversaDaLista
+  const conversaBruta = snapshotFinalizado ?? conversaDaLista
     ?? (cartaoSelecionado?.leadId === leadSelecionadoId ? cartaoSelecionado : null);
+  const conversa = aplicarMarcaSeNecessario(conversaBruta, marcasResponsavel);
   const conversaAberta = Boolean(conversa || conversaInternaId);
   const respostaDaTela =
     conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
@@ -274,11 +335,19 @@ export function PaginaAtendimentosCliente({
     ? conversa.atendimentoAtivoId
       ?? (conversa.status !== "FINALIZADO" ? conversa.atendimentoId : null)
     : null;
-  const atendimentoAtivo = atendimentoAtivoId
-    ? { ...conversa!, atendimentoId: atendimentoAtivoId, status: "EM_ATENDIMENTO" as const }
+  const atendimentoParaComposer = atendimentoAtivoId && conversa
+    ? {
+        ...conversa,
+        atendimentoId: atendimentoAtivoId,
+        // Só força EM_ATENDIMENTO quando o cartão é histórico finalizado com novo ativo.
+        status:
+          conversa.status === "FINALIZADO" && conversa.atendimentoAtivoId
+            ? ("EM_ATENDIMENTO" as const)
+            : conversa.status,
+      }
     : null;
   const atendimentoParaLeitura =
-    atendimentoAtivo?.atendimentoId ?? conversa?.atendimentoId ?? null;
+    atendimentoParaComposer?.atendimentoId ?? conversa?.atendimentoId ?? null;
   const marcarConversaAbertaComoLida = useCallback(() => {
     if (!atendimentoParaLeitura || !conversa) return;
     zerarNaoLidasDoLead(cache, conversa.leadId);
@@ -295,7 +364,7 @@ export function PaginaAtendimentosCliente({
     conexao,
     estado,
     marcarConversaAbertaComoLida,
-    atendimentoAtivo?.atendimentoId ?? null,
+    atendimentoParaComposer?.atendimentoId ?? null,
     aoEventoEstadoDaConversa,
   );
   const enviar = useEnviarMensagem();
@@ -314,12 +383,10 @@ export function PaginaAtendimentosCliente({
     );
   }, []);
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
-    const registro = mudancasDeResponsavel.current;
+    const registro = marcasRef.current;
     const reconciliados = cartoes.map((item) => {
       if (item.tipo === "EQUIPE_INTERNA") return item;
-      const marca = registro.get(item.leadId);
-      if (!marca || item.atendenteId === marca.atendenteId) return item;
-      return aplicarResponsavelAoCartao(item, marca);
+      return aplicarMarcaSeNecessario(item, registro) ?? item;
     });
     setAtendimentos(reconciliados);
     setCartaoSelecionado((atual) =>
@@ -354,11 +421,11 @@ export function PaginaAtendimentosCliente({
   }
 
   function reenviar(mensagem: MensagemResposta) {
-    if (!atendimentoAtivo || !mensagem.conteudo) return;
+    if (!atendimentoParaComposer || !mensagem.conteudo) return;
     enviar.mutate(
       {
-        atendimentoId: atendimentoAtivo.atendimentoId,
-        leadId: atendimentoAtivo.leadId,
+        atendimentoId: atendimentoParaComposer.atendimentoId,
+        leadId: atendimentoParaComposer.leadId,
         conteudo: mensagem.conteudo,
       },
       { onSuccess: aposMensagemEnviada },
@@ -490,7 +557,14 @@ export function PaginaAtendimentosCliente({
         ) : conversa ? (
           <>
             <CabecalhoConversa
-              conversa={atendimentoAtivo ?? { ...conversa, status: "FINALIZADO" as const }}
+              conversa={
+                atendimentoParaComposer
+                  ? {
+                      ...conversa,
+                      atendimentoId: atendimentoParaComposer.atendimentoId,
+                    }
+                  : { ...conversa, status: "FINALIZADO" as const }
+              }
               buscaAberta={buscaAberta}
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
               painelDetalhesAberto={painelVisivel}
@@ -498,7 +572,7 @@ export function PaginaAtendimentosCliente({
                 setPainelDetalhesAberto(!(painelDetalhesAberto ?? !telaEstreita))
               }
               onAbrirNovoAtendimento={
-                atendimentoAtivo
+                atendimentoParaComposer
                   ? undefined
                   : () => abrirNovoAtendimento.mutate(conversa.leadId)
               }
@@ -517,7 +591,7 @@ export function PaginaAtendimentosCliente({
             <ZonaSoltarArquivos
               accept={TIPOS_DE_ANEXO_ACEITOS}
               disabled={
-                !atendimentoAtivo
+                !atendimentoParaComposer
                 || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)
               }
               rotulo={textos.composer.anexoSoltar}
@@ -549,10 +623,10 @@ export function PaginaAtendimentosCliente({
                   conversa.ultimaMensagemDoLeadEm,
                 )}
               />
-              {atendimentoAtivo ? (
+              {atendimentoParaComposer ? (
                 <Composer
                   ref={composerRef}
-                  conversa={atendimentoAtivo}
+                  conversa={atendimentoParaComposer}
                   resposta={respostaDaTela}
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}

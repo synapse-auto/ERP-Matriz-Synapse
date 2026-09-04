@@ -109,6 +109,7 @@ class RelayDeTempoRealListener {
         dados.put(
                 "paraAtendenteId",
                 evento.paraAtendenteId() == null ? null : evento.paraAtendenteId().toString());
+        dados.put("status", evento.paraAtendenteId() == null ? "EM_IA" : "EM_ATENDIMENTO");
         dados.put("quemTransferiu", evento.atorId() == null ? null : evento.atorId().toString());
         dados.put("atorTipo", evento.atorTipo().name());
         dados.put("ocorridoEm", evento.ocorridoEm().toString());
@@ -128,6 +129,7 @@ class RelayDeTempoRealListener {
         dados.put("leadNome", evento.leadNome());
         dados.put("deAtendenteId", evento.donoAnterior().get().toString());
         dados.put("paraAtendenteId", evento.remetenteId().toString());
+        dados.put("status", "EM_ATENDIMENTO");
         dados.put("quemTransferiu", evento.remetenteId().toString());
         dados.put("atorTipo", "USUARIO");
         dados.put("ocorridoEm", evento.ocorridoEm().toString());
