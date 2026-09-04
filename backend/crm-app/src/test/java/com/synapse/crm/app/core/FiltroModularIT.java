@@ -141,8 +141,7 @@ class FiltroModularIT extends PostgresIT {
         @Test
         @DisplayName("atendente filtrando pelos leads do colega os encontra na Agenda")
         void filtro_atendenteApontandoParaColega_devolveOsLeads() {
-            Map<String, Object> doColega =
-                    simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString()));
+            Map<String, Object> doColega = filtroDoColegaNoCenario();
 
             ResponseEntity<String> resposta = filtrar(ana(), doColega);
 
@@ -301,8 +300,7 @@ class FiltroModularIT extends PostgresIT {
         @Test
         @DisplayName("atendente filtrando pelo colega, com paginacao, encontra o lead")
         void atendenteApontandoParaColega_comPaginacao_encontra() {
-            Map<String, Object> doColega =
-                    simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString()));
+            Map<String, Object> doColega = filtroDoColegaNoCenario();
 
             String corpo = filtrarPaginado(ana(), doColega, null, 1).getBody();
 
@@ -452,6 +450,19 @@ class FiltroModularIT extends PostgresIT {
                                         simples("etapa", "IGUAL", List.of(QUALIFICACAO)),
                                         simples("tag", "IGUAL", List.of(TAG_URGENTE)))),
                         simples("semRetornoDias", "MAIOR_QUE", List.of("30"))));
+    }
+
+    /**
+     * Restringe o criterio ao cenario criado pelo teste. A Agenda e global e o banco de CI pode
+     * conter outros leads de Bruno; o nome-prefixo impede que dados de outros cenarios alterem a
+     * contagem sem enfraquecer a verificacao do filtro explicito por responsavel.
+     */
+    private Map<String, Object> filtroDoColegaNoCenario() {
+        return composto(
+                "E",
+                List.of(
+                        simples("atendenteResponsavel", "IGUAL", List.of(idBruno.toString())),
+                        simples("nome", "CONTEM", List.of(PREFIXO))));
     }
 
     private static Map<String, Object> simples(String campo, String operador, List<String> valores) {
