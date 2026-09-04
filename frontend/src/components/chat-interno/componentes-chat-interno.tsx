@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type Ref } from "react";
+import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
 import { Mic, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
@@ -278,6 +278,25 @@ export function ComposerChatInterno({
     }
   }
 
+  function aoColar(evento: ClipboardEvent<HTMLTextAreaElement>) {
+    if (gravador.fase !== "INATIVO" || pendente) return;
+    const items = evento.clipboardData?.items;
+    if (!items) return;
+
+    const novosArquivos: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (file) novosArquivos.push(file);
+      }
+    }
+
+    if (novosArquivos.length > 0) {
+      evento.preventDefault();
+      adicionarArquivos(novosArquivos);
+    }
+  }
+
   function aoPressionarTecla(evento: KeyboardEvent<HTMLTextAreaElement>) {
     if (evento.key === "Enter" && !evento.shiftKey) {
       evento.preventDefault();
@@ -375,6 +394,7 @@ export function ComposerChatInterno({
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
             onKeyDown={aoPressionarTecla}
+            onPaste={aoColar}
             placeholder={arquivos.length > 0 ? tComp.anexoLegendaPlaceholder : textos.placeholder}
             rows={1}
             disabled={gravador.fase !== "INATIVO" || pendente}

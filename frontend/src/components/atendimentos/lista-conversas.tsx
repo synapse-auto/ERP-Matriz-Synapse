@@ -46,6 +46,7 @@ import type { ChatContato } from "@/lib/chat-interno/types";
 
 import { CartaoConversa } from "./cartao-conversa";
 import { DialogoSelecionarPessoa } from "@/components/chat-interno/dialogo-selecionar-pessoa";
+import { DialogoCriarGrupo } from "@/components/chat-interno/dialogo-criar-grupo";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 
 const SELECAO_TODOS = "todos";
@@ -65,6 +66,7 @@ type Props = {
   contatosInternosErro?: boolean;
   onRecarregarContatos?: () => void;
   onCriarConversaInterna?: (usuarioId: string) => Promise<unknown>;
+  onCriarGrupoInterno?: (nome: string, participantes: string[]) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
 };
@@ -100,6 +102,7 @@ export function ListaConversas({
   contatosInternosErro = false,
   onRecarregarContatos,
   onCriarConversaInterna,
+  onCriarGrupoInterno,
   onNovoContato,
   className,
 }: Props) {
@@ -134,6 +137,7 @@ export function ListaConversas({
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
   const [novaInternaAberta, setNovaInternaAberta] = useState(false);
+  const [novoGrupoAberto, setNovoGrupoAberto] = useState(false);
   const [finalizarTodosAberto, setFinalizarTodosAberto] = useState(false);
   const [selecaoFinalizacao, setSelecaoFinalizacao] = useState(SELECAO_TODOS);
   const [resultadoFinalizacao, setResultadoFinalizacao] = useState<{
@@ -280,21 +284,33 @@ export function ListaConversas({
               <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
             {chatInternoHabilitado && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                className="min-h-10 min-w-10"
-                aria-label={catalogo.chatInterno.novaConversa}
-                title={catalogo.chatInterno.novaConversa}
-                aria-expanded={novaInternaAberta}
-                onClick={() => {
-                  setNovaInternaAberta(true);
-                  onRecarregarContatos?.();
-                }}
-              >
-                <UsersRound className="size-(--tamanho-icone-interface)" aria-hidden />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  aria-label="Opções de chat interno"
+                  title="Chat interno"
+                >
+                  <UsersRound className="size-(--tamanho-icone-interface)" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setNovaInternaAberta(true);
+                      onRecarregarContatos?.();
+                    }}
+                  >
+                    {catalogo.chatInterno.novaConversa}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setNovoGrupoAberto(true);
+                      onRecarregarContatos?.();
+                    }}
+                  >
+                    Criar grupo interno
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
               <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
@@ -415,16 +431,29 @@ export function ListaConversas({
       </ScrollArea>
 
       {chatInternoHabilitado && (
-        <DialogoSelecionarPessoa
-          aberto={novaInternaAberta}
-          onFechar={() => setNovaInternaAberta(false)}
-          contatos={contatosInternos}
-          carregando={contatosInternosCarregando}
-          erro={contatosInternosErro}
-          onTentarNovamente={onRecarregarContatos}
-          onSelecionar={(usuarioId) => onCriarConversaInterna?.(usuarioId) ?? Promise.resolve()}
-          textos={catalogo.chatInterno}
-        />
+        <>
+          <DialogoSelecionarPessoa
+            aberto={novaInternaAberta}
+            onFechar={() => setNovaInternaAberta(false)}
+            contatos={contatosInternos}
+            carregando={contatosInternosCarregando}
+            erro={contatosInternosErro}
+            onTentarNovamente={onRecarregarContatos}
+            onSelecionar={(usuarioId) => onCriarConversaInterna?.(usuarioId) ?? Promise.resolve()}
+            textos={catalogo.chatInterno}
+          />
+          <DialogoCriarGrupo
+            aberto={novoGrupoAberto}
+            onFechar={() => setNovoGrupoAberto(false)}
+            contatos={contatosInternos ?? []}
+            onCriar={async (nome, participantes) => {
+              if (onCriarGrupoInterno) {
+                await onCriarGrupoInterno(nome, participantes);
+              }
+            }}
+            textos={catalogo.chatInterno}
+          />
+        </>
       )}
 
       <Dialog
