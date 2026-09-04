@@ -13,6 +13,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -226,6 +227,43 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 traduzidas.add(MensagemRecebidaDoCanal.texto(
                         idExterno, identificadorDestino, telefoneRemetente, nomeExibicao,
                         no.path("text").path("body").asText(), enviadoEm, contextoWamid));
+                continue;
+            }
+
+            if ("location".equals(tipoMeta)) {
+                JsonNode locNode = no.path("location");
+                double latitude = locNode.path("latitude").asDouble();
+                double longitude = locNode.path("longitude").asDouble();
+                if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+                    log.warn("Coordenadas de localizacao invalidas; item descartado. latitude={} longitude={}", latitude, longitude);
+                    continue;
+                }
+
+                ObjectNode metadados = json.createObjectNode();
+                metadados.put("latitude", latitude);
+                metadados.put("longitude", longitude);
+                String nome = locNode.path("name").asText(null);
+                if (nome != null && !nome.isBlank()) {
+                    metadados.put("nome", nome);
+                }
+                String endereco = locNode.path("address").asText(null);
+                if (endereco != null && !endereco.isBlank()) {
+                    metadados.put("endereco", endereco);
+                }
+
+                traduzidas.add(new MensagemRecebidaDoCanal(
+                        idExterno,
+                        telefoneRemetente,
+                        nomeExibicao,
+                        metadados.toString(),
+                        "LOCALIZACAO",
+                        null,
+                        null,
+                        null,
+                        null,
+                        enviadoEm,
+                        identificadorDestino,
+                        contextoWamid));
                 continue;
             }
 

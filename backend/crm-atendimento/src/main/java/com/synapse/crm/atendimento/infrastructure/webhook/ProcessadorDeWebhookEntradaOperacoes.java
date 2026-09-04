@@ -167,17 +167,31 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     .orElseThrow(() -> new IllegalStateException(
                             "canal de entrada nao configurado: " + mensagem.identificadorDestino()));
             ReferenciaDeMensagem referencia = referenciaDaMensagem(mensagem, leadId);
-            RegistrarMensagemRecebidaUseCase.Resultado resultado = registrar.executar(mensagem.ehMidia()
-                    ? mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia)
-                    : new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
-                            leadId,
-                            canalEntrada.canalId(),
-                            canalEntrada.canalCredencialId(),
-                            mensagem.texto(),
-                            TipoMensagem.TEXTO,
-                            null,
-                            null,
-                            referencia));
+            RegistrarMensagemRecebidaUseCase.MensagemRecebida requisicao;
+            if (mensagem.ehMidia()) {
+                requisicao = mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia);
+            } else if (TipoMensagem.LOCALIZACAO.name().equals(mensagem.tipo())) {
+                requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                        leadId,
+                        canalEntrada.canalId(),
+                        canalEntrada.canalCredencialId(),
+                        null,
+                        TipoMensagem.LOCALIZACAO,
+                        null,
+                        mensagem.texto(),
+                        referencia);
+            } else {
+                requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                        leadId,
+                        canalEntrada.canalId(),
+                        canalEntrada.canalCredencialId(),
+                        mensagem.texto(),
+                        TipoMensagem.valueOf(mensagem.tipo()),
+                        null,
+                        null,
+                        referencia);
+            }
+            RegistrarMensagemRecebidaUseCase.Resultado resultado = registrar.executar(requisicao);
             // O endereco cru e parte do mesmo commit da mensagem. A escrita fica depois do registro
             // para nao tomar o lock do lead antes que o caminho critico atualize seus contadores.
             // Assim a concorrencia de recebimento e finalizacao conserva a ordem de locks existente.

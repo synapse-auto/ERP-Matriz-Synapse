@@ -8,7 +8,8 @@ public enum TipoMensagem {
     DOCUMENTO,
     VIDEO,
     BOTOES,
-    LISTA;
+    LISTA,
+    LOCALIZACAO;
 
     /** Tipos de mídia carregam arquivo e precisam de {@code midiaUrl}. */
     public boolean exigeMidia() {

@@ -28,7 +28,7 @@ final class MetaCloudMidiaUpload {
             case IMAGEM -> "image/jpeg";
             case DOCUMENTO -> "application/octet-stream";
             case VIDEO -> "video/mp4";
-            case TEXTO, BOTOES, LISTA -> "application/octet-stream";
+            case TEXTO, BOTOES, LISTA, LOCALIZACAO -> "application/octet-stream";
         };
     }
 

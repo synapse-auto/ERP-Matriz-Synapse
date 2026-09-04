@@ -189,7 +189,7 @@ public interface TradutorDeCanal {
         }
 
         public boolean ehMidia() {
-            return !"TEXTO".equals(tipo);
+            return "AUDIO".equals(tipo) || "IMAGEM".equals(tipo) || "DOCUMENTO".equals(tipo) || "VIDEO".equals(tipo);
         }
     }
 }
