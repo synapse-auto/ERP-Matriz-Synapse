@@ -719,6 +719,24 @@ describe("PaginaAtendimentosCliente", () => {
     await waitFor(() => expect(screen.getByTestId("composer")).toBeInTheDocument());
   });
 
+  it("troca Finalizados por Ativos ao reativar antes de refiltrar a lista", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.alterarVisao?.("FINALIZADOS"));
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
+
+    await waitFor(() => expect(abrirExistente).toHaveBeenCalledWith("lead-1", expect.anything()));
+    expect(callbacks.visaoAtual).toBe("ATIVOS");
+  });
+
   it("iniciar contato existente em Pendentes muda para Ativos e abre o chat", async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
