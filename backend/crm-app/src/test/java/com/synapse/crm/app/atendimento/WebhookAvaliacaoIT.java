@@ -194,6 +194,7 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(avaliar(id, "avaliacao-interno-fixture", 11).getStatusCode())
                 .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(avaliar(id, "avaliacao-interno-fixture", 5).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(avaliar(id, "avaliacao-interno-fixture", 5).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(avaliar(id, "avaliacao-interno-fixture", 1).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(jdbc.queryForObject("SELECT atendente_id FROM avaliacao WHERE atendimento_id = ?", UUID.class, id))
                 .isEqualTo(ana);
@@ -870,6 +871,138 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(toggle.path("tipo").asText()).isEqualTo("BOOLEAN");
     }
 
+    @Test
+    void callbackAvaliacao_repeticaoIdenticaComComentario_ehIdempotenteEDevolve200() throws Exception {
+        UUID id = criar(ana, "5561988885101");
+        assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // 1a chamada valida com comentario: cria e retorna 201 Created
+        var primeira = avaliar(id, "avaliacao-interno-fixture", 8, "Atendimento excelente");
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        JsonNode corpo1 = json.readTree(primeira.getBody());
+        assertThat(corpo1.path("nota").asInt()).isEqualTo(8);
+        assertThat(corpo1.path("comentario").asText()).isEqualTo("Atendimento excelente");
+        assertThat(corpo1.path("atendenteId").asText()).isEqualTo(ana.toString());
+        assertThat(corpo1.path("atendimentoId").asText()).isEqualTo(id.toString());
+        UUID avaliacaoId = UUID.fromString(corpo1.path("id").asText());
+        String criadoEm = corpo1.path("criadoEm").asText();
+
+        // 2a chamada identica (inclusive com espacos que normalizam para o mesmo texto): idempotente 200 OK
+        var segunda = avaliar(id, "avaliacao-interno-fixture", 8, "  Atendimento excelente  ");
+        assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode corpo2 = json.readTree(segunda.getBody());
+        assertThat(corpo2.path("id").asText()).isEqualTo(avaliacaoId.toString());
+        assertThat(corpo2.path("nota").asInt()).isEqualTo(8);
+        assertThat(corpo2.path("comentario").asText()).isEqualTo("Atendimento excelente");
+        assertThat(corpo2.path("criadoEm").asText()).isEqualTo(criadoEm);
+
+        // 3a chamada identica pura: tambem 200 OK
+        var terceira = avaliar(id, "avaliacao-interno-fixture", 8, "Atendimento excelente");
+        assertThat(terceira.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // Mantem exatamente 1 linha na tabela avaliacao
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Integer.class, id))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void callbackAvaliacao_repeticaoDivergenteEmNotaOuComentario_rejeitaCom409SemSobrescrever() throws Exception {
+        UUID id = criar(ana, "5561988885102");
+        assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var primeira = avaliar(id, "avaliacao-interno-fixture", 9, "Muito bom");
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        // Repeticao divergente por nota diferente (7 vs 9): 409 Conflict RFC 7807
+        var divergenteNota = avaliar(id, "avaliacao-interno-fixture", 7, "Muito bom");
+        assertThat(divergenteNota.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        JsonNode corpoErroNota = json.readTree(divergenteNota.getBody());
+        assertThat(corpoErroNota.path("title").asText()).isEqualTo("Avaliacao ja registrada");
+        assertThat(corpoErroNota.path("detail").asText()).contains(id.toString());
+
+        // Repeticao divergente por comentario diferente: 409 Conflict
+        var divergenteComentario = avaliar(id, "avaliacao-interno-fixture", 9, "Ruim");
+        assertThat(divergenteComentario.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Repeticao divergente por comentario ausente (null vs "Muito bom"): 409 Conflict
+        var divergenteSemComentario = avaliar(id, "avaliacao-interno-fixture", 9, null);
+        assertThat(divergenteSemComentario.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Linha original preservada intacta: nota 9 e comentario "Muito bom"
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Integer.class, id))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT nota FROM avaliacao WHERE atendimento_id = ?", Integer.class, id))
+                .isEqualTo(9);
+        assertThat(jdbc.queryForObject("SELECT comentario FROM avaliacao WHERE atendimento_id = ?", String.class, id))
+                .isEqualTo("Muito bom");
+    }
+
+    @Test
+    void callbackAvaliacao_concorrenciaSimultaneaIdentica_umaCriaOutraResponde200SemErro500() throws Exception {
+        UUID id = criar(ana, "5561988885103");
+        assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var inicio = new CountDownLatch(1);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var f1 = executor.submit(() -> {
+                inicio.await();
+                return avaliar(id, "avaliacao-interno-fixture", 10, "Excelente");
+            });
+            var f2 = executor.submit(() -> {
+                inicio.await();
+                return avaliar(id, "avaliacao-interno-fixture", 10, "Excelente");
+            });
+            inicio.countDown();
+
+            var r1 = f1.get(10, TimeUnit.SECONDS);
+            var r2 = f2.get(10, TimeUnit.SECONDS);
+
+            List<Integer> codigos = List.of(r1.getStatusCode().value(), r2.getStatusCode().value());
+            assertThat(codigos).as("uma transacao insere e a concorrente recebe 200 via idempotencia sem 500")
+                    .containsExactlyInAnyOrder(201, 200);
+
+            JsonNode c1 = json.readTree(r1.getBody());
+            JsonNode c2 = json.readTree(r2.getBody());
+            assertThat(c1.path("id").asText()).isEqualTo(c2.path("id").asText());
+            assertThat(c1.path("nota").asInt()).isEqualTo(10);
+            assertThat(c2.path("nota").asInt()).isEqualTo(10);
+            assertThat(c1.path("comentario").asText()).isEqualTo("Excelente");
+            assertThat(c2.path("comentario").asText()).isEqualTo("Excelente");
+        }
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Integer.class, id))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void callbackAvaliacao_concorrenciaSimultaneaDivergente_umaCriaOutraRejeitaCom409() throws Exception {
+        UUID id = criar(ana, "5561988885104");
+        assertThat(finalizar(id, tokenGestor).getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var inicio = new CountDownLatch(1);
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var f1 = executor.submit(() -> {
+                inicio.await();
+                return avaliar(id, "avaliacao-interno-fixture", 10, "Excelente");
+            });
+            var f2 = executor.submit(() -> {
+                inicio.await();
+                return avaliar(id, "avaliacao-interno-fixture", 2, "Pessimo");
+            });
+            inicio.countDown();
+
+            var r1 = f1.get(10, TimeUnit.SECONDS);
+            var r2 = f2.get(10, TimeUnit.SECONDS);
+
+            List<Integer> codigos = List.of(r1.getStatusCode().value(), r2.getStatusCode().value());
+            assertThat(codigos).as("uma vence com 201 e a divergente concorrida recebe 409 sem 500")
+                    .containsExactlyInAnyOrder(201, 409);
+        }
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM avaliacao WHERE atendimento_id = ?", Integer.class, id))
+                .isEqualTo(1);
+    }
+
     <M, A> void executarDisputaDeterministica(
             UUID lead,
             Callable<M> caminhoDaMensagem,
@@ -996,10 +1129,18 @@ class WebhookAvaliacaoIT extends PostgresIT {
         return http.exchange(url, HttpMethod.POST, new HttpEntity<>(corpo, headers), String.class);
     }
     ResponseEntity<String> avaliar(UUID id, String token, int nota) {
+        return avaliar(id, token, nota, null);
+    }
+    ResponseEntity<String> avaliar(UUID id, String token, int nota, String comentario) {
         HttpHeaders headers = new HttpHeaders();
         if (token != null) headers.set("X-Synapse-Token", token);
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("nota", nota);
+        if (comentario != null) {
+            corpo.put("comentario", comentario);
+        }
         return http.exchange("/internal/v1/atendimentos/" + id + "/avaliacao", HttpMethod.POST,
-                new HttpEntity<>(Map.of("nota", nota), headers), String.class);
+                new HttpEntity<>(corpo, headers), String.class);
     }
 
     record Recebida(String corpo, String header, String tipo, String metodo, String assinaturaMeta) {}

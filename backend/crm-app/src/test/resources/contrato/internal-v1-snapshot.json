@@ -99,6 +99,15 @@
           "required" : true
         },
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AvaliacaoResposta"
+                }
+              }
+            }
+          },
           "201" : {
             "content" : {
               "*/*" : {

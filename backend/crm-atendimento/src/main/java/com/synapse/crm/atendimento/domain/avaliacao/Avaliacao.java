@@ -48,7 +48,11 @@ public record Avaliacao(
         }
     }
 
-    private static String normalizar(String comentario) {
+    public boolean ehIdentica(int outraNota, String outroComentario) {
+        return this.nota == outraNota && Objects.equals(this.comentario, normalizar(outroComentario));
+    }
+
+    public static String normalizar(String comentario) {
         if (comentario == null || comentario.isBlank()) {
             return null;
         }

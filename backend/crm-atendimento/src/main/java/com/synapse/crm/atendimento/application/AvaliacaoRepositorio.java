@@ -11,4 +11,8 @@ public interface AvaliacaoRepositorio {
     Optional<Avaliacao> porAtendimento(UUID atendimentoId);
 
     Avaliacao salvar(Avaliacao avaliacao);
+
+    ResultadoSalvar salvarSeAusente(Avaliacao avaliacao);
+
+    record ResultadoSalvar(Avaliacao avaliacao, boolean inserido) {}
 }
