@@ -13,6 +13,9 @@ const textos = {
   erro: "",
   semResponsavel: "Sem responsável",
   contador: "",
+  abrirAtendimento: "Abrir atendimento",
+  abrindoAtendimento: "Abrindo atendimento...",
+  erroAbrirAtendimento: "Não foi possível abrir o atendimento.",
   colunas: {
     lead: "Lead",
     telefone: "Telefone",
@@ -123,6 +126,11 @@ describe("TabelaDeLeads", () => {
 
     fireEvent.click(screen.getByText("Marcos Vinícius"));
     expect(abrirFicha).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "lead-1" }),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!);
+    expect(abrirAtendimento).toHaveBeenCalledWith(
       expect.objectContaining({ id: "lead-1" }),
     );
   });

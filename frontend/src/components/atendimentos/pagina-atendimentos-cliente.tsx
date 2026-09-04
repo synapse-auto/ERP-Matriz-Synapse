@@ -109,22 +109,35 @@ export function PaginaAtendimentosCliente({
     },
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
+
+  /**
+   * Depois de iniciar/reativar: o lead cai em Ativos. Sem trocar a visão, a lista atual
+   * (Pendentes/Potenciais/Finalizados) não contém o cartão e o chat nunca abre.
+   */
+  const focarAtendimentoIniciado = useCallback(
+    (leadId: string) => {
+      setAvisoRevogacao(false);
+      setConversaInternaId(null);
+      setVisaoAtendimento("ATIVOS");
+      setLeadSelecionadoId(leadId);
+      setLeadParaAbrir(leadId);
+      setLeadParaAbrirGatilho((atual) => atual + 1);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+    },
+    [cache],
+  );
+
   const iniciarContato = useMutation({
     mutationFn: iniciarNovoContato,
     onSuccess: (resposta) => {
       setNovoContatoAberto(false);
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
-      setLeadParaAbrir(resposta.leadId);
-      setLeadParaAbrirGatilho((atual) => atual + 1);
+      focarAtendimentoIniciado(resposta.leadId);
     },
   });
   const abrirNovoAtendimento = useMutation({
     mutationFn: abrirAtendimentoParaLead,
     onSuccess: (resposta) => {
-      setLeadSelecionadoId(resposta.leadId);
-      setLeadParaAbrir(resposta.leadId);
-      setLeadParaAbrirGatilho((atual) => atual + 1);
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      focarAtendimentoIniciado(resposta.leadId);
     },
   });
 
