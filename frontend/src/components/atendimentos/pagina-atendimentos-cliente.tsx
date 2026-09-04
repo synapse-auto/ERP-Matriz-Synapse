@@ -20,8 +20,20 @@ import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/l
 import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
+import {
+  aplicarResponsavelAoCartao,
+  aplicarResponsavelNaLista,
+  mesclarCartaoComLista,
+  mudancaDevolucaoParaIa,
+  mudancaTransferencia,
+  patchAtendimentosNoCache,
+  registrarMudanca,
+  type MudancaDeResponsavel,
+  type RegistroDeMudancas,
+} from "@/lib/atendimento/sincronizar-responsavel";
 import type {
   CartaoAtendimento,
+  EventoTempoReal,
   ItemInbox,
   MensagemResposta,
   NotificacaoTempoReal,
@@ -82,6 +94,7 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const notificacoesProcessadas = useRef(new Set<string>());
+  const mudancasDeResponsavel = useRef<RegistroDeMudancas>(new Map());
   const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
@@ -151,6 +164,37 @@ export function PaginaAtendimentosCliente({
     return () => window.clearTimeout(timer);
   }, [notificacao, configuracao?.tempoNotificacaoSegundos]);
 
+  const aplicarMudancaDeResponsavel = useCallback(
+    (leadId: string, mudanca: MudancaDeResponsavel) => {
+      if (!registrarMudanca(mudancasDeResponsavel.current, leadId, mudanca)) {
+        return;
+      }
+      patchAtendimentosNoCache(cache, leadId, mudanca);
+      setAtendimentos((atual) => aplicarResponsavelNaLista(atual, leadId, mudanca));
+      setCartaoSelecionado((atual) =>
+        atual && atual.leadId === leadId ? aplicarResponsavelAoCartao(atual, mudanca) : atual,
+      );
+    },
+    [cache],
+  );
+
+  const aoEventoEstadoDaConversa = useCallback(
+    (evento: EventoTempoReal) => {
+      if (evento.tipo === "TRANSFERENCIA") {
+        const { leadId, mudanca } = mudancaTransferencia(evento.dados);
+        aplicarMudancaDeResponsavel(leadId, mudanca);
+      }
+      if (evento.tipo === "FINALIZACAO") {
+        setCartaoSelecionado((atual) =>
+          atual && atual.atendimentoId === evento.dados.atendimentoId
+            ? { ...atual, status: "FINALIZADO", atendimentoAtivoId: null }
+            : atual,
+        );
+      }
+    },
+    [aplicarMudancaDeResponsavel],
+  );
+
   const { conexao, estado } = useConexaoTempoReal(
     () => useAuthStore.getState().accessToken,
     (atendimentoRevogado) => {
@@ -175,6 +219,10 @@ export function PaginaAtendimentosCliente({
           notificacoesProcessadas.current.add(chave);
           setNotificacao(evento);
         }
+      }
+      if (evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") {
+        const { leadId, mudanca } = mudancaDevolucaoParaIa(evento.dados);
+        aplicarMudancaDeResponsavel(leadId, mudanca);
       }
       if (evento.tipo !== "CHAT_INTERNO_REACAO") {
         void cache.invalidateQueries({ queryKey: ["atendimentos"] });
@@ -248,6 +296,7 @@ export function PaginaAtendimentosCliente({
     estado,
     marcarConversaAbertaComoLida,
     atendimentoAtivo?.atendimentoId ?? null,
+    aoEventoEstadoDaConversa,
   );
   const enviar = useEnviarMensagem();
   const aposMensagemEnviada = useCallback(() => {
@@ -265,14 +314,17 @@ export function PaginaAtendimentosCliente({
     );
   }, []);
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
-    setAtendimentos(cartoes);
-    setCartaoSelecionado((atual) => {
-      if (!atual) return null;
-      const atualizado = cartoes.find(
-        (item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === atual.leadId,
-      ) as CartaoAtendimento | undefined;
-      return atualizado ?? atual;
+    const registro = mudancasDeResponsavel.current;
+    const reconciliados = cartoes.map((item) => {
+      if (item.tipo === "EQUIPE_INTERNA") return item;
+      const marca = registro.get(item.leadId);
+      if (!marca || item.atendenteId === marca.atendenteId) return item;
+      return aplicarResponsavelAoCartao(item, marca);
     });
+    setAtendimentos(reconciliados);
+    setCartaoSelecionado((atual) =>
+      mesclarCartaoComLista(atual, reconciliados, registro),
+    );
   }, []);
 
   function abrirAtendimento(cartao: ItemInbox) {

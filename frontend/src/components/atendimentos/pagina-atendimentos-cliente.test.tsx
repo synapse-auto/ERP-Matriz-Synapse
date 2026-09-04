@@ -19,6 +19,7 @@ const callbacks = vi.hoisted(() => ({
   leadInicialId: undefined as string | null | undefined,
   finalizar: undefined as ((resumo: AtendimentoResumo) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
+  eventoEstado: undefined as ((evento: unknown) => void) | undefined,
   novoContato: undefined as (() => void) | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
@@ -273,6 +274,7 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
       historico: (args[0] as string | null) ?? null,
       assinatura: (args[4] as string | null) ?? null,
     };
+    callbacks.eventoEstado = args[5] as ((evento: unknown) => void) | undefined;
     return { data: [], isLoading: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() };
   },
 }));
@@ -351,6 +353,7 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.leadInicialId = undefined;
     callbacks.finalizar = undefined;
     callbacks.mensagens = undefined;
+    callbacks.eventoEstado = undefined;
     callbacks.novoContato = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
@@ -380,6 +383,80 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
     expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+  });
+
+  it("remove o atendente do cabeçalho e do painel ao receber devolução para IA (#sair)", () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
+
+    act(() =>
+      emitirNotificacao({
+        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          ocorridoEm: "2026-09-04T15:00:00Z",
+        },
+      }),
+    );
+
+    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
+    expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
+    expect(screen.getByRole("status")).toHaveTextContent("Devolvido para IA");
+  });
+
+  it("mantém o cabeçalho sem atendente quando a lista refiltrada some com o cartão após #sair", () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+
+    act(() =>
+      emitirNotificacao({
+        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          ocorridoEm: "2026-09-04T15:00:00Z",
+        },
+      }),
+    );
+    act(() => callbacks.atualizarLista?.([]));
+
+    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
+    expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
+  it("não deixa resposta atrasada da API ressuscitar o atendente após TRANSFERENCIA para IA", () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+
+    act(() =>
+      callbacks.eventoEstado?.({
+        tipo: "TRANSFERENCIA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          deAtendenteId: "ana-id",
+          paraAtendenteId: null,
+          quemTransferiu: null,
+          atorTipo: "AUTOMACAO",
+          ocorridoEm: "2026-09-04T15:00:00Z",
+        },
+      }),
+    );
+    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
+
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+
+    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
+    expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
   });
 
   it("encerra o composer quando a finalização bem-sucedida remove o cartão da lista", () => {

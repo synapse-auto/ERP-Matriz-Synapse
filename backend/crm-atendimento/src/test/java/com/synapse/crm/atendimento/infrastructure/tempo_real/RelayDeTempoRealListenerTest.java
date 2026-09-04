@@ -36,6 +36,40 @@ class RelayDeTempoRealListenerTest {
     }
 
     @Test
+    void devolucao_para_ia_depois_do_commit_leva_atendimento_e_lead_sem_destino() throws Exception {
+        var metodo = RelayDeTempoRealListener.class.getDeclaredMethod(
+                "aoTransferir", EventoDeAtendimento.AtendimentoTransferido.class);
+        assertThat(metodo.getAnnotation(org.springframework.transaction.event.TransactionalEventListener.class)
+                .phase()).isEqualTo(org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT);
+
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        var listener = new RelayDeTempoRealListener(
+                redis, new ObjectMapper(), mock(ArmazenamentoDeMidia.class),
+                new MidiaProperties(null, null, null, null, null, null));
+        UUID atendimento = UUID.randomUUID();
+        UUID lead = UUID.randomUUID();
+        UUID antigo = UUID.randomUUID();
+        listener.aoTransferir(new EventoDeAtendimento.AtendimentoTransferido(
+                lead,
+                "Lead",
+                atendimento,
+                antigo,
+                null,
+                null,
+                com.synapse.crm.core.domain.timeline.OrigemEvento.AUTOMACAO,
+                Instant.parse("2026-09-04T15:00:00Z")));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(redis).convertAndSend(eq(CanaisRedis.doAtendimento(atendimento)), payload.capture());
+        JsonNode envelope = new ObjectMapper().readTree(payload.getValue());
+        assertThat(envelope.path("tipo").asText()).isEqualTo("TRANSFERENCIA");
+        assertThat(envelope.path("dados").path("atendimentoId").asText()).isEqualTo(atendimento.toString());
+        assertThat(envelope.path("dados").path("leadId").asText()).isEqualTo(lead.toString());
+        assertThat(envelope.path("dados").path("deAtendenteId").asText()).isEqualTo(antigo.toString());
+        assertThat(envelope.path("dados").path("paraAtendenteId").isNull()).isTrue();
+    }
+
+    @Test
     void reacao_depois_do_commit_leva_ator_sem_nomes_nem_lista_de_reatores() throws Exception {
         var metodo = RelayDeTempoRealListener.class.getDeclaredMethod(
                 "aoReagir", com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal.class);
