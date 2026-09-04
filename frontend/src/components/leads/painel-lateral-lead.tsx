@@ -54,6 +54,8 @@ interface Props {
   leadId: string | null;
   onFechar: () => void;
   onAbrirAtendimento?: () => void;
+  abrindoAtendimento?: boolean;
+  erroAbrirAtendimento?: string | null;
 }
 
 const ICONES_DE_TAG: Record<string, LucideIcon> = {
@@ -102,7 +104,13 @@ function paraPayload(campos: CampoCustomizado[], valores: Record<string, unknown
   );
 }
 
-export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Props) {
+export function PainelLateralLead({
+  leadId,
+  onFechar,
+  onAbrirAtendimento,
+  abrindoAtendimento = false,
+  erroAbrirAtendimento = null,
+}: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.painelLead;
   const lead = useLead(leadId);
@@ -326,18 +334,33 @@ export function PainelLateralLead({ leadId, onFechar, onAbrirAtendimento }: Prop
       </div>
       {lead.data && <FormularioLembrete aberto={lembreteAberto} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
       {lead.data && <FormularioMensagemProgramada aberto={programadaAberta} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setProgramadaAberta(false)} />}
-      <div className="flex-none flex gap-2 border-t border-border p-5">
-        {onAbrirAtendimento && (
-          <Button type="button" className="flex-1 rounded-xl shadow-sm font-bold" onClick={onAbrirAtendimento}>
-            <MessageSquare className="size-(--tamanho-icone-interface) mr-2" />
-            {textosGerais.painelLead.acoes?.abrirAtendimento || "Abrir atendimento"}
-          </Button>
+      <div className="flex-none flex flex-col gap-2 border-t border-border p-5">
+        {erroAbrirAtendimento && (
+          <p role="alert" className="text-sm text-destructive">
+            {erroAbrirAtendimento}
+          </p>
         )}
-        {lead.data?.telefone && (
-          <Button render={<a href={`tel:${lead.data.telefone}`} />} variant="outline" className="size-11 shrink-0 rounded-xl" title={textos.acoes.ligar} aria-label={textos.acoes.ligar}>
-            <Phone className="size-[calc(var(--tamanho-icone-interface)*1.125)]" />
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {onAbrirAtendimento && (
+            <Button
+              type="button"
+              className="flex-1 rounded-xl shadow-sm font-bold"
+              disabled={abrindoAtendimento}
+              aria-busy={abrindoAtendimento}
+              onClick={onAbrirAtendimento}
+            >
+              <MessageSquare className="size-(--tamanho-icone-interface) mr-2" />
+              {abrindoAtendimento
+                ? textos.acoes.abrindoAtendimento
+                : textos.acoes.abrirAtendimento}
+            </Button>
+          )}
+          {lead.data?.telefone && (
+            <Button render={<a href={`tel:${lead.data.telefone}`} />} variant="outline" className="size-11 shrink-0 rounded-xl" title={textos.acoes.ligar} aria-label={textos.acoes.ligar}>
+              <Phone className="size-[calc(var(--tamanho-icone-interface)*1.125)]" />
+            </Button>
+          )}
+        </div>
       </div>
     </aside>
   );

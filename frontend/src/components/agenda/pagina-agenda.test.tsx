@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const CAMPOS = [
@@ -28,12 +29,32 @@ const LEADS = [
     ultimaInteracaoEm: "2026-01-05T12:00:00Z",
     tags: [{ tagId: "tag-1", nome: "Urgente", cor: "#F00", icone: null }],
   },
+  {
+    id: "lead-finalizado",
+    nome: "Cliente Finalizado",
+    telefone: "(61) 98888-0000",
+    empresa: null,
+    localizacao: null,
+    status: "FINALIZADO",
+    etapaAtendimentoId: null,
+    atendenteResponsavelId: "user-1",
+    numAtendimentos: 1,
+    numMensagens: 4,
+    criadoEm: "2026-01-01T00:00:00Z",
+    ultimaInteracaoEm: "2026-01-02T12:00:00Z",
+    tags: [],
+  },
 ];
 
 const push = vi.fn();
+const abrirAtendimentoApi = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
+}));
+
+vi.mock("@/lib/atendimento/api", () => ({
+  abrirAtendimentoParaLead: (...args: unknown[]) => abrirAtendimentoApi(...args),
 }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
@@ -44,13 +65,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     agenda: {
       titulo: "Agenda de contatos",
-      descricao: "Clique uma vez para consultar a ficha; clique duas vezes para abrir o atendimento.",
+      descricao: "Clique no contato para consultar a ficha; use Abrir atendimento para ir ao chat.",
       vazia: "Nenhum contato encontrado com os filtros atuais.",
       carregando: "Carregando agenda...",
       erro: "Não foi possível carregar a agenda.",
       semResponsavel: "Sem responsável",
       contador: "Exibindo {exibindo} de {total}",
       indiceAlfabetico: "Índice alfabético",
+      abrirAtendimento: "Abrir atendimento",
+      abrindoAtendimento: "Abrindo atendimento...",
+      erroAbrirAtendimento: "Não foi possível abrir o atendimento.",
       colunas: {
         lead: "Lead",
         telefone: "Telefone",
@@ -97,6 +121,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
       },
       paginacao: { anterior: "Anterior", proxima: "Próxima" },
     },
+    painelLead: {
+      acoes: {
+        abrirAtendimento: "Abrir atendimento",
+        abrindoAtendimento: "Abrindo atendimento...",
+        erroAbrirAtendimento: "Não foi possível abrir o atendimento.",
+        ligar: "Ligar",
+      },
+    },
   }),
 }));
 
@@ -110,7 +142,27 @@ vi.mock("@/lib/equipe/use-equipe", () => ({
 }));
 
 vi.mock("@/components/leads/painel-lateral-lead", () => ({
-  PainelLateralLead: ({ leadId }: { leadId: string }) => <div data-testid="painel-lateral">{leadId}</div>,
+  PainelLateralLead: ({
+    leadId,
+    onAbrirAtendimento,
+    abrindoAtendimento,
+    erroAbrirAtendimento,
+  }: {
+    leadId: string;
+    onAbrirAtendimento?: () => void;
+    abrindoAtendimento?: boolean;
+    erroAbrirAtendimento?: string | null;
+  }) => (
+    <div data-testid="painel-lateral">
+      <span>{leadId}</span>
+      {onAbrirAtendimento && (
+        <button type="button" onClick={onAbrirAtendimento} disabled={abrindoAtendimento}>
+          {abrindoAtendimento ? "Abrindo atendimento..." : "Abrir atendimento"}
+        </button>
+      )}
+      {erroAbrirAtendimento && <span role="alert">{erroAbrirAtendimento}</span>}
+    </div>
+  ),
 }));
 
 const useLeadsDaAgenda = vi.fn();
@@ -128,8 +180,25 @@ vi.mock("@/lib/agenda/use-agenda", () => ({
 
 import { PaginaAgenda } from "./pagina-agenda";
 
+function renderAgenda() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <PaginaAgenda />
+    </QueryClientProvider>,
+  );
+}
+
 describe("pagina da agenda", () => {
   beforeEach(() => {
+    push.mockReset();
+    abrirAtendimentoApi.mockReset();
+    abrirAtendimentoApi.mockResolvedValue({
+      leadId: "lead-1",
+      atendimentoId: "atendimento-1",
+      mensagemId: null,
+      leadCriado: false,
+    });
     useCamposFiltraveis.mockReturnValue({ data: CAMPOS, isLoading: false, isError: false });
     useCatalogosDeFiltro.mockReturnValue({
       data: {
@@ -144,19 +213,19 @@ describe("pagina da agenda", () => {
       isLoading: false,
       isError: false,
     });
-    useContagemDeLeads.mockReturnValue({ data: 1 });
+    useContagemDeLeads.mockReturnValue({ data: 2 });
   });
 
   it("mostra a tabela com as colunas do design e o contador vindo de /contagem", () => {
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
     expect(screen.getByText("Vidraçaria Cristal")).toBeInTheDocument();
     expect(screen.getByText("Taguatinga · DF")).toBeInTheDocument();
     expect(screen.getByText("Orçamento")).toBeInTheDocument();
     expect(screen.getByText("Urgente")).toBeInTheDocument();
-    expect(screen.getByText("Ana Beatriz")).toBeInTheDocument();
-    expect(screen.getByText("Exibindo 1 de 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Ana Beatriz").length).toBeGreaterThan(0);
+    expect(screen.getByText("Exibindo 2 de 2")).toBeInTheDocument();
   });
 
   it("estado vazio real quando o filtro nao acha ninguem — sem mock, sem controle fantasma", () => {
@@ -167,13 +236,13 @@ describe("pagina da agenda", () => {
     });
     useContagemDeLeads.mockReturnValue({ data: 0 });
 
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     expect(screen.getByText("Nenhum contato encontrado com os filtros atuais.")).toBeInTheDocument();
   });
 
   it("adiciona um filtro pelo campo e operador escolhidos, sem lista hardcoded", async () => {
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     expect(screen.queryByRole("combobox", { name: "Campo" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Filtros avançados/i }));
@@ -192,18 +261,18 @@ describe("pagina da agenda", () => {
   });
 
   it("expõe busca, quatro filtros prontos e contador na barra principal", () => {
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     expect(screen.getByPlaceholderText("Buscar por nome, telefone, CNPJ/CPF ou tag...")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Etapa" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Atendente" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Cidade" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Tag" })).toBeInTheDocument();
-    expect(screen.getByText("Exibindo 1 de 1")).toBeInTheDocument();
+    expect(screen.getByText("Exibindo 2 de 2")).toBeInTheDocument();
   });
 
   it("envia a busca livre ao mesmo fluxo de filtro e cria chip removível", () => {
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     fireEvent.change(screen.getByRole("textbox", { name: "Busca" }), {
       target: { value: "Marcos" },
@@ -219,7 +288,7 @@ describe("pagina da agenda", () => {
   });
 
   it("clique simples abre a ficha; a paginação respeita temMais", () => {
-    render(<PaginaAgenda />);
+    renderAgenda();
 
     fireEvent.click(screen.getByText("Marcos Vinícius"));
     expect(screen.getByTestId("painel-lateral")).toHaveTextContent("lead-1");
@@ -228,11 +297,59 @@ describe("pagina da agenda", () => {
     expect(screen.getByRole("button", { name: "Próxima" })).toBeDisabled();
   });
 
-  it("clique duplo abre o atendimento na visão certa para o papel do usuário", () => {
-    render(<PaginaAgenda />);
+  it("botão Abrir atendimento chama a API e navega para Ativos com o lead", async () => {
+    renderAgenda();
 
-    fireEvent.doubleClick(screen.getByText("Marcos Vinícius"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!);
 
-    expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&visao=ATIVOS");
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-1"));
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&visao=ATIVOS"),
+    );
+  });
+
+  it("iniciar atendimento de lead finalizado pela Agenda reusa a API e abre em Ativos", async () => {
+    abrirAtendimentoApi.mockResolvedValueOnce({
+      leadId: "lead-finalizado",
+      atendimentoId: "atendimento-novo",
+      mensagemId: null,
+      leadCriado: false,
+    });
+    renderAgenda();
+
+    fireEvent.click(screen.getByText("Cliente Finalizado"));
+    fireEvent.click(
+      within(screen.getByTestId("painel-lateral")).getByRole("button", {
+        name: "Abrir atendimento",
+      }),
+    );
+
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-finalizado"));
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-finalizado&visao=ATIVOS"),
+    );
+    expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("falha da API mantém a ficha aberta e exibe o erro", async () => {
+    abrirAtendimentoApi.mockRejectedValueOnce(
+      new Error("Numero indisponivel para iniciar atendimento. Procure a gestao."),
+    );
+    renderAgenda();
+
+    fireEvent.click(screen.getByText("Marcos Vinícius"));
+    fireEvent.click(
+      within(screen.getByTestId("painel-lateral")).getByRole("button", {
+        name: "Abrir atendimento",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Numero indisponivel para iniciar atendimento. Procure a gestao.",
+      ),
+    );
+    expect(screen.getByTestId("painel-lateral")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });
