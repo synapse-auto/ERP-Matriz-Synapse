@@ -65,7 +65,11 @@ public class ListarInboxUnificadaUseCase {
         } catch (RuntimeException erro) {
             LOG.warn("Não foi possível carregar a fonte de atendimentos da inbox", erro);
         }
-        if (visao == VisaoAtendimento.TODOS && (apos == null || apos.grupo() == 0)
+        // Conversas internas participativas fazem parte da operação ativa tanto para a gestão
+        // quanto para atendentes; PENDENTES/POTENCIAIS continuam sendo recortes exclusivos de
+        // atendimentos de clientes.
+        if ((visao == VisaoAtendimento.TODOS || visao == VisaoAtendimento.ATIVOS)
+                && (apos == null || apos.grupo() == 0)
                 && chatHabilitado()) {
             try {
                 equipe.executarPaginado(tamanho + 1, apos == null ? null : apos.data(),

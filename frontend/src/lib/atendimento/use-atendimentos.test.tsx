@@ -74,6 +74,20 @@ describe("useAtendimentos — paginação da inbox", () => {
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 
+  it("usa a inbox unificada para ATIVOS, onde o chat interno também participa", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [cliente("ativo", "2026-08-26T12:00:00Z")],
+      proximoCursor: null,
+    });
+    vi.mocked(api.listarAtendimentos).mockResolvedValue([]);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("ATIVOS"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("ATIVOS", null);
+    expect(api.listarAtendimentos).not.toHaveBeenCalled();
+  });
+
   it("mantém a inbox íntegra após invalidação sem misturar o cache da lista legada", async () => {
     vi.mocked(api.listarInboxUnificada).mockResolvedValue({
       itens: [cliente("um", "2026-08-26T12:00:00Z")],

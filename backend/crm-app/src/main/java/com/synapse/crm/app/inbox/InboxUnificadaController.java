@@ -23,7 +23,7 @@ class InboxUnificadaController {
     @GetMapping
     @Operation(summary = "Listar inbox unificada", description = "Retorna clientes visíveis e conversas internas das quais o usuário participa.")
     InboxUnificada listar(
-            @Parameter(description = "Visão operacional; conversas internas só aparecem em TODOS.")
+            @Parameter(description = "Visão operacional; conversas internas aparecem em ATIVOS e TODOS.")
                     @RequestParam(defaultValue = "TODOS") VisaoAtendimento visao,
             @Parameter(description = "Quantidade por página, entre 1 e 100.")
                     @RequestParam(defaultValue = "50") int limite,

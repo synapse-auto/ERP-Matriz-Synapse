@@ -41,6 +41,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     @Autowired private ObjectMapper json;
 
     private UUID conversa;
+    private UUID grupo;
     private UUID ana;
     private UUID bruno;
     private UUID leadDoBruno;
@@ -50,6 +51,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     void preparar() {
         ana = usuario(EMAIL_ANA);
         bruno = usuario("bruno@dev.local");
+        UUID gestor = usuario(EMAIL_GESTOR);
         leadDoBruno = UUID.randomUUID();
         atendimentoDoBruno = UUID.randomUUID();
         UUID canal = jdbc.queryForObject("SELECT id FROM canal ORDER BY id LIMIT 1", UUID.class);
@@ -62,14 +64,22 @@ class InboxUnificadaControllerIT extends PostgresIT {
         jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?), (?,?)",
                 conversa, ana, conversa, bruno);
         jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?)",
-                conversa, usuario(EMAIL_GESTOR));
+                conversa, gestor);
         jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo) VALUES (?, ?, ?, 'TEXTO', ?)",
                 UUID.randomUUID(), conversa, bruno, MARCADOR + "mensagem");
+        grupo = UUID.randomUUID();
+        jdbc.update("INSERT INTO chat_interno_conversa(id,tipo,nome) VALUES (?, 'GRUPO', ?)",
+                grupo, MARCADOR + "grupo");
+        jdbc.update("INSERT INTO chat_interno_participante(conversa_id,usuario_id) VALUES (?,?), (?,?)",
+                grupo, ana, grupo, bruno);
+        jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo) VALUES (?, ?, ?, 'TEXTO', ?)",
+                UUID.randomUUID(), grupo, ana, MARCADOR + "mensagem grupo");
     }
 
     @AfterEach
     void limpar() {
         jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", conversa);
+        jdbc.update("DELETE FROM chat_interno_conversa WHERE id = ?", grupo);
         jdbc.update("DELETE FROM atendimento WHERE id = ?", atendimentoDoBruno);
         jdbc.update("DELETE FROM lead WHERE id = ?", leadDoBruno);
     }
@@ -93,9 +103,11 @@ class InboxUnificadaControllerIT extends PostgresIT {
                 conversa, usuario(EMAIL_GESTOR));
         JsonNode corpo = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         assertThat(encontrarOpcional(corpo, conversa.toString())).isFalse();
+        assertThat(encontrarOpcional(corpo, grupo.toString())).isFalse();
 
         JsonNode administrador = json.readTree(listarComo(EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR));
         assertThat(encontrarOpcional(administrador, conversa.toString())).isFalse();
+        assertThat(encontrarOpcional(administrador, grupo.toString())).isFalse();
     }
 
     @Test
@@ -110,7 +122,7 @@ class InboxUnificadaControllerIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("a inbox mantém a visibilidade do cliente e só mistura equipe em TODOS para gestão")
+    @DisplayName("a inbox mantém a visibilidade do cliente e mistura equipe em TODOS e ATIVOS")
     void preservaVisibilidadeDeClienteEVisao() throws Exception {
         JsonNode todos = json.readTree(listarComo(EMAIL_GESTOR, SENHA_GESTOR));
         assertThat(ids(todos)).contains(atendimentoDoBruno.toString());
@@ -118,7 +130,35 @@ class InboxUnificadaControllerIT extends PostgresIT {
         String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
         String ativos = ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
                 "/api/v1/atendimentos/inbox?visao=ATIVOS&limite=50", String.class).getBody();
-        assertThat(encontrarOpcional(json.readTree(ativos), conversa.toString())).isFalse();
+        JsonNode ativosJson = json.readTree(ativos);
+        assertThat(encontrarOpcional(ativosJson, conversa.toString())).isTrue();
+        assertThat(quantidade(ativosJson, conversa.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("atendente participante vê conversa direta e grupo em ATIVOS")
+    void atendenteParticipanteVeEquipeEmAtivos() throws Exception {
+        JsonNode corpo = json.readTree(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"));
+
+        JsonNode direta = encontrar(corpo, conversa.toString());
+        JsonNode equipeGrupo = encontrar(corpo, grupo.toString());
+        assertThat(direta.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
+        assertThat(equipeGrupo.path("tipo").asText()).isEqualTo("EQUIPE_INTERNA");
+        assertThat(quantidade(corpo, conversa.toString())).isEqualTo(1);
+        assertThat(quantidade(corpo, grupo.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("conversa interna não aparece em PENDENTES ou POTENCIAIS")
+    void equipeFicaForaDosRecortesDeClientes() throws Exception {
+        String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+        for (String visao : java.util.List.of("PENDENTES", "POTENCIAIS")) {
+            String resposta = ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
+                    "/api/v1/atendimentos/inbox?visao=" + visao + "&limite=50", String.class).getBody();
+            JsonNode corpo = json.readTree(resposta);
+            assertThat(encontrarOpcional(corpo, conversa.toString())).isFalse();
+            assertThat(encontrarOpcional(corpo, grupo.toString())).isFalse();
+        }
     }
 
     @Test
@@ -142,9 +182,13 @@ class InboxUnificadaControllerIT extends PostgresIT {
     }
 
     private String listarComo(String email, String senha) {
+        return listarComo(email, senha, "TODOS");
+    }
+
+    private String listarComo(String email, String senha, String visao) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         return ApoioAutenticacao.comToken(http, token, HttpMethod.GET,
-                "/api/v1/atendimentos/inbox?visao=TODOS&limite=50", String.class).getBody();
+                "/api/v1/atendimentos/inbox?visao=" + visao + "&limite=50", String.class).getBody();
     }
 
     private UUID usuario(String email) {
@@ -161,6 +205,12 @@ class InboxUnificadaControllerIT extends PostgresIT {
     private boolean encontrarOpcional(JsonNode itens, String id) {
         return java.util.stream.StreamSupport.stream(itens.path("itens").spliterator(), false)
                 .anyMatch(item -> id.equals(item.path("conversaId").asText()));
+    }
+
+    private long quantidade(JsonNode itens, String id) {
+        return java.util.stream.StreamSupport.stream(itens.path("itens").spliterator(), false)
+                .filter(item -> id.equals(item.path("conversaId").asText()))
+                .count();
     }
 
     private java.util.Set<String> ids(JsonNode itens) {

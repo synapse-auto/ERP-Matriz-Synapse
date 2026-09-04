@@ -90,6 +90,42 @@ class ListarInboxUnificadaUseCaseTest {
     }
 
     @Test
+    void ativosIncluiConversasInternasDasQuaisUsuarioParticipa() {
+        UUID lead = UUID.randomUUID();
+        UUID conversa = UUID.randomUUID();
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.ATIVOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull()))
+                .thenReturn(List.of(cartao(lead, Instant.parse("2026-01-01T10:00:00Z"))));
+        when(features.habilitadas()).thenReturn(List.of("chat_interno"));
+        when(equipe.executarPaginado(Mockito.anyInt(), Mockito.isNull(), Mockito.isNull()))
+                .thenReturn(List.of(new ChatInternoRepositorio.ConversaResumo(
+                        conversa, TipoConversaChat.GRUPO, "Equipe comercial", "Revisar proposta",
+                        Instant.parse("2026-01-01T11:00:00Z"), 2, null)));
+
+        InboxUnificada resultado = caso.executar(VisaoAtendimento.ATIVOS, 50, null);
+
+        assertThat(resultado.itens()).extracting(InboxUnificada.Item::tipo)
+                .containsExactlyInAnyOrder(InboxUnificada.Tipo.CLIENTE, InboxUnificada.Tipo.EQUIPE_INTERNA);
+        assertThat(resultado.itens()).filteredOn(item -> item.tipo() == InboxUnificada.Tipo.EQUIPE_INTERNA)
+                .singleElement().satisfies(item -> {
+                    assertThat(item.conversaId()).isEqualTo(conversa);
+                    assertThat(item.tipoConversa()).isEqualTo("GRUPO");
+                    assertThat(item.naoLidas()).isEqualTo(2);
+                });
+        verify(equipe).executarPaginado(Mockito.anyInt(), Mockito.isNull(), Mockito.isNull());
+    }
+
+    @Test
+    void conversasInternasNaoEntramEmPendentesNemPotenciais() {
+        when(features.habilitadas()).thenReturn(List.of("chat_interno"));
+
+        caso.executar(VisaoAtendimento.PENDENTES, 50, null);
+        caso.executar(VisaoAtendimento.POTENCIAIS, 50, null);
+
+        verify(equipe, never()).executarPaginado(Mockito.anyInt(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
     void flagDesligadaNaoIncluiConversasInternas() {
         UUID lead = UUID.randomUUID();
         when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.TODOS), Mockito.anyInt(),
