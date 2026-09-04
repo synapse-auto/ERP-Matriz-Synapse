@@ -51,12 +51,14 @@ class WebhookMetaLocalizacaoIT extends PostgresIT {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ProcessadorDeWebhookEntrada processador;
 
+    private UUID canalId;
+    private UUID credencialId;
     private UUID leadId;
 
     @BeforeEach
     void setup() {
-        UUID canalId = UUID.randomUUID();
-        UUID credencialId = UUID.randomUUID();
+        canalId = UUID.randomUUID();
+        credencialId = UUID.randomUUID();
         jdbc.update("INSERT INTO canal (id, nome, tipo) VALUES (?, ?, 'WHATSAPP')", canalId, "Canal Teste");
         jdbc.update(
                 "INSERT INTO canal_credencial (id, canal_id, numero, identificador_externo, token_ref, ativo) VALUES (?, ?, ?, ?, ?, ?)",
@@ -74,15 +76,23 @@ class WebhookMetaLocalizacaoIT extends PostgresIT {
 
     @AfterEach
     void tearDown() {
-        jdbc.update("DELETE FROM mensagem_id_externo");
-        jdbc.update("DELETE FROM mensagem_recebida_idempotencia");
-        jdbc.update("DELETE FROM mensagem");
-        jdbc.update("DELETE FROM atendimento");
-        jdbc.update("DELETE FROM lead");
-        jdbc.update("DELETE FROM canal_credencial");
-        jdbc.update("DELETE FROM canal");
-        jdbc.update("DELETE FROM webhook_entrada");
-        jdbc.update("DELETE FROM usuario WHERE email LIKE '%@teste.local' OR email = 'ia@local'");
+        if (leadId != null) {
+            jdbc.update(
+                    "DELETE FROM mensagem_id_externo WHERE mensagem_id IN (SELECT m.id FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id WHERE a.lead_id = ?)",
+                    leadId);
+            jdbc.update("DELETE FROM mensagem WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", leadId);
+            jdbc.update("DELETE FROM atendimento WHERE lead_id = ?", leadId);
+            jdbc.update("DELETE FROM lead WHERE id = ?", leadId);
+        }
+        jdbc.update("DELETE FROM mensagem_recebida_idempotencia WHERE wamid LIKE 'wamid.location.%'");
+        if (credencialId != null) {
+            jdbc.update("DELETE FROM canal_credencial WHERE id = ?", credencialId);
+        }
+        if (canalId != null) {
+            jdbc.update("DELETE FROM canal WHERE id = ?", canalId);
+        }
+        jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE 'wamid.location.%'");
+        jdbc.update("DELETE FROM usuario WHERE email LIKE '%@teste.local'");
     }
 
     @Test
