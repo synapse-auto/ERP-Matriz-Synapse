@@ -52,10 +52,15 @@ já existe, contrariando o §6 — não foi criado outro. Não há token no corp
 o mesmo snapshot; não consulta o dono atual do lead. A validação de destino exige
 10–15 dígitos ASCII, primeiro não zero; não completa nem inventa DDI.
 
-Retorno já existente: POST /internal/v1/atendimentos/{id}/avaliacao, header
-X-Synapse-Token com o segredo interno próprio e corpo {"nota":5,"comentario":"opcional"}.
-JWT humano não abre esse endpoint. Duplicata é 409; nota fora de 1–5 é 400.
-Sem responsável, a coleta continua recusando a avaliação.
+Retorno interno: POST /internal/v1/atendimentos/{id}/avaliacao, header
+X-Synapse-Token com o segredo interno próprio e corpo {"nota":7,"comentario":"opcional"}.
+A escala aceita notas de 0 a 10 (V56). JWT humano não abre esse endpoint.
+O callback é idempotente para suportar retries do n8n com segurança:
+- Primeira chamada válida: grava a nota e retorna HTTP 201 Created.
+- Repetição idêntica (mesma nota e mesmo comentário): não cria nova linha, não altera dados e retorna HTTP 200 OK com a avaliação persistida.
+- Repetição divergente (nota ou comentário diferente): não sobrescreve a avaliação existente e retorna HTTP 409 Conflict (RFC 7807).
+- Concorrência protegida: `INSERT ... ON CONFLICT (atendimento_id) DO NOTHING` previne abort de transação e erro 500 em execuções paralelas.
+Sem responsável humano ou com atendimento ainda aberto, a coleta recusa com HTTP 422.
 
 ## Configuração / ação necessária no Dokploy
 

@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -315,19 +315,22 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Registrar avaliação do atendimento",
-            description = "Grava uma única nota 0–10 no atendente dono da conversa já finalizada. Não substitui nota existente.",
+            description = "Coleta CSAT na escala 0–10 no atendimento finalizado visível.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
+                @ApiResponse(responseCode = "200", description = "Avaliação idêntica já registrada anteriormente (idempotência)."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
                 @ApiResponse(responseCode = "409", description = "Já existe avaliação neste atendimento."),
                 @ApiResponse(responseCode = "422", description = "Atendimento aberto, sem atendente ou nota fora da faixa.")
             })
     @PostMapping("/{id}/avaliacao")
-    @ResponseStatus(HttpStatus.CREATED)
-    AvaliacaoResposta registrarAvaliacao(
+    ResponseEntity<AvaliacaoResposta> registrarAvaliacao(
             @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
             @Valid @RequestBody AvaliacaoRequisicao requisicao) {
-        return AvaliacaoResposta.de(avaliacoes.executar(id, requisicao.nota(), requisicao.comentario()));
+        RegistrarAvaliacaoUseCase.Resultado resultado = avaliacoes.executar(
+                id, requisicao.nota(), requisicao.comentario());
+        HttpStatus status = resultado.recemCriada() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(AvaliacaoResposta.de(resultado.avaliacao()));
     }
 
     @Operation(

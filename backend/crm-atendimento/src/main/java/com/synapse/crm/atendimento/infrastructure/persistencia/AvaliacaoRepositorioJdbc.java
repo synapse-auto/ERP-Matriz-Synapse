@@ -7,7 +7,6 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -50,23 +49,37 @@ class AvaliacaoRepositorioJdbc implements AvaliacaoRepositorio {
     }
 
     @Override
+    public ResultadoSalvar salvarSeAusente(Avaliacao avaliacao) {
+        TransacaoObrigatoria.exigir("avaliacao.salvarSeAusente");
+        int inseridas = chat.update(
+                """
+                INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, comentario, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (atendimento_id) DO NOTHING
+                """,
+                avaliacao.id(),
+                avaliacao.atendimentoId(),
+                avaliacao.atendenteId(),
+                avaliacao.nota(),
+                avaliacao.comentario(),
+                Timestamp.from(avaliacao.criadoEm()));
+
+        if (inseridas > 0) {
+            return new ResultadoSalvar(avaliacao, true);
+        }
+
+        Avaliacao existente = porAtendimento(avaliacao.atendimentoId())
+                .orElseThrow(() -> new AvaliacaoJaRegistradaException(avaliacao.atendimentoId()));
+        return new ResultadoSalvar(existente, false);
+    }
+
+    @Override
     public Avaliacao salvar(Avaliacao avaliacao) {
         TransacaoObrigatoria.exigir("avaliacao.salvar");
-        try {
-            chat.update(
-                    """
-                    INSERT INTO avaliacao (id, atendimento_id, atendente_id, nota, comentario, criado_em)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    avaliacao.id(),
-                    avaliacao.atendimentoId(),
-                    avaliacao.atendenteId(),
-                    avaliacao.nota(),
-                    avaliacao.comentario(),
-                    Timestamp.from(avaliacao.criadoEm()));
-        } catch (DuplicateKeyException duplicada) {
+        ResultadoSalvar resultado = salvarSeAusente(avaliacao);
+        if (!resultado.inserido()) {
             throw new AvaliacaoJaRegistradaException(avaliacao.atendimentoId());
         }
-        return avaliacao;
+        return resultado.avaliacao();
     }
 }

@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +29,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.ChaveIdempotenciaReutilizadaException;
@@ -146,23 +146,27 @@ class AtendimentosAutomacaoInternalController {
 
     @Operation(
             summary = "Registrar avaliação do atendimento",
-            description = "Coleta CSAT da Automação (WhatsApp) na escala 0–10, no atendente dono da conversa já finalizada.",
+            description = "Coleta CSAT da Automação (WhatsApp) na escala 0–10, no atendente dono da conversa já finalizada. Idempotente para repetições idênticas.",
             responses = {
                 @ApiResponse(responseCode = "201", description = "Avaliação gravada."),
+                @ApiResponse(responseCode = "200", description = "Avaliação idêntica já registrada anteriormente (idempotência)."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
-                @ApiResponse(responseCode = "409", description = "Já existe avaliação neste atendimento."),
+                @ApiResponse(responseCode = "409", description = "Já existe avaliação com nota ou comentário diferente neste atendimento."),
                 @ApiResponse(responseCode = "422", description = "Atendimento aberto, sem atendente ou nota fora da faixa.")
             })
     @PostMapping("/{id}/avaliacao")
-    @ResponseStatus(HttpStatus.CREATED)
-    AvaliacaoResposta registrarAvaliacao(
+    ResponseEntity<AvaliacaoResposta> registrarAvaliacao(
             @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
             @Valid @RequestBody AvaliacaoRequisicao requisicao) {
         return ContextoDeServico.buscarComo(
                 "registrar-avaliacao-automacao",
-                () -> AvaliacaoResposta.de(
-                        avaliacoes.executarPelaAutomacao(id, requisicao.nota(), requisicao.comentario())));
+                () -> {
+                    RegistrarAvaliacaoUseCase.Resultado resultado = avaliacoes.executarPelaAutomacao(
+                            id, requisicao.nota(), requisicao.comentario());
+                    HttpStatus status = resultado.recemCriada() ? HttpStatus.CREATED : HttpStatus.OK;
+                    return ResponseEntity.status(status).body(AvaliacaoResposta.de(resultado.avaliacao()));
+                });
     }
 
     @ExceptionHandler(PeriodoDeAtividadeInvalidoException.class)

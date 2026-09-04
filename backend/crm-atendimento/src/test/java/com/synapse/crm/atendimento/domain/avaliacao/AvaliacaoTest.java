@@ -81,4 +81,54 @@ class AvaliacaoTest {
                 .isInstanceOf(NotaDeAvaliacaoInvalidaException.class)
                 .hasMessageContaining("11");
     }
+
+    @Test
+    void ehIdentica_mesmaNotaEComentario_retornaTrue() {
+        Avaliacao comComentario = Avaliacao.registrar(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                8,
+                "atendimento rapido",
+                Instant.parse("2026-08-28T13:00:00Z"));
+
+        assertThat(comComentario.ehIdentica(8, "atendimento rapido")).isTrue();
+        assertThat(comComentario.ehIdentica(8, "  atendimento rapido  ")).isTrue();
+
+        Avaliacao semComentario = Avaliacao.registrar(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                5,
+                null,
+                Instant.parse("2026-08-28T13:00:00Z"));
+
+        assertThat(semComentario.ehIdentica(5, null)).isTrue();
+        assertThat(semComentario.ehIdentica(5, "")).isTrue();
+        assertThat(semComentario.ehIdentica(5, "   ")).isTrue();
+    }
+
+    @Test
+    void ehIdentica_notaOuComentarioDivergentes_retornaFalse() {
+        Avaliacao avaliacao = Avaliacao.registrar(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                7,
+                "bom",
+                Instant.parse("2026-08-28T13:00:00Z"));
+
+        assertThat(avaliacao.ehIdentica(8, "bom")).as("nota diferente").isFalse();
+        assertThat(avaliacao.ehIdentica(7, "otimo")).as("comentario diferente").isFalse();
+        assertThat(avaliacao.ehIdentica(7, null)).as("comentario ausente").isFalse();
+        assertThat(avaliacao.ehIdentica(7, "")).as("comentario em branco").isFalse();
+    }
+
+    @Test
+    void normalizar_trataNullVazioEEspacos() {
+        assertThat(Avaliacao.normalizar(null)).isNull();
+        assertThat(Avaliacao.normalizar("")).isNull();
+        assertThat(Avaliacao.normalizar("   ")).isNull();
+        assertThat(Avaliacao.normalizar("  texto valido  ")).isEqualTo("texto valido");
+    }
 }

@@ -37,17 +37,19 @@ class RegistrarAvaliacaoUseCaseTest {
         AvaliacaoRepositorio avaliacoes = mock(AvaliacaoRepositorio.class);
         when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado(atendimentoId, atendenteId)));
         when(avaliacoes.porAtendimento(atendimentoId)).thenReturn(Optional.empty());
-        when(avaliacoes.salvar(any())).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(avaliacoes.salvarSeAusente(any()))
+                .thenAnswer(invocacao -> new AvaliacaoRepositorio.ResultadoSalvar(invocacao.getArgument(0), true));
 
-        Avaliacao gravada = new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
+        RegistrarAvaliacaoUseCase.Resultado gravada = new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
                 .executar(atendimentoId, 4, " rapido ");
 
         ArgumentCaptor<Avaliacao> captor = ArgumentCaptor.forClass(Avaliacao.class);
-        verify(avaliacoes).salvar(captor.capture());
+        verify(avaliacoes).salvarSeAusente(captor.capture());
         assertThat(captor.getValue().atendenteId()).isEqualTo(atendenteId);
         assertThat(captor.getValue().nota()).isEqualTo(4);
         assertThat(captor.getValue().comentario()).isEqualTo("rapido");
-        assertThat(gravada.criadoEm()).isEqualTo(AGORA);
+        assertThat(gravada.recemCriada()).isTrue();
+        assertThat(gravada.avaliacao().criadoEm()).isEqualTo(AGORA);
     }
 
     @Test
@@ -63,7 +65,7 @@ class RegistrarAvaliacaoUseCaseTest {
         assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
                         .executar(atendimentoId, 5, null))
                 .isInstanceOf(AtendimentoAindaAbertoParaAvaliacaoException.class);
-        verify(avaliacoes, never()).salvar(any());
+        verify(avaliacoes, never()).salvarSeAusente(any());
     }
 
     @Test
@@ -79,11 +81,30 @@ class RegistrarAvaliacaoUseCaseTest {
         assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
                         .executar(atendimentoId, 5, null))
                 .isInstanceOf(AtendimentoSemAtendenteParaAvaliacaoException.class);
-        verify(avaliacoes, never()).salvar(any());
+        verify(avaliacoes, never()).salvarSeAusente(any());
     }
 
     @Test
-    void executar_jaAvaliado_naoGravaDeNovo() {
+    void executar_jaAvaliadoComMesmaNotaEComentario_retornaExistenteSemGravarDeNovo() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID atendenteId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        AvaliacaoRepositorio avaliacoes = mock(AvaliacaoRepositorio.class);
+        Avaliacao existente = Avaliacao.registrar(
+                UUID.randomUUID(), atendimentoId, atendenteId, 4, "rapido", AGORA);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado(atendimentoId, atendenteId)));
+        when(avaliacoes.porAtendimento(atendimentoId)).thenReturn(Optional.of(existente));
+
+        RegistrarAvaliacaoUseCase.Resultado resultado = new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
+                .executar(atendimentoId, 4, " rapido ");
+
+        assertThat(resultado.recemCriada()).isFalse();
+        assertThat(resultado.avaliacao()).isEqualTo(existente);
+        verify(avaliacoes, never()).salvarSeAusente(any());
+    }
+
+    @Test
+    void executar_jaAvaliadoComNotaDivergente_lancaExcecao() {
         UUID atendimentoId = UUID.randomUUID();
         UUID atendenteId = UUID.randomUUID();
         AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
@@ -96,7 +117,62 @@ class RegistrarAvaliacaoUseCaseTest {
         assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
                         .executar(atendimentoId, 5, null))
                 .isInstanceOf(AvaliacaoJaRegistradaException.class);
-        verify(avaliacoes, never()).salvar(any());
+        verify(avaliacoes, never()).salvarSeAusente(any());
+    }
+
+    @Test
+    void executar_jaAvaliadoComComentarioDivergente_lancaExcecao() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID atendenteId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        AvaliacaoRepositorio avaliacoes = mock(AvaliacaoRepositorio.class);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado(atendimentoId, atendenteId)));
+        when(avaliacoes.porAtendimento(atendimentoId))
+                .thenReturn(Optional.of(Avaliacao.registrar(
+                        UUID.randomUUID(), atendimentoId, atendenteId, 4, "rapido", AGORA)));
+
+        assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
+                        .executar(atendimentoId, 4, "demorado"))
+                .isInstanceOf(AvaliacaoJaRegistradaException.class);
+        verify(avaliacoes, never()).salvarSeAusente(any());
+    }
+
+    @Test
+    void executar_corridaConcorrenteIdentica_retornaExistenteSemErro() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID atendenteId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        AvaliacaoRepositorio avaliacoes = mock(AvaliacaoRepositorio.class);
+        Avaliacao concorrente = Avaliacao.registrar(
+                UUID.randomUUID(), atendimentoId, atendenteId, 4, "rapido", AGORA);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado(atendimentoId, atendenteId)));
+        when(avaliacoes.porAtendimento(atendimentoId)).thenReturn(Optional.empty());
+        when(avaliacoes.salvarSeAusente(any()))
+                .thenReturn(new AvaliacaoRepositorio.ResultadoSalvar(concorrente, false));
+
+        RegistrarAvaliacaoUseCase.Resultado resultado = new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
+                .executar(atendimentoId, 4, "rapido");
+
+        assertThat(resultado.recemCriada()).isFalse();
+        assertThat(resultado.avaliacao()).isEqualTo(concorrente);
+    }
+
+    @Test
+    void executar_corridaConcorrenteDivergente_lancaExcecao() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID atendenteId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        AvaliacaoRepositorio avaliacoes = mock(AvaliacaoRepositorio.class);
+        Avaliacao concorrente = Avaliacao.registrar(
+                UUID.randomUUID(), atendimentoId, atendenteId, 3, "rapido", AGORA);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado(atendimentoId, atendenteId)));
+        when(avaliacoes.porAtendimento(atendimentoId)).thenReturn(Optional.empty());
+        when(avaliacoes.salvarSeAusente(any()))
+                .thenReturn(new AvaliacaoRepositorio.ResultadoSalvar(concorrente, false));
+
+        assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
+                        .executar(atendimentoId, 4, "rapido"))
+                .isInstanceOf(AvaliacaoJaRegistradaException.class);
     }
 
     @Test
@@ -111,7 +187,7 @@ class RegistrarAvaliacaoUseCaseTest {
         assertThatThrownBy(() -> new RegistrarAvaliacaoUseCase(atendimentos, avaliacoes, RELOGIO)
                         .executar(atendimentoId, 11, null))
                 .isInstanceOf(NotaDeAvaliacaoInvalidaException.class);
-        verify(avaliacoes, never()).salvar(any());
+        verify(avaliacoes, never()).salvarSeAusente(any());
     }
 
     @Test
