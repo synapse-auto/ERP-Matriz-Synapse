@@ -33,7 +33,7 @@ import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { apiFetch } from "@/lib/api/http-client";
-import { listarContatosChat, abrirConversaDireta } from "@/lib/chat-interno/api";
+import { listarContatosChat, abrirConversaDireta, criarGrupoChat } from "@/lib/chat-interno/api";
 import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";

@@ -66,6 +66,7 @@ type Props = {
   contatosInternosErro?: boolean;
   onRecarregarContatos?: () => void;
   onCriarConversaInterna?: (usuarioId: string) => Promise<unknown>;
+  onCriarGrupoInterno?: (nome: string, participantes: string[]) => Promise<unknown>;
   onNovoContato?: () => void;
   className?: string;
 };
