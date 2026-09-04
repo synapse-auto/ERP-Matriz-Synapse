@@ -65,6 +65,7 @@ import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.atendimento.domain.mensagem.EncaminhamentoIncompativelException;
 import com.synapse.crm.atendimento.domain.mensagem.RespostaAoCanalIndevidaException;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
@@ -136,7 +137,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Iniciar novo contato WhatsApp",
-            description = "Cria ou reusa o lead visível deste telefone e abre a conversa. Texto livre só sai dentro da janela de 24h aberta pelo cliente; fora dela, use template aprovado. Telefone de colega responde 404, igual a lead inexistente.",
+        description = "Cria ou reusa o lead deste telefone e abre a conversa. Contatos já presentes na Agenda são reutilizados mesmo quando pertencem a outro atendente; a abertura preserva o responsável e registra a participação de quem entrou. Texto livre só sai dentro da janela de 24h aberta pelo cliente; fora dela, use template aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Conversa aberta; mensagem enfileirada se o pedido trouxe texto ou template."),
                 @ApiResponse(responseCode = "404", description = "Lead do telefone não existe ou não é visível."),
@@ -147,13 +148,14 @@ class AtendimentoAcoesController {
         NovoContatoRequisicao pedido = requisicao == null
                 ? new NovoContatoRequisicao(null, null, null, null)
                 : requisicao;
-        IniciarNovoContatoUseCase.Resultado resultado = novoContato.executar(pedido.paraCasoDeUso());
+        IniciarNovoContatoUseCase.Resultado resultado = ContextoDeAgenda.buscarComo(
+                () -> novoContato.executar(pedido.paraCasoDeUso()));
         return NovoContatoResposta.de(resultado);
     }
 
     @Operation(
             summary = "Abrir atendimento novo para lead existente",
-            description = "Cria ou reutiliza o atendimento aberto do lead visível em modo humano, transfere a propriedade para quem pediu e não envia mensagem. O histórico finalizado permanece intacto.",
+        description = "Cria ou reutiliza o atendimento aberto do lead visível em modo humano, preserva a propriedade existente e registra a participação de quem pediu. O histórico finalizado permanece intacto.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento humano aberto sem envio de mensagem."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
@@ -162,12 +164,13 @@ class AtendimentoAcoesController {
     NovoContatoResposta abrirParaLeadExistente(
             @Parameter(description = "Lead visível que receberá o atendimento novo.", required = true)
                     @PathVariable UUID leadId) {
-        return NovoContatoResposta.de(novoContato.abrirParaLeadExistente(leadId));
+        return NovoContatoResposta.de(ContextoDeAgenda.buscarComo(
+                () -> novoContato.abrirParaLeadExistente(leadId)));
     }
 
     @Operation(
             summary = "Enviar mensagem de texto",
-            description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o lead para quem enviou.",
+        description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente preserva o responsável existente e assume apenas leads sem responsável.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Mensagem aceita para entrega."),
                 @ApiResponse(responseCode = "404", description = "Lead ou atendimento inexistente ou não visível."),
@@ -187,7 +190,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Enviar template do WhatsApp",
-            description = "Envia um template já aprovado. Não exige janela de 24h; como toda ação humana de envio, assume o lead e coloca o atendimento em modo humano antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
+            description = "Envia um template já aprovado. Não exige janela de 24h; a ação humana tira a conversa da IA e assume somente lead sem responsável antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Template aceito para entrega."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")

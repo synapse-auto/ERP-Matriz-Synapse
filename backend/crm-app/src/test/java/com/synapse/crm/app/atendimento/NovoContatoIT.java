@@ -142,28 +142,82 @@ class NovoContatoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("telefone de colega responde 404 sem vazar a existencia")
-    void novoContato_telefoneDeColega_retorna404() {
+    @DisplayName("atendente pode abrir telefone de colega sem duplicar lead")
+    void novoContato_telefoneDeColega_reusaLeadEAtendimento() {
         String telefone = telefoneNacional();
         String canonico = "55" + telefone.replaceAll("\\D", "");
+        UUID lead = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico)"
                         + " VALUES (?, ?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead)",
-                UUID.randomUUID(),
+                lead,
                 PREFIXO + "da ana",
                 canonico,
+                idAna);
+        UUID atendimento = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)"
+                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_atendimento, now())",
+                atendimento,
+                lead,
                 idAna);
 
         var resposta = iniciarComo(EMAIL_BRUNO, Map.of("nome", PREFIXO + "tentativa", "telefone", telefone));
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(resposta.getBody())
-                .contains("Numero indisponivel para iniciar atendimento. Procure a gestao.")
-                .doesNotContain(idAna.toString(), idBruno.toString(), PREFIXO + "da ana", "existe", "responsavel");
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"leadCriado\":false").contains(lead.toString());
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE telefone = ?", UUID.class, canonico))
                 .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM lead WHERE telefone = ?", Integer.class, canonico))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM atendimento_participante WHERE atendimento_id = ? AND usuario_id = ? AND saiu_em IS NULL",
+                        Integer.class,
+                        atendimento,
+                        idBruno))
+                .isEqualTo(1);
         assertThat(idBruno).isNotEqualTo(idAna);
+    }
+
+    @Test
+    @DisplayName("mensagem de colaborador preserva o responsável original")
+    void novoContato_colaboradorEnviaMensagem_preservaResponsavel() {
+        String telefone = telefoneNacional();
+        String canonico = "55" + telefone.replaceAll("\\D", "");
+        UUID lead = UUID.randomUUID();
+        UUID atendimento = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO lead (id, nome, telefone, atendente_responsavel_id, status_basico)"
+                        + " VALUES (?, ?, ?, ?, 'EM_ATENDIMENTO'::status_basico_lead)",
+                lead,
+                PREFIXO + "colaborativo",
+                canonico,
+                idAna);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)"
+                        + " VALUES (?, ?, ?, 'EM_ATENDIMENTO'::status_atendimento, now())",
+                atendimento,
+                lead,
+                idAna);
+
+        var abertura = iniciarComo(EMAIL_BRUNO, Map.of("nome", PREFIXO + "colaborativo", "telefone", telefone));
+        assertThat(abertura.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        var envio = enviarMensagemComo(EMAIL_BRUNO, Map.of("leadId", lead, "conteudo", "mensagem colaborativa"));
+        assertThat(envio.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem WHERE atendimento_id = ? AND remetente_tipo = 'ATENDENTE'",
+                        Integer.class,
+                        atendimento))
+                .isEqualTo(1);
     }
 
     @Test
@@ -212,6 +266,18 @@ class NovoContatoIT extends PostgresIT {
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
         return http.exchange(
                 "/api/v1/atendimentos/novo-contato",
+                HttpMethod.POST,
+                new HttpEntity<>(corpo, cabecalhos),
+                String.class);
+    }
+
+    private ResponseEntity<String> enviarMensagemComo(String email, Map<String, ?> corpo) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        return http.exchange(
+                "/api/v1/atendimentos/mensagens",
                 HttpMethod.POST,
                 new HttpEntity<>(corpo, cabecalhos),
                 String.class);

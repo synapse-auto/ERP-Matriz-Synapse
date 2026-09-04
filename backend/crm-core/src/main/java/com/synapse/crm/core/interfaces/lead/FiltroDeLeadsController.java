@@ -41,6 +41,7 @@ import com.synapse.crm.core.domain.filtro.CriterioCustomizado;
 import com.synapse.crm.core.domain.filtro.CriterioSimples;
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 import com.synapse.crm.core.domain.filtro.FiltroInvalidoException;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 
 /**
  * Filtro modular de leads (E03b): resultado e contagem em tempo real.
@@ -89,7 +90,7 @@ class FiltroDeLeadsController {
             responses = @ApiResponse(responseCode = "200", description = "Catalogos restritos pela visibilidade comercial."))
     @GetMapping("/catalogos")
     CatalogosResposta catalogos() {
-        CatalogosDeFiltroDeLead catalogos = listarCatalogos.executar();
+        CatalogosDeFiltroDeLead catalogos = ContextoDeAgenda.buscarComo(listarCatalogos::executar);
         return new CatalogosResposta(
                 catalogos.cidades(), catalogos.tags().stream().map(TagResposta::de).toList());
     }
@@ -139,8 +140,8 @@ class FiltroDeLeadsController {
         int pagina = paginaValidada(requisicao.pagina());
         int tamanho = tamanhoValidado(requisicao.tamanho());
 
-        PaginaDeLeads paginaDeLeads =
-                filtrar.executar(requisicao.paraDominio(camposCustomizados), pagina, tamanho);
+        PaginaDeLeads paginaDeLeads = ContextoDeAgenda.buscarComo(
+                () -> filtrar.executar(requisicao.paraDominio(camposCustomizados), pagina, tamanho));
 
         List<UUID> idsDaPagina = paginaDeLeads.leads().stream().map(lead -> lead.id()).toList();
         Map<UUID, List<com.synapse.crm.core.domain.tag.Tag>> tagsPorLead =
@@ -162,7 +163,8 @@ class FiltroDeLeadsController {
             })
     @PostMapping("/contagem")
     Contagem contar(@Valid @RequestBody FiltroRequisicao requisicao) {
-        return new Contagem(contar.executar(requisicao.paraDominio(camposCustomizados)));
+        return new Contagem(ContextoDeAgenda.buscarComo(
+                () -> contar.executar(requisicao.paraDominio(camposCustomizados))));
     }
 
     /**

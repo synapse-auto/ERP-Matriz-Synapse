@@ -241,21 +241,19 @@ class AtendimentoIT extends PostgresIT {
         }
 
         /**
-         * Quem enxerga a base inteira alcanca qualquer lead — e, para esse, a regra transfere de
-         * fato. E o unico papel para o qual "mandar mensagem no lead de outro" e operacao possivel.
+         * Quem enxerga a base inteira alcanca qualquer lead, mas enviar mensagem nao e transferencia
+         * implicita: a posse comercial continua com o responsavel original.
          */
         @Test
-        @DisplayName("gestor que responde lead de atendente assume o lead")
-        void envio_gestorEmLeadDeAtendente_transfere() {
+        @DisplayName("gestor que responde lead de atendente preserva o responsavel")
+        void envio_gestorEmLeadDeAtendente_preservaResponsavel() {
             ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
 
             var resultado = enviar.executar(leadDaAna, CONTEUDO);
 
-            assertThat(resultado.transferiuOLead()).isTrue();
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
-            assertThat(descricoesDaTimeline(leadDaAna))
-                    .anySatisfy(descricao ->
-                            assertThat(descricao).contains("antes de " + nomeDoUsuario(idAna)));
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(tiposDaTimeline(leadDaAna)).doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
         }
 
         /** Responder o proprio lead nao e transferencia: nao pode gerar evento de troca de dono. */
@@ -385,8 +383,8 @@ class AtendimentoIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("quem saiu da conversa volta a assumir ao enviar")
-        void participanteQueSaiu_voltaATransferir() {
+        @DisplayName("quem saiu da conversa envia sem transferir a posse")
+        void participanteQueSaiu_enviaSemTransferir() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
 
@@ -395,10 +393,10 @@ class AtendimentoIT extends PostgresIT {
             participacao.sair(atendimentoId);
             var resultado = enviar.executar(leadDaAna, "assumo daqui");
 
-            assertThat(resultado.transferiuOLead()).isTrue();
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
-            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idGestor);
-            assertThat(tiposDaTimeline(leadDaAna)).contains("LEAD_TRANSFERIDO_POR_ENVIO");
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+            assertThat(tiposDaTimeline(leadDaAna)).doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
         }
     }
 

@@ -23,6 +23,7 @@ import com.synapse.crm.core.domain.lead.FotoDoLead;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.LeadResumo;
 import com.synapse.crm.core.domain.lead.VisibilidadeLead;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
@@ -212,7 +213,7 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     private Specification<LeadEntity> visibilidade() {
-        VisibilidadeLead visibilidade = ContextoDeServico.ativo()
+        VisibilidadeLead visibilidade = ContextoDeAgenda.ativo() || ContextoDeServico.ativo()
                 ? new VisibilidadeLead.Ampla()
                 : VisibilidadeLead.de(usuarioContext.atual());
         return VisibilidadeLeadSpecification.de(visibilidade);

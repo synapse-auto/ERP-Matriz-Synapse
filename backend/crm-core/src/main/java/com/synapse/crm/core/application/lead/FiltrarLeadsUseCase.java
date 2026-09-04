@@ -2,6 +2,7 @@ package com.synapse.crm.core.application.lead;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.core.domain.filtro.FiltroDeLeads;
 
@@ -24,6 +25,7 @@ public class FiltrarLeadsUseCase {
     }
 
     @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public PaginaDeLeads executar(FiltroDeLeads filtro, int pagina, int tamanho) {
         return leads.listar(filtro, pagina, tamanho);
     }

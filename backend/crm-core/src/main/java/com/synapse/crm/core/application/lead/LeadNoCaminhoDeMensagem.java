@@ -70,6 +70,15 @@ public interface LeadNoCaminhoDeMensagem {
      */
     Transferencia transferirPara(UUID leadId, UUID novoAtendenteId);
 
+    /**
+     * Torna o candidato responsável apenas quando o lead ainda não possui responsável.
+     *
+     * <p>A leitura e a eventual assunção são uma operação atômica protegida por lock. Um lead já
+     * atribuído permanece com o dono atual; a troca deliberada continua sendo responsabilidade de
+     * {@code TransferirAtendimentoUseCase}.
+     */
+    Assuncao assumirSeSemDono(UUID leadId, UUID candidato);
+
     /** Acompanha a mudanca de estado do atendimento (RF-CRM-71). */
     void marcarStatus(UUID leadId, StatusBasicoLead status);
 
@@ -145,6 +154,22 @@ public interface LeadNoCaminhoDeMensagem {
 
         public static Transferencia de(UUID donoAnterior) {
             return new Transferencia(true, Optional.ofNullable(donoAnterior));
+        }
+    }
+
+    /** Resultado da tentativa de assumir um lead sem responsável. */
+    record Assuncao(boolean alcancavel, Optional<UUID> responsavelAtual, boolean assumiu) {
+
+        public static Assuncao naoAlcancado() {
+            return new Assuncao(false, Optional.empty(), false);
+        }
+
+        public static Assuncao preservado(UUID responsavel) {
+            return new Assuncao(true, Optional.ofNullable(responsavel), false);
+        }
+
+        public static Assuncao assumido(UUID responsavel) {
+            return new Assuncao(true, Optional.of(responsavel), true);
         }
     }
 }

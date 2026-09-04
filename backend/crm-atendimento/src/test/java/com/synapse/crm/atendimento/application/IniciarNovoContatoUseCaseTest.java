@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -47,6 +48,7 @@ class IniciarNovoContatoUseCaseTest {
     private CanalGateway canal;
     private CanalCredencialAtivaRepositorio canaisAtivos;
     private UsuarioContext usuarioContext;
+    private ParticipacaoAtendimentoRepositorio participacoes;
     private UUID quemPediu;
     private IniciarNovoContatoUseCase useCase;
 
@@ -57,6 +59,7 @@ class IniciarNovoContatoUseCaseTest {
         enviar = mock(EnviarMensagemUseCase.class);
         canal = mock(CanalGateway.class);
         canaisAtivos = mock(CanalCredencialAtivaRepositorio.class);
+        participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
         usuarioContext = mock(UsuarioContext.class);
         quemPediu = UUID.randomUUID();
         when(usuarioContext.atual())
@@ -70,7 +73,8 @@ class IniciarNovoContatoUseCaseTest {
                 canaisAtivos,
                 new TelefoneCanonico("55"),
                 usuarioContext,
-                Clock.fixed(AGORA, ZoneOffset.UTC));
+                Clock.fixed(AGORA, ZoneOffset.UTC),
+                participacoes);
     }
 
     @Test
@@ -79,7 +83,7 @@ class IniciarNovoContatoUseCaseTest {
         when(leads.visivelPorTelefone(TELEFONE_CANONICO)).thenReturn(Optional.empty());
         when(leads.criarParaAtendente(eq("Maria"), eq(TELEFONE_CANONICO), eq(quemPediu), isNull()))
                 .thenReturn(Optional.of(leadId));
-        when(leads.transferirPara(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(null));
+        when(leads.assumirSeSemDono(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.assumido(quemPediu));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.empty());
         when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
 
@@ -102,7 +106,7 @@ class IniciarNovoContatoUseCaseTest {
                 .transferirPara(quemPediu);
         when(leads.visivelPorTelefone(TELEFONE_CANONICO)).thenReturn(Optional.of(leadId));
         when(leads.contatoParaEnvio(leadId)).thenReturn(Optional.empty());
-        when(leads.transferirPara(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(quemPediu));
+        when(leads.assumirSeSemDono(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(quemPediu));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
 
         IniciarNovoContatoUseCase.Resultado resultado =
@@ -117,8 +121,8 @@ class IniciarNovoContatoUseCaseTest {
     @Test
     void leadExistenteSemAberto_criaAtendimentoHumanoSemEnviarMesmoForaDaJanela() {
         UUID leadId = UUID.randomUUID();
-        when(leads.transferirPara(leadId, quemPediu))
-                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(quemPediu));
+        when(leads.assumirSeSemDono(leadId, quemPediu))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(quemPediu));
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.empty());
         when(atendimentos.salvar(any(Atendimento.class)))
                 .thenAnswer(invocacao -> invocacao.getArgument(0));
@@ -138,8 +142,8 @@ class IniciarNovoContatoUseCaseTest {
     @Test
     void leadExistenteInvisivel_vira404SemConsultarOuCriarAtendimento() {
         UUID leadId = UUID.randomUUID();
-        when(leads.transferirPara(leadId, quemPediu))
-                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.naoAlcancado());
+        when(leads.assumirSeSemDono(leadId, quemPediu))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.naoAlcancado());
 
         assertThatThrownBy(() -> useCase.abrirParaLeadExistente(leadId))
                 .isInstanceOf(ContatoIndisponivelParaInicioException.class)
@@ -184,7 +188,7 @@ class IniciarNovoContatoUseCaseTest {
         when(leads.visivelPorTelefone(TELEFONE_CANONICO)).thenReturn(Optional.empty());
         when(leads.criarParaAtendente(eq("Maria"), eq(TELEFONE_CANONICO), eq(quemPediu), isNull()))
                 .thenReturn(Optional.of(leadId));
-        when(leads.transferirPara(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(null));
+        when(leads.assumirSeSemDono(leadId, quemPediu)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.assumido(quemPediu));
         when(enviar.executar(eq(leadId), any(ConteudoDeEnvio.MensagemTemplate.class)))
                 .thenReturn(new EnviarMensagemUseCase.Resultado(aberto, mensagem, true));
         when(canal.aceitaTextoLivre(any(), any())).thenReturn(false);
