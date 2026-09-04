@@ -333,4 +333,117 @@ class MetaCloudWebhookTradutorTest {
                 }}]}]}
                 """.formatted(mensagens);
     }
+    @Test
+    void traduzLocalizacaoComNomeEEndereco() {
+        var payload = """
+        {
+          "object": "whatsapp_business_account",
+          "entry": [{
+            "id": "112233",
+            "changes": [{
+              "value": {
+                "messaging_product": "whatsapp",
+                "metadata": { "display_phone_number": "556199999999", "phone_number_id": "12345" },
+                "contacts": [{ "profile": { "name": "Joao" }, "wa_id": "556188888888" }],
+                "messages": [{
+                  "from": "556188888888",
+                  "id": "wamid.location-1",
+                  "timestamp": "1720000000",
+                  "type": "location",
+                  "location": {
+                    "latitude": -7.115,
+                    "longitude": -34.864,
+                    "name": "Condominio Park Cowboy",
+                    "address": "R. Dr. Valdevino, 800"
+                  }
+                }]
+              },
+              "field": "messages"
+            }]
+          }]
+        }""";
+
+        var resultado = tradutor.traduzir(payload);
+        assertThat(resultado).hasSize(1);
+        
+        TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
+        assertThat(msg.tipoMensagem()).isEqualTo("LOCALIZACAO");
+        assertThat(msg.texto()).contains("\"latitude\":-7.115");
+        assertThat(msg.texto()).contains("\"longitude\":-34.864");
+        assertThat(msg.texto()).contains("\"nome\":\"Condominio Park Cowboy\"");
+        assertThat(msg.texto()).contains("\"endereco\":\"R. Dr. Valdevino, 800\"");
+    }
+
+    @Test
+    void traduzLocalizacaoSemNomeNemEndereco() {
+        var payload = """
+        {
+          "object": "whatsapp_business_account",
+          "entry": [{
+            "id": "112233",
+            "changes": [{
+              "value": {
+                "messaging_product": "whatsapp",
+                "metadata": { "display_phone_number": "556199999999", "phone_number_id": "12345" },
+                "contacts": [{ "profile": { "name": "Joao" }, "wa_id": "556188888888" }],
+                "messages": [{
+                  "from": "556188888888",
+                  "id": "wamid.location-2",
+                  "timestamp": "1720000000",
+                  "type": "location",
+                  "location": {
+                    "latitude": -7.115,
+                    "longitude": -34.864
+                  }
+                }]
+              },
+              "field": "messages"
+            }]
+          }]
+        }""";
+
+        var resultado = tradutor.traduzir(payload);
+        assertThat(resultado).hasSize(1);
+        
+        TradutorDeCanal.MensagemRecebidaDoCanal msg = resultado.get(0);
+        assertThat(msg.tipoMensagem()).isEqualTo("LOCALIZACAO");
+        assertThat(msg.texto()).contains("\"latitude\":-7.115");
+        assertThat(msg.texto()).contains("\"longitude\":-34.864");
+        assertThat(msg.texto()).doesNotContain("nome");
+        assertThat(msg.texto()).doesNotContain("endereco");
+    }
+
+    @Test
+    void descartaLocalizacaoComLatOuLonInvalidas() {
+        var payload = """
+        {
+          "object": "whatsapp_business_account",
+          "entry": [{
+            "id": "112233",
+            "changes": [{
+              "value": {
+                "messaging_product": "whatsapp",
+                "metadata": { "display_phone_number": "556199999999", "phone_number_id": "12345" },
+                "contacts": [{ "profile": { "name": "Joao" }, "wa_id": "556188888888" }],
+                "messages": [{
+                  "from": "556188888888",
+                  "id": "wamid.location-invalid",
+                  "timestamp": "1720000000",
+                  "type": "location",
+                  "location": {
+                    "latitude": -91.0,
+                    "longitude": -34.864
+                  }
+                }]
+              },
+              "field": "messages"
+            }]
+          }]
+        }""";
+
+        var resultado = tradutor.traduzir(payload);
+        assertThat(resultado).isEmpty();
+        assertThat(logs.list).anyMatch(e -> e.getLevel() == Level.WARN
+                && e.getFormattedMessage().contains("Coordenadas de localizacao invalidas"));
+    }
 }

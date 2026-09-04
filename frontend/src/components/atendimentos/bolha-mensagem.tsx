@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Maximize2 } from "lucide-react";
+import { FileText, Maximize2, MapPin } from "lucide-react";
 
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
@@ -19,6 +19,9 @@ interface MidiaMetadados {
   mimetype?: string;
   tamanho?: number;
   legenda?: string;
+  latitude?: number;
+  longitude?: number;
+  endereco?: string;
 }
 
 interface OpcaoInterativa {
@@ -250,6 +253,45 @@ export function BolhaMensagem({
 
         {mensagem.tipo === "TEXTO" && (
           <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>
+        )}
+
+        {mensagem.tipo === "LOCALIZACAO" && (
+          <div className="flex flex-col gap-2 rounded-lg bg-background/10 p-2.5">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+                <MapPin className="size-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block font-semibold break-words">
+                  {metadados.nome ?? textos.localizacao}
+                </span>
+                {metadados.endereco && (
+                  <span className="mt-0.5 block text-sm opacity-85 break-words">
+                    {metadados.endereco}
+                  </span>
+                )}
+                {(!metadados.nome && !metadados.endereco) && metadados.latitude !== undefined && metadados.longitude !== undefined ? (
+                  <span className="mt-0.5 block text-xs opacity-70">
+                    {metadados.latitude}, {metadados.longitude}
+                  </span>
+                ) : (metadados.latitude === undefined || metadados.longitude === undefined) && (
+                  <span className="mt-0.5 block text-xs font-medium text-destructive">
+                    {textos.localizacaoIncompleta}
+                  </span>
+                )}
+              </div>
+            </div>
+            {metadados.latitude !== undefined && metadados.longitude !== undefined && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${metadados.latitude},${metadados.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex w-full items-center justify-center rounded-md bg-background/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-background/30"
+              >
+                {textos.abrirLocalizacao}
+              </a>
+            )}
+          </div>
         )}
 
         {(mensagem.tipo === "BOTOES" || mensagem.tipo === "LISTA") && (

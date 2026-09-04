@@ -22,7 +22,7 @@ export type StatusEntrega =
   "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
 
 /** Espelha TipoMensagem.java. */
-export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO" | "VIDEO" | "BOTOES" | "LISTA";
+export type TipoMensagem = "TEXTO" | "AUDIO" | "IMAGEM" | "DOCUMENTO" | "VIDEO" | "BOTOES" | "LISTA" | "LOCALIZACAO";
 
 export interface ConfiguracaoComposer {
   tamanhoMaximoAudioBytes: number;

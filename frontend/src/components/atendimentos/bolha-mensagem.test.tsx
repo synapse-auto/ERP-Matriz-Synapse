@@ -18,6 +18,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
         baixar: "Baixar",
         botoes: "Opções",
         lista: "Lista",
+        localizacao: "Localização",
+        localizacaoIncompleta: "Localização incompleta",
+        abrirLocalizacao: "Abrir localização",
         visualizador: {
           fechar: "Fechar visualizador",
           anterior: "Mídia anterior",
@@ -439,5 +442,55 @@ describe("BolhaMensagem", () => {
 
     expect(screen.queryByText("Número não recebe mensagens no WhatsApp")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+  });
+
+  it("mostra a bolha de localizacao completa com nome e endereco", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "LOCALIZACAO",
+          conteudo: null,
+          midiaMetadados: JSON.stringify({
+            latitude: -7.115,
+            longitude: -34.864,
+            nome: "Condomínio Park Cowboy",
+            endereco: "R. Dr. Valdevino Gregório de Andrade, 800",
+          }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Condomínio Park Cowboy")).toBeInTheDocument();
+    expect(screen.getByText("R. Dr. Valdevino Gregório de Andrade, 800")).toBeInTheDocument();
+    
+    const botaoAbrir = screen.getByRole("link", { name: "Abrir localização" });
+    expect(botaoAbrir).toBeInTheDocument();
+    expect(botaoAbrir).toHaveAttribute("href", "https://www.google.com/maps/search/?api=1&query=-7.115,-34.864");
+  });
+
+  it("mostra a bolha de localizacao incompleta e com fallback de lat/lon", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "LOCALIZACAO",
+          conteudo: null,
+          midiaMetadados: JSON.stringify({
+            latitude: -7.115,
+            longitude: -34.864,
+          }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Localização")).toBeInTheDocument();
+    expect(screen.getByText("-7.115, -34.864")).toBeInTheDocument();
+    
+    const botaoAbrir = screen.getByRole("link", { name: "Abrir localização" });
+    expect(botaoAbrir).toBeInTheDocument();
+    expect(botaoAbrir).toHaveAttribute("href", "https://www.google.com/maps/search/?api=1&query=-7.115,-34.864");
   });
 });
