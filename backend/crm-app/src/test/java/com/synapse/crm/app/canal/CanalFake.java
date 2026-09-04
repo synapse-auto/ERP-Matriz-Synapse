@@ -61,6 +61,15 @@ public class CanalFake implements CanalGateway {
         proximaResposta.set(new ResultadoDeEnvio.Aceito("fake-id-" + System.nanoTime()));
     }
 
+    /**
+     * Proximo {@link #enviar} devolve aceite com o endereco que o provedor informou — o caminho
+     * que a Meta usa via {@code contacts[0].wa_id}.
+     */
+    public void aceitarComEnderecoDoProvedor(String enderecoDoProvedor) {
+        proximaResposta.set(
+                new ResultadoDeEnvio.Aceito("fake-id-" + System.nanoTime(), enderecoDoProvedor));
+    }
+
     /** Provedor nao oficial nao tem janela; oficial tem. O fake simula os dois. */
     public void fecharJanela() {
         janelaAberta.set(false);

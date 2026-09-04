@@ -16,10 +16,13 @@ const callbacks = vi.hoisted(() => ({
   atualizarLista: undefined as ((cartoes: ItemInbox[]) => void) | undefined,
   alterarVisao: undefined as ((visao: string) => void) | undefined,
   visaoAtual: undefined as string | undefined,
+  leadInicialId: undefined as string | null | undefined,
   finalizar: undefined as ((resumo: AtendimentoResumo) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
+  novoContato: undefined as (() => void) | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
+const iniciarNovo = vi.hoisted(() => vi.fn());
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -81,16 +84,20 @@ const cartaoInicial: CartaoAtendimento = {
 
 vi.mock("./lista-conversas", () => ({
   ListaConversas: ({
+    leadInicialId = null,
     leadInicialGatilho = 0,
     onAbrirAtendimento,
     onAtendimentosAtualizados,
     onVisaoAlterada,
+    onNovoContato,
     visaoAtual,
   }: {
+    leadInicialId?: string | null;
     leadInicialGatilho?: number;
     onAbrirAtendimento: (cartao: ItemInbox) => void;
     onAtendimentosAtualizados?: (cartoes: ItemInbox[]) => void;
     onVisaoAlterada?: (visao: string) => void;
+    onNovoContato?: () => void;
     visaoAtual?: string;
   }) => {
     const gatilhoAnterior = useRef(leadInicialGatilho);
@@ -98,13 +105,57 @@ vi.mock("./lista-conversas", () => ({
     callbacks.atualizarLista = onAtendimentosAtualizados;
     callbacks.alterarVisao = onVisaoAlterada;
     callbacks.visaoAtual = visaoAtual;
+    callbacks.leadInicialId = leadInicialId;
+    callbacks.novoContato = onNovoContato;
     useEffect(() => {
       if (leadInicialGatilho === gatilhoAnterior.current) return;
       gatilhoAnterior.current = leadInicialGatilho;
-      onAbrirAtendimento(cartaoInicial);
-    }, [leadInicialGatilho, onAbrirAtendimento]);
-    return <button type="button" onClick={() => onAbrirAtendimento(cartaoInicial)}>Abrir lista</button>;
+      onAbrirAtendimento({
+        ...cartaoInicial,
+        leadId: leadInicialId ?? cartaoInicial.leadId,
+      });
+    }, [leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
+    return (
+      <div data-testid="lista-conversas-mock">
+        <button type="button" onClick={() => onAbrirAtendimento(cartaoInicial)}>
+          Abrir lista
+        </button>
+        {onNovoContato && (
+          <button type="button" onClick={onNovoContato}>
+            Novo atendimento
+          </button>
+        )}
+        <span data-testid="visao-lista">{visaoAtual ?? ""}</span>
+      </div>
+    );
   },
+}));
+vi.mock("./dialogo-novo-contato", () => ({
+  DialogoNovoContato: ({
+    aberto,
+    onConfirmar,
+    onFechar,
+    erro,
+  }: {
+    aberto: boolean;
+    onConfirmar: (pedido: { nome: string; telefone: string }) => void;
+    onFechar: () => void;
+    erro: string | null;
+  }) =>
+    aberto ? (
+      <div data-testid="dialogo-novo-contato">
+        <button
+          type="button"
+          onClick={() => onConfirmar({ nome: "Maria", telefone: "61999990000" })}
+        >
+          Confirmar novo contato
+        </button>
+        <button type="button" onClick={onFechar}>
+          Fechar modal
+        </button>
+        {erro && <span data-testid="erro-novo-contato">{erro}</span>}
+      </div>
+    ) : null,
 }));
 vi.mock("./cabecalho-conversa", () => ({
   CabecalhoConversa: ({
@@ -208,7 +259,7 @@ vi.mock("./composer", () => ({
 }));
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
-  iniciarNovoContato: vi.fn(),
+  iniciarNovoContato: iniciarNovo,
   abrirAtendimentoParaLead: abrirExistente,
   enviarMensagem: vi.fn(() => Promise.reject(new Error("falha de rede"))),
   enviarTemplate: vi.fn(),
@@ -297,14 +348,23 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.atualizarLista = undefined;
     callbacks.alterarVisao = undefined;
     callbacks.visaoAtual = undefined;
+    callbacks.leadInicialId = undefined;
     callbacks.finalizar = undefined;
     callbacks.mensagens = undefined;
+    callbacks.novoContato = undefined;
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
     abrirExistente.mockReset();
     abrirExistente.mockResolvedValue({
       leadId: "lead-1",
       atendimentoId: "atendimento-novo",
+      mensagemId: null,
+      leadCriado: false,
+    });
+    iniciarNovo.mockReset();
+    iniciarNovo.mockResolvedValue({
+      leadId: "lead-existente",
+      atendimentoId: "atendimento-reusado",
       mensagemId: null,
       leadCriado: false,
     });
@@ -645,6 +705,7 @@ describe("PaginaAtendimentosCliente", () => {
     await waitFor(() =>
       expect(abrirExistente).toHaveBeenCalledWith("lead-1", expect.anything()),
     );
+    await waitFor(() => expect(callbacks.visaoAtual).toBe("ATIVOS"));
     act(() =>
       callbacks.atualizarLista?.([
         {
@@ -656,6 +717,76 @@ describe("PaginaAtendimentosCliente", () => {
       ]),
     );
     await waitFor(() => expect(screen.getByTestId("composer")).toBeInTheDocument());
+  });
+
+  it("troca Finalizados por Ativos ao reativar antes de refiltrar a lista", async () => {
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.alterarVisao?.("FINALIZADOS"));
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    fireEvent.click(screen.getByRole("button", { name: "Reativar atendimento" }));
+
+    await waitFor(() => expect(abrirExistente).toHaveBeenCalledWith("lead-1", expect.anything()));
+    expect(callbacks.visaoAtual).toBe("ATIVOS");
+  });
+
+  it("iniciar contato existente em Pendentes muda para Ativos e abre o chat", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+      </QueryClientProvider>,
+    );
+    act(() => callbacks.alterarVisao?.("PENDENTES"));
+    expect(callbacks.visaoAtual).toBe("PENDENTES");
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo atendimento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar novo contato" }));
+
+    await waitFor(() =>
+      expect(iniciarNovo).toHaveBeenCalledWith(
+        { nome: "Maria", telefone: "61999990000" },
+        expect.anything(),
+      ),
+    );
+    await waitFor(() => {
+      expect(callbacks.visaoAtual).toBe("ATIVOS");
+      expect(callbacks.leadInicialId).toBe("lead-existente");
+    });
+    expect(screen.queryByTestId("dialogo-novo-contato")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument(),
+    );
+  });
+
+  it("falha ao iniciar contato não fecha o modal nem altera a seleção", async () => {
+    iniciarNovo.mockRejectedValueOnce(new Error("Numero indisponivel para iniciar atendimento."));
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="POTENCIAIS" />
+      </QueryClientProvider>,
+    );
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    act(() => callbacks.alterarVisao?.("POTENCIAIS"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Novo atendimento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar novo contato" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("erro-novo-contato")).toHaveTextContent(
+        "Numero indisponivel para iniciar atendimento.",
+      ),
+    );
+    expect(screen.getByTestId("dialogo-novo-contato")).toBeInTheDocument();
+    expect(callbacks.visaoAtual).toBe("POTENCIAIS");
+    expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
   });
 
   it("no celular mostra só a lista e troca para a conversa em tela cheia", () => {

@@ -135,20 +135,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " WHERE aberto.lead_id = a.lead_id"
             + " AND aberto.status IN ('EM_ATENDIMENTO', 'EM_IA'))";
 
-    /** Ultimo atendimento do lead (mesma ordem do {@code ROW_NUMBER} em {@link #CAMPOS}). */
-    private static final String SUBQUERY_ATENDENTE_DO_ULTIMO =
-            "(SELECT recente.atendente_id FROM atendimento recente"
-                    + " LEFT JOIN LATERAL (SELECT enviado_em FROM mensagem m_recente"
-                    + " WHERE m_recente.atendimento_id = recente.id"
-                    + " ORDER BY m_recente.enviado_em DESC LIMIT 1) ultima_recente ON true"
-                    + " WHERE recente.lead_id = a.lead_id"
-                    + " ORDER BY COALESCE(ultima_recente.enviado_em, recente.iniciado_em) DESC,"
-                    + " recente.iniciado_em DESC, recente.id DESC LIMIT 1)";
-
-    private static final String WHERE_FINALIZADOS_PROPRIOS =
-            WHERE_SEM_ATENDIMENTO_ABERTO + " AND " + SUBQUERY_ATENDENTE_DO_ULTIMO + " = ?";
-
-    private static final String WHERE_FINALIZADOS_TODOS = WHERE_SEM_ATENDIMENTO_ABERTO;
+    /**
+     * E145: finalizados formam o balcao de reativacao. A RLS ja limita as linhas alcancaveis; o
+     * painel nao pode reaplicar o recorte do ultimo responsavel, senao o atendente nao consegue
+     * sequer encontrar o cartao para assumir o lead de um colega.
+     */
+    private static final String WHERE_FINALIZADOS = WHERE_SEM_ATENDIMENTO_ABERTO;
 
     private static final String SQL_ATIVOS = agrupar(CAMPOS + ORIGEM + WHERE_ATIVOS);
 
@@ -160,9 +152,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
 
-    private static final String SQL_FINALIZADOS_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_PROPRIOS);
-
-    private static final String SQL_FINALIZADOS_TODOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_TODOS);
+    private static final String SQL_FINALIZADOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 
     private static final String COLUNAS_CARTAO =
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
@@ -180,10 +170,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
 
-    private static final String SQL_CONTAR_FINALIZADOS_PROPRIOS =
-            contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_PROPRIOS);
-
-    private static final String SQL_CONTAR_FINALIZADOS_TODOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS_TODOS);
+    private static final String SQL_CONTAR_FINALIZADOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 
     private static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
@@ -215,9 +202,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
             case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
-            case FINALIZADOS -> restritoAoProprioAtendente
-                    ? chat.query(SQL_FINALIZADOS_PROPRIOS, MAPEADOR, usuarioId, usuarioId)
-                    : chat.query(SQL_FINALIZADOS_TODOS, MAPEADOR, usuarioId);
+            // E145: qualquer atendente pode encontrar e reativar um finalizado. O argumento de
+            // restricao continua sendo aplicado nas visoes de andamento; aqui a RLS faz o recorte.
+            case FINALIZADOS -> chat.query(SQL_FINALIZADOS, MAPEADOR, usuarioId);
         };
     }
 
@@ -231,16 +218,14 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
             case POTENCIAIS -> WHERE_POTENCIAIS;
             case TODOS -> "";
-            case FINALIZADOS ->
-                    restritoAoProprioAtendente ? WHERE_FINALIZADOS_PROPRIOS : WHERE_FINALIZADOS_TODOS;
+            case FINALIZADOS -> WHERE_FINALIZADOS;
         };
         String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
                 + ") cartoes WHERE linha_do_lead = 1";
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS
-                || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)
-                || (visao == VisaoAtendimento.FINALIZADOS && restritoAoProprioAtendente)) {
+                || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)) {
             parametros.add(usuarioId);
         }
         if (depoisDoId != null) {
@@ -276,9 +261,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
             case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
             case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);
-            case FINALIZADOS -> restritoAoProprioAtendente
-                    ? queryForCount(SQL_CONTAR_FINALIZADOS_PROPRIOS, usuarioId, usuarioId)
-                    : queryForCount(SQL_CONTAR_FINALIZADOS_TODOS, usuarioId);
+            case FINALIZADOS -> queryForCount(SQL_CONTAR_FINALIZADOS, usuarioId);
         };
     }
 
