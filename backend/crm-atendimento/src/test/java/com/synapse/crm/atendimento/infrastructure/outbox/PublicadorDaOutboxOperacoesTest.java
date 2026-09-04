@@ -102,6 +102,7 @@ class PublicadorDaOutboxOperacoesTest {
                 outbox,
                 mock(MensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class),
                 mock(CanalGateway.class),
                 propriedades,
                 mock(ApplicationEventPublisher.class));
@@ -121,6 +122,7 @@ class PublicadorDaOutboxOperacoesTest {
                 outbox,
                 mensagens,
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class),
                 canal,
                 propriedades,
                 eventos);
@@ -134,6 +136,81 @@ class PublicadorDaOutboxOperacoesTest {
         verify(outbox).esgotar(pendente.outboxId(), AGORA, "numero invalido");
         verify(mensagens).atualizarStatusEntrega(
                 pendente.mensagemId(), pendente.enviadoEm(), com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.FALHOU);
+    }
+
+    @Test
+    void aceiteComEnderecoDiferenteGravaNoLead() {
+        Outbox outbox = mock(Outbox.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        var idsExternos =
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class);
+        var leads = mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        when(canal.provedor()).thenReturn("teste");
+        PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                outbox,
+                mensagens,
+                idsExternos,
+                leads,
+                canal,
+                propriedades(),
+                mock(ApplicationEventPublisher.class));
+        Outbox.EnvioPendente pendente = pendente();
+
+        transacoes.registrarResultado(
+                pendente, new ResultadoDeEnvio.Aceito("wamid.1", "556188887777"), AGORA);
+
+        verify(outbox).marcarPublicado(pendente.outboxId(), AGORA);
+        verify(leads).registrarTelefoneProvedor(pendente.leadId(), "556188887777");
+    }
+
+    @Test
+    void aceiteComEnderecoIgualOuAusenteNaoGravaNoLead() {
+        Outbox outbox = mock(Outbox.class);
+        var leads = mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        when(canal.provedor()).thenReturn("teste");
+        PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                outbox,
+                mock(MensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                leads,
+                canal,
+                propriedades(),
+                mock(ApplicationEventPublisher.class));
+        Outbox.EnvioPendente pendente = pendente();
+
+        transacoes.registrarResultado(
+                pendente, new ResultadoDeEnvio.Aceito("wamid.eco", pendente.telefoneDestino()), AGORA);
+        transacoes.registrarResultado(pendente, new ResultadoDeEnvio.Aceito("wamid.sem"), AGORA);
+
+        verify(leads, org.mockito.Mockito.never()).registrarTelefoneProvedor(any(), any());
+        verify(outbox, org.mockito.Mockito.times(2)).marcarPublicado(pendente.outboxId(), AGORA);
+    }
+
+    @Test
+    void falhaAoGravarEnderecoNaoDesfazAceite() {
+        Outbox outbox = mock(Outbox.class);
+        var leads = mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class);
+        org.mockito.Mockito.doThrow(new RuntimeException("lead sumiu"))
+                .when(leads)
+                .registrarTelefoneProvedor(any(), any());
+        CanalGateway canal = mock(CanalGateway.class);
+        when(canal.provedor()).thenReturn("teste");
+        PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                outbox,
+                mock(MensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                leads,
+                canal,
+                propriedades(),
+                mock(ApplicationEventPublisher.class));
+        Outbox.EnvioPendente pendente = pendente();
+
+        transacoes.registrarResultado(
+                pendente, new ResultadoDeEnvio.Aceito("wamid.ok", "556188887777"), AGORA);
+
+        verify(outbox).marcarPublicado(pendente.outboxId(), AGORA);
     }
 
     private static OutboxProperties propriedades() {

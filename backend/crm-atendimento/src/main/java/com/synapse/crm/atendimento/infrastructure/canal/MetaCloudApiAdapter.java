@@ -200,7 +200,7 @@ class MetaCloudApiAdapter implements CanalGateway {
                     .retrieve()
                     .body(String.class);
 
-            return new ResultadoDeEnvio.Aceito(idDaMensagem(resposta));
+            return interpretarAceite(resposta);
 
         } catch (RestClientResponseException e) {
             return traduzirErro(e);
@@ -713,17 +713,35 @@ class MetaCloudApiAdapter implements CanalGateway {
         return new CanalGateway.MidiaRecebida(bytes, mimetype);
     }
 
-    private String idDaMensagem(String resposta) {
+    /**
+     * Traduz o JSON de aceite da Meta sem deixar uma leitura falha transformar 2xx em recusa.
+     *
+     * <p>{@code contacts[0].wa_id} e o endereco que o provedor usa para o destinatario; fica no
+     * adaptador — o dominio so ve {@link ResultadoDeEnvio.Aceito#enderecoDoProvedor()}.
+     */
+    private ResultadoDeEnvio.Aceito interpretarAceite(String resposta) {
         try {
-            JsonNode mensagens = json.readTree(resposta).path("messages");
-            return mensagens.isArray() && !mensagens.isEmpty()
-                    ? mensagens.get(0).path("id").asText()
-                    : "";
+            JsonNode raiz = json.readTree(resposta);
+            return new ResultadoDeEnvio.Aceito(idDaMensagem(raiz), enderecoDoProvedor(raiz));
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
-            // A Meta aceitou (2xx); nao ter conseguido ler o id nao desfaz o envio.
+            // A Meta aceitou (2xx); nao ter conseguido ler o corpo nao desfaz o envio.
             log.warn("Resposta da Meta aceita mas ilegivel ao extrair o id da mensagem.", e);
-            return "";
+            return new ResultadoDeEnvio.Aceito("");
         }
+    }
+
+    private static String idDaMensagem(JsonNode raiz) {
+        JsonNode mensagens = raiz.path("messages");
+        return mensagens.isArray() && !mensagens.isEmpty() ? mensagens.get(0).path("id").asText("") : "";
+    }
+
+    private static String enderecoDoProvedor(JsonNode raiz) {
+        JsonNode contacts = raiz.path("contacts");
+        if (!contacts.isArray() || contacts.isEmpty()) {
+            return null;
+        }
+        String endereco = contacts.get(0).path("wa_id").asText("").trim();
+        return endereco.isEmpty() ? null : endereco;
     }
 
     private String resumoDoErro(String corpo) {

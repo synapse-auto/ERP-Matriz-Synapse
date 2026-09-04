@@ -16,6 +16,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
+import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Transacoes curtas da outbox; nenhuma delas chama o provedor externo. */
@@ -27,6 +28,7 @@ class PublicadorDaOutboxTransacoes {
     private final Outbox outbox;
     private final MensagemRepositorio mensagens;
     private final MensagemIdExternoRepositorio idsExternos;
+    private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
     private final OutboxProperties propriedades;
     private final ApplicationEventPublisher eventos;
@@ -35,12 +37,14 @@ class PublicadorDaOutboxTransacoes {
             Outbox outbox,
             MensagemRepositorio mensagens,
             MensagemIdExternoRepositorio idsExternos,
+            LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             OutboxProperties propriedades,
             ApplicationEventPublisher eventos) {
         this.outbox = outbox;
         this.mensagens = mensagens;
         this.idsExternos = idsExternos;
+        this.leads = leads;
         this.canal = canal;
         this.propriedades = propriedades;
         this.eventos = eventos;
@@ -71,6 +75,7 @@ class PublicadorDaOutboxTransacoes {
                         pendente.leadId(),
                         StatusEntrega.ENVIADO.name(),
                         quando));
+                aprenderEnderecoDoProvedor(pendente, aceito);
                 log.debug(
                         "Mensagem {} aceita pelo provedor {} como {}.",
                         pendente.mensagemId(),
@@ -91,6 +96,42 @@ class PublicadorDaOutboxTransacoes {
                             recusado.motivo());
                 }
             }
+        }
+    }
+
+    /**
+     * Guarda o endereco que o provedor devolveu na resposta do envio, quando ele difere do
+     * {@code to} que acabamos de usar.
+     *
+     * <p>Roda na mesma transacao do aceite — sem {@code REQUIRES_NEW}. Lead apagado so faz o
+     * {@code UPDATE} afetar zero linhas (sem excecao); qualquer falha inesperada e engolida para
+     * nao desfazer o {@code marcarPublicado} de um envio que a Meta ja aceitou. Sem evento de
+     * timeline: e endereco de entrega, nao fato de negocio.
+     */
+    private void aprenderEnderecoDoProvedor(
+            Outbox.EnvioPendente pendente, ResultadoDeEnvio.Aceito aceito) {
+        String endereco = aceito.enderecoDoProvedor();
+        if (endereco == null || endereco.isBlank()) {
+            return;
+        }
+        if (endereco.equals(pendente.telefoneDestino())) {
+            return;
+        }
+        try {
+            leads.registrarTelefoneProvedor(pendente.leadId(), endereco);
+            log.debug(
+                    "Endereco do provedor aprendido para o lead {}: {} (destino enviado era {}).",
+                    pendente.leadId(),
+                    endereco,
+                    pendente.telefoneDestino());
+        } catch (RuntimeException e) {
+            log.warn(
+                    "Nao foi possivel gravar o endereco do provedor {} para o lead {} apos aceite "
+                            + "da mensagem {}.",
+                    endereco,
+                    pendente.leadId(),
+                    pendente.mensagemId(),
+                    e);
         }
     }
 

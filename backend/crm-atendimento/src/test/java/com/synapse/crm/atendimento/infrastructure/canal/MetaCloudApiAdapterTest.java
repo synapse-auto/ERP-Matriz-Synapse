@@ -242,9 +242,62 @@ class MetaCloudApiAdapterTest {
 
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isNull();
         assertThat(payloadCapturado[0].path("context").path("message_id").asText())
                 .isEqualTo("wamid.origem");
         assertThat(payloadCapturado[0].path("text").path("body").asText()).isEqualTo("resposta");
+    }
+
+    @Test
+    void aceiteDevolveEnderecoDoProvedorQuandoContactsInformaWaId() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        """
+                        {"messaging_product":"whatsapp",
+                         "contacts":[{"input":"5561988887777","wa_id":"556188887777"}],
+                         "messages":[{"id":"wamid.E146"}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = enviarTexto(adapter);
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        ResultadoDeEnvio.Aceito aceito = (ResultadoDeEnvio.Aceito) resultado;
+        assertThat(aceito.idExterno()).isEqualTo("wamid.E146");
+        assertThat(aceito.enderecoDoProvedor()).isEqualTo("556188887777");
+    }
+
+    @Test
+    void aceiteSemContactsDeixaEnderecoAusente() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"wamid.so-id\"}]}", MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = enviarTexto(adapter);
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        ResultadoDeEnvio.Aceito aceito = (ResultadoDeEnvio.Aceito) resultado;
+        assertThat(aceito.idExterno()).isEqualTo("wamid.so-id");
+        assertThat(aceito.enderecoDoProvedor()).isNull();
+    }
+
+    @Test
+    void corpoIlegivelNoAceiteNaoViraRecusa() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + NUMERO + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("nao-e-json", MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = enviarTexto(adapter);
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        ResultadoDeEnvio.Aceito aceito = (ResultadoDeEnvio.Aceito) resultado;
+        assertThat(aceito.idExterno()).isEmpty();
+        assertThat(aceito.enderecoDoProvedor()).isNull();
     }
 
     @Test
