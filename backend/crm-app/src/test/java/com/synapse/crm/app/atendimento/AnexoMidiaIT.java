@@ -294,7 +294,18 @@ class AnexoMidiaIT extends PostgresIT {
         assertThat(urlEmitida).contains("token=");
         assertThat(armazenamento.baixarPelaUrlAssinada(urlEmitida)).contains(conteudoDoCliente);
 
-        // 3. Negativos: colega sem acesso recebe 404 quando o lead está em atendimento exclusivo da Ana
+        // 3. O download protegido deve servir o mesmo vídeo com o Content-Type persistido.
+        ResponseEntity<byte[]> respostaDownload = autenticado(
+                EMAIL_ANA,
+                HttpMethod.GET,
+                "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/download",
+                byte[].class);
+        assertThat(respostaDownload.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaDownload.getHeaders().getContentType())
+                .isEqualTo(MediaType.parseMediaType("video/mp4"));
+        assertThat(respostaDownload.getBody()).isEqualTo(conteudoDoCliente);
+
+        // 4. Negativos: colega sem acesso recebe 404 quando o lead está em atendimento exclusivo da Ana
         UUID atendimentoId = atendimentoDoLead();
         jdbc.update("UPDATE atendimento SET atendente_id = ?, status = 'EM_ATENDIMENTO' WHERE id = ?", idAna, atendimentoId);
         jdbc.update("UPDATE lead SET status_basico = 'EM_ATENDIMENTO' WHERE id = ?", leadDaAna);
@@ -303,11 +314,62 @@ class AnexoMidiaIT extends PostgresIT {
                 EMAIL_BRUNO, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
         assertThat(respostaBruno.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
-        // 4. Negativos: lead incorreto recebe 404
+        // 5. Negativos: lead incorreto recebe 404
         UUID outroLead = UUID.randomUUID();
         ResponseEntity<String> respostaOutroLead = autenticado(
                 EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + outroLead + "/midias/" + mensagemId + "/url");
         assertThat(respostaOutroLead.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // 6. Mensagem inexistente continua indistinguível de mídia não encontrada.
+        ResponseEntity<String> respostaMensagemInexistente = autenticado(
+                EMAIL_ANA,
+                HttpMethod.GET,
+                "/api/v1/leads/" + leadDaAna + "/midias/" + UUID.randomUUID() + "/url");
+        assertThat(respostaMensagemInexistente.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("documento continua listado e disponivel para URL assinada e download")
+    void documentoContinuaDisponivelNasRotasDeMidia() {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        byte[] conteudo = "%PDF-documento-fixture".getBytes(StandardCharsets.UTF_8);
+        String referencia = armazenamento.salvar(conteudo, "contrato.pdf", "application/pdf");
+        UUID mensagemId = UUID.randomUUID();
+        String metadados = "{\"nome\":\"contrato.pdf\",\"mimetype\":\"application/pdf\","
+                + "\"tamanho\":" + conteudo.length + "}";
+        jdbc.update(
+                """
+                INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, midia_url,
+                                      midia_metadados, enviado_em, status_entrega)
+                VALUES (?, ?, 'ATENDENTE', 'DOCUMENTO', ?, ?::jsonb, now(), 'ENVIADO')
+                """,
+                mensagemId,
+                atendimentoId,
+                referencia,
+                metadados);
+
+        ResponseEntity<String> listagem =
+                autenticado(EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias");
+        assertThat(listagem.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(listagem.getBody()).contains("\"tipo\":\"DOCUMENTO\"");
+        assertThat(listagem.getBody()).contains(mensagemId.toString());
+
+        ResponseEntity<String> respostaUrl = autenticado(
+                EMAIL_ANA, HttpMethod.GET, "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/url");
+        assertThat(respostaUrl.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String url = extrairUrlEmitida(respostaUrl.getBody());
+        assertThat(url).contains("fake-storage.local").contains("token=");
+        assertThat(armazenamento.baixarPelaUrlAssinada(url)).contains(conteudo);
+
+        ResponseEntity<byte[]> respostaDownload = autenticado(
+                EMAIL_ANA,
+                HttpMethod.GET,
+                "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/download",
+                byte[].class);
+        assertThat(respostaDownload.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaDownload.getHeaders().getContentType())
+                .isEqualTo(MediaType.parseMediaType("application/pdf"));
+        assertThat(respostaDownload.getBody()).isEqualTo(conteudo);
     }
 
     @Test
@@ -500,6 +562,13 @@ class AnexoMidiaIT extends PostgresIT {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         return http.exchange(url, metodo, new HttpEntity<>(cabecalhos), String.class);
+    }
+
+    private <T> ResponseEntity<T> autenticado(String email, HttpMethod metodo, String url, Class<T> tipo) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        return http.exchange(url, metodo, new HttpEntity<>(cabecalhos), tipo);
     }
 
     private UUID mensagemDeMidiaDoLead(UUID leadId) {
