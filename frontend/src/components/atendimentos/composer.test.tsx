@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
+import { ErroDeApi } from "@/lib/api/errors";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
@@ -116,6 +117,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
         anexoTipoNaoPermitido: "Tipo nao aceito.",
         anexoSoltar: "Solte os arquivos aqui",
         anexoEnviandoLote: "Enviando {atual} de {total}",
+        anexoFalhasTitulo: "Alguns anexos não foram enviados",
+        anexoFalhaItem: "{nome}: {motivo}",
+        anexoReenviarFalhas: "Reenviar anexos",
         anexoExcedeuLimite: "Excede o limite.",
         audioGravar: "Gravar áudio",
         audioGravando: "Gravando áudio",
@@ -474,6 +478,55 @@ describe("Composer — anexo", () => {
       expect(screen.queryByText("a.png")).not.toBeInTheDocument();
       expect(screen.getByText("b.png")).toBeInTheDocument();
     });
+  });
+
+  it("continua o lote depois de uma falha de validacao e informa o arquivo", async () => {
+    mutateMidia
+      .mockImplementationOnce(() => Promise.reject(new ErroDeApi(422, { detail: "Arquivo recusado" }, "Falha")))
+      .mockReturnValueOnce(undefined);
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    fireEvent.change(input, {
+      target: {
+        files: [
+          arquivoFake("falha.png", "image/png"),
+          arquivoFake("sucesso.png", "image/png"),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("alert")).toHaveTextContent("falha.png");
+    expect(screen.getByRole("alert")).toHaveTextContent("Arquivo recusado");
+    expect(screen.getByText("falha.png")).toBeInTheDocument();
+    expect(screen.queryByText("sucesso.png")).not.toBeInTheDocument();
+  });
+
+  it("tenta os arquivos depois de uma falha intermediaria em lote de sete", async () => {
+    mutateMidia.mockImplementation((variaveis: { arquivo: File }) =>
+      variaveis.arquivo.name === "foto-4.png"
+        ? Promise.reject(new ErroDeApi(413, { detail: "Arquivo excede o limite" }, "Falha"))
+        : undefined,
+    );
+    renderizar();
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const arquivos = Array.from({ length: 7 }, (_, indice) =>
+      arquivoFake(`foto-${indice + 1}.png`, "image/png"),
+    );
+    fireEvent.change(input, { target: { files: arquivos } });
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(mutateMidia).toHaveBeenCalledTimes(7));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "foto-4.png: Arquivo excede o limite",
+    );
+    expect(screen.getByText("foto-4.png")).toBeInTheDocument();
+    expect(screen.queryByText("foto-7.png")).not.toBeInTheDocument();
   });
 
   it("recusa tipo nao permitido e avisa sem enfileirar", () => {

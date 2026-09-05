@@ -39,6 +39,7 @@ import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta } from "@/lib/atendimento/citacao";
+import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
@@ -60,6 +61,7 @@ type Props = {
   resposta?: MensagemResposta | null;
   onCancelarResposta?: () => void;
   onMensagemEnviada?: () => void;
+  onFalhasDeMidia?: (falhas: FalhaDeEnvioMidia[]) => void;
   ref?: Ref<ComposerHandle>;
 };
 
@@ -78,6 +80,13 @@ function duracaoLegivel(segundos: number): string {
   return `${String(minutos).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
 }
 
+let sequenciaFalhaDeMidia = 0;
+
+function idDaFalhaDeMidia(): string {
+  sequenciaFalhaDeMidia += 1;
+  return `falha-midia-${sequenciaFalhaDeMidia}`;
+}
+
 /**
  * Três pontos do prompt E11/E11b: estado real de entrega (delegado a `useEnviarMensagem`/
  * `useEnviarMidia`), aviso de janela de 24h ANTES de digitar, e anexo — imagem, áudio ou
@@ -88,6 +97,7 @@ export function Composer({
   resposta = null,
   onCancelarResposta,
   onMensagemEnviada,
+  onFalhasDeMidia,
   ref,
 }: Props) {
   const catalogo = useTextos();
@@ -98,6 +108,7 @@ export function Composer({
   const [avisoTipo, setAvisoTipo] = useState(false);
   const [progresso, setProgresso] = useState<number | null>(null);
   const [indiceEnvio, setIndiceEnvio] = useState<number | null>(null);
+  const [falhasArquivos, setFalhasArquivos] = useState<Map<File, string>>(new Map());
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
@@ -181,6 +192,7 @@ export function Composer({
     setProgresso(null);
     setIndiceEnvio(null);
     setAvisoTipo(false);
+    setFalhasArquivos(new Map());
     onCancelarResposta?.();
   }
 
@@ -190,31 +202,54 @@ export function Composer({
       const fila = arquivos;
       const legenda = texto.trim() || undefined;
       const respostaAlvo = alvoDeResposta();
-      let indice = 0;
-      try {
-        for (; indice < fila.length; indice++) {
-          setIndiceEnvio(indice);
-          setProgresso(0);
+      const falhas: FalhaDeEnvioMidia[] = [];
+      let primeiraMensagemNotificada = false;
+      for (let indice = 0; indice < fila.length; indice++) {
+        setIndiceEnvio(indice);
+        setProgresso(0);
+        const arquivo = fila[indice];
+        const legendaDoArquivo = indice === 0 ? legenda : undefined;
+        const respostaDoArquivo = indice === 0 ? respostaAlvo : undefined;
+        const citacaoDoArquivo = indice === 0 ? citacaoResposta : undefined;
+        try {
           await enviarMidia.mutateAsync({
             atendimentoId: conversa.atendimentoId,
             leadId: conversa.leadId,
-            arquivo: fila[indice],
-            legenda: indice === 0 ? legenda : undefined,
+            arquivo,
+            legenda: legendaDoArquivo,
             onProgresso: setProgresso,
-            resposta: indice === 0 ? respostaAlvo : undefined,
-            citacao: indice === 0 ? citacaoResposta : undefined,
+            resposta: respostaDoArquivo,
+            citacao: citacaoDoArquivo,
           });
-          if (indice === 0) {
+          if (!primeiraMensagemNotificada) {
             onMensagemEnviada?.();
+            primeiraMensagemNotificada = true;
+          }
+          if (indice === 0) {
             setTexto("");
             onCancelarResposta?.();
           }
+        } catch (erro) {
+          falhas.push({
+            id: idDaFalhaDeMidia(),
+            atendimentoId: conversa.atendimentoId,
+            leadId: conversa.leadId,
+            arquivo,
+            legenda: legendaDoArquivo,
+            resposta: respostaDoArquivo,
+            citacao: citacaoDoArquivo,
+            motivo: motivoDaFalhaDeMidia(erro, textos.anexoErro),
+          });
         }
+      }
+      setProgresso(null);
+      setIndiceEnvio(null);
+      if (falhas.length > 0) {
+        setArquivos(falhas.map(({ arquivo }) => arquivo));
+        setFalhasArquivos(new Map(falhas.map(({ arquivo, motivo }) => [arquivo, motivo])));
+        onFalhasDeMidia?.(falhas);
+      } else {
         limparAposEnvio();
-      } catch {
-        setArquivos((atual) => atual.slice(indice));
-        setProgresso(null);
-        setIndiceEnvio(null);
       }
       return;
     }
@@ -250,7 +285,16 @@ export function Composer({
   }
 
   function removerArquivo(indice: number) {
+    const removido = arquivos[indice];
     setArquivos((atual) => atual.filter((_, item) => item !== indice));
+    if (removido) {
+      setFalhasArquivos((falhas) => {
+        if (!falhas.has(removido)) return falhas;
+        const nova = new Map(falhas);
+        nova.delete(removido);
+        return nova;
+      });
+    }
     setProgresso(null);
     setIndiceEnvio(null);
   }
@@ -325,8 +369,11 @@ export function Composer({
       : enviar.isError
         ? textosAtendimentos.mensagem.status.falhou
         : null;
-  const erroDeMidia =
-    enviarMidia.error instanceof ErroDeApi
+  const erroDeMidia = falhasArquivos.size > 0
+    ? Array.from(falhasArquivos.entries())
+        .map(([arquivo, motivo]) => `${arquivo.name}: ${motivo}`)
+        .join(" · ")
+    : enviarMidia.error instanceof ErroDeApi
       ? enviarMidia.error.message
       : enviarMidia.isError
         ? textos.anexoErro
@@ -470,6 +517,11 @@ export function Composer({
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {tamanhoLegivel(item.size)}
                 </span>
+                {falhasArquivos.get(item) && (
+                  <span className="max-w-56 truncate text-xs text-destructive" title={falhasArquivos.get(item)}>
+                    {falhasArquivos.get(item)}
+                  </span>
+                )}
                 {enviarMidia.isPending && indiceEnvio === indice && progresso !== null ? (
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {progresso}%
