@@ -2,8 +2,12 @@ package com.synapse.crm.atendimento.infrastructure.outbox;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -23,7 +27,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
  *
  * <p>A reserva e o registro do resultado passam pelo bean transacional separado. O intervalo entre
  * os dois e deliberadamente fora de qualquer transacao: uma chamada lenta nao segura conexao do
- * pool de chat nem impede as outras chamadas do lote de avancarem em paralelo.
+ * pool de chat nem impede as outras chamadas de leads diferentes de avancarem em paralelo.
  */
 @Component
 public class PublicadorDaOutboxOperacoes {
@@ -58,14 +62,32 @@ public class PublicadorDaOutboxOperacoes {
         List<Outbox.EnvioPendente> pendentes = transacoes.reservar(agora).stream()
                 .sorted(Comparator.comparing(Outbox.EnvioPendente::enviadoEm))
                 .toList();
-        CompletableFuture<?>[] tarefas = pendentes.stream()
-                .map(pendente -> CompletableFuture.runAsync(() -> processar(pendente), executor))
+        Map<UUID, List<Outbox.EnvioPendente>> pendentesPorLead = new LinkedHashMap<>();
+        for (Outbox.EnvioPendente pendente : pendentes) {
+            pendentesPorLead.computeIfAbsent(pendente.leadId(), ignorado -> new ArrayList<>()).add(pendente);
+        }
+        CompletableFuture<?>[] tarefas = pendentesPorLead.values().stream()
+                .map(this::encadearEnviosDoLead)
                 .toArray(CompletableFuture[]::new);
 
         if (tarefas.length > 0) {
             CompletableFuture.allOf(tarefas).join();
         }
         return pendentes.size();
+    }
+
+    /** Encadeia um lead sem bloquear o pool enquanto aguarda o elo anterior. */
+    private CompletableFuture<Void> encadearEnviosDoLead(List<Outbox.EnvioPendente> doLead) {
+        CompletableFuture<Void> cadeia = CompletableFuture.completedFuture(null);
+        for (Outbox.EnvioPendente pendente : doLead) {
+            cadeia = cadeia.thenComposeAsync(
+                    ignorado -> {
+                        processar(pendente);
+                        return CompletableFuture.completedFuture(null);
+                    },
+                    executor);
+        }
+        return cadeia;
     }
 
     private void processar(Outbox.EnvioPendente pendente) {

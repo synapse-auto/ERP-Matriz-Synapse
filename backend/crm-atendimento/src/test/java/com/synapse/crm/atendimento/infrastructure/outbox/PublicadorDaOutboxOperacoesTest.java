@@ -94,6 +94,73 @@ class PublicadorDaOutboxOperacoesTest {
     }
 
     @Test
+    void mensagensDoMesmoLeadNaoComecamAProximaAntesDoResultadoDaAnterior() throws Exception {
+        PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        UUID leadId = UUID.randomUUID();
+        Outbox.EnvioPendente primeira = pendente(leadId, AGORA);
+        Outbox.EnvioPendente segunda = pendente(leadId, AGORA.plusMillis(1));
+        CountDownLatch primeiraIniciou = new CountDownLatch(1);
+        CountDownLatch liberaPrimeira = new CountDownLatch(1);
+        CountDownLatch primeiraRegistrada = new CountDownLatch(1);
+        CountDownLatch segundaIniciou = new CountDownLatch(1);
+
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(primeira, segunda));
+        when(compositor.montar(any())).thenAnswer(invocacao -> {
+            Outbox.EnvioPendente pendente = invocacao.getArgument(0);
+            return new CanalGateway.Envio(
+                    pendente.mensagemId(),
+                    pendente.telefoneDestino(),
+                    pendente.conteudo(),
+                    pendente.credencialId(),
+                    pendente.contextoWamid());
+        });
+        when(canal.enviar(any())).thenAnswer(invocacao -> {
+            CanalGateway.Envio envio = invocacao.getArgument(0);
+            if (envio.mensagemId().equals(primeira.mensagemId())) {
+                primeiraIniciou.countDown();
+                assertThat(liberaPrimeira.await(2, TimeUnit.SECONDS)).isTrue();
+            } else {
+                segundaIniciou.countDown();
+                assertThat(primeiraRegistrada.await(2, TimeUnit.SECONDS))
+                        .as("a segunda mensagem so pode sair apos o resultado da primeira")
+                        .isTrue();
+            }
+            return new ResultadoDeEnvio.Aceito("externo-" + envio.mensagemId());
+        });
+        org.mockito.Mockito.doAnswer(invocacao -> {
+                    Outbox.EnvioPendente pendente = invocacao.getArgument(0);
+                    if (pendente.mensagemId().equals(primeira.mensagemId())) {
+                        primeiraRegistrada.countDown();
+                    }
+                    return null;
+                })
+                .when(transacoes)
+                .registrarResultado(any(), any(), any());
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            PublicadorDaOutboxOperacoes operacoes = new PublicadorDaOutboxOperacoes(
+                    transacoes,
+                    canal,
+                    compositor,
+                    RELOGIO,
+                    executor);
+            CompletableFuture<Void> rodada = CompletableFuture.runAsync(operacoes::rodada);
+
+            assertThat(primeiraIniciou.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(segundaIniciou.await(200, TimeUnit.MILLISECONDS))
+                    .as("a segunda mensagem do mesmo lead nao deve ser despachada em paralelo")
+                    .isFalse();
+            liberaPrimeira.countDown();
+            rodada.get(2, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void reservaForaDeOrdemEReordenadaPorEnviadoEmAntesDoDespacho() {
         PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
         CanalGateway canal = mock(CanalGateway.class);
