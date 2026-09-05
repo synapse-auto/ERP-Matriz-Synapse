@@ -24,6 +24,7 @@ const callbacks = vi.hoisted(() => ({
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
 const iniciarNovo = vi.hoisted(() => vi.fn());
+const reenviarMidia = vi.hoisted(() => vi.fn());
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -217,9 +218,11 @@ vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => <div data-testid="hi
 function ComposerDeTeste({
   conversa,
   onMensagemEnviada,
+  onFalhasDeMidia,
 }: {
   conversa: CartaoAtendimento;
   onMensagemEnviada?: () => void;
+  onFalhasDeMidia?: (falhas: unknown[]) => void;
 }) {
   const enviar = useEnviarMensagem(onMensagemEnviada);
   return (
@@ -242,6 +245,24 @@ function ComposerDeTeste({
       >
         Simular falha real
       </button>
+      {onFalhasDeMidia && (
+        <button
+          type="button"
+          onClick={() =>
+            onFalhasDeMidia([
+              {
+                id: "falha-1",
+                atendimentoId: conversa.atendimentoId,
+                leadId: conversa.leadId,
+                arquivo: new File(["conteudo"], "imagem-6.png", { type: "image/png" }),
+                motivo: "Arquivo recusado",
+              },
+            ])
+          }
+        >
+          Simular falha de mídia
+        </button>
+      )}
       {enviar.isError && <span data-testid="erro-envio-real">Falha de envio</span>}
     </>
   );
@@ -251,12 +272,21 @@ vi.mock("./composer", () => ({
   Composer: ({
     conversa,
     onMensagemEnviada,
+    onFalhasDeMidia,
   }: {
     conversa: CartaoAtendimento;
     onMensagemEnviada?: () => void;
+    onFalhasDeMidia?: (falhas: unknown[]) => void;
   }) => (
-    <ComposerDeTeste conversa={conversa} onMensagemEnviada={onMensagemEnviada} />
+    <ComposerDeTeste
+      conversa={conversa}
+      onMensagemEnviada={onMensagemEnviada}
+      onFalhasDeMidia={onFalhasDeMidia}
+    />
   ),
+}));
+vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
+  useEnviarMidia: () => ({ mutateAsync: reenviarMidia, isPending: false }),
 }));
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
@@ -292,7 +322,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
     estados: { vazio: "Nenhuma conversa" },
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
-      composer: { anexoSoltar: "Solte os arquivos aqui" },
+      composer: {
+        anexoSoltar: "Solte os arquivos aqui",
+        anexoErro: "Falha ao enviar o anexo.",
+        anexoFalhasTitulo: "Alguns anexos não foram enviados",
+        anexoFalhaItem: "{nome}: {motivo}",
+        anexoReenviarFalhas: "Reenviar anexos",
+      },
       finalizar: { sucesso: "Atendimento finalizado." },
       novoContato: {
         botao: "Novo atendimento",
@@ -358,6 +394,8 @@ describe("PaginaAtendimentosCliente", () => {
     stomp.clientes.length = 0;
     telaEstreita.atual = false;
     abrirExistente.mockReset();
+    reenviarMidia.mockReset();
+    reenviarMidia.mockResolvedValue(undefined);
     abrirExistente.mockResolvedValue({
       leadId: "lead-1",
       atendimentoId: "atendimento-novo",
@@ -536,6 +574,33 @@ describe("PaginaAtendimentosCliente", () => {
     expect(callbacks.visaoAtual).toBe("PENDENTES");
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
     expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
+  it("mantém falha de mídia visível ao trocar de atendimento e permite reenviar", async () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+
+    fireEvent.click(screen.getByRole("button", { name: "Simular falha de mídia" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("imagem-6.png: Arquivo recusado");
+
+    const outroLead = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-2",
+      leadId: "lead-2",
+      leadNome: "Outro lead",
+    };
+    act(() => callbacks.atualizarLista?.([cartaoInicial, outroLead]));
+    act(() => callbacks.abrir?.(outroLead));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("imagem-6.png: Arquivo recusado");
+    fireEvent.click(screen.getByRole("button", { name: "Reenviar anexos" }));
+    await waitFor(() => expect(reenviarMidia).toHaveBeenCalledWith(expect.objectContaining({
+      atendimentoId: "atendimento-1",
+      leadId: "lead-1",
+      arquivo: expect.objectContaining({ name: "imagem-6.png" }),
+    })));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
   it("retrai e reabre os detalhes sem perder a conversa, o histórico ou o composer", () => {

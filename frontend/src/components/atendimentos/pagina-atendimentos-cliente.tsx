@@ -19,6 +19,7 @@ import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
 import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import {
   aplicarResponsavelAoCartao,
@@ -40,6 +41,7 @@ import type {
   VisaoAtendimento,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
+import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -93,6 +95,7 @@ export function PaginaAtendimentosCliente({
   const [leadParaAbrir, setLeadParaAbrir] = useState(leadInicialId);
   const [leadParaAbrirGatilho, setLeadParaAbrirGatilho] = useState(0);
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
+  const [falhasDeMidia, setFalhasDeMidia] = useState<FalhaDeEnvioMidia[]>([]);
   const notificacoesProcessadas = useRef(new Set<string>());
   const mudancasDeResponsavel = useRef<RegistroDeMudancas>(new Map());
   const composerRef = useRef<ComposerHandle>(null);
@@ -308,6 +311,7 @@ export function PaginaAtendimentosCliente({
     aoEventoEstadoDaConversa,
   );
   const enviar = useEnviarMensagem();
+  const reenviarMidia = useEnviarMidia();
   const aposMensagemEnviada = useCallback(() => {
     // PR #71: só PENDENTES → ATIVOS após envio bem-sucedido. FINALIZADOS (e as demais
     // visões) permanecem — o usuário não é expulso da lista de finalizados por um envio.
@@ -322,6 +326,37 @@ export function PaginaAtendimentosCliente({
         : null,
     );
   }, []);
+
+  const registrarFalhasDeMidia = useCallback((falhas: FalhaDeEnvioMidia[]) => {
+    setFalhasDeMidia((atuais) => [...atuais, ...falhas]);
+  }, []);
+
+  const reenviarFalhasDeMidia = useCallback(async () => {
+    const atuais = falhasDeMidia;
+    const idsEmReenvio = new Set(atuais.map((falha) => falha.id));
+    const restantes: FalhaDeEnvioMidia[] = [];
+    for (const falha of atuais) {
+      try {
+        await reenviarMidia.mutateAsync({
+          atendimentoId: falha.atendimentoId,
+          leadId: falha.leadId,
+          arquivo: falha.arquivo,
+          legenda: falha.legenda,
+          resposta: falha.resposta,
+          citacao: falha.citacao,
+        });
+      } catch (erro) {
+        restantes.push({
+          ...falha,
+          motivo: motivoDaFalhaDeMidia(erro, textos.composer.anexoErro),
+        });
+      }
+    }
+    setFalhasDeMidia((correntes) => [
+      ...correntes.filter((falha) => !idsEmReenvio.has(falha.id)),
+      ...restantes,
+    ]);
+  }, [falhasDeMidia, reenviarMidia, textos.composer.anexoErro]);
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
     const registro = mudancasDeResponsavel.current;
     const reconciliados = cartoes.map((item) => {
@@ -400,11 +435,45 @@ export function PaginaAtendimentosCliente({
     <div
       className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
     >
-      {notificacao && (
-        <div
-          className="pointer-events-auto absolute right-4 top-4 z-30 w-80 rounded-xl border border-border bg-background p-4 shadow-lg"
-          role="status"
-        >
+      {(falhasDeMidia.length > 0 || notificacao) && (
+        <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
+          {falhasDeMidia.length > 0 && (
+            <div className="pointer-events-auto relative rounded-xl border border-destructive/30 bg-background p-4 shadow-lg" role="alert">
+              <button
+                type="button"
+                className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={textos.tempoReal.fechar}
+                onClick={() => setFalhasDeMidia([])}
+              >
+                <X className="size-(--tamanho-icone-interface)" aria-hidden />
+              </button>
+              <p className="pr-6 font-semibold text-foreground">
+                {textos.composer.anexoFalhasTitulo}
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                {falhasDeMidia.map((falha) => (
+                  <li key={falha.id} className="break-words">
+                    {textos.composer.anexoFalhaItem
+                      .replace("{nome}", falha.arquivo.name)
+                      .replace("{motivo}", falha.motivo)}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => void reenviarFalhasDeMidia()}
+                disabled={reenviarMidia.isPending}
+              >
+                {textos.composer.anexoReenviarFalhas}
+              </button>
+            </div>
+          )}
+          {notificacao && (
+            <div
+              className="pointer-events-auto relative rounded-xl border border-border bg-background p-4 shadow-lg"
+              role="status"
+            >
           <button
             type="button"
             className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -443,6 +512,8 @@ export function PaginaAtendimentosCliente({
             >
               {textos.tempoReal.abrirTransferencia}
             </button>
+          )}
+            </div>
           )}
         </div>
       )}
@@ -566,6 +637,7 @@ export function PaginaAtendimentosCliente({
                   resposta={respostaDaTela}
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}
+                  onFalhasDeMidia={registrarFalhasDeMidia}
                 />
               ) : (
                 <div className="shrink-0 bg-background px-4 pb-4 pt-3">
