@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -90,6 +91,39 @@ class PublicadorDaOutboxOperacoesTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void reservaForaDeOrdemEReordenadaPorEnviadoEmAntesDoDespacho() {
+        PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        Outbox.EnvioPendente maisNovo = pendente(UUID.randomUUID(), AGORA.plusSeconds(2));
+        Outbox.EnvioPendente maisAntigo = pendente(UUID.randomUUID(), AGORA.plusSeconds(1));
+        List<UUID> ordemDeDespacho = new ArrayList<>();
+
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(maisNovo, maisAntigo));
+        when(compositor.montar(any())).thenAnswer(invocacao -> {
+            Outbox.EnvioPendente pendente = invocacao.getArgument(0);
+            return new CanalGateway.Envio(
+                    pendente.mensagemId(),
+                    pendente.telefoneDestino(),
+                    pendente.conteudo(),
+                    pendente.credencialId(),
+                    pendente.contextoWamid());
+        });
+        when(canal.enviar(any())).thenAnswer(invocacao -> {
+            CanalGateway.Envio envio = invocacao.getArgument(0);
+            ordemDeDespacho.add(envio.mensagemId());
+            return new ResultadoDeEnvio.Aceito("externo-" + envio.mensagemId());
+        });
+
+        PublicadorDaOutboxOperacoes operacoes = new PublicadorDaOutboxOperacoes(
+                transacoes, canal, compositor, RELOGIO, Runnable::run);
+
+        assertThat(operacoes.rodada()).isEqualTo(2);
+        assertThat(ordemDeDespacho)
+                .containsExactly(maisAntigo.mensagemId(), maisNovo.mensagemId());
     }
 
     @Test
@@ -218,12 +252,16 @@ class PublicadorDaOutboxOperacoesTest {
     }
 
     private static Outbox.EnvioPendente pendente() {
+        return pendente(UUID.randomUUID(), AGORA);
+    }
+
+    private static Outbox.EnvioPendente pendente(UUID leadId, Instant enviadoEm) {
         return new Outbox.EnvioPendente(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-                AGORA,
+                enviadoEm,
                 UUID.randomUUID(),
-                UUID.randomUUID(),
+                leadId,
                 "5561999999999",
                 UUID.randomUUID(),
                 new ConteudoDeEnvio.MensagemLivre("ola"),

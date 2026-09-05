@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.infrastructure.outbox;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -54,7 +55,9 @@ public class PublicadorDaOutboxOperacoes {
     /** Reserva em uma transacao curta, envia em paralelo fora dela e registra cada resultado em outra. */
     public int rodada() {
         Instant agora = Instant.now(relogio);
-        List<Outbox.EnvioPendente> pendentes = transacoes.reservar(agora);
+        List<Outbox.EnvioPendente> pendentes = transacoes.reservar(agora).stream()
+                .sorted(Comparator.comparing(Outbox.EnvioPendente::enviadoEm))
+                .toList();
         CompletableFuture<?>[] tarefas = pendentes.stream()
                 .map(pendente -> CompletableFuture.runAsync(() -> processar(pendente), executor))
                 .toArray(CompletableFuture[]::new);
