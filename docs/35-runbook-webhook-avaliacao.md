@@ -6,7 +6,7 @@ Desde a E126, a finalização **individual** de atendimento enfileira a solicita
 (contrato EV-08 §1.1). O responsável é o do atendimento encerrado, nunca o gestor que clicou.
 **Finalizar todos nunca dispara**, nem com um único item (§1.5) — foi o defeito que motivou a
 pausa da E124. Atendimento sem responsável, transferência, devolução à IA, saída e chat interno
-também não iniciam pesquisa. A coleta continua na escala 1–5 e aceita uma nota por atendimento.
+também não iniciam pesquisa. A coleta usa a escala **0–10** e aceita uma nota por atendimento.
 
 Encerramento individual → outbox → POST ao n8n → workflow envia/coleta → POST interno de avaliação.
 
@@ -17,14 +17,16 @@ Linhas enfileiradas no formato antigo de 6 campos (com `modo`) e ainda paradas n
 **recusadas permanentemente** pela guarda de forma do publisher (`PAYLOAD_INVALIDO`): esgotam sem
 retentativa e ficam inspecionáveis. O deploy não limpa nem fabrica solicitações retroativas.
 
-O CRM não envia uma segunda mensagem de pesquisa pelo canal. Opt-in, janela, template
-WhatsApp e o envio efetivo são responsabilidade do workflow de Dylan.
+O CRM não envia uma segunda mensagem de pesquisa pelo canal. Opt-in, janela,
+template WhatsApp e o envio efetivo são responsabilidade do workflow da
+Automação da instância.
 
 ## Contratos e identidade
 
-Saída: POST para a URL configurada, Content-Type application/json. O nome do header
-secreto vem de AUTOMACAO_AVALIACAO_AUTH_HEADER (destinatário atual exige
-crm-synapse-marc-auth); o valor vem somente de AUTOMACAO_AVALIACAO_TOKEN.
+Saída: POST para a URL configurada, Content-Type application/json. O nome do
+header secreto vem de `AUTOMACAO_AVALIACAO_AUTH_HEADER` e o valor vem somente
+de `AUTOMACAO_AVALIACAO_TOKEN`. Ambos são definidos e rotacionados por filho;
+este documento não fixa nem replica o nome de header de outra instância.
 Não é X-Hub-Signature-256 (repasse cru) nem X-Synapse-Token (entrada interna).
 Redirecionamentos não são seguidos.
 
@@ -44,12 +46,11 @@ Esses oito campos são o corpo inteiro; o campo `modo` saiu na E126. `operacao` 
 redundância defensiva pedida pelo n8n, não um interruptor para passar a disparar em lote.
 A ordem das chaves na rede é a que o `jsonb` do Postgres devolve, não a de escrita.
 
-Três pontos do documento EV-08 **não** estão implementados, de propósito:
 `VENDA_CONCLUIDA` não tem origem no CRM (`StatusAtendimento` é `EM_IA`/`EM_ATENDIMENTO`/
-`FINALIZADO`); a escala `Ruim=2/Bom=7/Otimo=10` do §6 conflita com
-`CHECK (nota BETWEEN 1 AND 5)` e é pendência do lado do n8n; e o endpoint de gravação da nota
-já existe, contrariando o §6 — não foi criado outro. Não há token no corpo/outbox. O retry utiliza
-o mesmo snapshot; não consulta o dono atual do lead. A validação de destino exige
+`FINALIZADO`). A escala do callback já é **0–10** desde a V56; a conversão de
+botões como Ruim/Bom/Ótimo para a nota numérica é responsabilidade do workflow.
+Não há token no corpo/outbox. O retry utiliza o mesmo snapshot; não consulta o
+dono atual do lead. A validação de destino exige
 10–15 dígitos ASCII, primeiro não zero; não completa nem inventa DDI.
 
 Retorno interno: POST /internal/v1/atendimentos/{id}/avaliacao, header
@@ -76,7 +77,7 @@ Valores já estão em .env.example, application.yml e docker/dokploy-stack.yml.
 |---|---|---|
 | AUTOMACAO_AVALIACAO_URL | vazio | URL completa acordada; exemplo https://automacao.example.test/webhook/avaliacao |
 | AUTOMACAO_AVALIACAO_TOKEN | vazio | Segredo privado do destinatário; fornecer pelo ambiente seguro |
-| AUTOMACAO_AVALIACAO_AUTH_HEADER | vazio | crm-synapse-marc-auth no contrato atual; configurável por filho |
+| AUTOMACAO_AVALIACAO_AUTH_HEADER | vazio | Nome de header acordado com o workflow deste filho; não reutilizar de outra instância |
 | AUTOMACAO_AVALIACAO_TIMEOUT | 5s | Limite total do HTTP, inclusive leitura/descartamento da resposta |
 | AUTOMACAO_AVALIACAO_RESERVA_EXPIRACAO | 30s | Lease; deve exceder o timeout |
 | AUTOMACAO_AVALIACAO_LOTE | 10 | Máximo de tarefas oferecidas por tick |
@@ -122,8 +123,9 @@ Não usar NEXT_PUBLIC, catálogo, banco ou logs para guardar o segredo.
   sobrescreve tentativa nova. Morte repetida também chega ao limite e fica inspecionável.
 
 Entrega é **pelo menos uma vez dentro da política de tentativas**, não exatamente uma vez.
-O n8n pode aceitar o POST e a resposta se perder. Antes de ativar, Dylan deve confirmar
-deduplicação **persistente por modo + atendimento_id antes de enviar a pesquisa**.
+O n8n pode aceitar o POST e a resposta se perder. Antes de ativar, a equipe da
+Automação deve confirmar deduplicação **persistente por `evento_id` antes de
+enviar a pesquisa**.
 O CRM não prova que o workflow faz isso. Não foi acordado header adicional de idempotência.
 
 ## Evidência e diagnóstico (somente leitura)
@@ -154,11 +156,25 @@ SELECT id AS evento_id, payload->>'atendimento_id' AS atendimento_id,
 Não exportar payload/telefone para logs ou relatórios operacionais. Erro permanente
 demanda corrigir credencial/contrato/configuração; retry automático não o cura.
 
+Para conferir a gravação da nota no banco, a tabela correta é `avaliacao` —
+**não** `lead.notas`, que é apenas anotação interna do lead:
+
+```sql
+SELECT av.id, av.atendimento_id, av.nota, av.comentario, av.criado_em,
+       l.nome AS lead_nome, u.nome AS atendente_nome
+  FROM avaliacao av
+  JOIN atendimento a ON a.id = av.atendimento_id
+  JOIN lead l ON l.id = a.lead_id
+  JOIN usuario u ON u.id = av.atendente_id
+ ORDER BY av.criado_em DESC;
+```
+
 ## Ativar, pausar, retomar e rotacionar
 
 1. Obter autorização para deploy e teste real; esta etapa não a concede.
-2. Dylan confirma contrato, segredo e deduplicação persistente. Recomenda-se rotacionar
-   a credencial anteriormente compartilhada no chat, coordenando os dois lados. Não foi rotacionada aqui.
+2. A equipe da Automação confirma contrato, segredo e deduplicação persistente.
+   Recomenda-se rotacionar credenciais que tenham sido compartilhadas fora do
+   cofre, coordenando os dois lados.
 3. Configurar as três variáveis de destino/segredo/header; ajustar limites apenas se necessário.
 4. Em ambiente controlado, encerrar individualmente um atendimento de teste com
    responsável/contato autorizados. Conferir intenção, depois 2xx, depois execução no

@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 30/08/2026 a partir de
-`origin/main` (`a47362c`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado atualizado em 05/09/2026 a partir de
+`origin/main` (`ec86220`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -18,7 +18,7 @@ mas não registra por si só o instante do deploy nem prova todos os smoke tests
 Não tratar esse SHA como imagem necessariamente em execução: o Dokploy deve ser conferido
 pelo digest da imagem.
 
-O HEAD de referência é `a47362c` (`origin/main`), promovido pelo PR #28. O trabalho normal
+O HEAD de referência é `ec86220` (`origin/main`). O trabalho normal
 é feito em branch própria, publicado no `origin` e entregue por Pull Request para `main`.
 O agente não faz merge do próprio PR e não faz deploy; essas ações ficam com o responsável
 pela operação.
@@ -57,6 +57,10 @@ pela operação.
 | E124 | pausa do gatilho de avaliação no caminho do atendente | PR #58: `0eeed43` |
 | E126 | religação do gatilho no contrato EV-08, payload de 8 campos e toggle V55 | branch `feat/avaliacao-ev08` |
 | E133 | sonda de saúde isolada do tráfego de mídia/envio; disjuntor aberto não gasta tentativa da fila | branch `fix/sonda-de-saude-derruba-midia` |
+| Correções recentes de atendimento | URL de vídeo, reativação de finalizados, callback de avaliação idempotente, Agenda colaborativa e chat interno | merges e commits #81–#91; ver histórico de `origin/main` |
+| Recebimento de localização | `LOCALIZACAO` no webhook Meta, persistência e cartão no CRM | `edf1f2e`, `3bfd212`, PRs #90/#95 |
+| Cabeçalho após saída | atualização imediata do responsável/estado ao devolver para IA | `615c2e5`, PR #95 |
+| Chat interno em Ativos | cartões do chat interno também aparecem para atendentes sem aba Todos | `c904f3b`, PR #93 |
 
 Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
 prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens
@@ -88,14 +92,22 @@ Confirmado pela árvore de `origin/main`:
   card sem colocar dados extensos em listagem (PR #28).
 - **Nome do cliente na sidebar:** o título da ficha é editor inline; vazio é recusado (PR #30).
 - **Chat interno:** conversa iniciada pela lista de atendimentos e suporte a mídia/reação,
-  além do chat direto já existente.
+  além do chat direto já existente; grupos internos e colagem de mídia são suportados.
+- **Agenda colaborativa:** qualquer usuário autenticado pode localizar um contato na Agenda e
+  abrir um atendimento existente; a exceção é limitada ao contexto RLS da Agenda e não libera a
+  inbox de conversas abertas de colegas.
+- **Mídia do cliente:** vídeo e localização recebidos da Meta são tipos explícitos de mensagem;
+  localização não tenta download de arquivo e abre como cartão de mapa.
+- **Avaliação:** a nota é persistida em `avaliacao`, na escala 0–10. O callback interno é
+  idempotente para repetição idêntica, não uma escrita em `lead.notas`.
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V47**, última `V47__lead_codigo.sql`.
-- V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
-  avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
-  mensagem; V47 código numérico do lead.
+- Migrations presentes: **V1 a V61**, última `V61__add_localizacao_tipo_mensagem.sql`.
+- Além de V41–V47, V48 adiciona foto de perfil do lead; V50 normaliza nono dígito; V54 cria
+  grupos de chat interno; V55–V56 configuram/normalizam avaliação 0–10; V57 permite vídeo;
+  V58 aprende o endereço do provedor; V59–V60 ajustam RLS para finalizados e Agenda
+  colaborativa; V61 permite localização.
 - O caminho de mensagem mantém WebSocket, outbox, retry e circuit breaker separados de
   chamadas externas. A aba Atendimentos não pode depender de Meta, n8n ou outro provedor.
 - O isolamento da Meta continua sendo pelo `phone_number_id` da credencial ativa; a
@@ -117,8 +129,8 @@ Ainda exigem confirmação ou implementação:
 | Regras de follow-up, fidelização, festiva e executor de automação | configuração/contratos existem; executor continua sendo responsabilidade do n8n |
 | Horários de trabalho e disponibilidade da IA independente da presença | não confirmados como entregues |
 | Kanban, CSV e troca de credencial de canal | não confirmados como entregues |
-| Impersonação, participação em atendimento e módulos de fase 2 | fora do escopo ou aguardando decisão de produto/segurança |
-| Download de mídia retornando 401 | prompt separado preservado em `docs/prompts/pendencia-E88-download-midia-401.md`; não há evidência de correção nesta `main` |
+| Impersonação e módulos de fase 2 | fora do escopo ou aguardando decisão de produto/segurança |
+| Branding/configuração de filho | a imagem-base ainda embute `tema.json`, `textos.json` e `logo.png`; ver `docs/36-provisionamento-instancia-filha.md` antes de criar uma nova instância |
 | Operação | validar no Dokploy a imagem em execução, smoke RLS, backup/restauração, watchdog, domínio real, rotação de segredos e PITR |
 
 Nada deve ser marcado como “feito” só por existir um prompt: o item precisa de merge,

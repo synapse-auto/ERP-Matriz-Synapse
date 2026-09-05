@@ -35,6 +35,11 @@ Os defaults de `.env.example` já funcionam para desenvolvimento sem integraçõ
 campos de **segredo** (`WHATSAPP_*`, `AUTOMACAO_*`) ficam vazios de propósito porque pertencem a
 cada instância; um default falso ou compartilhado seria pior que a funcionalidade falhar fechada.
 
+Para criar um filho, não copie valores de um `.env` existente. Use o roteiro
+[`docs/36-provisionamento-instancia-filha.md`](docs/36-provisionamento-instancia-filha.md):
+há recursos visuais (`tema.json`, `textos.json`, `logo.png`) embutidos na imagem atual que
+precisam ser trocados antes de expor uma nova marca.
+
 ### 2. Infraestrutura
 
 ```bash
@@ -157,9 +162,11 @@ Duas coisas fazem valer essa regra no build, e não no code review:
 
 ## Configuração
 
-Nada de configurável é constante no código. A configuração da instância vive no bloco `synapse:` de
-`backend/crm-app/src/main/resources/application.yml`, e todo valor vem de variável de ambiente com
-um default de desenvolvimento.
+A configuração operacional da instância vive no bloco `synapse:` de
+`backend/crm-app/src/main/resources/application.yml`, e seus valores vêm de variável de ambiente
+com default de desenvolvimento. A exceção atual é a identidade visual: `tema.json`, `textos.json`
+e `logo.png` são recursos do classpath, empacotados na imagem. Não trate o tag da imagem-base como
+configuração visual neutra de um filho; veja o roteiro de provisionamento.
 
 ### Migrations e seed
 
@@ -338,7 +345,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 |---|---|
 | `SYNAPSE_IMAGE_TAG` | SHA curto publicado pelo CI; use a mesma tag no backend e frontend. |
 | `N8N_IMAGE_TAG` | Versão exata da imagem oficial do n8n; nunca use `latest`. |
-| `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `estrutural-hml`. |
+| `TRAEFIK_ROUTER_PREFIX` | Identificador curto e único no servidor, sem espaços, por exemplo `cliente-hml`. |
 | `SYNAPSE_DOMINIO` | Host do CRM sem protocolo, por exemplo `hml.crm.exemplo.com`. |
 | `MIDIA_DOMINIO` | Host separado do endpoint S3/MinIO, sem protocolo. |
 | `AUTOMACAO_DOMINIO` | Host do editor e dos webhooks do n8n, sem protocolo. |
@@ -364,7 +371,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
 | `AUTOMACAO_AVALIACAO_URL` | Opcional, vazio desliga pesquisas após encerramento individual; não é o repasse cru. |
 | `AUTOMACAO_AVALIACAO_TOKEN` | Segredo privado do webhook de avaliação, somente no ambiente; default vazio. |
-| `AUTOMACAO_AVALIACAO_AUTH_HEADER` | Nome acordado do header (crm-synapse-marc-auth no contrato atual); default vazio. |
+| `AUTOMACAO_AVALIACAO_AUTH_HEADER` | Nome do header acordado com o workflow deste filho; default vazio. |
 | `AUTOMACAO_AVALIACAO_TIMEOUT` / `AUTOMACAO_AVALIACAO_RESERVA_EXPIRACAO` | Limite HTTP total 5s / lease 30s; lease deve exceder timeout. |
 | `AUTOMACAO_AVALIACAO_LOTE` / `AUTOMACAO_AVALIACAO_CONCORRENCIA` / `AUTOMACAO_AVALIACAO_FILA` | Tarefas por tick 10 / workers próprios 2 / fila limitada 10. |
 | `AUTOMACAO_AVALIACAO_MAXIMO_TENTATIVAS` | 5 reservas; esgotadas permanecem inspecionáveis. |

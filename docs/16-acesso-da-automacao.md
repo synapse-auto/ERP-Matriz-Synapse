@@ -27,7 +27,8 @@ No mesmo servidor PostgreSQL, mas isolados por banco lógico e por usuário:
 
 A role do n8n **não tem permissão** no banco do CRM. Isso é desenho, não descuido: uma credencial de workflow não deve alcançar a tabela de leads.
 
-**O banco que o Dylan usa é o do n8n**, e ele já está configurado — o n8n se conecta sozinho. Não há nada a fazer ali.
+O banco usado pela Automação é o do n8n e ela se conecta sozinha. Não há motivo
+para um workflow receber credencial do banco do CRM.
 
 ## 3. Como a Automação lê e escreve dados do CRM
 
@@ -58,17 +59,19 @@ outbox de repasse para o n8n. Evento de outro número recebe `200` e é descarta
 POST misto é descartado inteiro e gera erro operacional. Canal ativo sem o
 identificador falha fechado e deixa `/health/critical` em `DOWN`.
 
-Na homologação da Estrutural, o Phone Number ID é `1307417749115229`. No
-go-live, o provisionamento precisa ser reexecutado com o ID do número oficial
-antes de liberar a inscrição/tráfego desse número. Não deduza o destino pelo
-WABA ID, pelo telefone exibido nem por variável lida diretamente no webhook: a
-fonte de verdade é a credencial ativa no banco da instância.
+No go-live de cada filho, execute o provisionamento com o **Phone Number ID
+oficial daquela instância** antes de liberar a inscrição e o tráfego. Não
+deduza o destino pelo WABA ID, pelo telefone exibido nem por variável lida
+diretamente no webhook: a fonte de verdade é a credencial ativa no banco da
+instância.
 
 ### 3.2 Comandos de atendimento
 
-Toda escrita exige `X-Synapse-Token` e um `Idempotency-Key` único. Repetir a
-mesma chave e o mesmo comando devolve a resposta original; usar a chave em
-outra operação ou atendimento responde `409`. Sem chave, responde `400`.
+Os comandos de atendimento exigem `X-Synapse-Token` e um `Idempotency-Key`
+único. Repetir a mesma chave e o mesmo comando devolve a resposta original;
+usar a chave em outra operação ou atendimento responde `409`. Sem chave,
+responde `400`. A exceção é o callback de avaliação abaixo: ele já é
+idempotente pelo próprio `atendimentoId` e pelo par nota/comentário.
 
 Para consultar o recorte mínimo dos atendimentos ainda abertos, use:
 
@@ -120,9 +123,10 @@ recomendado; não reordene a lista no workflow. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
 Depois que o atendimento estiver `FINALIZADO`, a Automação pode gravar o CSAT
-na escala 1–5 (a mesma do `CHECK` de `avaliacao.nota`). Uma nota por conversa;
-segunda tentativa responde `409`. Conversa ainda aberta ou sem atendente
-humano responde `422`.
+na escala **0–10** (`avaliacao.nota`). Há uma avaliação por atendimento.
+O callback é idempotente: repetir a mesma nota e o mesmo comentário devolve
+`200` e preserva a linha; repetir com dado divergente devolve `409`. Conversa
+ainda aberta ou sem atendente humano devolve `422`.
 
 ```text
 POST /internal/v1/atendimentos/{atendimentoId}/avaliacao
@@ -131,7 +135,7 @@ Content-Type: application/json
 ```
 
 ```json
-{ "nota": 5, "comentario": "Atendimento rápido" }
+{ "nota": 10, "comentario": "Atendimento rápido" }
 ```
 
 Quando a Automação já enviou uma mensagem diretamente à Meta, registre o resultado no

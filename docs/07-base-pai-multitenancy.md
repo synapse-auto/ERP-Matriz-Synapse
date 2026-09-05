@@ -136,8 +136,16 @@ Exemplo já promovido: `lead.codigo` (V47) — identificador interno numérico d
 **Nível 2 — Feature flags** (sem deploy)
 Ligar/desligar módulos inteiros por filho: `campanhas.habilitado`, `chat_interno.habilitado`, `fidelizacao.habilitado`. O filho que não comprou campanhas simplesmente não vê a aba.
 
-**Nível 3 — Arquivo de configuração da instância** (deploy, sem código)
-`tema.json`, `textos.json`, credenciais de canal, URL da Automação.
+**Nível 3 — Configuração da instância** (deploy, sem regra de negócio)
+Credenciais de canal, domínio, URL da Automação, flags, funil e textos/tema.
+
+> **Estado atual importante:** `tema.json`, `textos.json` e `logo.png` são
+> lidos do classpath pelo backend no boot. Portanto eles estão embutidos na
+> imagem publicada hoje; não são substituídos por variável do Dokploy. Para
+> uma marca diferente, o filho precisa de uma imagem gerada com seus três
+> recursos, ou de uma futura extensão que os carregue de um volume/config
+> externo. Usar a imagem da instância-base sem isso mantém a identidade visual
+> dela. Ver o roteiro operacional em `docs/36-provisionamento-instancia-filha.md`.
 
 **Nível 4 — Adaptador específico do filho** (código, isolado)
 Integração com um ERP que só aquele cliente usa: implementa uma porta do core, mora no repo do filho, não toca no core.
@@ -152,11 +160,11 @@ Só quando a necessidade é genuinamente genérica. Entra como ponto de extensã
 ## 4. Configuração da instância
 
 ```yaml
-# application.yml de cada filho
+# Valores injetados para cada filho
 synapse:
   tenant:
-    codigo: estrutural-vidros
-    nome-exibicao: "Estrutural Vidros"
+    codigo: cliente-exemplo
+    nome-exibicao: "Cliente Exemplo"
     timezone: America/Sao_Paulo
   canal:
     whatsapp:
@@ -175,7 +183,10 @@ synapse:
     fidelizacao: true
 ```
 
-Segredos vêm de variáveis de ambiente / secret manager — nunca commitados. Isso é o Twelve-Factor App aplicado: **a mesma imagem de container roda em qualquer filho, variando só a configuração injetada**.
+Segredos vêm de variáveis de ambiente / secret manager — nunca commitados.
+Configuração operacional é injetada por ambiente. A ressalva atual são os
+recursos de marca do classpath descritos acima: eles exigem uma imagem própria
+por filho até que o carregamento externo seja implementado.
 
 ---
 

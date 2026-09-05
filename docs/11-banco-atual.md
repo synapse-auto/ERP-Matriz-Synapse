@@ -2,8 +2,9 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 50 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V50__telefone_nono_digito.sql`
+**Estado:** 61 migrations · 45 tabelas (incluindo a partição default) · tipos
+enumerados, índices de regra e otimização · políticas RLS por domínio.
+**Última migration:** `V61__add_localizacao_tipo_mensagem.sql`
 
 ---
 
@@ -61,6 +62,17 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V48__foto_de_perfil_do_lead` | `lead.foto_referencia`, `lead.foto_hash`, `lead.foto_atualizada_em` |
 | `V49__modo_de_transferencia` | parâmetro de modo de transferência da Automação |
 | `V50__telefone_nono_digito` | funde os pares com/sem nono dígito e normaliza `lead.telefone`; cria `app_telefone_com_ddi`, `app_telefone_canonico` e `app_telefone_fora_da_regra` |
+| `V51__backfill_disponibilidade_ia_subgestor` | inclui subgestores ativos no rodízio de IA sem sobrescrever decisões já feitas |
+| `V52__erro_entrega_da_mensagem` | `mensagem.erro_entrega` JSONB com código/título retornados pelo provedor |
+| `V53__ultima_mensagem_do_lead_em` | instante da última mensagem do cliente; base da janela Meta de 24 h |
+| `V54__grupos_chat_interno` | nome e bootstrap seguro de grupos; eventos `SISTEMA` no chat interno |
+| `V55__toggle_avaliacao_atendimento` | chave `avaliacao_atendimento.habilitada`, lida pelo workflow da Automação |
+| `V56__escala_avaliacao_0_a_10` | `avaliacao.nota` passa a aceitar 0–10 |
+| `V57__video_na_mensagem` | valor `VIDEO` em `tipo_mensagem` |
+| `V58__endereco_de_envio_do_provedor` | `lead.telefone_provedor` para o identificador de destino da Meta |
+| `V59__rls_finalizado_visivel_a_atendentes` | finalizados ficam visíveis/reativáveis para atendentes, preservando a restrição dos abertos de colega |
+| `V60__rls_agenda_colaborativa` | leitura colaborativa somente nos endpoints da Agenda, via contexto RLS local |
+| `V61__add_localizacao_tipo_mensagem` | valor `LOCALIZACAO` em `tipo_mensagem` |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -75,7 +87,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `status_basico_lead` | IA, EM_ATENDIMENTO, FINALIZADO |
 | `status_atendimento` | EM_IA, EM_ATENDIMENTO, FINALIZADO |
 | `remetente_tipo` | LEAD, ATENDENTE, SISTEMA, IA |
-| `tipo_mensagem` | TEXTO, AUDIO, IMAGEM, DOCUMENTO |
+| `tipo_mensagem` | TEXTO, AUDIO, IMAGEM, DOCUMENTO, SISTEMA, VIDEO, LOCALIZACAO |
 | `status_entrega` | PENDENTE, ENVIADO, ENTREGUE, LIDO, FALHOU |
 | `status_lembrete` | PENDENTE, CONCLUIDO |
 | `status_msg_prog` | AGENDADA, ENVIADA, CANCELADA |
@@ -96,7 +108,10 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 **`usuario`** — `id`, `nome`, `email` (UK), `senha_hash`, `papel`, `status_presenca`, `ativo`, `criado_em`, `senha_alterada_em` (V28, E29 — `NULL` = senha provisória, nunca trocada pelo dono)
 **`refresh_token`** — `id`, `usuario_id`, `token_hash` (UK, SHA-256), `familia`, `expira_em`, `revogado_em`, `criado_em`
-**`avaliacao`** — `id`, `atendimento_id` (UK), `atendente_id`, `nota` (CHECK 1–5), `comentario`, `criado_em`
+**`avaliacao`** — `id`, `atendimento_id` (UK), `atendente_id`, `nota` (CHECK
+0–10), `comentario`, `criado_em`. A resposta da pesquisa é gravada aqui pelo
+`POST /internal/v1/atendimentos/{id}/avaliacao`; `lead.notas` não participa
+desse fluxo.
 **`horario_trabalho`** — `id`, `aplicavel_a`, `dia_semana`, `inicio`, `fim` (CHECK `fim > inicio`)
 **`rotina_disponibilidade`** / **`rotina_disponibilidade_atendente`** — plantão e fechado por dia
 **`disponibilidade_atendente_ia`** — `atendente_id` (PK), `disponivel_para_ia`, `atualizado_em`
@@ -115,7 +130,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 **`lead`** — 23 colunas:
 
-`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18), **`foto_referencia`**, **`foto_hash`**, **`foto_atualizada_em`** (V48)
+`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18), **`foto_referencia`**, **`foto_hash`**, **`foto_atualizada_em`** (V48), **`ultima_mensagem_do_lead_em`** (V53) e **`telefone_provedor`** (V58)
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
@@ -133,7 +148,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 **`mensagem`** — **particionada por `RANGE (enviado_em)`**, PK composta `(id, enviado_em)`:
 
-`id`, `atendimento_id`, `remetente_tipo`, `remetente_id`, `tipo`, `conteudo`, `midia_url`, `midia_metadados`, `status_entrega`, `enviado_em`
+`id`, `atendimento_id`, `remetente_tipo`, `remetente_id`, `tipo`, `conteudo`, `midia_url`, `midia_metadados`, `status_entrega`, `erro_entrega`, `enviado_em`
 
 Partições geridas por função, com janela relativa a `now()` — **não** há partições literais no SQL. Existe `mensagem_default` como rede de segurança de último recurso, com alarme diário se receber qualquer linha.
 
@@ -167,7 +182,10 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 
 ### 4.1 Row-Level Security
 
-Ativo em **`lead`**, **`atendimento`**, **`lembrete`** e **`mensagem_programada`**, com `FORCE ROW LEVEL SECURITY`.
+Ativo em **`lead`**, **`atendimento`**, **`lembrete`** e **`mensagem_programada`**, com `FORCE ROW LEVEL SECURITY`. A Agenda habilita
+`app.contexto_agenda=true` apenas na própria transação de leitura; isso permite
+localizar qualquer contato sem liberar a inbox de atendimentos abertos de um
+colega.
 
 Cada transação executa, antes de qualquer consulta:
 
