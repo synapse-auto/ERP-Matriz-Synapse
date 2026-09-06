@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -155,11 +156,15 @@ class UzapiAutoticAdapter implements CanalGateway {
     }
 
     private ResultadoDeEnvio enviarMidia(Envio envio, ConteudoDeEnvio.MensagemMidia midia) {
-        String mediaId = breakerMidia.executeSupplier(() -> subirMidia(midia));
         String tipo = tipoDoProvedor(midia.tipo());
         ObjectNode corpo = corpoBase(envio, tipo);
         ObjectNode conteudo = corpo.putObject(tipo);
-        conteudo.put("id", mediaId);
+        if (ehUrlPublica(midia.referenciaStorage())) {
+            conteudo.put("link", midia.referenciaStorage());
+        } else {
+            String mediaId = breakerMidia.executeSupplier(() -> subirMidia(midia));
+            conteudo.put("id", mediaId);
+        }
         if (midia.tipo() != TipoMensagem.AUDIO
                 && midia.legenda() != null
                 && !midia.legenda().isBlank()) {
@@ -290,6 +295,17 @@ class UzapiAutoticAdapter implements CanalGateway {
 
     private static boolean vazio(String valor) {
         return valor == null || valor.isBlank();
+    }
+
+    private static boolean ehUrlPublica(String referencia) {
+        try {
+            URI uri = URI.create(referencia);
+            return ("http".equalsIgnoreCase(uri.getScheme())
+                            || "https".equalsIgnoreCase(uri.getScheme()))
+                    && uri.getHost() != null;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static String somenteDigitos(String telefone) {

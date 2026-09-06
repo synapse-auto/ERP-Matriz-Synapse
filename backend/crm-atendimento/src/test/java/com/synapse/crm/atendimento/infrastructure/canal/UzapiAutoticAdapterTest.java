@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -172,6 +173,34 @@ class UzapiAutoticAdapterTest {
                 UUID.randomUUID()));
 
         assertThat(resultado.aceito()).isTrue();
+        servidor.verify();
+    }
+
+    @Test
+    void referenciaPublicaUsaLinkSemUpload() {
+        String url = "https://cdn.example.test/foto.jpg";
+        servidor.expect(once(), requestTo(URL_BASE + "/clinica/v1/phone-123/messages"))
+                .andExpect(content().json(
+                        "{\"to\":\"5511999999999\",\"type\":\"image\","
+                                + "\"image\":{\"link\":\""
+                                + url
+                                + "\",\"caption\":\"Legenda\"}}"))
+                .andRespond(withSuccess(
+                        "{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.link\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5511999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.IMAGEM,
+                        url,
+                        "{\"mimetype\":\"image/jpeg\"}",
+                        "Legenda"),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(new ResultadoDeEnvio.Aceito("wamid.link"));
+        org.mockito.Mockito.verify(armazenamento, never()).baixar(url);
         servidor.verify();
     }
 
