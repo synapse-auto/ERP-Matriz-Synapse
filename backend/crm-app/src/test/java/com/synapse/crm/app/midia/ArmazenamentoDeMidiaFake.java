@@ -30,6 +30,7 @@ public class ArmazenamentoDeMidiaFake implements ArmazenamentoDeMidia {
 
     private final Map<String, Objeto> objetos = new ConcurrentHashMap<>();
     private final Map<String, Assinatura> assinaturas = new ConcurrentHashMap<>();
+    private final java.util.Set<String> removidas = ConcurrentHashMap.newKeySet();
 
     @Override
     public String salvar(byte[] conteudo, String nomeArquivoSanitizado, String mimetype) {
@@ -70,6 +71,7 @@ public class ArmazenamentoDeMidiaFake implements ArmazenamentoDeMidia {
     public void limpar() {
         objetos.clear();
         assinaturas.clear();
+        removidas.clear();
     }
 
     public int contagemDeObjetos() {
@@ -81,6 +83,11 @@ public class ArmazenamentoDeMidiaFake implements ArmazenamentoDeMidia {
     }
     @Override
     public void remover(String urlAssinada) {
-        // No-op for the fake, or we could track removed ones
+        objetos.remove(urlAssinada);
+        removidas.add(urlAssinada);
+    }
+
+    public boolean foiRemovida(String referencia) {
+        return removidas.contains(referencia);
     }
 }

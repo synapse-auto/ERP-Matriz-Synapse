@@ -10,20 +10,28 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.automacaoconfig.application.AtualizarLogoDaInstanciaUseCase;
+import com.synapse.crm.automacaoconfig.application.AtualizarTemaDaInstanciaUseCase;
+import com.synapse.crm.automacaoconfig.application.ObterLogoDaInstanciaUseCase;
+import com.synapse.crm.automacaoconfig.application.ObterTemaDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 
 /**
- * Unitario, sem Spring context: {@code ConfiguracaoDeInstanciaResources} real leria tema.json/
- * textos.json do classpath de {@code crm-app} (nao deste modulo), entao mock e o jeito certo de
- * isolar as duas ramificacoes da rota de logo (E31b bloco 1).
+ * Unitario, sem Spring context: os casos de uso sao mockados para isolar o contrato HTTP das rotas
+ * de configuracao.
  */
 class ConfigInstanciaControllerTest {
 
     private final FeatureService features = mock(FeatureService.class);
     private final ConfiguracaoDeInstanciaResources recursos = mock(ConfiguracaoDeInstanciaResources.class);
     private final CanalGateway canal = mock(CanalGateway.class);
-    private final ConfigInstanciaController controller = new ConfigInstanciaController(features, recursos, canal);
+    private final ObterTemaDaInstanciaUseCase obterTema = mock(ObterTemaDaInstanciaUseCase.class);
+    private final ObterLogoDaInstanciaUseCase obterLogo = mock(ObterLogoDaInstanciaUseCase.class);
+    private final AtualizarTemaDaInstanciaUseCase atualizarTema = mock(AtualizarTemaDaInstanciaUseCase.class);
+    private final AtualizarLogoDaInstanciaUseCase atualizarLogo = mock(AtualizarLogoDaInstanciaUseCase.class);
+    private final ConfigInstanciaController controller = new ConfigInstanciaController(
+            features, recursos, canal, obterTema, obterLogo, atualizarTema, atualizarLogo);
 
     @Test
     @DisplayName("canal devolve apenas a capacidade de exigir template")
@@ -39,7 +47,7 @@ class ConfigInstanciaControllerTest {
     @DisplayName("logo presente: 200, Content-Type image/png, corpo com os bytes do arquivo")
     void logo_presente_devolve200EOTipoCerto() {
         byte[] bytes = {1, 2, 3};
-        when(recursos.logo()).thenReturn(bytes);
+        when(obterLogo.executar()).thenReturn(bytes);
 
         var resposta = controller.logo();
 
@@ -51,7 +59,7 @@ class ConfigInstanciaControllerTest {
     @Test
     @DisplayName("logo ausente: 404 — nunca deve derrubar a aplicacao")
     void logo_ausente_devolve404() {
-        when(recursos.logo()).thenReturn(null);
+        when(obterLogo.executar()).thenReturn(null);
 
         var resposta = controller.logo();
 
