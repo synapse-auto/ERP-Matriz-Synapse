@@ -162,6 +162,10 @@ synapse:
       # Phone Number ID. Vazio desabilita somente essa administracao; envio/recebimento continuam.
       # Nao usar :?obrigatoria — instancia sem templates nao pode derrubar o stack inteiro.
       conta-negocio: ${WHATSAPP_CONTA_NEGOCIO:}
+      # {username} e {version} da rota da Uzapi/Autotic (E152, provedor uzapi-autotic). Vazio e
+      # ignorado por qualquer outro provedor — mesma logica de conta-negocio acima.
+      usuario-api: ${WHATSAPP_USUARIO_API:}
+      versao-api: ${WHATSAPP_VERSAO_API:}
 
     # Publisher da outbox. O intervalo e o que define a latencia percebida entre
     # o clique do atendente e a mensagem sair.
