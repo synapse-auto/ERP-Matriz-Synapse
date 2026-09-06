@@ -97,6 +97,30 @@ resilience4j:
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      canal-uazapi:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      canal-uazapi-midia:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      canal-uazapi-saude:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
       automacao-webhook:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${AUTOMACAO_WEBHOOK_CB_JANELA:10}

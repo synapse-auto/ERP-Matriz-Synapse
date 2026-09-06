@@ -101,13 +101,21 @@ Confirmado na especificação oficial:
 
 - `POST /send/text`, header `token`, corpo com `number` e `text` (e opções como `replyid`);
 - `POST /send/media`, header `token`, corpo com `number`, `type`, `file`, legenda em `text`, `docName`
-  e `mimetype`; `file` aceita URL ou base64;
+  e `mimetype`; `file` aceita URL ou base64. O campo `type` aceita `image`, `video`, `document`,
+  `audio`, `myaudio`, `ptt`, `ptv` e `sticker`;
 - `POST /send/location`, header `token`, corpo com `number`, `latitude`, `longitude`, e campos opcionais
   `name` e `address`;
 - `GET /instance/status`, header `token`, retorna o estado e a identidade da instância.
 
-A especificação não foi usada para implementar chamadas, porque a autenticação do callback e o formato
-de entrada permanecem sem confirmação.
+Os endpoints de envio aceitam `replyid` como campo comum para responder a uma mensagem existente.
+O schema de resposta de envio reutiliza `Message`, cujo identificador documentado é `messageid`; o
+adaptador usa esse campo e só recorre a `id`/`data` quando uma resposta compatível não o trouxer. Esse
+nome foi confirmado no spec, não em resposta de uma instância real.
+
+O envio descrito acima foi implementado no E148c conforme o spec; a especificação não foi usada para
+implementar recebimento, porque a autenticação do callback e o formato de entrada permanecem sem
+confirmação. A legenda de áudio é enviada no campo comum `text`, conforme o contrato documentado, mas
+isso ainda não foi confirmado empiricamente.
 
 ## 6. Credencial
 
