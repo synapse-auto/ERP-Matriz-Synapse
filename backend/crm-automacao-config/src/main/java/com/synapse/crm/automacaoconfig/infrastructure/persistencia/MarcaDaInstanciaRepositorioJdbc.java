@@ -1,5 +1,6 @@
 package com.synapse.crm.automacaoconfig.infrastructure.persistencia;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -38,7 +39,7 @@ class MarcaDaInstanciaRepositorioJdbc implements MarcaDaInstanciaRepositorio {
         jdbc.update(
                 "UPDATE marca_da_instancia SET tema = CAST(? AS jsonb), "
                         + "atualizado_por_id = ?, atualizado_em = ? WHERE id = 1",
-                temaJson, atualizadoPorId, atualizadoEm);
+                temaJson, atualizadoPorId, timestamp(atualizadoEm));
         return obter();
     }
 
@@ -47,7 +48,11 @@ class MarcaDaInstanciaRepositorioJdbc implements MarcaDaInstanciaRepositorio {
         jdbc.update(
                 "UPDATE marca_da_instancia SET logo_referencia_storage = ?, "
                         + "atualizado_por_id = ?, atualizado_em = ? WHERE id = 1",
-                logoReferenciaStorage, atualizadoPorId, atualizadoEm);
+                logoReferenciaStorage, atualizadoPorId, timestamp(atualizadoEm));
         return obter();
+    }
+
+    private static Timestamp timestamp(Instant instante) {
+        return instante == null ? null : Timestamp.from(instante);
     }
 }
