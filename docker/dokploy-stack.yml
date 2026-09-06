@@ -407,6 +407,7 @@ services:
 networks:
   synapse-internal:
     driver: overlay
+    attachable: true
   dokploy-network:
     external: true
 
