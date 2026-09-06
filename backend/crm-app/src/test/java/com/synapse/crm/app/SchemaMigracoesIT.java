@@ -87,6 +87,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lead",
                     "lead_tag",
                     "lembrete",
+                    "marca_da_instancia",
                     "mensagem",
                     "mensagem_automacao_idempotencia",
                     "mensagem_id_externo",

@@ -9,5 +9,9 @@ CREATE TABLE marca_da_instancia (
     CONSTRAINT ck_marca_da_instancia_singleton CHECK (id = 1)
 );
 
+-- V13 concedeu acesso as tabelas existentes antes desta migration; a tabela nova precisa do
+-- mesmo acesso explicito para que as transacoes da aplicacao consigam ler e atualizar a linha.
+GRANT SELECT, UPDATE ON marca_da_instancia TO synapse_app;
+
 INSERT INTO marca_da_instancia (id) VALUES (1)
 ON CONFLICT (id) DO NOTHING;
