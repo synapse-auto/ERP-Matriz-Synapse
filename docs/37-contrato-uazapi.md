@@ -1,9 +1,25 @@
-# Contrato UazAPI — Bloco 0 da E148
+# Contrato UazAPI — Blocos 0 e 3 da E148/E148b
 
-Levantamento realizado em 05/09/2026 a partir da especificação OpenAPI oficial publicada em
+Levantamento realizado em 06/09/2026 a partir da especificação OpenAPI oficial publicada em
 [`https://docs.uazapi.com/openapi-bundled.json`](https://docs.uazapi.com/openapi-bundled.json), versão
-2.1.1. Não houve acesso a uma instância UazAPI de homologação nem a credencial para executar chamadas
-reais.
+2.1.1. A continuação E148b rechecou a disponibilidade da documentação e dos coletores descartáveis,
+mas não obteve uma instância UazAPI de homologação nem credencial para executar chamadas reais.
+
+## Registro da continuação E148b (06/09/2026)
+
+- A rede deste ambiente alcançou `https://docs.uazapi.com/openapi-bundled.json` (HTTP 200) e
+  `https://webhook.cool/` (HTTP 200). `https://webhook.site/` também respondeu (HTTP 200); o
+  `https://rbaskets.in/` respondeu HTTP 405 ao método `HEAD`, indicando que o host está acessível,
+  mas esse método não é aceito. Nenhum coletor foi criado ou configurado.
+- A consulta pública à documentação menciona servidores gratuitos/demo, mas não expõe uma conta de
+  teste, token ou fluxo automatizável de trial neste ambiente. As variáveis de processo
+  `UAZAPI_TOKEN`, `UAZAPI_INSTANCE_TOKEN`, `UAZAPI_BASE_URL` e `UAZAPI_HOST` não estão definidas.
+- Nenhuma instância da clínica foi consultada ou alterada. Não houve `GET /instance/status`, alteração
+  de webhook, envio de mensagem ou captura de callback; por isso não há configuração a restaurar.
+- O Bloco 0 está confirmado apenas pela especificação (incluindo o cadastro de webhook descrito na
+  seção 2). O Bloco 3 empírico permanece bloqueado por falta de uma credencial/instância de teste e
+  de um celular ou segundo número para gerar mensagens reais. Não há headers, corpos ou exemplos de
+  status/stories reais para registrar.
 
 ## 1. Autenticação do webhook de entrada
 
