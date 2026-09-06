@@ -16,9 +16,16 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     configs:
+      # Sem `mode:` de proposito. O valor e interpretado em DECIMAL no deploy:
+      # `mode: 0555` virava 555 decimal = 0o1053, ou seja executavel e NAO legivel
+      # para o usuario postgres — o entrypoint tentava rodar o script e o shell
+      # respondia "can't open: Permission denied", abortando a inicializacao com o
+      # volume ja criado. Resultado: o banco do n8n nunca nascia e o n8n ficava em
+      # loop de restart com `role does not exist`. O default do Swarm (0444) e
+      # legivel por todos, e o entrypoint do Postgres faz `source` de .sh sem bit de
+      # execucao — que e exatamente o que este script precisa.
       - source: postgres-init-n8n
         target: /docker-entrypoint-initdb.d/10-create-n8n-database.sh
-        mode: 0555
     networks:
       - synapse-internal
     healthcheck:
