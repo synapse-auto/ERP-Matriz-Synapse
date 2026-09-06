@@ -411,7 +411,9 @@ Registrado aqui porque nenhum dos dois aparece no `dokploy-stack.yml` e some de 
 
 ### DBGate — console de banco do Dylan (19/08)
 
-Aplicação **separada** no Dokploy, tipo **Stack** (não "Docker Compose"): a rede `synapse-internal` é declarada sem `attachable: true`, então container comum não entra nela — só serviço Swarm. Escolher Docker Compose falha com *"network is not manually attachable"*, e as `deploy.labels` do Traefik seriam ignoradas.
+Aplicação **separada** no Dokploy, tipo **Stack** (não "Docker Compose"): no modo Docker Compose as `deploy.labels` do Traefik são ignoradas e o app não é publicado. Esse motivo vale sempre.
+
+Até 06/09/2026 havia um segundo motivo: a rede `synapse-internal` era declarada sem `attachable: true`, então container comum não entrava nela — só serviço Swarm — e escolher Docker Compose falhava com *"network is not manually attachable"*. O `dokploy-stack.yml` passou a declarar `attachable: true` (para o "Open Terminal" do Dokploy funcionar). **Mas isso só vale em rede criada depois da mudança:** o Swarm não atualiza rede existente, então em stack já deployado — a Estrutural inclusive — a rede continua não-anexável até o stack ser removido e subido de novo.
 
 **Não entra no `dokploy-stack.yml`.** Aquele arquivo é o template da Base PAI: ferramenta de desenvolvimento ali significa que todo filho futuro nasce com um console de banco publicado.
 
