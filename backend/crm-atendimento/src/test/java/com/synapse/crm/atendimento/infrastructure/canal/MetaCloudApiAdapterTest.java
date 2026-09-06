@@ -73,7 +73,9 @@ class MetaCloudApiAdapterTest {
                 "secret",
                 Duration.ofHours(24),
                 Duration.ofSeconds(10),
-                "waba-teste");
+                "waba-teste",
+                "",
+                "");
         adapter = new MetaCloudApiAdapter(
                 builder,
                 propriedades,
@@ -357,6 +359,8 @@ class MetaCloudApiAdapterTest {
                 "secret",
                 Duration.ofHours(24),
                 Duration.ofSeconds(10),
+                "",
+                "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
                 new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
@@ -387,6 +391,8 @@ class MetaCloudApiAdapterTest {
                 "secret",
                 Duration.ofHours(24),
                 Duration.ofSeconds(10),
+                "",
+                "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
                 new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
@@ -604,7 +610,9 @@ class MetaCloudApiAdapterTest {
                         "secret",
                         Duration.ofHours(24),
                         Duration.ofSeconds(10),
-                        "waba-teste"),
+                        "waba-teste",
+                        "",
+                        ""),
                 json,
                 breakers,
                 armazenamento);
@@ -867,7 +875,9 @@ class MetaCloudApiAdapterTest {
                 "secret",
                 Duration.ofHours(24),
                 Duration.ofSeconds(10),
-                "waba-teste");
+                "waba-teste",
+                "",
+                "");
         return new AdaptadorLocal(
                 new MetaCloudApiAdapter(builder, propriedades, json, breakers, armazenamento), local);
     }

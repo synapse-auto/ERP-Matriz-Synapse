@@ -1,5 +1,11 @@
 # Contrato UazAPI — Bloco 0 da E148
 
+> **Aviso (09/09/2026): este documento descreve a UazAPI (`uazapi.dev`/uazapiGO), que não é o
+> fornecedor contratado pela clínica.** O fornecedor real é Uzapi/Autotic (`uzapi.com.br`) — ver
+> `docs/38-contrato-uzapi-autotic.md`. Este documento fica como registro histórico da investigação
+> original (E148/E148b), útil como referência geral sobre gateways não-oficiais de WhatsApp, mas não
+> deve ser usado para implementar nada contra o número real desta clínica.
+
 Levantamento realizado em 05/09/2026 a partir da especificação OpenAPI oficial publicada em
 [`https://docs.uazapi.com/openapi-bundled.json`](https://docs.uazapi.com/openapi-bundled.json), versão
 2.1.1. Não houve acesso a uma instância UazAPI de homologação nem a credencial para executar chamadas

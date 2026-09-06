@@ -173,6 +173,10 @@ services:
       WHATSAPP_WEBHOOK_SECRET: ${WHATSAPP_WEBHOOK_SECRET:?obrigatoria}
       # WABA ID. Vazio desabilita apenas listar/criar templates; nao tornar obrigatoria no stack.
       WHATSAPP_CONTA_NEGOCIO: ${WHATSAPP_CONTA_NEGOCIO:-}
+      # {username}/{version} da rota da Uzapi/Autotic (E152, provedor uzapi-autotic). So essa
+      # instancia usa; vazio nao afeta meta-cloud nem pode derrubar o deploy inteiro.
+      WHATSAPP_USUARIO_API: ${WHATSAPP_USUARIO_API:-}
+      WHATSAPP_VERSAO_API: ${WHATSAPP_VERSAO_API:-}
       # Fila de entrada. Default seguro; ausencia no painel nao derruba o deploy.
       WEBHOOK_MAX_TENTATIVAS: ${WEBHOOK_MAX_TENTATIVAS:-5}
       WEBHOOK_PRAZO_ABSOLUTO: ${WEBHOOK_PRAZO_ABSOLUTO:-2h}

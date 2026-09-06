@@ -17,7 +17,7 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 class MetaCloudWebhookTradutorTest {
 
     private final MetaCloudWebhookTradutor tradutor = new MetaCloudWebhookTradutor(
-            new CanalProperties("meta-cloud", null, null, null, "verify", "secret", null, null, null),
+            new CanalProperties("meta-cloud", null, null, null, "verify", "secret", null, null, null, null, null),
             new ObjectMapper());
 
     private final ListAppender<ILoggingEvent> logs = new ListAppender<>();
