@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.automacaoconfig.application.RecursosDeMarcaDaInstancia;
+
 /**
  * Le {@code tema.json}, {@code textos.json} e {@code logo.png} do classpath (Nivel 3 da Base PAI,
  * docs/07) — arquivo de configuracao da instancia, deploy sem codigo. Cada filho substitui os
@@ -21,7 +23,7 @@ import org.springframework.stereotype.Component;
  * ausencia vira {@code null} aqui, nunca uma falha de boot.
  */
 @Component
-public class ConfiguracaoDeInstanciaResources {
+public class ConfiguracaoDeInstanciaResources implements RecursosDeMarcaDaInstancia {
 
     private final JsonNode tema;
     private final JsonNode textos;
