@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Configuracao do canal da instancia.
@@ -41,6 +42,7 @@ public record CanalProperties(
         String usuarioApi,
         String versaoApi) {
 
+    @ConstructorBinding
     public CanalProperties {
         provedor = (provedor == null || provedor.isBlank()) ? "meta-cloud" : provedor.trim();
         urlBase = (urlBase == null || urlBase.isBlank()) ? "https://graph.facebook.com/v21.0" : urlBase;
