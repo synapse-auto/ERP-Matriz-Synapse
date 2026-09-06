@@ -21,10 +21,42 @@ header configurável comprovado).
 
 ## 2. Handshake de cadastro
 
-**Não há handshake de desafio documentado para o callback.** A documentação descreve o cadastro por
-`POST /webhook`, com `url`, `events`, filtros e opções de URL. Não há referência a um `GET` do provedor
-com `hub.challenge`, como na Meta. Isso sugere que a rota GET do CRM não seria usada pela UazAPI, mas a
-ausência precisa ser confirmada com a operação antes de codificar um tradutor.
+**Não há handshake de desafio documentado para o callback.** A especificação YAML completa da UazAPI
+confirma o cadastro por `GET`/`POST /webhook`; os dois endpoints usam o header `token` da instância e
+não são callbacks enviados ao CRM.
+
+`GET /webhook` devolve um array dos webhooks configurados (pode haver mais de um por instância). Cada
+item contém `id`, `enabled`, `url`, `events`, `excludeMessages`, `addUrlEvents` e
+`addUrlTypesMessages`.
+
+`POST /webhook` aceita dois modos:
+
+- **Simples**, sem `action` nem `id`: gerencia automaticamente um único webhook por instância, criando
+  ou atualizando a configuração. `url` é obrigatório; um exemplo mínimo é
+  `{"url":"https://...","events":["messages"],"excludeMessages":["wasSentByApi"]}`.
+- **Avançado**, com `action` igual a `add`, `update` ou `delete`; `id` é obrigatório em `update` e
+  `delete`, permitindo múltiplos webhooks com eventos diferentes.
+
+Os eventos aceitos são `connection`, `history`, `messages`, `messages_update`,
+`newsletter_messages`, `call`, `contacts`, `presence`, `groups`, `labels`, `chats`, `chat_labels`,
+`blocks` e `sender`. `excludeMessages` é filtro de mensagens, não autenticação, e aceita
+`wasSentByApi`, `wasNotSentByApi`, `fromMeYes`, `fromMeNo`, `isGroupYes` e `isGroupNo`. A documentação
+recomenda `wasSentByApi` para evitar loop quando a própria automação envia mensagens.
+
+`addUrlEvents` e `addUrlTypesMessages` são booleanos de roteamento: quando ativos, acrescentam o tipo
+do evento e/ou o tipo da mensagem como segmentos da URL (por exemplo,
+`.../webhook/messages/conversation`) em vez de enviar tudo para a URL fixa.
+
+Nenhum campo de segredo, HMAC ou assinatura aparece no schema de configuração ou no evento recebido.
+Também não há `hub.challenge` nem outro handshake de desafio documentado para o callback. Portanto,
+continua confirmado que a UazAPI não documenta autenticação do POST de callback; não se deve aceitar
+callbacks anônimos no CRM sem decisão explícita de segurança.
+
+Existe ainda `GET /webhook/errors`, autenticado com `token`, que mantém em memória (somente os 20 erros
+mais recentes, perdidos ao reiniciar a UazAPI) os erros de entrega do webhook, incluindo o `payload`
+que a UazAPI tentou enviar. É um plano B para captura de evidência: só registra falhas de entrega, não
+sucessos, e o exemplo do spec contém apenas `EventType` e `token`; o conteúdo completo de mensagem
+nesse endpoint ainda não foi confirmado.
 
 ## 3. Payload de mensagem recebida
 
@@ -47,8 +79,13 @@ SSE:
 ```
 
 Não há, no documento oficial, fixtures completas de webhook para texto, imagem, áudio, documento,
-vídeo, localização ou status de entrega. O schema `WebhookEvent` deixa `data` aberto (`additionalProperties`),
-portanto não permite implementar leitura confiável por analogia com a Meta.
+vídeo, localização ou status de entrega. O schema `WebhookEvent` deixa `data` aberto
+(`additionalProperties`), portanto não permite implementar leitura confiável por analogia com a Meta.
+
+**Bloco 3 empírico ainda não executado:** não há credencial de instância de teste disponível neste
+ambiente e, por segurança, nenhuma instância da clínica foi consultada ou alterada. Assim, não há
+headers ou corpos reais para registrar, nem confirmação de quais campos chegam para cada tipo de
+mensagem.
 
 ## 4. Mídia recebida
 
