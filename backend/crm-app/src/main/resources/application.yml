@@ -97,6 +97,30 @@ resilience4j:
         wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      canal-uzapi-autotic:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      canal-uzapi-autotic-midia:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      canal-uzapi-autotic-saude:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${CANAL_CB_JANELA:20}
+        minimum-number-of-calls: ${CANAL_CB_MINIMO:10}
+        failure-rate-threshold: ${CANAL_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CANAL_CB_ESPERA:30s}
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
       automacao-webhook:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${AUTOMACAO_WEBHOOK_CB_JANELA:10}
@@ -162,6 +186,9 @@ synapse:
       # Phone Number ID. Vazio desabilita somente essa administracao; envio/recebimento continuam.
       # Nao usar :?obrigatoria — instancia sem templates nao pode derrubar o stack inteiro.
       conta-negocio: ${WHATSAPP_CONTA_NEGOCIO:}
+      # Identificadores usados somente pela URL versionada da Uzapi/Autotic; vazios para Meta.
+      usuario-api: ${WHATSAPP_USUARIO_API:}
+      versao-api: ${WHATSAPP_VERSAO_API:}
 
     # Publisher da outbox. O intervalo e o que define a latencia percebida entre
     # o clique do atendente e a mensagem sair.

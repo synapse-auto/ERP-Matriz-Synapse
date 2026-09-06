@@ -23,6 +23,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param contaNegocio WABA ID usado para administrar templates. A Graph API nao oferece uma
  *     resolucao reversa suportada a partir do Phone Number ID; vazio deixa somente a administracao
  *     de templates indisponivel, sem afetar envio e recebimento.
+ * @param usuarioApi identificador de usuario exigido por provedores que usam URL versionada; vazio
+ *     para provedores que nao precisam dele
+ * @param versaoApi versao do contrato do provedor; vazio para provedores que nao precisam dela
  */
 @ConfigurationProperties("synapse.canal.whatsapp")
 public record CanalProperties(
@@ -34,7 +37,9 @@ public record CanalProperties(
         String webhookSecret,
         Duration janelaTextoLivre,
         Duration timeout,
-        String contaNegocio) {
+        String contaNegocio,
+        String usuarioApi,
+        String versaoApi) {
 
     public CanalProperties {
         provedor = (provedor == null || provedor.isBlank()) ? "meta-cloud" : provedor.trim();
@@ -42,6 +47,33 @@ public record CanalProperties(
         janelaTextoLivre = janelaTextoLivre == null ? Duration.ofHours(24) : janelaTextoLivre;
         timeout = timeout == null ? Duration.ofSeconds(10) : timeout;
         contaNegocio = (contaNegocio == null || contaNegocio.isBlank()) ? "" : contaNegocio.trim();
+        usuarioApi = (usuarioApi == null || usuarioApi.isBlank()) ? "" : usuarioApi.trim();
+        versaoApi = (versaoApi == null || versaoApi.isBlank()) ? "" : versaoApi.trim();
+    }
+
+    /** Construtor de compatibilidade para adaptadores que nao usam URL versionada. */
+    public CanalProperties(
+            String provedor,
+            String urlBase,
+            String numeroPrincipal,
+            String token,
+            String webhookVerifyToken,
+            String webhookSecret,
+            Duration janelaTextoLivre,
+            Duration timeout,
+            String contaNegocio) {
+        this(
+                provedor,
+                urlBase,
+                numeroPrincipal,
+                token,
+                webhookVerifyToken,
+                webhookSecret,
+                janelaTextoLivre,
+                timeout,
+                contaNegocio,
+                "",
+                "");
     }
 
     public boolean temSegredoDeWebhook() {
