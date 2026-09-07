@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/http-client";
+import { apiFetch, apiFetchBlob } from "@/lib/api/http-client";
 
 import type { CatalogosDeFiltro, CampoFiltravel, CriterioRequisicao, LeadParaEntrada, PaginaDeLeads } from "./types";
 
@@ -38,4 +38,35 @@ export async function contarLeads(criterio: CriterioRequisicao): Promise<number>
 
 export function buscarLeadsParaEntrada(termo: string): Promise<LeadParaEntrada[]> {
   return apiFetch<LeadParaEntrada[]>(`/api/v1/leads/busca-entrada?termo=${encodeURIComponent(termo)}`);
+}
+
+export interface ResultadoImportacaoLeads {
+  totalDeLinhas: number;
+  validas: number;
+  jaExistiam: number;
+  recusadas: Array<{ linha: number; motivo: string }>;
+}
+
+function arquivoDaImportacao(arquivo: File): FormData {
+  const formulario = new FormData();
+  formulario.append("arquivo", arquivo);
+  return formulario;
+}
+
+export function visualizarImportacaoLeads(arquivo: File): Promise<ResultadoImportacaoLeads> {
+  return apiFetch<ResultadoImportacaoLeads>("/api/v1/leads/importacao/preview", {
+    method: "POST",
+    body: arquivoDaImportacao(arquivo),
+  });
+}
+
+export function confirmarImportacaoLeads(arquivo: File): Promise<ResultadoImportacaoLeads> {
+  return apiFetch<ResultadoImportacaoLeads>("/api/v1/leads/importacao/confirmar", {
+    method: "POST",
+    body: arquivoDaImportacao(arquivo),
+  });
+}
+
+export function exportarLeadsCsv(criterio: CriterioRequisicao): Promise<Blob> {
+  return apiFetchBlob(`/api/v1/leads/exportar?criterio=${encodeURIComponent(JSON.stringify(criterio))}`);
 }
