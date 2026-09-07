@@ -225,6 +225,7 @@ function FormularioNovoContato({
                   onParametros={(chave, valores) =>
                     setParametros((atual) => ({ ...atual, [chave]: valores }))
                   }
+                  onTemplateExcluido={() => setTemplateSelecionado(null)}
                   enviando={Boolean(pendente)}
                   templateSelecionado={
                     templateSelecionado ? chaveDoTemplate(templateSelecionado) : null

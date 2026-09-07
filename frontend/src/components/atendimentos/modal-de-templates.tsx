@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +23,16 @@ import {
   parametrosDoTemplatePreenchidos,
 } from "@/lib/atendimento/variaveis-do-template";
 import type { Textos } from "@/lib/config/schema";
+import { editarTemplateWhatsApp, excluirTemplateWhatsApp } from "@/lib/atendimento/api";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import { useTextos } from "@/lib/config/textos-provider";
+import { podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
 import { cn } from "@/lib/utils";
+
+import {
+  DialogoConfirmacaoExclusaoTemplate,
+  FormularioEdicaoTemplate,
+} from "../templates-whatsapp/acoes-template-whatsapp";
 
 type TextosComposer = Textos["atendimentos"]["composer"];
 type RotulosDeCategoria = Textos["templatesWhatsApp"]["categorias"];
@@ -42,6 +53,7 @@ type Props = {
   onParametros: (chave: string, valores: string[]) => void;
   enviando: boolean;
   onEnviar: (template: TemplateWhatsApp, valores: string[]) => void;
+  onTemplateExcluido?: (template: TemplateWhatsApp) => void;
   templateSelecionado?: string | null;
   rotuloAcao?: string;
 };
@@ -67,13 +79,42 @@ export function ModalDeTemplates({
   onParametros,
   enviando,
   onEnviar,
+  onTemplateExcluido,
   templateSelecionado = null,
   rotuloAcao,
 }: Props) {
   const [busca, setBusca] = useState("");
   const [tocados, setTocados] = useState<Record<string, boolean>>({});
-  const [chaveClicada, setChaveClicada] = useState<string | null>(null);
-  const chaveSelecionada = chaveClicada ?? templateSelecionado;
+  const [chaveClicada, setChaveClicada] = useState<string | null | undefined>(undefined);
+  const [editando, setEditando] = useState<TemplateWhatsApp | null>(null);
+  const [excluindo, setExcluindo] = useState<TemplateWhatsApp | null>(null);
+  const papel = useAuthStore((estado) => estado.papel);
+  const catalogo = useTextos();
+  const textosTemplates = catalogo.templatesWhatsApp;
+  const podeGerenciar = podeGerenciarTemplates(papel);
+  const cache = useQueryClient();
+
+  const editar = useMutation({
+    mutationFn: (pedido: { id: string; corpo: string }) =>
+      editarTemplateWhatsApp(pedido.id, { corpo: pedido.corpo }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      setEditando(null);
+    },
+  });
+  const excluir = useMutation({
+    mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
+    onSuccess: (_resultado, template) => {
+      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      if (chaveSelecionada === chaveDoTemplate(template)) {
+        setChaveClicada(null);
+        onTemplateExcluido?.(template);
+      }
+      setExcluindo(null);
+    },
+  });
+
+  const chaveSelecionada = chaveClicada === undefined ? templateSelecionado : chaveClicada;
 
   const aprovados = (templates.data ?? []).filter((item) => item.status === "APROVADO");
   const filtrados = filtrarTemplates(aprovados, busca, rotulosDeCategoria);
@@ -143,25 +184,56 @@ export function ModalDeTemplates({
                             const status = rotulosDeStatus?.[template.status] ?? template.status;
                             return (
                               <li key={chave}>
-                                <button
-                                  type="button"
-                                  aria-pressed={ativo}
-                                  data-active={ativo || undefined}
+                                <div
                                   className={cn(
-                                    "w-full rounded-xl border border-border bg-muted/30 p-3 text-left transition-colors",
-                                    "hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                    "data-active:border-primary data-active:ring-1 data-active:ring-primary/30",
+                                    "flex rounded-xl border border-border bg-muted/30 transition-colors",
+                                    "hover:bg-muted/50",
+                                    ativo && "border-primary ring-1 ring-primary/30",
                                   )}
-                                  onClick={() => setChaveClicada(chave)}
+                                  data-active={ativo || undefined}
                                 >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm font-medium text-foreground">{template.nome}</p>
-                                    <PillDeStatus tom="sucesso">{status}</PillDeStatus>
-                                  </div>
-                                  <p className="mt-1 text-xs text-muted-foreground">
-                                    {template.idioma} · {categoria}
-                                  </p>
-                                </button>
+                                  <button
+                                    type="button"
+                                    aria-pressed={ativo}
+                                    className={cn(
+                                      "min-w-0 flex-1 rounded-l-xl p-3 text-left",
+                                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    )}
+                                    onClick={() => setChaveClicada(chave)}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="text-sm font-medium text-foreground">{template.nome}</p>
+                                      <PillDeStatus tom="sucesso">{status}</PillDeStatus>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {template.idioma} · {categoria}
+                                    </p>
+                                  </button>
+                                  {podeGerenciar && template.id && (
+                                    <div className="flex shrink-0 items-start gap-1 p-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label={`${textosTemplates.editar}: ${template.nome}`}
+                                        title={textosTemplates.editar}
+                                        onClick={() => setEditando(template)}
+                                      >
+                                        <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        aria-label={`${textosTemplates.excluir}: ${template.nome}`}
+                                        title={textosTemplates.excluir}
+                                        onClick={() => setExcluindo(template)}
+                                      >
+                                        <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               </li>
                             );
                           })}
@@ -251,6 +323,22 @@ export function ModalDeTemplates({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <FormularioEdicaoTemplate
+        key={editando?.id ?? "sem-template"}
+        template={editando}
+        salvando={editar.isPending}
+        erro={editar.isError ? textosTemplates.formulario.erroEdicao : null}
+        textos={textosTemplates}
+        onFechar={() => setEditando(null)}
+        onSalvar={(corpo) => editando && editar.mutate({ id: editando.id, corpo })}
+      />
+      <DialogoConfirmacaoExclusaoTemplate
+        template={excluindo}
+        excluindo={excluir.isPending}
+        textos={textosTemplates}
+        onFechar={() => setExcluindo(null)}
+        onConfirmar={() => excluindo && excluir.mutate(excluindo)}
+      />
     </Dialog>
   );
 }
