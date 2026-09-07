@@ -28,4 +28,9 @@ describe("visibilidade do menu e das áreas de feedback", () => {
     expect(itemDeMenuVisivel("chatInterno", "GESTOR", ["chat_interno"], "chat_interno")).toBe(true);
     expect(itemDeMenuVisivel("chatInterno", "ATENDENTE", [], "chat_interno")).toBe(false);
   });
+
+  it("esconde templates quando o provedor não oferece gerenciamento", () => {
+    expect(itemDeMenuVisivel("templatesWhatsApp", "GESTOR", [], undefined, false)).toBe(false);
+    expect(itemDeMenuVisivel("templatesWhatsApp", "GESTOR", [])).toBe(true);
+  });
 });

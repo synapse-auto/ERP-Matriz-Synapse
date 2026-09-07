@@ -1,7 +1,13 @@
 package com.synapse.crm.app.canal;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_SUBGESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_SUBGESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
@@ -101,8 +107,84 @@ class TemplatesWhatsAppIT extends PostgresIT {
         assertThat(canal.listarTemplates()).isEmpty();
     }
 
+    @Test
+    @DisplayName("so gestao pode editar e excluir, e acoes usam o id devolvido pelo provedor")
+    void gestaoEditaEExcluiEAtendenteRecebe403() throws Exception {
+        ResponseEntity<String> criado = chamarComo(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/whatsapp/templates",
+                Map.of(
+                        "nome", "retorno_orcamento",
+                        "idioma", "pt_BR",
+                        "categoria", "UTILIDADE",
+                        "corpo", "Ola {{1}}"));
+        String id = json.readTree(criado.getBody()).path("id").asText();
+        assertThat(id).isNotBlank();
+
+        ResponseEntity<String> editadoPorAtendente = chamarComo(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/" + id,
+                Map.of("corpo", "Novo texto {{1}}"));
+        assertThat(editadoPorAtendente.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(editadoPorAtendente.getHeaders().getFirst(HttpHeaders.CONTENT_TYPE))
+                .contains("problem+json");
+        assertThat(json.readTree(editadoPorAtendente.getBody()).path("status").asInt())
+                .isEqualTo(403);
+
+        ResponseEntity<String> editadoPorGestor = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/" + id,
+                Map.of("corpo", "Novo texto {{1}}"));
+        assertThat(editadoPorGestor.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(canal.listarTemplates().getFirst().corpo()).isEqualTo("Novo texto {{1}}");
+
+        ResponseEntity<String> editadoPorSubgestor = chamarComo(
+                EMAIL_SUBGESTOR,
+                SENHA_SUBGESTOR,
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/" + id,
+                Map.of("corpo", "Texto do subgestor"));
+        assertThat(editadoPorSubgestor.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<String> editadoPorAdministrador = chamarComo(
+                EMAIL_ADMINISTRADOR,
+                SENHA_ADMINISTRADOR,
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/" + id,
+                Map.of("corpo", "Texto do administrador"));
+        assertThat(editadoPorAdministrador.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<String> excluidoPorAtendente = chamarComo(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/" + id + "?nome=retorno_orcamento",
+                null);
+        assertThat(excluidoPorAtendente.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> excluidoPorGestor = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/" + id + "?nome=retorno_orcamento",
+                null);
+        assertThat(excluidoPorGestor.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(canal.listarTemplates()).isEmpty();
+    }
+
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
-        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        return chamarComo(EMAIL_ANA, SENHA_ATENDENTE, metodo, url, corpo);
+    }
+
+    private ResponseEntity<String> chamarComo(
+            String email, String senha, HttpMethod metodo, String url, Object corpo) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);

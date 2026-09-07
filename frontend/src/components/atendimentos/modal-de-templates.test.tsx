@@ -47,6 +47,7 @@ const rotulosDeStatus = {
 };
 
 const aprovado: TemplateWhatsApp = {
+  id: "template-1",
   nome: "boas_vindas",
   idioma: "pt_BR",
   categoria: "UTILIDADE",
@@ -56,6 +57,7 @@ const aprovado: TemplateWhatsApp = {
 };
 
 const comVariaveis: TemplateWhatsApp = {
+  id: "template-2",
   nome: "retorno_orcamento",
   idioma: "pt_BR",
   categoria: "UTILIDADE",
@@ -65,6 +67,7 @@ const comVariaveis: TemplateWhatsApp = {
 };
 
 const marketing: TemplateWhatsApp = {
+  id: "template-3",
   nome: "promocao",
   idioma: "pt_BR",
   categoria: "MARKETING",

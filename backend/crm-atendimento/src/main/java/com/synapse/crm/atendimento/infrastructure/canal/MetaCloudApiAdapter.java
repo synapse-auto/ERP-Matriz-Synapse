@@ -32,6 +32,7 @@ import org.springframework.web.client.RestClientResponseException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeEdicaoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -129,6 +130,11 @@ class MetaCloudApiAdapter implements CanalGateway {
 
     @Override
     public boolean exigeTemplateForaDaJanela() {
+        return true;
+    }
+
+    @Override
+    public boolean gerenciaTemplates() {
         return true;
     }
 
@@ -399,11 +405,35 @@ class MetaCloudApiAdapter implements CanalGateway {
         }
     }
 
+    @Override
+    public ResultadoDeTemplate editarTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        String conta = exigirContaNegocio();
+        try {
+            return breakerTemplates.executeSupplier(() -> submeterEdicaoDeTemplate(pedido));
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("editar", e);
+        }
+    }
+
+    @Override
+    public ResultadoDeTemplate excluirTemplate(String id, String nome) {
+        String conta = exigirContaNegocio();
+        try {
+            return breakerTemplates.executeSupplier(() -> excluirNaMeta(conta, id, nome));
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("excluir", e);
+        }
+    }
+
     private List<TemplateDoCanal> buscarTemplates(String conta) {
         RespostaBrutaDaMeta bruta = lerRespostaBruta(
                 http.get()
                         .uri(
-                                "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
+                                "/{conta}/message_templates?limit=100&fields=id,name,language,status,category,components",
                                 conta)
                         .header("Authorization", "Bearer " + propriedades.token()));
         if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
@@ -456,6 +486,7 @@ class MetaCloudApiAdapter implements CanalGateway {
             categoria = traduzirCategoria(resposta.path("category").asText());
         }
         return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
+                resposta.path("id").asText(""),
                 pedido.nome(),
                 pedido.idioma(),
                 categoria,
@@ -464,6 +495,86 @@ class MetaCloudApiAdapter implements CanalGateway {
                         : status,
                 pedido.corpo(),
                 contarParametros(pedido.corpo())));
+    }
+
+    private ResultadoDeTemplate submeterEdicaoDeTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        RespostaBrutaDaMeta atual = lerRespostaBruta(
+                http.get()
+                        .uri("/{id}?fields=status,components", pedido.id())
+                        .header("Authorization", "Bearer " + propriedades.token()));
+        if (atual.status() >= 500 || atual.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(atual);
+        }
+        if (atual.status() >= 400) {
+            String motivo = resumoDoErro(atual.corpo());
+            return new ResultadoDeTemplate.Recusado(
+                    motivo.isBlank() ? ("HTTP " + atual.status()) : motivo);
+        }
+        JsonNode templateAtual = jsonDaRespostaDeTemplate(atual, "consultar template para edicao");
+        String status = templateAtual.path("status").asText("").toUpperCase(Locale.ROOT);
+        if (!status.equals("APPROVED") && !status.equals("REJECTED") && !status.equals("PAUSED")) {
+            return new ResultadoDeTemplate.Recusado("status do template nao permite edicao");
+        }
+        if (!temSomenteCorpoTextual(templateAtual.path("components"))) {
+            return new ResultadoDeTemplate.Recusado(
+                    "somente templates com corpo textual, sem cabecalho, rodape ou botoes, podem ser editados");
+        }
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.post()
+                        .uri("/{id}", pedido.id())
+                        .header("Authorization", "Bearer " + propriedades.token())
+                        .header("Content-Type", "application/json")
+                        .body(corpoDaEdicao(pedido)));
+        return interpretarResultadoDaAdministracao(bruta, "editar");
+    }
+
+    private static boolean temSomenteCorpoTextual(JsonNode componentes) {
+        if (!componentes.isArray() || componentes.size() != 1) {
+            return false;
+        }
+        JsonNode corpo = componentes.get(0);
+        return "BODY".equalsIgnoreCase(corpo.path("type").asText())
+                && corpo.path("text").isTextual();
+    }
+
+    private ResultadoDeTemplate excluirNaMeta(String conta, String id, String nome) {
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.delete()
+                        .uri(uri -> uri.path("/{conta}/message_templates")
+                                .queryParam("hsm_id", id)
+                                .queryParam("name", nome)
+                                .build(conta))
+                        .header("Authorization", "Bearer " + propriedades.token()));
+        return interpretarResultadoDaAdministracao(bruta, "excluir");
+    }
+
+    private ResultadoDeTemplate interpretarResultadoDaAdministracao(
+            RespostaBrutaDaMeta bruta, String operacao) {
+        if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(bruta);
+        }
+        if (bruta.status() >= 400) {
+            String motivo = resumoDoErro(bruta.corpo());
+            return new ResultadoDeTemplate.Recusado(
+                    motivo.isBlank() ? ("HTTP " + bruta.status()) : motivo);
+        }
+        jsonDaRespostaDeTemplate(bruta, operacao);
+        return new ResultadoDeTemplate.Aceito(null);
+    }
+
+    private ObjectNode corpoDaEdicao(PedidoDeEdicaoDeTemplate pedido) {
+        ObjectNode raiz = json.createObjectNode();
+        ObjectNode corpo = raiz.putArray("components").addObject();
+        corpo.put("type", "BODY");
+        corpo.put("text", pedido.corpo());
+        int parametros = contarParametros(pedido.corpo());
+        if (parametros > 0) {
+            ArrayNode amostra = corpo.putObject("example").putArray("body_text").addArray();
+            for (int i = 1; i <= parametros; i++) {
+                amostra.add(AMOSTRAS_DE_PARAMETRO[(i - 1) % AMOSTRAS_DE_PARAMETRO.length]);
+            }
+        }
+        return raiz;
     }
 
     private RespostaBrutaDaMeta lerRespostaBruta(RestClient.RequestHeadersSpec<?> spec) {
@@ -602,6 +713,7 @@ class MetaCloudApiAdapter implements CanalGateway {
     private static TemplateDoCanal paraTemplateDoCanal(JsonNode item) {
         String corpo = corpoDoTemplate(item.path("components"));
         return new TemplateDoCanal(
+                item.path("id").asText(""),
                 item.path("name").asText(),
                 idiomaDoItem(item.path("language")),
                 traduzirCategoria(item.path("category").asText()),

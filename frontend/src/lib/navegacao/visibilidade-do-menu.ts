@@ -6,7 +6,9 @@ export function itemDeMenuVisivel(
   papel: string | null,
   flagsHabilitadas: string[] | undefined,
   flag?: string,
+  gerenciaTemplates = true,
 ): boolean {
+  if (chave === "templatesWhatsApp" && !gerenciaTemplates) return false;
   if (chave === "equipe" && papel !== "GESTOR" && papel !== "ADMINISTRADOR") return false;
   if (chave === "administracao" && papel !== "ADMINISTRADOR") return false;
   if (
@@ -27,6 +29,14 @@ export function itemDeMenuVisivel(
   }
   if (!flag) return true;
   return (flagsHabilitadas ?? []).includes(flag);
+}
+
+export function podeGerenciarTemplates(papel: string | null): boolean {
+  return papel === "SUBGESTOR" || papel === "GESTOR" || papel === "ADMINISTRADOR";
+}
+
+export function podeCriarTemplates(papel: string | null): boolean {
+  return podeGerenciarTemplates(papel) || papel === "ATENDENTE";
 }
 
 const MENU_DA_AREA: Record<AreaFeedback, { chave: string; flag?: string } | null> = {

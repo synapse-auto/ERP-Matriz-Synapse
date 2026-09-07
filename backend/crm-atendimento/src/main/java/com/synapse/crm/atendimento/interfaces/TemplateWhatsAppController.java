@@ -13,17 +13,23 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClientException;
 
 import com.synapse.crm.atendimento.application.template.CanalRecusouTemplateException;
 import com.synapse.crm.atendimento.application.template.CriarTemplateWhatsAppUseCase;
+import com.synapse.crm.atendimento.application.template.EditarTemplateWhatsAppUseCase;
+import com.synapse.crm.atendimento.application.template.ExcluirTemplateWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.ListarTemplatesWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.PedidoDeTemplateInvalidoException;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
@@ -39,11 +45,18 @@ class TemplateWhatsAppController {
 
     private final ListarTemplatesWhatsAppUseCase listar;
     private final CriarTemplateWhatsAppUseCase criar;
+    private final EditarTemplateWhatsAppUseCase editar;
+    private final ExcluirTemplateWhatsAppUseCase excluir;
 
     TemplateWhatsAppController(
-            ListarTemplatesWhatsAppUseCase listar, CriarTemplateWhatsAppUseCase criar) {
+            ListarTemplatesWhatsAppUseCase listar,
+            CriarTemplateWhatsAppUseCase criar,
+            EditarTemplateWhatsAppUseCase editar,
+            ExcluirTemplateWhatsAppUseCase excluir) {
         this.listar = listar;
         this.criar = criar;
+        this.editar = editar;
+        this.excluir = excluir;
     }
 
     @Operation(
@@ -72,6 +85,40 @@ class TemplateWhatsAppController {
     Resposta criar(@Valid @RequestBody Requisicao requisicao) {
         return Resposta.de(criar.executar(
                 requisicao.nome(), requisicao.idioma(), requisicao.categoria(), requisicao.corpo()));
+    }
+
+    @Operation(
+            summary = "Editar corpo de template do WhatsApp",
+            description = "Substitui todos os componentes textuais do template pelo corpo informado. O nome nao e editavel.",
+            responses = {
+                @ApiResponse(responseCode = "204", description = "Template enviado para nova analise."),
+                @ApiResponse(responseCode = "400", description = "Pedido invalido."),
+                @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
+                @ApiResponse(responseCode = "503", description = "Provedor indisponivel.")
+            })
+    @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void editar(
+            @PathVariable String id,
+            @Valid @RequestBody RequisicaoDeEdicao requisicao) {
+        editar.executar(id, requisicao.corpo());
+    }
+
+    @Operation(
+            summary = "Excluir template do WhatsApp",
+            description = "Exclui uma variante do template na conta WhatsApp da instancia. O nome identifica a familia e o ID a lingua.",
+            responses = {
+                @ApiResponse(responseCode = "204", description = "Template excluido."),
+                @ApiResponse(responseCode = "400", description = "Pedido invalido."),
+                @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
+                @ApiResponse(responseCode = "503", description = "Provedor indisponivel.")
+            })
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void excluir(
+            @PathVariable String id,
+            @RequestParam("nome") @NotBlank String nome) {
+        excluir.executar(id, nome);
     }
 
     @ExceptionHandler(PedidoDeTemplateInvalidoException.class)
@@ -113,7 +160,10 @@ class TemplateWhatsAppController {
             @NotNull TemplateDoCanal.Categoria categoria,
             @NotBlank String corpo) {}
 
+    record RequisicaoDeEdicao(@NotBlank String corpo) {}
+
     record Resposta(
+            String id,
             String nome,
             String idioma,
             TemplateDoCanal.Categoria categoria,
@@ -123,6 +173,7 @@ class TemplateWhatsAppController {
 
         static Resposta de(TemplateDoCanal template) {
             return new Resposta(
+                    template.id(),
                     template.nome(),
                     template.idioma(),
                     template.categoria(),

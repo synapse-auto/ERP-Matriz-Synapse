@@ -771,6 +771,9 @@
     "erro": "Não foi possível falar com a Meta para listar os templates.",
     "dica": "Depois de aprovado, o template aparece no composer da conversa quando a janela de 24h estiver fechada. Use {{1}}, {{2}} para variáveis na ordem.",
     "avisoPendente": "Enviado para aprovação. Só poderá ser usado depois que a Meta aprovar.",
+    "gerenciaIndisponivel": "Este provedor não permite gerenciar templates.",
+    "editar": "Editar",
+    "excluir": "Excluir",
     "busca": "Buscar template",
     "semResultados": "Nenhum template encontrado.",
     "categorias": {
@@ -797,8 +800,17 @@
       "variavelAusente": "Falta {marcador}. Os índices precisam ser sequenciais, sem pular.",
       "variavelInvalida": "O índice {marcador} é inválido. As variáveis começam em {{1}}.",
       "salvar": "Enviar para aprovação",
+      "salvarEdicao": "Salvar alteração",
       "cancelar": "Cancelar",
-      "erro": "Não foi possível criar o template. Confira o nome e o texto."
+      "erro": "Não foi possível criar o template. Confira o nome e o texto.",
+      "erroEdicao": "Não foi possível editar o template. Confira o texto e o status na Meta.",
+      "editarTitulo": "Editar template na Meta"
+    },
+    "confirmacaoExclusao": {
+      "titulo": "Excluir template na Meta?",
+      "descricao": "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
+      "confirmar": "Excluir na Meta",
+      "cancelar": "Cancelar"
     }
   },
   "equipe": {

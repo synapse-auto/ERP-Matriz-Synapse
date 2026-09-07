@@ -1,11 +1,16 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+const capacidadeMock = vi.hoisted(() => ({ gerenciaTemplates: true }));
+
 vi.mock("@/lib/atendimento/api", () => ({
+  obterCapacidadeDoCanal: () =>
+    Promise.resolve({ exigeTemplateForaDaJanela: true, gerenciaTemplates: capacidadeMock.gerenciaTemplates }),
   listarTemplatesWhatsApp: () =>
     Promise.resolve([
       {
+        id: "template-1",
         nome: "retorno_orcamento",
         idioma: "pt_BR",
         categoria: "UTILIDADE",
@@ -14,6 +19,7 @@ vi.mock("@/lib/atendimento/api", () => ({
         quantidadeDeParametros: 1,
       },
       {
+        id: "template-2",
         nome: "promo_agosto",
         idioma: "pt_BR",
         categoria: "MARKETING",
@@ -23,6 +29,12 @@ vi.mock("@/lib/atendimento/api", () => ({
       },
     ]),
   criarTemplateWhatsApp: vi.fn(),
+  editarTemplateWhatsApp: vi.fn(),
+  excluirTemplateWhatsApp: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor({ papel: "GESTOR" }),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -36,6 +48,9 @@ vi.mock("@/lib/config/textos-provider", () => ({
       erro: "Erro",
       dica: "Depois de aprovado aparece no composer.",
       avisoPendente: "Aguardando Meta",
+      gerenciaIndisponivel: "Indisponível",
+      editar: "Editar",
+      excluir: "Excluir",
       busca: "Buscar template",
       semResultados: "Nenhum template encontrado.",
       categorias: { UTILIDADE: "Utilidade", MARKETING: "Marketing", AUTENTICACAO: "Autenticação" },
@@ -58,14 +73,24 @@ vi.mock("@/lib/config/textos-provider", () => ({
         variavelAusente: "Falta {marcador}.",
         variavelInvalida: "O índice {marcador} é inválido.",
         salvar: "Salvar",
+        salvarEdicao: "Salvar alteração",
         cancelar: "Cancelar",
         erro: "Erro ao salvar",
+        erroEdicao: "Erro ao editar",
+        editarTitulo: "Editar",
+      },
+      confirmacaoExclusao: {
+        titulo: "Excluir?",
+        descricao:
+          "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
+        confirmar: "Excluir na Meta",
+        cancelar: "Cancelar",
       },
     },
   }),
 }));
 
-import { criarTemplateWhatsApp } from "@/lib/atendimento/api";
+import { criarTemplateWhatsApp, editarTemplateWhatsApp, excluirTemplateWhatsApp } from "@/lib/atendimento/api";
 import { PaginaTemplatesWhatsApp } from "./pagina-templates-whatsapp";
 
 describe("pagina de templates WhatsApp", () => {
@@ -119,6 +144,41 @@ describe("pagina de templates WhatsApp", () => {
     expect(within(formulario).getByRole("button", { name: "Salvar" })).toBeDisabled();
     fireEvent.click(within(formulario).getByRole("button", { name: "Salvar" }));
     expect(criarTemplateWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("oferece edicao e exclusao apenas na gestao e confirma impacto na conta", async () => {
+    renderizar();
+    await screen.findByText("retorno_orcamento");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar: retorno_orcamento" }));
+    const formulario = await screen.findByRole("dialog");
+    fireEvent.change(within(formulario).getByRole("textbox", { name: "Corpo" }), {
+      target: { value: "Texto atualizado {{1}}" },
+    });
+    await waitFor(() =>
+      expect(within(formulario).getByRole("button", { name: "Salvar alteração" })).not.toBeDisabled(),
+    );
+    fireEvent.click(within(formulario).getByRole("button", { name: "Salvar alteração" }));
+    await waitFor(() =>
+      expect(editarTemplateWhatsApp).toHaveBeenCalledWith("template-1", { corpo: "Texto atualizado {{1}}" }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: retorno_orcamento" }));
+    const confirmacao = await screen.findByRole("dialog");
+    expect(confirmacao).toHaveTextContent("conta WhatsApp Business compartilhada");
+    expect(confirmacao).toHaveTextContent("Mensagens pendentes");
+    expect(confirmacao).toHaveTextContent("30 dias");
+    fireEvent.click(within(confirmacao).getByRole("button", { name: "Excluir na Meta" }));
+    await waitFor(() =>
+      expect(excluirTemplateWhatsApp).toHaveBeenCalledWith("template-1", "retorno_orcamento"),
+    );
+  });
+
+  it("nao renderiza a tela quando o provedor nao gerencia templates", async () => {
+    capacidadeMock.gerenciaTemplates = false;
+    renderizar();
+    await waitFor(() => expect(screen.queryByText("retorno_orcamento")).not.toBeInTheDocument());
+    capacidadeMock.gerenciaTemplates = true;
   });
 });
 

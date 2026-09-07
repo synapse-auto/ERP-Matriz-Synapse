@@ -34,6 +34,7 @@ import { apiFetch } from "@/lib/api/http-client";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Badge } from "@/components/ui/badge";
 import { useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
+import { obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
@@ -153,6 +154,12 @@ export function Sidebar({
   const papel = useAuthStore((estado) => estado.papel);
   const meuUsuario = useMeuUsuario();
   const { data: contagens } = useContagemDeAtendimentos();
+  const { data: capacidadeDoCanal } = useQuery({
+    queryKey: ["capacidade-do-canal"],
+    queryFn: obterCapacidadeDoCanal,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
   const cache = useQueryClient();
   const mudarPresenca = useMutation({
     mutationFn: atualizarPresenca,
@@ -168,7 +175,13 @@ export function Sidebar({
   const [logoFalhou, setLogoFalhou] = useState(false);
 
   function itemVisivel(item: ItemDeMenu): boolean {
-    return itemDeMenuVisivel(item.chave, papel, flags, item.flag);
+    return itemDeMenuVisivel(
+      item.chave,
+      papel,
+      flags,
+      item.flag,
+      capacidadeDoCanal?.gerenciaTemplates !== false,
+    );
   }
 
   const sobreposta = !fixada;

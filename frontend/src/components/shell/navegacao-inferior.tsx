@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useContagemDeAtendimentos } from "@/lib/atendimento/use-atendimentos";
+import { obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
@@ -100,6 +101,12 @@ export function NavegacaoInferior() {
   const papel = useAuthStore((estado) => estado.papel);
   const { data: flags } = useFeaturesHabilitadas();
   const { data: contagens } = useContagemDeAtendimentos();
+  const { data: capacidadeDoCanal } = useQuery({
+    queryKey: ["capacidade-do-canal"],
+    queryFn: obterCapacidadeDoCanal,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
   const meuUsuario = useMeuUsuario();
   const cache = useQueryClient();
   const [maisAberto, setMaisAberto] = useState(false);
@@ -113,7 +120,13 @@ export function NavegacaoInferior() {
   });
 
   function visivel(item: ItemDeMenuBase): boolean {
-    return itemDeMenuVisivel(item.chave, papel, flags, item.flag);
+    return itemDeMenuVisivel(
+      item.chave,
+      papel,
+      flags,
+      item.flag,
+      capacidadeDoCanal?.gerenciaTemplates !== false,
+    );
   }
 
   const abas = ITENS_MENU.filter(

@@ -80,6 +80,24 @@ class TemplatesWhatsAppSemWabaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("PUT e DELETE sem WABA devolvem 503 antes de qualquer chamada ao provedor")
+    void editarEExcluirSemWabaDevolvem503() throws Exception {
+        ResponseEntity<String> edicao = chamar(
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/meta-1",
+                Map.of("corpo", "Novo texto"));
+        assertThat(edicao.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(json.readTree(edicao.getBody()).path("status").asInt()).isEqualTo(503);
+
+        ResponseEntity<String> exclusao = chamar(
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=retorno_orcamento",
+                null);
+        assertThat(exclusao.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(json.readTree(exclusao.getBody()).path("status").asInt()).isEqualTo(503);
+    }
+
+    @Test
     @DisplayName("dez GET sem WABA nao abrem o circuit breaker de templates")
     void dezChamadasSemWabaNaoAbremBreaker() {
         for (int tentativa = 0; tentativa < 10; tentativa++) {
