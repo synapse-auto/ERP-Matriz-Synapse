@@ -1,7 +1,9 @@
 package com.synapse.crm.app.canal;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
@@ -82,14 +84,14 @@ class TemplatesWhatsAppSemWabaIT extends PostgresIT {
     @Test
     @DisplayName("PUT e DELETE sem WABA devolvem 503 antes de qualquer chamada ao provedor")
     void editarEExcluirSemWabaDevolvem503() throws Exception {
-        ResponseEntity<String> edicao = chamar(
+        ResponseEntity<String> edicao = chamarComoGestao(
                 HttpMethod.PUT,
                 "/api/v1/whatsapp/templates/meta-1",
                 Map.of("corpo", "Novo texto"));
         assertThat(edicao.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(json.readTree(edicao.getBody()).path("status").asInt()).isEqualTo(503);
 
-        ResponseEntity<String> exclusao = chamar(
+        ResponseEntity<String> exclusao = chamarComoGestao(
                 HttpMethod.DELETE,
                 "/api/v1/whatsapp/templates/meta-1?nome=retorno_orcamento",
                 null);
@@ -111,6 +113,15 @@ class TemplatesWhatsAppSemWabaIT extends PostgresIT {
 
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        return chamarComToken(token, metodo, url, corpo);
+    }
+
+    private ResponseEntity<String> chamarComoGestao(HttpMethod metodo, String url, Object corpo) {
+        String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+        return chamarComToken(token, metodo, url, corpo);
+    }
+
+    private ResponseEntity<String> chamarComToken(String token, HttpMethod metodo, String url, Object corpo) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);

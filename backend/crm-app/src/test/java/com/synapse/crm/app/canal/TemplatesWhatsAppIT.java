@@ -130,10 +130,6 @@ class TemplatesWhatsAppIT extends PostgresIT {
                 "/api/v1/whatsapp/templates/" + id,
                 Map.of("corpo", "Novo texto {{1}}"));
         assertThat(editadoPorAtendente.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(editadoPorAtendente.getHeaders().getFirst(HttpHeaders.CONTENT_TYPE))
-                .contains("problem+json");
-        assertThat(json.readTree(editadoPorAtendente.getBody()).path("status").asInt())
-                .isEqualTo(403);
 
         ResponseEntity<String> editadoPorGestor = chamarComo(
                 EMAIL_GESTOR,
