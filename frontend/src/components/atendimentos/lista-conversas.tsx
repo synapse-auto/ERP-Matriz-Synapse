@@ -50,6 +50,7 @@ import { DialogoCriarGrupo } from "@/components/chat-interno/dialogo-criar-grupo
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 
 const SELECAO_TODOS = "todos";
+const INTERVALO_ATUALIZACAO_ATRASO_MS = 30_000;
 
 type Props = {
   selecionadoId: string | null;
@@ -131,6 +132,7 @@ export function ListaConversas({
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [filtroEtapa, setFiltroEtapa] = useState<string | null>(null);
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
+  const [agora, setAgora] = useState(() => new Date());
 
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(visao);
   const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
@@ -154,6 +156,11 @@ export function ListaConversas({
 
   const fimDaLista = useRef<HTMLDivElement>(null);
   const paginaComCursor = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
+  useEffect(() => {
+    const relogio = window.setInterval(() => setAgora(new Date()), INTERVALO_ATUALIZACAO_ATRASO_MS);
+    return () => window.clearInterval(relogio);
+  }, []);
+
   useEffect(() => {
     const alvo = fimDaLista.current;
     if (!alvo || !paginaComCursor || !hasNextPage) return;
@@ -416,6 +423,7 @@ export function ListaConversas({
                 )}
                 <CartaoConversa
                   cartao={cartao}
+                  agora={agora}
                   selecionado={cartao.tipo === "EQUIPE_INTERNA" ? cartao.conversaId === selecionadoId : cartao.leadId === selecionadoId}
                   onAbrirAtendimento={() => onAbrirAtendimento(cartao)}
                 />

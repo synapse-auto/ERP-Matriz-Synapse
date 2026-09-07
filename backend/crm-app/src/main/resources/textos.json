@@ -278,7 +278,8 @@
       "vazio": "Nenhuma conversa nesta visão.",
       "naoLidas": "{quantidade} mensagens não lidas",
       "atendidoPelaIa": "Atendido pela IA",
-      "codigo": "Código {codigo}"
+      "codigo": "Código {codigo}",
+      "atrasoAtendente": "Sem resposta há mais de 20 minutos"
     },
     "cabecalho": {
       "atendidoPor": "Atendido por",

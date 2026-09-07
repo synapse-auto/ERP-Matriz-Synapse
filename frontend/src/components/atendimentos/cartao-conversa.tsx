@@ -5,6 +5,7 @@ import { MessageCircleMore, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import type { ItemInbox } from "@/lib/atendimento/types";
+import { atendenteEstaAtrasado } from "@/lib/atendimento/atraso-do-atendente";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ type Props = {
   cartao: ItemInbox;
   selecionado: boolean;
   onAbrirAtendimento: () => void;
+  agora?: Date;
 };
 
 /** Etapa, foto, nome, atendente responsável, prévia da última mensagem — o card do prompt E11. */
@@ -19,6 +21,7 @@ export function CartaoConversa({
   cartao,
   selecionado,
   onAbrirAtendimento,
+  agora = new Date(),
 }: Props) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
@@ -69,6 +72,12 @@ export function CartaoConversa({
     cartao.canalTipo === "WHATSAPP" ? textos.canais.whatsapp : cartao.canalTipo;
   const semAtendimentoAberto = cartao.atendimentoAtivoId === null
     || (cartao.atendimentoAtivoId === undefined && cartao.status === "FINALIZADO");
+  const atendenteAtrasado = atendenteEstaAtrasado(
+    cartao.ultimaMensagemRemetenteTipo,
+    cartao.ultimaMensagemEm,
+    cartao.status,
+    agora,
+  );
 
   return (
     <button
@@ -77,9 +86,11 @@ export function CartaoConversa({
       aria-current={selecionado ? "true" : undefined}
       className={cn(
         "m-1.5 flex w-[calc(100%-0.75rem)] items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-muted",
+        atendenteAtrasado && "bg-cor-atencao/10",
         selecionado &&
           "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
       )}
+      title={atendenteAtrasado ? textos.cartao.atrasoAtendente : undefined}
     >
       <div className="relative shrink-0">
         <AvatarIniciais
