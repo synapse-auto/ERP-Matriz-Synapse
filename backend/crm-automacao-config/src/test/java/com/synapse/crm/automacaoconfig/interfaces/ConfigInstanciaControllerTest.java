@@ -34,13 +34,15 @@ class ConfigInstanciaControllerTest {
             features, recursos, canal, obterTema, obterLogo, atualizarTema, atualizarLogo);
 
     @Test
-    @DisplayName("canal devolve apenas a capacidade de exigir template")
+    @DisplayName("canal devolve as capacidades do gateway")
     void canal_devolveCapacidadeDoGateway() {
         when(canal.exigeTemplateForaDaJanela()).thenReturn(true);
+        when(canal.gerenciaTemplates()).thenReturn(true);
 
         var resposta = controller.canal();
 
         assertThat(resposta.exigeTemplateForaDaJanela()).isTrue();
+        assertThat(resposta.gerenciaTemplates()).isTrue();
     }
 
     @Test

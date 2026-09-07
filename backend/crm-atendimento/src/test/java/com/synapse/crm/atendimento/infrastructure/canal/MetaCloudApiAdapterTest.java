@@ -39,6 +39,7 @@ import org.springframework.web.client.RestClient;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeEdicaoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -58,6 +59,7 @@ class MetaCloudApiAdapterTest {
 
     private MockRestServiceServer servidor;
     private MetaCloudApiAdapter adapter;
+    private CircuitBreakerRegistry breakers;
 
     @BeforeEach
     void configurar() {
@@ -76,11 +78,12 @@ class MetaCloudApiAdapterTest {
                 "waba-teste",
                 "",
                 "");
+        breakers = CircuitBreakerRegistry.ofDefaults();
         adapter = new MetaCloudApiAdapter(
                 builder,
                 propriedades,
                 json,
-                CircuitBreakerRegistry.ofDefaults(),
+                breakers,
                 armazenamento);
     }
 
@@ -327,11 +330,11 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
                         """
-                        {"data":[{"name":"boas_vindas","language":"pt_BR","status":"APPROVED",
+                        {"data":[{"id":"meta-1","name":"boas_vindas","language":"pt_BR","status":"APPROVED",
                         "category":"UTILITY","components":[{"type":"BODY","text":"Ola {{1}}"}]}]}
                         """,
                         MediaType.APPLICATION_JSON));
@@ -341,6 +344,7 @@ class MetaCloudApiAdapterTest {
         servidor.verify();
         assertThat(templates).hasSize(1);
         assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
+        assertThat(templates.getFirst().id()).isEqualTo("meta-1");
         assertThat(templates.getFirst().status()).isEqualTo(TemplateDoCanal.Status.APROVADO);
         assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
     }
@@ -415,7 +419,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -437,7 +441,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -455,7 +459,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -473,7 +477,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(request -> {
                     throw new ResourceAccessException("read timed out");
@@ -517,6 +521,107 @@ class MetaCloudApiAdapterTest {
                         .get(0)
                         .asText())
                 .isEqualTo("Maria");
+    }
+
+    @Test
+    void editaSomenteComponentesPeloIdDoTemplate() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + "/123"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo {{1}}"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Aceito.class);
+        assertThat(payloadCapturado[0].has("name")).isFalse();
+        assertThat(payloadCapturado[0].path("components").get(0).path("text").asText())
+                .isEqualTo("Novo {{1}}");
+    }
+
+    @Test
+    void edicaoRecusadaPelaMetaViraRecusadoSemAbrirBreaker() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + "/123"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("{\"error\":{\"message\":\"template bloqueado\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo()).contains("template bloqueado");
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void excluiUmaVarianteComIdENomeConformeContratoDaMeta() {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.excluirTemplate("123", "boas_vindas");
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Aceito.class);
+    }
+
+    @Test
+    void exclusaoRecusadaPelaMetaViraRecusado() {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("{\"error\":{\"message\":\"template inexistente\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.excluirTemplate("123", "boas_vindas");
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo()).contains("template inexistente");
+    }
+
+    @Test
+    void indisponibilidadeNaEdicaoViraCanalIndisponivel() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("{\"error\":{\"message\":\"upstream\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo")))
+                .isInstanceOf(CanalIndisponivelException.class);
+        servidor.verify();
+    }
+
+    @Test
+    void naoSubstituiComponentesDeTemplateQueNaoSaoSomenteTexto() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"HEADER\",\"format\":\"IMAGE\"},{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
     }
 
     @Test
@@ -675,7 +780,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
                         """

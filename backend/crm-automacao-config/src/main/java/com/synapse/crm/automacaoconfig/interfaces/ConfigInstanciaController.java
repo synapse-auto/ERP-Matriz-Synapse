@@ -80,7 +80,7 @@ class ConfigInstanciaController {
             responses = @ApiResponse(responseCode = "200", description = "Capacidades do canal ativo."))
     @GetMapping("/canal")
     CapacidadeDoCanal canal() {
-        return new CapacidadeDoCanal(canal.exigeTemplateForaDaJanela());
+        return new CapacidadeDoCanal(canal.exigeTemplateForaDaJanela(), canal.gerenciaTemplates());
     }
 
     @Operation(
@@ -161,5 +161,5 @@ class ConfigInstanciaController {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
     }
 
-    record CapacidadeDoCanal(boolean exigeTemplateForaDaJanela) {}
+    record CapacidadeDoCanal(boolean exigeTemplateForaDaJanela, boolean gerenciaTemplates) {}
 }

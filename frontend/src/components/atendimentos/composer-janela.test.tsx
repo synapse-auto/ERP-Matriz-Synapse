@@ -26,6 +26,7 @@ vi.mock("@/lib/atendimento/api", () => ({
   listarTemplatesWhatsApp: () =>
     Promise.resolve([
       {
+        id: "template-1",
         nome: "boas_vindas",
         idioma: "pt_BR",
         categoria: "UTILIDADE",

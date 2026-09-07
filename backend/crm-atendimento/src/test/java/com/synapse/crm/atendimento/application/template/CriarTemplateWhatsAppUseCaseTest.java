@@ -50,6 +50,7 @@ class CriarTemplateWhatsAppUseCaseTest {
     void aceitaQuatroVariaveisSequenciaisMesmoComRepeticaoDoMesmoIndice() {
         CanalGateway canal = mock(CanalGateway.class);
         TemplateDoCanal criado = new TemplateDoCanal(
+                "meta-1",
                 "retorno",
                 "pt_BR",
                 TemplateDoCanal.Categoria.UTILIDADE,
@@ -73,6 +74,7 @@ class CriarTemplateWhatsAppUseCaseTest {
     void devolveOTemplateQuandoOProvedorAceita() {
         CanalGateway canal = mock(CanalGateway.class);
         TemplateDoCanal criado = new TemplateDoCanal(
+                "meta-2",
                 "retorno",
                 "pt_BR",
                 TemplateDoCanal.Categoria.UTILIDADE,

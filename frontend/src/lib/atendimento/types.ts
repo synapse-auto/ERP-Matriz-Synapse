@@ -33,6 +33,7 @@ export interface ConfiguracaoComposer {
 /** Espelha ConfigInstanciaController — GET /api/v1/config/canal. */
 export interface CapacidadeDoCanal {
   exigeTemplateForaDaJanela: boolean;
+  gerenciaTemplates: boolean;
 }
 
 export type CategoriaTemplateWhatsApp = "UTILIDADE" | "MARKETING" | "AUTENTICACAO";
@@ -44,6 +45,7 @@ export type StatusTemplateWhatsApp =
   | "DESCONHECIDO";
 
 export interface TemplateWhatsApp {
+  id: string;
   nome: string;
   idioma: string;
   categoria: CategoriaTemplateWhatsApp;

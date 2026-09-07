@@ -740,6 +740,9 @@ export const TextosSchema = z.object({
     erro: z.string(),
     dica: z.string(),
     avisoPendente: z.string(),
+    gerenciaIndisponivel: z.string(),
+    editar: z.string(),
+    excluir: z.string(),
     busca: z.string(),
     semResultados: z.string(),
     categorias: z.object({
@@ -766,8 +769,17 @@ export const TextosSchema = z.object({
       variavelAusente: z.string(),
       variavelInvalida: z.string(),
       salvar: z.string(),
+      salvarEdicao: z.string(),
       cancelar: z.string(),
       erro: z.string(),
+      erroEdicao: z.string(),
+      editarTitulo: z.string(),
+    }),
+    confirmacaoExclusao: z.object({
+      titulo: z.string(),
+      descricao: z.string(),
+      confirmar: z.string(),
+      cancelar: z.string(),
     }),
   }),
   equipe: z.object({

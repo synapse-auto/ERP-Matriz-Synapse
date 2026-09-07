@@ -91,7 +91,7 @@ function preencherContato() {
 }
 
 beforeEach(() => {
-  apiMocks.obterCapacidadeDoCanal.mockResolvedValue({ exigeTemplateForaDaJanela: false });
+  apiMocks.obterCapacidadeDoCanal.mockResolvedValue({ exigeTemplateForaDaJanela: false, gerenciaTemplates: true });
   apiMocks.listarTemplatesWhatsApp.mockResolvedValue([]);
 });
 
@@ -179,6 +179,7 @@ describe("DialogoNovoContato", () => {
   it("em canal que exige template, seleciona template sem enviar antes da confirmação", async () => {
     apiMocks.listarTemplatesWhatsApp.mockResolvedValue([
       {
+        id: "template-1",
         nome: "boas_vindas",
         idioma: "pt_BR",
         categoria: "UTILIDADE",

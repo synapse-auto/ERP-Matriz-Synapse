@@ -8,6 +8,7 @@ package com.synapse.crm.atendimento.domain.canal;
  * parameter_format}) nao atravessa esta fronteira.
  */
 public record TemplateDoCanal(
+        String id,
         String nome,
         String idioma,
         Categoria categoria,

@@ -372,9 +372,14 @@ class UzapiAutoticAdapterTest {
     }
 
     @Test
-    void naoSobrescreveListarNemCriarTemplate_usaDefaultsDaInterface() {
+    void naoSobrescreveListarNemCriarEditarOuExcluirTemplate_usaDefaultsDaInterface() {
+        assertThat(adapter.gerenciaTemplates()).isFalse();
         assertThat(adapter.listarTemplates()).isEmpty();
         assertThat(adapter.criarTemplate(null))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
+        assertThat(adapter.editarTemplate(null))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
+        assertThat(adapter.excluirTemplate("id", "nome"))
                 .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
     }
 }

@@ -182,6 +182,20 @@ export function criarTemplateWhatsApp(pedido: {
   });
 }
 
+export function editarTemplateWhatsApp(id: string, pedido: { corpo: string }): Promise<void> {
+  return apiFetch<void>(`/api/v1/whatsapp/templates/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(pedido),
+  });
+}
+
+export function excluirTemplateWhatsApp(id: string, nome: string): Promise<void> {
+  return apiFetch<void>(
+    `/api/v1/whatsapp/templates/${encodeURIComponent(id)}?nome=${encodeURIComponent(nome)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function encaminharMensagem(
   origemAtendimentoId: string,
   mensagemId: string,
