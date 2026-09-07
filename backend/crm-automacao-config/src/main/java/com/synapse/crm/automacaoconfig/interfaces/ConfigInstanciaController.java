@@ -21,13 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.automacaoconfig.application.AtualizarIdentidadeDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarLogoDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarTemaDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterLogoDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterTemaDaInstanciaUseCase;
+import com.synapse.crm.automacaoconfig.application.ObterTextosDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
 import com.synapse.crm.automacaoconfig.domain.MarcaDaInstanciaInvalidaException;
-import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 
 /**
  * Configuracao da instancia para o frontend (E07 §4) — a fundacao de frontend que a E10 depende
@@ -39,28 +40,31 @@ import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaRes
 class ConfigInstanciaController {
 
     private final FeatureService features;
-    private final ConfiguracaoDeInstanciaResources recursos;
     private final CanalGateway canal;
     private final ObterTemaDaInstanciaUseCase obterTema;
     private final ObterLogoDaInstanciaUseCase obterLogo;
     private final AtualizarTemaDaInstanciaUseCase atualizarTema;
     private final AtualizarLogoDaInstanciaUseCase atualizarLogo;
+    private final ObterTextosDaInstanciaUseCase obterTextos;
+    private final AtualizarIdentidadeDaInstanciaUseCase atualizarIdentidade;
 
     ConfigInstanciaController(
             FeatureService features,
-            ConfiguracaoDeInstanciaResources recursos,
             CanalGateway canal,
             ObterTemaDaInstanciaUseCase obterTema,
             ObterLogoDaInstanciaUseCase obterLogo,
             AtualizarTemaDaInstanciaUseCase atualizarTema,
-            AtualizarLogoDaInstanciaUseCase atualizarLogo) {
+            AtualizarLogoDaInstanciaUseCase atualizarLogo,
+            ObterTextosDaInstanciaUseCase obterTextos,
+            AtualizarIdentidadeDaInstanciaUseCase atualizarIdentidade) {
         this.features = features;
-        this.recursos = recursos;
         this.canal = canal;
         this.obterTema = obterTema;
         this.obterLogo = obterLogo;
         this.atualizarTema = atualizarTema;
         this.atualizarLogo = atualizarLogo;
+        this.obterTextos = obterTextos;
+        this.atualizarIdentidade = atualizarIdentidade;
     }
 
     @Operation(
@@ -98,7 +102,7 @@ class ConfigInstanciaController {
             responses = @ApiResponse(responseCode = "200", description = "Documento JSON de textos."))
     @GetMapping("/textos")
     JsonNode textos() {
-        return recursos.textos();
+        return obterTextos.executar();
     }
 
     @Operation(
@@ -156,10 +160,29 @@ class ConfigInstanciaController {
         }
     }
 
+    @Operation(
+            summary = "Atualizar identidade da marca",
+            description = "Substitui o nome e o subtítulo pós-login da instância sem reiniciar o processo.",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Identidade atualizada."),
+                @ApiResponse(responseCode = "400", description = "Nome ou subtítulo ausente."),
+                @ApiResponse(responseCode = "403", description = "Papel sem permissão de gestão.")
+            })
+    @PutMapping("/marca/identidade")
+    JsonNode atualizarIdentidade(@RequestBody IdentidadeDaMarca identidade) {
+        atualizarIdentidade.executar(
+                identidade == null ? null : identidade.marca(),
+                identidade == null ? null : identidade.subtitulo());
+        return obterTextos.executar();
+    }
+
     @org.springframework.web.bind.annotation.ExceptionHandler(MarcaDaInstanciaInvalidaException.class)
     ProblemDetail marcaInvalida(MarcaDaInstanciaInvalidaException erro) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
     }
 
     record CapacidadeDoCanal(boolean exigeTemplateForaDaJanela, boolean gerenciaTemplates) {}
+
+    record IdentidadeDaMarca(String marca, String subtitulo) {}
 }

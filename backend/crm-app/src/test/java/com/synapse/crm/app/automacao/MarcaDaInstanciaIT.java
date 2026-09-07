@@ -11,6 +11,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,7 +58,10 @@ class MarcaDaInstanciaIT extends PostgresIT {
     @BeforeEach
     void restaurarFallback() {
         armazenamento.limpar();
-        jdbc.update("UPDATE marca_da_instancia SET tema = NULL, logo_referencia_storage = NULL, atualizado_por_id = NULL, atualizado_em = NULL WHERE id = 1");
+        jdbc.update(
+                "UPDATE marca_da_instancia SET tema = NULL, logo_referencia_storage = NULL, "
+                        + "nome_da_marca = NULL, subtitulo = NULL, atualizado_por_id = NULL, "
+                        + "atualizado_em = NULL WHERE id = 1");
     }
 
     @Test
@@ -79,6 +83,17 @@ class MarcaDaInstanciaIT extends PostgresIT {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
         assertThat(resposta.getBody()).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("identidade NULL/NULL preserva o catalogo completo do classpath")
+    void textosSemCustomizacao_eIgualAoClasspath() throws Exception {
+        ResponseEntity<String> resposta = http.getForEntity("/api/v1/config/textos", String.class);
+        JsonNode esperado = json.readTree(new ClassPathResource("textos.json").getInputStream());
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody().getBytes(StandardCharsets.UTF_8))
+                .isEqualTo(json.writeValueAsBytes(esperado));
     }
 
     @Test
@@ -126,6 +141,37 @@ class MarcaDaInstanciaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("PUT de identidade sobrepoe dois campos sem reiniciar nem congelar o catalogo")
+    void atualizarIdentidade_refleteSemReiniciarESemMutarClasspath() throws Exception {
+        JsonNode classpath = json.readTree(new ClassPathResource("textos.json").getInputStream());
+        HttpHeaders cabecalhos = cabecalhosDoGestor(MediaType.APPLICATION_JSON);
+        String corpo = "{\"marca\":\"Clínica Femina\",\"subtitulo\":\"Atendimento especializado\"}";
+
+        ResponseEntity<String> atualizacao = http.exchange(
+                "/api/v1/config/marca/identidade",
+                HttpMethod.PUT,
+                new HttpEntity<>(corpo, cabecalhos),
+                String.class);
+        ResponseEntity<String> primeiraLeitura = http.getForEntity("/api/v1/config/textos", String.class);
+        ResponseEntity<String> segundaLeitura = http.getForEntity("/api/v1/config/textos", String.class);
+
+        assertThat(atualizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(primeiraLeitura.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(segundaLeitura.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        JsonNode esperado = classpath.deepCopy();
+        ObjectNode appEsperado = (ObjectNode) esperado.path("app");
+        appEsperado.put("marca", "Clínica Femina");
+        appEsperado.put("subtitulo", "Atendimento especializado");
+        assertThat(json.readTree(primeiraLeitura.getBody())).isEqualTo(esperado);
+        assertThat(json.readTree(segundaLeitura.getBody())).isEqualTo(esperado);
+        assertThat(json.readTree(primeiraLeitura.getBody()).path("app").path("nome").asText())
+                .isEqualTo("Synapse CRM");
+        assertThat(json.readTree(primeiraLeitura.getBody()).path("menu"))
+                .isEqualTo(classpath.path("menu"));
+    }
+
+    @Test
     @DisplayName("escrita de marca sem autenticacao e rejeitada")
     void escritaSemAutenticacao_devolve401() {
         ResponseEntity<String> resposta = http.exchange(
@@ -151,6 +197,48 @@ class MarcaDaInstanciaIT extends PostgresIT {
                 String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("identidade sem autenticacao e rejeitada")
+    void identidadeSemAutenticacao_devolve401() {
+        ResponseEntity<String> resposta = http.exchange(
+                "/api/v1/config/marca/identidade",
+                HttpMethod.PUT,
+                new HttpEntity<>("{\"marca\":\"Clinica\",\"subtitulo\":\"CRM\"}", new HttpHeaders()),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("atendente nao pode atualizar identidade")
+    void identidade_atendenteRecebe403() {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken());
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<String> resposta = http.exchange(
+                "/api/v1/config/marca/identidade",
+                HttpMethod.PUT,
+                new HttpEntity<>(Map.of("marca", "Clinica", "subtitulo", "CRM"), cabecalhos),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("identidade exige os dois campos nao vazios")
+    void identidade_vaziaDevolve400() {
+        HttpHeaders cabecalhos = cabecalhosDoGestor(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<String> resposta = http.exchange(
+                "/api/v1/config/marca/identidade",
+                HttpMethod.PUT,
+                new HttpEntity<>(Map.of("marca", " ", "subtitulo", "CRM"), cabecalhos),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     private HttpHeaders cabecalhosDoGestor(MediaType tipo) {
