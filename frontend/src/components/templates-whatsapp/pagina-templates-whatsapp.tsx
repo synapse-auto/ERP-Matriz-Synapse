@@ -39,6 +39,10 @@ import type {
 import { useTextos } from "@/lib/config/textos-provider";
 import { podeCriarTemplates, podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import {
+  DialogoConfirmacaoExclusaoTemplate,
+  FormularioEdicaoTemplate,
+} from "./acoes-template-whatsapp";
 
 const TOM_DO_STATUS: Record<StatusTemplateWhatsApp, TomDePill> = {
   APROVADO: "sucesso",
@@ -236,7 +240,7 @@ export function PaginaTemplatesWhatsApp() {
         onFechar={() => setAberto(false)}
         onSalvar={(pedido) => criar.mutate(pedido)}
       />
-      <FormularioEdicao
+      <FormularioEdicaoTemplate
         key={editando?.id ?? "sem-template"}
         template={editando}
         salvando={editarTemplate.isPending}
@@ -245,79 +249,14 @@ export function PaginaTemplatesWhatsApp() {
         onFechar={() => setEditando(null)}
         onSalvar={(corpo) => editando && editarTemplate.mutate({ id: editando.id, corpo })}
       />
-      <Dialog open={Boolean(excluindo)} onOpenChange={(abertoAgora) => !abertoAgora && setExcluindo(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t.confirmacaoExclusao.titulo}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {excluindo
-              ? interpolarCatalogo(t.confirmacaoExclusao.descricao, { nome: excluindo.nome })
-              : null}
-          </p>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setExcluindo(null)}>
-              {t.confirmacaoExclusao.cancelar}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={excluirTemplate.isPending || !excluindo}
-              onClick={() => excluindo && excluirTemplate.mutate(excluindo)}
-            >
-              {t.confirmacaoExclusao.confirmar}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DialogoConfirmacaoExclusaoTemplate
+        template={excluindo}
+        excluindo={excluirTemplate.isPending}
+        textos={t}
+        onFechar={() => setExcluindo(null)}
+        onConfirmar={() => excluindo && excluirTemplate.mutate(excluindo)}
+      />
     </div>
-  );
-}
-
-function FormularioEdicao({
-  template,
-  salvando,
-  erro,
-  textos,
-  onFechar,
-  onSalvar,
-}: {
-  template: TemplateWhatsApp | null;
-  salvando: boolean;
-  erro: string | null;
-  textos: ReturnType<typeof useTextos>["templatesWhatsApp"];
-  onFechar: () => void;
-  onSalvar: (corpo: string) => void;
-}) {
-  const [corpo, setCorpo] = useState(() => template?.corpo ?? "");
-  const analise = analisarVariaveisDoCorpo(corpo);
-
-  return (
-    <Dialog open={Boolean(template)} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{textos.formulario.editarTitulo}</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={(evento) => {
-            evento.preventDefault();
-            if (!analise.erro && corpo.trim()) onSalvar(corpo);
-          }}
-        >
-          <p className="text-sm text-muted-foreground">{template?.nome}</p>
-          <label className="block text-sm">
-            {textos.formulario.corpo}
-            <Textarea value={corpo} onChange={(evento) => setCorpo(evento.target.value)} className="mt-1" required />
-          </label>
-          {(analise.erro || erro) && <p role="alert" className="text-sm text-destructive">{erro ?? textos.formulario.variavelInvalida}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onFechar}>{textos.formulario.cancelar}</Button>
-            <Button type="submit" disabled={salvando || Boolean(analise.erro) || !corpo.trim()}>{textos.formulario.salvarEdicao}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
