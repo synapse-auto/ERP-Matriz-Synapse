@@ -890,6 +890,8 @@
     "participantesMinimos": "Selecione ao menos uma outra pessoa.",
     "erroCriarGrupo": "Não foi possível criar o grupo. Tente novamente.",
     "participantesDoGrupo": "Participantes do grupo",
+    "retrair": "Retrair dados do grupo",
+    "reabrir": "Reabrir dados do grupo",
     "adicionarParticipante": "Adicionar pessoa",
     "removerParticipante": "Remover",
     "sairDoGrupo": "Sair do grupo",

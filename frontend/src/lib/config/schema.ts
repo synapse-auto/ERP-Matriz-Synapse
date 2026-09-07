@@ -228,6 +228,8 @@ export const TextosSchema = z.object({
     participantesMinimos: z.string(),
     erroCriarGrupo: z.string(),
     participantesDoGrupo: z.string(),
+    retrair: z.string(),
+    reabrir: z.string(),
     adicionarParticipante: z.string(),
     removerParticipante: z.string(),
     sairDoGrupo: z.string(),

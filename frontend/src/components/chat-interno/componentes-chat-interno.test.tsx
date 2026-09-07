@@ -34,6 +34,8 @@ const mockTextosCompletos = {
     tipoGrupo: "Grupo",
     tipoDireta: "Conversa direta",
     participantesDoGrupo: "Participantes do grupo",
+    retrair: "Retrair dados do grupo",
+    reabrir: "Reabrir dados do grupo",
     sistema: {
       grupoCriado: "criou o grupo {nome}",
       participanteAdicionado: "adicionou {alvo}",
@@ -93,6 +95,26 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.queryByRole("button", { name: "Transferir" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
     expect(screen.queryByText("Finalizar Todos")).not.toBeInTheDocument();
+  });
+
+  it("exibe o controle para reabrir o painel de grupo somente quando ele está fechado", () => {
+    const onGerenciarGrupo = vi.fn();
+    const conversa = { id: "g1", tipo: "GRUPO" as const, participantes: "Operação", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 0 };
+
+    const { rerender } = render(
+      <CabecalhoChatInterno conversa={conversa} textos={textos} onGerenciarGrupo={onGerenciarGrupo} />,
+    );
+
+    const reabrir = screen.getByRole("button", { name: "Reabrir dados do grupo" });
+    expect(reabrir).toHaveAttribute("aria-expanded", "false");
+    expect(reabrir).toHaveAttribute("aria-controls", "painel-grupo");
+    fireEvent.click(reabrir);
+    expect(onGerenciarGrupo).toHaveBeenCalledOnce();
+
+    rerender(
+      <CabecalhoChatInterno conversa={conversa} textos={textos} painelGrupoAberto onGerenciarGrupo={onGerenciarGrupo} />,
+    );
+    expect(screen.queryByRole("button", { name: "Reabrir dados do grupo" })).not.toBeInTheDocument();
   });
 
   it("renderiza mensagem de sistema do grupo no centro", () => {
