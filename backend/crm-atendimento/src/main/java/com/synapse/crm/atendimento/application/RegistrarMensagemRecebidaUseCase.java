@@ -92,12 +92,7 @@ public class RegistrarMensagemRecebidaUseCase {
             leads.marcarStatus(entrada.leadId(), StatusBasicoLead.IA);
         }
 
-        Mensagem gravada = mensagens.registrar(entrada.ehMidia()
-                ? Mensagem.midia(
-                        UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.tipo(),
-                        entrada.midiaUrl(), entrada.midiaMetadados(), agora)
-                : Mensagem.texto(
-                        UUID.randomUUID(), aberto.id(), Remetente.lead(), entrada.conteudo(), agora));
+        Mensagem gravada = mensagens.registrar(mensagemDaEntrada(entrada, aberto.id(), agora));
 
         if (entrada.referencia() != null) {
             referencias.gravar(gravada.id(), gravada.enviadoEm(), entrada.referencia());
@@ -131,6 +126,21 @@ public class RegistrarMensagemRecebidaUseCase {
                 MontadorDeReferenciaDeMensagem.citacaoDe(entrada.referencia())));
 
         return new Resultado(aberto, gravada, abriu);
+    }
+
+    private static Mensagem mensagemDaEntrada(MensagemRecebida entrada, UUID atendimentoId, Instant agora) {
+        if (entrada.ehMidia()) {
+            return Mensagem.midia(
+                    UUID.randomUUID(), atendimentoId, Remetente.lead(), entrada.tipo(),
+                    entrada.midiaUrl(), entrada.midiaMetadados(), agora);
+        }
+        if (entrada.tipo() != null && entrada.tipo().exigeMetadados()) {
+            return Mensagem.estruturada(
+                    UUID.randomUUID(), atendimentoId, Remetente.lead(), entrada.tipo(),
+                    entrada.midiaMetadados(), agora);
+        }
+        return Mensagem.texto(
+                UUID.randomUUID(), atendimentoId, Remetente.lead(), entrada.conteudo(), agora);
     }
 
     /**
@@ -170,7 +180,7 @@ public class RegistrarMensagemRecebidaUseCase {
         }
 
         public boolean ehMidia() {
-            return tipo != null && tipo != TipoMensagem.TEXTO;
+            return tipo != null && tipo.exigeMidia();
         }
     }
 

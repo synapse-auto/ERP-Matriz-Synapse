@@ -126,10 +126,36 @@ idempotência de envio comprovada)". Critério adotado:
   documentada para isso), ou 2xx com `status != "success"` / `error` presente / sem
   `messages[0].id` → `permanente`.
 
-## 8. Recebimento — NÃO implementado, material de referência para etapa futura
+## 8. Recebimento — implementado na E155
 
-**Fora desta etapa.** `TradutorDeCanal`, `WebhookCanalController` e qualquer parsing de webhook para
-este provedor não foram criados. `baixarMidiaRecebida` lança `UnsupportedOperationException`.
+O recebimento da Uzapi/Autotic agora usa o mesmo endpoint único do CRM, sem habilitar o provedor em
+nenhum ambiente: `POST /webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>`. O tradutor
+`UzapiAutoticWebhookTradutor` absorve aliases do payload, filtra Status/Story, traduz texto, mídia,
+interativas e localização, e mantém os identificadores no vocabulário do CRM. O segredo da query é
+comparado em tempo constante; sem segredo configurado o webhook é recusado.
+
+Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId` em
+`GET /{username}/{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado.
+Localização não chama o downloader e é persistida em metadados estruturados.
+
+### 8.0 Registro do callback
+
+O Swagger oficial concentra o callback no campo `webhook` da atualização da instância; os 16 paths
+`/webhook/message/*` e `/webhook/status/*` são eventos documentados pelo fornecedor, não sufixos que
+o CRM precise expor. No momento do corte, Lucas deverá configurar (fora desta etapa):
+
+```
+PUT https://api.uzapi.com.br/{username}/{version}/{phone_number_id}/instance/update
+Authorization: Bearer <token>
+{
+  "webhook": "https://<host-do-synapse>/webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>",
+  "webhookEvents": {"authentication": true, "connection": true, "group_messages": true,
+    "message_status": true, "group_events": true, "history": false}
+}
+```
+
+O endpoint do Synapse é único: `POST /webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>`. Nenhum
+registro foi executado contra uma conta real nesta etapa.
 
 ### 8.1 O que o Swagger oficial documenta — confirmado, primário
 
@@ -175,18 +201,18 @@ O envelope é **estruturalmente idêntico ao da Meta** (`entry[].changes[].value
 nos nomes de campo (`messaging_product`, `metadata.phone_number_id`, `contacts[].wa_id`). Os eventos
 de status (`/webhook/status/delivered` etc.) usam o mesmo envelope, trocando `messages[]` por
 `statuses[]` com `id`/`status`/`timestamp`/`recipient_id`/`conversation`/`pricing` — também idêntico
-ao formato Meta. Isso é uma boa notícia para a etapa futura: o parsing de envelope Meta já existente
-no CRM (`MetaCloudWebhookTradutor`) é candidato natural a reaproveitamento estrutural, não um
-tradutor do zero.
+ao formato Meta. O tradutor dedicado reaproveita essa navegação estrutural sem compartilhar regras
+específicas do fornecedor com `MetaCloudWebhookTradutor`.
 
 O endpoint `getchat` mencionado na documentação narrativa (para buscar conteúdo completo por ID) não
 foi localizado como path próprio nos 36 do Swagger — pode estar sob outro nome ou não documentado
-publicamente; não investigado a fundo, por estar fora do escopo desta etapa.
+publicamente; ele não é necessário para o fluxo implementado, que resolve mídias pelo endpoint
+documentado de `mediaId`.
 
 **Isto não é confirmação de como o número real desta clínica vai se comportar** — é o que o Swagger
 documenta. Só um teste empírico contra a instância real confirma.
 
-### 8.2 O que a referência de produção (`Clinica-CRM-FMNA`) já resolve — não confirmado com teste próprio
+### 8.2 Decisões de compatibilidade trazidas da referência de produção
 
 Meses de produção real, com correções de bugs reais (mídia inbound, Status/Story vazando pro chat).
 Não copiado, só registrado como referência de formato:
@@ -202,11 +228,12 @@ Não copiado, só registrado como referência de formato:
   `?secret=` na URL, comparado em tempo constante (`MessageDigest.isEqual`) mais validação estrutural
   do payload e do identificador de instância esperado. Documentado lá mesmo como proteção **fraca**
   (query string vaza em log de proxy/histórico), mas é precedente real de meses em produção sem
-  incidente conhecido. Fica registrado como candidato a decisão default para a etapa futura, não como
-  algo a implementar agora.
+  incidente conhecido. Esta etapa adota esse mecanismo como fallback porque o Swagger não oferece
+  segredo/header próprio; a URL deve ser protegida por TLS e o segredo configurado fora do código.
 
-A etapa de recebimento decide, com o Marcondes, se testa empiricamente contra a instância real antes
-de implementar ou se aceita esta referência como base.
+O Swagger não documenta desafio `GET` nem um segredo/header de assinatura próprio. Por isso o
+tradutor recusa a verificação GET (falha fechada) e usa o segredo de query já adotado pela referência
+de produção, sem chamada à instância real nesta etapa.
 
 ## 9. Segredos
 
@@ -215,10 +242,9 @@ Três variáveis já existentes cobrem autenticação (`WHATSAPP_URL_BASE`, `WHA
 valor real entrou neste documento, no código ou nos testes — todos os exemplos acima são do Swagger
 público ou de fixtures.
 
-## Ponto de parada da E152
+## Ponto de parada da E155
 
-Envio confirmado e implementado (`UzapiAutoticAdapter`). Recebimento é etapa futura — ver seção 8.
-Não ligar `synapse.canal.whatsapp.provedor=uzapi-autotic` em nenhum ambiente real antes disso: com o
-provedor de envio pronto mas sem `TradutorDeCanal` correspondente, `SeletorDeCanalGateway` falha a
-inicialização do Spring inteira (por desenho — "falhar na inicialização quando o nome não casa é
-deliberado").
+Envio e recebimento estão implementados (`UzapiAutoticAdapter` e
+`UzapiAutoticWebhookTradutor`), mas o provedor continua desligado por configuração. Não ligar
+`synapse.canal.whatsapp.provedor=uzapi-autotic` nem registrar webhook em ambiente real nesta etapa;
+isso exige credenciais e uma decisão operacional fora do código.

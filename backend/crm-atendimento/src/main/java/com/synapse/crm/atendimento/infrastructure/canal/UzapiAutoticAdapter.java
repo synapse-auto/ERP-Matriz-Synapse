@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -41,10 +43,10 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
  * {@code type}, sem nenhum schema de corpo correspondente nos doze variantes documentados
  * (Text/Image/Audio/Video/Document/Reaction/Location/Contacts/Poll/Sticker/Revoke/Interactive).
  *
- * <p>Recebimento nao foi investigado nesta etapa: {@link #baixarMidiaRecebida} recusa, e nenhum
- * {@code TradutorDeCanal} foi criado. Ligar {@code synapse.canal.whatsapp.provedor=uzapi-autotic}
- * antes disso falha a inicializacao do Spring inteira — {@link SeletorDeCanalGateway} exige um
- * {@code TradutorDeCanal} para a mesma chave, de proposito, e nao ha um.
+ * <p>O recebimento usa o mesmo identificador de midia que chega no webhook: primeiro resolve a URL
+ * pelo endpoint {@code GET /{username}/{version}/{mediaId}} e depois baixa os bytes nessa URL. O
+ * segundo passo fica protegido pelo disjuntor dedicado de midia, assim a fila de entrada pode
+ * retentar sem bloquear o caminho sincrono do webhook.
  */
 @Component
 class UzapiAutoticAdapter implements CanalGateway {
@@ -375,10 +377,53 @@ class UzapiAutoticAdapter implements CanalGateway {
         }
     }
 
-    /** Recebimento nao investigado nesta etapa (E152 Bloco 6) — ver docs/38. */
     @Override
     public MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
-        throw new UnsupportedOperationException("recebimento uzapi-autotic ainda nao investigado");
+        if (vazio(midiaIdExterno)) {
+            throw new IllegalArgumentException("id de midia recebido ausente");
+        }
+        try {
+            return breakerMidia.executeSupplier(() -> buscarMidiaRecebida(midiaIdExterno));
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new ProvedorTemporariamenteIndisponivelException(
+                    "circuit breaker aberto para " + PROVEDOR + "; midia " + midiaIdExterno
+                            + " sera retentada",
+                    breakerAberto);
+        }
+    }
+
+    /**
+     * A Uzapi documenta o primeiro GET como resolvedor de URL, não como endpoint de bytes. A URL
+     * devolvida já é autorizada pelo fornecedor; não enviamos o Bearer novamente para um host
+     * externo e evitamos vazar a credencial do canal.
+     */
+    private MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
+        String resposta = http.get()
+                .uri(
+                        "/{username}/{version}/{mediaId}",
+                        propriedades.usuarioApi(),
+                        propriedades.versaoApi(),
+                        midiaIdExterno)
+                .header("Authorization", "Bearer " + propriedades.token())
+                .retrieve()
+                .body(String.class);
+        JsonNode no = lerJson(resposta, "resposta da midia recebida");
+        String url = no.path("url").asText("").trim();
+        if (url.isBlank()) {
+            throw new IllegalStateException("resposta da midia recebida sem url");
+        }
+
+        ResponseEntity<byte[]> respostaDosBytes = http.get()
+                .uri(java.net.URI.create(url))
+                .retrieve()
+                .toEntity(byte[].class);
+        byte[] bytes = respostaDosBytes.getBody();
+        if (bytes == null) {
+            throw new IllegalStateException("resposta da midia recebida sem bytes");
+        }
+        MediaType contentType = respostaDosBytes.getHeaders().getContentType();
+        String mimetype = contentType == null ? "application/octet-stream" : contentType.toString();
+        return new MidiaRecebida(bytes, mimetype);
     }
 
     /** 2xx do provedor, mas o corpo nao confirma sucesso — sempre recusa permanente. */

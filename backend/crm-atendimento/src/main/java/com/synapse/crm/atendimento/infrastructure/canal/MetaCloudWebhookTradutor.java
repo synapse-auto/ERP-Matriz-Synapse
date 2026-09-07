@@ -81,17 +81,18 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
      * </ul>
      */
     @Override
-    public boolean assinaturaValida(String payloadCru, String assinaturaRecebida) {
+    public boolean assinaturaValida(
+            String payloadCru, String assinaturaCabecalho, String segredoConsulta) {
         if (!propriedades.temSegredoDeWebhook()) {
             log.error("synapse.canal.whatsapp.webhook-secret ausente: recusando todo webhook.");
             return false;
         }
-        if (assinaturaRecebida == null || !assinaturaRecebida.startsWith(PREFIXO_ASSINATURA)) {
+        if (assinaturaCabecalho == null || !assinaturaCabecalho.startsWith(PREFIXO_ASSINATURA)) {
             return false;
         }
 
         byte[] esperada = calcular(payloadCru);
-        byte[] recebida = decodificar(assinaturaRecebida.substring(PREFIXO_ASSINATURA.length()));
+        byte[] recebida = decodificar(assinaturaCabecalho.substring(PREFIXO_ASSINATURA.length()));
         return recebida.length > 0 && MessageDigest.isEqual(esperada, recebida);
     }
 

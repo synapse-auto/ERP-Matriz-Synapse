@@ -43,8 +43,9 @@ public class TradutorFake implements TradutorDeCanal {
     }
 
     @Override
-    public boolean assinaturaValida(String payloadCru, String assinaturaRecebida) {
-        return CanalFake.ASSINATURA_VALIDA.equals(assinaturaRecebida);
+    public boolean assinaturaValida(
+            String payloadCru, String assinaturaCabecalho, String segredoConsulta) {
+        return CanalFake.ASSINATURA_VALIDA.equals(assinaturaCabecalho);
     }
 
     @Override

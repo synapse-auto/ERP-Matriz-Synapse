@@ -362,13 +362,32 @@ class UzapiAutoticAdapterTest {
         assertThat(autenticacao.autenticada()).isFalse();
     }
 
-    // --- recebimento e templates fora de escopo -------------------------------
+    // --- recebimento -----------------------------------------------------------
 
     @Test
-    void baixarMidiaRecebidaLancaUnsupportedOperationException() {
-        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("qualquer-id"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("recebimento uzapi-autotic ainda nao investigado");
+    void baixarMidiaRecebidaResolveUrlEBaixaBytesSemReenviarBearerAoHostDaUrl() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + USUARIO + "/" + VERSAO + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.jpg\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("https://media.example.test/file.jpg"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(new byte[] {9, 8, 7}, MediaType.IMAGE_JPEG));
+
+        CanalGateway.MidiaRecebida recebida = adapter.baixarMidiaRecebida("media-inbound");
+
+        servidor.verify();
+        assertThat(recebida.conteudo()).containsExactly(9, 8, 7);
+        assertThat(recebida.mimetype()).isEqualTo("image/jpeg");
+    }
+
+    @Test
+    void baixarMidiaRecebidaComIdAusenteNaoChamaProvedor() {
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida(" "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("id de midia recebido ausente");
+        servidor.verify();
     }
 
     @Test
