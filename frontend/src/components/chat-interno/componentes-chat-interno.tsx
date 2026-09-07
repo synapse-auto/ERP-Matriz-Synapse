@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
-import { Mic, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
+import { Mic, PanelRightOpen, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { urlSegura, cn } from "@/lib/utils";
@@ -37,10 +37,12 @@ export function CabecalhoChatInterno({
   conversa,
   textos,
   onGerenciarGrupo,
+  painelGrupoAberto = false,
 }: {
   conversa?: ChatConversa;
   textos: TextosChat;
   onGerenciarGrupo?: () => void;
+  painelGrupoAberto?: boolean;
 }) {
   const nome = conversa?.participantes?.trim() || textos.titulo;
   const grupo = conversa?.tipo === "GRUPO";
@@ -60,9 +62,18 @@ export function CabecalhoChatInterno({
         </h2>
         <p className="text-xs text-muted-foreground">{grupo ? textos.tipoGrupo : textos.tipoDireta}</p>
       </div>
-      {grupo && onGerenciarGrupo && (
-        <Button type="button" variant="outline" size="sm" onClick={onGerenciarGrupo}>
-          {textos.participantesDoGrupo}
+      {grupo && onGerenciarGrupo && !painelGrupoAberto && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onGerenciarGrupo}
+          aria-expanded="false"
+          aria-controls="painel-grupo"
+          aria-label={textos.reabrir}
+          title={textos.reabrir}
+        >
+          <PanelRightOpen className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
       )}
     </header>

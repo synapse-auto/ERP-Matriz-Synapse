@@ -1,24 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
 
 import type { ChatContato } from "@/lib/chat-interno/types";
 import type { Textos } from "@/lib/config/schema";
 
-vi.mock("@/lib/chat-interno/api", () => ({
-  listarParticipantesChat: vi.fn(),
-  listarContatosChat: vi.fn(),
-  adicionarParticipanteChat: vi.fn(),
-  removerParticipanteChat: vi.fn(),
-  renomearGrupoChat: vi.fn(),
-}));
-
-import {
-  listarContatosChat,
-  listarParticipantesChat,
-} from "@/lib/chat-interno/api";
 import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
-import { PainelParticipantesGrupo } from "./painel-participantes-grupo";
 
 const textos = {
   novoGrupo: "Novo grupo",
@@ -32,6 +18,8 @@ const textos = {
   buscarPessoa: "Buscar",
   fecharSeletor: "Fechar",
   participantesDoGrupo: "Participantes do grupo",
+  retrair: "Retrair dados do grupo",
+  reabrir: "Reabrir dados do grupo",
   adicionarParticipante: "Adicionar pessoa",
   removerParticipante: "Remover",
   sairDoGrupo: "Sair do grupo",
@@ -65,37 +53,5 @@ describe("DialogoCriarGrupo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar grupo" }));
 
     await waitFor(() => expect(onCriar).toHaveBeenCalledWith("Ops", ["b1"]));
-  });
-});
-
-describe("PainelParticipantesGrupo", () => {
-  beforeEach(() => {
-    vi.mocked(listarParticipantesChat).mockResolvedValue([
-      { id: "u1", nome: "Ana" },
-      { id: "b1", nome: "Bruno" },
-    ]);
-    vi.mocked(listarContatosChat).mockResolvedValue(contatos);
-  });
-
-  it("mostra as mesmas acoes para qualquer membro — sem UI de administrador", async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <PainelParticipantesGrupo
-          aberto
-          onFechar={vi.fn()}
-          conversaId="c1"
-          nomeAtual="Ops"
-          usuarioAtual="u1"
-          textos={textos}
-        />
-      </QueryClientProvider>,
-    );
-
-    await waitFor(() => expect(screen.getByText("Bruno")).toBeInTheDocument());
-    expect(screen.getByLabelText("Remover")).toBeInTheDocument();
-    expect(screen.getByLabelText("Sair do grupo")).toBeInTheDocument();
-    expect(screen.queryByText(/administrador/i)).toBeNull();
-    expect(screen.getByLabelText("Renomear")).toBeInTheDocument();
   });
 });

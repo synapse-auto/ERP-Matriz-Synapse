@@ -19,6 +19,16 @@ const textos = {
   erroAbrirConversa: "Erro ao abrir conversa",
   tentarNovamente: "Tentar novamente",
   carregando: "Carregando...",
+  participantesDoGrupo: "Participantes do grupo",
+  retrair: "Retrair dados do grupo",
+  reabrir: "Reabrir dados do grupo",
+  adicionarParticipante: "Adicionar pessoa",
+  removerParticipante: "Remover",
+  sairDoGrupo: "Sair do grupo",
+  voce: "você",
+  renomearGrupo: "Renomear grupo",
+  salvarNome: "Salvar nome",
+  erroParticipantes: "Erro participantes",
 } as Textos["chatInterno"];
 
 const contatos: ChatContato[] = [
