@@ -48,8 +48,8 @@ class ImportacaoLeadsIT extends PostgresIT {
 
     @Test
     void previewEConfirmacaoNaoCriamDuplicataParaTelefoneExistente() {
-        String csv = "nome,empresa,telefone,cidade,tags\n"
-                + PREFIXO + ",Acme," + TELEFONE + ",Brasilia,\"VIP\"\n";
+        String csv = "nome,empresa,telefone,cidade\n"
+                + PREFIXO + ",Acme," + TELEFONE + ",Brasilia\n";
         String token = login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
 
         ResponseEntity<Map> previa = importar(token, "/preview", csv);
