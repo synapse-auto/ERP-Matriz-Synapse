@@ -12,7 +12,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +39,7 @@ class MarcaDaInstanciaUseCaseTest {
         var recursos = mock(RecursosDeMarcaDaInstancia.class);
         var json = new ObjectMapper();
         var fallback = json.createObjectNode().put("corPrimaria", "#123456");
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null, null, null));
         when(recursos.tema()).thenReturn(fallback);
 
         assertThat(new ObterTemaDaInstanciaUseCase(marcas, recursos, json).executar()).isSameAs(fallback);
@@ -49,7 +51,7 @@ class MarcaDaInstanciaUseCaseTest {
         var marcas = mock(MarcaDaInstanciaRepositorio.class);
         var recursos = mock(RecursosDeMarcaDaInstancia.class);
         var json = new ObjectMapper();
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia("{\"corPrimaria\":\"#abcdef\"}", null, null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia("{\"corPrimaria\":\"#abcdef\"}", null, null, null, null, null));
 
         assertThat(new ObterTemaDaInstanciaUseCase(marcas, recursos, json).executar().path("corPrimaria").asText())
                 .isEqualTo("#abcdef");
@@ -64,11 +66,11 @@ class MarcaDaInstanciaUseCaseTest {
         var armazenamento = mock(ArmazenamentoDeMidia.class);
         byte[] fallback = {1};
         when(recursos.logo()).thenReturn(fallback);
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null, null, null));
         assertThat(new ObterLogoDaInstanciaUseCase(marcas, recursos, armazenamento).executar()).isSameAs(fallback);
 
         byte[] customizada = {2};
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, "midia/logo", null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, "midia/logo", null, null, null, null));
         when(armazenamento.baixar("midia/logo")).thenReturn(customizada);
         assertThat(new ObterLogoDaInstanciaUseCase(marcas, recursos, armazenamento).executar()).isSameAs(customizada);
     }
@@ -80,7 +82,7 @@ class MarcaDaInstanciaUseCaseTest {
         var armazenamento = mock(ArmazenamentoDeMidia.class);
         var detector = mock(DetectorDeTipoReal.class);
         var usuario = usuarioContext();
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, "midia/logo-antiga", null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, "midia/logo-antiga", null, null, null, null));
         byte[] novaLogo = {1, 2};
         when(detector.detectar(novaLogo)).thenReturn("image/png");
         when(armazenamento.salvar(novaLogo, "logo.png", "image/png")).thenReturn("midia/logo-nova");
@@ -98,7 +100,7 @@ class MarcaDaInstanciaUseCaseTest {
         var marcas = mock(MarcaDaInstanciaRepositorio.class);
         var armazenamento = mock(ArmazenamentoDeMidia.class);
         var detector = mock(DetectorDeTipoReal.class);
-        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null));
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, null, null, null, null));
         byte[] arquivoInvalido = {9};
         when(detector.detectar(arquivoInvalido)).thenReturn("application/pdf");
 
@@ -107,6 +109,47 @@ class MarcaDaInstanciaUseCaseTest {
                 .executar(arquivoInvalido, "logo.png"))
                 .isInstanceOf(MarcaDaInstanciaInvalidaException.class);
         verifyNoInteractions(armazenamento);
+    }
+
+    @Test
+    @DisplayName("textos sobrepoe somente a identidade sem mutar o recurso compartilhado")
+    void textos_sobrepoeIdentidadeSemCorromperClasspath() {
+        var marcas = mock(MarcaDaInstanciaRepositorio.class);
+        var recursos = mock(RecursosDeMarcaDaInstancia.class);
+        var json = new ObjectMapper();
+        ObjectNode fallback = json.createObjectNode();
+        fallback.putObject("app")
+                .put("nome", "Synapse CRM")
+                .put("marca", "Estrutural Vidros")
+                .put("subtitulo", "CRM · Atendimento");
+        fallback.putObject("menu").put("itens", "catalogo original");
+        when(recursos.textos()).thenReturn(fallback);
+        when(marcas.obter()).thenReturn(new MarcaDaInstancia(null, null, "Clinica Femina", "Atendimento", null, null));
+
+        var caso = new ObterTextosDaInstanciaUseCase(marcas, recursos);
+        JsonNode primeiro = caso.executar();
+        JsonNode segundo = caso.executar();
+
+        assertThat(primeiro.path("app").path("marca").asText()).isEqualTo("Clinica Femina");
+        assertThat(primeiro.path("app").path("subtitulo").asText()).isEqualTo("Atendimento");
+        assertThat(primeiro.path("app").path("nome").asText()).isEqualTo("Synapse CRM");
+        assertThat(primeiro.path("menu")).isEqualTo(fallback.path("menu"));
+        assertThat(segundo).isEqualTo(primeiro);
+        assertThat(fallback.path("app").path("marca").asText()).isEqualTo("Estrutural Vidros");
+    }
+
+    @Test
+    @DisplayName("identidade exige os dois campos")
+    void identidade_rejeitaCamposVazios() {
+        var marcas = mock(MarcaDaInstanciaRepositorio.class);
+        var usuario = usuarioContext();
+        var caso = new AtualizarIdentidadeDaInstanciaUseCase(marcas, usuario, RELOGIO);
+
+        assertThatThrownBy(() -> caso.executar(" ", "Atendimento"))
+                .isInstanceOf(MarcaDaInstanciaInvalidaException.class);
+        assertThatThrownBy(() -> caso.executar("Clinica Femina", null))
+                .isInstanceOf(MarcaDaInstanciaInvalidaException.class);
+        verifyNoInteractions(marcas);
     }
 
     private static UsuarioContext usuarioContext() {

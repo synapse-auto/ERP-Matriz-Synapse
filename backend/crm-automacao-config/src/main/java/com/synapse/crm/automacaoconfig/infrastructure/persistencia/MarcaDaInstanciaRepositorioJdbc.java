@@ -24,10 +24,13 @@ class MarcaDaInstanciaRepositorioJdbc implements MarcaDaInstanciaRepositorio {
     public MarcaDaInstancia obter() {
         return jdbc.queryForObject(
                 "SELECT tema::text, logo_referencia_storage, atualizado_por_id, atualizado_em "
+                        + ", nome_da_marca, subtitulo "
                         + "FROM marca_da_instancia WHERE id = 1",
                 (rs, rowNum) -> new MarcaDaInstancia(
                         rs.getString("tema"),
                         rs.getString("logo_referencia_storage"),
+                        rs.getString("nome_da_marca"),
+                        rs.getString("subtitulo"),
                         rs.getObject("atualizado_por_id", UUID.class),
                         rs.getTimestamp("atualizado_em") == null
                                 ? null
@@ -49,6 +52,16 @@ class MarcaDaInstanciaRepositorioJdbc implements MarcaDaInstanciaRepositorio {
                 "UPDATE marca_da_instancia SET logo_referencia_storage = ?, "
                         + "atualizado_por_id = ?, atualizado_em = ? WHERE id = 1",
                 logoReferenciaStorage, atualizadoPorId, timestamp(atualizadoEm));
+        return obter();
+    }
+
+    @Override
+    public MarcaDaInstancia salvarIdentidade(
+            String nomeDaMarca, String subtitulo, UUID atualizadoPorId, Instant atualizadoEm) {
+        jdbc.update(
+                "UPDATE marca_da_instancia SET nome_da_marca = ?, subtitulo = ?, "
+                        + "atualizado_por_id = ?, atualizado_em = ? WHERE id = 1",
+                nomeDaMarca, subtitulo, atualizadoPorId, timestamp(atualizadoEm));
         return obter();
     }
 
