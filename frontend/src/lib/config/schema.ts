@@ -316,6 +316,7 @@ export const TextosSchema = z.object({
       naoLidas: z.string(),
       atendidoPelaIa: z.string(),
       codigo: z.string(),
+      atrasoAtendente: z.string(),
     }),
     cabecalho: z.object({
       atendidoPor: z.string(),
