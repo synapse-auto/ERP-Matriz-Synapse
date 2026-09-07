@@ -253,8 +253,10 @@ describe("ModalDeTemplates", () => {
   it("limpa a selecao quando exclui o template selecionado", async () => {
     authMock.papel = "ADMINISTRADOR";
     apiMock.excluir.mockResolvedValue(undefined);
+    const onTemplateExcluido = vi.fn();
     const { rerender } = renderizar({
       templates: { data: [aprovado, comVariaveis], isError: false, isLoading: false },
+      onTemplateExcluido,
     });
 
     const item = screen.getByText("boas_vindas").closest("li");
@@ -262,6 +264,7 @@ describe("ModalDeTemplates", () => {
     fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
     fireEvent.click(screen.getByRole("button", { name: "Excluir na Meta" }));
     await waitFor(() => expect(apiMock.excluir).toHaveBeenCalledWith("template-1", "boas_vindas"));
+    expect(onTemplateExcluido).toHaveBeenCalledWith(aprovado);
 
     rerender(
       comProvider(

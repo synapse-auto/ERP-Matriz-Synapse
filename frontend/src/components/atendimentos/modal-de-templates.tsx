@@ -53,6 +53,7 @@ type Props = {
   onParametros: (chave: string, valores: string[]) => void;
   enviando: boolean;
   onEnviar: (template: TemplateWhatsApp, valores: string[]) => void;
+  onTemplateExcluido?: (template: TemplateWhatsApp) => void;
   templateSelecionado?: string | null;
   rotuloAcao?: string;
 };
@@ -78,6 +79,7 @@ export function ModalDeTemplates({
   onParametros,
   enviando,
   onEnviar,
+  onTemplateExcluido,
   templateSelecionado = null,
   rotuloAcao,
 }: Props) {
@@ -106,6 +108,7 @@ export function ModalDeTemplates({
       void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
       if (chaveSelecionada === chaveDoTemplate(template)) {
         setChaveClicada(null);
+        onTemplateExcluido?.(template);
       }
       setExcluindo(null);
     },
