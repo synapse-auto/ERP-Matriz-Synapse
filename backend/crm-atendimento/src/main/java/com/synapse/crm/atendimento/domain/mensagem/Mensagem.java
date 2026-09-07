@@ -93,6 +93,19 @@ public record Mensagem(
                 StatusEntrega.ENVIADO, quando, null);
     }
 
+    /** Mensagem estruturada sem arquivo, como a localizacao recebida pelo webhook. */
+    public static Mensagem estruturada(
+            UUID id,
+            UUID atendimentoId,
+            Remetente remetente,
+            TipoMensagem tipo,
+            String metadados,
+            Instant quando) {
+        return new Mensagem(
+                id, atendimentoId, remetente, tipo, null, null, metadados,
+                StatusEntrega.ENVIADO, quando, null);
+    }
+
     public static Mensagem interativa(
             UUID id,
             UUID atendimentoId,

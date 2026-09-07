@@ -143,6 +143,19 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         verify(entrada, never()).reagendar(anyString(), anyString());
     }
 
+    @Test
+    void midiaSemIdNaoChamaDownloadENaoBloqueiaOsDemaisItensDoPost() {
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        when(tradutor.traduzir(anyString())).thenReturn(List.of(mensagemDeMidiaSemId()));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(canal, never()).baixarMidiaRecebida(anyString());
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA);
+        verify(entrada, never()).reagendar(anyString(), anyString());
+        verify(entrada, never()).esgotar(anyString(), any(), anyString());
+    }
+
     private ProcessadorDeWebhookEntradaOperacoes processador(Duration prazoAbsoluto) {
         PlatformTransactionManager transacoes = transacaoPassThrough();
         return new ProcessadorDeWebhookEntradaOperacoes(
@@ -195,6 +208,21 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 null,
                 "IMAGEM",
                 "media-id-meta",
+                "image/jpeg",
+                "foto.jpg",
+                null,
+                AGORA,
+                "phone-id");
+    }
+
+    private static TradutorDeCanal.MensagemRecebidaDoCanal mensagemDeMidiaSemId() {
+        return new TradutorDeCanal.MensagemRecebidaDoCanal(
+                "wamid.msg-sem-id",
+                "5561999999999",
+                "Cliente",
+                null,
+                "IMAGEM",
+                null,
                 "image/jpeg",
                 "foto.jpg",
                 null,

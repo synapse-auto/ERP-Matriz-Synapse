@@ -132,9 +132,11 @@ public class WebhookCanalController {
                             content = @Content(examples = @ExampleObject(value = "{\"object\":\"whatsapp_business_account\",\"entry\":[]}")))
                     @RequestBody String payloadCru,
             @Parameter(description = "Assinatura no formato sha256=<hex>.", required = true)
-                    @RequestHeader(name = "X-Hub-Signature-256", required = false) String assinatura) {
+                    @RequestHeader(name = "X-Hub-Signature-256", required = false) String assinatura,
+            @Parameter(description = "Segredo de webhook em query string, usado pelo provedor Uzapi/Autotic.")
+                    @RequestParam(name = "secret", required = false) String segredoConsulta) {
 
-        if (!tradutor.assinaturaValida(payloadCru, assinatura)) {
+        if (!tradutor.assinaturaValida(payloadCru, assinatura, segredoConsulta)) {
             // Nem uma linha gravada, nem um log com o corpo: a rota e publica.
             log.warn("Webhook com assinatura invalida recusado.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
