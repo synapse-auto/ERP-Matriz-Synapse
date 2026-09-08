@@ -935,6 +935,15 @@
     "naoLidas": "{quantidade} não lidas",
     "tipoGrupo": "Grupo",
     "tipoDireta": "Conversa direta",
+    "midias": {
+      "titulo": "Mídias compartilhadas",
+      "vazio": "Nenhuma mídia compartilhada.",
+      "carregando": "Carregando mídias...",
+      "erro": "Não foi possível carregar as mídias.",
+      "carregarMais": "Carregar mais",
+      "abrir": "Abrir {nome}",
+      "baixar": "Baixar {nome}"
+    },
     "sistema": {
       "grupoCriado": "criou o grupo {nome}",
       "participanteAdicionado": "adicionou {alvo}",

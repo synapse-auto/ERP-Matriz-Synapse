@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
+import { Fragment, useEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
 import { Mic, PanelRightOpen, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
@@ -17,6 +17,7 @@ import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { diaDaMensagem, rotuloDaData } from "@/components/atendimentos/lista-mensagens";
 
 type TextosChat = Textos["chatInterno"];
 export { TIPOS_DE_ANEXO_ACEITOS };
@@ -96,13 +97,30 @@ export function ListaMensagensChatInterno({
   const catalogoAtendimentos = useTextos().atendimentos;
   const textosAtendimentos = catalogoAtendimentos.media;
   const acoes = catalogoAtendimentos.mensagem.acoes;
+  const historicoRef = useRef<HTMLDivElement>(null);
+  const ultimoId = mensagens.at(-1)?.id;
+
+  useEffect(() => {
+    if (!ultimoId || !historicoRef.current) return;
+    historicoRef.current.scrollTop = historicoRef.current.scrollHeight;
+  }, [ultimoId]);
+
   if (!mensagens.length) return <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.semMensagens}</p>;
   return (
     <div
+      ref={historicoRef}
       className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-5"
       data-slot="historico-chat-interno"
     >
-      {mensagens.map((mensagem) => {
+      {mensagens.map((mensagem, indice) => {
+        const mostrarData = indice === 0 || diaDaMensagem(mensagem.enviadoEm) !== diaDaMensagem(mensagens[indice - 1].enviadoEm);
+        const separador = mostrarData ? (
+          <div className="flex justify-center" data-slot="separador-data-chat-interno">
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+              {rotuloDaData(mensagem.enviadoEm, catalogoAtendimentos.mensagem.hoje, catalogoAtendimentos.mensagem.ontem)}
+            </span>
+          </div>
+        ) : null;
         const propria = mensagem.remetenteId === usuarioAtual;
         const tipo = mensagem.tipo ?? "TEXTO";
         if (tipo === "SISTEMA") {
@@ -111,13 +129,12 @@ export function ListaMensagensChatInterno({
             ? textoEventoSistema(evento, mensagem.remetenteNome, textos.sistema)
             : mensagem.conteudo ?? textos.sistema.eventoDesconhecido;
           return (
-            <p
-              key={mensagem.id}
-              className="px-4 text-center text-xs text-muted-foreground"
-              data-slot="mensagem-sistema-chat"
-            >
-              {texto}
-            </p>
+            <Fragment key={mensagem.id}>
+              {separador}
+              <p className="px-4 text-center text-xs text-muted-foreground" data-slot="mensagem-sistema-chat">
+                {texto}
+              </p>
+            </Fragment>
           );
         }
         const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
@@ -129,23 +146,24 @@ export function ListaMensagensChatInterno({
             : null;
 
         return (
-          <InteracaoMensagem
-            key={mensagem.id}
-            alinhadaADireita={propria}
-            textoCopiavel={textoCopiavel}
-            reacoes={mensagem.reacoes ?? []}
-            textos={acoes}
-            onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
-            onRemoverReacao={() => onRemoverReacao(mensagem)}
-          >
-            <div
-              className={cn(
-                "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
-                propria
-                  ? "rounded-tr-md bg-primary text-primary-foreground"
-                  : "rounded-tl-md border border-border bg-background text-foreground",
-              )}
+          <Fragment key={mensagem.id}>
+            {separador}
+            <InteracaoMensagem
+              alinhadaADireita={propria}
+              textoCopiavel={textoCopiavel}
+              reacoes={mensagem.reacoes ?? []}
+              textos={acoes}
+              onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+              onRemoverReacao={() => onRemoverReacao(mensagem)}
             >
+              <div
+                className={cn(
+                  "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
+                  propria
+                    ? "rounded-tr-md bg-primary text-primary-foreground"
+                    : "rounded-tl-md border border-border bg-background text-foreground",
+                )}
+              >
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
 
               {tipo === "IMAGEM" && (
@@ -189,8 +207,9 @@ export function ListaMensagensChatInterno({
               <time className={cn("mt-1 block text-[10px]", propria ? "text-primary-foreground/70" : "text-muted-foreground")} dateTime={mensagem.enviadoEm}>
                 {new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </time>
-            </div>
-          </InteracaoMensagem>
+              </div>
+            </InteracaoMensagem>
+          </Fragment>
         );
       })}
     </div>

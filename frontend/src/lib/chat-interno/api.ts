@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/http-client";
-import type { ChatContato, ChatConversa, ChatMensagem, ChatParticipante, PaginaChatMensagens } from "./types";
+import type { ChatContato, ChatConversa, ChatMensagem, ChatParticipante, MidiaDoGrupo, PaginaChatMensagens } from "./types";
 
 export const listarConversasChat = () => apiFetch<ChatConversa[]>("/api/v1/chat-interno/conversas");
 export const listarContatosChat = () => apiFetch<ChatContato[]>("/api/v1/chat-interno/contatos");
@@ -28,6 +28,10 @@ export const renomearGrupoChat = (conversaId: string, nome: string) =>
   });
 export const listarMensagensChat = (id: string, antesDe?: string | null) =>
   apiFetch<PaginaChatMensagens>(`/api/v1/chat-interno/conversas/${id}/mensagens${antesDe ? `?antesDe=${encodeURIComponent(antesDe)}` : ""}`);
+export const listarMidiasDoGrupoChat = (id: string, pagina = 0, tamanho = 20) =>
+  apiFetch<MidiaDoGrupo[]>(`/api/v1/chat-interno/conversas/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
+export const emitirUrlAssinadaDaMidiaChat = (conversaId: string, mensagemId: string) =>
+  apiFetch<{ url: string }>(`/api/v1/chat-interno/conversas/${conversaId}/midias/${mensagemId}/url`);
 export const enviarMensagemChat = (id: string, conteudo: string) =>
   apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${id}/mensagens`, { method: "POST", body: JSON.stringify({ conteudo }) });
 export const enviarMidiaChat = (id: string, arquivo: File, legenda?: string) => {

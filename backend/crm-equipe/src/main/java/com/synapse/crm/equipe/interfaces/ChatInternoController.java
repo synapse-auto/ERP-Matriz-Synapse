@@ -15,8 +15,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,8 +42,10 @@ import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
+import com.synapse.crm.equipe.application.chat.ListarMidiasDoGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarParticipantesChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
+import com.synapse.crm.equipe.application.chat.MidiaChatInternoNaoEncontradaException;
 import com.synapse.crm.equipe.application.chat.OperacaoDeGrupoInvalidaException;
 import com.synapse.crm.equipe.application.chat.RemoverParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
@@ -65,6 +69,7 @@ public class ChatInternoController {
     private final RemoverParticipanteGrupoChatUseCase removerParticipante;
     private final RenomearGrupoChatUseCase renomearGrupo;
     private final ListarMensagensChatUseCase mensagens;
+    private final ListarMidiasDoGrupoChatUseCase midias;
     private final EnviarMensagemChatUseCase enviar;
     private final EnviarMidiaChatUseCase enviarMidia;
     private final MarcarConversaChatComoLidaUseCase ler;
@@ -82,6 +87,7 @@ public class ChatInternoController {
             RemoverParticipanteGrupoChatUseCase removerParticipante,
             RenomearGrupoChatUseCase renomearGrupo,
             ListarMensagensChatUseCase mensagens,
+            ListarMidiasDoGrupoChatUseCase midias,
             EnviarMensagemChatUseCase enviar,
             EnviarMidiaChatUseCase enviarMidia,
             MarcarConversaChatComoLidaUseCase ler,
@@ -97,6 +103,7 @@ public class ChatInternoController {
         this.removerParticipante = removerParticipante;
         this.renomearGrupo = renomearGrupo;
         this.mensagens = mensagens;
+        this.midias = midias;
         this.enviar = enviar;
         this.enviarMidia = enviarMidia;
         this.ler = ler;
@@ -183,6 +190,27 @@ public class ChatInternoController {
         return PaginaResposta.de(mensagens.executar(id, antesDe, limite), armazenamento);
     }
 
+    @Operation(summary = "Listar mídias compartilhadas", description = "Lista somente metadados das mídias da conversa interna. A URL assinada é emitida sob demanda e respeita a participação na conversa.", responses = {
+            @ApiResponse(responseCode = "200", description = "Mídias paginadas."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @GetMapping("/conversas/{id}/midias")
+    List<MidiaResposta> midias(@PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanho) {
+        return midias.executar(id, pagina, tamanho).stream().map(MidiaResposta::de).toList();
+    }
+
+    @Operation(summary = "Emitir URL assinada de mídia compartilhada", description = "Valida a participação na conversa e emite uma URL de curta duração para abrir ou baixar a mídia.", responses = {
+            @ApiResponse(responseCode = "200", description = "URL assinada."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa."),
+            @ApiResponse(responseCode = "404", description = "Mídia inexistente na conversa.")})
+    @GetMapping("/conversas/{id}/midias/{mensagemId}/url")
+    ResponseEntity<UrlAssinada> urlDaMidia(@PathVariable UUID id, @PathVariable UUID mensagemId) {
+        var midia = midias.executar(id, mensagemId);
+        String url = armazenamento.urlAssinada(midia.referenciaStorage(), Duration.ofHours(1));
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new UrlAssinada(url));
+    }
+
     @Operation(summary = "Enviar mensagem de texto", description = "Persiste uma mensagem textual para os participantes da conversa e publica a notificação em tempo real.", responses = {
             @ApiResponse(responseCode = "201", description = "Mensagem persistida."),
             @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
@@ -239,6 +267,11 @@ public class ChatInternoController {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
+    @ExceptionHandler(MidiaChatInternoNaoEncontradaException.class)
+    ProblemDetail midiaNaoEncontrada(MidiaChatInternoNaoEncontradaException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
     @ExceptionHandler(OperacaoDeGrupoInvalidaException.class)
     ProblemDetail grupoInvalido(OperacaoDeGrupoInvalidaException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -271,6 +304,14 @@ public class ChatInternoController {
     }
     record ConversaCriada(UUID id) {}
     public record ContatoResposta(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
+    public record MidiaResposta(UUID mensagemId, String tipo, String nome, String mimetype,
+            long tamanho, String legenda, String enviadoEm) {
+        static MidiaResposta de(ChatInternoRepositorio.MidiaResumo midia) {
+            return new MidiaResposta(midia.mensagemId(), midia.tipo(), midia.nome(), midia.mimetype(),
+                    midia.tamanho(), midia.legenda(), midia.enviadoEm().toString());
+        }
+    }
+    record UrlAssinada(String url) {}
     public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {

@@ -9,6 +9,8 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -137,6 +139,63 @@ class ChatInternoGruposIT extends PostgresIT {
                 "{\"usuarioId\":\"" + idAna + "\"}", Map.class);
         assertThat(direta2.getBody().get("id").toString()).isEqualTo(diretaId);
         assertThat(listaNome(ana, diretaId)).contains("Bruno");
+    }
+
+    @Test
+    @DisplayName("midias compartilhadas: pagina, filtra texto e exige participacao")
+    void listaMidiasCompartilhadasRespeitaParticipacaoEPaginacao() {
+        Tokens ana = ApoioAutenticacao.login(rest, EMAIL_ANA, SENHA_ATENDENTE);
+        Tokens bruno = ApoioAutenticacao.login(rest, EMAIL_BRUNO, SENHA_ATENDENTE);
+        Tokens administrador = ApoioAutenticacao.login(rest, EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR);
+
+        UUID idAna = idDo(EMAIL_ANA);
+        UUID idBruno = idDo(EMAIL_BRUNO);
+        String criar = """
+                {"nome":"Midias E167","participantes":["%s","%s"]}
+                """.formatted(idAna, idBruno);
+        ResponseEntity<Map> criado = chamar(ana, HttpMethod.POST, "/api/v1/chat-interno/conversas/grupo",
+                criar, Map.class);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID grupoId = UUID.fromString(criado.getBody().get("id").toString());
+
+        chamar(ana, HttpMethod.POST, "/api/v1/chat-interno/conversas/" + grupoId + "/mensagens",
+                "{\"conteudo\":\"texto fora da lista de midias\"}", Map.class);
+        UUID imagem = UUID.randomUUID();
+        UUID audio = UUID.randomUUID();
+        db.update("INSERT INTO chat_interno_mensagem"
+                        + " (id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados,enviado_em)"
+                        + " VALUES (?, ?, ?, 'IMAGEM', NULL, ?, ?::jsonb, ?)",
+                imagem, grupoId, idAna, "chat_interno/" + imagem,
+                "{\"nome_original\":\"foto.png\",\"mimetype\":\"image/png\",\"tamanho_bytes\":42}",
+                Timestamp.from(Instant.parse("2026-09-01T12:00:00Z")));
+        db.update("INSERT INTO chat_interno_mensagem"
+                        + " (id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados,enviado_em)"
+                        + " VALUES (?, ?, ?, 'AUDIO', NULL, ?, ?::jsonb, ?)",
+                audio, grupoId, idBruno, "chat_interno/" + audio,
+                "{\"nome_original\":\"voz.ogg\",\"mimetype\":\"audio/ogg\",\"tamanho_bytes\":84}",
+                Timestamp.from(Instant.parse("2026-09-01T13:00:00Z")));
+
+        ResponseEntity<List> primeira = chamar(ana, HttpMethod.GET,
+                "/api/v1/chat-interno/conversas/" + grupoId + "/midias?pagina=0&tamanho=1", null, List.class);
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(primeira.getBody()).hasSize(1);
+        assertThat(((Map<?, ?>) primeira.getBody().get(0)).get("nome")).isEqualTo("voz.ogg");
+        assertThat(((Map<?, ?>) primeira.getBody().get(0)).get("tipo")).isEqualTo("AUDIO");
+
+        ResponseEntity<List> segunda = chamar(ana, HttpMethod.GET,
+                "/api/v1/chat-interno/conversas/" + grupoId + "/midias?pagina=1&tamanho=1", null, List.class);
+        assertThat(segunda.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(segunda.getBody()).hasSize(1);
+        assertThat(((Map<?, ?>) segunda.getBody().get(0)).get("nome")).isEqualTo("foto.png");
+
+        ResponseEntity<List> participante = chamar(bruno, HttpMethod.GET,
+                "/api/v1/chat-interno/conversas/" + grupoId + "/midias", null, List.class);
+        assertThat(participante.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(participante.getBody()).hasSize(2);
+
+        ResponseEntity<Map> semAcesso = chamar(administrador, HttpMethod.GET,
+                "/api/v1/chat-interno/conversas/" + grupoId + "/midias", null, Map.class);
+        assertThat(semAcesso.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     private UUID idDo(String email) {

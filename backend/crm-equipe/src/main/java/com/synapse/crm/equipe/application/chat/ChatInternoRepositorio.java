@@ -29,6 +29,8 @@ public interface ChatInternoRepositorio {
     /** Apaga a conversa se nao restou ninguem — evita linha orfa invisivel. */
     boolean apagarSeSemParticipantes(UUID conversaId);
     PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite);
+    List<MidiaResumo> listarMidias(UUID conversaId, int limite, int deslocamento);
+    Optional<MidiaResumo> midia(UUID conversaId, UUID mensagemId);
     MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo);
     MensagemResumo salvarMensagemSistema(UUID conversaId, UUID atorId, String conteudoJson);
     MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados);
@@ -37,6 +39,8 @@ public interface ChatInternoRepositorio {
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
     record ContatoResumo(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
+    record MidiaResumo(UUID mensagemId, String tipo, String nome, String mimetype, long tamanho,
+            String legenda, String referenciaStorage, Instant enviadoEm) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
             List<ResumoDeReacao> reacoes) {
