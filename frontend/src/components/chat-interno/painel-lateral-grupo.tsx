@@ -15,6 +15,7 @@ import {
 } from "@/lib/chat-interno/api";
 import type { Textos } from "@/lib/config/schema";
 import { ContadorDoPainel } from "@/components/ui/contador-do-painel";
+import { ListaDeMidiasDoGrupo } from "@/components/chat-interno/secao-de-midias-grupo";
 
 type TextosChat = Textos["chatInterno"];
 
@@ -196,6 +197,8 @@ export function PainelLateralGrupo({
             </ul>
           </div>
         )}
+
+        <ListaDeMidiasDoGrupo conversaId={conversaId} textos={textos} />
       </div>
     </aside>
   );

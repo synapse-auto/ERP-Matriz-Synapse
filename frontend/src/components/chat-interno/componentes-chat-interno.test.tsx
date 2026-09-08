@@ -33,6 +33,7 @@ const mockTextosCompletos = {
     erroEnviar: "Não foi possível enviar a mensagem.",
     tipoGrupo: "Grupo",
     tipoDireta: "Conversa direta",
+    midias: { titulo: "Mídias compartilhadas", vazio: "Nenhuma mídia compartilhada.", carregando: "Carregando mídias...", erro: "Não foi possível carregar as mídias.", carregarMais: "Carregar mais", abrir: "Abrir {nome}", baixar: "Baixar {nome}" },
     participantesDoGrupo: "Participantes do grupo",
     retrair: "Retrair dados do grupo",
     reabrir: "Reabrir dados do grupo",
@@ -67,6 +68,8 @@ const mockTextosCompletos = {
     },
     media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "A" },
     mensagem: {
+      hoje: "Hoje",
+      ontem: "Ontem",
       acoes: {
         abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro",
         reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação",
@@ -138,9 +141,9 @@ describe("componentes de apresentação do chat interno", () => {
 
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
     const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
-    const linhas = container.firstElementChild?.children;
-    expect(linhas?.[0]).toHaveClass("justify-end");
-    expect(linhas?.[1]).toHaveClass("justify-start");
+    const linhas = container.querySelectorAll('[data-slot="interacao-mensagem"]');
+    expect(linhas[0].parentElement).toHaveClass("justify-end");
+    expect(linhas[1].parentElement).toHaveClass("justify-start");
     expect(screen.getByText("Bruno")).toBeInTheDocument();
     expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
     expect(screen.getByText("Olá").closest("div")).toHaveClass(
@@ -198,6 +201,27 @@ describe("componentes de apresentação do chat interno", () => {
     );
     expect(document.querySelector('[data-slot="player-audio"]')).toBeInTheDocument();
     expect(document.querySelector("audio[controls]")).toBeNull();
+  });
+
+  it("insere separadores quando a mensagem muda de dia, incluindo mensagem de sistema", () => {
+    const historico: ChatMensagem[] = [
+      { ...mensagens[0], id: "d1", enviadoEm: "2026-09-01T12:00:00Z" },
+      { id: "s1", conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", tipo: "SISTEMA", conteudo: "atualização", enviadoEm: "2026-09-01T13:00:00Z" },
+      { ...mensagens[1], id: "d2", enviadoEm: "2026-09-02T12:00:00Z" },
+    ];
+    render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={historico} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
+    expect(document.querySelectorAll('[data-slot="separador-data-chat-interno"]')).toHaveLength(2);
+    expect(screen.getByText("atualização")).toBeInTheDocument();
+  });
+
+  it("rola até o fim somente quando chega uma nova última mensagem", () => {
+    const { rerender } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
+    const historico = document.querySelector('[data-slot="historico-chat-interno"]') as HTMLDivElement;
+    Object.defineProperty(historico, "scrollHeight", { configurable: true, value: 640 });
+    historico.scrollTop = 0;
+    const nova = { ...mensagens[1], id: "m3", conteudo: "nova mensagem" };
+    rerender(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={[...mensagens, nova]} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
+    expect(historico.scrollTop).toBe(640);
   });
 
   it("envia por Enter, preserva Shift+Enter e mantém o texto quando falha", async () => {

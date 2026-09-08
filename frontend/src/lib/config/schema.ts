@@ -279,6 +279,15 @@ export const TextosSchema = z.object({
     naoLidas: z.string(),
     tipoGrupo: z.string(),
     tipoDireta: z.string(),
+    midias: z.object({
+      titulo: z.string(),
+      vazio: z.string(),
+      carregando: z.string(),
+      erro: z.string(),
+      carregarMais: z.string(),
+      abrir: z.string(),
+      baixar: z.string(),
+    }),
     sistema: z.object({
       grupoCriado: z.string(),
       participanteAdicionado: z.string(),

@@ -12,6 +12,8 @@ vi.mock("@/lib/chat-interno/api", () => ({
   adicionarParticipanteChat: vi.fn(),
   removerParticipanteChat: vi.fn(),
   renomearGrupoChat: vi.fn(),
+  listarMidiasDoGrupoChat: vi.fn(),
+  emitirUrlAssinadaDaMidiaChat: vi.fn(),
 }));
 
 import {
@@ -20,6 +22,7 @@ import {
   listarParticipantesChat,
   removerParticipanteChat,
   renomearGrupoChat,
+  listarMidiasDoGrupoChat,
 } from "@/lib/chat-interno/api";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
@@ -35,6 +38,15 @@ const textos = {
   erroParticipantes: "Não foi possível atualizar os participantes.",
   retrair: "Retrair dados do grupo",
   reabrir: "Reabrir dados do grupo",
+  midias: {
+    titulo: "Mídias compartilhadas",
+    vazio: "Nenhuma mídia compartilhada.",
+    carregando: "Carregando mídias...",
+    erro: "Não foi possível carregar as mídias.",
+    carregarMais: "Carregar mais",
+    abrir: "Abrir {nome}",
+    baixar: "Baixar {nome}",
+  },
 } as unknown as Textos["chatInterno"];
 
 const contatos: ChatContato[] = [
@@ -69,6 +81,7 @@ describe("PainelLateralGrupo", () => {
     vi.mocked(adicionarParticipanteChat).mockResolvedValue(undefined);
     vi.mocked(removerParticipanteChat).mockResolvedValue(undefined);
     vi.mocked(renomearGrupoChat).mockResolvedValue(undefined);
+    vi.mocked(listarMidiasDoGrupoChat).mockResolvedValue([]);
   });
 
   it("é um painel fixo, sem modal, e mostra contagem e ações sem hierarquia", async () => {

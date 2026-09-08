@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -38,9 +40,11 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
              GROUP BY c.id, c.tipo, c.nome, ultima.conteudo, ultima.enviado_em, cp.lido_ate
             """;
     private final JdbcTemplate jdbc;
+    private final ObjectMapper json;
 
-    ChatInternoRepositorioJdbc(JdbcTemplate jdbc) {
+    ChatInternoRepositorioJdbc(JdbcTemplate jdbc, ObjectMapper json) {
         this.jdbc = jdbc;
+        this.json = json;
     }
 
     @Override
@@ -206,6 +210,30 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     }
 
     @Override
+    public List<MidiaResumo> listarMidias(UUID conversaId, int limite, int deslocamento) {
+        return jdbc.query("""
+                SELECT m.id, m.tipo::text, m.midia_url, m.midia_metadados, m.enviado_em
+                  FROM chat_interno_mensagem m
+                 WHERE m.conversa_id=?
+                   AND m.midia_url IS NOT NULL
+                   AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')
+                 ORDER BY m.enviado_em DESC, m.id DESC
+                 LIMIT ? OFFSET ?
+                """, this::mapearMidia, conversaId, limite, deslocamento);
+    }
+
+    @Override
+    public Optional<MidiaResumo> midia(UUID conversaId, UUID mensagemId) {
+        return jdbc.query("""
+                SELECT m.id, m.tipo::text, m.midia_url, m.midia_metadados, m.enviado_em
+                  FROM chat_interno_mensagem m
+                 WHERE m.conversa_id=? AND m.id=?
+                   AND m.midia_url IS NOT NULL
+                   AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')
+                """, this::mapearMidia, conversaId, mensagemId).stream().findFirst();
+    }
+
+    @Override
     public MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo) {
         return inserirMensagem(conversaId, remetenteId, "TEXTO", conteudo);
     }
@@ -269,5 +297,44 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     private static Instant instant(ResultSet r, String coluna) throws SQLException {
         Timestamp valor = r.getTimestamp(coluna);
         return valor == null ? null : valor.toInstant();
+    }
+
+    private MidiaResumo mapearMidia(ResultSet r, int ignored) throws SQLException {
+        JsonNode metadados;
+        try {
+            metadados = r.getString("midia_metadados") == null
+                    ? json.createObjectNode() : json.readTree(r.getString("midia_metadados"));
+        } catch (Exception e) {
+            metadados = json.createObjectNode();
+        }
+        return new MidiaResumo(
+                r.getObject("id", UUID.class),
+                r.getString("tipo"),
+                texto(metadados, "nome_original", "nome"),
+                texto(metadados, "mimetype"),
+                numero(metadados, "tamanho_bytes", "tamanho"),
+                texto(metadados, "legenda"),
+                r.getString("midia_url"),
+                instant(r, "enviado_em"));
+    }
+
+    private static String texto(JsonNode metadados, String... campos) {
+        for (String campo : campos) {
+            JsonNode valor = metadados.get(campo);
+            if (valor != null && !valor.isNull() && !valor.asText().isBlank()) {
+                return valor.asText();
+            }
+        }
+        return null;
+    }
+
+    private static long numero(JsonNode metadados, String... campos) {
+        for (String campo : campos) {
+            JsonNode valor = metadados.get(campo);
+            if (valor != null && valor.isNumber()) {
+                return valor.asLong();
+            }
+        }
+        return 0;
     }
 }

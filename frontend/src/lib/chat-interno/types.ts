@@ -27,3 +27,15 @@ export interface EventoSistemaChat {
   alvoNome?: string;
 }
 export interface PaginaChatMensagens { mensagens: ChatMensagem[]; proximoCursor: string | null }
+
+export type TipoMidiaChatInterno = "IMAGEM" | "AUDIO" | "DOCUMENTO" | "VIDEO";
+
+export interface MidiaDoGrupo {
+  mensagemId: string;
+  tipo: TipoMidiaChatInterno;
+  nome: string | null;
+  mimetype: string | null;
+  tamanho: number;
+  legenda: string | null;
+  enviadoEm: string;
+}
