@@ -132,7 +132,7 @@ describe("useEnviarMidia", () => {
     expect(onProgresso).toHaveBeenCalledWith(42);
   });
 
-  it("concilia upload de mídia com WebSocket sem duplicar a mensagem", async () => {
+  it("prioriza a URL real quando o WebSocket chega antes do sucesso do upload", async () => {
     let resolver!: (resposta: Awaited<ReturnType<typeof enviarMidia>>) => void;
     vi.mocked(enviarMidia).mockImplementation(() => new Promise((resolve) => (resolver = resolve)));
     const queryClient = new QueryClient();
@@ -158,7 +158,8 @@ describe("useEnviarMidia", () => {
                 ...temporaria!,
                 id: "msg-midia-real",
                 remetenteId: "atendente-midia",
-                remetenteNome: "Cris Atendente",
+                remetenteNome: null,
+                midiaUrl: "https://storage.example/assinada/audio.ogg",
               } as MensagemResposta]),
             }],
           }
@@ -179,6 +180,51 @@ describe("useEnviarMidia", () => {
       id: "msg-midia-real",
       remetenteId: "atendente-midia",
       remetenteNome: "Cris Atendente",
+      midiaUrl: "https://storage.example/assinada/audio.ogg",
     });
+  });
+
+  it("substitui a prévia pela URL real quando o WebSocket chega depois do sucesso", async () => {
+    vi.mocked(enviarMidia).mockResolvedValue({
+      atendimentoId: "at-midia-depois",
+      mensagemId: "msg-midia-depois",
+      statusEntrega: "ENVIADO",
+      enviadoEm: "2026-01-01T00:00:00Z",
+      transferiuOLead: false,
+    });
+    const queryClient = new QueryClient();
+    prepararHistorico(queryClient, "at-midia-depois");
+    const { result } = renderHook(() => useEnviarMidia(), { wrapper: wrapper(queryClient) });
+
+    result.current.mutate({
+      atendimentoId: "at-midia-depois",
+      leadId: "lead-midia-depois",
+      arquivo: arquivoFake("audio.ogg", "audio/ogg"),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const antesDoSocket = mensagensDoHistorico(queryClient, "at-midia-depois");
+    expect(antesDoSocket).toHaveLength(1);
+    expect(antesDoSocket?.[0].midiaUrl).toMatch(/^blob:/);
+
+    queryClient.setQueryData<DadosDoHistorico>(["mensagens", "at-midia-depois"], (atual) =>
+      atual
+        ? {
+            ...atual,
+            pages: [{
+              ...atual.pages[0],
+              mensagens: mesclarMensagens(atual.pages[0].mensagens, [{
+                ...atual.pages[0].mensagens[0],
+                id: "msg-midia-depois",
+                midiaUrl: "https://storage.example/assinada/audio.ogg",
+              } as MensagemResposta]),
+            }],
+          }
+        : atual,
+    );
+
+    const mensagens = mensagensDoHistorico(queryClient, "at-midia-depois");
+    expect(mensagens).toHaveLength(1);
+    expect(mensagens?.[0].midiaUrl).toBe("https://storage.example/assinada/audio.ogg");
   });
 });
