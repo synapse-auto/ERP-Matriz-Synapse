@@ -20,6 +20,7 @@ import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 import com.synapse.crm.relatorios.domain.vendas.AgregacaoDeVendas;
 import com.synapse.crm.sharedkernel.avaliacao.EscalaDeAvaliacao;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /** Read model SQL consolidado; nenhuma consulta participa do caminho crítico de mensagens. */
 @Repository
@@ -121,9 +122,10 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     }
 
     private AgregadoAvaliacao avaliacoes(List<IntervaloTemporal> periodos) {
-        FiltroSql filtro = periodos("criado_em", periodos);
+        FiltroSql filtro = semAdministradores(periodos("a.criado_em", periodos), "u");
         return jdbc.queryForObject(
-                "SELECT count(*) AS quantidade, avg(nota) AS media FROM avaliacao WHERE "
+                "SELECT count(*) AS quantidade, avg(a.nota) AS media"
+                        + " FROM avaliacao a JOIN usuario u ON u.id = a.atendente_id WHERE "
                         + filtro.clausula(),
                 (linha, indice) -> new AgregadoAvaliacao(
                         linha.getLong("quantidade"), linha.getBigDecimal("media")),
@@ -132,7 +134,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     private List<VisaoGeralDashboard.AtendenteNaAvaliacao> rankingAvaliacoes(
             List<IntervaloTemporal> periodos) {
-        FiltroSql filtro = periodos("a.criado_em", periodos);
+        FiltroSql filtro = semAdministradores(periodos("a.criado_em", periodos), "u");
         return jdbc.query(
                 """
                 SELECT u.id, u.nome, round(avg(a.nota), 2) AS media, count(*) AS quantidade
@@ -148,6 +150,19 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         linha.getBigDecimal("media"),
                         linha.getLong("quantidade")),
                 filtro.parametros().toArray());
+    }
+
+    /**
+     * A origem do papel e o enum do shared-kernel; o cast preserva o tipo do enum PostgreSQL sem
+     * reproduzir a regra de identificacao de administrador em cada consulta.
+     */
+    private static FiltroSql semAdministradores(FiltroSql filtro, String aliasUsuario) {
+        List<Object> parametros = new ArrayList<>(filtro.parametros());
+        parametros.add(PapelUsuario.ADMINISTRADOR.name());
+        return new FiltroSql(
+                filtro.clausula()
+                        + " AND " + aliasUsuario + ".papel <> CAST(? AS papel_usuario)",
+                parametros);
     }
 
     /**
