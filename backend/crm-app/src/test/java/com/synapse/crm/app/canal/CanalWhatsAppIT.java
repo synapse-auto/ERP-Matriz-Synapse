@@ -152,6 +152,7 @@ class CanalWhatsAppIT extends PostgresIT {
                                 ConteudoDeEnvio.MensagemLivre.class,
                                 texto -> assertThat(texto.texto()).isEqualTo("*Ana Atendente:*\n\nbom dia"));
                 assertThat(statusDaMensagem(mensagemId)).isEqualTo("ENVIADO");
+                assertThat(erroDaMensagem(mensagemId, "titulo")).isNull();
                 assertThat(pendentesNaOutbox()).isZero();
             });
             assertThat(jdbc.queryForObject(
@@ -225,6 +226,8 @@ class CanalWhatsAppIT extends PostgresIT {
             esperar().untilAsserted(() -> {
                 assertThat(esgotadasNaOutbox()).isEqualTo(1);
                 assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
+                assertThat(erroDaMensagem(mensagemId, "titulo")).isEqualTo("provedor fora do ar");
+                assertThat(codigoDoErro(mensagemId)).isFalse();
                 // A linha continua la, com o motivo: descartar em silencio e o que nao pode.
                 assertThat(jdbc.queryForObject(
                                 "SELECT ultimo_erro FROM outbox_evento WHERE esgotado_em IS NOT NULL",
@@ -935,6 +938,18 @@ class CanalWhatsAppIT extends PostgresIT {
     private String statusDaMensagem(UUID mensagemId) {
         return jdbc.queryForObject(
                 "SELECT status_entrega::text FROM mensagem WHERE id = ?", String.class, mensagemId);
+    }
+
+    private String erroDaMensagem(UUID mensagemId, String campo) {
+        return jdbc.queryForObject(
+                "SELECT erro_entrega->>? FROM mensagem WHERE id = ?", String.class, campo, mensagemId);
+    }
+
+    private boolean codigoDoErro(UUID mensagemId) {
+        return jdbc.queryForObject(
+                "SELECT coalesce(jsonb_exists(erro_entrega, 'codigo'), false) FROM mensagem WHERE id = ?",
+                Boolean.class,
+                mensagemId);
     }
 
     private int pendentesNaOutbox() {

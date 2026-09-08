@@ -28,8 +28,11 @@ public interface MensagemRepositorio {
      * enviado numa mensagem que nao saiu.
      *
      * @param enviadoEm chave de particao da mensagem; sem ela o banco varre todas as particoes
+     * @param motivoFalha motivo capturado pelo canal quando {@code status} e {@code FALHOU}; nulo
+     *     nos demais estados
      */
-    void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status);
+    void atualizarStatusEntrega(
+            UUID mensagemId, Instant enviadoEm, StatusEntrega status, String motivoFalha);
 
     /**
      * Avanca o ciclo de entrega a partir do {@code wamid} que o provedor mandou em {@code statuses[]}.

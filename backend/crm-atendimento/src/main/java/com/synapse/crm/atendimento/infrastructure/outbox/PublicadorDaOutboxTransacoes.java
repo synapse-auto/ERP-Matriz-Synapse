@@ -63,7 +63,7 @@ class PublicadorDaOutboxTransacoes {
             case ResultadoDeEnvio.Aceito aceito -> {
                 outbox.marcarPublicado(pendente.outboxId(), quando);
                 mensagens.atualizarStatusEntrega(
-                        pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.ENVIADO);
+                        pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.ENVIADO, null);
                 idsExternos.gravar(
                         aceito.idExterno(),
                         pendente.mensagemId(),
@@ -142,7 +142,10 @@ class PublicadorDaOutboxTransacoes {
             int tentativasFeitas) {
         outbox.esgotar(pendente.outboxId(), quando, recusado.motivo());
         mensagens.atualizarStatusEntrega(
-                pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.FALHOU);
+                pendente.mensagemId(),
+                pendente.enviadoEm(),
+                StatusEntrega.FALHOU,
+                recusado.motivo());
         eventos.publishEvent(new MudancaDeStatusDeEntrega(
                 pendente.mensagemId(),
                 pendente.atendimentoId(),
