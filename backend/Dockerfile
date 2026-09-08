@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:21-jdk@sha256:85f00967bcc624fc19fa9c2cf124ea426a5363898e267141726f31f358c2e14b AS build
 WORKDIR /workspace/backend
 
 # POMs primeiro: dependencias mudam muito menos que o codigo e ficam em camada reaproveitavel.
@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/root/.m2 \
     ./mvnw -B --no-transfer-progress -DskipTests package
 
 # O modo tools do Spring Boot 3.5 extrai o fat jar nas quatro camadas do layers.idx.
-FROM eclipse-temurin:21-jre AS layers
+FROM eclipse-temurin:21-jre@sha256:7a65df4b22d2de92d4e04056e884f3b9122d70b21e2847fd66084278bd0ce037 AS layers
 WORKDIR /builder
 COPY --from=build /workspace/backend/crm-app/target/crm-app-*-exec.jar application.jar
 RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
-FROM eclipse-temurin:21-jre AS runtime
+FROM eclipse-temurin:21-jre@sha256:7a65df4b22d2de92d4e04056e884f3b9122d70b21e2847fd66084278bd0ce037 AS runtime
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/* \

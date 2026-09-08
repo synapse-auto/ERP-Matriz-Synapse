@@ -107,6 +107,17 @@
     </dependency>
 
     <!--
+      E172: o contrato com o storage precisa ser exercitado contra um MinIO real.
+      Os testes de crm-app usam um fake por design e nao detectam incompatibilidades
+      de autenticacao/assinatura do cliente S3.
+    -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
       Storage de midia do chat (E11b). MinIO em dev, S3-compativel em producao —
       mesmo cliente para os dois, so muda endpoint/credenciais (docs/01, docs/09).
     -->
