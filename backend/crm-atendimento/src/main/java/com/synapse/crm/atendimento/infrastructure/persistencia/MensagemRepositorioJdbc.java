@@ -44,7 +44,19 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
     // varreria todas as particoes para achar uma unica linha.
     private static final String SQL_STATUS_ENTREGA =
-            "UPDATE mensagem SET status_entrega = ?::status_entrega WHERE id = ? AND enviado_em = ?";
+            """
+            UPDATE mensagem m
+               SET status_entrega = ?::status_entrega,
+                   erro_entrega = CASE
+                       WHEN ?::status_entrega = 'FALHOU'
+                       THEN jsonb_strip_nulls(jsonb_build_object(
+                           'codigo', NULL::integer,
+                           'titulo', ?::text))
+                       ELSE m.erro_entrega
+                   END
+             WHERE m.id = ?
+               AND m.enviado_em = ?
+            """;
 
     /**
      * A monotonia e a mesma de {@link StatusEntrega#ehPosteriorA(StatusEntrega)}, no SQL, para duas
@@ -115,9 +127,16 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
      * varreria todas as particoes para achar uma linha.
      */
     @Override
-    public void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status) {
+    public void atualizarStatusEntrega(
+            UUID mensagemId, Instant enviadoEm, StatusEntrega status, String motivoFalha) {
         TransacaoObrigatoria.exigir("atualizarStatusEntrega");
-        chat.update(SQL_STATUS_ENTREGA, status.name(), mensagemId, Timestamp.from(enviadoEm));
+        chat.update(
+                SQL_STATUS_ENTREGA,
+                status.name(),
+                status.name(),
+                motivoFalha,
+                mensagemId,
+                Timestamp.from(enviadoEm));
     }
 
     @Override

@@ -236,7 +236,10 @@ class PublicadorDaOutboxOperacoesTest {
         transacoes.registrarResultado(pendente, ResultadoDeEnvio.Recusado.permanente("numero invalido"), AGORA);
         verify(outbox).esgotar(pendente.outboxId(), AGORA, "numero invalido");
         verify(mensagens).atualizarStatusEntrega(
-                pendente.mensagemId(), pendente.enviadoEm(), com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.FALHOU);
+                pendente.mensagemId(),
+                pendente.enviadoEm(),
+                com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.FALHOU,
+                "numero invalido");
     }
 
     @Test
@@ -262,6 +265,11 @@ class PublicadorDaOutboxOperacoesTest {
                 pendente, new ResultadoDeEnvio.Aceito("wamid.1", "556188887777"), AGORA);
 
         verify(outbox).marcarPublicado(pendente.outboxId(), AGORA);
+        verify(mensagens).atualizarStatusEntrega(
+                pendente.mensagemId(),
+                pendente.enviadoEm(),
+                com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.ENVIADO,
+                null);
         verify(leads).registrarTelefoneProvedor(pendente.leadId(), "556188887777");
     }
 
