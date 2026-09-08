@@ -15,6 +15,7 @@ interface VariaveisEnvioMidia {
   onProgresso?: (percentual: number) => void;
   resposta?: { mensagemId: string; enviadoEm: string };
   citacao?: MensagemResposta["citacao"];
+  gravacaoDoComposer?: boolean;
 }
 
 function idTemporario(): string {
@@ -44,6 +45,7 @@ export function useEnviarMidia() {
         variaveis.legenda,
         variaveis.onProgresso ?? (() => {}),
         variaveis.resposta,
+        variaveis.gravacaoDoComposer,
       ),
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;

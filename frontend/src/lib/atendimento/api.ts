@@ -223,6 +223,7 @@ export function enviarMidia(
   legenda: string | undefined,
   onProgresso: (percentual: number) => void,
   resposta?: AlvoDeResposta,
+  gravacaoDoComposer = false,
 ): Promise<EnvioResposta> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -235,6 +236,9 @@ export function enviarMidia(
     if (resposta) {
       params.set("mensagemOrigemId", resposta.mensagemId);
       params.set("origemEnviadaEm", resposta.enviadoEm);
+    }
+    if (gravacaoDoComposer) {
+      params.set("gravacaoDoComposer", "true");
     }
     const query = params.toString() ? `?${params.toString()}` : "";
     const xhr = new XMLHttpRequest();
