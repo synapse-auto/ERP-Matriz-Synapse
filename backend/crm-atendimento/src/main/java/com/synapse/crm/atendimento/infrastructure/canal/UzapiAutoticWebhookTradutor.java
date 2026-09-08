@@ -45,7 +45,17 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
                     "sticker", "IMAGEM");
 
     private static final List<String> CHAVES_DE_IDENTIFICADOR_DE_STATUS =
-            List.of("chatid", "chatId", "remotejid", "remoteJid", "from", "sender", "participant", "jid");
+            List.of(
+                    "chatid",
+                    "chatId",
+                    "remotejid",
+                    "remoteJid",
+                    "from",
+                    "sender",
+                    "participant",
+                    "jid",
+                    // A Uzapi identifica Status/Story em `group_id: status@broadcast`.
+                    "groupid");
 
     private final CanalProperties propriedades;
     private final ObjectMapper json;

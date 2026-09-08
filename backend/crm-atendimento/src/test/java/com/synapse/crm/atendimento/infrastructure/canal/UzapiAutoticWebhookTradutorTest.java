@@ -130,15 +130,28 @@ class UzapiAutoticWebhookTradutorTest {
     void statusStoryEIgnoradoEIdExternoNaoVazaParaFilaDeMensagens() {
         var mensagens = tradutor.traduzir(payloadComMensagens(
                 "{\"from\":\"status@broadcast\",\"id\":\"story\",\"timestamp\":\"1\",\"type\":\"text\",\"text\":{\"body\":\"status\"}},"
-                        + "{\"key\":{\"remotejid\":\"status@broadcast\"},\"from\":\"556188888888\",\"id\":\"story-2\",\"type\":\"text\",\"text\":{\"body\":\"status\"}},"
-                        + "{\"from\":\"556188888888\",\"id\":\"ok\",\"type\":\"text\",\"text\":{\"body\":\"ok\"}}"));
+                + "{\"key\":{\"remotejid\":\"status@broadcast\"},\"from\":\"556188888888\",\"id\":\"story-2\",\"type\":\"text\",\"text\":{\"body\":\"status\"}},"
+                + "{\"from\":\"556177777777\",\"group_id\":\"status@broadcast\",\"id\":\"story-img\",\"type\":\"image\",\"image\":{\"id\":\"media-img\"}},"
+                + "{\"from\":\"556177777777\",\"group_id\":\"status@broadcast\",\"id\":\"story-video\",\"type\":\"video\",\"video\":{\"id\":\"media-video\"}},"
+                + "{\"from\":\"556188888888\",\"id\":\"ok\",\"type\":\"text\",\"text\":{\"body\":\"ok\"}}"));
 
         assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
                 .containsExactly("ok");
         assertThat(tradutor.idsExternos(payloadComMensagens(
                 "{\"from\":\"status@broadcast\",\"id\":\"story\",\"type\":\"text\"},"
+                        + "{\"from\":\"556177777777\",\"group_id\":\"status@broadcast\",\"id\":\"story-img\",\"type\":\"image\"},"
                         + "{\"from\":\"556188888888\",\"id\":\"ok\",\"type\":\"text\"}")))
                 .containsExactly("ok");
+    }
+
+    @Test
+    void isGroupSemGroupIdDeStatusNaoDescartaGrupoReal() {
+        var mensagens = tradutor.traduzir(payloadComMensagem(
+                "{\"from\":\"556177777777\",\"isGroup\":true,\"id\":\"grupo-real\","
+                        + "\"type\":\"text\",\"text\":{\"body\":\"mensagem do grupo\"}}"));
+
+        assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("grupo-real");
     }
 
     @Test
