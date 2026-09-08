@@ -78,8 +78,7 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
     private MensagemRepositorio mensagens;
 
     @Autowired
-    @Qualifier(Pools.CHAT_TRANSACTION_MANAGER)
-    private PlatformTransactionManager gerenteDoChat;
+    @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) private PlatformTransactionManager gerenteDoChat;
 
     private UUID leadId;
     private UUID atendimentoId;

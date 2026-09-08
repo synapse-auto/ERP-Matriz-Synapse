@@ -947,7 +947,7 @@ class CanalWhatsAppIT extends PostgresIT {
 
     private boolean codigoDoErro(UUID mensagemId) {
         return jdbc.queryForObject(
-                "SELECT coalesce(erro_entrega ? 'codigo', false) FROM mensagem WHERE id = ?",
+                "SELECT coalesce(jsonb_exists(erro_entrega, 'codigo'), false) FROM mensagem WHERE id = ?",
                 Boolean.class,
                 mensagemId);
     }
