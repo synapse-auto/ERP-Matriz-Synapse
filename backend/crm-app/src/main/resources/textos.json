@@ -1049,6 +1049,32 @@
     "abrirAtendimento": "Abrir atendimento",
     "abrindoAtendimento": "Abrindo atendimento...",
     "erroAbrirAtendimento": "Não foi possível abrir o atendimento.",
+    "importarCsv": "Importar CSV",
+    "exportarCsv": "Exportar CSV",
+    "importacao": {
+      "titulo": "Importar leads (CSV)",
+      "descricao": "Adicione contatos em lote à base",
+      "arraste": "Arraste um arquivo .csv aqui",
+      "colunas": "Colunas: nome, empresa, telefone, CNPJ/CPF, cidade, etapa, tags",
+      "selecionarArquivo": "Selecionar arquivo",
+      "baixarModelo": "Baixar modelo de planilha",
+      "cancelar": "Cancelar",
+      "importar": "Importar",
+      "importando": "Importando...",
+      "preview": "Prévia da importação",
+      "linhas": "Linhas",
+      "validas": "Novas",
+      "jaExistiam": "Já existentes",
+      "recusadas": "Recusadas",
+      "arquivoInvalido": "Selecione um arquivo CSV.",
+      "erro": "Não foi possível preparar o arquivo.",
+      "erroImportar": "Não foi possível importar os leads.",
+      "modeloArquivo": "modelo-leads.csv"
+    },
+    "exportacao": {
+      "arquivo": "leads.csv",
+      "erro": "Não foi possível exportar a agenda."
+    },
     "entrada": {
       "placeholder": "Buscar contato de outro atendente...",
       "pedir": "Pedir para entrar",

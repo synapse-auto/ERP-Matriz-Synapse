@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
+import { Download, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   useCamposFiltraveis,
   useCatalogosDeFiltro,
   useContagemDeLeads,
+  criterioDosFiltrosAtivos,
   useLeadsDaAgenda,
 } from "@/lib/agenda/use-agenda";
 import {
@@ -24,6 +26,9 @@ import {
   type LeadDaAgenda,
 } from "@/lib/agenda/types";
 import { abrirAtendimentoParaLead } from "@/lib/atendimento/api";
+import { exportarLeadsCsv } from "@/lib/agenda/api";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import { podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
 import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
@@ -32,15 +37,15 @@ import { useBuscaLeadsParaEntrada } from "@/lib/agenda/use-busca-entrada";
 import { apiFetch } from "@/lib/api/http-client";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn } from "@/lib/utils";
+import { DialogoImportacaoLeads } from "./dialogo-importacao-leads";
 
 /**
  * Agenda como tabela sobre o filtro modular (E16 §Bloco 1) — substitui a lista de cards que
  * reaproveitava `CartaoConversa` e só mostrava atendimentos abertos. Toda linha vem de {@code
  * POST /api/v1/leads/filtrar}, já recortada por RN-CRM-01; nenhum dado é mockado.
  *
- * <p>Kanban e import/export CSV ficam de fora de propósito: não existe endpoint de agrupamento
- * por etapa nem de CSV dos dois lados, e construir a casca sem o motor por trás seria controle
- * fantasma.
+ * <p>Kanban fica de fora de propósito. Importação e exportação CSV ficam disponíveis apenas para
+ * gestão e usam endpoints próprios, sempre com o mesmo recorte de visibilidade da Agenda.
  */
 export function PaginaAgenda() {
   const textosGerais = useTextos();
@@ -51,6 +56,8 @@ export function PaginaAgenda() {
     responsavel: `${t.semResponsavel}: {nome}`,
   };
   const router = useRouter();
+  const papel = useAuthStore((estado) => estado.papel);
+  const podeGerenciar = podeGerenciarTemplates(papel);
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
@@ -60,6 +67,7 @@ export function PaginaAgenda() {
   const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
   const [buscaEntrada, setBuscaEntrada] = useState("");
   const [filtrosMobileAbertos, setFiltrosMobileAbertos] = useState(false);
+  const [importacaoAberta, setImportacaoAberta] = useState(false);
   const telaEstreita = useTelaEstreita();
   const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
   const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
@@ -90,6 +98,18 @@ export function PaginaAgenda() {
   const catalogos = useCatalogosDeFiltro();
   const equipe = useEquipe();
   const tagsDisponiveis = catalogos.data?.tags ?? [];
+  const criterio = criterioDosFiltrosAtivos(filtrosRapidos, filtrosAtivos, tagsDisponiveis);
+  const exportacao = useMutation({
+    mutationFn: () => exportarLeadsCsv(criterio),
+    onSuccess: (arquivo) => {
+      const url = URL.createObjectURL(arquivo);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = t.exportacao.arquivo;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+  });
   const paginaDeLeads = useLeadsDaAgenda(
     filtrosRapidos,
     filtrosAtivos,
@@ -153,22 +173,51 @@ export function PaginaAgenda() {
           ? "mb-3 flex items-center justify-between gap-3"
           : "-mx-6 -mt-6 mb-4 border-b border-border bg-card px-6 py-4",
       )}>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-foreground max-sm:text-[1.375rem]">{t.titulo}</h1>
           {!telaEstreita && <p className="mt-1 text-sm text-muted-foreground">{t.descricao}</p>}
         </div>
-        {telaEstreita && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            aria-pressed={filtrosMobileAbertos}
-            onClick={() => setFiltrosMobileAbertos((abertos) => !abertos)}
-          >
-            {t.filtros.titulo}
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {podeGerenciar && t.importacao && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size={telaEstreita ? "icon" : "sm"}
+                aria-label={t.importarCsv}
+                title={t.importarCsv}
+                onClick={() => setImportacaoAberta(true)}
+              >
+                <Upload aria-hidden="true" />
+                {!telaEstreita && t.importarCsv}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size={telaEstreita ? "icon" : "sm"}
+                aria-label={t.exportarCsv}
+                title={t.exportarCsv}
+                disabled={exportacao.isPending}
+                onClick={() => exportacao.mutate()}
+              >
+                <Download aria-hidden="true" />
+                {!telaEstreita && t.exportarCsv}
+              </Button>
+            </>
+          )}
+          {telaEstreita && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              aria-pressed={filtrosMobileAbertos}
+              onClick={() => setFiltrosMobileAbertos((abertos) => !abertos)}
+            >
+              {t.filtros.titulo}
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex-none">
@@ -284,6 +333,13 @@ export function PaginaAgenda() {
           }}
           abrindoAtendimento={abrirAtendimento.isPending}
           erroAbrirAtendimento={erroAbrir}
+        />
+      )}
+      {podeGerenciar && t.importacao && (
+        <DialogoImportacaoLeads
+          aberto={importacaoAberta}
+          onAbertoChange={setImportacaoAberta}
+          textos={t.importacao}
         />
       )}
     </div>
