@@ -2,10 +2,10 @@ import { z } from "zod";
 
 /**
  * Espelha tema.json (backend/crm-app/src/main/resources/tema.json), gerado a partir de
- * design/TOKENS.md. Nenhum campo tem default aqui: se o backend não devolver um token, a falha deve
- * aparecer (schema inválido), não virar uma cor arbitrária escolhida em runtime.
+ * design/TOKENS.md. Tokens da primeira versão continuam obrigatórios. Os adicionados depois dela
+ * derivam de tokens fundacionais durante um rollout desalinhado, sem inventar cores no frontend.
  */
-export const TemaSchema = z.object({
+const TemaBaseSchema = z.object({
   corPrimaria: z.string(),
   corPrimariaHover: z.string(),
   corPrimariaSuave: z.string(),
@@ -13,7 +13,7 @@ export const TemaSchema = z.object({
   corPrimariaTexto: z.string(),
 
   fundoApp: z.string(),
-  fundoCanvas: z.string(),
+  fundoCanvas: z.string().optional(),
   fundoSuperficie: z.string(),
   fundoSutil: z.string(),
   fundoSidebar: z.string(),
@@ -26,16 +26,16 @@ export const TemaSchema = z.object({
   textoSidebarTitulo: z.string(),
   textoSidebarSub: z.string(),
   textoSidebarItem: z.string(),
-  sidebarItemTextoHover: z.string(),
-  sidebarItemIconeAtivo: z.string(),
-  sidebarItemOverlayHover: z.string(),
-  sidebarItemOverlayAtivo: z.string(),
-  sidebarItemOverlayAtivoHover: z.string(),
-  sidebarItemAcentoAtivo: z.string(),
-  marcaIconeGradienteInicio: z.string(),
-  marcaIconeGradienteFim: z.string(),
-  sidebarItemTextoPerigo: z.string(),
-  sidebarItemOverlayPerigo: z.string(),
+  sidebarItemTextoHover: z.string().optional(),
+  sidebarItemIconeAtivo: z.string().optional(),
+  sidebarItemOverlayHover: z.string().optional(),
+  sidebarItemOverlayAtivo: z.string().optional(),
+  sidebarItemOverlayAtivoHover: z.string().optional(),
+  sidebarItemAcentoAtivo: z.string().optional(),
+  marcaIconeGradienteInicio: z.string().optional(),
+  marcaIconeGradienteFim: z.string().optional(),
+  sidebarItemTextoPerigo: z.string().optional(),
+  sidebarItemOverlayPerigo: z.string().optional(),
 
   borda: z.string(),
   bordaForte: z.string(),
@@ -77,9 +77,28 @@ export const TemaSchema = z.object({
   logoUrl: z.string().nullable(),
 });
 
+export const TemaSchema = TemaBaseSchema.transform((tema) => ({
+  ...tema,
+  fundoCanvas: tema.fundoCanvas ?? tema.fundoApp,
+  sidebarItemTextoHover: tema.sidebarItemTextoHover ?? tema.textoSidebarItem,
+  sidebarItemIconeAtivo: tema.sidebarItemIconeAtivo ?? tema.corPrimaria,
+  sidebarItemOverlayHover: tema.sidebarItemOverlayHover ?? tema.fundoSidebarBloco,
+  sidebarItemOverlayAtivo: tema.sidebarItemOverlayAtivo ?? tema.fundoSidebarBloco,
+  sidebarItemOverlayAtivoHover: tema.sidebarItemOverlayAtivoHover ?? tema.fundoSidebarBloco,
+  sidebarItemAcentoAtivo: tema.sidebarItemAcentoAtivo ?? tema.corPrimaria,
+  marcaIconeGradienteInicio: tema.marcaIconeGradienteInicio ?? tema.corPrimaria,
+  marcaIconeGradienteFim: tema.marcaIconeGradienteFim ?? tema.corPrimariaHover,
+  sidebarItemTextoPerigo: tema.sidebarItemTextoPerigo ?? tema.corErro,
+  sidebarItemOverlayPerigo: tema.sidebarItemOverlayPerigo ?? tema.fundoSidebarBloco,
+}));
+
 export type Tema = z.infer<typeof TemaSchema>;
 
-/** Espelha textos.json — catálogo de strings de UI. Cresce conforme novas telas nascem. */
+/**
+ * Espelha textos.json — catálogo de strings de UI. Cresce conforme novas telas nascem. Campos
+ * adicionados depois da primeira versão precisam de default para tolerar o rollout independente
+ * de frontend e backend; a estrutura fundacional continua obrigatória.
+ */
 export const TextosSchema = z.object({
   novidades: z.object({
     titulo: z.string().optional(),
@@ -316,7 +335,7 @@ export const TextosSchema = z.object({
       naoLidas: z.string(),
       atendidoPelaIa: z.string(),
       codigo: z.string(),
-      atrasoAtendente: z.string(),
+      atrasoAtendente: z.string().default("Sem resposta há mais de 20 minutos"),
     }),
     cabecalho: z.object({
       atendidoPor: z.string(),
@@ -879,8 +898,8 @@ export const TextosSchema = z.object({
     abrirAtendimento: z.string(),
     abrindoAtendimento: z.string(),
     erroAbrirAtendimento: z.string(),
-    importarCsv: z.string(),
-    exportarCsv: z.string(),
+    importarCsv: z.string().default("Importar CSV"),
+    exportarCsv: z.string().default("Exportar CSV"),
     importacao: z.object({
       titulo: z.string(),
       descricao: z.string(),
@@ -900,8 +919,30 @@ export const TextosSchema = z.object({
       erro: z.string(),
       erroImportar: z.string(),
       modeloArquivo: z.string(),
+    }).default({
+      titulo: "Importar leads (CSV)",
+      descricao: "Adicione contatos em lote à base",
+      arraste: "Arraste um arquivo .csv aqui",
+      colunas: "Colunas: nome, empresa, telefone, CNPJ/CPF, cidade, etapa, tags",
+      selecionarArquivo: "Selecionar arquivo",
+      baixarModelo: "Baixar modelo de planilha",
+      cancelar: "Cancelar",
+      importar: "Importar",
+      importando: "Importando...",
+      preview: "Prévia da importação",
+      linhas: "Linhas",
+      validas: "Novas",
+      jaExistiam: "Já existentes",
+      recusadas: "Recusadas",
+      arquivoInvalido: "Selecione um arquivo CSV.",
+      erro: "Não foi possível preparar o arquivo.",
+      erroImportar: "Não foi possível importar os leads.",
+      modeloArquivo: "modelo-leads.csv",
     }),
-    exportacao: z.object({ arquivo: z.string(), erro: z.string() }),
+    exportacao: z.object({ arquivo: z.string(), erro: z.string() }).default({
+      arquivo: "leads.csv",
+      erro: "Não foi possível exportar a agenda.",
+    }),
     entrada: z.object({ placeholder: z.string(), pedir: z.string(), responsavel: z.string() }),
     colunas: z.object({
       lead: z.string(),
