@@ -274,7 +274,7 @@ services:
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.priority=100'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.server.port=8080'
-        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.path=/health/liveness'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.path=/health/readiness'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.interval=10s'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-backend.loadbalancer.healthcheck.timeout=3s'
 
@@ -407,7 +407,7 @@ services:
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.priority=1'
         - 'traefik.http.routers.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.service=${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.server.port=3000'
-        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.path=/health/liveness'
+        - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.path=/health/readiness'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.interval=10s'
         - 'traefik.http.services.${TRAEFIK_ROUTER_PREFIX:?obrigatoria}-frontend.loadbalancer.healthcheck.timeout=3s'
 
