@@ -1,5 +1,6 @@
 import { Tema, TemaSchema, Textos, TextosSchema } from "./schema";
 import { obterUrlApiServidor } from "@/lib/api/server-api-url";
+import { z } from "zod";
 
 /**
  * `/api/v1/config/tema` e `/api/v1/config/textos` são públicos (SecurityConfig, E10). O catálogo
@@ -7,20 +8,37 @@ import { obterUrlApiServidor } from "@/lib/api/server-api-url";
  * tela de login é fixa da Synapse. `cache: "no-store"` mantém "trocar tema.json muda a aparência"
  * verdadeiro para o CRM, sem rebuild nem invalidação manual de cache.
  */
-async function buscarConfig<T>(caminho: string): Promise<unknown> {
+async function buscarConfig(caminho: string): Promise<unknown> {
   const resposta = await fetch(`${obterUrlApiServidor()}${caminho}`, { cache: "no-store" });
   if (!resposta.ok) {
     throw new Error(`Falha ao buscar ${caminho}: HTTP ${resposta.status}`);
   }
-  return (await resposta.json()) as T;
+  return (await resposta.json()) as unknown;
+}
+
+function validarConfiguracao<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  valor: unknown,
+  caminho: string,
+): z.output<TSchema> {
+  const resultado = schema.safeParse(valor);
+  if (!resultado.success) {
+    // Não registra o payload da instância: paths e mensagens bastam para diagnosticar sem expor
+    // textos personalizados. Campos de compatibilidade são resolvidos pelo schema antes daqui.
+    console.error(`[config] Resposta inválida de ${caminho}`, resultado.error.flatten());
+    throw resultado.error;
+  }
+  return resultado.data;
 }
 
 export async function buscarTema(): Promise<Tema> {
-  return TemaSchema.parse(await buscarConfig("/api/v1/config/tema"));
+  const caminho = "/api/v1/config/tema";
+  return validarConfiguracao(TemaSchema, await buscarConfig(caminho), caminho);
 }
 
 export async function buscarTextos(): Promise<Textos> {
-  return TextosSchema.parse(await buscarConfig("/api/v1/config/textos"));
+  const caminho = "/api/v1/config/textos";
+  return validarConfiguracao(TextosSchema, await buscarConfig(caminho), caminho);
 }
 
 /**
