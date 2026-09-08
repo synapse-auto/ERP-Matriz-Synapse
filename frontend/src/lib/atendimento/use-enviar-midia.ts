@@ -99,6 +99,24 @@ export function useEnviarMidia() {
       }
       const identidade = identidadeAutenticada(queryClient);
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
+        // O WebSocket pode ter entregue a versão definitiva (inclusive a URL assinada) antes
+        // da resposta HTTP. Nesse caso, não reconstrua a mensagem com a prévia blob: obsoleta.
+        const definitiva = atual.find((mensagem) => mensagem.id === resposta.mensagemId);
+        if (definitiva) {
+          return atual
+            .filter((mensagem) => mensagem.id !== contexto.idOtimista)
+            .map((mensagem) =>
+              mensagem.id === resposta.mensagemId
+                ? {
+                    ...mensagem,
+                    // O evento não carrega o nome do remetente; apenas enriquecemos os campos
+                    // ausentes com a identidade da sessão, sem tocar na URL/dados da mídia real.
+                    remetenteId: mensagem.remetenteId ?? identidade.id,
+                    remetenteNome: mensagem.remetenteNome ?? identidade.nome,
+                  }
+                : mensagem,
+            );
+        }
         const otimista = atual.find((mensagem) => mensagem.id === contexto.idOtimista);
         if (!otimista) return mesclarMensagens(atual, []);
         const real: MensagemResposta = {
