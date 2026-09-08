@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento } from "@/lib/atendimento/types";
+
+const capacidadeDoCanal = {
+  exigeTemplateForaDaJanela: true,
+  gerenciaTemplates: true,
+};
 
 vi.mock("@/lib/atendimento/use-enviar-mensagem", () => ({
   useEnviarMensagem: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
@@ -23,6 +28,7 @@ vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
 }));
 
 vi.mock("@/lib/atendimento/api", () => ({
+  obterCapacidadeDoCanal: () => Promise.resolve(capacidadeDoCanal),
   listarTemplatesWhatsApp: () =>
     Promise.resolve([
       {
@@ -173,6 +179,20 @@ function renderizar(conversa: CartaoAtendimento) {
 }
 
 describe("Composer — janela de 24h", () => {
+  beforeEach(() => {
+    capacidadeDoCanal.exigeTemplateForaDaJanela = true;
+    capacidadeDoCanal.gerenciaTemplates = true;
+  });
+
+  it("libera texto livre para provedor que não exige template, mesmo sem mensagem do lead", async () => {
+    capacidadeDoCanal.exigeTemplateForaDaJanela = false;
+    renderizar({ ...base, ultimaMensagemDoLeadEm: null });
+
+    expect(await screen.findByPlaceholderText("Digite uma mensagem...")).toBeEnabled();
+    expect(screen.queryByText("Ainda sem mensagem do cliente")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nova mensagem" })).not.toBeInTheDocument();
+  });
+
   it("mostra indicação discreta quando a janela está aberta e libera o texto livre", () => {
     renderizar({ ...base, ultimaMensagemDoLeadEm: new Date().toISOString() });
 

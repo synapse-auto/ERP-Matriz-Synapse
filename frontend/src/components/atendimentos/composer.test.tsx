@@ -17,6 +17,10 @@ const estadoTexto: { isError: boolean; error: Error | null } = {
   isError: false,
   error: null,
 };
+const capacidadeDoCanal = {
+  exigeTemplateForaDaJanela: true,
+  gerenciaTemplates: true,
+};
 const configuracaoComposer = {
   tamanhoMaximoAudioBytes: 1024,
   duracaoMaximaAudioSegundos: 120,
@@ -50,6 +54,7 @@ vi.mock("@/lib/atendimento/janela-24h", () => ({
 }));
 
 vi.mock("@/lib/atendimento/api", () => ({
+  obterCapacidadeDoCanal: () => Promise.resolve(capacidadeDoCanal),
   listarTemplatesWhatsApp: () =>
     Promise.resolve([
         {
@@ -281,6 +286,8 @@ describe("Composer — anexo", () => {
     estadoMidia.error = null;
     estadoTexto.isError = false;
     estadoTexto.error = null;
+    capacidadeDoCanal.exigeTemplateForaDaJanela = true;
+    capacidadeDoCanal.gerenciaTemplates = true;
     configuracaoComposer.tamanhoMaximoAudioBytes = 1024;
     configuracaoComposer.duracaoMaximaAudioSegundos = 120;
     vi.stubGlobal("MediaRecorder", undefined);
@@ -333,6 +340,17 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Enviar template" })).not.toBeInTheDocument();
+  });
+
+  it("oculta templates do menu quando o provedor não gerencia templates", async () => {
+    capacidadeDoCanal.gerenciaTemplates = false;
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Templates" })).not.toBeInTheDocument();
+    });
   });
 
   it("Arquivos no menu dispara o seletor de arquivo atual", async () => {
