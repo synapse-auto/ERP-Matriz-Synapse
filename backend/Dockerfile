@@ -29,7 +29,7 @@ RUN java -Djarmode=tools -jar application.jar extract --layers --destination ext
 
 FROM eclipse-temurin:21-jre AS runtime
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends curl \
+    && apt-get install --yes --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 10001 synapse \
     && useradd --system --uid 10001 --gid synapse --home-dir /application \

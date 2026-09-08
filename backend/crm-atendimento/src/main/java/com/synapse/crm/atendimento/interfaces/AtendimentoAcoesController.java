@@ -46,6 +46,7 @@ import com.synapse.crm.atendimento.application.TransferenciaDePotencialProibidaE
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
 import com.synapse.crm.atendimento.application.midia.EnviarMidiaUseCase;
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.application.midia.ObterConfiguracaoComposerUseCase;
 import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
@@ -229,6 +230,8 @@ class AtendimentoAcoesController {
                     @RequestPart("arquivo") MultipartFile arquivo,
             @Parameter(description = "Legenda opcional da mídia.")
                     @RequestParam(required = false) String legenda,
+            @Parameter(description = "Indica que o áudio foi gravado no composer; gravações são convertidas para OGG/Opus.")
+                    @RequestParam(defaultValue = "false") boolean gravacaoDoComposer,
             @Parameter(description = "Mensagem de origem quando o anexo é uma resposta.")
                     @RequestParam(required = false) UUID mensagemOrigemId,
             @Parameter(description = "Instante da origem, chave de partição da mensagem.")
@@ -242,7 +245,7 @@ class AtendimentoAcoesController {
         }
         AlvoDeResposta resposta = alvoOpcional(mensagemOrigemId, origemEnviadaEm);
         EnviarMensagemUseCase.Resultado resultado = enviarMidia.executar(
-                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta);
+                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta, gravacaoDoComposer);
         return EnvioResposta.de(resultado);
     }
 
@@ -553,6 +556,14 @@ class AtendimentoAcoesController {
         ProblemDetail problema =
                 ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, e.getMessage());
         problema.setTitle("Anexo excede o tamanho maximo");
+        return problema;
+    }
+
+    @ExceptionHandler(FalhaNaConversaoDeAudioException.class)
+    ProblemDetail aoFalharConversaoDeAudio(FalhaNaConversaoDeAudioException e) {
+        ProblemDetail problema =
+                ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Gravação de áudio inválida");
         return problema;
     }
 

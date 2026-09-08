@@ -317,6 +317,7 @@ export function Composer({
         leadId: conversa.leadId,
         arquivo: gravador.arquivo,
         onProgresso: setProgresso,
+        gravacaoDoComposer: true,
       },
       {
         onSuccess: () => {
