@@ -12,6 +12,7 @@ import com.synapse.crm.relatorios.application.vendas.AgregacaoDeVendasRepositori
 import com.synapse.crm.relatorios.domain.IntervaloTemporal;
 import com.synapse.crm.relatorios.domain.vendas.AgregacaoDeVendas;
 import com.synapse.crm.relatorios.domain.vendas.AgregacaoDeVendas.VendasPorAtendente;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /** Consulta canonica de vendas: primeira transicao de cada lead para GANHO dentro do periodo. */
 @Repository
@@ -49,15 +50,18 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                        AND %s
                      ORDER BY e.lead_id, e.criado_em, e.id
                 )
-                SELECT v.responsavel_id, u.nome, count(*) AS vendas
+                SELECT v.responsavel_id, u.nome, u.papel::text AS papel, count(*) AS vendas
                   FROM vendas v
                   LEFT JOIN usuario u ON u.id = v.responsavel_id
-                 GROUP BY v.responsavel_id, u.nome
+                 GROUP BY v.responsavel_id, u.nome, u.papel
                  ORDER BY vendas DESC, u.nome NULLS LAST
                 """.formatted(eventos.clausula(), origem.clausula()),
                 (linha, indice) -> new LinhaDeVendas(
                         linha.getObject("responsavel_id", java.util.UUID.class),
                         linha.getString("nome"),
+                        linha.getString("papel") == null
+                                ? null
+                                : PapelUsuario.valueOf(linha.getString("papel")),
                         linha.getLong("vendas")),
                 parametros.toArray());
 
@@ -66,7 +70,8 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                 .mapToLong(LinhaDeVendas::vendas)
                 .sum();
         List<VendasPorAtendente> porAtendente = linhas.stream()
-                .filter(linha -> linha.atendenteId() != null)
+                .filter(linha -> linha.atendenteId() != null
+                        && linha.papel() != PapelUsuario.ADMINISTRADOR)
                 .map(linha -> new VendasPorAtendente(
                         linha.atendenteId(), linha.atendenteNome(), linha.vendas()))
                 .toList();
@@ -123,5 +128,8 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
     }
 
     private record LinhaDeVendas(
-            java.util.UUID atendenteId, String atendenteNome, long vendas) {}
+            java.util.UUID atendenteId,
+            String atendenteNome,
+            PapelUsuario papel,
+            long vendas) {}
 }

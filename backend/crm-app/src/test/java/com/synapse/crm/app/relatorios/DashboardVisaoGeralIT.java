@@ -162,6 +162,59 @@ class DashboardVisaoGeralIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("administrador fica fora dos rankings sem alterar totais operacionais")
+    void administradorNaoCompoeDesempenhoMasTotaisOperacionaisPermanecem() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID administrador = idDoUsuario(EMAIL_ADMINISTRADOR);
+        UUID gestor = idDoUsuario(EMAIL_GESTOR);
+        UUID etapaEmAndamento = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        Instant agosto = Instant.parse("2040-08-10T13:00:00Z");
+
+        UUID leadDaAna = criarLeads(1, "comum", agosto, etapaEmAndamento, ana)[0];
+        UUID leadDoAdministrador = criarLeads(
+                1, "administrador", agosto, etapaEmAndamento, administrador)[0];
+        UUID atendimentoDaAna = criarAtendimento(leadDaAna, ana, agosto, 10);
+        UUID atendimentoDoAdministrador = criarAtendimento(
+                leadDoAdministrador, administrador, agosto.plusSeconds(3600), 10);
+
+        criarAvaliacao(atendimentoDaAna, ana, 5, agosto.plusSeconds(900));
+        criarAvaliacao(
+                atendimentoDoAdministrador,
+                administrador,
+                1,
+                agosto.plusSeconds(4500));
+        registrarGanho(leadDaAna, ana, gestor, agosto.plusSeconds(100));
+        registrarGanho(
+                leadDoAdministrador,
+                administrador,
+                gestor,
+                agosto.plusSeconds(3700));
+
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+
+        // Atendimentos e vendas totais são operacionais: continuam contando os dois registros.
+        assertThat(resposta.at("/atendimentos/noPeriodo").asLong()).isEqualTo(2);
+        assertThat(resposta.at("/vendasFechadas/noPeriodo").asLong()).isEqualTo(2);
+
+        // A avaliação é indicador de desempenho: somente o usuário comum compõe média e total.
+        assertThat(resposta.at("/avaliacaoMedia/media").decimalValue())
+                .isEqualByComparingTo("5.00");
+        assertThat(resposta.at("/avaliacaoMedia/quantidade").asLong()).isEqualTo(1);
+
+        JsonNode rankingDeVendas = resposta.path("rankingDeVendas").path("atendentes");
+        assertThat(rankingDeVendas.size()).isEqualTo(1);
+        assertThat(rankingDeVendas.get(0).path("id").asText()).isEqualTo(ana.toString());
+        assertThat(rankingDeVendas.toString()).doesNotContain(administrador.toString());
+
+        JsonNode rankingDeAvaliacoes = resposta.path("rankingDeAvaliacoes").path("atendentes");
+        assertThat(rankingDeAvaliacoes.size()).isEqualTo(1);
+        assertThat(rankingDeAvaliacoes.get(0).path("id").asText()).isEqualTo(ana.toString());
+        assertThat(rankingDeAvaliacoes.toString()).doesNotContain(administrador.toString());
+    }
+
+    @Test
     @DisplayName("atendente recebe 403; subgestor e administrador recebem 200")
     void acesso_restrito_aGestaoEAdministrador() throws Exception {
         var atendente = ApoioAutenticacao.comToken(
