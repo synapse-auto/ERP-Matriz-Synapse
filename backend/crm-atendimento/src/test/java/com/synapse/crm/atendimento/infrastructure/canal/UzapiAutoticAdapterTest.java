@@ -217,12 +217,12 @@ class UzapiAutoticAdapterTest {
     }
 
     @Test
-    void audioFragmentadoEConvertidoParaOggAntesDoUpload() {
+    void audioFragmentadoEConvertidoParaAacAntesDoUpload() {
         byte[] fmp4 = fmp4();
-        byte[] ogg = {'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
+        byte[] aac = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
-        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
-                .thenReturn(new ConversorDeAudio.Resultado(ogg, "audio/ogg"));
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(aac, "audio/aac"));
 
         String[] corpoDoUpload = {null};
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
@@ -249,16 +249,16 @@ class UzapiAutoticAdapterTest {
 
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
-        assertThat(corpoDoUpload[0]).contains("Content-Type: audio/ogg");
-        assertThat(corpoDoUpload[0]).contains("filename=\"gravacao.ogg\"");
-        verify(conversorDeAudio).converterParaOggOpus(fmp4, "audio/mp4");
+        assertThat(corpoDoUpload[0]).contains("Content-Type: audio/aac");
+        assertThat(corpoDoUpload[0]).contains("filename=\"gravacao.aac\"");
+        verify(conversorDeAudio).converterParaAacAdts(fmp4, "audio/mp4");
     }
 
     @Test
     void audioFragmentadoQueNaoConverteERecusadoSemAbrirBreakers() {
         byte[] fmp4 = fmp4();
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
-        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
                 .thenThrow(new FalhaNaConversaoDeAudioException("ffmpeg indisponivel"));
         breakers = CircuitBreakerRegistry.of(CircuitBreakerConfig.custom()
                 .slidingWindowSize(1)

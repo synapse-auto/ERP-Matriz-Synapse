@@ -20,6 +20,14 @@ class FfmpegConversorDeAudioTest {
     }
 
     @Test
+    void usaPerfilAacAdtsMonoParaAudioRegularNoMobile() {
+        assertThat(new FfmpegConversorDeAudio("ffmpeg").comandoAacAdts())
+                .containsSubsequence("-c:a", "aac", "-profile:a", "aac_low")
+                .containsSubsequence("-ac", "1", "-ar", "48000", "-b:a", "48k")
+                .containsSubsequence("-f", "adts", "pipe:1");
+    }
+
+    @Test
     void gravaçãoMp4AacEstereoViraNotaDeVozOggOpusMonoCompativelComMobile() throws Exception {
         Assumptions.assumeTrue(ffmpegDisponivel(), "FFmpeg não instalado neste ambiente");
         byte[] mp4 = gerarMp4Aac();
@@ -33,6 +41,20 @@ class FfmpegConversorDeAudioTest {
                 .isTrue();
         assertThat(inspecionar(resultado.conteudo()))
                 .contains("codec_name=opus", "channels=1", "sample_rate=48000");
+    }
+
+    @Test
+    void gravaçãoMp4AacViraAudioAacAdtsMonoCompativelComMobile() throws Exception {
+        Assumptions.assumeTrue(ffmpegDisponivel(), "FFmpeg não instalado neste ambiente");
+        byte[] mp4 = gerarMp4Aac();
+
+        var resultado = new FfmpegConversorDeAudio("ffmpeg")
+                .converterParaAacAdts(mp4, "audio/mp4;codecs=mp4a.40.2");
+
+        assertThat(resultado.mimetype()).isEqualTo("audio/aac");
+        assertThat(resultado.conteudo()).startsWith(new byte[] {(byte) 0xFF, (byte) 0xF1});
+        assertThat(inspecionar(resultado.conteudo()))
+                .contains("codec_name=aac", "channels=1", "sample_rate=48000");
     }
 
     private static boolean ffmpegDisponivel() {

@@ -137,8 +137,8 @@ testar_upload_midia "$DIRETORIO_TEMPORARIO/documento.pdf"
 testar_upload_midia "$DIRETORIO_TEMPORARIO/imagem.png"
 
 # Gera uma gravacao AAC dentro da propria imagem empacotada. Assim o smoke
-# tambem prova que o FFmpeg da E165 converte o audio do composer para OGG/Opus
-# antes de persistir no mesmo MinIO real usado pelos anexos comuns.
+# tambem prova que o FFmpeg converte o audio do composer para AAC/ADTS antes
+# de persistir no mesmo MinIO real usado pelos anexos comuns.
 docker run --rm --entrypoint ffmpeg synapse-backend-websocket-test:local \
   -hide_banner -loglevel error -f lavfi \
   -i sine=frequency=1000:duration=0.2 -c:a aac \
@@ -153,14 +153,14 @@ total_midias=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
   echo "smoke esperava 3 mídias persistidas, encontrou $total_midias" >&2
   exit 1
 }
-total_audio_ogg=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+total_audio_aac=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
   --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
-  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/ogg'")
-[ "$total_audio_ogg" = "1" ] || {
-  echo "smoke nao encontrou a gravacao convertida para OGG/Opus" >&2
+  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/aac'")
+[ "$total_audio_aac" = "1" ] || {
+  echo "smoke nao encontrou a gravacao convertida para AAC/ADTS" >&2
   exit 1
 }
-echo 'uploads empacotados confirmados contra MinIO real: PDF=200, PNG=200, audio OGG/Opus=200, mensagens=3'
+echo 'uploads empacotados confirmados contra MinIO real: PDF=200, PNG=200, audio AAC/ADTS=200, mensagens=3'
 
 docker run --rm --interactive \
   --network synapse-ws-proxy \

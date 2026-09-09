@@ -1,6 +1,6 @@
 package com.synapse.crm.atendimento.application.midia;
 
-/** Falha ao produzir o OGG/Opus exigido para uma gravação do composer. */
+/** Falha ao normalizar uma gravação de áudio do composer para um formato aceito pelo canal. */
 public class FalhaNaConversaoDeAudioException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

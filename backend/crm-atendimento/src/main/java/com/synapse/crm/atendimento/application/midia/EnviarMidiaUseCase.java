@@ -109,10 +109,10 @@ public class EnviarMidiaUseCase {
         byte[] conteudoParaSalvar = conteudo;
         String mimetypeParaSalvar = mimetypeReal;
         boolean convertido = false;
-        if (gravacaoDoComposer && tipo == TipoMensagem.AUDIO && !ehOgg(mimetypeReal)) {
-            ConversorDeAudio.Resultado resultado = conversorDeAudio.converterParaOggOpus(conteudo, mimetypeReal);
-            if (!ehOgg(resultado.mimetype()) || resultado.conteudo().length == 0) {
-                throw new FalhaNaConversaoDeAudioException("conversor de áudio não produziu OGG/Opus");
+        if (gravacaoDoComposer && tipo == TipoMensagem.AUDIO) {
+            ConversorDeAudio.Resultado resultado = conversorDeAudio.converterParaAacAdts(conteudo, mimetypeReal);
+            if (!ehAac(resultado.mimetype()) || resultado.conteudo().length == 0) {
+                throw new FalhaNaConversaoDeAudioException("conversor de áudio não produziu AAC/ADTS");
             }
             conteudoParaSalvar = resultado.conteudo();
             mimetypeParaSalvar = resultado.mimetype();
@@ -124,7 +124,7 @@ public class EnviarMidiaUseCase {
 
         String nomeSanitizado = sanitizar(nomeArquivoOriginal);
         if (convertido) {
-            nomeSanitizado = trocarExtensao(nomeSanitizado, ".ogg");
+            nomeSanitizado = trocarExtensao(nomeSanitizado, ".aac");
         }
         String referencia = armazenamento.salvar(conteudoParaSalvar, nomeSanitizado, mimetypeParaSalvar);
         String metadados = metadadosJson(nomeSanitizado, mimetypeParaSalvar, conteudoParaSalvar.length, legenda);
@@ -151,9 +151,8 @@ public class EnviarMidiaUseCase {
         return base.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
-    private static boolean ehOgg(String mimetype) {
-        return "audio/ogg".equalsIgnoreCase(tipoPrincipal(mimetype))
-                || "audio/opus".equalsIgnoreCase(tipoPrincipal(mimetype));
+    private static boolean ehAac(String mimetype) {
+        return "audio/aac".equalsIgnoreCase(tipoPrincipal(mimetype));
     }
 
     private static String tipoPrincipal(String mimetype) {
