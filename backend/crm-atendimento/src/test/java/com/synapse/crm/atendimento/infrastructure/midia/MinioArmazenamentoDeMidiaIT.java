@@ -84,7 +84,7 @@ class MinioArmazenamentoDeMidiaIT {
         ConteudoDeEnvio.MensagemMidia midia = (ConteudoDeEnvio.MensagemMidia) envio.getValue();
         assertThat(armazenamento.baixar(midia.referenciaStorage())).isEqualTo(conteudo);
         assertThat(midia.metadados()).contains("\"mimetype\":\"" + mimetype + "\"");
-        verify(conversor, never()).converterParaOggOpus(any(), any());
+        verify(conversor, never()).converterParaAacAdts(any(), any());
     }
 
     private static Stream<Arguments> anexosNaoAudio() {

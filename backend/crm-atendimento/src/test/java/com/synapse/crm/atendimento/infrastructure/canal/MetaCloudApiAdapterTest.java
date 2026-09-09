@@ -132,29 +132,28 @@ class MetaCloudApiAdapterTest {
     }
 
     @Test
-    void audioFragmentadoEConvertidoParaOggAntesDoUpload() {
+    void audioFragmentadoEConvertidoParaAacAntesDoUpload() {
         byte[] fmp4 = fmp4();
-        byte[] ogg = {'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
+        byte[] aac = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
-        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
-                .thenReturn(new ConversorDeAudio.Resultado(ogg, "audio/ogg"));
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(aac, "audio/aac"));
         String[] upload = {null};
         JsonNode payload = enviarMidiaComMetadados(
                 TipoMensagem.AUDIO,
                 "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
                 upload);
 
-        assertThat(upload[0]).contains("Content-Type: audio/ogg");
-        assertThat(upload[0]).contains("filename=\"gravacao.ogg\"");
-        assertThat(upload[0]).contains("audio/ogg; codecs=opus");
-        assertThat(payload.path("audio").path("voice").asBoolean()).isTrue();
+        assertThat(upload[0]).contains("Content-Type: audio/aac");
+        assertThat(upload[0]).contains("filename=\"gravacao.aac\"");
+        assertThat(payload.path("audio").has("voice")).isFalse();
     }
 
     @Test
     void audioFragmentadoQueNaoConverteERecusadoSemAbrirOBreaker() {
         byte[] fmp4 = fmp4();
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
-        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
                 .thenThrow(new FalhaNaConversaoDeAudioException("ffmpeg indisponivel"));
 
         ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(

@@ -333,16 +333,16 @@ class MetaCloudApiAdapter implements CanalGateway {
 
         if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(conteudo)) {
             ConversorDeAudio.Resultado convertido =
-                    conversorDeAudio.converterParaOggOpus(conteudo, mimetype);
-            if (!MetaCloudMidiaUpload.ehNotaDeVoz(convertido.mimetype())
+                    conversorDeAudio.converterParaAacAdts(conteudo, mimetype);
+            if (!"audio/aac".equals(MetaCloudMidiaUpload.tipoPrincipal(convertido.mimetype()))
                     || convertido.conteudo().length == 0) {
                 throw new FalhaNaConversaoDeAudioException(
-                        "conversor de audio nao produziu OGG/Opus valido");
+                        "conversor de audio nao produziu AAC/ADTS valido");
             }
             conteudo = convertido.conteudo();
             mimetype = convertido.mimetype();
             log.info(
-                    "audio ISO-BMFF fragmentado convertido para OGG/Opus no worker de entrega ({} bytes)",
+                    "audio ISO-BMFF fragmentado convertido para AAC/ADTS no worker de entrega ({} bytes)",
                     conteudo.length);
         }
 

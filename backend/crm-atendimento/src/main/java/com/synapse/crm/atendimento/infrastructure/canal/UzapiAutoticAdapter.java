@@ -257,16 +257,16 @@ class UzapiAutoticAdapter implements CanalGateway {
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
         if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(bytes)) {
             ConversorDeAudio.Resultado convertido =
-                    conversorDeAudio.converterParaOggOpus(bytes, mimetype);
-            if (!MetaCloudMidiaUpload.ehNotaDeVoz(convertido.mimetype())
+                    conversorDeAudio.converterParaAacAdts(bytes, mimetype);
+            if (!"audio/aac".equals(MetaCloudMidiaUpload.tipoPrincipal(convertido.mimetype()))
                     || convertido.conteudo().length == 0) {
                 throw new FalhaNaConversaoDeAudioException(
-                        "conversor de audio nao produziu OGG/Opus valido");
+                        "conversor de audio nao produziu AAC/ADTS valido");
             }
             bytes = convertido.conteudo();
             mimetype = convertido.mimetype();
             log.info(
-                    "audio ISO-BMFF fragmentado convertido para OGG/Opus no worker de entrega ({} bytes)",
+                    "audio ISO-BMFF fragmentado convertido para AAC/ADTS no worker de entrega ({} bytes)",
                     bytes.length);
         }
         String tipoDoArquivo = MetaCloudMidiaUpload.tipoDoArquivo(

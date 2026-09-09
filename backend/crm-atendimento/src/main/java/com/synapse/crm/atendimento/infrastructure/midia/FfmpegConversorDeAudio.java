@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,14 +15,15 @@ import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioExce
 import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 
 /**
- * Transcodifica gravações do composer para OGG/Opus, o único formato que a Meta marca como nota de
- * voz. O processo não recebe arquivos nem caminhos controlados pelo cliente: bytes entram por
- * stdin e o resultado sai por stdout.
+ * Transcodifica gravações do composer para AAC/ADTS, áudio regular reproduzível no WhatsApp
+ * mobile pelos dois provedores. O processo não recebe arquivos nem caminhos controlados pelo
+ * cliente: bytes entram por stdin e o resultado sai por stdout.
  */
 @Component
 final class FfmpegConversorDeAudio implements ConversorDeAudio {
 
     private static final String MIME_OGG = "audio/ogg";
+    private static final String MIME_AAC = "audio/aac";
     private static final byte[] OGG = {'O', 'g', 'g', 'S'};
     private static final byte[] OPUS_HEAD = {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
 
@@ -34,13 +36,27 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
 
     @Override
     public Resultado converterParaOggOpus(byte[] conteudo, String mimetype) {
+        return converter(conteudo, comando(), MIME_OGG, "OGG/Opus", FfmpegConversorDeAudio::ehOggOpus);
+    }
+
+    @Override
+    public Resultado converterParaAacAdts(byte[] conteudo, String mimetype) {
+        return converter(conteudo, comandoAacAdts(), MIME_AAC, "AAC/ADTS", FfmpegConversorDeAudio::ehAacAdts);
+    }
+
+    private Resultado converter(
+            byte[] conteudo,
+            List<String> comando,
+            String mimetypeDeSaida,
+            String formatoEsperado,
+            Predicate<byte[]> formatoValido) {
         if (conteudo == null || conteudo.length == 0) {
             throw new FalhaNaConversaoDeAudioException("gravação de áudio vazia");
         }
 
         Process processo;
         try {
-            processo = new ProcessBuilder(comando()).start();
+            processo = new ProcessBuilder(comando).start();
         } catch (IOException e) {
             throw new FalhaNaConversaoDeAudioException(
                     "FFmpeg não está disponível para converter a gravação de áudio", e);
@@ -70,14 +86,14 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
         }
 
         byte[] convertido = saida.toByteArray();
-        if (!temAssinatura(convertido, OGG) || !contém(convertido, OPUS_HEAD)) {
+        if (!formatoValido.test(convertido)) {
             throw new FalhaNaConversaoDeAudioException(
-                    "FFmpeg não produziu um contêiner OGG/Opus válido");
+                    "FFmpeg não produziu um contêiner " + formatoEsperado + " válido");
         }
-        return new Resultado(convertido, MIME_OGG);
+        return new Resultado(convertido, mimetypeDeSaida);
     }
 
-    /** Perfil explícito e estável de nota de voz; mantido visível ao teste de contrato do encoder. */
+    /** Perfil legado de nota de voz; mantido para chamadas explícitas que realmente exigem Opus. */
     List<String> comando() {
         return List.of(
                 executavel,
@@ -108,6 +124,34 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
                 "pipe:1");
     }
 
+    /** Perfil AAC/ADTS para áudio regular: reproduzível no WhatsApp mobile dos dois provedores. */
+    List<String> comandoAacAdts() {
+        return List.of(
+                executavel,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-nostdin",
+                "-i",
+                "pipe:0",
+                "-vn",
+                "-map_metadata",
+                "-1",
+                "-c:a",
+                "aac",
+                "-profile:a",
+                "aac_low",
+                "-ac",
+                "1",
+                "-ar",
+                "48000",
+                "-b:a",
+                "48k",
+                "-f",
+                "adts",
+                "pipe:1");
+    }
+
     private static void ler(
             InputStream fonte, ByteArrayOutputStream destino, AtomicReference<IOException> erro) {
         try (fonte) {
@@ -131,6 +175,16 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
             if (bytes[i] != assinatura[i]) return false;
         }
         return true;
+    }
+
+    private static boolean ehOggOpus(byte[] bytes) {
+        return temAssinatura(bytes, OGG) && contém(bytes, OPUS_HEAD);
+    }
+
+    private static boolean ehAacAdts(byte[] bytes) {
+        return bytes.length >= 7
+                && (bytes[0] & 0xFF) == 0xFF
+                && (bytes[1] & 0xF6) == 0xF0;
     }
 
     private static boolean contém(byte[] bytes, byte[] trecho) {
