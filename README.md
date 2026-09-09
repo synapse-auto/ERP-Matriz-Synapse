@@ -321,6 +321,11 @@ em `http://synapse-backend-internal:8080/internal/v1`, e continua enviando `X-Sy
 segunda camada. Expor esse namespace para uma Automação externa é exceção: exige router dedicado e
 allowlist de IP além do token.
 
+O backend também acessa o armazenamento somente pelo alias privado
+`http://synapse-minio-internal:9000`. Não substitua esse endereço por `http://minio:9000` no Stack:
+`dokploy-network` é compartilhada entre filhos e o nome genérico pode resolver o MinIO de outra
+instância.
+
 PostgreSQL, Redis, RabbitMQ e os consoles do RabbitMQ/MinIO não publicam porta no host. A rede
 externa `dokploy-network` precisa existir (a instalação padrão do Dokploy a cria). Não cadastre
 rotas equivalentes de novo na aba Domains: isso criaria routers concorrentes com as labels da
