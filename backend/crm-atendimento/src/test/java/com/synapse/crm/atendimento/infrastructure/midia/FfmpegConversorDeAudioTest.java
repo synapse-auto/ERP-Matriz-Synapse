@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.junit.jupiter.api.Assumptions;
@@ -20,7 +22,7 @@ class FfmpegConversorDeAudioTest {
     }
 
     @Test
-    void usaPerfilAacAdtsMonoParaAudioRegularNoMobile() {
+    void mantémPerfilAacAdtsMonoParaRegistrosFragmentadosLegados() {
         assertThat(new FfmpegConversorDeAudio("ffmpeg").comandoAacAdts())
                 .containsSubsequence("-c:a", "aac", "-profile:a", "aac_low")
                 .containsSubsequence("-ac", "1", "-ar", "48000", "-b:a", "48k")
@@ -39,8 +41,10 @@ class FfmpegConversorDeAudioTest {
         assertThat(resultado.conteudo()).startsWith(new byte[] {'O', 'g', 'g', 'S'});
         assertThat(contém(resultado.conteudo(), new byte[] {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'}))
                 .isTrue();
-        assertThat(inspecionar(resultado.conteudo()))
+        String detalhes = inspecionar(resultado.conteudo());
+        assertThat(detalhes)
                 .contains("codec_name=opus", "channels=1", "sample_rate=48000");
+        assertThat(duracao(detalhes)).isPositive();
     }
 
     @Test
@@ -55,6 +59,14 @@ class FfmpegConversorDeAudioTest {
         assertThat(resultado.conteudo()).startsWith(new byte[] {(byte) 0xFF, (byte) 0xF1});
         assertThat(inspecionar(resultado.conteudo()))
                 .contains("codec_name=aac", "channels=1", "sample_rate=48000");
+    }
+
+    @Test
+    void oggComCabecalhoOpusMasSemEosOuDuracaoERecusado() {
+        byte[] opusHead = {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
+
+        assertThat(FfmpegConversorDeAudio.ehOggOpus(paginaOgg(0, 0, opusHead))).isFalse();
+        assertThat(FfmpegConversorDeAudio.ehOggOpus(paginaOgg(0x04, 0, opusHead))).isFalse();
     }
 
     private static boolean ffmpegDisponivel() {
@@ -102,26 +114,54 @@ class FfmpegConversorDeAudioTest {
     }
 
     private static String inspecionar(byte[] audio) throws IOException, InterruptedException {
-        Process processo = new ProcessBuilder(List.of(
-                        "ffprobe",
-                        "-v",
-                        "error",
-                        "-select_streams",
-                        "a:0",
-                        "-show_entries",
-                        "stream=codec_name,channels,sample_rate",
-                        "-of",
-                        "default=noprint_wrappers=1",
-                        "-i",
-                        "pipe:0"))
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .start();
-        processo.getOutputStream().write(audio);
-        processo.getOutputStream().close();
-        String saida = new String(processo.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        int codigo = processo.waitFor();
-        assertThat(codigo).isZero();
-        return saida;
+        Path arquivo = Files.createTempFile("ffprobe-audio-", ".ogg");
+        try {
+            Files.write(arquivo, audio);
+            Process processo = new ProcessBuilder(List.of(
+                            "ffprobe",
+                            "-v",
+                            "error",
+                            "-select_streams",
+                            "a:0",
+                            "-show_entries",
+                            "stream=codec_name,channels,sample_rate,duration",
+                            "-of",
+                            "default=noprint_wrappers=1",
+                            "-i",
+                            arquivo.toString()))
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            String saida = new String(processo.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            int codigo = processo.waitFor();
+            assertThat(codigo).isZero();
+            return saida;
+        } finally {
+            Files.deleteIfExists(arquivo);
+        }
+    }
+
+    private static double duracao(String detalhes) {
+        return java.util.Arrays.stream(detalhes.split("\\R"))
+                .filter(linha -> linha.startsWith("duration="))
+                .mapToDouble(linha -> Double.parseDouble(linha.substring("duration=".length())))
+                .findFirst()
+                .orElse(0);
+    }
+
+    private static byte[] paginaOgg(int flags, long granule, byte[] payload) {
+        byte[] pagina = new byte[28 + payload.length];
+        pagina[0] = 'O';
+        pagina[1] = 'g';
+        pagina[2] = 'g';
+        pagina[3] = 'S';
+        pagina[5] = (byte) flags;
+        for (int indice = 0; indice < Long.BYTES; indice++) {
+            pagina[6 + indice] = (byte) (granule >>> (8 * indice));
+        }
+        pagina[26] = 1;
+        pagina[27] = (byte) payload.length;
+        System.arraycopy(payload, 0, pagina, 28, payload.length);
+        return pagina;
     }
 
     private static boolean contém(byte[] bytes, byte[] trecho) {

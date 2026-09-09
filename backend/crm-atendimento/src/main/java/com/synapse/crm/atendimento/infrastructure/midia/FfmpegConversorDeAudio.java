@@ -15,9 +15,9 @@ import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioExce
 import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 
 /**
- * Transcodifica gravações do composer para AAC/ADTS, áudio regular reproduzível no WhatsApp
- * mobile pelos dois provedores. O processo não recebe arquivos nem caminhos controlados pelo
- * cliente: bytes entram por stdin e o resultado sai por stdout.
+ * Transcodifica gravações do composer para OGG/Opus no perfil de nota de voz do WhatsApp. O
+ * processo não recebe arquivos nem caminhos controlados pelo cliente: bytes entram por stdin e o
+ * resultado sai por stdout.
  */
 @Component
 final class FfmpegConversorDeAudio implements ConversorDeAudio {
@@ -93,7 +93,7 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
         return new Resultado(convertido, mimetypeDeSaida);
     }
 
-    /** Perfil legado de nota de voz; mantido para chamadas explícitas que realmente exigem Opus. */
+    /** Perfil de nota de voz usado pelas gravações do composer. */
     List<String> comando() {
         return List.of(
                 executavel,
@@ -101,11 +101,15 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
                 "-loglevel",
                 "error",
                 "-nostdin",
+                "-fflags",
+                "+genpts",
                 "-i",
                 "pipe:0",
                 "-vn",
                 "-map_metadata",
                 "-1",
+                "-af",
+                "aresample=async=1:first_pts=0",
                 "-c:a",
                 "libopus",
                 "-application",
@@ -124,7 +128,7 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
                 "pipe:1");
     }
 
-    /** Perfil AAC/ADTS para áudio regular: reproduzível no WhatsApp mobile dos dois provedores. */
+    /** Perfil AAC/ADTS legado, mantido para registros fragmentados antigos no worker. */
     List<String> comandoAacAdts() {
         return List.of(
                 executavel,
@@ -169,16 +173,43 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
         }
     }
 
-    private static boolean temAssinatura(byte[] bytes, byte[] assinatura) {
-        if (bytes.length < assinatura.length) return false;
-        for (int i = 0; i < assinatura.length; i++) {
-            if (bytes[i] != assinatura[i]) return false;
-        }
-        return true;
-    }
+    /**
+     * Verifica o contêiner inteiro, e não apenas as assinaturas iniciais. Uma página EOS com
+     * granule position positivo é necessária para que os provedores consigam calcular a duração;
+     * um arquivo truncado com {@code OpusHead} não é uma nota de voz válida.
+     */
+    static boolean ehOggOpus(byte[] bytes) {
+        if (bytes == null || bytes.length < 28) return false;
 
-    private static boolean ehOggOpus(byte[] bytes) {
-        return temAssinatura(bytes, OGG) && contém(bytes, OPUS_HEAD);
+        int deslocamento = 0;
+        boolean temOpusHead = false;
+        boolean temEosComDuracao = false;
+        while (deslocamento < bytes.length) {
+            int restante = bytes.length - deslocamento;
+            if (restante < 27 || !temAssinaturaEm(bytes, deslocamento, OGG)) return false;
+            if (bytes[deslocamento + 4] != 0) return false; // versão Ogg desconhecida
+
+            int quantidadeSegmentos = bytes[deslocamento + 26] & 0xFF;
+            int inicioTabela = deslocamento + 27;
+            if (bytes.length - inicioTabela < quantidadeSegmentos) return false;
+
+            int tamanhoCorpo = 0;
+            for (int indice = 0; indice < quantidadeSegmentos; indice++) {
+                tamanhoCorpo += bytes[inicioTabela + indice] & 0xFF;
+            }
+            int inicioCorpo = inicioTabela + quantidadeSegmentos;
+            if (bytes.length - inicioCorpo < tamanhoCorpo) return false;
+
+            if (!temOpusHead && contém(bytes, inicioCorpo, tamanhoCorpo, OPUS_HEAD)) {
+                temOpusHead = true;
+            }
+            int flags = bytes[deslocamento + 5] & 0xFF;
+            if ((flags & 0x04) != 0 && lerGranulePosition(bytes, deslocamento) > 0) {
+                temEosComDuracao = true;
+            }
+            deslocamento = inicioCorpo + tamanhoCorpo;
+        }
+        return temOpusHead && temEosComDuracao;
     }
 
     private static boolean ehAacAdts(byte[] bytes) {
@@ -187,11 +218,12 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
                 && (bytes[1] & 0xF6) == 0xF0;
     }
 
-    private static boolean contém(byte[] bytes, byte[] trecho) {
-        for (int inicio = 0; inicio <= bytes.length - trecho.length; inicio++) {
+    private static boolean contém(byte[] bytes, int inicio, int tamanho, byte[] trecho) {
+        if (tamanho < trecho.length) return false;
+        for (int deslocamento = inicio; deslocamento <= inicio + tamanho - trecho.length; deslocamento++) {
             boolean igual = true;
-            for (int deslocamento = 0; deslocamento < trecho.length; deslocamento++) {
-                if (bytes[inicio + deslocamento] != trecho[deslocamento]) {
+            for (int indice = 0; indice < trecho.length; indice++) {
+                if (bytes[deslocamento + indice] != trecho[indice]) {
                     igual = false;
                     break;
                 }
@@ -199,6 +231,22 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
             if (igual) return true;
         }
         return false;
+    }
+
+    private static boolean temAssinaturaEm(byte[] bytes, int inicio, byte[] assinatura) {
+        if (inicio < 0 || bytes.length - inicio < assinatura.length) return false;
+        for (int indice = 0; indice < assinatura.length; indice++) {
+            if (bytes[inicio + indice] != assinatura[indice]) return false;
+        }
+        return true;
+    }
+
+    private static long lerGranulePosition(byte[] bytes, int inicio) {
+        long valor = 0;
+        for (int indice = 0; indice < Long.BYTES; indice++) {
+            valor |= (bytes[inicio + 6 + indice] & 0xFFL) << (8 * indice);
+        }
+        return valor;
     }
 
     private static final class OutputStreamNulo extends OutputStream {

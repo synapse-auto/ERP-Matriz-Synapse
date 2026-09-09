@@ -206,6 +206,14 @@ class UzapiAutoticAdapterTest {
         if (tipo == TipoMensagem.AUDIO) {
             // Confirmado no Swagger: audio e "LinkMessage", sem campo caption.
             assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("caption")).isFalse();
+            // O contrato da Uzapi nao documenta voice/ptt/duration/seconds: a duracao e
+            // descoberta a partir do OGG/Opus valido que foi salvo no storage.
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("voice")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("ptt")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("duration")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("seconds")).isFalse();
+            assertThat(corpoDoUpload[0]).contains("Content-Type: audio/ogg");
+            assertThat(corpoDoUpload[0]).contains("filename=\"anexo.ogg\"");
         } else {
             assertThat(corpoDoEnvio[0].path(tipoNoProvedor).path("caption").asText())
                     .isEqualTo("Legenda de teste");

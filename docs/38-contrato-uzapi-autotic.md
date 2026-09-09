@@ -56,14 +56,21 @@ Document, Reaction, Location, Contacts, Poll, Sticker, Revoke, Interactive):
    `Midias`). Resposta `{"id": "<mediaId>"}` (confirmado nas duas fontes; o Swagger não documenta o
    schema da resposta 201, só a descrição vazia).
 2. `POST .../messages` com `{"to", "type": "<image|audio|video|document>", "<type>": {"id":
-   "<mediaId>", "caption": "<opcional>"}}`.
+   "<mediaId>"}}`; `caption` só acompanha os tipos cujo schema o declara (veja a tabela abaixo).
 
-Antes de persistir uma gravação do composer, ela é convertida localmente para AAC/ADTS mono a
-48 kHz. Como proteção para registros antigos, áudio ISO-BMFF fragmentado (`moof`, formato gerado
-pelo `MediaRecorder` do navegador) também é convertido para AAC/ADTS no worker de entrega. A
-conversão ocorre fora dos disjuntores do provedor: erro de conversão recusa somente aquela
-mensagem, sem degradar os demais envios. Áudios anexados como arquivos seguem para o upload sem
-transformação.
+Antes de persistir uma gravação do composer, ela é convertida localmente para OGG/Opus mono a
+48 kHz, perfil de voz (`voip`) e timestamps contínuos. A validação local exige páginas OGG
+completas, cabeçalho `OpusHead` e uma página EOS com `granule position` positivo, para que a
+duração não seja interpretada como zero. Como proteção para registros antigos, áudio ISO-BMFF
+fragmentado (`moof`, formato gerado pelo `MediaRecorder` do navegador) ainda é convertido para
+AAC/ADTS no worker de entrega. A conversão ocorre fora dos disjuntores do provedor: erro de
+conversão recusa somente aquela mensagem, sem degradar os demais envios. Áudios anexados como
+arquivos seguem para o upload sem transformação.
+
+O corpo enviado à Uzapi continua exatamente o contrato do Swagger: o upload multipart devolve um
+`mediaId` e o `POST .../messages` leva somente `audio: {"id":"<mediaId>"}`. Não há campo
+documentado para `voice`, `ptt`, `duration` ou `seconds`; nenhum desses campos é inventado pelo
+adaptador. Assim, o cronômetro é derivado pelo provedor dos metadados estruturais do OGG/Opus.
 
 O objeto de mídia também aceita `link` (URL pública) no lugar de `id` — confirmado no schema
 (`image`/`video`/`document` são `CaptionedLinkMessage`/`CaptionedFileMessage`, `audio` é
