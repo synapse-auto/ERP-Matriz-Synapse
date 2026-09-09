@@ -20,12 +20,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
+import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 
 /**
  * Anti-Corruption Layer da Uzapi/Autotic ({@code uzapi.com.br}) — envio apenas (E152).
@@ -67,13 +70,15 @@ class UzapiAutoticAdapter implements CanalGateway {
     private final CircuitBreaker breakerMidia;
     private final CircuitBreaker breakerSaude;
     private final ArmazenamentoDeMidia armazenamento;
+    private final ConversorDeAudio conversorDeAudio;
 
     UzapiAutoticAdapter(
             RestClient.Builder builder,
             CanalProperties propriedades,
             ObjectMapper json,
             CircuitBreakerRegistry breakers,
-            ArmazenamentoDeMidia armazenamento) {
+            ArmazenamentoDeMidia armazenamento,
+            ConversorDeAudio conversorDeAudio) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
@@ -81,6 +86,7 @@ class UzapiAutoticAdapter implements CanalGateway {
         this.breakerMidia = breakers.circuitBreaker(NOME_DO_BREAKER_MIDIA);
         this.breakerSaude = breakers.circuitBreaker(NOME_DO_BREAKER_SAUDE);
         this.armazenamento = armazenamento;
+        this.conversorDeAudio = conversorDeAudio;
     }
 
     @Override
@@ -143,9 +149,16 @@ class UzapiAutoticAdapter implements CanalGateway {
             return ResultadoDeEnvio.Recusado.permanente("configuracao do canal incompleta");
         }
         try {
+            if (envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia midia) {
+                MidiaParaUpload midiaParaUpload = prepararMidiaParaUpload(midia);
+                return breaker.executeSupplier(() -> enviarMidia(envio, midia, midiaParaUpload));
+            }
             return breaker.executeSupplier(() -> enviarNoBreaker(envio));
         } catch (CallNotPermittedException e) {
             return ResultadoDeEnvio.Recusado.temporario("circuit breaker aberto para " + PROVEDOR);
+        } catch (FalhaNaConversaoDeAudioException e) {
+            return ResultadoDeEnvio.Recusado.permanente(
+                    "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp");
         } catch (RespostaInvalidaException e) {
             return ResultadoDeEnvio.Recusado.permanente(e.getMessage());
         } catch (RestClientResponseException e) {
@@ -158,7 +171,8 @@ class UzapiAutoticAdapter implements CanalGateway {
     private ResultadoDeEnvio enviarNoBreaker(Envio envio) {
         return switch (envio.conteudo()) {
             case ConteudoDeEnvio.MensagemLivre livre -> enviarTexto(envio, livre);
-            case ConteudoDeEnvio.MensagemMidia midia -> enviarMidia(envio, midia);
+            case ConteudoDeEnvio.MensagemMidia midia -> throw new IllegalStateException(
+                    "midia deveria ser preparada antes do disjuntor do provedor");
             // Nao ha schema de corpo para "template" nos doze variantes de POST .../messages do
             // Swagger; o valor so existe no enum solto de "type". Sem endpoint confirmado de
             // gestao de template, recusa sem HTTP em vez de arriscar um envio que a Uzapi/Autotic
@@ -185,9 +199,10 @@ class UzapiAutoticAdapter implements CanalGateway {
      * real para testar contra; fica registrado aqui e em {@code docs/38} para quando essa premissa
      * do dominio mudar.
      */
-    private ResultadoDeEnvio enviarMidia(Envio envio, ConteudoDeEnvio.MensagemMidia midia) {
+    private ResultadoDeEnvio enviarMidia(
+            Envio envio, ConteudoDeEnvio.MensagemMidia midia, MidiaParaUpload midiaParaUpload) {
         String tipo = tipoDoProvedor(midia.tipo());
-        String mediaId = breakerMidia.executeSupplier(() -> subirMidia(midia));
+        String mediaId = breakerMidia.executeSupplier(() -> subirMidia(midiaParaUpload));
         ObjectNode corpo = corpoBase(envio, tipo);
         ObjectNode conteudo = corpo.putObject(tipo);
         conteudo.put("id", mediaId);
@@ -233,26 +248,48 @@ class UzapiAutoticAdapter implements CanalGateway {
         return corpo;
     }
 
-    /** {@code POST .../media}, multipart com {@code file} + {@code messaging_product}, confirmado no Swagger. */
-    private String subirMidia(ConteudoDeEnvio.MensagemMidia midia) {
+    /**
+     * Prepara os bytes antes do disjuntor da Uzapi: falha local de conversao nao pode degradar
+     * nem o envio do provedor nem o download de midias recebidas.
+     */
+    private MidiaParaUpload prepararMidiaParaUpload(ConteudoDeEnvio.MensagemMidia midia) {
         byte[] bytes = armazenamento.baixar(midia.referenciaStorage());
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
+        if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(bytes)) {
+            ConversorDeAudio.Resultado convertido =
+                    conversorDeAudio.converterParaOggOpus(bytes, mimetype);
+            if (!MetaCloudMidiaUpload.ehNotaDeVoz(convertido.mimetype())
+                    || convertido.conteudo().length == 0) {
+                throw new FalhaNaConversaoDeAudioException(
+                        "conversor de audio nao produziu OGG/Opus valido");
+            }
+            bytes = convertido.conteudo();
+            mimetype = convertido.mimetype();
+            log.info(
+                    "audio ISO-BMFF fragmentado convertido para OGG/Opus no worker de entrega ({} bytes)",
+                    bytes.length);
+        }
         String tipoDoArquivo = MetaCloudMidiaUpload.tipoDoArquivo(
                 MetaCloudMidiaUpload.tipoDoCampo(mimetype, midia.tipo()));
         String nome = MetaCloudMidiaUpload.nomeDoArquivo(
                 campoDeMetadados(midia.metadados(), "nome"), tipoDoArquivo);
+        return new MidiaParaUpload(bytes, tipoDoArquivo, nome);
+    }
+
+    /** {@code POST .../media}, multipart com {@code file} + {@code messaging_product}, confirmado no Swagger. */
+    private String subirMidia(MidiaParaUpload midia) {
 
         MultipartBodyBuilder multipart = new MultipartBodyBuilder();
         multipart.part("messaging_product", "whatsapp");
         multipart.part(
                 "file",
-                new ByteArrayResource(bytes) {
+                new ByteArrayResource(midia.bytes()) {
                     @Override
                     public String getFilename() {
-                        return nome;
+                        return midia.nome();
                     }
                 },
-                MetaCloudMidiaUpload.contentType(tipoDoArquivo));
+                MetaCloudMidiaUpload.contentType(midia.tipoDoArquivo()));
 
         String resposta = http.post()
                 .uri(
@@ -270,6 +307,8 @@ class UzapiAutoticAdapter implements CanalGateway {
                 .body(String.class);
         return idDoUpload(resposta);
     }
+
+    private record MidiaParaUpload(byte[] bytes, String tipoDoArquivo, String nome) {}
 
     /**
      * Traduz o JSON de aceite sem deixar uma resposta invalida passar por sucesso.
