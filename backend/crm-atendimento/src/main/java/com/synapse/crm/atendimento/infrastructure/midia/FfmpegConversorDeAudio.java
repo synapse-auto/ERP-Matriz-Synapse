@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
+import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 /**
  * Transcodifica gravações do composer para OGG/Opus no perfil de nota de voz do WhatsApp. O
@@ -24,8 +25,6 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
 
     private static final String MIME_OGG = "audio/ogg";
     private static final String MIME_AAC = "audio/aac";
-    private static final byte[] OGG = {'O', 'g', 'g', 'S'};
-    private static final byte[] OPUS_HEAD = {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
 
     private final String executavel;
 
@@ -179,74 +178,13 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
      * um arquivo truncado com {@code OpusHead} não é uma nota de voz válida.
      */
     static boolean ehOggOpus(byte[] bytes) {
-        if (bytes == null || bytes.length < 28) return false;
-
-        int deslocamento = 0;
-        boolean temOpusHead = false;
-        boolean temEosComDuracao = false;
-        while (deslocamento < bytes.length) {
-            int restante = bytes.length - deslocamento;
-            if (restante < 27 || !temAssinaturaEm(bytes, deslocamento, OGG)) return false;
-            if (bytes[deslocamento + 4] != 0) return false; // versão Ogg desconhecida
-
-            int quantidadeSegmentos = bytes[deslocamento + 26] & 0xFF;
-            int inicioTabela = deslocamento + 27;
-            if (bytes.length - inicioTabela < quantidadeSegmentos) return false;
-
-            int tamanhoCorpo = 0;
-            for (int indice = 0; indice < quantidadeSegmentos; indice++) {
-                tamanhoCorpo += bytes[inicioTabela + indice] & 0xFF;
-            }
-            int inicioCorpo = inicioTabela + quantidadeSegmentos;
-            if (bytes.length - inicioCorpo < tamanhoCorpo) return false;
-
-            if (!temOpusHead && contém(bytes, inicioCorpo, tamanhoCorpo, OPUS_HEAD)) {
-                temOpusHead = true;
-            }
-            int flags = bytes[deslocamento + 5] & 0xFF;
-            if ((flags & 0x04) != 0 && lerGranulePosition(bytes, deslocamento) > 0) {
-                temEosComDuracao = true;
-            }
-            deslocamento = inicioCorpo + tamanhoCorpo;
-        }
-        return temOpusHead && temEosComDuracao;
+        return ValidadorDeOggOpus.ehValido(bytes);
     }
 
     private static boolean ehAacAdts(byte[] bytes) {
         return bytes.length >= 7
                 && (bytes[0] & 0xFF) == 0xFF
                 && (bytes[1] & 0xF6) == 0xF0;
-    }
-
-    private static boolean contém(byte[] bytes, int inicio, int tamanho, byte[] trecho) {
-        if (tamanho < trecho.length) return false;
-        for (int deslocamento = inicio; deslocamento <= inicio + tamanho - trecho.length; deslocamento++) {
-            boolean igual = true;
-            for (int indice = 0; indice < trecho.length; indice++) {
-                if (bytes[deslocamento + indice] != trecho[indice]) {
-                    igual = false;
-                    break;
-                }
-            }
-            if (igual) return true;
-        }
-        return false;
-    }
-
-    private static boolean temAssinaturaEm(byte[] bytes, int inicio, byte[] assinatura) {
-        if (inicio < 0 || bytes.length - inicio < assinatura.length) return false;
-        for (int indice = 0; indice < assinatura.length; indice++) {
-            if (bytes[inicio + indice] != assinatura[indice]) return false;
-        }
-        return true;
-    }
-
-    private static long lerGranulePosition(byte[] bytes, int inicio) {
-        long valor = 0;
-        for (int indice = 0; indice < Long.BYTES; indice++) {
-            valor |= (bytes[inicio + 6 + indice] & 0xFFL) << (8 * indice);
-        }
-        return valor;
     }
 
     private static final class OutputStreamNulo extends OutputStream {

@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -19,9 +21,13 @@ import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
+import com.synapse.crm.sharedkernel.midia.ResumoSeguroDeMidia;
+import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 @Service
 public class EnviarMidiaUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(EnviarMidiaUseCase.class);
 
     private final DetectorDeTipoReal detector;
     private final ArmazenamentoDeMidia armazenamento;
@@ -114,7 +120,9 @@ public class EnviarMidiaUseCase {
             // conversão é deliberadamente independente do provedor: a Meta exige OGG/Opus com
             // voice=true, e a Uzapi documenta apenas audio.id, derivando a duração do contêiner.
             ConversorDeAudio.Resultado resultado = conversorDeAudio.converterParaOggOpus(conteudo, mimetypeReal);
-            if (!ehOggOpus(resultado.mimetype()) || resultado.conteudo().length == 0) {
+            if (!ehOggOpus(resultado.mimetype())
+                    || resultado.conteudo().length == 0
+                    || !ValidadorDeOggOpus.ehValido(resultado.conteudo())) {
                 throw new FalhaNaConversaoDeAudioException("conversor de áudio não produziu OGG/Opus válido");
             }
             conteudoParaSalvar = resultado.conteudo();
@@ -128,9 +136,22 @@ public class EnviarMidiaUseCase {
         String nomeSanitizado = sanitizar(nomeArquivoOriginal);
         if (convertido) {
             nomeSanitizado = trocarExtensao(nomeSanitizado, ".ogg");
+            ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(conteudoParaSalvar);
+            log.info(
+                    "audio do composer pronto antes do storage: leadId={}, tamanho={}, mimetype={}, sha256={}, oggOpusValido={}",
+                    leadId,
+                    resumo.tamanho(),
+                    mimetypeParaSalvar,
+                    resumo.sha256(),
+                    true);
         }
         String referencia = armazenamento.salvar(conteudoParaSalvar, nomeSanitizado, mimetypeParaSalvar);
-        String metadados = metadadosJson(nomeSanitizado, mimetypeParaSalvar, conteudoParaSalvar.length, legenda);
+        String metadados = metadadosJson(
+                nomeSanitizado,
+                mimetypeParaSalvar,
+                conteudoParaSalvar.length,
+                legenda,
+                convertido);
 
         ConteudoDeEnvio.MensagemMidia envio =
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
@@ -170,13 +191,19 @@ public class EnviarMidiaUseCase {
         return (ponto > 0 ? nome.substring(0, ponto) : nome) + extensao;
     }
 
-    private String metadadosJson(String nome, String mimetype, long tamanho, String legenda) {
+    private String metadadosJson(
+            String nome, String mimetype, long tamanho, String legenda, boolean gravacaoDoComposer) {
         ObjectNode no = json.createObjectNode();
         no.put("nome", nome);
         no.put("mimetype", mimetype);
         no.put("tamanho", tamanho);
         if (legenda != null && !legenda.isBlank()) {
             no.put("legenda", legenda);
+        }
+        if (gravacaoDoComposer) {
+            // Marca interna para o worker revalidar a gravação ao recuperá-la; anexos manuais
+            // continuam no caminho original, sem conversão ou exigência de nota de voz.
+            no.put("gravacaoDoComposer", true);
         }
         return no.toString();
     }

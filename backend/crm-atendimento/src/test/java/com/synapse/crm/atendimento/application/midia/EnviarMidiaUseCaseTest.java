@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.application.midia;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -32,9 +33,7 @@ class EnviarMidiaUseCaseTest {
 
     private static final byte[] AUDIO_MP4 = {0, 1, 2, 3};
     private static final byte[] AUDIO_OGG = {'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
-    private static final byte[] AUDIO_OGG_OPUS = {
-        'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'
-    };
+    private static final byte[] AUDIO_OGG_OPUS = oggOpusValido();
 
     @Test
     void gravacaoMp4DoComposerEConvertidaParaOggOpusAntesDoStorageEEnvio() {
@@ -119,6 +118,31 @@ class EnviarMidiaUseCaseTest {
         verify(armazenamento).salvar(AUDIO_OGG_OPUS, "gravacao.ogg", "audio/ogg");
     }
 
+    @Test
+    void gravacaoDoComposerComOggSemEosOuDuracaoERecusadaAntesDoStorage() {
+        DetectorDeTipoReal detector = mock(DetectorDeTipoReal.class);
+        ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+        LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
+        EnviarMensagemUseCase enviarMensagem = mock(EnviarMensagemUseCase.class);
+        ConversorDeAudio conversor = mock(ConversorDeAudio.class);
+        UUID leadId = UUID.randomUUID();
+        byte[] entrada = {1, 2, 3};
+        byte[] oggSemDuracao = paginaOgg(0, 0, new byte[] {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'});
+
+        when(detector.detectar(entrada)).thenReturn("audio/mp4");
+        when(limites.limiteEmBytes(CategoriaDeMidia.AUDIO)).thenReturn(Optional.of(1024L));
+        when(conversor.converterParaOggOpus(entrada, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(oggSemDuracao, "audio/ogg"));
+        EnviarMidiaUseCase useCase = new EnviarMidiaUseCase(
+                detector, armazenamento, limites, enviarMensagem, new ObjectMapper(), conversor);
+
+        assertThatThrownBy(() -> useCase.executar(leadId, entrada, "gravacao.webm", null, null, true))
+                .isInstanceOf(FalhaNaConversaoDeAudioException.class)
+                .hasMessageContaining("OGG/Opus");
+        verify(armazenamento, never()).salvar(any(), any(), any());
+        verify(enviarMensagem, never()).executar(any(UUID.class), any(ConteudoDeEnvio.class));
+    }
+
     @ParameterizedTest(name = "mantém documento binário permitido {0}")
     @MethodSource("documentosBinariosPermitidos")
     void documentosBinariosLegadosContinuamNoCaminhoDeDocumento(String mimetype) {
@@ -146,5 +170,35 @@ class EnviarMidiaUseCaseTest {
     static Stream<Arguments> documentosBinariosPermitidos() {
         return Stream.of(
                 Arguments.of("application/msword"), Arguments.of("application/vnd.ms-excel"));
+    }
+
+    private static byte[] oggOpusValido() {
+        byte[] opusHead = {
+            'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
+            1, 1, 0, 0, (byte) 0x80, (byte) 0xBB, 0, 0, 0, 0, 0
+        };
+        return concatenar(paginaOgg(0, 0, opusHead), paginaOgg(0x04, 960, new byte[] {0}));
+    }
+
+    private static byte[] paginaOgg(int flags, long granule, byte[] payload) {
+        byte[] pagina = new byte[28 + payload.length];
+        pagina[0] = 'O';
+        pagina[1] = 'g';
+        pagina[2] = 'g';
+        pagina[3] = 'S';
+        pagina[5] = (byte) flags;
+        for (int indice = 0; indice < Long.BYTES; indice++) {
+            pagina[6 + indice] = (byte) (granule >>> (8 * indice));
+        }
+        pagina[26] = 1;
+        pagina[27] = (byte) payload.length;
+        System.arraycopy(payload, 0, pagina, 28, payload.length);
+        return pagina;
+    }
+
+    private static byte[] concatenar(byte[] primeiro, byte[] segundo) {
+        byte[] resultado = java.util.Arrays.copyOf(primeiro, primeiro.length + segundo.length);
+        System.arraycopy(segundo, 0, resultado, primeiro.length, segundo.length);
+        return resultado;
     }
 }

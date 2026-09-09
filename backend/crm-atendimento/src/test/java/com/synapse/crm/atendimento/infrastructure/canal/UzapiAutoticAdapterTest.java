@@ -225,6 +225,58 @@ class UzapiAutoticAdapterTest {
     }
 
     @Test
+    void gravacaoDoComposerPreservaBytesValidosAoSubirParaUzapi() {
+        byte[] ogg = oggOpusValido();
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(ogg);
+        byte[][] corpoDoUpload = {null};
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> corpoDoUpload[0] = ((MockClientHttpRequest) requisicao).getBodyAsBytes())
+                .andRespond(withSuccess("{\"id\":\"media-id-composer\"}", MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.composer\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.ogg\",\"mimetype\":\"audio/ogg\",\"gravacaoDoComposer\":true}",
+                        null),
+                UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(contemSubsequencia(corpoDoUpload[0], ogg)).isTrue();
+        String corpo = new String(corpoDoUpload[0], java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertThat(corpo).contains("Content-Type: audio/ogg").contains("filename=\"gravacao.ogg\"");
+    }
+
+    @Test
+    void gravacaoDoComposerComOggInvalidoERecusadaAntesDoUpload() {
+        byte[] oggSemDuracao = paginaOgg(0, 0, new byte[] {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'});
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(oggSemDuracao);
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.ogg\",\"mimetype\":\"audio/ogg\",\"gravacaoDoComposer\":true}",
+                        null),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(ResultadoDeEnvio.Recusado.permanente(
+                "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp"));
+        servidor.verify();
+    }
+
+    @Test
     void audioFragmentadoEConvertidoParaAacAntesDoUpload() {
         byte[] fmp4 = fmp4();
         byte[] aac = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
@@ -308,6 +360,46 @@ class UzapiAutoticAdapterTest {
             case DOCUMENTO -> "application/pdf";
             default -> throw new IllegalArgumentException("sem exemplo para " + tipo);
         };
+    }
+
+    private static byte[] oggOpusValido() {
+        byte[] opusHead = {
+            'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
+            1, 1, 0, 0, (byte) 0x80, (byte) 0xBB, 0, 0, 0, 0, 0
+        };
+        return concatenar(paginaOgg(0, 0, opusHead), paginaOgg(0x04, 960, new byte[] {0}));
+    }
+
+    private static byte[] paginaOgg(int flags, long granule, byte[] payload) {
+        byte[] pagina = new byte[28 + payload.length];
+        pagina[0] = 'O';
+        pagina[1] = 'g';
+        pagina[2] = 'g';
+        pagina[3] = 'S';
+        pagina[5] = (byte) flags;
+        for (int indice = 0; indice < Long.BYTES; indice++) {
+            pagina[6 + indice] = (byte) (granule >>> (8 * indice));
+        }
+        pagina[26] = 1;
+        pagina[27] = (byte) payload.length;
+        System.arraycopy(payload, 0, pagina, 28, payload.length);
+        return pagina;
+    }
+
+    private static byte[] concatenar(byte[] primeiro, byte[] segundo) {
+        byte[] resultado = java.util.Arrays.copyOf(primeiro, primeiro.length + segundo.length);
+        System.arraycopy(segundo, 0, resultado, primeiro.length, segundo.length);
+        return resultado;
+    }
+
+    private static boolean contemSubsequencia(byte[] corpo, byte[] esperado) {
+        if (corpo == null || esperado.length > corpo.length) return false;
+        for (int inicio = 0; inicio <= corpo.length - esperado.length; inicio++) {
+            if (java.util.Arrays.mismatch(corpo, inicio, inicio + esperado.length, esperado, 0, esperado.length) < 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- respostas 2xx que nao confirmam sucesso -----------------------------
