@@ -111,8 +111,14 @@ services:
     volumes:
       - minio-data:/data
     networks:
-      - synapse-internal
-      - dokploy-network
+      synapse-internal:
+        # O backend tambem participa de dokploy-network para o Traefik. Nao use o
+        # alias generico "minio": nessa rede externa varios filhos podem ter um
+        # servico com esse nome. Este alias existe somente na overlay privada de
+        # cada stack, portanto sempre aponta para o storage da propria instancia.
+        aliases:
+          - synapse-minio-internal
+      dokploy-network:
     expose:
       - "9000"
       - "9001"
@@ -160,7 +166,10 @@ services:
       SYNAPSE_DB_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      MIDIA_S3_ENDPOINT: http://minio:9000
+      # Alias privado da instancia, nunca o "minio" generico da rede externa
+      # compartilhada pelo Dokploy. Evita que um filho assine ou grave no MinIO de
+      # outro quando os dois stacks coexistem no mesmo host.
+      MIDIA_S3_ENDPOINT: http://synapse-minio-internal:9000
       MIDIA_S3_URL_PUBLICA: https://${MIDIA_DOMINIO:?obrigatoria}
       MIDIA_S3_BUCKET: ${MIDIA_S3_BUCKET:-synapse-crm-midia}
       MIDIA_S3_ACCESS_KEY: ${MINIO_ROOT_USER:?obrigatoria}

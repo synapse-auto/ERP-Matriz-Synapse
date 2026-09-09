@@ -10,7 +10,9 @@ A instância é uma **aplicação Compose em modo Docker Stack (Swarm)** no Dokp
 
 Três coisas que importam para a Automação:
 
-**Todos os serviços conversam por uma rede interna** chamada `synapse-internal`. Dentro dela, cada serviço tem um nome fixo. O n8n alcança o backend em `http://synapse-backend-internal:8080`.
+**Todos os serviços conversam por uma rede interna** chamada `synapse-internal`. Dentro dela, cada serviço tem um nome fixo. O n8n alcança o backend em `http://synapse-backend-internal:8080`; o backend alcança o MinIO da própria instância em `http://synapse-minio-internal:9000`.
+
+O alias interno do MinIO é obrigatório no Stack do Dokploy. `minio` é um nome genérico e os serviços também participam da rede externa compartilhada pelo Dokploy; usá-lo no backend poderia resolver o storage de outro filho quando há mais de uma instância no mesmo host.
 
 **Postgres, Redis e RabbitMQ não publicam porta no host.** Não existe `IP:5432` para conectar de fora. É proposital: o banco só é alcançável de dentro da rede da própria instância.
 

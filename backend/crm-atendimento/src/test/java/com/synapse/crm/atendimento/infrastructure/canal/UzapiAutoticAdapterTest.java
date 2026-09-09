@@ -158,9 +158,15 @@ class UzapiAutoticAdapterTest {
         String[] corpoDoUpload = {null};
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(requisicao -> corpoDoUpload[0] = new String(
-                        ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
-                        java.nio.charset.StandardCharsets.ISO_8859_1))
+                .andExpect(requisicao -> {
+                    assertThat(requisicao.getHeaders().getContentType())
+                            .isNotNull()
+                            .satisfies(contentType -> assertThat(contentType.isCompatibleWith(
+                                    MediaType.MULTIPART_FORM_DATA)).isTrue());
+                    corpoDoUpload[0] = new String(
+                            ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
+                            java.nio.charset.StandardCharsets.ISO_8859_1);
+                })
                 .andRespond(withSuccess("{\"id\":\"media-id-123\"}", MediaType.APPLICATION_JSON));
 
         JsonNode[] corpoDoEnvio = new JsonNode[1];

@@ -261,6 +261,10 @@ class UzapiAutoticAdapter implements CanalGateway {
                         propriedades.versaoApi(),
                         propriedades.numeroPrincipal())
                 .header("Authorization", "Bearer " + propriedades.token())
+                // A Uzapi so interpreta os campos file/messaging_product quando o request declara
+                // multipart/form-data. Sem este cabecalho, o conversor pode escolher um formato
+                // diferente e todas as categorias de midia falham antes do POST /messages.
+                .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(multipart.build())
                 .retrieve()
                 .body(String.class);
