@@ -82,6 +82,9 @@ Confirmado pela árvore de `origin/main`:
   Meta e encaminhamento como novo envio com referência denormalizada.
 - **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
   de vários arquivos/arrastar para o composer.
+- **Áudio gravado no composer para Meta Cloud:** antes de persistir, FFmpeg normaliza a gravação
+  para OGG/Opus mono a 48 kHz (32 kbps). Esse é o perfil de nota de voz usado no mobile; o
+  adaptador envia `voice: true`. Áudio anexado como arquivo continua sem transcodificação forçada.
 - **Emoji:** catálogo amplo categorizado no composer; o backend valida uma sequência Unicode
   válida para reações. A aparência final depende da plataforma/fonte emoji do navegador.
 - **Código numérico do lead:** `lead.codigo`, somente dígitos, editável e visível na ficha/
