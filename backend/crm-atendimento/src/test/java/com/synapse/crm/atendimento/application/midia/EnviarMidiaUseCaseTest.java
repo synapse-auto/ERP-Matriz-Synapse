@@ -10,9 +10,13 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
@@ -105,5 +109,34 @@ class EnviarMidiaUseCaseTest {
 
         verify(conversor, never()).converterParaOggOpus(any(), any());
         verify(armazenamento).salvar(AUDIO_OGG, "gravacao.ogg", "audio/ogg");
+    }
+
+    @ParameterizedTest(name = "mantém documento binário permitido {0}")
+    @MethodSource("documentosBinariosPermitidos")
+    void documentosBinariosLegadosContinuamNoCaminhoDeDocumento(String mimetype) {
+        DetectorDeTipoReal detector = mock(DetectorDeTipoReal.class);
+        ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+        LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
+        EnviarMensagemUseCase enviarMensagem = mock(EnviarMensagemUseCase.class);
+        byte[] conteudo = {0x01, 0x02, 0x03};
+        UUID leadId = UUID.randomUUID();
+
+        when(detector.detectar(conteudo)).thenReturn(mimetype);
+        when(limites.limiteEmBytes(CategoriaDeMidia.DOCUMENTO)).thenReturn(Optional.of(1024L));
+        when(armazenamento.salvar(any(), any(), eq(mimetype))).thenReturn("midias/documento");
+
+        EnviarMidiaUseCase useCase = new EnviarMidiaUseCase(
+                detector, armazenamento, limites, enviarMensagem, new ObjectMapper());
+
+        useCase.executar(leadId, conteudo, "documento", null);
+
+        ArgumentCaptor<ConteudoDeEnvio> envio = ArgumentCaptor.forClass(ConteudoDeEnvio.class);
+        verify(enviarMensagem).executar(eq(leadId), envio.capture());
+        assertThat(((ConteudoDeEnvio.MensagemMidia) envio.getValue()).tipo()).isEqualTo(TipoMensagem.DOCUMENTO);
+    }
+
+    static Stream<Arguments> documentosBinariosPermitidos() {
+        return Stream.of(
+                Arguments.of("application/msword"), Arguments.of("application/vnd.ms-excel"));
     }
 }

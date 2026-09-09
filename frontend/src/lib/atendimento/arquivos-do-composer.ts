@@ -1,12 +1,12 @@
 export const TIPOS_DE_ANEXO_ACEITOS =
-  "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  "image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,audio/amr,audio/aac,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt";
 
 export function arquivoCompativel(arquivo: File, accept: string): boolean {
   const regras = accept
     .split(",")
     .map((regra) => regra.trim().toLowerCase())
     .filter(Boolean);
-  const tipo = arquivo.type.toLowerCase();
+  const tipo = arquivo.type.toLowerCase().split(";", 1)[0]?.trim() ?? "";
   const nome = arquivo.name.toLowerCase();
   return regras.some((regra) => {
     if (regra.endsWith("/*")) {
