@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ErroDeApi } from "@/lib/api/errors";
+
 import * as api from "./api";
 import type { DadosDoHistorico } from "./cache-mensagens";
 import type { ConexaoTempoReal } from "./tempo-real";
@@ -94,13 +96,14 @@ describe("useEnviarMensagem", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(api.enviarTemplate).toHaveBeenCalledWith("lead-template", "reativacao", "pt_BR", ["Cliente"]);
+    expect(api.enviarTemplate).toHaveBeenCalledWith(
+      "lead-template", "reativacao", "pt_BR", ["Cliente"], expect.any(String));
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
   });
 
   it("remove a bolha otimista quando a resposta é recusada, sem deixar vínculo falso", async () => {
     vi.mocked(api.enviarMensagem).mockRejectedValue(
-      new Error("Resposta indevida"),
+      new ErroDeApi(422, null, "Resposta indevida"),
     );
     const { queryClient, Wrapper } = criarWrapper();
     prepararHistorico(queryClient, "at-resposta");
@@ -124,7 +127,7 @@ describe("useEnviarMensagem", () => {
     expect(mensagensDoHistorico(queryClient, "at-resposta")).toEqual([]);
   });
 
-  it("falha de rede: a mensagem otimista transita para FALHOU, sem duplicar entrada", async () => {
+  it("falha de rede mantém pendente durante a reconciliação e só então exibe FALHOU", async () => {
     vi.mocked(api.enviarMensagem).mockRejectedValue(new Error("falha de rede"));
     const { queryClient, Wrapper } = criarWrapper();
     prepararHistorico(queryClient, "at-2");
@@ -132,11 +135,12 @@ describe("useEnviarMensagem", () => {
 
     result.current.mutate({ atendimentoId: "at-2", leadId: "lead-2", conteudo: "olá" });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 6000 });
 
     const mensagens = mensagensDoHistorico(queryClient, "at-2");
     expect(mensagens).toHaveLength(1);
     expect(mensagens?.[0].statusEntrega).toBe("FALHOU");
+    expect(mensagens?.[0].erroEntrega?.codigo).toBe(-1);
   });
 
   it("a otimista PENDENTE aparece no resultado consumido pela tela via useMensagens", async () => {
@@ -195,6 +199,7 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(receber).toBeDefined());
     act(() => result.current.envio.mutate({ atendimentoId: "at-corrida-1", leadId: "lead-1", conteudo: "olá" }));
     await waitFor(() => expect(resolver).toBeDefined());
+    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][3] as string;
     act(() => receber({
       tipo: "MENSAGEM",
       dados: {
@@ -210,6 +215,7 @@ describe("useEnviarMensagem", () => {
         opcoes: null,
         statusEntrega: "PENDENTE",
         enviadoEm: "2026-01-01T00:00:01Z",
+        idempotencyKey: chave,
       },
     }));
     act(() => resolver({
@@ -218,6 +224,7 @@ describe("useEnviarMensagem", () => {
       statusEntrega: "PENDENTE",
       enviadoEm: "2026-01-01T00:00:01Z",
       transferiuOLead: false,
+      idempotencyKey: chave,
     }));
 
     await waitFor(() => expect(result.current.envio.isSuccess).toBe(true));
@@ -254,6 +261,7 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(result.current.historico.data).toBeDefined());
     act(() => result.current.envio.mutate({ atendimentoId: "at-corrida-2", leadId: "lead-2", conteudo: "retorno" }));
     await waitFor(() => expect(result.current.envio.isSuccess).toBe(true));
+    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][3] as string;
     const antesDoSocket = mensagensDoHistorico(queryClient, "at-corrida-2");
     expect(antesDoSocket).toHaveLength(1);
 
@@ -273,6 +281,7 @@ describe("useEnviarMensagem", () => {
         opcoes: null,
         statusEntrega: "ENVIADO",
         enviadoEm: "2026-01-01T00:00:02Z",
+        idempotencyKey: chave,
       },
     }));
 

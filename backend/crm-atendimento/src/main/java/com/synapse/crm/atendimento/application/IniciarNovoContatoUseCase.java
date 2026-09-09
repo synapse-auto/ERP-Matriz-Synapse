@@ -73,6 +73,17 @@ public class IniciarNovoContatoUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(Pedido pedido) {
+        return executar(pedido, null);
+    }
+
+    /**
+     * Variante usada pelo endpoint HTTP para manter a primeira mensagem idempotente quando a
+     * resposta do navegador se perde. A abertura do contato e a mensagem continuam na mesma
+     * transação; a chave só é repassada ao caminho de envio já responsável pela reserva.
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(Pedido pedido, String chaveIdempotencia) {
         String nome = pedido.nome() == null ? "" : pedido.nome().trim();
         if (nome.isBlank()) {
             throw new PedidoDeNovoContatoInvalidoException("nome do contato e obrigatorio");
@@ -137,17 +148,20 @@ public class IniciarNovoContatoUseCase {
         }
 
         if (temLivre) {
-            EnviarMensagemUseCase.Resultado envio = enviar.executar(leadId, mensagemLivre);
+            EnviarMensagemUseCase.Resultado envio = chaveIdempotencia == null
+                    ? enviar.executar(leadId, mensagemLivre)
+                    : enviar.executar(leadId, new ConteudoDeEnvio.MensagemLivre(mensagemLivre), chaveIdempotencia);
             if (!envio.atendimento().pertenceA(quemPediu)) {
                 entrarComoColaborador(envio.atendimento(), quemPediu, agora);
             }
             return new Resultado(leadId, envio.atendimento(), envio.mensagem(), existente.isEmpty());
         }
         if (temTemplate) {
-            EnviarMensagemUseCase.Resultado envio = enviar.executar(
-                    leadId,
-                    new ConteudoDeEnvio.MensagemTemplate(
-                            modelo.nome().trim(), modelo.idioma().trim(), modelo.parametros()));
+            ConteudoDeEnvio conteudo = new ConteudoDeEnvio.MensagemTemplate(
+                    modelo.nome().trim(), modelo.idioma().trim(), modelo.parametros());
+            EnviarMensagemUseCase.Resultado envio = chaveIdempotencia == null
+                    ? enviar.executar(leadId, conteudo)
+                    : enviar.executar(leadId, conteudo, chaveIdempotencia);
             if (!envio.atendimento().pertenceA(quemPediu)) {
                 entrarComoColaborador(envio.atendimento(), quemPediu, agora);
             }

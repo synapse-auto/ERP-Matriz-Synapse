@@ -124,9 +124,11 @@ export function enviarMensagem(
   leadId: string,
   conteudo: string,
   resposta?: AlvoDeResposta,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({
       leadId,
       conteudo,
@@ -137,9 +139,13 @@ export function enviarMensagem(
   });
 }
 
-export function iniciarNovoContato(pedido: PedidoDeNovoContato): Promise<NovoContatoResposta> {
+export function iniciarNovoContato(
+  pedido: PedidoDeNovoContato,
+  idempotencyKey?: string,
+): Promise<NovoContatoResposta> {
   return apiFetch<NovoContatoResposta>("/api/v1/atendimentos/novo-contato", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify(pedido),
   });
 }
@@ -159,9 +165,11 @@ export function enviarTemplate(
   nome: string,
   idioma: string,
   parametros: string[] = [],
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens/template", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({ leadId, nome, idioma, parametros }),
   });
 }
@@ -201,10 +209,15 @@ export function encaminharMensagem(
   mensagemId: string,
   enviadoEm: string,
   destinoAtendimentoId: string,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>(
     `/api/v1/atendimentos/${origemAtendimentoId}/mensagens/${mensagemId}/encaminhamentos?enviadoEm=${encodeURIComponent(enviadoEm)}`,
-    { method: "POST", body: JSON.stringify({ destinoAtendimentoId }) },
+    {
+      method: "POST",
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      body: JSON.stringify({ destinoAtendimentoId }),
+    },
   );
 }
 
@@ -224,6 +237,7 @@ export function enviarMidia(
   onProgresso: (percentual: number) => void,
   resposta?: AlvoDeResposta,
   gravacaoDoComposer = false,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -247,6 +261,9 @@ export function enviarMidia(
     if (accessToken) {
       xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
     }
+    if (idempotencyKey) {
+      xhr.setRequestHeader("Idempotency-Key", idempotencyKey);
+    }
 
     xhr.upload.onprogress = (evento) => {
       if (evento.lengthComputable) {
@@ -256,7 +273,13 @@ export function enviarMidia(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText) as EnvioResposta);
+        try {
+          resolve(JSON.parse(xhr.responseText) as EnvioResposta);
+        } catch {
+          // O servidor pode ter aceitado o envio e a resposta ter sido truncada. Deixe o hook
+          // tratar isso como transporte ambíguo e reconciliar pela Idempotency-Key.
+          reject(new ErroDeApi(0, null, "Resposta incompleta ao enviar anexo"));
+        }
         return;
       }
       const problema = parseProblemaHttp(xhr.responseText);

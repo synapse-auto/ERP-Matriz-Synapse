@@ -376,6 +376,7 @@
         "132001": "Template não existe nesse idioma"
       },
       "motivoFalhaNaoInformado": "O provedor não informou o motivo da falha",
+      "envioNaoConfirmado": "Não foi possível confirmar o envio",
       "carregarAnteriores": "Carregar mensagens anteriores",
       "carregandoAnteriores": "Carregando mensagens...",
       "acoes": {

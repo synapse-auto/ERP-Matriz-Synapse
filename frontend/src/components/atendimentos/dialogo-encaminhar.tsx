@@ -42,8 +42,14 @@ export function DialogoEncaminhar({
     enabled: aberto,
   });
   const encaminhar = useMutation({
-    mutationFn: (destinoAtendimentoId: string) =>
-      encaminharMensagem(origemAtendimentoId, mensagem.id, mensagem.enviadoEm, destinoAtendimentoId),
+    mutationFn: (variaveis: { destinoAtendimentoId: string; idempotencyKey: string }) =>
+      encaminharMensagem(
+        origemAtendimentoId,
+        mensagem.id,
+        mensagem.enviadoEm,
+        variaveis.destinoAtendimentoId,
+        variaveis.idempotencyKey,
+      ),
     onSuccess: (resposta) => {
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       void cache.invalidateQueries({ queryKey: ["mensagens", resposta.atendimentoId] });
@@ -125,7 +131,13 @@ export function DialogoEncaminhar({
           <Button
             type="button"
             disabled={!destinoId || encaminhar.isPending}
-            onClick={() => destinoId && encaminhar.mutate(destinoId)}
+            onClick={() =>
+              destinoId
+              && encaminhar.mutate({
+                destinoAtendimentoId: destinoId,
+                idempotencyKey: crypto.randomUUID(),
+              })
+            }
           >
             {textos.confirmar}
           </Button>

@@ -78,7 +78,7 @@ describe("useEnviarMidia", () => {
     await waitFor(() => {
       const mensagens = mensagensDoHistorico(queryClient, "at-2");
       expect(mensagens?.[0].statusEntrega).toBe("FALHOU");
-    });
+    }, { timeout: 6000 });
   });
 
   it("no sucesso troca o id temporario pelo id real devolvido pelo backend", async () => {

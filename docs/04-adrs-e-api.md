@@ -92,6 +92,22 @@
 | POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
 
+#### Envio resiliente no navegador
+
+Os endpoints de novo contato, texto, template, mídia e encaminhamento aceitam o header opcional
+`Idempotency-Key`. A interface sempre envia uma chave UUID por ação; o backend reserva essa chave
+para o par usuário/lead/atendimento no mesmo transaction boundary que grava a mensagem e a
+transactional outbox. Repetir a mesma chave retorna a mesma `EnvioResposta` (HTTP 200), enquanto
+duas chaves diferentes continuam representando mensagens distintas, mesmo com conteúdo igual.
+
+O histórico de mensagens e o evento WebSocket `MENSAGEM` devolvem a mesma chave. Quando o navegador
+perde a resposta, a UI mantém a mensagem otimista pendente e consulta o histórico por essa
+identidade em três tentativas (1 s, 2 s e uma tentativa final imediata). Encontrar a chave substitui
+o otimista pelo registro real; apenas 4xx definitivo ou o esgotamento sem confirmação exibe
+`FALHOU`/`Reenviar`. O status de transporte não é apresentado como erro informado pelo provedor.
+Eventos WebSocket sem `mensagemId` são ignorados, e `STATUS` só pode alterar a mensagem cujo id
+real (ou chave idempotente) corresponde ao evento.
+
 ### CRM Core
 
 | Método | Rota | Descrição | Papel mínimo | Evidência |

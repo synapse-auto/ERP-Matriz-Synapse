@@ -67,7 +67,7 @@ public class EnviarMidiaUseCase {
     @PreAuthorize("isAuthenticated()")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId, byte[] conteudo, String nomeArquivoOriginal, String legenda) {
-        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, null, false);
+        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, null, false, null);
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -77,7 +77,7 @@ public class EnviarMidiaUseCase {
             String nomeArquivoOriginal,
             String legenda,
             AlvoDeResposta resposta) {
-        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, resposta, false);
+        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, resposta, false, null);
     }
 
     /**
@@ -92,6 +92,19 @@ public class EnviarMidiaUseCase {
             String legenda,
             AlvoDeResposta resposta,
             boolean gravacaoDoComposer) {
+        return executar(leadId, conteudo, nomeArquivoOriginal, legenda, resposta, gravacaoDoComposer, null);
+    }
+
+    /** Variante HTTP que propaga a chave estável do clique até a mensagem transacional. */
+    @PreAuthorize("isAuthenticated()")
+    public EnviarMensagemUseCase.Resultado executar(
+            UUID leadId,
+            byte[] conteudo,
+            String nomeArquivoOriginal,
+            String legenda,
+            AlvoDeResposta resposta,
+            boolean gravacaoDoComposer,
+            String chaveIdempotencia) {
         String mimetypeReal =
                 IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
         TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
@@ -156,9 +169,28 @@ public class EnviarMidiaUseCase {
         ConteudoDeEnvio.MensagemMidia envio =
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
         try {
-            return resposta == null
-                    ? enviarMensagem.executar(leadId, envio)
-                    : enviarMensagem.executar(leadId, envio, resposta);
+            EnviarMensagemUseCase.Resultado resultado;
+            if (chaveIdempotencia == null || chaveIdempotencia.isBlank()) {
+                // Mantém o contrato legado para chamadas internas que não participam do fluxo HTTP
+                // idempotente (mensagens programadas e testes de anexo).
+                resultado = resposta == null
+                        ? enviarMensagem.executar(leadId, envio)
+                        : enviarMensagem.executar(leadId, envio, resposta);
+            } else {
+                resultado = resposta == null
+                        ? enviarMensagem.executar(leadId, envio, chaveIdempotencia)
+                        : enviarMensagem.executar(leadId, envio, resposta, chaveIdempotencia);
+            }
+            if (resultado != null && resultado.reutilizadoIdempotente()) {
+                // Retry do upload cria apenas um objeto temporário; a mensagem original já aponta
+                // para o primeiro objeto e este novo não pode ficar órfão no storage.
+                try {
+                    armazenamento.remover(referencia);
+                } catch (RuntimeException limpezaFalhou) {
+                    log.warn("Nao foi possivel remover objeto temporario de upload idempotente (leadId={}).", leadId, limpezaFalhou);
+                }
+            }
+            return resultado;
         } catch (Exception e) {
             armazenamento.remover(referencia);
             throw e;

@@ -20,6 +20,11 @@ public interface MensagemRepositorio {
     /** Grava a mensagem. O {@code enviadoEm} do agregado escolhe a particao. */
     Mensagem registrar(Mensagem mensagem);
 
+    /** Reconstitui uma mensagem por sua chave de partição, usada na resposta idempotente. */
+    default Optional<Mensagem> porId(UUID mensagemId, Instant enviadoEm) {
+        return Optional.empty();
+    }
+
     /**
      * Move a mensagem no ciclo de entrega.
      *

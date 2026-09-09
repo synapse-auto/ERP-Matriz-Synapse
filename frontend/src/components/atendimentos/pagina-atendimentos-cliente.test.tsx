@@ -10,6 +10,7 @@ import type {
   NotificacaoTempoReal,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
+import { ErroDeApi } from "@/lib/api/errors";
 
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: ItemInbox) => void) | undefined,
@@ -292,7 +293,7 @@ vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: iniciarNovo,
   abrirAtendimentoParaLead: abrirExistente,
-  enviarMensagem: vi.fn(() => Promise.reject(new Error("falha de rede"))),
+  enviarMensagem: vi.fn(() => Promise.reject(new ErroDeApi(422, null, "falha definitiva"))),
   enviarTemplate: vi.fn(),
 }));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({

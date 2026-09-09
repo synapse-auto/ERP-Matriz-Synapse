@@ -76,6 +76,7 @@ class RelayDeTempoRealListener {
         dados.put("opcoes", evento.opcoes());
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
+        dados.put("idempotencyKey", evento.chaveIdempotencia());
         if (evento.citacao() != null) {
             ObjectNode citacao = dados.putObject("citacao");
             citacao.put("origemId", evento.citacao().origemId().toString());

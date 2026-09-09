@@ -33,6 +33,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Repository
 class MensagemRepositorioJdbc implements MensagemRepositorio {
 
+    private static final String SQL_POR_ID =
+            "SELECT id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo, midia_url, "
+                    + "midia_metadados, opcoes, status_entrega, enviado_em FROM mensagem "
+                    + "WHERE id = ? AND enviado_em = ?";
+
     private static final String SQL_REGISTRAR =
             """
             INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,
@@ -117,6 +122,27 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
                 mensagem.statusEntrega().name(),
                 Timestamp.from(mensagem.enviadoEm()));
         return mensagem;
+    }
+
+    @Override
+    public Optional<Mensagem> porId(UUID mensagemId, Instant enviadoEm) {
+        TransacaoObrigatoria.exigir("buscar mensagem por id");
+        return chat.query(SQL_POR_ID, (rs, linha) -> new Mensagem(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("atendimento_id", UUID.class),
+                        new com.synapse.crm.atendimento.domain.mensagem.Remetente(
+                                com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo.valueOf(
+                                        rs.getString("remetente_tipo")),
+                                rs.getObject("remetente_id", UUID.class)),
+                        com.synapse.crm.atendimento.domain.mensagem.TipoMensagem.valueOf(rs.getString("tipo")),
+                        rs.getString("conteudo"),
+                        rs.getString("midia_url"),
+                        rs.getString("midia_metadados"),
+                        StatusEntrega.valueOf(rs.getString("status_entrega")),
+                        rs.getTimestamp("enviado_em").toInstant(),
+                        rs.getString("opcoes")),
+                mensagemId,
+                Timestamp.from(enviadoEm)).stream().findFirst();
     }
 
     /**

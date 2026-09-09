@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
 Documento de continuidade. **Estado reconstruído em 09/09/2026 a partir de
-`origin/main` (`3bbe37b`), das migrations e do código.** Se este arquivo divergir do
+`origin/main` (`5ac6b9d`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -26,6 +26,21 @@ precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real 
 Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
 operacional do provedor.
 
+### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
+
+Envios iniciados pela interface recebem uma chave `Idempotency-Key` estável por clique. A reserva
+da chave, a mensagem e o evento da transactional outbox são persistidos na mesma transação; uma
+repetição para o mesmo usuário, lead e atendimento devolve a mensagem já criada sem duplicar
+outbox. A chave é devolvida no histórico, na resposta HTTP e no evento `MENSAGEM` do WebSocket,
+permitindo reconciliar a bolha otimista por identidade, nunca por texto ou horário.
+
+Uma rejeição de transporte (fetch/XHR sem resposta ou erro 5xx) mantém a bolha pendente enquanto o
+frontend consulta o histórico em até três tentativas. Se a mensagem for encontrada, a bolha é
+substituída pelo registro real; somente uma resposta 4xx definitiva ou o esgotamento documentado
+da reconciliação transforma a bolha em `FALHOU`. O código de UI `-1` usa o texto de “envio não
+confirmado”, distinto de uma falha informada pelo provedor. A migration V64 cria o índice durável
+`mensagem_envio_idempotencia`; as mensagens continuam na tabela particionada existente.
+
 ---
 
 ## 1. Onde estamos
@@ -36,7 +51,7 @@ mas não registra por si só o instante do deploy nem prova todos os smoke tests
 Não tratar esse SHA como imagem necessariamente em execução: o Dokploy deve ser conferido
 pelo digest da imagem.
 
-O HEAD de referência é `3bbe37b` (`origin/main`), após a integração do PR #128. O trabalho normal
+O HEAD de referência é `5ac6b9d` (`origin/main`), após a integração do PR #129. O trabalho normal
 é feito em branch própria, publicado no `origin` e entregue por Pull Request para `main`.
 O agente não faz merge do próprio PR e não faz deploy; essas ações ficam com o responsável
 pela operação.

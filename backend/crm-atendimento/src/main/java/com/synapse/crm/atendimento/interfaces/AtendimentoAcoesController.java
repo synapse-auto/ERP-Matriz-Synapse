@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -33,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
+import com.synapse.crm.atendimento.application.ChaveIdempotenciaReutilizadaException;
 import com.synapse.crm.atendimento.application.ContatoIndisponivelParaInicioException;
 import com.synapse.crm.atendimento.application.EncaminharMensagemUseCase;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
@@ -145,12 +147,16 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "422", description = "Pedido inválido, telefone ilegível ou canal fora da janela de texto livre.")
             })
     @PostMapping("/novo-contato")
-    NovoContatoResposta iniciarNovoContato(@RequestBody NovoContatoRequisicao requisicao) {
+    NovoContatoResposta iniciarNovoContato(
+            @RequestBody NovoContatoRequisicao requisicao,
+            @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         NovoContatoRequisicao pedido = requisicao == null
                 ? new NovoContatoRequisicao(null, null, null, null)
                 : requisicao;
         IniciarNovoContatoUseCase.Resultado resultado = ContextoDeAgenda.buscarComo(
-                () -> novoContato.executar(pedido.paraCasoDeUso()));
+                () -> chaveIdempotencia == null
+                        ? novoContato.executar(pedido.paraCasoDeUso())
+                        : novoContato.executar(pedido.paraCasoDeUso(), chaveIdempotencia));
         return NovoContatoResposta.de(resultado);
     }
 
@@ -178,14 +184,20 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "422", description = "Canal fora da janela de texto livre.")
             })
     @PostMapping("/mensagens")
-    EnvioResposta enviar(@Valid @RequestBody EnviarMensagemRequisicao requisicao) {
+    EnvioResposta enviar(
+            @Valid @RequestBody EnviarMensagemRequisicao requisicao,
+            @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         AlvoDeResposta resposta = requisicao.alvoDeResposta();
         EnviarMensagemUseCase.Resultado resultado = resposta == null
-                ? enviar.executar(requisicao.leadId(), requisicao.conteudo())
+                ? enviar.executar(
+                        requisicao.leadId(),
+                        new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
+                        chaveIdempotencia)
                 : enviar.executar(
                         requisicao.leadId(),
                         new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
-                        resposta);
+                        resposta,
+                        chaveIdempotencia);
         return EnvioResposta.de(resultado);
     }
 
@@ -197,11 +209,14 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
             })
     @PostMapping("/mensagens/template")
-    EnvioResposta enviarTemplate(@Valid @RequestBody EnviarTemplateRequisicao requisicao) {
+    EnvioResposta enviarTemplate(
+            @Valid @RequestBody EnviarTemplateRequisicao requisicao,
+            @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         EnviarMensagemUseCase.Resultado resultado = enviar.executar(
                 requisicao.leadId(),
                 new ConteudoDeEnvio.MensagemTemplate(
-                        requisicao.nome(), requisicao.idioma(), requisicao.parametros()));
+                        requisicao.nome(), requisicao.idioma(), requisicao.parametros()),
+                chaveIdempotencia);
         return EnvioResposta.de(resultado);
     }
 
@@ -233,9 +248,10 @@ class AtendimentoAcoesController {
             @Parameter(description = "Indica que o áudio foi gravado no composer; gravações são convertidas para OGG/Opus.")
                     @RequestParam(defaultValue = "false") boolean gravacaoDoComposer,
             @Parameter(description = "Mensagem de origem quando o anexo é uma resposta.")
-                    @RequestParam(required = false) UUID mensagemOrigemId,
+            @RequestParam(required = false) UUID mensagemOrigemId,
             @Parameter(description = "Instante da origem, chave de partição da mensagem.")
-                    @RequestParam(required = false) Instant origemEnviadaEm) {
+                    @RequestParam(required = false) Instant origemEnviadaEm,
+            @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         UUID leadId = resolverLead.executar(id);
         byte[] conteudo;
         try {
@@ -245,7 +261,8 @@ class AtendimentoAcoesController {
         }
         AlvoDeResposta resposta = alvoOpcional(mensagemOrigemId, origemEnviadaEm);
         EnviarMensagemUseCase.Resultado resultado = enviarMidia.executar(
-                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta, gravacaoDoComposer);
+                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta, gravacaoDoComposer,
+                chaveIdempotencia);
         return EnvioResposta.de(resultado);
     }
 
@@ -262,9 +279,10 @@ class AtendimentoAcoesController {
             @PathVariable UUID id,
             @PathVariable UUID mensagemId,
             @RequestParam Instant enviadoEm,
-            @Valid @RequestBody EncaminharRequisicao requisicao) {
+            @Valid @RequestBody EncaminharRequisicao requisicao,
+            @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         return EnvioResposta.de(encaminharMensagem.executar(
-                id, mensagemId, enviadoEm, requisicao.destinoAtendimentoId()));
+                id, mensagemId, enviadoEm, requisicao.destinoAtendimentoId(), chaveIdempotencia));
     }
 
     /** {@code paraAtendenteId} ausente devolve o atendimento para a IA. */
@@ -451,6 +469,13 @@ class AtendimentoAcoesController {
     ProblemDetail aoNaoEncontrar(RecursoDeAtendimentoIndisponivelException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problema.setTitle("Nao encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(ChaveIdempotenciaReutilizadaException.class)
+    ProblemDetail aoRecusarChaveReutilizada(ChaveIdempotenciaReutilizadaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problema.setTitle("Idempotency-Key reutilizada");
         return problema;
     }
 
@@ -650,7 +675,8 @@ class AtendimentoAcoesController {
             UUID mensagemId,
             String statusEntrega,
             Instant enviadoEm,
-            boolean transferiuOLead) {
+            boolean transferiuOLead,
+            String idempotencyKey) {
 
         static EnvioResposta de(EnviarMensagemUseCase.Resultado resultado) {
             return new EnvioResposta(
@@ -658,7 +684,8 @@ class AtendimentoAcoesController {
                     resultado.mensagem().id(),
                     resultado.mensagem().statusEntrega().name(),
                     resultado.mensagem().enviadoEm(),
-                    resultado.transferiuOLead());
+                    resultado.transferiuOLead(),
+                    resultado.chaveIdempotencia());
         }
     }
 

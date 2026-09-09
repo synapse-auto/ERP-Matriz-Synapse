@@ -225,7 +225,8 @@ class AtendimentoMensagensController {
             ErroDeEntregaResposta erroEntrega,
             Instant enviadoEm,
             List<ResumoReacaoResposta> reacoes,
-            CitacaoResposta citacao) {
+            CitacaoResposta citacao,
+            String idempotencyKey) {
 
         static MensagemResposta de(
                 MensagemDoHistorico item,
@@ -253,7 +254,8 @@ class AtendimentoMensagensController {
                     ErroDeEntregaResposta.de(item.erroEntrega()),
                     mensagem.enviadoEm(),
                     item.reacoes().stream().map(ResumoReacaoResposta::de).toList(),
-                    CitacaoResposta.de(item.citacao()));
+                    CitacaoResposta.de(item.citacao()),
+                    item.chaveIdempotencia());
         }
     }
 
