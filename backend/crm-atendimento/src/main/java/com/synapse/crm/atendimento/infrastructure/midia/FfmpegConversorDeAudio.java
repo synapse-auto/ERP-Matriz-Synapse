@@ -77,7 +77,8 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
         return new Resultado(convertido, MIME_OGG);
     }
 
-    private List<String> comando() {
+    /** Perfil explícito e estável de nota de voz; mantido visível ao teste de contrato do encoder. */
+    List<String> comando() {
         return List.of(
                 executavel,
                 "-hide_banner",
@@ -93,6 +94,15 @@ final class FfmpegConversorDeAudio implements ConversorDeAudio {
                 "libopus",
                 "-application",
                 "voip",
+                // O cliente mobile do WhatsApp espera o perfil de nota de voz, e não apenas
+                // um contêiner OGG com Opus. Não preserve canais/taxa do microfone (que pode
+                // ser estéreo ou 44,1 kHz): produza o perfil portátil de voz antes do upload.
+                "-ac",
+                "1",
+                "-ar",
+                "48000",
+                "-b:a",
+                "32k",
                 "-f",
                 "ogg",
                 "pipe:1");

@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.midia;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.junit.jupiter.api.Assumptions;
@@ -11,7 +12,15 @@ import org.junit.jupiter.api.Test;
 class FfmpegConversorDeAudioTest {
 
     @Test
-    void gravaçãoMp4AacViraOggOpusComAssinaturasReais() throws Exception {
+    void usaPerfilMonoEm48kParaNotaDeVozNoMobile() {
+        assertThat(new FfmpegConversorDeAudio("ffmpeg").comando())
+                .containsSubsequence("-c:a", "libopus", "-application", "voip")
+                .containsSubsequence("-ac", "1", "-ar", "48000", "-b:a", "32k")
+                .containsSubsequence("-f", "ogg", "pipe:1");
+    }
+
+    @Test
+    void gravaçãoMp4AacEstereoViraNotaDeVozOggOpusMonoCompativelComMobile() throws Exception {
         Assumptions.assumeTrue(ffmpegDisponivel(), "FFmpeg não instalado neste ambiente");
         byte[] mp4 = gerarMp4Aac();
 
@@ -22,6 +31,8 @@ class FfmpegConversorDeAudioTest {
         assertThat(resultado.conteudo()).startsWith(new byte[] {'O', 'g', 'g', 'S'});
         assertThat(contém(resultado.conteudo(), new byte[] {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'}))
                 .isTrue();
+        assertThat(inspecionar(resultado.conteudo()))
+                .contains("codec_name=opus", "channels=1", "sample_rate=48000");
     }
 
     private static boolean ffmpegDisponivel() {
@@ -49,6 +60,10 @@ class FfmpegConversorDeAudioTest {
                         "lavfi",
                         "-i",
                         "sine=frequency=1000:duration=0.2",
+                        "-ac",
+                        "2",
+                        "-ar",
+                        "44100",
                         "-c:a",
                         "aac",
                         "-movflags",
@@ -59,6 +74,29 @@ class FfmpegConversorDeAudioTest {
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start();
         byte[] saida = processo.getInputStream().readAllBytes();
+        int codigo = processo.waitFor();
+        assertThat(codigo).isZero();
+        return saida;
+    }
+
+    private static String inspecionar(byte[] audio) throws IOException, InterruptedException {
+        Process processo = new ProcessBuilder(List.of(
+                        "ffprobe",
+                        "-v",
+                        "error",
+                        "-select_streams",
+                        "a:0",
+                        "-show_entries",
+                        "stream=codec_name,channels,sample_rate",
+                        "-of",
+                        "default=noprint_wrappers=1",
+                        "-i",
+                        "pipe:0"))
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        processo.getOutputStream().write(audio);
+        processo.getOutputStream().close();
+        String saida = new String(processo.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int codigo = processo.waitFor();
         assertThat(codigo).isZero();
         return saida;
