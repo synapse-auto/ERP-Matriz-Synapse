@@ -15,8 +15,8 @@ public interface ConversorDeAudio {
     Resultado converterParaOggOpus(byte[] conteudo, String mimetype);
 
     /**
-     * Converte os bytes para AAC em ADTS, formato de áudio regular que os dois provedores enviam
-     * de forma reproduzível no aplicativo móvel do WhatsApp.
+     * Converte os bytes para AAC em ADTS para compatibilidade com registros fragmentados legados.
+     * Gravações novas do composer usam {@link #converterParaOggOpus(byte[], String)}.
      */
     default Resultado converterParaAacAdts(byte[] conteudo, String mimetype) {
         throw new UnsupportedOperationException("conversão AAC/ADTS não implementada");

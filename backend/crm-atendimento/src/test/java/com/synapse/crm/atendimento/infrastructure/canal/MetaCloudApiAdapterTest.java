@@ -108,6 +108,7 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("type").asText()).isEqualTo("audio");
         assertThat(payload.path("audio").path("id").asText()).isEqualTo("media-id");
         assertThat(payload.path("audio").has("caption")).isFalse();
+        assertThat(payload.path("audio").path("voice").asBoolean()).isTrue();
     }
 
     @Test

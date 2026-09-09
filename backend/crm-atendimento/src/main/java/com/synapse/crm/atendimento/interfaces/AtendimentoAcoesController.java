@@ -230,7 +230,7 @@ class AtendimentoAcoesController {
                     @RequestPart("arquivo") MultipartFile arquivo,
             @Parameter(description = "Legenda opcional da mídia.")
                     @RequestParam(required = false) String legenda,
-            @Parameter(description = "Indica que o áudio foi gravado no composer; gravações são convertidas para AAC/ADTS.")
+            @Parameter(description = "Indica que o áudio foi gravado no composer; gravações são convertidas para OGG/Opus.")
                     @RequestParam(defaultValue = "false") boolean gravacaoDoComposer,
             @Parameter(description = "Mensagem de origem quando o anexo é uma resposta.")
                     @RequestParam(required = false) UUID mensagemOrigemId,

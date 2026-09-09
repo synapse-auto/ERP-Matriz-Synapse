@@ -136,8 +136,8 @@ testar_upload_midia() {
 testar_upload_midia "$DIRETORIO_TEMPORARIO/documento.pdf"
 testar_upload_midia "$DIRETORIO_TEMPORARIO/imagem.png"
 
-# Gera uma gravacao AAC dentro da propria imagem empacotada. Assim o smoke
-# tambem prova que o FFmpeg converte o audio do composer para AAC/ADTS antes
+# Gera uma gravacao fragmentada dentro da propria imagem empacotada. Assim o smoke
+# tambem prova que o FFmpeg converte o audio do composer para OGG/Opus antes
 # de persistir no mesmo MinIO real usado pelos anexos comuns.
 docker run --rm --entrypoint ffmpeg synapse-backend-websocket-test:local \
   -hide_banner -loglevel error -f lavfi \
@@ -153,14 +153,60 @@ total_midias=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
   echo "smoke esperava 3 mídias persistidas, encontrou $total_midias" >&2
   exit 1
 }
-total_audio_aac=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+total_audio_ogg=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
   --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
-  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/aac'")
-[ "$total_audio_aac" = "1" ] || {
-  echo "smoke nao encontrou a gravacao convertida para AAC/ADTS" >&2
+  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/ogg'")
+[ "$total_audio_ogg" = "1" ] || {
+  echo "smoke nao encontrou a gravacao convertida para OGG/Opus" >&2
   exit 1
 }
-echo 'uploads empacotados confirmados contra MinIO real: PDF=200, PNG=200, audio AAC/ADTS=200, mensagens=3'
+
+# Lê o objeto que acabou de ser salvo no MinIO e inspeciona os bytes com o ffprobe da imagem. A
+# verificação não se limita ao MIME persistido: exige codec, canais, taxa e duração positiva.
+audio_ref=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+  --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
+  --command "SELECT midia_url FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/ogg' LIMIT 1" \
+  | tr -d '[:space:]')
+[ -n "$audio_ref" ] || {
+  echo "smoke nao encontrou a referencia da gravacao OGG no banco" >&2
+  exit 1
+}
+docker compose -f "$COMPOSE" exec --no-TTY minio mc alias set smoke http://127.0.0.1:9000 \
+  e172-access-key e172-secret-key-com-tamanho-suficiente >/dev/null
+docker compose -f "$COMPOSE" exec --no-TTY minio mc cat "smoke/e172-smoke-midia/$audio_ref" \
+  > "$DIRETORIO_TEMPORARIO/gravacao.ogg"
+# mktemp cria o diretório com modo 0700; torne somente a leitura do artefato possível
+# para o usuário não-root do runtime ao inspecioná-lo com ffprobe.
+chmod a+rx "$DIRETORIO_TEMPORARIO"
+chmod a+r "$DIRETORIO_TEMPORARIO/gravacao.ogg"
+ffprobe_audio=$(docker run --rm --entrypoint ffprobe \
+  --volume "$DIRETORIO_TEMPORARIO:/input:ro" synapse-backend-websocket-test:local \
+  -v error -select_streams a:0 -show_entries stream=codec_name,channels,sample_rate,duration \
+  -of default=noprint_wrappers=1 -i /input/gravacao.ogg)
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'codec_name=opus' || {
+  echo "smoke encontrou codec diferente de Opus na gravacao" >&2
+  exit 1
+}
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'channels=1' || {
+  echo "smoke encontrou gravacao sem canal mono" >&2
+  exit 1
+}
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'sample_rate=48000' || {
+  echo "smoke encontrou gravacao sem taxa de 48 kHz" >&2
+  exit 1
+}
+duracao_audio=$(printf '%s\n' "$ffprobe_audio" | sed -n 's/^duration=//p' | head -n 1)
+case "$duracao_audio" in
+  ''|*[!0-9.]* )
+    echo "smoke encontrou gravacao sem duracao numerica: $duracao_audio" >&2
+    exit 1
+    ;;
+esac
+awk -v duracao="$duracao_audio" 'BEGIN { exit !(duracao + 0 > 0) }' || {
+  echo "smoke encontrou gravacao sem duracao positiva" >&2
+  exit 1
+}
+echo 'uploads empacotados confirmados contra MinIO real: PDF=200, PNG=200, audio OGG/Opus=200, mensagens=3'
 
 docker run --rm --interactive \
   --network synapse-ws-proxy \

@@ -110,9 +110,12 @@ public class EnviarMidiaUseCase {
         String mimetypeParaSalvar = mimetypeReal;
         boolean convertido = false;
         if (gravacaoDoComposer && tipo == TipoMensagem.AUDIO) {
-            ConversorDeAudio.Resultado resultado = conversorDeAudio.converterParaAacAdts(conteudo, mimetypeReal);
-            if (!ehAac(resultado.mimetype()) || resultado.conteudo().length == 0) {
-                throw new FalhaNaConversaoDeAudioException("conversor de áudio não produziu AAC/ADTS");
+            // Gravações do composer são sempre normalizadas para o perfil de nota de voz. A
+            // conversão é deliberadamente independente do provedor: a Meta exige OGG/Opus com
+            // voice=true, e a Uzapi documenta apenas audio.id, derivando a duração do contêiner.
+            ConversorDeAudio.Resultado resultado = conversorDeAudio.converterParaOggOpus(conteudo, mimetypeReal);
+            if (!ehOggOpus(resultado.mimetype()) || resultado.conteudo().length == 0) {
+                throw new FalhaNaConversaoDeAudioException("conversor de áudio não produziu OGG/Opus válido");
             }
             conteudoParaSalvar = resultado.conteudo();
             mimetypeParaSalvar = resultado.mimetype();
@@ -124,7 +127,7 @@ public class EnviarMidiaUseCase {
 
         String nomeSanitizado = sanitizar(nomeArquivoOriginal);
         if (convertido) {
-            nomeSanitizado = trocarExtensao(nomeSanitizado, ".aac");
+            nomeSanitizado = trocarExtensao(nomeSanitizado, ".ogg");
         }
         String referencia = armazenamento.salvar(conteudoParaSalvar, nomeSanitizado, mimetypeParaSalvar);
         String metadados = metadadosJson(nomeSanitizado, mimetypeParaSalvar, conteudoParaSalvar.length, legenda);
@@ -151,8 +154,9 @@ public class EnviarMidiaUseCase {
         return base.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
-    private static boolean ehAac(String mimetype) {
-        return "audio/aac".equalsIgnoreCase(tipoPrincipal(mimetype));
+    private static boolean ehOggOpus(String mimetype) {
+        String principal = tipoPrincipal(mimetype);
+        return "audio/ogg".equalsIgnoreCase(principal) || "audio/opus".equalsIgnoreCase(principal);
     }
 
     private static String tipoPrincipal(String mimetype) {

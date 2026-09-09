@@ -32,10 +32,12 @@ class EnviarMidiaUseCaseTest {
 
     private static final byte[] AUDIO_MP4 = {0, 1, 2, 3};
     private static final byte[] AUDIO_OGG = {'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
-    private static final byte[] AUDIO_AAC = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
+    private static final byte[] AUDIO_OGG_OPUS = {
+        'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'
+    };
 
     @Test
-    void gravacaoMp4DoComposerEConvertidaParaAacAntesDoStorageEEnvio() {
+    void gravacaoMp4DoComposerEConvertidaParaOggOpusAntesDoStorageEEnvio() {
         DetectorDeTipoReal detector = mock(DetectorDeTipoReal.class);
         ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
         LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
@@ -45,25 +47,26 @@ class EnviarMidiaUseCaseTest {
 
         when(detector.detectar(AUDIO_MP4)).thenReturn("audio/mp4");
         when(limites.limiteEmBytes(CategoriaDeMidia.AUDIO)).thenReturn(Optional.of(1024L));
-        when(conversor.converterParaAacAdts(AUDIO_MP4, "audio/mp4"))
-                .thenReturn(new ConversorDeAudio.Resultado(AUDIO_AAC, "audio/aac"));
-        when(armazenamento.salvar(AUDIO_AAC, "gravacao.aac", "audio/aac"))
-                .thenReturn("midias/gravacao.aac");
+        when(conversor.converterParaOggOpus(AUDIO_MP4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(AUDIO_OGG_OPUS, "audio/ogg"));
+        when(armazenamento.salvar(AUDIO_OGG_OPUS, "gravacao.ogg", "audio/ogg"))
+                .thenReturn("midias/gravacao.ogg");
 
         EnviarMidiaUseCase useCase = new EnviarMidiaUseCase(
                 detector, armazenamento, limites, enviarMensagem, new ObjectMapper(), conversor);
 
         useCase.executar(leadId, AUDIO_MP4, "gravacao.m4a", null, null, true);
 
-        verify(conversor).converterParaAacAdts(AUDIO_MP4, "audio/mp4");
-        verify(armazenamento).salvar(AUDIO_AAC, "gravacao.aac", "audio/aac");
+        verify(conversor).converterParaOggOpus(AUDIO_MP4, "audio/mp4");
+        verify(conversor, never()).converterParaAacAdts(any(), any());
+        verify(armazenamento).salvar(AUDIO_OGG_OPUS, "gravacao.ogg", "audio/ogg");
         ArgumentCaptor<ConteudoDeEnvio> envio = ArgumentCaptor.forClass(ConteudoDeEnvio.class);
         verify(enviarMensagem).executar(eq(leadId), envio.capture());
         assertThat(envio.getValue()).isInstanceOf(ConteudoDeEnvio.MensagemMidia.class);
         ConteudoDeEnvio.MensagemMidia midia = (ConteudoDeEnvio.MensagemMidia) envio.getValue();
         assertThat(midia.tipo()).isEqualTo(TipoMensagem.AUDIO);
-        assertThat(midia.metadados()).contains("\"mimetype\":\"audio/aac\"");
-        assertThat(midia.metadados()).contains("\"nome\":\"gravacao.aac\"");
+        assertThat(midia.metadados()).contains("\"mimetype\":\"audio/ogg\"");
+        assertThat(midia.metadados()).contains("\"nome\":\"gravacao.ogg\"");
     }
 
     @Test
@@ -86,6 +89,7 @@ class EnviarMidiaUseCaseTest {
         useCase.executar(leadId, AUDIO_MP4, "anexo.m4a", null);
 
         verify(conversor, never()).converterParaAacAdts(any(), any());
+        verify(conversor, never()).converterParaOggOpus(any(), any());
         verify(armazenamento).salvar(AUDIO_MP4, "anexo.m4a", "audio/mp4");
     }
 
@@ -100,18 +104,19 @@ class EnviarMidiaUseCaseTest {
 
         when(detector.detectar(AUDIO_OGG)).thenReturn("audio/ogg");
         when(limites.limiteEmBytes(CategoriaDeMidia.AUDIO)).thenReturn(Optional.of(1024L));
-        when(conversor.converterParaAacAdts(AUDIO_OGG, "audio/ogg"))
-                .thenReturn(new ConversorDeAudio.Resultado(AUDIO_AAC, "audio/aac"));
-        when(armazenamento.salvar(AUDIO_AAC, "gravacao.aac", "audio/aac"))
-                .thenReturn("midias/gravacao.aac");
+        when(conversor.converterParaOggOpus(AUDIO_OGG, "audio/ogg"))
+                .thenReturn(new ConversorDeAudio.Resultado(AUDIO_OGG_OPUS, "audio/ogg"));
+        when(armazenamento.salvar(AUDIO_OGG_OPUS, "gravacao.ogg", "audio/ogg"))
+                .thenReturn("midias/gravacao.ogg");
 
         EnviarMidiaUseCase useCase = new EnviarMidiaUseCase(
                 detector, armazenamento, limites, enviarMensagem, new ObjectMapper(), conversor);
 
         useCase.executar(leadId, AUDIO_OGG, "gravacao.ogg", null, null, true);
 
-        verify(conversor).converterParaAacAdts(AUDIO_OGG, "audio/ogg");
-        verify(armazenamento).salvar(AUDIO_AAC, "gravacao.aac", "audio/aac");
+        verify(conversor).converterParaOggOpus(AUDIO_OGG, "audio/ogg");
+        verify(conversor, never()).converterParaAacAdts(any(), any());
+        verify(armazenamento).salvar(AUDIO_OGG_OPUS, "gravacao.ogg", "audio/ogg");
     }
 
     @ParameterizedTest(name = "mantém documento binário permitido {0}")

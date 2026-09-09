@@ -8,6 +8,13 @@ repositório, o repositório vence.
 
 O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
 
+### 09/09/2026 — Gravações do composer como nota de voz (E179)
+
+Gravações novas são convertidas para OGG/Opus mono a 48 kHz, com timestamps contínuos e duração
+estrutural validada. A Meta recebe `voice: true`; a Uzapi/Autotic recebe somente o `mediaId`
+documentado, sem campos não previstos de duração ou PTT. Anexos de áudio escolhidos manualmente
+mantêm o fluxo existente.
+
 ---
 
 ## 1. Onde estamos
@@ -82,10 +89,14 @@ Confirmado pela árvore de `origin/main`:
   Meta e encaminhamento como novo envio com referência denormalizada.
 - **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
   de vários arquivos/arrastar para o composer.
-- **Áudio gravado no composer para Meta Cloud e UZAPI:** antes de persistir, FFmpeg normaliza a
-  gravação para AAC/ADTS mono a 48 kHz (48 kbps), enviada como áudio regular sem `voice: true`.
-  O formato é reproduzível no WhatsApp mobile dos dois provedores. Áudio anexado como arquivo
-  continua sem transcodificação forçada.
+- **Áudio gravado no composer para Meta Cloud e Uzapi/Autotic:** antes de persistir, FFmpeg
+  normaliza a gravação para OGG/Opus mono a 48 kHz (perfil `voip`, timestamps contínuos). A
+  validação exige páginas OGG completas, cabeçalho Opus e uma página EOS com `granule position`
+  positivo, garantindo duração estrutural diferente de zero. A Meta recebe `audio.id` com
+  `voice: true`; a Uzapi recebe apenas o `audio.id` documentado e calcula a duração a partir do
+  OGG válido — não há campo documentado de `voice`, `ptt` ou duração para enviar. Áudio anexado
+  como arquivo continua sem transcodificação forçada; o fallback AAC/ADTS no worker só protege
+  registros antigos ISO-BMFF fragmentados.
 - **Emoji:** catálogo amplo categorizado no composer; o backend valida uma sequência Unicode
   válida para reações. A aparência final depende da plataforma/fonte emoji do navegador.
 - **Código numérico do lead:** `lead.codigo`, somente dígitos, editável e visível na ficha/
