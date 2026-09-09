@@ -441,6 +441,7 @@ export const TextosSchema = z.object({
         "132001": z.string(),
       }),
       motivoFalhaNaoInformado: z.string(),
+      envioNaoConfirmado: z.string().optional(),
       carregarAnteriores: z.string(),
       carregandoAnteriores: z.string(),
       acoes: z.object({

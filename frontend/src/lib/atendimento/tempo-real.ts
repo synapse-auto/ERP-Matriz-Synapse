@@ -91,9 +91,10 @@ export function mesclarMensagens(
 ): MensagemResposta[] {
   const porId = new Map<string, MensagemResposta>();
   for (const mensagem of [...existentes, ...novas]) {
-    const anterior = porId.get(mensagem.id);
+    const identidade = mensagem.idempotencyKey ?? mensagem.id;
+    const anterior = porId.get(identidade);
     porId.set(
-      mensagem.id,
+      identidade,
       anterior
         ? {
             ...anterior,

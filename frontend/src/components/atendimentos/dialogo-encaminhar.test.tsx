@@ -110,7 +110,13 @@ describe("DialogoEncaminhar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Encaminhar" }));
 
     await waitFor(() =>
-      expect(encaminhar).toHaveBeenCalledWith("at-origem", "msg-1", "2026-08-29T12:00:00Z", "at-dest"),
+      expect(encaminhar).toHaveBeenCalledWith(
+        "at-origem",
+        "msg-1",
+        "2026-08-29T12:00:00Z",
+        "at-dest",
+        expect.any(String),
+      ),
     );
   });
 

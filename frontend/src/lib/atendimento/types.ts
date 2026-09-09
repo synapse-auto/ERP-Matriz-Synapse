@@ -152,6 +152,8 @@ export interface MensagemResposta {
   enviadoEm: string;
   reacoes?: ResumoReacao[];
   citacao?: CitacaoMensagem | null;
+  /** Chave do clique de envio, presente nas mensagens humanas e usada para reconciliar o otimista. */
+  idempotencyKey?: string | null;
 }
 
 export interface PaginaMensagens {
@@ -166,6 +168,7 @@ export interface EnvioResposta {
   statusEntrega: StatusEntrega;
   enviadoEm: string;
   transferiuOLead: boolean;
+  idempotencyKey?: string | null;
 }
 
 /** Espelha AtendimentoAcoesController.NovoContatoResposta — POST /api/v1/atendimentos/novo-contato. */
@@ -269,6 +272,7 @@ export interface MensagemTempoReal {
   statusEntrega: StatusEntrega;
   enviadoEm: string;
   citacao?: CitacaoMensagem | null;
+  idempotencyKey?: string | null;
 }
 
 export interface StatusTempoReal {
@@ -277,6 +281,7 @@ export interface StatusTempoReal {
   mensagemId: string;
   statusEntrega: StatusEntrega;
   ocorridoEm: string;
+  idempotencyKey?: string | null;
 }
 
 export interface TransferenciaTempoReal {

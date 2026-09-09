@@ -30,7 +30,8 @@ public record MensagemParaTempoReal(
         String opcoes,
         String statusEntrega,
         Instant enviadoEm,
-        CitacaoDeMensagem citacao) {
+        CitacaoDeMensagem citacao,
+        String chaveIdempotencia) {
 
     public MensagemParaTempoReal(
             UUID atendimentoId,
@@ -58,6 +59,38 @@ public record MensagemParaTempoReal(
                 opcoes,
                 statusEntrega,
                 enviadoEm,
+                null,
+                null);
+    }
+
+    public MensagemParaTempoReal(
+            UUID atendimentoId,
+            UUID leadId,
+            UUID mensagemId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            String opcoes,
+            String statusEntrega,
+            Instant enviadoEm,
+            CitacaoDeMensagem citacao) {
+        this(
+                atendimentoId,
+                leadId,
+                mensagemId,
+                remetenteTipo,
+                remetenteId,
+                tipo,
+                conteudo,
+                midiaUrl,
+                midiaMetadados,
+                opcoes,
+                statusEntrega,
+                enviadoEm,
+                citacao,
                 null);
     }
 }

@@ -18,7 +18,8 @@ public record MensagemDoHistorico(
         String atendimentoResponsavelNome,
         ErroDeEntrega erroEntrega,
         List<ResumoDeReacao> reacoes,
-        CitacaoDeMensagem citacao) {
+        CitacaoDeMensagem citacao,
+        String chaveIdempotencia) {
 
     public MensagemDoHistorico {
         reacoes = reacoes == null ? List.of() : List.copyOf(reacoes);
@@ -40,6 +41,7 @@ public record MensagemDoHistorico(
                 atendimentoResponsavelNome,
                 null,
                 List.of(),
+                null,
                 null);
     }
 
@@ -53,6 +55,7 @@ public record MensagemDoHistorico(
                 atendimentoResponsavelNome,
                 erroEntrega,
                 novas,
-                citacao);
+                citacao,
+                chaveIdempotencia);
     }
 }

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class TemplateManualOutboxIT extends PostgresIT {
     @Autowired
     private PublicadorDaOutbox publicador;
 
+    @Autowired
+    private ObjectMapper json;
+
     @AfterEach
     void limpar() {
         jdbc.update("DELETE FROM audit_log WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)", PREFIXO + "%");
@@ -60,6 +64,9 @@ class TemplateManualOutboxIT extends PostgresIT {
                 "DELETE FROM outbox_evento WHERE payload->>'atendimentoId' IN "
                         + "(SELECT id::text FROM atendimento WHERE lead_id IN "
                         + "(SELECT id FROM lead WHERE nome LIKE ?))",
+                PREFIXO + "%");
+        jdbc.update(
+                "DELETE FROM mensagem_envio_idempotencia WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
                 PREFIXO + "%");
         jdbc.update(
                 "DELETE FROM mensagem WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id IN "
@@ -100,11 +107,56 @@ class TemplateManualOutboxIT extends PostgresIT {
                 .isOne();
     }
 
+    @Test
+    @DisplayName("repetir o mesmo template com a mesma chave não cria segunda mensagem nem outbox")
+    void mesmaChaveDoTemplate_retornaRespostaOriginal() throws Exception {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        String chave = "template-idempotente-" + UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO lead (id, nome, status_basico, ultima_interacao_em) VALUES (?, ?, 'IA', now())",
+                leadId,
+                PREFIXO + UUID.randomUUID());
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, status, iniciado_em) VALUES (?, ?, 'EM_IA', now())",
+                atendimentoId,
+                leadId);
+
+        var primeira = enviarTemplate(leadId, chave);
+        var segunda = enviarTemplate(leadId, chave);
+
+        assertThat(primeira.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(segunda.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(json.readTree(primeira.getBody()).path("mensagemId").asText())
+                .isEqualTo(json.readTree(segunda.getBody()).path("mensagemId").asText());
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isOne();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar' "
+                                + "AND payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isOne();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem_envio_idempotencia WHERE chave_idempotencia = ?",
+                        Long.class,
+                        chave))
+                .isOne();
+    }
+
     private org.springframework.http.ResponseEntity<String> enviarTemplate(UUID leadId) {
+        return enviarTemplate(leadId, null);
+    }
+
+    private org.springframework.http.ResponseEntity<String> enviarTemplate(UUID leadId, String chave) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        if (chave != null) {
+            cabecalhos.set("Idempotency-Key", chave);
+        }
         return http.exchange(
                 "/api/v1/atendimentos/mensagens/template",
                 HttpMethod.POST,

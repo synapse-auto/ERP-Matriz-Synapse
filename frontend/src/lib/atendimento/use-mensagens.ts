@@ -58,6 +58,7 @@ export function useMensagens(
     }
     conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
       if (evento.tipo === "MENSAGEM") {
+        if (!evento.dados.mensagemId) return;
         const nova: MensagemResposta = {
           id: evento.dados.mensagemId,
           atendimentoId: evento.dados.atendimentoId,
@@ -73,15 +74,13 @@ export function useMensagens(
           erroEntrega: null,
           enviadoEm: evento.dados.enviadoEm,
           citacao: evento.dados.citacao ?? null,
+          idempotencyKey: evento.dados.idempotencyKey ?? null,
         };
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;
         onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
-        if (evento.dados.statusEntrega === "FALHOU") {
-          void queryClient.invalidateQueries({ queryKey });
-          return;
-        }
+        if (!evento.dados.mensagemId) return;
         queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
           atual
             ? {
@@ -90,7 +89,15 @@ export function useMensagens(
                   ...pagina,
                   mensagens: pagina.mensagens.map((mensagem) =>
                     mensagem.id === evento.dados.mensagemId
-                      ? { ...mensagem, statusEntrega: evento.dados.statusEntrega }
+                    || (evento.dados.idempotencyKey != null
+                      && mensagem.idempotencyKey === evento.dados.idempotencyKey)
+                      ? {
+                          ...mensagem,
+                          id: evento.dados.mensagemId,
+                          statusEntrega: evento.dados.statusEntrega,
+                          idempotencyKey:
+                            mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
+                        }
                       : mensagem,
                   ),
                 })),

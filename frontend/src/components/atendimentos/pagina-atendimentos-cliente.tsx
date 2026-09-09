@@ -153,7 +153,9 @@ export function PaginaAtendimentosCliente({
   );
 
   const iniciarContato = useMutation({
-    mutationFn: iniciarNovoContato,
+    // Uma chave nasce por clique no diálogo e acompanha qualquer repetição desse POST.
+    mutationFn: (pedido: Parameters<typeof iniciarNovoContato>[0]) =>
+      iniciarNovoContato(pedido, crypto.randomUUID()),
     onSuccess: (resposta) => {
       setNovoContatoAberto(false);
       focarAtendimentoIniciado(resposta.leadId);

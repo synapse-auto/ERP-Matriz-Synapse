@@ -19,7 +19,9 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
   if (status === "FALHOU") {
     const motivosConhecidos: Record<string, string> = textos.motivosFalhaEntrega;
     const motivo =
-      erroEntrega?.codigo === null || erroEntrega?.codigo === undefined
+      erroEntrega?.codigo === -1
+        ? textos.envioNaoConfirmado ?? textos.motivoFalhaNaoInformado
+        : erroEntrega?.codigo === null || erroEntrega?.codigo === undefined
         ? erroEntrega?.titulo ?? textos.motivoFalhaNaoInformado
         : motivosConhecidos[String(erroEntrega.codigo)]
           ?? erroEntrega.titulo
@@ -31,7 +33,7 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
     return (
       <span
         className="inline-flex items-center gap-1 text-xs text-sidebar-item-texto-perigo"
-        title={erroEntrega?.codigo === null || erroEntrega?.codigo === undefined
+        title={erroEntrega?.codigo === null || erroEntrega?.codigo === undefined || erroEntrega?.codigo === -1
           ? undefined
           : String(erroEntrega.codigo)}
       >

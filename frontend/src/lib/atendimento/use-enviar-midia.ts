@@ -2,8 +2,11 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { ErroDeApi } from "@/lib/api/errors";
+
 import { enviarMidia } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
+import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
 import { mesclarMensagens } from "./tempo-real";
 import type { MensagemResposta, TipoMensagem } from "./types";
 
@@ -16,6 +19,7 @@ interface VariaveisEnvioMidia {
   resposta?: { mensagemId: string; enviadoEm: string };
   citacao?: MensagemResposta["citacao"];
   gravacaoDoComposer?: boolean;
+  idempotencyKey?: string;
 }
 
 function idTemporario(): string {
@@ -30,9 +34,9 @@ function tipoDoArquivo(mimetype: string): TipoMensagem {
 
 /**
  * Mesmo contrato de estado de {@link import("./use-enviar-mensagem").useEnviarMensagem}: bolha
- * `PENDENTE` de verdade assim que o `mutate` roda, `FALHOU` com reenviar no erro. A diferença é a
- * preview local — `URL.createObjectURL`, válida só nesta sessão do browser — porque o backend não
- * devolve a URL assinada na resposta de envio (só quem lê a conversa depois assina de novo).
+ * `PENDENTE` de verdade assim que o `mutate` roda; falhas de transporte ficam pendentes durante a
+ * reconciliação pela chave. A diferença é a preview local — `URL.createObjectURL`, válida só nesta
+ * sessão do browser — porque o backend não devolve a URL assinada na resposta de envio.
  */
 export function useEnviarMidia() {
   const queryClient = useQueryClient();
@@ -46,9 +50,11 @@ export function useEnviarMidia() {
         variaveis.onProgresso ?? (() => {}),
         variaveis.resposta,
         variaveis.gravacaoDoComposer,
+        variaveis.idempotencyKey,
       ),
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
+      variaveis.idempotencyKey ??= crypto.randomUUID();
       const idOtimista = idTemporario();
       const identidade = identidadeAutenticada(queryClient);
       const previewUrl = URL.createObjectURL(variaveis.arquivo);
@@ -71,13 +77,33 @@ export function useEnviarMidia() {
         erroEntrega: null,
         enviadoEm: new Date().toISOString(),
         citacao: variaveis.citacao ?? null,
+        idempotencyKey: variaveis.idempotencyKey,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      return { queryKey, idOtimista };
+      return { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
     },
-    onError: (_erro, variaveis, contexto) => {
+    onError: async (erro, variaveis, contexto) => {
       if (!contexto) {
         return;
+      }
+      const definitiva =
+        erro instanceof ErroDeApi
+        && erro.status >= 400
+        && erro.status < 500
+        && ![408, 425, 429].includes(erro.status);
+      if (!definitiva) {
+        const reconciliada = await reconciliarEnvioAmbiguo(
+          queryClient,
+          variaveis.atendimentoId,
+          contexto.queryKey,
+          contexto.idOtimista,
+          variaveis.idempotencyKey!,
+          contexto.criadoEm,
+        );
+        if (reconciliada) {
+          queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+          return;
+        }
       }
       if (variaveis.resposta) {
         atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
@@ -88,7 +114,11 @@ export function useEnviarMidia() {
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
         atual.map((mensagem) =>
           mensagem.id === contexto.idOtimista
-            ? ({ ...mensagem, statusEntrega: "FALHOU" } as MensagemResposta)
+            ? ({
+                ...mensagem,
+                statusEntrega: "FALHOU",
+                erroEntrega: definitiva ? null : { codigo: -1, titulo: null },
+              } as MensagemResposta)
             : mensagem,
         ),
       );
@@ -101,7 +131,11 @@ export function useEnviarMidia() {
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
         // O WebSocket pode ter entregue a versão definitiva (inclusive a URL assinada) antes
         // da resposta HTTP. Nesse caso, não reconstrua a mensagem com a prévia blob: obsoleta.
-        const definitiva = atual.find((mensagem) => mensagem.id === resposta.mensagemId);
+        const definitiva = atual.find(
+          (mensagem) =>
+            mensagem.id === resposta.mensagemId
+            || mensagem.idempotencyKey === resposta.idempotencyKey,
+        );
         if (definitiva) {
           return atual
             .filter((mensagem) => mensagem.id !== contexto.idOtimista)
@@ -126,9 +160,14 @@ export function useEnviarMidia() {
           remetenteNome: identidade.nome ?? otimista.remetenteNome,
           statusEntrega: resposta.statusEntrega,
           enviadoEm: resposta.enviadoEm,
+          idempotencyKey: resposta.idempotencyKey ?? _variaveis?.idempotencyKey,
         };
         return mesclarMensagens(
-          atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
+          atual.filter(
+            (mensagem) =>
+              mensagem.id !== contexto.idOtimista
+              && mensagem.idempotencyKey !== real.idempotencyKey,
+          ),
           [real],
         );
       });

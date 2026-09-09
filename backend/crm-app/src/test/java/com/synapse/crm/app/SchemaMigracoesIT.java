@@ -90,6 +90,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "marca_da_instancia",
                     "mensagem",
                     "mensagem_automacao_idempotencia",
+                    "mensagem_envio_idempotencia",
                     "mensagem_id_externo",
                     "mensagem_recebida_idempotencia",
                     "comando_automacao_idempotencia",
