@@ -29,6 +29,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -40,6 +41,8 @@ import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
+import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 
 /**
  * Anti-Corruption Layer da Meta Cloud API.
@@ -92,13 +95,15 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final CircuitBreaker breakerSaude;
     private final CircuitBreaker breakerMidia;
     private final ArmazenamentoDeMidia armazenamento;
+    private final ConversorDeAudio conversorDeAudio;
 
     MetaCloudApiAdapter(
             RestClient.Builder builder,
             CanalProperties propriedades,
             ObjectMapper json,
             CircuitBreakerRegistry breakers,
-            ArmazenamentoDeMidia armazenamento) {
+            ArmazenamentoDeMidia armazenamento,
+            ConversorDeAudio conversorDeAudio) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
@@ -107,6 +112,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         this.breakerSaude = breakers.circuitBreaker(NOME_DO_BREAKER_SAUDE);
         this.breakerMidia = breakers.circuitBreaker(NOME_DO_BREAKER_MIDIA);
         this.armazenamento = armazenamento;
+        this.conversorDeAudio = conversorDeAudio;
     }
 
     @Override
@@ -210,6 +216,9 @@ class MetaCloudApiAdapter implements CanalGateway {
 
         } catch (RestClientResponseException e) {
             return traduzirErro(e);
+        } catch (FalhaNaConversaoDeAudioException e) {
+            return ResultadoDeEnvio.Recusado.permanente(
+                    "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp");
         }
         // Timeout, DNS, conexao recusada sobem como excecao de propósito: o breaker
         // precisa conta-las como falha para chegar a abrir.
@@ -273,10 +282,10 @@ class MetaCloudApiAdapter implements CanalGateway {
                 // acontece aqui, dentro do mesmo breaker.executeSupplier de chamar() — falha de
                 // upload conta para o circuit breaker igual falha de envio.
                 String campoTipo = campoDeTipoMeta(midia.tipo());
-                String mediaId = subirMidiaParaAMeta(midia);
+                MidiaSubida midiaSubida = subirMidiaParaAMeta(midia);
                 raiz.put("type", campoTipo);
                 ObjectNode midiaNo = raiz.putObject(campoTipo);
-                midiaNo.put("id", mediaId);
+                midiaNo.put("id", midiaSubida.id());
                 // A API da Meta so admite caption em image, video e document. Audio com esse
                 // campo e rejeitado por inteiro; a legenda continua no historico do CRM, mas nao
                 // pode fazer parte deste payload.
@@ -288,8 +297,7 @@ class MetaCloudApiAdapter implements CanalGateway {
                     midiaNo.put("caption", midia.legenda());
                 }
                 if (midia.tipo() == TipoMensagem.AUDIO
-                        && MetaCloudMidiaUpload.ehNotaDeVoz(
-                                campoDeMetadados(midia.metadados(), "mimetype"))) {
+                        && MetaCloudMidiaUpload.ehNotaDeVoz(midiaSubida.mimetype())) {
                     // Nota de voz: OGG Opus com voice=true. M4A/AAC e audio basico — a Meta
                     // recusa voice=true nesses containers.
                     midiaNo.put("voice", true);
@@ -318,22 +326,24 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     /** Upload multipart para {@code /{numero}/media} — devolve o {@code media id} da Meta. */
-    private String subirMidiaParaAMeta(ConteudoDeEnvio.MensagemMidia midia) {
+    private MidiaSubida subirMidiaParaAMeta(ConteudoDeEnvio.MensagemMidia midia) {
         byte[] conteudo = armazenamento.baixar(midia.referenciaStorage());
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
         String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
 
-        if (midia.tipo() == TipoMensagem.AUDIO && AacAdtsDeIsoBmff.contemMoof(conteudo)) {
-            var aac = AacAdtsDeIsoBmff.extrairSeFragmentado(conteudo);
-            if (aac.isPresent()) {
-                conteudo = aac.get();
-                mimetype = "audio/aac";
-                log.info(
-                        "audio ISO-BMFF fragmentado reconstruido como AAC ADTS ({} bytes)",
-                        conteudo.length);
-            } else {
-                log.warn("audio ISO-BMFF fragmentado nao reconstruido; enviando bytes originais");
+        if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(conteudo)) {
+            ConversorDeAudio.Resultado convertido =
+                    conversorDeAudio.converterParaOggOpus(conteudo, mimetype);
+            if (!MetaCloudMidiaUpload.ehNotaDeVoz(convertido.mimetype())
+                    || convertido.conteudo().length == 0) {
+                throw new FalhaNaConversaoDeAudioException(
+                        "conversor de audio nao produziu OGG/Opus valido");
             }
+            conteudo = convertido.conteudo();
+            mimetype = convertido.mimetype();
+            log.info(
+                    "audio ISO-BMFF fragmentado convertido para OGG/Opus no worker de entrega ({} bytes)",
+                    conteudo.length);
         }
 
         String tipoDoCampo = MetaCloudMidiaUpload.tipoDoCampo(mimetype, midia.tipo());
@@ -363,11 +373,13 @@ class MetaCloudApiAdapter implements CanalGateway {
                 .body(String.class);
 
         try {
-            return json.readTree(resposta).path("id").asText();
+            return new MidiaSubida(json.readTree(resposta).path("id").asText(), tipoDoArquivo);
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("resposta de upload de midia da Meta ilegivel", e);
         }
     }
+
+    private record MidiaSubida(String id, String mimetype) {}
 
     private String campoDeMetadados(String metadadosJson, String campo) {
         if (metadadosJson == null) {

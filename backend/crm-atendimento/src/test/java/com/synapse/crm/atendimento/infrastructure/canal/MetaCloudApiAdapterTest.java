@@ -36,6 +36,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -47,6 +48,7 @@ import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 
 class MetaCloudApiAdapterTest {
 
@@ -56,6 +58,7 @@ class MetaCloudApiAdapterTest {
 
     private final ObjectMapper json = new ObjectMapper();
     private final ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+    private final ConversorDeAudio conversorDeAudio = mock(ConversorDeAudio.class);
 
     private MockRestServiceServer servidor;
     private MetaCloudApiAdapter adapter;
@@ -84,7 +87,8 @@ class MetaCloudApiAdapterTest {
                 propriedades,
                 json,
                 breakers,
-                armazenamento);
+                armazenamento,
+                conversorDeAudio);
     }
 
     @Test
@@ -128,19 +132,46 @@ class MetaCloudApiAdapterTest {
     }
 
     @Test
-    void audioFragmentadoEReconstruidoComoAacAntesDoUpload() {
-        byte[] fmp4 = AacAdtsDeIsoBmffTest.fmp4ComUmFrame(new byte[] {0x21, 0x10, 0x04, 0x60});
+    void audioFragmentadoEConvertidoParaOggAntesDoUpload() {
+        byte[] fmp4 = fmp4();
+        byte[] ogg = {'O', 'g', 'g', 'S', 'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'};
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(ogg, "audio/ogg"));
         String[] upload = {null};
-        enviarMidiaComMetadados(
+        JsonNode payload = enviarMidiaComMetadados(
                 TipoMensagem.AUDIO,
                 "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
                 upload);
 
-        assertThat(upload[0]).contains("Content-Type: audio/aac");
-        assertThat(upload[0]).contains("filename=\"gravacao.aac\"");
-        assertThat(upload[0]).contains("audio/aac");
-        assertThat(upload[0]).contains(new String(new byte[] {(byte) 0xFF, (byte) 0xF1}, java.nio.charset.StandardCharsets.ISO_8859_1));
+        assertThat(upload[0]).contains("Content-Type: audio/ogg");
+        assertThat(upload[0]).contains("filename=\"gravacao.ogg\"");
+        assertThat(upload[0]).contains("audio/ogg; codecs=opus");
+        assertThat(payload.path("audio").path("voice").asBoolean()).isTrue();
+    }
+
+    @Test
+    void audioFragmentadoQueNaoConverteERecusadoSemAbrirOBreaker() {
+        byte[] fmp4 = fmp4();
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaOggOpus(fmp4, "audio/mp4"))
+                .thenThrow(new FalhaNaConversaoDeAudioException("ffmpeg indisponivel"));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
+                        null),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(ResultadoDeEnvio.Recusado.permanente(
+                "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp"));
+        assertThat(breakers.circuitBreaker("canal-meta-cloud").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        servidor.verify();
     }
 
     @Test
@@ -367,7 +398,7 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
-                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento, conversorDeAudio);
 
         for (int tentativa = 0; tentativa < 10; tentativa++) {
             assertThatThrownBy(adapterSemConta::listarTemplates)
@@ -399,7 +430,7 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
-                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento, conversorDeAudio);
         PedidoDeTemplate pedido = new PedidoDeTemplate(
                 "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
 
@@ -720,7 +751,8 @@ class MetaCloudApiAdapterTest {
                         ""),
                 json,
                 breakers,
-                armazenamento);
+                armazenamento,
+                conversorDeAudio);
         PedidoDeTemplate pedido = new PedidoDeTemplate(
                 "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
 
@@ -984,7 +1016,16 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         return new AdaptadorLocal(
-                new MetaCloudApiAdapter(builder, propriedades, json, breakers, armazenamento), local);
+                new MetaCloudApiAdapter(
+                        builder, propriedades, json, breakers, armazenamento, conversorDeAudio),
+                local);
+    }
+
+    private static byte[] fmp4() {
+        return new byte[] {
+            0, 0, 0, 8, 'f', 't', 'y', 'p',
+            0, 0, 0, 8, 'm', 'o', 'o', 'f'
+        };
     }
 
     private static CircuitBreakerRegistry breakersSensiveis() {
