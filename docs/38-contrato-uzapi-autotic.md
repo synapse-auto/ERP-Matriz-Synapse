@@ -157,6 +157,38 @@ Authorization: Bearer <token>
 O endpoint do Synapse é único: `POST /webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>`. Nenhum
 registro foi executado contra uma conta real nesta etapa.
 
+### 8.0.1 Verificação operacional por instância
+
+Cada instância Uzapi/Autotic precisa apontar **somente o seu próprio** `phone_number_id` para o
+endpoint da sua instalação do Synapse. O CRM valida `metadata.phone_number_id` antes de gravar o
+payload; portanto, o aviso abaixo não deve ser corrigido aceitando o número recebido:
+
+```
+Webhook de outro canal descartado (phone_number_ids=[...])
+```
+
+Ele significa que outra instância do fornecedor está entregando eventos neste callback. Corrija a
+URL de callback na instância de origem (ou peça ao suporte Uzapi a lista de instâncias associadas ao
+usuário), mantendo o filtro do CRM fechado. Aceitar esse evento faria uma clínica receber conversas
+de outra.
+
+Antes de habilitar ou atualizar a integração em produção, valide nesta ordem:
+
+1. Faça `GET /{username}/{version}/{phone_number_id}/instance` e confirme, sem registrar token em
+   logs ou tickets, que o `phoneNumberId` e o `webhook` pertencem à instância em questão.
+2. Envie um texto, uma imagem, um áudio e um documento a partir de um número externo. O texto prova
+   o callback; as três mídias provam a resolução de `mediaId` e a gravação no storage.
+3. Se o erro da fila trouxer `Cannot GET /<username>//<mediaId>`, a imagem implantada não contém a
+   rota versionada atual. Atualize o backend antes de reprocessar: o contrato é
+   `GET /{username}/{version}/{mediaId}`.
+4. Em Dokploy compartilhado, mantenha `MIDIA_S3_ENDPOINT` no alias privado
+   `http://synapse-minio-internal:9000`, nunca no nome genérico `http://minio:9000`; detalhes em
+   `docs/16-acesso-da-automacao.md`.
+
+Eventos de mídia que já chegaram a `webhook_entrada` e esgotaram as tentativas não reaparecem por
+magia após a correção. Eles precisam de reprocessamento controlado, depois de um teste de ponta a
+ponta bem-sucedido, para não repetir chamadas de mídia já expiradas no fornecedor.
+
 ### 8.1 O que o Swagger oficial documenta — confirmado, primário
 
 O Swagger tem 16 paths de webhook, agrupados por tipo de evento:
