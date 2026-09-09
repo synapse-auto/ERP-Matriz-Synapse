@@ -58,6 +58,11 @@ Document, Reaction, Location, Contacts, Poll, Sticker, Revoke, Interactive):
 2. `POST .../messages` com `{"to", "type": "<image|audio|video|document>", "<type>": {"id":
    "<mediaId>", "caption": "<opcional>"}}`.
 
+Antes do upload, áudio ISO-BMFF fragmentado (`moof`, formato gerado pelo `MediaRecorder` do
+navegador) é convertido no worker de entrega para OGG/Opus. A conversão é local e ocorre fora dos
+disjuntores do provedor: erro de conversão recusa somente aquela mensagem, sem degradar os demais
+envios. Áudios nos demais formatos seguem para o upload sem transformação.
+
 O objeto de mídia também aceita `link` (URL pública) no lugar de `id` — confirmado no schema
 (`image`/`video`/`document` são `CaptionedLinkMessage`/`CaptionedFileMessage`, `audio` é
 `LinkMessage`, todos com as duas propriedades `link` e `id`). **Não implementado nesta etapa**:
