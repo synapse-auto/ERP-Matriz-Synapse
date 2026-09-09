@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -16,9 +17,12 @@ import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.errors.MinioException;
 import io.minio.http.Method;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ResumoSeguroDeMidia;
 
 /**
  * Adaptador S3-compativel (MinIO em desenvolvimento, S3 ou equivalente em producao — docs/01,
@@ -32,6 +36,8 @@ import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
  */
 @Component
 class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
+
+    private static final Logger log = LoggerFactory.getLogger(MinioArmazenamentoDeMidia.class);
 
     private final MinioClient io;
     private final MinioClient assinador;
@@ -88,6 +94,13 @@ class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
                     .stream(fonte, conteudo.length, -1)
                     .contentType(mimetype)
                     .build());
+            ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(conteudo);
+            log.info(
+                    "midia persistida no storage: referencia={}, tamanho={}, mimetype={}, sha256={}",
+                    chave,
+                    resumo.tamanho(),
+                    mimetype,
+                    resumo.sha256());
             return chave;
         } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
             throw new IllegalStateException("falha ao salvar midia no storage: " + chave, e);
@@ -96,11 +109,19 @@ class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
 
     @Override
     public byte[] baixar(String referencia) {
-        try (InputStream conteudo = io.getObject(GetObjectArgs.builder()
+        try (GetObjectResponse resposta = io.getObject(GetObjectArgs.builder()
                 .bucket(propriedades.bucket())
                 .object(referencia)
                 .build())) {
-            return conteudo.readAllBytes();
+            byte[] bytes = resposta.readAllBytes();
+            ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(bytes);
+            log.info(
+                    "midia recuperada do storage: referencia={}, tamanho={}, mimetype={}, sha256={}",
+                    referencia,
+                    resumo.tamanho(),
+                    resposta.headers().get("Content-Type"),
+                    resumo.sha256());
+            return bytes;
         } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
             throw new IllegalStateException("falha ao baixar midia do storage: " + referencia, e);
         }

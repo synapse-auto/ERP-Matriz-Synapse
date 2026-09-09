@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 30/08/2026 a partir de
-`origin/main` (`a47362c`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado reconstruído em 09/09/2026 a partir de
+`origin/main` (`3bbe37b`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -15,6 +15,17 @@ estrutural validada. A Meta recebe `voice: true`; a Uzapi/Autotic recebe somente
 documentado, sem campos não previstos de duração ou PTT. Anexos de áudio escolhidos manualmente
 mantêm o fluxo existente.
 
+### 09/09/2026 — Diagnóstico de duração na Uzapi/Autotic
+
+O worker identifica gravações do composer por uma marca interna nos metadados da outbox e valida
+novamente o OGG/Opus recuperado do storage antes do upload. O resumo seguro (tamanho, MIME e
+SHA-256) é registrado nos limites antes do storage, na leitura e no upload; o conteúdo nunca é
+registrado. O caminho normal não transforma bytes entre storage e Uzapi. O Swagger oficial não
+documenta `voice`, `ptt`, `duration` ou `seconds`, então o CRM não envia campos inventados: a duração
+precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real para a conta da
+Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
+operacional do provedor.
+
 ---
 
 ## 1. Onde estamos
@@ -25,7 +36,7 @@ mas não registra por si só o instante do deploy nem prova todos os smoke tests
 Não tratar esse SHA como imagem necessariamente em execução: o Dokploy deve ser conferido
 pelo digest da imagem.
 
-O HEAD de referência é `a47362c` (`origin/main`), promovido pelo PR #28. O trabalho normal
+O HEAD de referência é `3bbe37b` (`origin/main`), após a integração do PR #128. O trabalho normal
 é feito em branch própria, publicado no `origin` e entregue por Pull Request para `main`.
 O agente não faz merge do próprio PR e não faz deploy; essas ações ficam com o responsável
 pela operação.

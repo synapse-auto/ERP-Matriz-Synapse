@@ -72,6 +72,29 @@ O corpo enviado à Uzapi continua exatamente o contrato do Swagger: o upload mul
 documentado para `voice`, `ptt`, `duration` ou `seconds`; nenhum desses campos é inventado pelo
 adaptador. Assim, o cronômetro é derivado pelo provedor dos metadados estruturais do OGG/Opus.
 
+### Diagnóstico de duração e identidade do artefato
+
+Gravações do composer carregam uma marca interna (`gravacaoDoComposer`) nos metadados da outbox.
+Ela não altera o contrato público nem o conteúdo da mensagem: serve para o worker revalidar, antes
+do upload Uzapi, que o objeto recuperado ainda é OGG/Opus com páginas completas, `OpusHead`, EOS e
+`granule position` positivo. Um OGG apenas com a assinatura ou com EOS de duração zero é recusado
+antes de qualquer chamada ao provedor. Áudios anexados manualmente não recebem essa marca e não
+passam por conversão.
+
+Nos limites do fluxo são registrados somente dados técnicos, sem conteúdo: tamanho, MIME quando
+conhecido e SHA-256. O primeiro registro ocorre depois da conversão e antes do storage; o adaptador
+de storage registra a gravação e a leitura; e o adaptador Uzapi registra o mesmo resumo no objeto
+recuperado e no artefato entregue ao multipart. Quando não há transformação (o caso normal do OGG
+do composer), os resumos são idênticos. O fallback de registros antigos ISO-BMFF fragmentados é
+explicitamente convertido para AAC/ADTS e recebe um novo resumo, sem atingir gravações novas.
+
+Não existe, no Swagger consultado, campo ou endpoint que permita informar a duração à Uzapi. Sem
+enviar para uma conta real não é possível afirmar como uma versão específica do provedor calcula o
+relógio; a evidência objetiva disponível é que o arquivo entregue pelo CRM preserva bytes e MIME do
+OGG/Opus validado, com duração positiva verificada localmente por `ffprobe`. Se uma instância ainda
+mostrar `0:00` com esse artefato, a próxima investigação precisa ser feita no processamento de
+mídia da própria Uzapi/Autotic — não há ajuste seguro no payload documentado do CRM.
+
 O objeto de mídia também aceita `link` (URL pública) no lugar de `id` — confirmado no schema
 (`image`/`video`/`document` são `CaptionedLinkMessage`/`CaptionedFileMessage`, `audio` é
 `LinkMessage`, todos com as duas propriedades `link` e `id`). **Não implementado nesta etapa**:

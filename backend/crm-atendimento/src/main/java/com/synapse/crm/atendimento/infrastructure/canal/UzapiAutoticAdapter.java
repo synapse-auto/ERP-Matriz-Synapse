@@ -29,6 +29,8 @@ import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
+import com.synapse.crm.sharedkernel.midia.ResumoSeguroDeMidia;
+import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
 
 /**
  * Anti-Corruption Layer da Uzapi/Autotic ({@code uzapi.com.br}) — envio apenas (E152).
@@ -150,7 +152,7 @@ class UzapiAutoticAdapter implements CanalGateway {
         }
         try {
             if (envio.conteudo() instanceof ConteudoDeEnvio.MensagemMidia midia) {
-                MidiaParaUpload midiaParaUpload = prepararMidiaParaUpload(midia);
+                MidiaParaUpload midiaParaUpload = prepararMidiaParaUpload(envio, midia);
                 return breaker.executeSupplier(() -> enviarMidia(envio, midia, midiaParaUpload));
             }
             return breaker.executeSupplier(() -> enviarNoBreaker(envio));
@@ -252,9 +254,27 @@ class UzapiAutoticAdapter implements CanalGateway {
      * Prepara os bytes antes do disjuntor da Uzapi: falha local de conversao nao pode degradar
      * nem o envio do provedor nem o download de midias recebidas.
      */
-    private MidiaParaUpload prepararMidiaParaUpload(ConteudoDeEnvio.MensagemMidia midia) {
+    private MidiaParaUpload prepararMidiaParaUpload(
+            Envio envio, ConteudoDeEnvio.MensagemMidia midia) {
         byte[] bytes = armazenamento.baixar(midia.referenciaStorage());
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
+        boolean gravacaoDoComposer = booleanoDeMetadados(midia.metadados(), "gravacaoDoComposer");
+        if (gravacaoDoComposer
+                && midia.tipo() == TipoMensagem.AUDIO
+                && (!ehOggOpus(mimetype) || !ValidadorDeOggOpus.ehValido(bytes))) {
+            throw new FalhaNaConversaoDeAudioException(
+                    "gravacao do composer recuperada do storage nao e OGG/Opus valida");
+        }
+        if (gravacaoDoComposer && midia.tipo() == TipoMensagem.AUDIO) {
+            ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(bytes);
+            log.info(
+                    "audio do composer recuperado para upload Uzapi: mensagemId={}, tamanho={}, mimetype={}, sha256={}, oggOpusValido={}",
+                    envio.mensagemId(),
+                    resumo.tamanho(),
+                    mimetype,
+                    resumo.sha256(),
+                    true);
+        }
         if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(bytes)) {
             ConversorDeAudio.Resultado convertido =
                     conversorDeAudio.converterParaAacAdts(bytes, mimetype);
@@ -273,7 +293,22 @@ class UzapiAutoticAdapter implements CanalGateway {
                 MetaCloudMidiaUpload.tipoDoCampo(mimetype, midia.tipo()));
         String nome = MetaCloudMidiaUpload.nomeDoArquivo(
                 campoDeMetadados(midia.metadados(), "nome"), tipoDoArquivo);
+        if (gravacaoDoComposer && midia.tipo() == TipoMensagem.AUDIO) {
+            ResumoSeguroDeMidia resumo = ResumoSeguroDeMidia.de(bytes);
+            log.info(
+                    "audio do composer efetivamente enviado à Uzapi: mensagemId={}, tamanho={}, mimetype={}, sha256={}, uploadTipo={}",
+                    envio.mensagemId(),
+                    resumo.tamanho(),
+                    mimetype,
+                    resumo.sha256(),
+                    tipoDoArquivo);
+        }
         return new MidiaParaUpload(bytes, tipoDoArquivo, nome);
+    }
+
+    private static boolean ehOggOpus(String mimetype) {
+        String principal = MetaCloudMidiaUpload.tipoPrincipal(mimetype);
+        return "audio/ogg".equals(principal) || "audio/opus".equals(principal);
     }
 
     /** {@code POST .../media}, multipart com {@code file} + {@code messaging_product}, confirmado no Swagger. */
@@ -417,6 +452,18 @@ class UzapiAutoticAdapter implements CanalGateway {
             return valor.isMissingNode() || valor.isNull() ? null : valor.asText();
         } catch (JsonProcessingException | RuntimeException e) {
             return null;
+        }
+    }
+
+    private boolean booleanoDeMetadados(String metadadosJson, String campo) {
+        if (metadadosJson == null || metadadosJson.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode valor = json.readTree(metadadosJson).path(campo);
+            return valor.isBoolean() && valor.booleanValue();
+        } catch (JsonProcessingException | RuntimeException e) {
+            return false;
         }
     }
 
