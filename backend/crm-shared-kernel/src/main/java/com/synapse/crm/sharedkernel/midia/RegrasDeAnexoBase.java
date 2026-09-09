@@ -26,6 +26,10 @@ public final class RegrasDeAnexoBase {
             Map.entry(
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     CategoriaDeMidia.DOCUMENTO),
+            Map.entry("application/vnd.ms-powerpoint", CategoriaDeMidia.DOCUMENTO),
+            Map.entry(
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    CategoriaDeMidia.DOCUMENTO),
             Map.entry("text/plain", CategoriaDeMidia.DOCUMENTO));
 
     private RegrasDeAnexoBase() {}
