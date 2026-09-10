@@ -70,6 +70,11 @@ FOR EACH ROW EXECUTE FUNCTION app_marcar_citacoes_chat_removidas();
 
 REVOKE EXECUTE ON FUNCTION app_marcar_citacoes_chat_removidas() FROM PUBLIC;
 
+-- O trigger e SECURITY DEFINER e o owner BYPASSRLS precisa conseguir atualizar
+-- referencias em qualquer conversa, inclusive quando o autor da citacao nao e
+-- o usuario que excluiu a origem.
+GRANT SELECT, UPDATE ON chat_interno_mensagem TO synapse_chat_rls;
+
 COMMENT ON COLUMN chat_interno_mensagem.removida_em IS
     'Tombstone de exclusao pelo autor; conteudo e referencia da midia ficam inacessiveis na leitura.';
 COMMENT ON COLUMN chat_interno_mensagem.referencia_previa IS
