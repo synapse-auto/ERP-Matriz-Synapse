@@ -24,10 +24,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * um segundo encerramento publicaria um segundo evento e a timeline do lead contaria uma historia que
  * nao aconteceu.
  *
- * <p><b>Avaliacao (contrato EV-08 §1.1 e §1.5):</b> a pesquisa de satisfacao so e enfileirada na
- * finalizacao <em>individual</em>. "Finalizar todos" nunca dispara — tres cliques de lote virariam
- * dezenas de conversas abertas com o cliente. A origem nao vem de parametro HTTP nem de heuristica:
- * quem chama ja sabe qual e, porque lote e individual entram por metodos publicos distintos.
+ * <p><b>Avaliacao (contrato EV-08 §1.1 e §1.5):</b> a pesquisa de satisfacao e enfileirada na
+ * finalizacao individual e na solicitada pela Automacao, mas nunca em lote — tres cliques de lote
+ * virariam dezenas de conversas abertas com o cliente. A origem nao vem de parametro HTTP nem de
+ * heuristica: quem chama ja sabe qual e, porque lote, individual e Automacao entram por metodos
+ * publicos distintos.
  */
 @Service
 public class FinalizarAtendimentoUseCase {
@@ -72,6 +73,20 @@ public class FinalizarAtendimentoUseCase {
         return finalizar(atendimentoId, quemFinalizou, Origem.LOTE);
     }
 
+    /**
+     * Entrada exclusiva da Automacao. O ator e tipado no evento como AUTOMACAO, sem fabricar um
+     * UUID de usuario; a transicao e a mesma do botao humano e continua dentro desta transacao.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+            })
+    public Atendimento executarPelaAutomacao(UUID atendimentoId) {
+        return finalizar(atendimentoId, null, Origem.AUTOMACAO);
+    }
+
     private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         Instant agora = Instant.now(relogio);
@@ -86,15 +101,20 @@ public class FinalizarAtendimentoUseCase {
 
         Atendimento finalizado = atendimentos.salvar(aberto.finalizar(agora));
         leads.marcarStatus(aberto.leadId(), StatusBasicoLead.FINALIZADO);
-        if (origem == Origem.INDIVIDUAL) {
+        if (origem == Origem.INDIVIDUAL || origem == Origem.AUTOMACAO) {
             avaliacao.preparar(finalizado);
         }
 
-        eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizado(
-                aberto.leadId(), aberto.id(), quemFinalizou, agora));
+        if (origem == Origem.AUTOMACAO) {
+            eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao(
+                    aberto.leadId(), aberto.id(), agora));
+        } else {
+            eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizado(
+                    aberto.leadId(), aberto.id(), quemFinalizou, agora));
+        }
 
         return finalizado;
     }
 
-    private enum Origem { INDIVIDUAL, LOTE }
+    private enum Origem { INDIVIDUAL, LOTE, AUTOMACAO }
 }

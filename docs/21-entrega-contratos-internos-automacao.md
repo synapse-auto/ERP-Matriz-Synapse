@@ -210,6 +210,13 @@ Se o workflow não tem um motivo de negócio para apontar a pessoa, use a segund
 decidir. `GET /internal/v1/atendentes/disponiveis` já devolve a lista **na ordem recomendada** — o
 primeiro item é o destino sugerido. Não reordene no workflow.
 
+Para finalizar um único atendimento, use `POST /internal/v1/atendimentos/{id}/finalizar` sem corpo.
+Exija `Idempotency-Key`; a transição marca o atendimento e o lead como `FINALIZADO` e registra
+`AUTOMACAO` na timeline, auditoria e evento pós-commit, sem usuário técnico ou UUID fictício. A
+resposta contém apenas os IDs, status, instante de finalização e origem; não expõe telefone,
+histórico ou mensagens. A mesma chave e atendimento devolvem a resposta original, enquanto uma chave
+reutilizada em outro atendimento/operação ou uma segunda finalização com chave nova responde `409`.
+
 ---
 
 ## 4. O que continua exatamente igual

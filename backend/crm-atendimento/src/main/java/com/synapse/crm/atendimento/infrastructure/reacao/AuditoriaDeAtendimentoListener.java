@@ -85,6 +85,9 @@ class AuditoriaDeAtendimentoListener {
             case EventoDeAtendimento.AtendimentoFinalizado finalizado ->
                 new Registro(finalizado.quemFinalizou(), "USUARIO", "ATENDIMENTO_FINALIZADO");
 
+            case EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao ignorado ->
+                new Registro(null, "AUTOMACAO", "ATENDIMENTO_FINALIZADO");
+
             case EventoDeAtendimento.PedidoEntradaSolicitado pedido ->
                 new Registro(pedido.solicitanteId(), "USUARIO", "PEDIDO_ENTRADA_ATENDIMENTO");
 

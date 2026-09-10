@@ -25,6 +25,7 @@ public class ComandosAutomacaoUseCase {
     private final ResponderAtendimentoDaAutomacaoUseCase responder;
     private final TransferirAtendimentoDaAutomacaoUseCase transferir;
     private final TransferirAtendimentoUseCase transferirAtendimento;
+    private final FinalizarAtendimentoUseCase finalizarAtendimento;
     private final CriarLembreteDaAutomacaoUseCase criarLembrete;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
@@ -33,12 +34,14 @@ public class ComandosAutomacaoUseCase {
             ResponderAtendimentoDaAutomacaoUseCase responder,
             TransferirAtendimentoDaAutomacaoUseCase transferir,
             TransferirAtendimentoUseCase transferirAtendimento,
+            FinalizarAtendimentoUseCase finalizarAtendimento,
             CriarLembreteDaAutomacaoUseCase criarLembrete,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
         this.responder = responder;
         this.transferir = transferir;
         this.transferirAtendimento = transferirAtendimento;
+        this.finalizarAtendimento = finalizarAtendimento;
         this.criarLembrete = criarLembrete;
         this.idempotencia = idempotencia;
         this.json = json;
@@ -90,6 +93,18 @@ public class ComandosAutomacaoUseCase {
                 "",
                 TransferenciaResposta.class,
                 () -> TransferenciaResposta.de(transferir.executar(atendimentoId)));
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public FinalizacaoResposta finalizar(UUID atendimentoId, String chave) {
+        return executar(
+                chave,
+                "FINALIZAR",
+                atendimentoId,
+                "",
+                FinalizacaoResposta.class,
+                () -> FinalizacaoResposta.de(finalizarAtendimento.executarPelaAutomacao(atendimentoId)));
     }
 
     @PreAuthorize("hasRole('SERVICO')")
@@ -185,6 +200,24 @@ public class ComandosAutomacaoUseCase {
         static TransferenciaResposta de(Atendimento atendimento) {
             return new TransferenciaResposta(
                     atendimento.id(), atendimento.atendenteId(), atendimento.status().name());
+        }
+    }
+
+    /** Resumo sem historico ou dados de contato, suficiente para o workflow confirmar a transicao. */
+    public record FinalizacaoResposta(
+            UUID atendimentoId,
+            UUID leadId,
+            String status,
+            Instant finalizadoEm,
+            String origem) {
+
+        static FinalizacaoResposta de(Atendimento atendimento) {
+            return new FinalizacaoResposta(
+                    atendimento.id(),
+                    atendimento.leadId(),
+                    atendimento.status().name(),
+                    atendimento.finalizadoEm(),
+                    "AUTOMACAO");
         }
     }
 

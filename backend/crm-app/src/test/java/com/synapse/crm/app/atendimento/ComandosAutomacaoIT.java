@@ -200,6 +200,112 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void finalizarComoAutomacao_fechaAtendimentoELeadERegistraOrigemSemUsuario() {
+        UUID atendimento = criarAtendimento("FINALIZAR", "EM_IA", null, false);
+        UUID lead = jdbc.queryForObject("SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-1", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody())
+                .contains("\"atendimentoId\":\"" + atendimento + "\"")
+                .contains("\"leadId\":\"" + lead + "\"")
+                .contains("\"status\":\"FINALIZADO\"")
+                .contains("\"origem\":\"AUTOMACAO\"")
+                .doesNotContain("telefone", "conteudo", "mensagens");
+        assertThat(jdbc.queryForObject(
+                        "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject(
+                        "SELECT status_basico::text FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("FINALIZADO");
+
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> {
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'ATENDIMENTO_FINALIZADO' AND origem = 'AUTOMACAO' AND ator_id IS NULL",
+                            Integer.class,
+                            atendimento))
+                    .isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM audit_log WHERE entidade_id = ? AND acao = 'ATENDIMENTO_FINALIZADO' AND ator_tipo = 'AUTOMACAO' AND ator_id IS NULL",
+                            Integer.class,
+                            atendimento))
+                    .isEqualTo(1);
+        });
+    }
+
+    @Test
+    void finalizarRepetidoComMesmaChave_devolveRespostaIdenticaESemSegundoEvento() {
+        UUID atendimento = criarAtendimento("FINALIZAR-RETRY", "EM_IA", null, false);
+
+        ResponseEntity<String> primeira = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-retry", null);
+        ResponseEntity<String> retry = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-retry", null);
+
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(retry.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(retry.getBody()).isEqualTo(primeira.getBody());
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject(
+                                "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'ATENDIMENTO_FINALIZADO'",
+                                Integer.class,
+                                atendimento))
+                        .isEqualTo(1));
+    }
+
+    @Test
+    void finalizarMesmaChaveEmOutroAtendimento_retorna409ESegundoPermaneceAberto() {
+        UUID primeiro = criarAtendimento("FINALIZAR-CHAVE-A", "EM_IA", null, false);
+        UUID segundo = criarAtendimento("FINALIZAR-CHAVE-B", "EM_IA", null, false);
+
+        assertThat(chamar(HttpMethod.POST, url(primeiro, "finalizar"), TOKEN, "finalizar-conflito", null)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        ResponseEntity<String> conflito = chamar(
+                HttpMethod.POST, url(segundo, "finalizar"), TOKEN, "finalizar-conflito", null);
+
+        assertThat(conflito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject(
+                        "SELECT status::text FROM atendimento WHERE id = ?", String.class, segundo))
+                .isEqualTo("EM_IA");
+    }
+
+    @Test
+    void finalizarSemChaveOuTokenOuAtendimentoInexistente_respondeErrosSemEscrita() {
+        UUID atendimento = criarAtendimento("FINALIZAR-VALIDACAO", "EM_IA", null, false);
+
+        assertThat(chamar(HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, null, null)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(chamar(HttpMethod.POST, url(atendimento, "finalizar"), null, "finalizar-auth", null)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chamar(HttpMethod.POST, url(UUID.randomUUID(), "finalizar"), TOKEN, "finalizar-404", null)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject(
+                        "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isEqualTo("EM_IA");
+    }
+
+    @Test
+    void finalizarAtendimentoJaFinalizadoComNovaChave_retorna409() {
+        UUID atendimento = criarAtendimento("FINALIZAR-JA-FINALIZADO", "FINALIZADO", null, false);
+
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-nova", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM comando_automacao_idempotencia WHERE atendimento_id = ?",
+                        Integer.class,
+                        atendimento))
+                .isZero();
+    }
+
+    @Test
     void semTokenETokenInvalido_rejeitamComando() {
         UUID atendimento = criarAtendimento("AUTH", "EM_IA", null, false);
         ResponseEntity<String> ausente = chamar(HttpMethod.POST, url(atendimento, "transferir-proximo-humano"), null, "auth-1", null);

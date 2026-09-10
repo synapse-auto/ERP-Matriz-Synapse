@@ -129,6 +129,13 @@ class TimelineDeAtendimentoListener {
                     finalizado.quemFinalizou(),
                     Map.of());
 
+            case EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao finalizado -> new Anotacao(
+                    "ATENDIMENTO_FINALIZADO",
+                    "Atendimento finalizado pela Automacao.",
+                    "AUTOMACAO",
+                    null,
+                    Map.of("ator", "AUTOMACAO"));
+
             case EventoDeAtendimento.PedidoEntradaSolicitado pedido -> new Anotacao(
                     "PEDIDO_ENTRADA_ATENDIMENTO", pedido.solicitanteNome() + " pediu para entrar no atendimento.",
                     "USUARIO", pedido.solicitanteId(), Map.of("status", "PENDENTE"));
