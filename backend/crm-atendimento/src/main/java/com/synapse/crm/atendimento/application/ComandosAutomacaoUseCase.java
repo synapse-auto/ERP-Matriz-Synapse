@@ -149,8 +149,19 @@ public class ComandosAutomacaoUseCase {
 
         // A tabela de idempotencia referencia atendimento por FK. Validar antes da reserva evita
         // transformar um atendimento inexistente em 500 por violacao de integridade, sem perder o
-        // replay: reservas existentes foram resolvidas acima antes desta validacao.
-        validarAntesDaReserva.run();
+        // replay: reservas existentes foram resolvidas acima antes desta validacao. Se outra
+        // requisicao com a mesma chave concluir enquanto aguardamos o lock do atendimento, ela
+        // pode ter tornado a validacao um conflito; nesse caso, o replay que apareceu no intervalo
+        // ainda tem precedencia sobre o erro de estado.
+        try {
+            validarAntesDaReserva.run();
+        } catch (RuntimeException erro) {
+            var corrida = idempotencia.buscar(chave);
+            if (corrida.isPresent()) {
+                return resolverReserva(corrida.get(), chave, operacao, atendimentoId, hash, tipoResposta);
+            }
+            throw erro;
+        }
         IdempotenciaDeComandoAutomacao.Reserva reserva = idempotencia.reservar(
                 chave, operacao, atendimentoId, hash);
         if (!reserva.nova()) {
