@@ -41,6 +41,12 @@ class RelayDeChatInterno {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void publicarRemocao(EventoDeChatInterno.MensagemRemovida evento) {
+        enviar(PREFIXO + evento.conversaId(), () -> json.writeValueAsString(new EnvelopeRemocao(
+                "CHAT_INTERNO_MENSAGEM_REMOVIDA", evento.destinatarios(), evento.conversaId(), evento.mensagemId())));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void publicarReacao(EventoDeChatInterno.ReacaoAlterada evento) {
         enviar(PREFIXO + evento.conversaId(), () -> json.writeValueAsString(new EnvelopeReacao(
                 "CHAT_INTERNO_REACAO",
@@ -70,6 +76,8 @@ class RelayDeChatInterno {
 
     private record EnvelopeReacao(String tipo, List<UUID> destinatarios, UUID conversaId, UUID mensagemId,
             UUID atorId, String emojiDoAtor, List<ResumoPublico> reacoes) {}
+
+    private record EnvelopeRemocao(String tipo, List<UUID> destinatarios, UUID conversaId, UUID mensagemId) {}
 
     private record ResumoPublico(String emoji, int quantidade) {}
 }

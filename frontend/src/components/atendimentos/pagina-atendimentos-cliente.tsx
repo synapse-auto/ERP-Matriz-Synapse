@@ -72,7 +72,7 @@ interface Props {
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" } | { tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA" }
 >;
 
 /**

@@ -3,6 +3,7 @@ package com.synapse.crm.equipe.application.chat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -98,5 +99,62 @@ class ChatInternoUseCaseTest {
 
         org.junit.jupiter.api.Assertions.assertEquals(StatusPresenca.ONLINE, contatos.getFirst().presenca());
         verify(repositorio).listarContatos(usuario);
+    }
+
+    @Test
+    void responder_preserva_referencia_e_publica_fato_persistido() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        UUID origem = UUID.randomUUID();
+        when(repositorio.mensagem(conversa, origem)).thenReturn(java.util.Optional.of(
+                new ChatInternoRepositorio.MensagemResumo(origem, conversa, UUID.randomUUID(), "Bruno",
+                        "TEXTO", "origem", null, null, Instant.now())));
+        var salva = new ChatInternoRepositorio.MensagemResumo(UUID.randomUUID(), conversa, usuario, "Ana",
+                "TEXTO", "resposta", null, null, Instant.now());
+        when(repositorio.salvarMensagemComReferencia(conversa, usuario, "resposta", "TEXTO", null, null,
+                conversa, origem, "RESPOSTA")).thenReturn(salva);
+        when(repositorio.participantes(conversa)).thenReturn(List.of(usuario, UUID.randomUUID()));
+
+        new ResponderMensagemChatUseCase(repositorio, contexto, eventos).executar(origem, conversa, "resposta");
+
+        verify(eventos).publishEvent(any(EventoDeChatInterno.MensagemEnviada.class));
+        verify(repositorio).salvarMensagemComReferencia(conversa, usuario, "resposta", "TEXTO", null, null,
+                conversa, origem, "RESPOSTA");
+    }
+
+    @Test
+    void encaminhar_bloqueia_destino_de_que_usuario_nao_participa() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        UUID origem = UUID.randomUUID();
+        UUID destino = UUID.randomUUID();
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        when(repositorio.participante(destino, usuario)).thenReturn(false);
+
+        assertThrows(ChatSemAcessoException.class,
+                () -> new EncaminharMensagemChatUseCase(repositorio, contexto, eventos)
+                        .executar(origem, conversa, destino));
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void excluir_exige_autor_corrente_e_publica_remocao_depois_da_persistencia() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        UUID mensagem = UUID.randomUUID();
+        when(repositorio.mensagem(conversa, mensagem)).thenReturn(java.util.Optional.of(
+                new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, usuario, "Ana", "TEXTO",
+                        "segredo", null, null, Instant.now())));
+        var removida = new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, usuario, "Ana", "TEXTO",
+                null, null, null, Instant.now(), List.of(), true, null);
+        when(repositorio.removerMensagem(org.mockito.ArgumentMatchers.eq(conversa),
+                org.mockito.ArgumentMatchers.eq(mensagem), org.mockito.ArgumentMatchers.eq(usuario), any()))
+                .thenReturn(removida);
+        when(repositorio.participantes(conversa)).thenReturn(List.of(usuario));
+
+        var resultado = new ExcluirMensagemChatUseCase(repositorio, contexto, eventos, Clock.systemUTC())
+                .executar(mensagem, conversa);
+
+        org.junit.jupiter.api.Assertions.assertTrue(resultado.removida());
+        verify(eventos).publishEvent(any(EventoDeChatInterno.MensagemRemovida.class));
     }
 }

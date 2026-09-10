@@ -37,8 +37,10 @@ import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
 import com.synapse.crm.equipe.application.chat.CriarGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
+import com.synapse.crm.equipe.application.chat.EncaminharMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
+import com.synapse.crm.equipe.application.chat.ExcluirMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
@@ -50,6 +52,7 @@ import com.synapse.crm.equipe.application.chat.OperacaoDeGrupoInvalidaException;
 import com.synapse.crm.equipe.application.chat.RemoverParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RenomearGrupoChatUseCase;
+import com.synapse.crm.equipe.application.chat.ResponderMensagemChatUseCase;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
@@ -75,6 +78,9 @@ public class ChatInternoController {
     private final MarcarConversaChatComoLidaUseCase ler;
     private final DefinirReacaoChatUseCase definirReacaoUseCase;
     private final RemoverReacaoChatUseCase removerReacaoUseCase;
+    private final ResponderMensagemChatUseCase responderMensagem;
+    private final EncaminharMensagemChatUseCase encaminharMensagem;
+    private final ExcluirMensagemChatUseCase excluirMensagem;
     private final ArmazenamentoDeMidia armazenamento;
 
     ChatInternoController(
@@ -93,6 +99,9 @@ public class ChatInternoController {
             MarcarConversaChatComoLidaUseCase ler,
             DefinirReacaoChatUseCase definirReacaoUseCase,
             RemoverReacaoChatUseCase removerReacaoUseCase,
+            ResponderMensagemChatUseCase responderMensagem,
+            EncaminharMensagemChatUseCase encaminharMensagem,
+            ExcluirMensagemChatUseCase excluirMensagem,
             ArmazenamentoDeMidia armazenamento) {
         this.listar = listar;
         this.contatos = contatos;
@@ -109,6 +118,9 @@ public class ChatInternoController {
         this.ler = ler;
         this.definirReacaoUseCase = definirReacaoUseCase;
         this.removerReacaoUseCase = removerReacaoUseCase;
+        this.responderMensagem = responderMensagem;
+        this.encaminharMensagem = encaminharMensagem;
+        this.excluirMensagem = excluirMensagem;
         this.armazenamento = armazenamento;
     }
 
@@ -236,6 +248,36 @@ public class ChatInternoController {
         );
     }
 
+    @Operation(summary = "Responder mensagem interna", description = "Envia uma mensagem de texto na conversa, preservando a prévia segura da mensagem citada.", responses = {
+            @ApiResponse(responseCode = "201", description = "Resposta persistida."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+    @PostMapping("/conversas/{id}/mensagens/{mensagemId}/responder")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MensagemResposta responder(@PathVariable UUID id, @PathVariable UUID mensagemId,
+            @Valid @RequestBody MensagemRequisicao requisicao) {
+        return MensagemResposta.de(responderMensagem.executar(mensagemId, id, requisicao.conteudo()), armazenamento);
+    }
+
+    @Operation(summary = "Encaminhar mensagem interna", description = "Copia uma mensagem para uma única conversa interna da qual o usuário autenticado participa.", responses = {
+            @ApiResponse(responseCode = "201", description = "Mensagem encaminhada."),
+            @ApiResponse(responseCode = "400", description = "Mensagem incompatível para encaminhamento."),
+            @ApiResponse(responseCode = "403", description = "Origem ou destino sem participação do usuário.")})
+    @PostMapping("/conversas/{id}/mensagens/{mensagemId}/encaminhar")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MensagemResposta encaminhar(@PathVariable UUID id, @PathVariable UUID mensagemId,
+            @Valid @RequestBody EncaminharRequisicao requisicao) {
+        return MensagemResposta.de(encaminharMensagem.executar(
+                mensagemId, id, requisicao.conversaDestinoId()), armazenamento);
+    }
+
+    @Operation(summary = "Excluir mensagem interna", description = "Substitui a mensagem do autor por um tombstone, removendo conteúdo e mídia da leitura sem apagar o registro histórico.", responses = {
+            @ApiResponse(responseCode = "200", description = "Mensagem marcada como removida."),
+            @ApiResponse(responseCode = "403", description = "Somente participante e autor podem remover a mensagem.")})
+    @DeleteMapping("/conversas/{id}/mensagens/{mensagemId}")
+    public MensagemResposta excluir(@PathVariable UUID id, @PathVariable UUID mensagemId) {
+        return MensagemResposta.de(excluirMensagem.executar(mensagemId, id), armazenamento);
+    }
+
     @Operation(summary = "Marcar conversa como lida", description = "Atualiza somente o marcador de leitura do usuário autenticado; a leitura é individual e não altera a fila de outro participante.", responses = @ApiResponse(responseCode = "204", description = "Leitura individual atualizada."))
     @PostMapping("/conversas/{id}/leitura")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -282,6 +324,11 @@ public class ChatInternoController {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail operacaoInvalida(IllegalArgumentException erro) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
+    }
+
     record AbrirRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID usuarioId) {}
     record CriarGrupoRequisicao(
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 120) String nome,
@@ -291,6 +338,7 @@ public class ChatInternoController {
             @NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 120) String nome) {}
     record ParticipanteResposta(UUID id, String nome) {}
     record MensagemRequisicao(@NotBlank @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 10000) String conteudo) {}
+    record EncaminharRequisicao(@NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) UUID conversaDestinoId) {}
     record ReacaoRequisicao(String emoji) {}
     record ResumoReacaoResposta(String emoji, int quantidade, boolean reagi) {
         static ResumoReacaoResposta de(ResumoDeReacao resumo) {
@@ -326,13 +374,19 @@ public class ChatInternoController {
     }
     public record MensagemResposta(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm,
-            List<ResumoReacaoResposta> reacoes) {
+            List<ResumoReacaoResposta> reacoes, boolean removida, CitacaoResposta citacao) {
         static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r, ArmazenamentoDeMidia armazenamento) {
             // Espelha synapse.midia.expiracao-leitura. MidiaProperties vive em crm-atendimento;
             // puxa-la para ca criaria ciclo (atendimento ja depende de equipe).
             String midiaUrl = r.midiaUrl() == null ? null : armazenamento.urlAssinada(r.midiaUrl(), Duration.ofHours(1));
+            CitacaoResposta citacao = r.referencia() == null ? null : new CitacaoResposta(
+                    r.referencia().origemId(), r.referencia().tipo(), r.referencia().autor(),
+                    r.referencia().tipoConteudo(), r.referencia().previa(), r.referencia().origemRemovida());
             return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm(),
-                    r.reacoes().stream().map(ResumoReacaoResposta::de).toList());
+                    r.reacoes().stream().map(ResumoReacaoResposta::de).toList(), r.removida(), citacao);
         }
     }
+
+    record CitacaoResposta(UUID origemId, String tipoReferencia, String autor, String tipoConteudo,
+            String previa, boolean origemRemovida) {}
 }

@@ -24,7 +24,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                    CASE WHEN c.tipo = 'GRUPO' THEN c.nome
                         ELSE COALESCE(string_agg(DISTINCT u.nome, ', ' ORDER BY u.nome), '')
                    END AS participantes,
-                   ultima.conteudo AS ultima_mensagem, ultima.enviado_em AS ultima_mensagem_em,
+                   CASE WHEN ultima.removida_em IS NULL THEN ultima.conteudo END AS ultima_mensagem,
+                   ultima.enviado_em AS ultima_mensagem_em,
                    COALESCE((SELECT count(*) FROM chat_interno_mensagem nova
                        WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
                          AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas,
@@ -35,9 +36,9 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
               LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
                 AND outros.usuario_id <> ?
               LEFT JOIN usuario u ON u.id = outros.usuario_id
-              LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em FROM chat_interno_mensagem m
+              LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em, m.removida_em FROM chat_interno_mensagem m
                 WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
-             GROUP BY c.id, c.tipo, c.nome, ultima.conteudo, ultima.enviado_em, cp.lido_ate
+             GROUP BY c.id, c.tipo, c.nome, ultima.conteudo, ultima.enviado_em, ultima.removida_em, cp.lido_ate
             """;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
@@ -195,7 +196,13 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 ? new Object[] {conversaId, limite}
                 : new Object[] {conversaId, antesDe, limite};
         List<MensagemResumo> mensagens = jdbc.query("""
-                SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em
+                SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,
+                       CASE WHEN m.removida_em IS NULL THEN m.conteudo END AS conteudo,
+                       CASE WHEN m.removida_em IS NULL THEN m.midia_url END AS midia_url,
+                       CASE WHEN m.removida_em IS NULL THEN m.midia_metadados END AS midia_metadados,
+                       m.enviado_em,m.removida_em IS NOT NULL AS removida,
+                       m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
+                       m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
                   FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
                  WHERE m.conversa_id=? %s ORDER BY m.enviado_em DESC LIMIT ?
                 """.formatted(cursor), (r, i) -> new MensagemResumo(
@@ -203,7 +210,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 r.getObject("remetente_id", UUID.class), r.getString("nome"),
                 r.getString("tipo"), r.getString("conteudo"),
                 r.getString("midia_url"), r.getString("midia_metadados"),
-                instant(r, "enviado_em")), args);
+                instant(r, "enviado_em"), List.of(), r.getBoolean("removida"),
+                referencia(r)), args);
         Instant proximo = mensagens.size() == limite && !mensagens.isEmpty()
                 ? mensagens.get(mensagens.size() - 1).enviadoEm() : null;
         return new PaginaMensagens(mensagens.reversed(), proximo);
@@ -215,6 +223,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 SELECT m.id, m.tipo::text, m.midia_url, m.midia_metadados, m.enviado_em
                   FROM chat_interno_mensagem m
                  WHERE m.conversa_id=?
+                   AND m.removida_em IS NULL
                    AND m.midia_url IS NOT NULL
                    AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')
                  ORDER BY m.enviado_em DESC, m.id DESC
@@ -228,6 +237,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 SELECT m.id, m.tipo::text, m.midia_url, m.midia_metadados, m.enviado_em
                   FROM chat_interno_mensagem m
                  WHERE m.conversa_id=? AND m.id=?
+                   AND m.removida_em IS NULL
                    AND m.midia_url IS NOT NULL
                    AND m.tipo IN ('IMAGEM','AUDIO','DOCUMENTO','VIDEO')
                 """, this::mapearMidia, conversaId, mensagemId).stream().findFirst();
@@ -283,6 +293,53 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     }
 
     @Override
+    public Optional<MensagemResumo> mensagem(UUID conversaId, UUID mensagemId) {
+        return jdbc.query("""
+                SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,
+                       CASE WHEN m.removida_em IS NULL THEN m.conteudo END AS conteudo,
+                       CASE WHEN m.removida_em IS NULL THEN m.midia_url END AS midia_url,
+                       CASE WHEN m.removida_em IS NULL THEN m.midia_metadados END AS midia_metadados,
+                       m.enviado_em,m.removida_em IS NOT NULL AS removida,
+                       m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
+                       m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
+                  FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
+                 WHERE m.conversa_id=? AND m.id=?
+                """, (r, i) -> mapearMensagem(r), conversaId, mensagemId).stream().findFirst();
+    }
+
+    @Override
+    public MensagemResumo salvarMensagemComReferencia(UUID conversaId, UUID remetenteId, String conteudo,
+            String tipo, String midiaUrl, String midiaMetadados, UUID origemConversaId, UUID origemId,
+            String referenciaTipo) {
+        MensagemResumo origem = mensagem(origemConversaId, origemId)
+                .orElseThrow(() -> new IllegalArgumentException("Mensagem de origem nao encontrada."));
+        UUID id = UUID.randomUUID();
+        String previa = previa(origem);
+        jdbc.update("""
+                INSERT INTO chat_interno_mensagem(
+                    id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados,
+                    referencia_origem_id,referencia_tipo,referencia_autor,referencia_tipo_conteudo,
+                    referencia_previa,referencia_origem_removida)
+                VALUES (?, ?, ?, ?::tipo_mensagem, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+                """, id, conversaId, remetenteId, tipo, conteudo, midiaUrl, midiaMetadados,
+                origem.id(), referenciaTipo, origem.remetenteNome(), origem.tipo(), previa, origem.removida());
+        return mensagem(conversaId, id).orElseThrow();
+    }
+
+    @Override
+    public MensagemResumo removerMensagem(UUID conversaId, UUID mensagemId, UUID remetenteId, Instant removidaEm) {
+        int alteradas = jdbc.update("""
+                UPDATE chat_interno_mensagem
+                   SET removida_em=?, midia_url=NULL, midia_metadados=NULL, conteudo=NULL
+                 WHERE conversa_id=? AND id=? AND remetente_id=? AND removida_em IS NULL
+                """, Timestamp.from(removidaEm), conversaId, mensagemId, remetenteId);
+        if (alteradas == 0) {
+            throw new IllegalArgumentException("Mensagem inexistente ou ja removida.");
+        }
+        return mensagem(conversaId, mensagemId).orElseThrow();
+    }
+
+    @Override
     public void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando) {
         jdbc.update("UPDATE chat_interno_participante SET lido_ate=? WHERE conversa_id=? AND usuario_id=?", Timestamp.from(quando), conversaId, usuarioId);
     }
@@ -297,6 +354,45 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     private static Instant instant(ResultSet r, String coluna) throws SQLException {
         Timestamp valor = r.getTimestamp(coluna);
         return valor == null ? null : valor.toInstant();
+    }
+
+    private MensagemResumo mapearMensagem(ResultSet r) throws SQLException {
+        return new MensagemResumo(
+                r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
+                r.getObject("remetente_id", UUID.class), r.getString("nome"), r.getString("tipo"),
+                r.getString("conteudo"), r.getString("midia_url"), r.getString("midia_metadados"),
+                instant(r, "enviado_em"), List.of(), r.getBoolean("removida"), referencia(r));
+    }
+
+    private static ReferenciaResumo referencia(ResultSet r) throws SQLException {
+        UUID origemId = r.getObject("referencia_origem_id", UUID.class);
+        String tipo = r.getString("referencia_tipo");
+        boolean origemRemovida = r.getBoolean("referencia_origem_removida");
+        return origemId == null && tipo == null && !origemRemovida ? null
+                : new ReferenciaResumo(origemId, tipo, r.getString("referencia_autor"),
+                        r.getString("referencia_tipo_conteudo"), r.getString("referencia_previa"), origemRemovida);
+    }
+
+    private String previa(MensagemResumo origem) {
+        if (origem.removida()) {
+            return "";
+        }
+        if (origem.conteudo() != null && !origem.conteudo().isBlank()) {
+            return resumir(origem.conteudo());
+        }
+        try {
+            JsonNode metadados = origem.midiaMetadados() == null
+                    ? json.createObjectNode() : json.readTree(origem.midiaMetadados());
+            String legenda = texto(metadados, "legenda", "nome_original", "nome");
+            return legenda == null ? "" : resumir(legenda);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String resumir(String valor) {
+        String compacto = valor.replaceAll("[\\n\\r\\t]+", " ").replaceAll(" +", " ").trim();
+        return compacto.length() <= 120 ? compacto : compacto.substring(0, 120);
     }
 
     private MidiaResumo mapearMidia(ResultSet r, int ignored) throws SQLException {
