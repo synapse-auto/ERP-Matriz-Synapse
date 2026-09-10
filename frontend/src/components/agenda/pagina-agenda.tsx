@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Download, Upload } from "lucide-react";
@@ -26,6 +26,11 @@ import {
   type LeadDaAgenda,
 } from "@/lib/agenda/types";
 import { abrirAtendimentoParaLead } from "@/lib/atendimento/api";
+import {
+  destinoDaAberturaDeAtendimento,
+  registrarDiagnosticoDeAbertura,
+  statusHttpDoErro,
+} from "@/lib/atendimento/abertura-atendimento";
 import { exportarLeadsCsv } from "@/lib/agenda/api";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
@@ -57,6 +62,7 @@ export function PaginaAgenda() {
   };
   const router = useRouter();
   const papel = useAuthStore((estado) => estado.papel);
+  const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const podeGerenciar = podeGerenciarTemplates(papel);
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
@@ -71,6 +77,7 @@ export function PaginaAgenda() {
   const telaEstreita = useTelaEstreita();
   const buscaColega = useBuscaLeadsParaEntrada(buscaEntrada);
   const [pedidoEmAndamento, setPedidoEmAndamento] = useState<string | null>(null);
+  const aberturaEmAndamento = useRef<string | null>(null);
   async function pedirEntrada(id: string) {
     setPedidoEmAndamento(id);
     try {
@@ -85,10 +92,32 @@ export function PaginaAgenda() {
   const abrirAtendimento = useMutation({
     mutationFn: (leadId: string) => abrirAtendimentoParaLead(leadId),
     onSuccess: (resposta) => {
+      registrarDiagnosticoDeAbertura({
+        origem: "agenda",
+        etapa: "confirmada",
+        leadId: resposta.leadId,
+        atendimentoId: resposta.atendimentoId,
+        usuarioId,
+        papel,
+        filtrosAtivos: filtrosAtivos.length,
+        httpStatus: 200,
+      });
       setLeadNoPainel(null);
-      router.push(
-        `/atendimentos?leadId=${encodeURIComponent(resposta.leadId)}&visao=ATIVOS`,
-      );
+      router.push(destinoDaAberturaDeAtendimento(resposta));
+    },
+    onError: (erro, leadId) => {
+      registrarDiagnosticoDeAbertura({
+        origem: "agenda",
+        etapa: "falhou",
+        leadId,
+        usuarioId,
+        papel,
+        filtrosAtivos: filtrosAtivos.length,
+        httpStatus: statusHttpDoErro(erro),
+      });
+    },
+    onSettled: () => {
+      aberturaEmAndamento.current = null;
     },
   });
 
@@ -149,7 +178,16 @@ export function PaginaAgenda() {
   }
 
   function solicitarAbrirAtendimento(lead: LeadDaAgenda) {
-    if (abrirAtendimento.isPending) return;
+    if (abrirAtendimento.isPending || aberturaEmAndamento.current != null) return;
+    aberturaEmAndamento.current = lead.id;
+    registrarDiagnosticoDeAbertura({
+      origem: "agenda",
+      etapa: "solicitada",
+      leadId: lead.id,
+      usuarioId,
+      papel,
+      filtrosAtivos: filtrosAtivos.length,
+    });
     abrirAtendimento.mutate(lead.id);
   }
 

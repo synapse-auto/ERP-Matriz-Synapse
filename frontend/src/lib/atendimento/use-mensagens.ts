@@ -19,12 +19,14 @@ export function useMensagens(
   onMensagemRecebida?: () => void,
   atendimentoParaAssinar: string | null = atendimentoId,
   onEventoEstado?: (evento: EventoTempoReal) => void,
+  onEventoRecebido?: (evento: EventoTempoReal) => void,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
   const ultimoInstanteRef = useRef<string | null>(null);
   const onMensagemRecebidaRef = useRef(onMensagemRecebida);
   const onEventoEstadoRef = useRef(onEventoEstado);
+  const onEventoRecebidoRef = useRef(onEventoRecebido);
 
   useEffect(() => {
     onMensagemRecebidaRef.current = onMensagemRecebida;
@@ -33,6 +35,10 @@ export function useMensagens(
   useEffect(() => {
     onEventoEstadoRef.current = onEventoEstado;
   }, [onEventoEstado]);
+
+  useEffect(() => {
+    onEventoRecebidoRef.current = onEventoRecebido;
+  }, [onEventoRecebido]);
 
   const query = useInfiniteQuery({
     queryKey,
@@ -57,6 +63,7 @@ export function useMensagens(
       return;
     }
     conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
+      onEventoRecebidoRef.current?.(evento);
       if (evento.tipo === "MENSAGEM") {
         if (!evento.dados.mensagemId) return;
         const nova: MensagemResposta = {

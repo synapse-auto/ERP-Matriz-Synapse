@@ -260,6 +260,12 @@
       "confirmar": "Iniciar atendimento",
       "erro": "Não foi possível iniciar o atendimento."
     },
+    "abertura": {
+      "erroAcesso": "Você não tem permissão para abrir este atendimento.",
+      "erroNaoEncontrado": "O atendimento não está disponível para sua sessão.",
+      "erroConflito": "O atendimento mudou enquanto era aberto. Tente novamente.",
+      "erroGenerico": "Não foi possível abrir o atendimento."
+    },
     "visoes": {
       "ativos": "Ativos",
       "pendentes": "Pendentes",
