@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.persistencia;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -34,6 +35,20 @@ class IdempotenciaDeComandoAutomacaoJdbc implements IdempotenciaDeComandoAutomac
     IdempotenciaDeComandoAutomacaoJdbc(
             @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
         this.chat = new JdbcTemplate(chatDataSource);
+    }
+
+    @Override
+    public Optional<Reserva> buscar(String chave) {
+        TransacaoObrigatoria.exigir("buscar reserva de comando da Automacao");
+        return chat.query(BUSCAR, (linha, indice) -> new Reserva(
+                        false,
+                        linha.getString("idempotency_key"),
+                        linha.getString("operacao"),
+                        linha.getObject("atendimento_id", UUID.class),
+                        linha.getString("requisicao_hash"),
+                        linha.getString("resposta")), chave)
+                .stream()
+                .findFirst();
     }
 
     @Override

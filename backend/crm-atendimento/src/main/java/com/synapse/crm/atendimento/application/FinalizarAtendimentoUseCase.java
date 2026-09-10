@@ -87,6 +87,26 @@ public class FinalizarAtendimentoUseCase {
         return finalizar(atendimentoId, null, Origem.AUTOMACAO);
     }
 
+    /**
+     * Valida a existência e o estado antes da reserva de idempotência do comando interno.
+     *
+     * <p>A reserva possui FK para {@code atendimento}; por isso o comando valida antes de inserir
+     * uma chave nova. O lock é mantido na transação do comando e também impede que outra
+     * finalização atravesse a validação antes da aplicação do efeito.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+            })
+    public void validarPelaAutomacao(UUID atendimentoId) {
+        Atendimento atendimento = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (!atendimento.estaAberto()) {
+            throw new AtendimentoJaFinalizadoException(atendimentoId, "finalizacao");
+        }
+    }
+
     private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         Instant agora = Instant.now(relogio);

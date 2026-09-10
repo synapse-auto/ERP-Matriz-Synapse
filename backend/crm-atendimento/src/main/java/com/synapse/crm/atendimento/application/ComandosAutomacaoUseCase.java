@@ -104,6 +104,7 @@ public class ComandosAutomacaoUseCase {
                 atendimentoId,
                 "",
                 FinalizacaoResposta.class,
+                () -> finalizarAtendimento.validarPelaAutomacao(atendimentoId),
                 () -> FinalizacaoResposta.de(finalizarAtendimento.executarPelaAutomacao(atendimentoId)));
     }
 
@@ -128,25 +129,55 @@ public class ComandosAutomacaoUseCase {
             String requisicao,
             Class<T> tipoResposta,
             Supplier<T> efeito) {
+        return executar(chave, operacao, atendimentoId, requisicao, tipoResposta, () -> {}, efeito);
+    }
+
+    private <T> T executar(
+            String chave,
+            String operacao,
+            UUID atendimentoId,
+            String requisicao,
+            Class<T> tipoResposta,
+            Runnable validarAntesDaReserva,
+            Supplier<T> efeito) {
         exigirChave(chave);
         String hash = hash(operacao + "\n" + atendimentoId + "\n" + requisicao);
+        var existente = idempotencia.buscar(chave);
+        if (existente.isPresent()) {
+            return resolverReserva(existente.get(), chave, operacao, atendimentoId, hash, tipoResposta);
+        }
+
+        // A tabela de idempotencia referencia atendimento por FK. Validar antes da reserva evita
+        // transformar um atendimento inexistente em 500 por violacao de integridade, sem perder o
+        // replay: reservas existentes foram resolvidas acima antes desta validacao.
+        validarAntesDaReserva.run();
         IdempotenciaDeComandoAutomacao.Reserva reserva = idempotencia.reservar(
                 chave, operacao, atendimentoId, hash);
         if (!reserva.nova()) {
-            if (!reserva.operacao().equals(operacao)
-                    || !reserva.atendimentoId().equals(atendimentoId)
-                    || !reserva.hashDaRequisicao().equals(hash)) {
-                throw new ChaveIdempotenciaReutilizadaException(chave, operacao, atendimentoId);
-            }
-            if (reserva.respostaJson() == null) {
-                throw new IllegalStateException("reserva de Idempotency-Key sem resposta concluida");
-            }
-            return desserializar(reserva.respostaJson(), tipoResposta);
+            return resolverReserva(reserva, chave, operacao, atendimentoId, hash, tipoResposta);
         }
 
         T resultado = efeito.get();
         idempotencia.concluir(chave, serializar(resultado));
         return resultado;
+    }
+
+    private <T> T resolverReserva(
+            IdempotenciaDeComandoAutomacao.Reserva reserva,
+            String chave,
+            String operacao,
+            UUID atendimentoId,
+            String hash,
+            Class<T> tipoResposta) {
+        if (!reserva.operacao().equals(operacao)
+                || !reserva.atendimentoId().equals(atendimentoId)
+                || !reserva.hashDaRequisicao().equals(hash)) {
+            throw new ChaveIdempotenciaReutilizadaException(chave, operacao, atendimentoId);
+        }
+        if (reserva.respostaJson() == null) {
+            throw new IllegalStateException("reserva de Idempotency-Key sem resposta concluida");
+        }
+        return desserializar(reserva.respostaJson(), tipoResposta);
     }
 
     private static void exigirChave(String chave) {
