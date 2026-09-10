@@ -160,6 +160,13 @@ export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoRes
   });
 }
 
+/** Leitura pontual autorizada para abrir a conversa confirmada, sem depender da visão da lista. */
+export function obterCartaoAtendimento(atendimentoId: string): Promise<CartaoAtendimento> {
+  return apiFetch<CartaoAtendimento>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/cartao`,
+  );
+}
+
 export function enviarTemplate(
   leadId: string,
   nome: string,

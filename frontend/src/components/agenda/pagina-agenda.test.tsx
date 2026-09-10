@@ -317,14 +317,16 @@ describe("pagina da agenda", () => {
     expect(screen.getByRole("button", { name: "Próxima" })).toBeDisabled();
   });
 
-  it("botão Abrir atendimento chama a API e navega para Ativos com o lead", async () => {
+  it("botão Abrir atendimento usa o atendimento confirmado pela API na navegação", async () => {
     renderAgenda();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!);
 
     await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-1"));
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&visao=ATIVOS"),
+      expect(push).toHaveBeenCalledWith(
+        "/atendimentos?leadId=lead-1&atendimentoId=atendimento-1&visao=ATIVOS",
+      ),
     );
   });
 
@@ -346,9 +348,11 @@ describe("pagina da agenda", () => {
 
     await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-finalizado"));
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-finalizado&visao=ATIVOS"),
+      expect(push).toHaveBeenCalledWith(
+        "/atendimentos?leadId=lead-finalizado&atendimentoId=atendimento-novo&visao=ATIVOS",
+      ),
     );
-    expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1));
   });
 
   it("falha da API mantém a ficha aberta e exibe o erro", async () => {
@@ -371,5 +375,26 @@ describe("pagina da agenda", () => {
     );
     expect(screen.getByTestId("painel-lateral")).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("dois cliques imediatos não duplicam a abertura", async () => {
+    let resolver: (resposta: {
+      leadId: string;
+      atendimentoId: string;
+      mensagemId: null;
+      leadCriado: boolean;
+    }) => void;
+    abrirAtendimentoApi.mockImplementationOnce(
+      () => new Promise((resolve) => { resolver = resolve; }),
+    );
+    renderAgenda();
+
+    const botao = screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!;
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1));
+    resolver!({ leadId: "lead-1", atendimentoId: "atendimento-1", mensagemId: null, leadCriado: false });
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
 });

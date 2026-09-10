@@ -325,6 +325,12 @@ export const TextosSchema = z.object({
       confirmar: z.string(),
       erro: z.string(),
     }),
+    abertura: z.object({
+      erroAcesso: z.string(),
+      erroNaoEncontrado: z.string(),
+      erroConflito: z.string(),
+      erroGenerico: z.string(),
+    }),
     visoes: z.object({
       ativos: z.string(),
       pendentes: z.string(),

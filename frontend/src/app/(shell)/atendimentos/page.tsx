@@ -11,14 +11,25 @@ function primeiro(valor: string | string[] | undefined): string | null {
 export default async function PaginaAtendimentos({
   searchParams,
 }: {
-  searchParams: Promise<{ leadId?: string | string[]; visao?: string | string[] }>;
+  searchParams: Promise<{
+    leadId?: string | string[];
+    atendimentoId?: string | string[];
+    visao?: string | string[];
+  }>;
 }) {
   const parametros = await searchParams;
   const leadInicialId = primeiro(parametros.leadId);
+  const atendimentoInicialId = primeiro(parametros.atendimentoId);
   const visaoRecebida = primeiro(parametros.visao);
   const visaoInicial = visaoRecebida && VISOES.has(visaoRecebida as VisaoAtendimento)
     ? (visaoRecebida as VisaoAtendimento)
     : null;
 
-  return <PaginaAtendimentosCliente leadInicialId={leadInicialId} visaoInicial={visaoInicial} />;
+  return (
+    <PaginaAtendimentosCliente
+      leadInicialId={leadInicialId}
+      atendimentoInicialId={atendimentoInicialId}
+      visaoInicial={visaoInicial}
+    />
+  );
 }

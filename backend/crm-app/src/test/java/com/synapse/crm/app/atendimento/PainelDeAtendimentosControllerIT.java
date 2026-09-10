@@ -154,6 +154,38 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("cartão pontual abre participação visível fora de ATIVOS")
+    void cartaoPontual_abreParticipacaoVisivelForaDaVisaoAtual() throws Exception {
+        jdbc.update(
+                "INSERT INTO atendimento_participante(atendimento_id, usuario_id) VALUES (?, ?)",
+                atendimentoPendenteDoBruno,
+                idAna);
+        assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "ATIVOS"))
+                .doesNotContain(atendimentoPendenteDoBruno.toString());
+
+        ResponseEntity<String> resposta = respostaComo(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                "/api/v1/atendimentos/" + atendimentoPendenteDoBruno + "/cartao");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode cartao = json.readTree(resposta.getBody());
+        assertThat(cartao.path("atendimentoId").asText()).isEqualTo(atendimentoPendenteDoBruno.toString());
+        assertThat(cartao.path("leadId").asText()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("cartão pontual não revela atendimento fora do recorte RLS")
+    void cartaoPontual_atendenteSemAcessoRecebe404() {
+        ResponseEntity<String> resposta = respostaComo(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                "/api/v1/atendimentos/" + atendimentoPendenteDoBruno + "/cartao");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("TODOS: gestor ve tudo; atendente pedindo TODOS recebe 403")
     void todos_gestorVeTudoAtendenteRecebe403() {
         String comoGestor = listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
@@ -589,6 +621,11 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
     private String listarComo(String email, String senha, String visao) {
         return respostaListarComo(email, senha, visao).getBody();
+    }
+
+    private ResponseEntity<String> respostaComo(String email, String senha, String caminho) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+        return ApoioAutenticacao.comToken(http, token, HttpMethod.GET, caminho, String.class);
     }
 
     private ResponseEntity<String> respostaListarComo(String email, String senha, String visao) {
