@@ -14,15 +14,10 @@ import {
   Trash2,
   X,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -87,6 +82,38 @@ function idDaFalhaDeMidia(): string {
   return `falha-midia-${sequenciaFalhaDeMidia}`;
 }
 
+function AcaoMenuAnexo({
+  label,
+  icone: Icone,
+  aoSelecionar,
+  disabled,
+}: {
+  label: string;
+  icone: LucideIcon;
+  aoSelecionar: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            role="menuitem"
+            aria-label={label}
+            className="flex size-12 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+            disabled={disabled}
+            onClick={aoSelecionar}
+          >
+            <Icone className="size-[calc(var(--tamanho-icone-interface)*1.5)]" aria-hidden />
+          </button>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 /**
  * Três pontos do prompt E11/E11b: estado real de entrega (delegado a `useEnviarMensagem`/
  * `useEnviarMidia`), aviso de janela de 24h ANTES de digitar, e anexo — imagem, áudio ou
@@ -111,6 +138,8 @@ export function Composer({
   const [falhasArquivos, setFalhasArquivos] = useState<Map<File, string>>(new Map());
   const [agendamentoAberto, setAgendamentoAberto] = useState(false);
   const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
+  const [menuAnexoAberto, setMenuAnexoAberto] = useState(false);
+  const [modoMenuAnexo, setModoMenuAnexo] = useState<"acoes" | "mensagens-rapidas">("acoes");
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -134,6 +163,56 @@ export function Composer({
   });
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
+
+  function fecharMenuAnexo() {
+    setMenuAnexoAberto(false);
+    setModoMenuAnexo("acoes");
+  }
+
+  function aoAlterarMenuAnexo(aberto: boolean) {
+    setMenuAnexoAberto(aberto);
+    if (!aberto) setModoMenuAnexo("acoes");
+  }
+
+  function abrirTemplatesPeloMenu() {
+    fecharMenuAnexo();
+    setPainelTemplateAberto(true);
+  }
+
+  function abrirMensagensRapidasPeloMenu() {
+    setModoMenuAnexo("mensagens-rapidas");
+  }
+
+  function selecionarMensagemRapida(mensagem: NonNullable<typeof rapidas.data>[number]) {
+    const resolvida = resolverMensagemRapida(mensagem.conteudo, { nome: lead.data?.nome ?? "", empresa: lead.data?.empresa });
+    setTexto(resolvida.texto);
+    setVariaveisPendentes(resolvida.pendentes);
+    fecharMenuAnexo();
+  }
+
+  function navegarPelasAcoesDoMenu(evento: KeyboardEvent<HTMLDivElement>) {
+    if (modoMenuAnexo !== "acoes") return;
+    const acoes = Array.from(
+      evento.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    );
+    if (acoes.length === 0) return;
+    const indiceAtual = acoes.indexOf(document.activeElement as HTMLButtonElement);
+    let proximoIndice: number | null = null;
+
+    if (evento.key === "ArrowRight" || evento.key === "ArrowDown") {
+      proximoIndice = (indiceAtual + 1 + acoes.length) % acoes.length;
+    } else if (evento.key === "ArrowLeft" || evento.key === "ArrowUp") {
+      proximoIndice = (indiceAtual - 1 + acoes.length) % acoes.length;
+    } else if (evento.key === "Home") {
+      proximoIndice = 0;
+    } else if (evento.key === "End") {
+      proximoIndice = acoes.length - 1;
+    }
+
+    if (proximoIndice === null) return;
+    evento.preventDefault();
+    acoes[proximoIndice]?.focus();
+  }
 
   function adicionarArquivos(novos: File[]) {
     if (!janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
@@ -616,55 +695,61 @@ export function Composer({
               onChange={aoSelecionarArquivo}
               disabled={gravador.fase !== "INATIVO" || enviarMidia.isPending}
             />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={buttonVariants({ variant: "ghost", size: "icon" })}
-                aria-label={textos.anexo}
-                disabled={gravador.fase !== "INATIVO"}
+            <Popover open={menuAnexoAberto} onOpenChange={aoAlterarMenuAnexo}>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <PopoverTrigger
+                      className={buttonVariants({ variant: "ghost", size: "icon-lg" })}
+                      aria-label={textos.anexo}
+                      disabled={gravador.fase !== "INATIVO"}
+                    >
+                      <Paperclip className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
+                    </PopoverTrigger>
+                  }
+                />
+                <TooltipContent>{textos.anexo}</TooltipContent>
+              </Tooltip>
+              <PopoverContent
+                side="top"
+                align="start"
+                className={modoMenuAnexo === "acoes" ? "grid w-auto grid-cols-3 gap-2 p-3" : "max-h-60 w-72 overflow-y-auto p-1"}
+                onKeyDown={navegarPelasAcoesDoMenu}
               >
-                <Paperclip className="size-(--tamanho-icone-interface)" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="min-w-40 w-auto">
-                <DropdownMenuItem
-                  onClick={() => {
-                    requestAnimationFrame(() => inputArquivoRef.current?.click());
-                  }}
-                >
-                  <File className="size-(--tamanho-icone-interface)" aria-hidden />
-                  {textos.anexoMenuArquivos}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPainelTemplateAberto(true)}>
-                  <LayoutTemplate className="size-(--tamanho-icone-interface)" aria-hidden />
-                  {textos.anexoMenuTemplates}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {rapidas.data && rapidas.data.length > 0 && (
-              <Popover>
-                <PopoverTrigger
-                  className={buttonVariants({ variant: "ghost", size: "icon" })}
-                  aria-label={textos.mensagensRapidas}
-                  disabled={gravador.fase !== "INATIVO"}
-                >
-                  <Zap className="size-(--tamanho-icone-interface)" />
-                </PopoverTrigger>
-                <PopoverContent
-                  side="top"
-                  align="start"
-                  className="max-h-60 w-72 overflow-y-auto p-1"
-                >
+                {modoMenuAnexo === "acoes" ? (
+                  <div role="menu" aria-label={textos.anexo} className="contents">
+                    <AcaoMenuAnexo
+                      label={textos.anexoMenuArquivos}
+                      icone={File}
+                      aoSelecionar={() => {
+                        fecharMenuAnexo();
+                        requestAnimationFrame(() => inputArquivoRef.current?.click());
+                      }}
+                      disabled={gravador.fase !== "INATIVO"}
+                    />
+                    <AcaoMenuAnexo
+                      label={textos.anexoMenuTemplates}
+                      icone={LayoutTemplate}
+                      aoSelecionar={abrirTemplatesPeloMenu}
+                      disabled={gravador.fase !== "INATIVO"}
+                    />
+                    {!rapidas.isError && (
+                      <AcaoMenuAnexo
+                        label={textos.mensagensRapidas}
+                        icone={Zap}
+                        aoSelecionar={abrirMensagensRapidasPeloMenu}
+                        disabled={gravador.fase !== "INATIVO"}
+                      />
+                    )}
+                  </div>
+                ) : (
                   <ul role="listbox" aria-label={textos.mensagensRapidas}>
-                    {rapidas.data.map((mensagem) => (
+                    {rapidas.data?.map((mensagem) => (
                       <li key={mensagem.id}>
                         <button
                           type="button"
                           className="w-full rounded-md p-2 text-left outline-none hover:bg-accent focus-visible:bg-accent"
-                        onClick={() => {
-                          const resolvida = resolverMensagemRapida(mensagem.conteudo, { nome: lead.data?.nome ?? "", empresa: lead.data?.empresa });
-                          setTexto(resolvida.texto);
-                          setVariaveisPendentes(resolvida.pendentes);
-                        }}
+                          onClick={() => selecionarMensagemRapida(mensagem)}
                         >
                           <span className="block truncate font-mono text-xs text-primary">
                             /{mensagem.palavraChave}
@@ -676,9 +761,9 @@ export function Composer({
                       </li>
                     ))}
                   </ul>
-                </PopoverContent>
-              </Popover>
-            )}
+                )}
+              </PopoverContent>
+            </Popover>
 
             <Tooltip>
               <TooltipTrigger

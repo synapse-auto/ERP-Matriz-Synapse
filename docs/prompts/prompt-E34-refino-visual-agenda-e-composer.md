@@ -188,14 +188,14 @@ Requisitos visuais:
   limite atual e foco visível acessível;
 - manter placeholder e todos os textos vindos de `useTextos`; não copiar o texto do HTML para o
   componente;
-- barra de ações inferior compacta, com os controles agrupados como no modelo: anexo, respostas
-  rápidas, agendamento e emoji à esquerda; microfone e envio à direita;
+- barra de ações inferior compacta, com os controles agrupados como no modelo: anexo (incluindo o
+  acesso a mensagens rápidas), agendamento e emoji à esquerda; microfone e envio à direita;
 - usar `lucide-react` com equivalentes semânticos (`CirclePlus`/`Paperclip`, `Zap`, `Clock`,
   `Smile`, `Mic`, `Send` ou equivalentes já adotados). Não adicionar Remix Icon para copiar o HTML;
 - botão enviar mantém o tamanho, cor primária, hover, sombra e estados disabled/pending atuais;
-- o controle de `Respostas rápidas` só pode aparecer como botão se abrir uma lista alimentada por
-  `listarMensagensRapidas(true)` e inserir a resposta escolhida no textarea. Não criar botão que só
-  decora a captura. O atalho `/` e a navegação por teclado continuam funcionando;
+- o acesso a `Mensagens rápidas` deve abrir, a partir do menu do anexo, uma lista alimentada por
+  `listarMensagensRapidas(true)` e inserir a resposta escolhida no textarea. Não criar botão separado
+  que só decora a captura. O atalho `/` e a navegação por teclado continuam funcionando;
 - anexo, gravação de áudio, preview, progresso, remoção, erro, agendamento e emoji continuam
   funcionais. O rearranjo visual não pode mudar payload nem chamada de API;
 - quando a janela de 24h estiver fechada, o estado informativo continua honesto e não ganha composer
@@ -246,7 +246,7 @@ Atualize ou crie testes no padrão existente:
   exista;
 - **negativo de regressão:** abrir dropdown, selecionar filtro, abrir sugestão rápida ou focar o
   textarea não pode mover o scroll global nem esconder a lista de mensagens;
-- se criar um botão visível de respostas rápidas, teste que ele abre dados reais e que escolher um
+- teste que a opção de mensagens rápidas dentro do menu do anexo abre dados reais e que escolher um
   item altera o texto sem enviar automaticamente;
 - execute `npm run lint`, `npm test` e, se o ambiente estiver disponível, `npm run test:e2e` com
   `Awaitility`/polling equivalente nos efeitos assíncronos — nunca `Thread.sleep`;
