@@ -9,7 +9,7 @@ const contexto = {
   somHabilitado: true,
 };
 
-function mensagemExterna(overrides: Partial<Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }>> = {}): NotificacaoTempoReal {
+function mensagemExterna(overrides: Partial<Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }>> = {}): Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }> {
   return {
     tipo: "NOVA_MENSAGEM",
     eventoId: "evento-1",
@@ -77,6 +77,18 @@ describe("ServicoDeNotificacoesTempoReal", () => {
 
     expect(servico.decidir(mensagemExterna(), contexto)).not.toBeNull();
     expect(servico.decidir(mensagemExterna(), contexto)).toBeNull();
+  });
+
+  it("não transforma mensagem de saída em notificação, mas mantém a atualização do atendimento", () => {
+    const enviada = mensagemExterna({
+      dados: { ...mensagemExterna().dados, remetenteTipo: "ATENDENTE", remetenteId: "usuario-atual" },
+    });
+
+    expect(new ServicoDeNotificacoesTempoReal().decidir(enviada, contexto)).toMatchObject({
+      exibir: false,
+      tocar: false,
+      atualizarAtendimentos: true,
+    });
   });
 
   it("não exibe nem toca para mensagem interna do próprio usuário", () => {

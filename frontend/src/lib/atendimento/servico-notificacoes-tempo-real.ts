@@ -54,7 +54,12 @@ export class ServicoDeNotificacoesTempoReal {
     const atualizarChatInterno = origem === "CHAT_INTERNO";
     const ehMensagemInternaDeUsuario = notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
       && notificacao.dados.tipo != null;
-    const ehEventoVisual = notificacao.tipo === "NOVA_MENSAGEM"
+    // O evento MENSAGEM também é emitido para mensagens de saída, para atualizar o
+    // histórico de todas as sessões. Somente a entrada do lead é uma notificação de
+    // trabalho; saída humana/IA nunca deve virar toast ou som (inclusive para o autor).
+    const ehMensagemExternaRecebida = notificacao.tipo === "NOVA_MENSAGEM"
+      && notificacao.dados.remetenteTipo === "LEAD";
+    const ehEventoVisual = ehMensagemExternaRecebida
       || notificacao.tipo === "TRANSFERENCIA_RECEBIDA"
       || notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
       || ehMensagemInternaDeUsuario;

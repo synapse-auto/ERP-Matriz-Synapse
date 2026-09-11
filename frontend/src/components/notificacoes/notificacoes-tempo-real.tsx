@@ -106,7 +106,7 @@ export function NotificacoesTempoReal() {
               <p className="font-semibold text-foreground">{tituloDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
               <p className="mt-1 text-sm text-muted-foreground">{descricaoDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
               {(aviso.tipo === "NOVA_MENSAGEM" || aviso.tipo === "CHAT_INTERNO_MENSAGEM") && (
-                <p className="mt-2 line-clamp-2 text-sm text-foreground">{previaDoAviso(aviso, textos)}</p>
+                <p className="mt-2 line-clamp-2 text-sm text-foreground">{previaDoAviso(aviso, textos, textosAtendimentos.media)}</p>
               )}
               {(aviso.tipo === "NOVA_MENSAGEM" || aviso.tipo === "CHAT_INTERNO_MENSAGEM" || aviso.tipo === "TRANSFERENCIA_RECEBIDA" || aviso.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") && (
                 <button
@@ -157,10 +157,36 @@ function descricaoDoAviso(
 function previaDoAviso(
   aviso: Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" | "CHAT_INTERNO_MENSAGEM" }>,
   textos: ReturnType<typeof useTextos>["notificacoes"],
+  media: ReturnType<typeof useTextos>["atendimentos"]["media"],
 ): string {
   const ehTexto = aviso.dados.tipo == null || aviso.dados.tipo === "TEXTO";
-  if (!ehTexto) return textos.midia;
+  if (!ehTexto) return rotuloDaMidia(aviso.dados.tipo, aviso.dados.midiaMetadados, textos.midia, media);
   const conteudo = aviso.dados.conteudo?.replace(/[\n\r\t]+/g, " ").trim();
   if (!conteudo) return textos.midia;
   return conteudo.length > 160 ? `${conteudo.slice(0, 157)}${textos.previewContinua}` : conteudo;
+}
+
+function rotuloDaMidia(
+  tipo: string | null | undefined,
+  metadados: string | null | undefined,
+  fallback: string,
+  media: ReturnType<typeof useTextos>["atendimentos"]["media"],
+): string {
+  const normalizado = tipo?.toUpperCase();
+  if (normalizado === "IMAGEM") return media.imagem;
+  if (normalizado === "AUDIO") return media.audio;
+  if (normalizado === "VIDEO") return media.visualizador.video;
+  if (normalizado === "DOCUMENTO") return media.documento;
+  if (normalizado === "LOCALIZACAO") return media.localizacao;
+  try {
+    const mime = typeof metadados === "string"
+      ? String((JSON.parse(metadados) as { mimetype?: unknown }).mimetype ?? "").toLowerCase()
+      : "";
+    if (mime.startsWith("image/")) return media.imagem;
+    if (mime.startsWith("audio/")) return media.audio;
+    if (mime.startsWith("video/")) return media.visualizador.video;
+  } catch {
+    // Metadados de um provedor não são confiáveis para a notificação; usa-se o rótulo genérico.
+  }
+  return fallback;
 }

@@ -308,6 +308,19 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(textos.erroEnviar);
   });
 
+  it("mantém o foco e o cursor no composer após enviar texto com sucesso", async () => {
+    const enviar = vi.fn().mockResolvedValue(undefined);
+    render(<QueryClientProvider client={client}><TextosProvider textos={mockTextosCompletos}><ComposerChatInterno textos={textos} onEnviar={enviar} /></TextosProvider></QueryClientProvider>);
+    const campo = screen.getByPlaceholderText(textos.placeholder);
+    fireEvent.change(campo, { target: { value: "próxima mensagem" } });
+    campo.focus();
+    fireEvent.keyDown(campo, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => expect(enviar).toHaveBeenCalledWith("próxima mensagem"));
+    await waitFor(() => expect(campo).toHaveFocus());
+    expect(campo).toHaveValue("");
+  });
+
   it("carrega edição no composer, salva com Enter e cancela com Escape", async () => {
     const salvar = vi.fn().mockResolvedValue(undefined);
     const cancelar = vi.fn();

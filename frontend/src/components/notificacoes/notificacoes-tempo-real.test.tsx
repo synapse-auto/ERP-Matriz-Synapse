@@ -25,7 +25,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
       fechar: "Fechar aviso", somTitulo: "Som das notificações", somDescricao: "Som discreto",
       somAtivado: "Som ativado", somDesativado: "Som desativado",
     },
-    atendimentos: { tempoReal: { transferenciaRecebida: "Transferência recebida", transferenciaRecebidaDescricao: "Transferido por {nome}", atendimentoDevolvidoParaIa: "Devolvido para IA", atendimentoDevolvidoParaIaDescricao: "IA retomou {nome}" } },
+    atendimentos: {
+      tempoReal: { transferenciaRecebida: "Transferência recebida", transferenciaRecebidaDescricao: "Transferido por {nome}", atendimentoDevolvidoParaIa: "Devolvido para IA", atendimentoDevolvidoParaIaDescricao: "IA retomou {nome}" },
+      media: { imagem: "Imagem", audio: "Áudio", documento: "Documento", localizacao: "Localização", visualizador: { video: "Vídeo" } },
+    },
   }),
 }));
 
@@ -61,7 +64,7 @@ function renderizar() {
   );
 }
 
-function mensagem(): NotificacaoTempoReal {
+function mensagem(): Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }> {
   return {
     tipo: "NOVA_MENSAGEM",
     eventoId: "evento-1",
@@ -90,6 +93,37 @@ describe("NotificacoesTempoReal", () => {
 
     act(() => mocks.callback?.(mensagem()));
     fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("resume a mídia recebida sem expor URL ou token", () => {
+    renderizar();
+
+    act(() => mocks.callback?.({
+      ...mensagem(),
+      eventoId: "evento-audio",
+      dados: {
+        ...mensagem().dados,
+        mensagemId: "mensagem-audio",
+        tipo: "AUDIO",
+        conteudo: null,
+        midiaMetadados: JSON.stringify({ mimetype: "audio/ogg", url: "https://privado.invalid/token" }),
+      },
+    }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Áudio");
+    expect(screen.getByRole("status")).not.toHaveTextContent("privado.invalid");
+    expect(screen.getByRole("status")).not.toHaveTextContent("token");
+  });
+
+  it("não cria aviso para mensagem de saída, embora o cache possa ser atualizado", () => {
+    renderizar();
+    act(() => mocks.callback?.({
+      ...mensagem(),
+      eventoId: "evento-saida",
+      dados: { ...mensagem().dados, mensagemId: "mensagem-saida", remetenteTipo: "ATENDENTE", remetenteId: "usuario-atual" },
+    }));
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

@@ -1,6 +1,7 @@
 package com.synapse.crm.core.application.lead;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -81,6 +82,14 @@ public interface LeadNoCaminhoDeMensagem {
 
     /** Acompanha a mudanca de estado do atendimento (RF-CRM-71). */
     void marcarStatus(UUID leadId, StatusBasicoLead status);
+
+    /**
+     * Destinatários ativos que podem receber um aviso quando uma mensagem abre (ou mantém) um
+     * atendimento sem responsável. Nesse estado o lead está em IA e a RN-CRM-01 o torna visível
+     * para toda a equipe; a consulta acontece na mesma conexão do caminho crítico para que o
+     * envelope pós-commit não dependa de uma segunda transação ou de um usuário inventado.
+     */
+    List<UUID> destinatariosDaFilaDeIa();
 
     /** Se o usuario da transacao corrente alcanca este lead — mesma politica da RN-CRM-01. */
     boolean alcancavel(UUID leadId);
