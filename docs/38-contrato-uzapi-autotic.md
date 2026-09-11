@@ -186,6 +186,28 @@ identificador técnico da mídia e devolve uma indisponibilidade retentável. O 
 payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o
 prazo absoluto; o corpo da resposta do provedor nunca vai para `ultimo_erro`.
 
+### Registro operacional — mídia indisponível na Fêmina (11/09/2026)
+
+A imagem contendo esta rota foi publicada na Fêmina (`33371ef`). Um teste posterior com **imagem e
+vídeo novos** confirmou que o CRM recebeu os webhooks e que o
+`metadata.phone_number_id` deles era exatamente o mesmo valor de `WHATSAPP_NUMERO`. Mesmo assim, a
+consulta `GET /{version}/{phone_number_id}/{mediaId}` retornou HTTP 404 com a semântica
+`Arquivo {mediaId} não encontrado` para ambos os tipos.
+
+Isso separa três falhas que não devem voltar a ser tratadas como uma só:
+
+| Evidência | Diagnóstico | Próxima ação |
+| --- | --- | --- |
+| HTTP 400 `Username parameter is missing` | imagem antiga ou rota de resolução incorreta | confirmar imagem publicada e a rota com `phone_number_id` |
+| HTTP 404 `Arquivo {mediaId} não encontrado`, com `phone_number_id` do webhook igual ao configurado | a Uzapi entregou a referência no webhook, mas não disponibilizou os bytes no resolvedor | manter o retry durável e escalar à Uzapi com IDs técnicos e horário |
+| resposta de resolução válida, seguida de erro S3/MinIO | os bytes chegaram ao CRM; falha é no storage | seguir o runbook de MinIO, separadamente |
+
+O HTTP 404 observado não é falha de token, MinIO, frontend, webhook perdido nem divergência do
+`phone_number_id`. Não existe fallback seguro no CRM quando o provedor não fornece URL nem bytes.
+Não fazer rollback para a rota sem o número: ela somente reintroduz o HTTP 400. Também não
+reprocessar eventos esgotados enquanto uma mídia **nova** não for resolvida com sucesso; o backoff
+existente permite a recuperação automática se a Uzapi tornar o arquivo disponível dentro do prazo.
+
 ### 8.0 Registro do callback
 
 O Swagger oficial concentra o callback no campo `webhook` da atualização da instância; os 16 paths

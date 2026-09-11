@@ -238,10 +238,17 @@ Procedimento seguro, somente após decisão do arquiteto:
 
 Não execute este procedimento automaticamente: ele traz conversas antigas para a operação.
 
-### 4.8.1 — Incidente de mídia Uzapi/Autotic sem username
+### 4.8.1 — Incidente de mídia Uzapi/Autotic: referência recebida, arquivo indisponível
 
-O contrato atual da Uzapi/Autotic não usa `username` em nenhuma rota. Antes de promover uma imagem
-que contenha essa correção, confirme no ambiente da instância:
+O contrato funcional da Fêmina não usa `username` na resolução de mídia. A imagem `33371ef` foi
+publicada em 11/09/2026 com a rota correta:
+
+```text
+GET /{version}/{phone_number_id}/{mediaId}
+Authorization: Bearer <token>
+```
+
+Configuração necessária na instância:
 
 ```text
 WHATSAPP_PROVEDOR=uzapi-autotic
@@ -251,13 +258,50 @@ WHATSAPP_NUMERO=<phone_number_id>
 WHATSAPP_TOKEN=<token>
 ```
 
-`WHATSAPP_USUARIO_API` é legado e pode ficar vazio; não é requisito para iniciar o adaptador. O
-deploy da Fêmina precisa publicar a imagem desta correção e recriar o container do backend para que
-o código novo seja carregado. Depois, faça um teste controlado com uma imagem, um documento, um áudio
-e um vídeo novos, confirmando no CRM que a resolução `GET /v1/{phone_number_id}/{mediaId}` e o
-download subsequente concluíram. Não
-reprocesse automaticamente as linhas esgotadas: elas podem trazer mensagens antigas para a fila e
-dependem de decisão operacional explícita.
+`WHATSAPP_USUARIO_API` é legado e pode ficar vazio; não é requisito para iniciar o adaptador.
+
+#### Diagnóstico rápido de uma mídia nova
+
+1. Envie uma **imagem nova** para a Fêmina e anote o horário.
+2. Confirme que o backend em execução contém a versão publicada:
+
+   ```bash
+   backend_id=$(docker ps --format '{{.ID}} {{.Names}}' | awk '$2 ~ /^fmnaprod-uzapi-.*_backend\./ {print $1; exit}')
+   docker inspect "$backend_id" --format 'imagem={{.Config.Image}} iniciado={{.State.StartedAt}} restarts={{.RestartCount}}'
+   ```
+
+3. Consulte os logs, sem imprimir variáveis ou tokens:
+
+   ```bash
+   docker logs --since 5m "$backend_id" 2>&1 |
+   grep -Ei 'uzapi|midia|media|webhook|username|arquivo|erro|exception'
+   ```
+
+4. Interprete o resultado:
+
+   | Log | Significado | Ação |
+   | --- | --- | --- |
+   | `Username parameter is missing` | container ainda usa rota antiga ou imagem não foi recriada | conferir a imagem e promover `33371ef` ou posterior |
+   | `resolvedor de midia uzapi-autotic respondeu HTTP 404` | a Uzapi aceitou a rota, mas não encontrou bytes para um `mediaId` recebido agora | não alterar MinIO, token ou rota; manter backoff e acionar a Uzapi |
+   | erro S3/MinIO depois de URL/bytes resolvidos | a falha é de storage, fora da Uzapi | usar o runbook específico de MinIO |
+   | sem erro e mídia aparece na conversa | fluxo normal | repetir para PDF, áudio e vídeo |
+
+Em 11/09/2026, a Fêmina teve imagem e vídeo novos com `metadata.phone_number_id` igual ao
+`WHATSAPP_NUMERO` configurado e, ainda assim, recebeu o HTTP 404 da segunda linha. Isto prova que
+o webhook chegou e que a configuração do número não explica o incidente. O CRM não pode armazenar
+no MinIO um arquivo que a Uzapi não disponibiliza.
+
+#### Escalação e recuperação
+
+- Informe à Uzapi o horário, o tipo da mídia, o `mediaId` técnico, o `phone_number_id` técnico e o
+  HTTP 404. **Nunca** envie token, telefone do contato, corpo do webhook ou URL temporária.
+- Pergunte pela rota de resolução efetiva, pela janela de disponibilidade do arquivo e por eventual
+  mudança na instância desde 08/09/2026.
+- O backoff durável mantém o evento em `webhook_entrada`; se a Uzapi disponibilizar o arquivo dentro
+  do prazo, o CRM o recupera sem ação manual.
+- Não fazer rollback para a rota sem `phone_number_id`: ela falha antes da busca com HTTP 400.
+- Não reprocessar automaticamente linhas esgotadas. Depois da confirmação de uma mídia nova
+  resolvida, medir os eventos esgotados e aprovar IDs específicos antes de qualquer reprocessamento.
 
 Para medir o passivo sem alterá-lo, execute somente a consulta abaixo com acesso administrativo à
 base da instância e registre o resultado antes de qualquer recuperação:
