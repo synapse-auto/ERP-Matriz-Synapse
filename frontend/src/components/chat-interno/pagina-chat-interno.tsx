@@ -22,12 +22,15 @@ import {
   marcarChatComoLido,
   definirReacaoChat,
   removerReacaoChat,
+  responderMensagemChat,
+  encaminharMensagemChat,
+  excluirMensagemChat,
 } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
-import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
+import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
 import { DialogoSelecionarPessoa } from "./dialogo-selecionar-pessoa";
 import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
@@ -44,6 +47,8 @@ export function PaginaChatInterno() {
   const [dialogoDireta, setDialogoDireta] = useState(false);
   const [dialogoGrupo, setDialogoGrupo] = useState(false);
   const [painelGrupoAberto, setPainelGrupoAberto] = useState(false);
+  const [respostaAlvo, setRespostaAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const mensagens = useQuery({
     queryKey: ["chat-interno", "mensagens", conversaId],
     queryFn: () => listarMensagensChat(conversaId!),
@@ -53,7 +58,7 @@ export function PaginaChatInterno() {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
-    if (evento.tipo === "CHAT_INTERNO_MENSAGEM") atualizar();
+    if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") atualizar();
     if (evento.tipo === "CHAT_INTERNO_REACAO") {
       atualizarReacoesDoChatInterno(
         cache,
@@ -77,6 +82,18 @@ export function PaginaChatInterno() {
   });
   const enviar = useMutation({ mutationFn: ({ id, conteudo }: { id: string; conteudo: string }) => enviarMensagemChat(id, conteudo), onSuccess: atualizar });
   const enviarMidia = useMutation({ mutationFn: ({ id, arquivo, legenda }: { id: string; arquivo: File; legenda?: string }) => enviarMidiaChat(id, arquivo, legenda), onSuccess: atualizar });
+  const responder = useMutation({
+    mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => responderMensagemChat(conversaId!, mensagemId, conteudo),
+    onSuccess: () => { setRespostaAlvo(null); atualizar(); },
+  });
+  const encaminhar = useMutation({
+    mutationFn: ({ mensagemId, destinoId }: { mensagemId: string; destinoId: string }) => encaminharMensagemChat(conversaId!, mensagemId, destinoId),
+    onSuccess: () => { setEncaminharAlvo(null); atualizar(); },
+  });
+  const excluir = useMutation({
+    mutationFn: (mensagemId: string) => excluirMensagemChat(conversaId!, mensagemId),
+    onSuccess: atualizar,
+  });
   async function definirReacaoDaMensagem(mensagem: { id: string }, emoji: string) {
     if (!conversaId) return;
     const resposta = await definirReacaoChat(conversaId, mensagem.id, emoji);
@@ -86,6 +103,14 @@ export function PaginaChatInterno() {
     if (!conversaId) return;
     const resposta = await removerReacaoChat(conversaId, mensagem.id);
     substituirReacoesDoChatInterno(cache, conversaId, mensagem.id, resposta.reacoes ?? []);
+  }
+  async function enviarConteudo(conteudo: string) {
+    if (!conversaId) return;
+    if (respostaAlvo) {
+      await responder.mutateAsync({ mensagemId: respostaAlvo.id, conteudo });
+    } else {
+      await enviar.mutateAsync({ id: conversaId, conteudo });
+    }
   }
   const conversaAtual = useMemo(() => conversas.data?.find((c) => c.id === conversaId), [conversas.data, conversaId]);
   function selecionarConversa(id: string) {
@@ -201,14 +226,19 @@ export function PaginaChatInterno() {
                       textos={textos}
                       onDefinirReacao={definirReacaoDaMensagem}
                       onRemoverReacao={removerReacaoDaMensagem}
+                      onResponder={setRespostaAlvo}
+                      onEncaminhar={setEncaminharAlvo}
+                      onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }}
                     />
                   )}
                   <ComposerChatInterno
                     ref={composerRef}
                     textos={textos}
-                    enviando={enviar.isPending || enviarMidia.isPending}
-                    erro={enviar.isError || enviarMidia.isError}
-                    onEnviar={(conteudo) => enviar.mutateAsync({ id: conversaId, conteudo })}
+                    resposta={respostaAlvo}
+                    onCancelarResposta={() => setRespostaAlvo(null)}
+                    enviando={enviar.isPending || enviarMidia.isPending || responder.isPending}
+                    erro={enviar.isError || enviarMidia.isError || responder.isError}
+                    onEnviar={enviarConteudo}
                     onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ id: conversaId, arquivo, legenda })}
                   />
                 </ZonaSoltarArquivos>
@@ -245,6 +275,16 @@ export function PaginaChatInterno() {
         contatos={contatos.data ?? []}
         onCriar={(nome, participantes) => criarGrupo.mutateAsync({ nome, participantes })}
         textos={textos}
+      />
+      <DialogoEncaminharChatInterno
+        aberto={Boolean(encaminharAlvo)}
+        conversaOrigemId={conversaId ?? ""}
+        conversas={conversas.data ?? []}
+        textos={textos}
+        enviando={encaminhar.isPending}
+        erro={encaminhar.isError}
+        onFechar={() => setEncaminharAlvo(null)}
+        onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })}
       />
     </div>
   );

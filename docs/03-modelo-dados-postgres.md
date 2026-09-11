@@ -731,3 +731,12 @@ O modelo consolidado acima foi preservado. Desde sua redação, a implementaçã
 Essas alterações não mudam a decisão de domínio de manter `mensagem` particionada nem a
 separação entre o chat externo, o chat interno e a Automação. Para o estado efetivo do banco,
 consulte `docs/11-banco-atual.md`.
+
+## 10. V65 — ações e tombstones no chat interno
+
+`chat_interno_mensagem` recebeu `removida_em` para exclusão lógica e os campos de referência
+(`referencia_origem_id`, tipo, autor, tipo de conteúdo e prévia). A referência é uma projeção segura
+e curta, não uma cópia de payload; o trigger `app_marcar_citacoes_chat_removidas` troca a prévia pelo
+estado “mensagem removida” quando a origem é apagada. O índice parcial por origem apoia a atualização
+sem alterar o modelo de participação/RLS. As leituras de mídia filtram tombstones, revogando o acesso
+por URL assinada.

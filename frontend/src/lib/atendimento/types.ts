@@ -118,11 +118,12 @@ export interface ResumoReacao {
 }
 
 export interface CitacaoMensagem {
-  origemId: string;
+  origemId: string | null;
   tipoReferencia: "RESPOSTA" | "ENCAMINHAMENTO";
   autor: string;
   tipoConteudo: TipoMensagem | string;
   previa: string;
+  origemRemovida?: boolean;
 }
 
 /** Motivo informado pelo provedor quando a entrega falhou. */
@@ -346,6 +347,9 @@ export type NotificacaoTempoReal = {
 } | {
   tipo: "CHAT_INTERNO_REACAO";
   dados: ChatInternoReacaoTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA";
+  dados: ChatInternoMensagemRemovidaTempoReal;
 };
 
 export interface ChatInternoMensagemTempoReal {
@@ -362,6 +366,11 @@ export interface ChatInternoReacaoTempoReal {
   atorId: string;
   emojiDoAtor: string | null;
   reacoes: { emoji: string; quantidade: number }[];
+}
+
+export interface ChatInternoMensagemRemovidaTempoReal {
+  conversaId: string;
+  mensagemId: string;
 }
 
 /** Payload de /user/queue/revogacoes. */

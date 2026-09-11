@@ -233,6 +233,23 @@ O endpoint específico de chat interno permanece para compatibilidade. O botão 
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.
 
+### Chat interno — ações de mensagem (E176)
+
+As ações abaixo são parte do contrato do chat interno e só podem ser chamadas por participante da
+conversa. A origem e o destino de um encaminhamento são validados no backend; não há conversão para
+mensagem de WhatsApp.
+
+| Método | Rota | Regra | Evento |
+|---|---|---|---|
+| POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/responder` | Cria texto com referência segura à mensagem da mesma conversa | `CHAT_INTERNO_MENSAGEM` após commit |
+| POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/encaminhar` | Copia mensagem para outra conversa interna da qual o usuário participa | `CHAT_INTERNO_MENSAGEM` após commit |
+| DELETE | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor marca tombstone; conteúdo e mídia deixam de ser lidos | `CHAT_INTERNO_MENSAGEM_REMOVIDA` após commit |
+
+`GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Referências mantêm apenas
+autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, recebem o marcador seguro
+“mensagem removida”. A migration V65 adiciona os campos e um trigger que atualiza referências entre
+conversas. A URL assinada de mídia recusa mensagens removidas.
+
 ## Parte E — Contrato CRM ↔ Automação
 
 Não há consumidor RabbitMQ da Automação no código atual. O contrato implementado é HTTP sobre a rede interna, autenticado por `X-Synapse-Token`; os controllers e testes de cada operação estão nomeados na tabela da Parte C. A fila do canal humano continua interna ao módulo de atendimento e não constitui contrato CRM ↔ Automação.

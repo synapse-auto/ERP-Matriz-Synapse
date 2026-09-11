@@ -31,6 +31,14 @@ const mockTextosCompletos = {
     placeholder: "Escreva uma mensagem...",
     enviar: "Enviar",
     erroEnviar: "Não foi possível enviar a mensagem.",
+    respostaCancelar: "Cancelar resposta",
+    mensagemRemovida: "Mensagem removida",
+    encaminharTitulo: "Encaminhar mensagem",
+    encaminharDescricao: "Escolha uma conversa interna autorizada.",
+    encaminharDestino: "Conversa de destino",
+    encaminharConfirmar: "Encaminhar",
+    encaminharCancelar: "Cancelar",
+    encaminharErro: "Não foi possível encaminhar a mensagem.",
     tipoGrupo: "Grupo",
     tipoDireta: "Conversa direta",
     midias: { titulo: "Mídias compartilhadas", vazio: "Nenhuma mídia compartilhada.", carregando: "Carregando mídias...", erro: "Não foi possível carregar as mídias.", carregarMais: "Carregar mais", abrir: "Abrir {nome}", baixar: "Baixar {nome}" },
@@ -73,10 +81,11 @@ const mockTextosCompletos = {
       acoes: {
         abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro",
         reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação",
-        maisEmojis: "Mais emojis", seletorTitulo: "Escolher", seletorFechar: "Fechar", reacaoErro: "erro",
+        maisEmojis: "Mais emojis", seletorTitulo: "Escolher", seletorFechar: "Fechar", reacaoErro: "erro", responder: "Responder", encaminhar: "Encaminhar", excluir: "Excluir",
         rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
         seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "C", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } },
       },
+      citacao: { resposta: "Resposta de {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar", origemIndisponivel: "Mensagem removida", imagem: "Imagem", audio: "Áudio", documento: "Documento" },
     },
   },
 } as unknown as Textos;
@@ -166,7 +175,10 @@ describe("componentes de apresentação do chat interno", () => {
     );
   });
 
-  it("não oferece responder nem encaminhar no chat interno", async () => {
+  it("oferece responder, encaminhar e excluir quando a tela fornece os callbacks", async () => {
+    const responder = vi.fn();
+    const encaminhar = vi.fn();
+    const excluir = vi.fn().mockResolvedValue(undefined);
     render(
       <TextosProvider textos={mockTextosCompletos}>
         <ListaMensagensChatInterno
@@ -175,12 +187,44 @@ describe("componentes de apresentação do chat interno", () => {
           textos={textos}
           onDefinirReacao={vi.fn()}
           onRemoverReacao={vi.fn()}
+          onResponder={responder}
+          onEncaminhar={encaminhar}
+          onExcluir={excluir}
         />
       </TextosProvider>,
     );
     fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
-    expect(screen.queryByRole("button", { name: "Responder" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Encaminhar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(responder).toHaveBeenCalledWith(mensagens[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Encaminhar" }));
+    expect(encaminhar).toHaveBeenCalledWith(mensagens[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+    await waitFor(() => expect(excluir).toHaveBeenCalledWith(mensagens[0]));
+  });
+
+  it("renderiza tombstone sem conteúdo nem mídia e mantém a referência segura", () => {
+    const removida: ChatMensagem = {
+      ...mensagens[1],
+      id: "m-removida",
+      removida: true,
+      conteudo: null,
+      midiaUrl: null,
+      citacao: {
+        origemId: "m-origem",
+        tipoReferencia: "RESPOSTA",
+        autor: "Ana",
+        tipoConteudo: "TEXTO",
+        previa: "",
+        origemRemovida: true,
+      },
+    };
+    const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={[removida]} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
+    expect(container.querySelector('[data-slot="mensagem-removida-chat"]')).toHaveTextContent("Mensagem removida");
+    expect(screen.queryByText("Tudo bem?")).not.toBeInTheDocument();
+    expect(screen.getByText("Resposta de Ana")).toBeInTheDocument();
+    expect(screen.getAllByText("Mensagem removida").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {
@@ -277,5 +321,42 @@ describe("componentes de apresentação do chat interno", () => {
     expect(enviarMidia.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ name: "a.png" }));
     expect(enviarMidia.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ name: "b.pdf" }));
     expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("cola imagem no mesmo fluxo de anexos e preserva colagem de texto", () => {
+    const enviar = vi.fn();
+    const enviarMidia = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={enviar} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const campo = screen.getByPlaceholderText(textos.placeholder);
+    const imagem = new File(["bytes"], "print.png", { type: "image/png" });
+    fireEvent.paste(campo, {
+      clipboardData: { items: [{ kind: "file", getAsFile: () => imagem }] },
+    });
+    expect(screen.getByText("print.png")).toBeInTheDocument();
+    expect(enviarMidia).not.toHaveBeenCalled();
+    fireEvent.paste(campo, {
+      clipboardData: { items: [{ kind: "string", getAsFile: () => null }] },
+    });
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("mostra a prévia da resposta e permite cancelar antes de enviar", () => {
+    const cancelar = vi.fn();
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={vi.fn()} resposta={mensagens[1]} onCancelarResposta={cancelar} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Resposta de Bruno")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar resposta" }));
+    expect(cancelar).toHaveBeenCalledOnce();
   });
 });

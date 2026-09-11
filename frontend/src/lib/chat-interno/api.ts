@@ -55,3 +55,17 @@ export const removerReacaoChat = (conversaId: string, mensagemId: string) =>
     `/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/reacao`,
     { method: "DELETE" },
   );
+export const responderMensagemChat = (conversaId: string, mensagemId: string, conteudo: string) =>
+  apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/responder`, {
+    method: "POST",
+    body: JSON.stringify({ conteudo }),
+  });
+export const encaminharMensagemChat = (conversaId: string, mensagemId: string, conversaDestinoId: string) =>
+  apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/encaminhar`, {
+    method: "POST",
+    body: JSON.stringify({ conversaDestinoId }),
+  });
+export const excluirMensagemChat = (conversaId: string, mensagemId: string) =>
+  apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}`, {
+    method: "DELETE",
+  });

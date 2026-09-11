@@ -34,6 +34,7 @@ const textos: Textos["atendimentos"]["mensagem"]["acoes"] = {
   reacaoErro: "Não foi possível salvar a reação.",
   responder: "Responder",
   encaminhar: "Encaminhar",
+  excluir: "Excluir",
   rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
   seletor: {
     search: "Buscar emoji",

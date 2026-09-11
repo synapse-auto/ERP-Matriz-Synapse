@@ -19,12 +19,14 @@ export function CitacaoMensagemVisual({ citacao, textos }: Props) {
     <div className="mb-1.5 rounded-md border-l-2 border-current/40 bg-background/15 px-2 py-1 text-xs">
       <p className="font-semibold">{titulo}</p>
       <p className="truncate opacity-80">
-        {previaExibida(citacao, {
-          imagem: textos.imagem,
-          audio: textos.audio,
-          documento: textos.documento,
-          origemIndisponivel: textos.origemIndisponivel,
-        })}
+        {citacao.origemRemovida && textos.mensagemRemovida
+          ? textos.mensagemRemovida
+          : previaExibida(citacao, {
+              imagem: textos.imagem,
+              audio: textos.audio,
+              documento: textos.documento,
+              origemIndisponivel: textos.origemIndisponivel,
+            })}
       </p>
     </div>
   );
