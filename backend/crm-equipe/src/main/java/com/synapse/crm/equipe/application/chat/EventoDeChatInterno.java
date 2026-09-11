@@ -11,7 +11,18 @@ public final class EventoDeChatInterno {
     private EventoDeChatInterno() {}
 
     public record MensagemEnviada(UUID conversaId, UUID mensagemId, UUID remetenteId,
-            List<UUID> destinatarios, String conteudo, Instant enviadoEm) {}
+            List<UUID> destinatarios, String conteudo, Instant enviadoEm,
+            String remetenteNome, String tipo, String midiaMetadados) {
+        public MensagemEnviada(UUID conversaId, UUID mensagemId, UUID remetenteId,
+                List<UUID> destinatarios, String conteudo, Instant enviadoEm) {
+            this(conversaId, mensagemId, remetenteId, destinatarios, conteudo, enviadoEm,
+                    null, null, null);
+        }
+
+        public MensagemEnviada {
+            destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);
+        }
+    }
 
     public record MensagemRemovida(UUID conversaId, UUID mensagemId, List<UUID> destinatarios) {
         public MensagemRemovida {

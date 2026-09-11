@@ -87,6 +87,27 @@ class RelayDeChatInternoTest {
     }
 
     @Test
+    void mensagem_publica_dados_para_previa_sem_mudar_o_contrato_do_evento() throws Exception {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        var relay = new RelayDeChatInterno(redis, new ObjectMapper().findAndRegisterModules());
+        UUID conversa = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        UUID remetente = UUID.randomUUID();
+        UUID destinatario = UUID.randomUUID();
+
+        relay.publicar(new EventoDeChatInterno.MensagemEnviada(
+                conversa, mensagem, remetente, List.of(destinatario), "oi",
+                Instant.parse("2026-08-28T15:00:00Z"), "Ana", "TEXTO", null));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(redis).convertAndSend(anyString(), payload.capture());
+        JsonNode envelope = new ObjectMapper().readTree(payload.getValue());
+        assertThat(envelope.path("remetenteNome").asText()).isEqualTo("Ana");
+        assertThat(envelope.path("tipoMensagem").asText()).isEqualTo("TEXTO");
+        assertThat(envelope.path("destinatarios").get(0).asText()).isEqualTo(destinatario.toString());
+    }
+
+    @Test
     void remocao_soDepoisDoCommit_e_sem_conteudo() throws Exception {
         var metodo = RelayDeChatInterno.class.getDeclaredMethod(
                 "publicarRemocao", EventoDeChatInterno.MensagemRemovida.class);

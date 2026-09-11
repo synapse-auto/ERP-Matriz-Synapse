@@ -260,9 +260,11 @@ export interface TagResposta {
 // Envelope e payloads espelham RelayDeTempoRealListener.java / RedisSubscriberDeAtendimento.java.
 
 export interface MensagemTempoReal {
+  eventoId?: string;
   atendimentoId: string;
   leadId: string;
   mensagemId: string;
+  leadNome?: string | null;
   remetenteTipo: RemetenteTipo;
   remetenteId: string | null;
   tipo: TipoMensagem;
@@ -336,27 +338,53 @@ export type EventoTempoReal =
   | { tipo: "REACAO"; dados: ReacaoTempoReal };
 
 export type NotificacaoTempoReal = {
+  tipo: "NOVA_MENSAGEM";
+  eventoId?: string;
+  dados: NovaMensagemTempoReal;
+} | {
   tipo: "TRANSFERENCIA_RECEBIDA";
+  eventoId?: string;
   dados: TransferenciaRecebidaTempoReal;
 } | {
   tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA";
+  eventoId?: string;
   dados: AtendimentoDevolvidoParaIaTempoReal;
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM";
+  eventoId?: string;
   dados: ChatInternoMensagemTempoReal;
 } | {
   tipo: "CHAT_INTERNO_REACAO";
+  eventoId?: string;
   dados: ChatInternoReacaoTempoReal;
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA";
+  eventoId?: string;
   dados: ChatInternoMensagemRemovidaTempoReal;
 };
+
+export interface NovaMensagemTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  leadNome: string;
+  mensagemId: string;
+  remetenteTipo: RemetenteTipo;
+  remetenteId: string | null;
+  tipo: TipoMensagem;
+  conteudo: string | null;
+  midiaMetadados: string | null;
+  enviadoEm: string;
+  idempotencyKey?: string | null;
+}
 
 export interface ChatInternoMensagemTempoReal {
   conversaId: string;
   mensagemId: string;
   remetenteId: string;
-  conteudo: string;
+  remetenteNome?: string | null;
+  tipo?: string | null;
+  conteudo: string | null;
+  midiaMetadados?: string | null;
   enviadoEm: string;
 }
 

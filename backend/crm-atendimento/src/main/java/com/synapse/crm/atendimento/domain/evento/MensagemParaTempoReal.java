@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.domain.evento;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import com.synapse.crm.atendimento.domain.mensagem.CitacaoDeMensagem;
@@ -31,7 +32,13 @@ public record MensagemParaTempoReal(
         String statusEntrega,
         Instant enviadoEm,
         CitacaoDeMensagem citacao,
-        String chaveIdempotencia) {
+        String chaveIdempotencia,
+        String leadNome,
+        List<UUID> destinatarios) {
+
+    public MensagemParaTempoReal {
+        destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);
+    }
 
     public MensagemParaTempoReal(
             UUID atendimentoId,
@@ -60,7 +67,9 @@ public record MensagemParaTempoReal(
                 statusEntrega,
                 enviadoEm,
                 null,
-                null);
+                null,
+                null,
+                List.of());
     }
 
     public MensagemParaTempoReal(
@@ -91,6 +100,29 @@ public record MensagemParaTempoReal(
                 statusEntrega,
                 enviadoEm,
                 citacao,
-                null);
+                null,
+                null,
+                List.of());
     }
+
+    public MensagemParaTempoReal(
+            UUID atendimentoId,
+            UUID leadId,
+            UUID mensagemId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String tipo,
+            String conteudo,
+            String midiaUrl,
+            String midiaMetadados,
+            String opcoes,
+            String statusEntrega,
+            Instant enviadoEm,
+            CitacaoDeMensagem citacao,
+            String chaveIdempotencia) {
+        this(atendimentoId, leadId, mensagemId, remetenteTipo, remetenteId, tipo, conteudo, midiaUrl,
+                midiaMetadados, opcoes, statusEntrega, enviadoEm, citacao, chaveIdempotencia, null,
+                List.of());
+    }
+
 }

@@ -103,6 +103,32 @@ class RedisSubscriberDeAtendimentoTest {
     }
 
     @Test
+    void mensagem_externa_entrega_aviso_pessoal_sem_vazar_audiencia() throws Exception {
+        UUID mensagemId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        String corpo = "{\"tipo\":\"MENSAGEM\",\"dados\":{"
+                + "\"eventoId\":\"" + mensagemId + "\","
+                + "\"atendimentoId\":\"" + atendimentoId + "\","
+                + "\"leadId\":\"" + leadId + "\","
+                + "\"mensagemId\":\"" + mensagemId + "\","
+                + "\"leadNome\":\"Lead teste\",\"remetenteTipo\":\"LEAD\","
+                + "\"remetenteId\":\"" + leadId + "\",\"tipo\":\"TEXTO\","
+                + "\"conteudo\":\"Olá\",\"enviadoEm\":\"2026-09-10T12:00:00Z\","
+                + "\"destinatarios\":[\"" + destinatarioId + "\"]}}";
+
+        subscriber.onMessage(mensagem(corpo), null);
+
+        ArgumentCaptor<String> entregue = ArgumentCaptor.forClass(String.class);
+        verify(template).convertAndSendToUser(eq(destinatarioId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), entregue.capture());
+        JsonNode envelope = new ObjectMapper().readTree(entregue.getValue());
+        assertThat(envelope.path("tipo").asText()).isEqualTo("NOVA_MENSAGEM");
+        assertThat(envelope.path("eventoId").asText()).isEqualTo(mensagemId.toString());
+        assertThat(envelope.path("dados").path("leadNome").asText()).isEqualTo("Lead teste");
+        assertThat(envelope.path("dados").has("destinatarios")).isFalse();
+    }
+
+    @Test
     void chat_interno_reacao_entrega_a_todos_os_destinatarios_incluindo_o_autor() throws Exception {
         UUID autor = transferidorId;
         String corpo = "{\"tipo\":\"CHAT_INTERNO_REACAO\",\"destinatarios\":[\"" + destinatarioId

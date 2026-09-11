@@ -185,6 +185,31 @@ describe("ConexaoTempoReal", () => {
     expect(onNotificacao).toHaveBeenCalledOnce();
   });
 
+  it("encaminha nova mensagem para todos os ouvintes da fila pessoal", () => {
+    const { cliente } = clienteStompFalso();
+    const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => cliente,
+    });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte);
+    conexao.conectar();
+
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    callback?.({
+      body: JSON.stringify({
+        tipo: "NOVA_MENSAGEM",
+        eventoId: "evento-1",
+        dados: { atendimentoId: "a", leadId: "l", mensagemId: "m", leadNome: "Lead" },
+      }),
+    });
+
+    expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "NOVA_MENSAGEM", eventoId: "evento-1" }));
+  });
+
   it("trocar de conversa desassina a anterior antes de assinar a nova", () => {
     const { cliente } = clienteStompFalso();
     const unsubscribeConversa1 = vi.fn();

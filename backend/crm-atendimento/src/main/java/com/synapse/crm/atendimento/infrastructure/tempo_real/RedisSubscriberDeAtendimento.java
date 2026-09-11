@@ -89,6 +89,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             avisarRecebedor(dados);
             avisarDonoAnteriorQuandoVoltaParaIa(dados);
         }
+        if ("MENSAGEM".equals(tipo)) avisarNovaMensagem(dados);
         if ("PEDIDO_ENTRADA".equals(tipo)) avisarPedidoAoDono(dados);
         if ("RESPOSTA_PEDIDO_ENTRADA".equals(tipo)) avisarRespostaAoSolicitante(dados);
         if ("PARTICIPANTE_SAIU".equals(tipo)) {
@@ -100,14 +101,42 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         // atendimento; convertAndSendToUser ja entrega a TODAS as sessoes daquele
         // usuario de uma vez, entao um usuario so pode receber uma vez por rodada.
         Set<UUID> usuariosEntregues = new java.util.HashSet<>();
+        String corpoParaAtendimento = removerDestinatarios(envelope);
         for (AssinaturaAutorizada assinatura : registro.doAtendimento(atendimentoId)) {
             if (registro.expirou(assinatura) && !revalidarERenovar(assinatura)) {
                 continue;
             }
             if (usuariosEntregues.add(assinatura.usuarioId())) {
-                enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpo);
+                enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpoParaAtendimento);
             }
         }
+    }
+
+    private void avisarNovaMensagem(JsonNode dados) {
+        JsonNode destinatarios = dados.path("destinatarios");
+        if (!destinatarios.isArray()) return;
+        ObjectNode envelope = json.createObjectNode();
+        envelope.put("tipo", "NOVA_MENSAGEM");
+        envelope.put("eventoId", dados.path("eventoId").asText(dados.path("mensagemId").asText()));
+        ObjectNode aviso = dados.deepCopy();
+        aviso.remove("destinatarios");
+        envelope.set("dados", aviso);
+        for (JsonNode destinatario : destinatarios) {
+            try {
+                enviarParaUsuario(UUID.fromString(destinatario.asText()), DESTINO_NOTIFICACOES, envelope.toString());
+            } catch (IllegalArgumentException erro) {
+                log.warn("Mensagem externa com destinatario invalido no evento de tempo real.", erro);
+            }
+        }
+    }
+
+    private String removerDestinatarios(JsonNode envelope) {
+        ObjectNode copia = envelope.deepCopy();
+        JsonNode dados = copia.path("dados");
+        if (dados.isObject()) {
+            ((ObjectNode) dados).remove("destinatarios");
+        }
+        return copia.toString();
     }
 
     private void entregarChatInterno(String corpo) {
@@ -117,6 +146,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             for (JsonNode destinatario : envelope.path("destinatarios")) {
                 ObjectNode notificacao = json.createObjectNode();
                 notificacao.put("tipo", tipo);
+                notificacao.put("eventoId", envelope.path("mensagemId").asText());
                 ObjectNode dados = json.createObjectNode();
                 dados.set("conversaId", envelope.path("conversaId"));
                 dados.set("mensagemId", envelope.path("mensagemId"));
@@ -126,7 +156,10 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                     dados.set("emojiDoAtor", envelope.path("emojiDoAtor"));
                 } else if ("CHAT_INTERNO_MENSAGEM".equals(tipo)) {
                     dados.set("remetenteId", envelope.path("remetenteId"));
+                    dados.set("remetenteNome", envelope.path("remetenteNome"));
+                    dados.set("tipo", envelope.path("tipoMensagem"));
                     dados.set("conteudo", envelope.path("conteudo"));
+                    dados.set("midiaMetadados", envelope.path("midiaMetadados"));
                     dados.set("enviadoEm", envelope.path("enviadoEm"));
                 }
                 notificacao.set("dados", dados);
@@ -157,6 +190,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
 
         ObjectNode envelope = json.createObjectNode();
         envelope.put("tipo", "TRANSFERENCIA_RECEBIDA");
+        envelope.put("eventoId", dados.path("eventoId").asText());
         ObjectNode aviso = json.createObjectNode();
         aviso.set("atendimentoId", dados.path("atendimentoId"));
         aviso.set("leadId", dados.path("leadId"));
@@ -176,6 +210,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
 
         ObjectNode envelope = json.createObjectNode();
         envelope.put("tipo", "ATENDIMENTO_DEVOLVIDO_PARA_IA");
+        envelope.put("eventoId", dados.path("eventoId").asText());
         ObjectNode aviso = json.createObjectNode();
         aviso.set("atendimentoId", dados.path("atendimentoId"));
         aviso.set("leadId", dados.path("leadId"));

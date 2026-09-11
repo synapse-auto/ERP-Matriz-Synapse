@@ -10,6 +10,7 @@ import type {
   NotificacaoTempoReal,
   RevogacaoTempoReal,
 } from "./types";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 export type EstadoConexao = "conectando" | "conectado" | "reconectando" | "desconectado";
 
@@ -23,6 +24,8 @@ export interface ClienteStompLike {
   onStompError?: () => void;
   connected: boolean;
 }
+
+export type OuvinteDeNotificacao = (notificacao: NotificacaoTempoReal) => void;
 
 export interface OpcoesConexaoTempoReal {
   brokerUrl: string;
@@ -125,8 +128,26 @@ export class ConexaoTempoReal {
   private tentativas = 0;
   private timerReconexao: ReturnType<typeof setTimeout> | null = null;
   private desativadoManualmente = false;
+  private readonly ouvintesDeNotificacao = new Set<OuvinteDeNotificacao>();
+  private readonly ouvintesDeRevogacao = new Set<(atendimentoId: string) => void>();
+  private readonly ouvintesDeEstado = new Set<(estado: EstadoConexao) => void>();
 
   constructor(private readonly opcoes: OpcoesConexaoTempoReal) {}
+
+  adicionarOuvinteDeNotificacao(ouvinte: OuvinteDeNotificacao): () => void {
+    this.ouvintesDeNotificacao.add(ouvinte);
+    return () => this.ouvintesDeNotificacao.delete(ouvinte);
+  }
+
+  adicionarOuvinteDeEstado(ouvinte: (estado: EstadoConexao) => void): () => void {
+    this.ouvintesDeEstado.add(ouvinte);
+    return () => this.ouvintesDeEstado.delete(ouvinte);
+  }
+
+  adicionarOuvinteDeRevogacao(ouvinte: (atendimentoId: string) => void): () => void {
+    this.ouvintesDeRevogacao.add(ouvinte);
+    return () => this.ouvintesDeRevogacao.delete(ouvinte);
+  }
 
   conectar(): void {
     this.desativadoManualmente = false;
@@ -145,7 +166,7 @@ export class ConexaoTempoReal {
     this.onEventoAtual = null;
     this.cliente?.deactivate();
     this.cliente = null;
-    this.opcoes.onEstadoMudou?.("desconectado");
+    this.emitirEstado("desconectado");
   }
 
   /** Desassina a conversa anterior (se houver) antes de assinar a nova. */
@@ -177,7 +198,7 @@ export class ConexaoTempoReal {
     const accessToken = this.opcoes.obterAccessToken();
     if (!accessToken) {
       this.cliente = null;
-      this.opcoes.onEstadoMudou?.("desconectado");
+      this.emitirEstado("desconectado");
       return;
     }
     const cliente = (this.opcoes.criarCliente ?? clienteStompPadrao)({
@@ -193,11 +214,15 @@ export class ConexaoTempoReal {
         if (revogacao.atendimentoId === this.atendimentoAberto) {
           this.fecharConversa();
           this.opcoes.onRevogacao?.(revogacao.atendimentoId);
+          for (const ouvinte of this.ouvintesDeRevogacao) {
+            ouvinte(revogacao.atendimentoId);
+          }
         }
       });
       this.assinaturaNotificacoes = cliente.subscribe(DESTINO_NOTIFICACOES, (mensagem) => {
         const notificacao = JSON.parse(mensagem.body) as NotificacaoTempoReal;
         if (
+          notificacao.tipo === "NOVA_MENSAGEM" ||
           notificacao.tipo === "TRANSFERENCIA_RECEBIDA" ||
           notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA" ||
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM" ||
@@ -205,20 +230,23 @@ export class ConexaoTempoReal {
           notificacao.tipo === "CHAT_INTERNO_REACAO"
         ) {
           this.opcoes.onNotificacao?.(notificacao);
+          for (const ouvinte of this.ouvintesDeNotificacao) {
+            ouvinte(notificacao);
+          }
         }
       });
       if (this.atendimentoAberto && this.onEventoAtual) {
         this.assinaturaAtendimento = this.assinar(this.atendimentoAberto, this.onEventoAtual) ?? null;
       }
       // Só depois de assinar: é este callback que o chamador usa como gatilho do backfill.
-      this.opcoes.onEstadoMudou?.("conectado");
+      this.emitirEstado("conectado");
     };
 
     const agendarReconexao = () => {
       if (this.desativadoManualmente) {
         return;
       }
-      this.opcoes.onEstadoMudou?.("reconectando");
+      this.emitirEstado("reconectando");
       const atraso = calcularBackoffMs(this.tentativas);
       this.tentativas += 1;
       this.timerReconexao = setTimeout(() => this.abrirClienteEConectar(), atraso);
@@ -227,8 +255,15 @@ export class ConexaoTempoReal {
     cliente.onWebSocketClose = agendarReconexao;
     cliente.onStompError = agendarReconexao;
 
-    this.opcoes.onEstadoMudou?.("conectando");
+    this.emitirEstado("conectando");
     cliente.activate();
+  }
+
+  private emitirEstado(estado: EstadoConexao): void {
+    this.opcoes.onEstadoMudou?.(estado);
+    for (const ouvinte of this.ouvintesDeEstado) {
+      ouvinte(estado);
+    }
   }
 }
 
@@ -245,21 +280,58 @@ export function useConexaoTempoReal(
   onNotificacao?: (notificacao: NotificacaoTempoReal) => void,
 ): { conexao: ConexaoTempoReal; estado: EstadoConexao } {
   const [estado, setEstado] = useState<EstadoConexao>("desconectado");
-  const [conexao] = useState(
-    () =>
-      new ConexaoTempoReal({
-        brokerUrl: process.env.NEXT_PUBLIC_WS_URL ?? "",
-        obterAccessToken,
-        onEstadoMudou: setEstado,
-        onRevogacao,
-        onNotificacao,
-      }),
-  );
+  const [conexao] = useState(() => obterConexaoTempoRealCompartilhada(obterAccessToken));
+  const accessTokenAtual = useAuthStore((sessao) => sessao.accessToken);
 
   useEffect(() => {
-    conexao.conectar();
-    return () => conexao.desconectar();
+    const removerOuvinte = conexao.adicionarOuvinteDeEstado(setEstado);
+    return () => {
+      removerOuvinte();
+      setEstado("desconectado");
+    };
   }, [conexao]);
 
+  useEffect(() => {
+    if (!onNotificacao) return;
+    return conexao.adicionarOuvinteDeNotificacao(onNotificacao);
+  }, [conexao, onNotificacao]);
+
+  useEffect(() => {
+    if (!onRevogacao) return;
+    // Revogações continuam vinculadas à tela que possui a conversa aberta. A fila pessoal é
+    // compartilhada, mas somente esse consumidor deve fechar o painel que ele controla.
+    return conexao.adicionarOuvinteDeRevogacao(onRevogacao);
+  }, [conexao, onRevogacao]);
+
+  useEffect(() => {
+    consumidoresDaConexao += 1;
+    if (accessTokenAtual && (consumidoresDaConexao === 1 || tokenDaConexao !== accessTokenAtual)) {
+      tokenDaConexao = accessTokenAtual;
+      conexao.conectar();
+    }
+    return () => {
+      consumidoresDaConexao -= 1;
+      if (consumidoresDaConexao === 0) {
+        conexao.desconectar();
+        conexaoCompartilhada = null;
+        tokenDaConexao = null;
+      }
+    };
+  }, [accessTokenAtual, conexao]);
+
   return { conexao, estado };
+}
+
+let conexaoCompartilhada: ConexaoTempoReal | null = null;
+let consumidoresDaConexao = 0;
+let tokenDaConexao: string | null = null;
+
+function obterConexaoTempoRealCompartilhada(obterAccessToken: () => string | null): ConexaoTempoReal {
+  if (!conexaoCompartilhada) {
+    conexaoCompartilhada = new ConexaoTempoReal({
+      brokerUrl: process.env.NEXT_PUBLIC_WS_URL ?? "",
+      obterAccessToken,
+    });
+  }
+  return conexaoCompartilhada;
 }

@@ -46,6 +46,21 @@
       "offline": "Offline"
     }
   },
+  "notificacoes": {
+    "mensagemExterna": "Nova mensagem de {nome}",
+    "mensagemInterna": "Mensagem interna de {nome}",
+    "origemExterna": "Mensagem recebida no atendimento",
+    "origemInterna": "Mensagem recebida no chat interno",
+    "equipe": "Equipe",
+    "midia": "Nova mídia recebida",
+    "previewContinua": "…",
+    "abrir": "Abrir conversa",
+    "fechar": "Fechar aviso",
+    "somTitulo": "Som das notificações",
+    "somDescricao": "Reproduzir um som discreto ao receber mensagens e atribuições.",
+    "somAtivado": "Som das notificações ativado",
+    "somDesativado": "Som das notificações desativado"
+  },
   "configuracoes": {
     "titulo": "Configurações",
     "descricao": "Conta e sistema · a automação da IA é configurada na aba Automação",

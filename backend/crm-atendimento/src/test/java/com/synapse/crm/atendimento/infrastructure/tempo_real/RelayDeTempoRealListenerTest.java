@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -14,10 +15,35 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 class RelayDeTempoRealListenerTest {
+    @Test
+    void mensagem_recebida_publica_id_nome_e_audiencia_para_o_backplane() throws Exception {
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        var listener = new RelayDeTempoRealListener(
+                redis, new ObjectMapper(), mock(ArmazenamentoDeMidia.class),
+                new MidiaProperties(null, null, null, null, null, null));
+        UUID atendimento = UUID.randomUUID();
+        UUID lead = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        UUID destinatario = UUID.randomUUID();
+
+        listener.aoReceberMensagem(new MensagemParaTempoReal(
+                atendimento, lead, mensagem, "LEAD", lead, "TEXTO", "Olá", null, null, null,
+                "ENVIADO", Instant.parse("2026-09-10T12:00:00Z"), null, null, "Lead teste",
+                List.of(destinatario)));
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(redis).convertAndSend(eq(CanaisRedis.doAtendimento(atendimento)), payload.capture());
+        JsonNode dados = new ObjectMapper().readTree(payload.getValue()).path("dados");
+        assertThat(dados.path("eventoId").asText()).isEqualTo(mensagem.toString());
+        assertThat(dados.path("leadNome").asText()).isEqualTo("Lead teste");
+        assertThat(dados.path("destinatarios").get(0).asText()).isEqualTo(destinatario.toString());
+    }
+
     @Test
     void transferencia_por_mensagem_revoga_o_dono_antigo_pelo_mesmo_canal() throws Exception {
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
