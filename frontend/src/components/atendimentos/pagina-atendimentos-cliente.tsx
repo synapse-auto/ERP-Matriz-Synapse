@@ -798,6 +798,7 @@ export function PaginaAtendimentosCliente({
                   setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
                 }
                 leadId={conversa.leadId}
+                atendimentoId={conversa.atendimentoId}
                 janelaTextoLivreAberta={janelaTextoLivreAberta(
                   conversa.ultimaMensagemDoLeadEm,
                 )}

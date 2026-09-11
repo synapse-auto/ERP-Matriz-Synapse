@@ -534,6 +534,11 @@ export const TextosSchema = z.object({
         imagem: z.string(),
         audio: z.string(),
         documento: z.string(),
+        // Estes textos são opcionais para manter compatibilidade com catálogos de filhos
+        // publicados antes da navegação de citações. O backend atual já os fornece.
+        video: z.string().optional(),
+        localizacao: z.string().optional(),
+        irParaOrigem: z.string().optional(),
       }),
     }),
     encaminhar: z.object({

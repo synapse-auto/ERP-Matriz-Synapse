@@ -85,7 +85,7 @@ const mockTextosCompletos = {
         rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"],
         seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "C", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } },
       },
-      citacao: { resposta: "Resposta de {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar", origemIndisponivel: "Mensagem removida", imagem: "Imagem", audio: "Áudio", documento: "Documento" },
+      citacao: { resposta: "Resposta de {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar", origemIndisponivel: "Mensagem removida", imagem: "Imagem", audio: "Áudio", documento: "Documento", video: "Vídeo", localizacao: "Localização", irParaOrigem: "Ir para mensagem respondida", mensagemRemovida: "Mensagem removida" },
     },
   },
 } as unknown as Textos;
@@ -252,6 +252,54 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.queryByText("Tudo bem?")).not.toBeInTheDocument();
     expect(screen.getByText("Resposta de Ana")).toBeInTheDocument();
     expect(screen.getAllByText("Mensagem removida").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("mostra a miniatura e busca a origem da citação fora da página", async () => {
+    const resposta: ChatMensagem = {
+      ...mensagens[1],
+      id: "m-resposta",
+      conteudo: "Veja a foto",
+      citacao: {
+        origemId: "m-imagem",
+        tipoReferencia: "RESPOSTA",
+        autor: "Ana",
+        tipoConteudo: "IMAGEM",
+        previa: "Foto da obra",
+      },
+    };
+    const origem: ChatMensagem = {
+      id: "m-imagem",
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "IMAGEM",
+      conteudo: null,
+      midiaUrl: "https://media.example.test/imagem-assinada.jpg",
+      midiaMetadados: JSON.stringify({ legenda: "Foto da obra" }),
+      enviadoEm: "2026-08-27T11:59:00Z",
+    };
+    const buscar = vi.fn().mockResolvedValue(origem);
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          conversaId="c1"
+          mensagens={[resposta]}
+          usuarioAtual="u1"
+          textos={textos}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+          onBuscarMensagem={buscar}
+        />
+      </TextosProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ir para mensagem respondida" }));
+    await waitFor(() => expect(buscar).toHaveBeenCalledWith("m-imagem"));
+    const imagens = await screen.findAllByRole("img", { name: "Foto da obra" });
+    expect(imagens.some((imagem) => imagem.getAttribute("src") === "https://media.example.test/imagem-assinada.jpg")).toBe(true);
+    expect(document.querySelector('[data-mensagem-id="m-imagem"]')).toHaveClass(
+      "ring-2",
+    );
   });
 
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {

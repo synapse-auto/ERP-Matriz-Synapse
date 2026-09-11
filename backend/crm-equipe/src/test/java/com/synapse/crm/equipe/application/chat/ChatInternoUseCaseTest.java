@@ -89,6 +89,34 @@ class ChatInternoUseCaseTest {
     }
 
     @Test
+    void busca_pontual_preserva_participacao_e_reacoes() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        UUID mensagem = UUID.randomUUID();
+        var resumo = new ChatInternoRepositorio.MensagemResumo(
+                mensagem, conversa, usuario, "Ana", "TEXTO", "origem", null, null, Instant.now());
+        when(repositorio.mensagem(conversa, mensagem)).thenReturn(java.util.Optional.of(resumo));
+        when(reacoes.resumir(List.of(mensagem), usuario)).thenReturn(Map.of());
+
+        var resultado = new ListarMensagensChatUseCase(repositorio, reacoes, contexto)
+                .executarPorId(conversa, mensagem);
+
+        org.junit.jupiter.api.Assertions.assertEquals(mensagem, resultado.id());
+        verify(repositorio).mensagem(conversa, mensagem);
+    }
+
+    @Test
+    void busca_pontual_bloqueia_nao_participante() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(false);
+
+        assertThrows(ChatSemAcessoException.class,
+                () -> new ListarMensagensChatUseCase(repositorio, reacoes, contexto)
+                        .executarPorId(conversa, UUID.randomUUID()));
+        verifyNoInteractions(reacoes);
+    }
+
+    @Test
     void lista_de_contatos_preserva_presenca_da_fonte_de_verdade() {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
         UUID outro = UUID.randomUUID();

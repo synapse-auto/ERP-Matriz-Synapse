@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -67,6 +68,16 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
     HistoricoDeMensagensRepositorioJdbc(
             @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
         this.chat = new JdbcTemplate(chatDataSource);
+    }
+
+    @Override
+    public Optional<MensagemDoHistorico> porId(UUID atendimentoId, UUID mensagemId) {
+        TransacaoObrigatoria.exigir("porId");
+        return chat.query(
+                "SELECT " + COLUNAS + JOINS + " WHERE m.id = ?",
+                this::mapear,
+                atendimentoId,
+                mensagemId).stream().findFirst();
     }
 
     @Override

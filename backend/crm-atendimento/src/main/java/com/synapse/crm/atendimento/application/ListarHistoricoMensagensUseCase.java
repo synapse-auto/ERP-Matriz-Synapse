@@ -38,6 +38,20 @@ public class ListarHistoricoMensagensUseCase {
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
+    public MensagemDoHistorico executarPorId(UUID atendimentoId, UUID mensagemId) {
+        atendimentos
+                .porId(atendimentoId)
+                .orElseThrow(
+                        () -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
+        MensagemDoHistorico encontrada = mensagens
+                .porId(atendimentoId, mensagemId)
+                .orElseThrow(
+                        () -> new RecursoDeAtendimentoIndisponivelException("mensagem", mensagemId));
+        return anexarReacoes(List.of(encontrada)).getFirst();
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public Pagina executar(UUID atendimentoId, Cursor cursor, int tamanho) {
         atendimentos
                 .porId(atendimentoId)

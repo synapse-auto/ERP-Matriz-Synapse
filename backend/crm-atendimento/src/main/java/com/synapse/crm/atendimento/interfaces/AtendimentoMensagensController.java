@@ -97,6 +97,20 @@ class AtendimentoMensagensController {
                 codificar(pagina.proximoCursor()));
     }
 
+    @Operation(
+            summary = "Buscar mensagem citada",
+            description = "Busca uma mensagem específica do histórico do lead associado ao atendimento visível. A resposta usa somente a URL assinada de curta duração da mídia.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagem autorizada para navegação.", content = @io.swagger.v3.oas.annotations.media.Content),
+                @ApiResponse(responseCode = "404", description = "Atendimento ou mensagem inexistente, de outra conversa ou não visível.")
+            })
+    @GetMapping("/{id}/mensagens/{mensagemId}")
+    MensagemResposta mensagem(
+            @Parameter(description = "Identificador do atendimento visível.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Identificador da mensagem citada.", required = true) @PathVariable UUID mensagemId) {
+        return MensagemResposta.de(listarHistorico.executarPorId(id, mensagemId), armazenamento, midiaPropriedades);
+    }
+
     /** Lacuna curta do WebSocket; deliberadamente separada da navegacao do historico. */
     @Operation(
             summary = "Reconciliar mensagens desde um instante",

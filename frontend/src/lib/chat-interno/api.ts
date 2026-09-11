@@ -28,6 +28,8 @@ export const renomearGrupoChat = (conversaId: string, nome: string) =>
   });
 export const listarMensagensChat = (id: string, antesDe?: string | null) =>
   apiFetch<PaginaChatMensagens>(`/api/v1/chat-interno/conversas/${id}/mensagens${antesDe ? `?antesDe=${encodeURIComponent(antesDe)}` : ""}`);
+export const obterMensagemChat = (conversaId: string, mensagemId: string) =>
+  apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${encodeURIComponent(conversaId)}/mensagens/${encodeURIComponent(mensagemId)}`);
 export const listarMidiasDoGrupoChat = (id: string, pagina = 0, tamanho = 20) =>
   apiFetch<MidiaDoGrupo[]>(`/api/v1/chat-interno/conversas/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
 export const emitirUrlAssinadaDaMidiaChat = (conversaId: string, mensagemId: string) =>

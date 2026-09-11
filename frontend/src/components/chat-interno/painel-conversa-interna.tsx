@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
-import { listarConversasChat, listarMensagensChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido, definirReacaoChat, removerReacaoChat, responderMensagemChat, encaminharMensagemChat, excluirMensagemChat, editarMensagemChat } from "@/lib/chat-interno/api";
+import { listarConversasChat, listarMensagensChat, obterMensagemChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido, definirReacaoChat, removerReacaoChat, responderMensagemChat, encaminharMensagemChat, excluirMensagemChat, editarMensagemChat } from "@/lib/chat-interno/api";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -101,7 +101,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
               composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
             }
           >
-            {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} onEditar={setEdicaoAlvo} />}
+            {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno conversaId={conversaId} mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} onEditar={setEdicaoAlvo} onBuscarMensagem={(mensagemId) => obterMensagemChat(conversaId, mensagemId)} />}
             <ComposerChatInterno ref={composerRef} textos={textos} resposta={respostaAlvo} onCancelarResposta={() => setRespostaAlvo(null)} edicao={edicaoAlvo} onSalvarEdicao={(conteudo) => editar.mutateAsync({ mensagemId: edicaoAlvo!.id, conteudo })} onCancelarEdicao={() => setEdicaoAlvo(null)} enviando={enviar.isPending || enviarMidia.isPending || responder.isPending || editar.isPending} erro={enviar.isError || enviarMidia.isError || responder.isError || editar.isError} onEnviar={enviarConteudo} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ arquivo, legenda })} />
           </ZonaSoltarArquivos>
         </div>

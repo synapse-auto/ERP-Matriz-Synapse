@@ -80,6 +80,7 @@
 |---|---|---|---|---|
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com resumo de reações agregado em lote | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` |
+| GET | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}` | Busca pontual de mensagem citada, limitada ao histórico do lead do atendimento visível; mídia somente por URL assinada | Atendente | `AtendimentoMensagensController` · `ListarHistoricoMensagensUseCase` |
 | PUT | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Define a reação do usuário autenticado (`enviadoEm` na query ancora a partição). Idempotente para o mesmo emoji | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | DELETE | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação. Idempotente | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência; item `CLIENTE` inclui `leadCodigo` | Atendente | `InboxUnificadaController` |
@@ -252,6 +253,13 @@ autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, receb
 “mensagem removida”. A migration V65 adiciona o tombstone e o trigger de remoção das referências;
 V66 adiciona `editadoEm` e atualiza a prévia quando o texto de origem é editado. A URL assinada de
 mídia recusa mensagens removidas.
+
+Para a navegação de citações, `GET /api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` aplica a
+mesma participação antes de consultar a mensagem e devolve a mídia apenas como URL assinada de curta
+duração. No atendimento externo, a rota equivalente ancora a busca no atendimento visível e no mesmo
+`lead_id`, permitindo citar mensagens de páginas anteriores sem uma busca global. O frontend usa a
+resposta pontual somente para inserir a origem na janela atual, centralizar e destacar a bolha; falha
+de autorização, conversa divergente, mensagem inexistente ou tombstone não expõe conteúdo nem mídia.
 
 ## Parte E — Contrato CRM ↔ Automação
 
