@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 50 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V50__telefone_nono_digito.sql`
+**Estado:** 67 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V67__backoff_webhook_entrada.sql`
 
 ---
 
@@ -61,6 +61,23 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V48__foto_de_perfil_do_lead` | `lead.foto_referencia`, `lead.foto_hash`, `lead.foto_atualizada_em` |
 | `V49__modo_de_transferencia` | parâmetro de modo de transferência da Automação |
 | `V50__telefone_nono_digito` | funde os pares com/sem nono dígito e normaliza `lead.telefone`; cria `app_telefone_com_ddi`, `app_telefone_canonico` e `app_telefone_fora_da_regra` |
+| `V51__backfill_disponibilidade_ia_subgestor` | disponibilidade de IA para subgestor |
+| `V52__erro_entrega_da_mensagem` | motivo de erro de entrega da mensagem |
+| `V53__ultima_mensagem_do_lead_em` | última mensagem denormalizada do lead |
+| `V54__grupos_chat_interno` | grupos e participação do chat interno |
+| `V55__toggle_avaliacao_atendimento` | feature toggle da avaliação |
+| `V56__escala_avaliacao_0_a_10` | escala de avaliação de 0 a 10 |
+| `V57__video_na_mensagem` | tipo de mensagem de vídeo |
+| `V58__endereco_de_envio_do_provedor` | endereço usado pelo provedor no envio |
+| `V59__rls_finalizado_visivel_a_atendentes` | visibilidade RLS de finalizados |
+| `V60__rls_agenda_colaborativa` | visibilidade colaborativa da Agenda |
+| `V61__add_localizacao_tipo_mensagem` | tipo de mensagem de localização |
+| `V62__marca_da_instancia` | configuração da marca por instância |
+| `V63__identidade_da_marca` | identidade persistida da marca |
+| `V64__idempotencia_envio_manual` | chave de idempotência do envio manual |
+| `V65__acoes_mensagens_chat_interno` | ações e tombstones do chat interno |
+| `V66__edicao_mensagens_chat_interno` | edição textual no chat interno |
+| `V67__backoff_webhook_entrada` | `proxima_tentativa_em` e índice da fila de entrada para retentativas duráveis com backoff |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -154,7 +171,7 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 **`audit_log`** — `id` BIGINT identity, `ator_id`, `ator_tipo`, `acao`, `entidade_tipo`, `entidade_id`, `lead_id`, `dados_antes`, `dados_depois`, `ip`, `criado_em`
 **`feature_flag`** — `chave` (PK), `habilitado`, `descricao`
 **`outbox_evento`** — `id`, `tipo`, `payload`, `criado_em`, `publicado_em`, `tentativas`, `proxima_tentativa_em`, `ultimo_erro`, `avaliacao_reserva_id` (V44)
-**`webhook_entrada`** — `id_externo` (PK, idempotência), `provedor`, **`payload` TEXT** (V17 — byte a byte, para reverificar HMAC), `recebido_em`, `processado_em`, `tentativas`, `ultimo_erro`, `esgotado_em`
+**`webhook_entrada`** — `id_externo` (PK, idempotência), `provedor`, **`payload` TEXT** (V17 — byte a byte, para reverificar HMAC), `recebido_em`, `processado_em`, `tentativas`, `proxima_tentativa_em` (V67), `ultimo_erro`, `esgotado_em`
 
 **`atendimento_leitura`** (V41) — leitura por usuário, em vez de compartilhar o legado
 `atendimento.lido_ate`. **`feedback_usuario`** (V42) guarda feedbacks administrativos.

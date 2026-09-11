@@ -30,9 +30,16 @@ operacional do provedor.
 
 O adaptador usa as rotas publicadas no Swagger oficial: `/{version}/{phone_number_id}/instance`,
 `/{version}/{phone_number_id}/messages`, `/{version}/{phone_number_id}/media` e
-`/{version}/{mediaId}` para resolver mídia recebida. A versão atual não possui o segmento
-`{username}`. `WHATSAPP_USUARIO_API` é mantida apenas como variável legada e não é lida para montar
-URLs nem para validar credenciais; `WHATSAPP_VERSAO_API` continua fornecendo `{version}`.
+`/{version}/{phone_number_id}/{mediaId}` para resolver mídia recebida na conta funcional da Fêmina.
+O Swagger público diverge nesse último path e lista `/{version}/{mediaId}`; a conta em produção
+responde `Username parameter is missing` sem o identificador do número e alcança o resolvedor com
+`/{version}/{phone_number_id}/{mediaId}`. A versão atual não possui o segmento `{username}`.
+`WHATSAPP_USUARIO_API` é mantida apenas como variável legada e não é lida para montar URLs nem para
+validar credenciais; `WHATSAPP_VERSAO_API` continua fornecendo `{version}`.
+
+Falhas HTTP do resolvedor (400, 404 e 5xx) são indisponibilidades retentáveis: o webhook permanece
+durável e recebe backoff em `proxima_tentativa_em`, sem guardar corpo de resposta, token ou URL
+temporária.
 
 ### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
 

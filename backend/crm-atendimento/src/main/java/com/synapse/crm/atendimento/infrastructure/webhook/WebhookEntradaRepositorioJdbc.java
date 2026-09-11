@@ -40,8 +40,9 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     private static final String SQL_RESERVAR =
             """
             SELECT id_externo, payload, tentativas, recebido_em
-              FROM webhook_entrada
+             FROM webhook_entrada
              WHERE processado_em IS NULL AND esgotado_em IS NULL
+               AND proxima_tentativa_em <= CURRENT_TIMESTAMP
              ORDER BY recebido_em
              LIMIT ?
                FOR UPDATE SKIP LOCKED
@@ -51,11 +52,12 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
             "UPDATE webhook_entrada SET processado_em = ?, ultimo_erro = NULL WHERE id_externo = ?";
 
     private static final String SQL_REAGENDAR =
-            "UPDATE webhook_entrada SET tentativas = tentativas + 1, ultimo_erro = ?"
-                    + " WHERE id_externo = ?";
+            "UPDATE webhook_entrada SET tentativas = tentativas + 1, proxima_tentativa_em = ?,"
+                    + " ultimo_erro = ? WHERE id_externo = ?";
 
     private static final String SQL_ADIAR =
-            "UPDATE webhook_entrada SET ultimo_erro = ? WHERE id_externo = ?";
+            "UPDATE webhook_entrada SET proxima_tentativa_em = ?, ultimo_erro = ?"
+                    + " WHERE id_externo = ?";
 
     private static final String SQL_ESGOTAR =
             "UPDATE webhook_entrada SET tentativas = tentativas + 1, esgotado_em = ?, ultimo_erro = ?"
@@ -99,15 +101,15 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     }
 
     @Override
-    public void reagendar(String idExterno, String erro) {
+    public void reagendar(String idExterno, Instant proximaTentativa, String erro) {
         TransacaoObrigatoria.exigir("reagendar");
-        chat.update(SQL_REAGENDAR, erro, idExterno);
+        chat.update(SQL_REAGENDAR, Timestamp.from(proximaTentativa), erro, idExterno);
     }
 
     @Override
-    public void adiar(String idExterno, String erro) {
+    public void adiar(String idExterno, Instant proximaTentativa, String erro) {
         TransacaoObrigatoria.exigir("adiar");
-        chat.update(SQL_ADIAR, erro, idExterno);
+        chat.update(SQL_ADIAR, Timestamp.from(proximaTentativa), erro, idExterno);
     }
 
     @Override

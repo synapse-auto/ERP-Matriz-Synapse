@@ -30,6 +30,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepos
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
@@ -80,6 +81,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Clock relogio;
     private final int lote;
     private final int maximoDeTentativas;
+    private final Duration backoffInicial;
+    private final Duration backoffMaximo;
     private final Duration prazoAbsoluto;
     private final TransactionTemplate transacoes;
 
@@ -102,7 +105,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) PlatformTransactionManager chatTransactionManager,
             @Value("${synapse.canal.webhook.lote:50}") int lote,
             @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas,
-            @Value("${synapse.canal.webhook.prazo-absoluto:2h}") Duration prazoAbsoluto) {
+            @Value("${synapse.canal.webhook.prazo-absoluto:2h}") Duration prazoAbsoluto,
+            @Value("${synapse.canal.webhook.backoff-inicial:5s}") Duration backoffInicial,
+            @Value("${synapse.canal.webhook.backoff-maximo:30m}") Duration backoffMaximo) {
         this.entrada = entrada;
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
@@ -120,6 +125,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.relogio = relogio;
         this.lote = lote;
         this.maximoDeTentativas = maximoDeTentativas;
+        this.backoffInicial = backoffInicial;
+        this.backoffMaximo = backoffMaximo;
         this.prazoAbsoluto = prazoAbsoluto;
         this.transacoes = new TransactionTemplate(chatTransactionManager);
         this.transacoes.setName("processar webhook de entrada");
@@ -175,7 +182,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     log.warn("Mensagem de midia sem id externo; item descartado.");
                     continue;
                 }
-                requisicao = mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia);
+                try {
+                    requisicao = mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia);
+                } catch (MidiaRecebidaTemporariamenteIndisponivelException e) {
+                    // Tipo normalizado + id tecnico ficam no motivo seguro de retry; o payload e o
+                    // corpo da resposta do provedor nunca atravessam esta fronteira.
+                    throw e.comTipo(mensagem.tipo());
+                }
             } else if (TipoMensagem.LOCALIZACAO.name().equals(mensagem.tipo())) {
                 requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                         leadId,
@@ -292,7 +305,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                         prazoAbsoluto,
                         e.toString());
             } else {
-                entrada.adiar(pendente.idExterno(), e.toString());
+                entrada.adiar(
+                        pendente.idExterno(),
+                        proximaTentativa(agora, pendente.tentativas()),
+                        e.toString());
                 log.warn(
                         "Disjuntor aberto ao processar o evento {}; a linha volta para a fila sem"
                                 + " gastar tentativa.",
@@ -315,9 +331,21 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     tentativasFeitas,
                     e.toString());
         } else {
-            entrada.reagendar(pendente.idExterno(), e.toString());
+            entrada.reagendar(
+                    pendente.idExterno(),
+                    proximaTentativa(agora, pendente.tentativas()),
+                    e.toString());
             log.warn("Falha ao processar o evento {}; sera retentado.", pendente.idExterno(), e);
         }
+    }
+
+    private Instant proximaTentativa(Instant agora, int tentativasJaFeitas) {
+        long fator = 1L << Math.min(Math.max(0, tentativasJaFeitas), 20);
+        Duration espera = backoffInicial.multipliedBy(fator);
+        if (espera.compareTo(backoffMaximo) > 0) {
+            espera = backoffMaximo;
+        }
+        return agora.plus(espera);
     }
 
     private boolean prazoAbsolutoEstourado(WebhookEntrada.Pendente pendente, Instant agora) {
