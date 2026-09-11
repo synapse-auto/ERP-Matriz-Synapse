@@ -70,6 +70,21 @@ class RegistrarMensagemRecebidaUseCaseTest {
     }
 
     @Test
+    void mensagemQueAbreFilaDeIa_notificaTodaEquipeAtivaAutorizada() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendente = UUID.randomUUID();
+        UUID gestora = UUID.randomUUID();
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.empty());
+        when(leads.destinatariosDaFilaDeIa()).thenReturn(List.of(atendente, gestora));
+
+        useCase.executar(entrada(leadId));
+
+        ArgumentCaptor<MensagemParaTempoReal> evento = ArgumentCaptor.forClass(MensagemParaTempoReal.class);
+        verify(eventos).publishEvent(evento.capture());
+        assertThat(evento.getValue().destinatarios()).containsExactly(atendente, gestora);
+    }
+
+    @Test
     void comAberto_naoMexeNoStatusDoLead() {
         UUID leadId = UUID.randomUUID();
         UUID ana = UUID.randomUUID();

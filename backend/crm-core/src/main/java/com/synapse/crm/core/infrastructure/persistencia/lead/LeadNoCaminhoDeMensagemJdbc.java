@@ -85,6 +85,13 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
 
     private static final String SQL_ALCANCAVEL = "SELECT 1 FROM lead WHERE id = ?";
 
+    // Uma mensagem que abre/permanece em EM_IA não possui dono nem participante para
+    // endereçar o aviso. Estes são os únicos papéis com acesso à fila de Potenciais;
+    // usuários inativos não devem receber eventos de trabalho.
+    private static final String SQL_DESTINATARIOS_DA_FILA =
+            "SELECT id FROM usuario WHERE ativo = TRUE "
+                    + "AND papel IN ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') ORDER BY id";
+
     private static final String SQL_CONTATO =
             "SELECT telefone, COALESCE(telefone_provedor, telefone) AS telefone_destino, "
                     + "ultima_mensagem_do_lead_em FROM lead WHERE id = ?";
@@ -185,6 +192,13 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     public void marcarStatus(UUID leadId, StatusBasicoLead status) {
         TransacaoObrigatoria.exigir("marcarStatus");
         chat.update(SQL_STATUS, status.name(), leadId);
+    }
+
+    @Override
+    public List<UUID> destinatariosDaFilaDeIa() {
+        TransacaoObrigatoria.exigir("destinatariosDaFilaDeIa");
+        return chat.query(SQL_DESTINATARIOS_DA_FILA,
+                (linha, indice) -> linha.getObject(1, UUID.class));
     }
 
     @Override

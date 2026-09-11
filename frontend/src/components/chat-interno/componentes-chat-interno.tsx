@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
+import { Fragment, useEffect, useLayoutEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
 import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
@@ -353,8 +353,11 @@ export function ComposerChatInterno({
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [avisoTipo, setAvisoTipo] = useState(false);
   const [indiceEnvio, setIndiceEnvio] = useState<number | null>(null);
+  const [focoAposEnvio, setFocoAposEnvio] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const manterFocoAposEnvioRef = useRef(false);
   const pendente = enviando || enviandoLocal;
 
   const textosAtendimentos = useTextos().atendimentos;
@@ -370,6 +373,26 @@ export function ComposerChatInterno({
     });
     return () => cancelAnimationFrame(frame);
   }, [edicao]);
+
+  // O envio invalida as queries do painel, mas não deve desmontar o composer nem deixar
+  // o foco escapar para a lista. O efeito de layout roda no mesmo ciclo do commit que
+  // limpa o texto, evitando o salto visual sem roubar foco de um modal/campo externo.
+  useLayoutEffect(() => {
+    if (focoAposEnvio === 0 || !manterFocoAposEnvioRef.current || pendente || edicao || resposta || arquivos.length > 0 || erro) return;
+    const campo = textareaRef.current;
+    const container = composerRef.current;
+    const focoAtual = document.activeElement;
+    if (!campo || !container) return;
+    if (focoAtual && focoAtual !== document.body && !container.contains(focoAtual)) {
+      // O usuário mudou deliberadamente para outro controle (por exemplo, um modal).
+      // Consuma a intenção pendente para não roubar foco em um render posterior.
+      manterFocoAposEnvioRef.current = false;
+      return;
+    }
+    campo.focus({ preventScroll: true });
+    campo.setSelectionRange(campo.value.length, campo.value.length);
+    manterFocoAposEnvioRef.current = false;
+  }, [arquivos.length, edicao, erro, focoAposEnvio, pendente, resposta]);
 
   function adicionarArquivos(novos: File[]) {
     if (gravador.fase !== "INATIVO" || pendente) return;
@@ -421,10 +444,16 @@ export function ComposerChatInterno({
     }
     const conteudo = texto.trim();
     if (!conteudo) return;
+    // Somente texto livre normal restaura foco. Resposta/citação, edição e anexos têm
+    // estados próprios e não devem interromper a interação que o usuário iniciou.
+    manterFocoAposEnvioRef.current = Boolean(
+      composerRef.current?.contains(document.activeElement),
+    ) && !resposta;
     setEnviandoLocal(true);
     try {
       await onEnviar(conteudo);
       setTexto("");
+      if (manterFocoAposEnvioRef.current) setFocoAposEnvio((atual) => atual + 1);
     } catch {
       // erro
     } finally {
@@ -488,7 +517,7 @@ export function ComposerChatInterno({
       : gravador.erro === "TAMANHO" ? tComp.audioExcedeuLimite : null;
 
   return (
-    <div className="shrink-0 border-t border-border bg-background p-4">
+    <div ref={composerRef} className="shrink-0 border-t border-border bg-background p-4">
       {erro && <p role="alert" className="mb-2 text-sm text-destructive">{textos.erroEnviar}</p>}
       {erroDeGravacao && <p className="mb-2 text-sm text-destructive">{erroDeGravacao}</p>}
       {avisoTipo && <p className="mb-2 text-sm text-destructive" role="alert">{tComp.anexoTipoNaoPermitido}</p>}

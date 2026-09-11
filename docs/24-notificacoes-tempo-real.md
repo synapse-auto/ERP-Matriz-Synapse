@@ -6,7 +6,7 @@ Esta entrega centraliza no navegador as notificações de mensagens novas e de m
 
 - O cliente mantém uma única conexão STOMP por sessão, compartilhada pelos componentes que usam tempo real.
 - A fila pessoal é `/user/queue/notificacoes`, protegida pelo interceptor de autenticação.
-- O publisher de atendimento continua em `@TransactionalEventListener(phase = AFTER_COMMIT)` e publica no canal Redis do atendimento. O subscriber faz a entrega pessoal somente para o dono e os participantes ativos do atendimento.
+- O publisher de atendimento continua em `@TransactionalEventListener(phase = AFTER_COMMIT)` e publica no canal Redis do atendimento. O subscriber faz a entrega pessoal somente para o dono e os participantes ativos do atendimento. Quando a entrada abre (ou mantém) um atendimento `EM_IA` sem dono, o caminho crítico calcula na mesma transação os usuários ativos autorizados a ver Potenciais e os usa como destinatários; isso evita que uma conversa nova fique invisível sem ampliar a RLS.
 - O chat interno continua usando seu canal Redis e entrega a mensagem pessoal aos destinatários já calculados pelo caso de uso, sem incluir o autor.
 - Edições usam o mesmo canal e o evento `CHAT_INTERNO_MENSAGEM_EDITADA`, com `mensagemId`, `conversaId`,
   conteúdo atual e `editadoEm`. A entrega ocorre após commit; o frontend invalida apenas o cache do chat
@@ -22,9 +22,9 @@ Não foi criada variável de ambiente nova. O transporte usa o mesmo `NEXT_PUBLI
 O serviço:
 
 - deduplica por `eventoId`, com fallback para o identificador da mensagem ou composição do evento;
-- não mostra nem toca mensagem do próprio usuário;
+- não mostra nem toca mensagem do próprio usuário; eventos de saída (atendente/IA) também atualizam o cache, mas não são tratados como nova mensagem recebida;
 - não mostra nem toca mensagem da conversa atualmente aberta, mas ainda invalida o cache;
-- trata mídia com texto genérico do catálogo, sem tentar exibir conteúdo de mídia;
+- trata mídia com rótulo seguro do catálogo (Imagem, Áudio, Documento, Vídeo ou Localização), sem tentar exibir conteúdo, URL ou token;
 - invalida `atendimentos` para mensagens/transferências e `chat-interno` para eventos internos;
 - coalesce sons dentro de 1,5 segundo para não produzir uma sequência agressiva durante rajadas.
 

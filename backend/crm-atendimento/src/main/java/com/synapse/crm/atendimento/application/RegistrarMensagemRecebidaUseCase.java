@@ -140,6 +140,11 @@ public class RegistrarMensagemRecebidaUseCase {
         var destinatarios = new LinkedHashSet<UUID>();
         if (atendimento.atendenteId() != null) {
             destinatarios.add(atendimento.atendenteId());
+        } else if (atendimento.status() == com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.EM_IA) {
+            // Atendimento sem dono fica em Potenciais: todos os usuários ativos autorizados
+            // precisam saber que há uma conversa nova para que a fila não fique invisível.
+            destinatarios.addAll(java.util.Optional.ofNullable(leads.destinatariosDaFilaDeIa())
+                    .orElse(java.util.List.of()));
         }
         participacoes.ativos(atendimento.id()).stream()
                 .map(com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento::usuarioId)
