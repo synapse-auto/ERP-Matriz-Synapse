@@ -8,6 +8,7 @@ import { buscarTema, buscarTextos } from "@/lib/config/fetch-config";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryProvider } from "@/lib/query/query-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NotificacoesTempoReal } from "@/components/notificacoes/notificacoes-tempo-real";
 import { montarMetadata } from "./metadata";
 
 import "./globals.css";
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <TextosProvider textos={textos}>
             <AuthProvider>
               <TooltipProvider>
+                <NotificacoesTempoReal />
                 {children}
                 <TransicaoDeAbertura />
               </TooltipProvider>

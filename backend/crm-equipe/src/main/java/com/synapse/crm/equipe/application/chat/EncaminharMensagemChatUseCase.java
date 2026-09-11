@@ -45,7 +45,8 @@ public class EncaminharMensagemChatUseCase {
         var destinatarios = repositorio.participantes(conversaDestinoId).stream()
                 .filter(id -> !id.equals(remetente)).toList();
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(
-                conversaDestinoId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm()));
+                conversaDestinoId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm(),
+                salva.remetenteNome(), salva.tipo(), salva.midiaMetadados()));
         return salva;
     }
 }

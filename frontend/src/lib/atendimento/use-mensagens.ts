@@ -10,6 +10,7 @@ import { atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type { EventoTempoReal, MensagemResposta } from "./types";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { definirConversaAtiva } from "./servico-notificacoes-tempo-real";
 
 /** Historico por cursor, somado ao fluxo incremental do WebSocket e a reconciliacao de reconexao. */
 export function useMensagens(
@@ -59,9 +60,11 @@ export function useMensagens(
   useEffect(() => {
     ultimoInstanteRef.current = null;
     if (!atendimentoParaAssinar) {
+      definirConversaAtiva(null);
       conexao.fecharConversa();
       return;
     }
+    definirConversaAtiva({ origem: "ATENDIMENTO", id: atendimentoParaAssinar });
     conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
       onEventoRecebidoRef.current?.(evento);
       if (evento.tipo === "MENSAGEM") {
@@ -127,7 +130,10 @@ export function useMensagens(
         void queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
     });
-    return () => conexao.fecharConversa();
+    return () => {
+      definirConversaAtiva(null);
+      conexao.fecharConversa();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a assinatura muda somente com a conversa
   }, [atendimentoParaAssinar]);
 

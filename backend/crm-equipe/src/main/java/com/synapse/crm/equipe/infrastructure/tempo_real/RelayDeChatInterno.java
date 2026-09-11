@@ -36,7 +36,10 @@ class RelayDeChatInterno {
                 evento.conversaId(),
                 evento.mensagemId(),
                 evento.remetenteId(),
+                evento.remetenteNome(),
+                evento.tipo(),
                 evento.conteudo(),
+                evento.midiaMetadados(),
                 evento.enviadoEm())));
     }
 
@@ -72,7 +75,8 @@ class RelayDeChatInterno {
     }
 
     private record EnvelopeMensagem(String tipo, List<UUID> destinatarios, UUID conversaId, UUID mensagemId,
-            UUID remetenteId, String conteudo, Instant enviadoEm) {}
+            UUID remetenteId, String remetenteNome, String tipoMensagem, String conteudo,
+            String midiaMetadados, Instant enviadoEm) {}
 
     private record EnvelopeReacao(String tipo, List<UUID> destinatarios, UUID conversaId, UUID mensagemId,
             UUID atorId, String emojiDoAtor, List<ResumoPublico> reacoes) {}

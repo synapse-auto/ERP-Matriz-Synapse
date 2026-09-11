@@ -11,6 +11,7 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tempo-real";
 import {
   listarContatosChat,
   listarConversasChat,
@@ -35,7 +36,7 @@ import { DialogoSelecionarPessoa } from "./dialogo-selecionar-pessoa";
 import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
-export function PaginaChatInterno() {
+export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicialId?: string | null }) {
   const catalogo = useTextos();
   const textos = catalogo.chatInterno;
   const usuarioAtual = useAuthStore((s) => s.usuarioId);
@@ -43,7 +44,7 @@ export function PaginaChatInterno() {
   const composerRef = useRef<ComposerChatHandle>(null);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
   const contatos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat });
-  const [conversaId, setConversaId] = useState<string | null>(null);
+  const [conversaId, setConversaId] = useState<string | null>(conversaInicialId);
   const [dialogoDireta, setDialogoDireta] = useState(false);
   const [dialogoGrupo, setDialogoGrupo] = useState(false);
   const [painelGrupoAberto, setPainelGrupoAberto] = useState(false);
@@ -58,7 +59,12 @@ export function PaginaChatInterno() {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
-    if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") atualizar();
+    if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
+      atualizar();
+      if (evento.tipo === "CHAT_INTERNO_MENSAGEM" && evento.dados.conversaId === conversaId) {
+        void marcarChatComoLido(conversaId);
+      }
+    }
     if (evento.tipo === "CHAT_INTERNO_REACAO") {
       atualizarReacoesDoChatInterno(
         cache,
@@ -70,7 +76,11 @@ export function PaginaChatInterno() {
       );
     }
   });
-  useEffect(() => { if (conversaId) { void marcarChatComoLido(conversaId); } }, [conversaId]);
+  useEffect(() => {
+    definirConversaAtiva(conversaId ? { origem: "CHAT_INTERNO", id: conversaId } : null);
+    if (conversaId) { void marcarChatComoLido(conversaId); }
+    return () => definirConversaAtiva(null);
+  }, [conversaId]);
   const abrir = useMutation({
     mutationFn: abrirConversaDireta,
     onSuccess: (r) => { setConversaId(r.id); setPainelGrupoAberto(false); setDialogoDireta(false); atualizar(); },

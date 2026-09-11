@@ -81,11 +81,14 @@ type NotificacaoDeAtendimento = Exclude<
  * `ocorridoEm`, enquanto a repetição do mesmo frame após reconexão mantém a mesma chave.
  */
 function chaveDaNotificacao(notificacao: NotificacaoDeAtendimento): string {
+  const ocorridoEm = "ocorridoEm" in notificacao.dados
+    ? notificacao.dados.ocorridoEm
+    : notificacao.dados.enviadoEm;
   return [
     notificacao.tipo,
     notificacao.dados.atendimentoId,
     notificacao.dados.leadId,
-    notificacao.dados.ocorridoEm,
+    ocorridoEm,
   ].join(":");
 }
 

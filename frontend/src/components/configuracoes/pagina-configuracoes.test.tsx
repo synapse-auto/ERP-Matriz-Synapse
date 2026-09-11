@@ -17,6 +17,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       senhaAtual: "Senha atual", senhaAtualAjuda: "Necessária somente para trocar o e-mail",
       alterarFoto: "Alterar foto", removerFoto: "Remover foto", fotoErro: "Não foi possível atualizar a foto.",
     },
+    notificacoes: {
+      somTitulo: "Som das notificações",
+      somDescricao: "Reproduzir um som discreto ao receber mensagens e atribuições.",
+      somAtivado: "Som das notificações ativado",
+      somDesativado: "Som das notificações desativado",
+      previewContinua: "…",
+    },
   }),
 }));
 

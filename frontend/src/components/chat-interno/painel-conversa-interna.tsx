@@ -11,6 +11,7 @@ import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tempo-real";
 
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
 
@@ -51,12 +52,17 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
       atualizar();
+      if (evento.tipo === "CHAT_INTERNO_MENSAGEM") void marcarChatComoLido(conversaId);
     }
     if (evento.tipo === "CHAT_INTERNO_REACAO" && evento.dados.conversaId === conversaId) {
       atualizarReacoesDoChatInterno(cache, conversaId, evento.dados.mensagemId, evento.dados.reacoes, { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor }, useAuthStore.getState().usuarioId);
     }
   });
   useEffect(() => { void marcarChatComoLido(conversaId).catch(() => undefined); }, [conversaId]);
+  useEffect(() => {
+    definirConversaAtiva({ origem: "CHAT_INTERNO", id: conversaId });
+    return () => definirConversaAtiva(null);
+  }, [conversaId]);
   async function definirReacaoDaMensagem(mensagem: { id: string }, emoji: string) {
     const resposta = await definirReacaoChat(conversaId, mensagem.id, emoji);
     substituirReacoesDoChatInterno(cache, conversaId, mensagem.id, resposta.reacoes ?? []);

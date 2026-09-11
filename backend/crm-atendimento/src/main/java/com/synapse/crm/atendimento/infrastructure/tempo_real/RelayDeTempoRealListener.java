@@ -57,9 +57,11 @@ class RelayDeTempoRealListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoReceberMensagem(MensagemParaTempoReal evento) {
         ObjectNode dados = json.createObjectNode();
+        dados.put("eventoId", evento.mensagemId().toString());
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("leadId", evento.leadId().toString());
         dados.put("mensagemId", evento.mensagemId().toString());
+        dados.put("leadNome", evento.leadNome());
         dados.put("remetenteTipo", evento.remetenteTipo());
         dados.put("remetenteId", evento.remetenteId() == null ? null : evento.remetenteId().toString());
         dados.put("tipo", evento.tipo());
@@ -77,6 +79,8 @@ class RelayDeTempoRealListener {
         dados.put("statusEntrega", evento.statusEntrega());
         dados.put("enviadoEm", evento.enviadoEm().toString());
         dados.put("idempotencyKey", evento.chaveIdempotencia());
+        var destinatarios = dados.putArray("destinatarios");
+        evento.destinatarios().forEach(id -> destinatarios.add(id.toString()));
         if (evento.citacao() != null) {
             ObjectNode citacao = dados.putObject("citacao");
             citacao.put("origemId", evento.citacao().origemId().toString());
@@ -102,6 +106,7 @@ class RelayDeTempoRealListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoTransferir(EventoDeAtendimento.AtendimentoTransferido evento) {
         ObjectNode dados = json.createObjectNode();
+        dados.put("eventoId", evento.atendimentoId() + ":" + evento.ocorridoEm());
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("leadId", evento.leadId().toString());
         dados.put("leadNome", evento.leadNome());
@@ -124,6 +129,7 @@ class RelayDeTempoRealListener {
     void aoEnviarComTransferencia(EventoDeAtendimento.MensagemEnviada evento) {
         if (!evento.transferiu() || evento.donoAnterior().isEmpty()) return;
         ObjectNode dados = json.createObjectNode();
+        dados.put("eventoId", evento.atendimentoId() + ":" + evento.ocorridoEm());
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("leadId", evento.leadId().toString());
         dados.put("leadNome", evento.leadNome());

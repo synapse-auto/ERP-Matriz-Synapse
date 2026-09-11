@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
+import { Switch } from "@/components/ui/switch";
 import { useTextos } from "@/lib/config/textos-provider";
+import { usePreferenciaSomDeNotificacao } from "@/lib/atendimento/preferencias-notificacoes";
 import { useAtualizarMeuUsuario, useAtualizarMinhaFoto, useMeuUsuario, useRemoverMinhaFoto } from "@/lib/equipe/use-equipe";
 
 function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["configuracoes"]) {
@@ -23,6 +25,8 @@ function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["conf
 export function PaginaConfiguracoes() {
   const textos = useTextos();
   const t = textos.configuracoes;
+  const notificacoes = textos.notificacoes;
+  const preferenciaSom = usePreferenciaSomDeNotificacao();
   const usuario = useMeuUsuario();
   const atualizar = useAtualizarMeuUsuario();
   const atualizarFoto = useAtualizarMinhaFoto();
@@ -137,6 +141,24 @@ export function PaginaConfiguracoes() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>{notificacoes.somTitulo}</CardTitle>
+              <CardDescription>{notificacoes.somDescricao}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-medium">
+                  {preferenciaSom.somHabilitado ? notificacoes.somAtivado : notificacoes.somDesativado}
+                </span>
+                <Switch
+                  checked={preferenciaSom.somHabilitado}
+                  onCheckedChange={preferenciaSom.definirSomHabilitado}
+                  aria-label={notificacoes.somTitulo}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>

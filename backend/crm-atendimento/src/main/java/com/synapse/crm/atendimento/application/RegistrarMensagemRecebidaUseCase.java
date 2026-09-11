@@ -2,12 +2,14 @@ package com.synapse.crm.atendimento.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
@@ -43,6 +45,7 @@ public class RegistrarMensagemRecebidaUseCase {
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
     private final MensagemReferenciaRepositorio referencias;
+    private final ParticipacaoAtendimentoRepositorio participacoes;
 
     public RegistrarMensagemRecebidaUseCase(
             AtendimentoRepositorio atendimentos,
@@ -50,13 +53,15 @@ public class RegistrarMensagemRecebidaUseCase {
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
             Clock relogio,
-            MensagemReferenciaRepositorio referencias) {
+            MensagemReferenciaRepositorio referencias,
+            ParticipacaoAtendimentoRepositorio participacoes) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
         this.eventos = eventos;
         this.relogio = relogio;
         this.referencias = referencias;
+        this.participacoes = participacoes;
     }
 
     /**
@@ -123,9 +128,23 @@ public class RegistrarMensagemRecebidaUseCase {
                 gravada.opcoes(),
                 gravada.statusEntrega().name(),
                 agora,
-                MontadorDeReferenciaDeMensagem.citacaoDe(entrada.referencia())));
+                MontadorDeReferenciaDeMensagem.citacaoDe(entrada.referencia()),
+                null,
+                leads.nomeParaTempoReal(entrada.leadId()).orElse(""),
+                destinatariosDoAtendimento(aberto)));
 
         return new Resultado(aberto, gravada, abriu);
+    }
+
+    private java.util.List<UUID> destinatariosDoAtendimento(Atendimento atendimento) {
+        var destinatarios = new LinkedHashSet<UUID>();
+        if (atendimento.atendenteId() != null) {
+            destinatarios.add(atendimento.atendenteId());
+        }
+        participacoes.ativos(atendimento.id()).stream()
+                .map(com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento::usuarioId)
+                .forEach(destinatarios::add);
+        return destinatarios.stream().toList();
     }
 
     private static Mensagem mensagemDaEntrada(MensagemRecebida entrada, UUID atendimentoId, Instant agora) {

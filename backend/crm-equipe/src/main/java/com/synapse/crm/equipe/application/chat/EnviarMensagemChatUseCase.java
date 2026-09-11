@@ -33,7 +33,8 @@ public class EnviarMensagemChatUseCase {
                 .filter(id -> !id.equals(remetente)).toList();
         ChatInternoRepositorio.MensagemResumo salva = repositorio.salvarMensagem(conversaId, remetente, mensagem.conteudo());
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(
-                conversaId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm()));
+                conversaId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm(),
+                salva.remetenteNome(), salva.tipo(), salva.midiaMetadados()));
         return salva;
     }
 }

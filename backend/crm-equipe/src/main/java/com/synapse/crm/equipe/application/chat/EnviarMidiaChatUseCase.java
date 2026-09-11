@@ -86,7 +86,8 @@ public class EnviarMidiaChatUseCase {
                 .filter(id -> !id.equals(remetente)).toList();
 
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(
-                conversaId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm()));
+                conversaId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm(),
+                salva.remetenteNome(), salva.tipo(), salva.midiaMetadados()));
 
         return salva;
     }
