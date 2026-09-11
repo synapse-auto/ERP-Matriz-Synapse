@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { ChevronDown, Copy, Forward, Plus, Reply, Trash2, X } from "lucide-react";
+import { ChevronDown, Copy, Forward, Pencil, Plus, Reply, Trash2, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -35,6 +35,8 @@ type Props = {
   onResponder?: () => void;
   onEncaminhar?: () => void;
   onExcluir?: () => void;
+  onEditar?: () => void;
+  rotuloEditar?: string;
   children: React.ReactNode;
 };
 
@@ -53,6 +55,8 @@ export function InteracaoMensagem({
   onResponder,
   onEncaminhar,
   onExcluir,
+  onEditar,
+  rotuloEditar,
   children,
 }: Props) {
   const [menuAberto, setMenuAberto] = useState(false);
@@ -228,6 +232,21 @@ export function InteracaoMensagem({
                 >
                   <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.excluir}
+                </Button>
+              )}
+              {onEditar && rotuloEditar && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  disabled={pendente}
+                  onClick={() => {
+                    setMenuAberto(false);
+                    onEditar();
+                  }}
+                >
+                  <Pencil className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                  {rotuloEditar}
                 </Button>
               )}
             </PopoverContent>

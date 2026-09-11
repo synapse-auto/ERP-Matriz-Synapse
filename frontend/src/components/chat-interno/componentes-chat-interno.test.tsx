@@ -204,6 +204,33 @@ describe("componentes de apresentação do chat interno", () => {
     await waitFor(() => expect(excluir).toHaveBeenCalledWith(mensagens[0]));
   });
 
+  it("oferece editar somente para texto próprio e marca a mensagem editada", async () => {
+    const editar = vi.fn();
+    const textosEdicao = { ...textos, editar: "Editar", mensagemEditada: "Editada" };
+    const { rerender } = render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={mensagens}
+          usuarioAtual="u1"
+          textos={textosEdicao}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+          onEditar={editar}
+        />
+      </TextosProvider>,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(editar).toHaveBeenCalledWith(mensagens[0]);
+    expect(screen.getByText("Tudo bem?")).toBeInTheDocument();
+
+    const editada = { ...mensagens[0], editadoEm: "2026-08-27T12:03:00Z" };
+    rerender(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={[editada]} usuarioAtual="u1" textos={textosEdicao} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
+    expect(screen.getByText(/Editada/)).toBeInTheDocument();
+    rerender(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={[{ ...editada, tipo: "AUDIO", conteudo: null }]} usuarioAtual="u1" textos={textosEdicao} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} onEditar={editar} /></TextosProvider>);
+    expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
+  });
+
   it("renderiza tombstone sem conteúdo nem mídia e mantém a referência segura", () => {
     const removida: ChatMensagem = {
       ...mensagens[1],
@@ -279,6 +306,20 @@ describe("componentes de apresentação do chat interno", () => {
     await waitFor(() => expect(enviar).toHaveBeenCalledWith("mensagem"));
     expect(campo).toHaveValue("mensagem");
     expect(screen.getByRole("alert")).toHaveTextContent(textos.erroEnviar);
+  });
+
+  it("carrega edição no composer, salva com Enter e cancela com Escape", async () => {
+    const salvar = vi.fn().mockResolvedValue(undefined);
+    const cancelar = vi.fn();
+    const textosEdicao = { ...textos, editar: "Editar", salvarEdicao: "Salvar edição", cancelarEdicao: "Cancelar edição" };
+    render(<QueryClientProvider client={client}><TextosProvider textos={mockTextosCompletos}><ComposerChatInterno textos={textosEdicao} onEnviar={vi.fn()} edicao={mensagens[0]} onSalvarEdicao={salvar} onCancelarEdicao={cancelar} /></TextosProvider></QueryClientProvider>);
+    const campo = await screen.findByDisplayValue("Olá");
+    fireEvent.change(campo, { target: { value: "Olá editada" } });
+    fireEvent.keyDown(campo, { key: "Enter" });
+    await waitFor(() => expect(salvar).toHaveBeenCalledWith("Olá editada"));
+    expect(cancelar).toHaveBeenCalled();
+    fireEvent.keyDown(campo, { key: "Escape" });
+    expect(cancelar).toHaveBeenCalledTimes(2);
   });
 
   it("abre o catálogo de emoji e insere no texto sem enviar", async () => {

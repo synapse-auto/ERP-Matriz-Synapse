@@ -22,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -37,6 +38,7 @@ import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
 import com.synapse.crm.equipe.application.chat.CriarGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
+import com.synapse.crm.equipe.application.chat.EditarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EncaminharMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
@@ -81,6 +83,7 @@ public class ChatInternoController {
     private final ResponderMensagemChatUseCase responderMensagem;
     private final EncaminharMensagemChatUseCase encaminharMensagem;
     private final ExcluirMensagemChatUseCase excluirMensagem;
+    private final EditarMensagemChatUseCase editarMensagem;
     private final ArmazenamentoDeMidia armazenamento;
 
     ChatInternoController(
@@ -102,6 +105,7 @@ public class ChatInternoController {
             ResponderMensagemChatUseCase responderMensagem,
             EncaminharMensagemChatUseCase encaminharMensagem,
             ExcluirMensagemChatUseCase excluirMensagem,
+            EditarMensagemChatUseCase editarMensagem,
             ArmazenamentoDeMidia armazenamento) {
         this.listar = listar;
         this.contatos = contatos;
@@ -121,6 +125,7 @@ public class ChatInternoController {
         this.responderMensagem = responderMensagem;
         this.encaminharMensagem = encaminharMensagem;
         this.excluirMensagem = excluirMensagem;
+        this.editarMensagem = editarMensagem;
         this.armazenamento = armazenamento;
     }
 
@@ -278,6 +283,16 @@ public class ChatInternoController {
         return MensagemResposta.de(excluirMensagem.executar(mensagemId, id), armazenamento);
     }
 
+    @Operation(summary = "Editar mensagem interna", description = "Atualiza uma mensagem textual do próprio autor, mantendo o mesmo identificador e referências. Mídias e mensagens removidas não são editáveis.", responses = {
+            @ApiResponse(responseCode = "200", description = "Mensagem atualizada."),
+            @ApiResponse(responseCode = "400", description = "Mensagem não editável ou conteúdo inválido."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa ou não é o autor.")})
+    @PatchMapping("/conversas/{id}/mensagens/{mensagemId}")
+    public MensagemResposta editar(@PathVariable UUID id, @PathVariable UUID mensagemId,
+            @Valid @RequestBody MensagemRequisicao requisicao) {
+        return MensagemResposta.de(editarMensagem.executar(mensagemId, id, requisicao.conteudo()), armazenamento);
+    }
+
     @Operation(summary = "Marcar conversa como lida", description = "Atualiza somente o marcador de leitura do usuário autenticado; a leitura é individual e não altera a fila de outro participante.", responses = @ApiResponse(responseCode = "204", description = "Leitura individual atualizada."))
     @PostMapping("/conversas/{id}/leitura")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -374,7 +389,7 @@ public class ChatInternoController {
     }
     public record MensagemResposta(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, Object midiaMetadados, Instant enviadoEm,
-            List<ResumoReacaoResposta> reacoes, boolean removida, CitacaoResposta citacao) {
+            Instant editadoEm, List<ResumoReacaoResposta> reacoes, boolean removida, CitacaoResposta citacao) {
         static MensagemResposta de(ChatInternoRepositorio.MensagemResumo r, ArmazenamentoDeMidia armazenamento) {
             // Espelha synapse.midia.expiracao-leitura. MidiaProperties vive em crm-atendimento;
             // puxa-la para ca criaria ciclo (atendimento ja depende de equipe).
@@ -382,7 +397,7 @@ public class ChatInternoController {
             CitacaoResposta citacao = r.referencia() == null ? null : new CitacaoResposta(
                     r.referencia().origemId(), r.referencia().tipo(), r.referencia().autor(),
                     r.referencia().tipoConteudo(), r.referencia().previa(), r.referencia().origemRemovida());
-            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm(),
+            return new MensagemResposta(r.id(), r.conversaId(), r.remetenteId(), r.remetenteNome(), r.tipo(), r.conteudo(), midiaUrl, r.midiaMetadados(), r.enviadoEm(), r.editadoEm(),
                     r.reacoes().stream().map(ResumoReacaoResposta::de).toList(), r.removida(), citacao);
         }
     }

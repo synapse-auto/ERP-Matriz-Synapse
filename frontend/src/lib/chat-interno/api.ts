@@ -69,3 +69,8 @@ export const excluirMensagemChat = (conversaId: string, mensagemId: string) =>
   apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}`, {
     method: "DELETE",
   });
+export const editarMensagemChat = (conversaId: string, mensagemId: string, conteudo: string) =>
+  apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ conteudo }),
+  });

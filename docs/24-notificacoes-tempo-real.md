@@ -8,6 +8,9 @@ Esta entrega centraliza no navegador as notificações de mensagens novas e de m
 - A fila pessoal é `/user/queue/notificacoes`, protegida pelo interceptor de autenticação.
 - O publisher de atendimento continua em `@TransactionalEventListener(phase = AFTER_COMMIT)` e publica no canal Redis do atendimento. O subscriber faz a entrega pessoal somente para o dono e os participantes ativos do atendimento.
 - O chat interno continua usando seu canal Redis e entrega a mensagem pessoal aos destinatários já calculados pelo caso de uso, sem incluir o autor.
+- Edições usam o mesmo canal e o evento `CHAT_INTERNO_MENSAGEM_EDITADA`, com `mensagemId`, `conversaId`,
+  conteúdo atual e `editadoEm`. A entrega ocorre após commit; o frontend invalida apenas o cache do chat
+  interno e não cria um aviso de nova mensagem.
 - O payload de mensagem externa inclui `eventoId`, `leadNome` e `destinatarios` apenas no backplane. A lista de destinatários é removida antes da entrega ao fio da conversa e antes da fila pessoal.
 
 Não foi criada variável de ambiente nova. O transporte usa o mesmo `NEXT_PUBLIC_WS_URL` e as mesmas configurações de Redis já existentes.

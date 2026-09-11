@@ -126,4 +126,27 @@ class RelayDeChatInternoTest {
         assertThat(envelope.path("mensagemId").asText()).isEqualTo(mensagem.toString());
         assertThat(envelope.toString()).doesNotContain("conteudo");
     }
+
+    @Test
+    void edicao_soDepoisDoCommit_e_leva_apenas_conteudo_atual() throws Exception {
+        var metodo = RelayDeChatInterno.class.getDeclaredMethod(
+                "publicarEdicao", EventoDeChatInterno.MensagemEditada.class);
+        assertThat(metodo.getAnnotation(TransactionalEventListener.class).phase())
+                .isEqualTo(TransactionPhase.AFTER_COMMIT);
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        var relay = new RelayDeChatInterno(redis, new ObjectMapper().findAndRegisterModules());
+        UUID conversa = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        relay.publicarEdicao(new EventoDeChatInterno.MensagemEditada(
+                conversa, mensagem, UUID.randomUUID(), List.of(UUID.randomUUID()), "atual",
+                Instant.parse("2026-08-28T15:00:00Z"), Instant.parse("2026-08-28T15:01:00Z"),
+                "Ana", "TEXTO", null));
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(redis).convertAndSend(anyString(), payload.capture());
+        JsonNode envelope = new ObjectMapper().readTree(payload.getValue());
+        assertThat(envelope.path("tipo").asText()).isEqualTo("CHAT_INTERNO_MENSAGEM_EDITADA");
+        assertThat(envelope.path("mensagemId").asText()).isEqualTo(mensagem.toString());
+        assertThat(envelope.path("conteudo").asText()).isEqualTo("atual");
+        assertThat(envelope.path("editadoEm").asText()).isNotBlank();
+    }
 }

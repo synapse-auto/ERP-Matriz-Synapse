@@ -361,6 +361,10 @@ export type NotificacaoTempoReal = {
   tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA";
   eventoId?: string;
   dados: ChatInternoMensagemRemovidaTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_MENSAGEM_EDITADA";
+  eventoId?: string;
+  dados: ChatInternoMensagemEditadaTempoReal;
 };
 
 export interface NovaMensagemTempoReal {
@@ -399,6 +403,10 @@ export interface ChatInternoReacaoTempoReal {
 export interface ChatInternoMensagemRemovidaTempoReal {
   conversaId: string;
   mensagemId: string;
+}
+
+export interface ChatInternoMensagemEditadaTempoReal extends ChatInternoMensagemTempoReal {
+  editadoEm: string;
 }
 
 /** Payload de /user/queue/revogacoes. */

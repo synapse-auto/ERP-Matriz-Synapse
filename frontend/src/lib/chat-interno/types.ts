@@ -21,6 +21,7 @@ export interface ChatMensagem {
   tipo?: string; conteudo: string | null; midiaUrl?: string | null; midiaMetadados?: unknown; enviadoEm: string;
   reacoes?: { emoji: string; quantidade: number; reagi: boolean }[];
   removida?: boolean;
+  editadoEm?: string | null;
   citacao?: (CitacaoMensagem & { origemRemovida?: boolean }) | null;
 }
 export interface EventoSistemaChat {

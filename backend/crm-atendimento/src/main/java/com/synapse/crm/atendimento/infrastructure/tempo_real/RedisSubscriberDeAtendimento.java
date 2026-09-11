@@ -154,13 +154,17 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                     dados.set("reacoes", envelope.path("reacoes"));
                     dados.set("atorId", envelope.path("atorId"));
                     dados.set("emojiDoAtor", envelope.path("emojiDoAtor"));
-                } else if ("CHAT_INTERNO_MENSAGEM".equals(tipo)) {
+                } else if ("CHAT_INTERNO_MENSAGEM".equals(tipo)
+                        || "CHAT_INTERNO_MENSAGEM_EDITADA".equals(tipo)) {
                     dados.set("remetenteId", envelope.path("remetenteId"));
                     dados.set("remetenteNome", envelope.path("remetenteNome"));
                     dados.set("tipo", envelope.path("tipoMensagem"));
                     dados.set("conteudo", envelope.path("conteudo"));
                     dados.set("midiaMetadados", envelope.path("midiaMetadados"));
                     dados.set("enviadoEm", envelope.path("enviadoEm"));
+                    if ("CHAT_INTERNO_MENSAGEM_EDITADA".equals(tipo)) {
+                        dados.set("editadoEm", envelope.path("editadoEm"));
+                    }
                 }
                 notificacao.set("dados", dados);
                 enviarParaUsuario(UUID.fromString(destinatario.asText()), DESTINO_NOTIFICACOES, notificacao.toString());

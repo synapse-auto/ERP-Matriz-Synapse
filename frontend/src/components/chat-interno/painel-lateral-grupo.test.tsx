@@ -27,6 +27,8 @@ import {
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
 const textos = {
+  detalhes: "Detalhes da conversa",
+  fecharDetalhes: "Fechar detalhes da conversa",
   participantesDoGrupo: "Participantes do grupo",
   selecionarParticipantes: "Participantes",
   adicionarParticipante: "Adicionar pessoa",
@@ -98,6 +100,17 @@ describe("PainelLateralGrupo", () => {
     expect(screen.getByLabelText("Sair do grupo")).toBeInTheDocument();
     expect(screen.getByLabelText("Renomear grupo")).toBeInTheDocument();
     expect(screen.queryByText(/administrador/i)).toBeNull();
+  });
+
+  it("em conversa direta mostra apenas o outro participante e mídias autorizadas", async () => {
+    renderizar({ tipo: "DIRETA", nomeAtual: "Bruno", fotoUrl: "/api/v1/me/foto/b1" });
+
+    const painel = await screen.findByRole("complementary", { name: "Detalhes da conversa" });
+    expect(painel).toHaveClass("w-[344px]");
+    expect(screen.getByText("Bruno")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Renomear grupo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Adicionar pessoa")).not.toBeInTheDocument();
+    expect(screen.queryByText("Participantes do grupo")).not.toBeInTheDocument();
   });
 
   it("renomeia, adiciona e remove participantes", async () => {

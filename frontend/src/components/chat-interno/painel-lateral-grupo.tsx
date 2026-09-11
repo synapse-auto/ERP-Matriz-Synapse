@@ -16,6 +16,7 @@ import {
 import type { Textos } from "@/lib/config/schema";
 import { ContadorDoPainel } from "@/components/ui/contador-do-painel";
 import { ListaDeMidiasDoGrupo } from "@/components/chat-interno/secao-de-midias-grupo";
+import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 
 type TextosChat = Textos["chatInterno"];
 
@@ -26,6 +27,8 @@ type Props = {
   textos: TextosChat;
   onRetrair: () => void;
   onSaiu?: () => void;
+  tipo?: "DIRETA" | "GRUPO";
+  fotoUrl?: string | null;
 };
 
 /** Sem hierarquia: qualquer participante vê as mesmas ações (add/remove/rename/sair). */
@@ -36,7 +39,10 @@ export function PainelLateralGrupo({
   textos,
   onRetrair,
   onSaiu,
+  tipo = "GRUPO",
+  fotoUrl,
 }: Props) {
+  const grupo = tipo === "GRUPO";
   const cache = useQueryClient();
   const [nome, setNome] = useState(nomeAtual);
   const [adicionandoId, setAdicionandoId] = useState<string | null>(null);
@@ -47,6 +53,7 @@ export function PainelLateralGrupo({
   const contatos = useQuery({
     queryKey: ["chat-interno", "contatos"],
     queryFn: listarContatosChat,
+    enabled: grupo,
   });
 
   const idsNoGrupo = useMemo(
@@ -88,11 +95,11 @@ export function PainelLateralGrupo({
     <aside
       id="painel-grupo"
       aria-labelledby="painel-grupo-titulo"
-      className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background"
+      className="flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden border-l border-border bg-background max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-20 max-md:w-[min(344px,100%)] max-md:shadow-xl"
     >
       <div className="flex flex-none items-center justify-between gap-2 p-4">
         <h2 id="painel-grupo-titulo" className="text-sm font-bold text-foreground">
-          {textos.participantesDoGrupo}
+          {grupo ? textos.participantesDoGrupo : textos.detalhes}
         </h2>
         <Button
           type="button"
@@ -101,8 +108,8 @@ export function PainelLateralGrupo({
           onClick={onRetrair}
           aria-expanded="true"
           aria-controls="painel-grupo"
-          aria-label={textos.retrair}
-          title={textos.retrair}
+          aria-label={grupo ? textos.retrair : textos.fecharDetalhes}
+          title={grupo ? textos.retrair : textos.fecharDetalhes}
         >
           <PanelRightClose className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
@@ -110,37 +117,46 @@ export function PainelLateralGrupo({
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 pt-0">
         <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
-            <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.75)]" />
-          </span>
-          <div className="flex w-full items-center gap-2">
-            <Input
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              aria-label={textos.renomearGrupo}
-              maxLength={120}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!nome.trim() || nome.trim() === nomeAtual || renomear.isPending}
-              onClick={() => renomear.mutate()}
-            >
-              {textos.salvarNome}
-            </Button>
-          </div>
+          {grupo ? (
+            <>
+              <span className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
+                <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.75)]" />
+              </span>
+              <div className="flex w-full items-center gap-2">
+                <Input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  aria-label={textos.renomearGrupo}
+                  maxLength={120}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!nome.trim() || nome.trim() === nomeAtual || renomear.isPending}
+                  onClick={() => renomear.mutate()}
+                >
+                  {textos.salvarNome}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <AvatarIniciais id={conversaId} nome={nomeAtual} fotoUrl={fotoUrl} className="flex size-16 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white" />
+              <p className="max-w-full truncate text-lg font-semibold text-foreground">{nomeAtual}</p>
+            </>
+          )}
         </div>
 
         {(renomear.isError || remover.isError || adicionar.isError) && (
           <p role="alert" className="text-sm text-cor-erro">{textos.erroParticipantes}</p>
         )}
 
-        <ContadorDoPainel
+        {grupo && <ContadorDoPainel
           valor={participantes.data?.length ?? 0}
           rotulo={textos.participantesDoGrupo}
-        />
+        />}
 
-        <div>
+        {grupo && <div>
           <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
             {textos.selecionarParticipantes}
           </p>
@@ -168,9 +184,9 @@ export function PainelLateralGrupo({
               );
             })}
           </ul>
-        </div>
+        </div>}
 
-        {candidatos.length > 0 && (
+        {grupo && candidatos.length > 0 && (
           <div>
             <p className="mb-3 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
               {textos.adicionarParticipante}

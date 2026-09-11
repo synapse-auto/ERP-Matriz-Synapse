@@ -26,6 +26,7 @@ import {
   responderMensagemChat,
   encaminharMensagemChat,
   excluirMensagemChat,
+  editarMensagemChat,
 } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
@@ -50,6 +51,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const [painelGrupoAberto, setPainelGrupoAberto] = useState(false);
   const [respostaAlvo, setRespostaAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const mensagens = useQuery({
     queryKey: ["chat-interno", "mensagens", conversaId],
     queryFn: () => listarMensagensChat(conversaId!),
@@ -59,7 +61,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
-    if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
+    if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
       atualizar();
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" && evento.dados.conversaId === conversaId) {
         void marcarChatComoLido(conversaId);
@@ -103,6 +105,11 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const excluir = useMutation({
     mutationFn: (mensagemId: string) => excluirMensagemChat(conversaId!, mensagemId),
     onSuccess: atualizar,
+  });
+  const editar = useMutation({
+    mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) =>
+      editarMensagemChat(conversaId!, mensagemId, conteudo),
+    onSuccess: () => { setEdicaoAlvo(null); atualizar(); },
   });
   async function definirReacaoDaMensagem(mensagem: { id: string }, emoji: string) {
     if (!conversaId) return;
@@ -154,7 +161,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
           </Button>
         </div>
       </header>
-      <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div className="relative flex min-h-0 min-w-0 flex-1 gap-4">
         <div className="grid min-h-0 min-w-0 flex-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           <Card className="min-h-0 min-w-0">
             <CardHeader>
@@ -208,7 +215,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                   conversa={conversaAtual}
                   textos={textos}
                   painelGrupoAberto={painelGrupoAberto}
-                  onGerenciarGrupo={conversaAtual.tipo === "GRUPO" ? () => setPainelGrupoAberto((aberto) => !aberto) : undefined}
+                  onGerenciarGrupo={() => setPainelGrupoAberto((aberto) => !aberto)}
                 />
               )}
             </CardHeader>
@@ -230,7 +237,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                   {mensagens.isLoading ? (
                     <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p>
                   ) : (
-                    <ListaMensagensChatInterno
+                  <ListaMensagensChatInterno
                       mensagens={mensagens.data?.mensagens ?? []}
                       usuarioAtual={usuarioAtual}
                       textos={textos}
@@ -239,6 +246,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                       onResponder={setRespostaAlvo}
                       onEncaminhar={setEncaminharAlvo}
                       onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }}
+                      onEditar={setEdicaoAlvo}
                     />
                   )}
                   <ComposerChatInterno
@@ -246,6 +254,9 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                     textos={textos}
                     resposta={respostaAlvo}
                     onCancelarResposta={() => setRespostaAlvo(null)}
+                    edicao={edicaoAlvo}
+                    onSalvarEdicao={(conteudo) => editar.mutateAsync({ mensagemId: edicaoAlvo!.id, conteudo })}
+                    onCancelarEdicao={() => setEdicaoAlvo(null)}
                     enviando={enviar.isPending || enviarMidia.isPending || responder.isPending}
                     erro={enviar.isError || enviarMidia.isError || responder.isError}
                     onEnviar={enviarConteudo}
@@ -256,7 +267,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
             </CardContent>
           </Card>
         </div>
-        {conversaAtual?.tipo === "GRUPO" && painelGrupoAberto && conversaId && (
+        {conversaAtual && painelGrupoAberto && conversaId && (
           <PainelLateralGrupo
             key={conversaId}
             conversaId={conversaId}
@@ -264,7 +275,9 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
             usuarioAtual={usuarioAtual}
             textos={textos}
             onRetrair={() => setPainelGrupoAberto(false)}
-            onSaiu={() => setConversaId(null)}
+            tipo={conversaAtual.tipo}
+            fotoUrl={conversaAtual.fotoUrl}
+            onSaiu={conversaAtual.tipo === "GRUPO" ? () => setConversaId(null) : undefined}
           />
         )}
       </div>

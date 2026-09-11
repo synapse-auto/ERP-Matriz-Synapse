@@ -98,6 +98,12 @@ export class ServicoDeNotificacoesTempoReal {
 }
 
 export function chaveTecnicaDaNotificacao(notificacao: NotificacaoTempoReal): string {
+  // Edições compartilham o mesmo mensagemId do evento de criação. Prefixar o tipo
+  // antes de considerar eventoId evita que a deduplicação descarte a edição como
+  // se fosse a mensagem original.
+  if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") {
+    return `${notificacao.tipo}:${notificacao.dados.mensagemId}`;
+  }
   if (notificacao.eventoId) return notificacao.eventoId;
   if (notificacao.tipo === "NOVA_MENSAGEM" || notificacao.tipo === "CHAT_INTERNO_MENSAGEM") {
     return notificacao.dados.mensagemId;
@@ -118,6 +124,7 @@ export function chaveTecnicaDaNotificacao(notificacao: NotificacaoTempoReal): st
 
 function origemDaNotificacao(notificacao: NotificacaoTempoReal): "ATENDIMENTO" | "CHAT_INTERNO" {
   return notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
+    || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA"
     || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA"
     || notificacao.tipo === "CHAT_INTERNO_REACAO"
     ? "CHAT_INTERNO"
@@ -128,7 +135,7 @@ function conversaDaNotificacaoRecebida(notificacao: NotificacaoTempoReal): Conve
   if (notificacao.tipo === "NOVA_MENSAGEM") {
     return { origem: "ATENDIMENTO", id: notificacao.dados.atendimentoId };
   }
-  if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM") {
+  if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM" || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") {
     return { origem: "CHAT_INTERNO", id: notificacao.dados.conversaId };
   }
   return null;

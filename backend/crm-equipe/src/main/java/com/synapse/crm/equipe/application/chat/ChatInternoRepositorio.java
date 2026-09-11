@@ -35,6 +35,7 @@ public interface ChatInternoRepositorio {
     MensagemResumo salvarMensagemSistema(UUID conversaId, UUID atorId, String conteudoJson);
     MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados);
     Optional<MensagemResumo> mensagem(UUID conversaId, UUID mensagemId);
+    MensagemResumo editarMensagem(UUID conversaId, UUID mensagemId, UUID remetenteId, String conteudo, Instant editadoEm);
     MensagemResumo salvarMensagemComReferencia(UUID conversaId, UUID remetenteId, String conteudo,
             String tipo, String midiaUrl, String midiaMetadados, UUID origemConversaId, UUID origemId,
             String referenciaTipo);
@@ -48,7 +49,7 @@ public interface ChatInternoRepositorio {
             String legenda, String referenciaStorage, Instant enviadoEm) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
-            List<ResumoDeReacao> reacoes, boolean removida, ReferenciaResumo referencia) {
+            Instant editadoEm, List<ResumoDeReacao> reacoes, boolean removida, ReferenciaResumo referencia) {
         public MensagemResumo {
             reacoes = reacoes == null ? List.of() : List.copyOf(reacoes);
         }
@@ -56,19 +57,26 @@ public interface ChatInternoRepositorio {
         public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
                 String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {
             this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
-                    enviadoEm, List.of(), false, null);
+                    enviadoEm, null, List.of(), false, null);
         }
 
         public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
                 String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
                 List<ResumoDeReacao> reacoes) {
             this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
-                    enviadoEm, reacoes, false, null);
+                    enviadoEm, null, reacoes, false, null);
+        }
+
+        public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
+                String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
+                List<ResumoDeReacao> reacoes, boolean removida, ReferenciaResumo referencia) {
+            this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
+                    enviadoEm, null, reacoes, removida, referencia);
         }
 
         public MensagemResumo comReacoes(List<ResumoDeReacao> novas) {
             return new MensagemResumo(id, conversaId, remetenteId, remetenteNome, tipo, conteudo,
-                    midiaUrl, midiaMetadados, enviadoEm, novas, removida, referencia);
+                    midiaUrl, midiaMetadados, enviadoEm, editadoEm, novas, removida, referencia);
         }
     }
     record ReferenciaResumo(UUID origemId, String tipo, String autor, String tipoConteudo,

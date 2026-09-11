@@ -244,8 +244,10 @@ mensagem de WhatsApp.
 | POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/responder` | Cria texto com referência segura à mensagem da mesma conversa | `CHAT_INTERNO_MENSAGEM` após commit |
 | POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/encaminhar` | Copia mensagem para outra conversa interna da qual o usuário participa | `CHAT_INTERNO_MENSAGEM` após commit |
 | DELETE | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor marca tombstone; conteúdo e mídia deixam de ser lidos | `CHAT_INTERNO_MENSAGEM_REMOVIDA` após commit |
+| PATCH | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor atualiza somente mensagem `TEXTO`; mantém ID, data, reações e referências | `CHAT_INTERNO_MENSAGEM_EDITADA` após commit |
 
-`GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Referências mantêm apenas
+`GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Mensagens editadas incluem
+`editadoEm`; o texto original não é exposto no contrato. Referências mantêm apenas
 autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, recebem o marcador seguro
 “mensagem removida”. A migration V65 adiciona os campos e um trigger que atualiza referências entre
 conversas. A URL assinada de mídia recusa mensagens removidas.
