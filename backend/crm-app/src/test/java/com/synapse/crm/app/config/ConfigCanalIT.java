@@ -42,9 +42,11 @@ class ConfigCanalIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode corpo = json.readTree(resposta.getBody());
-        assertThat(corpo.fieldNames()).toIterable().containsExactly("exigeTemplateForaDaJanela");
+        assertThat(corpo.fieldNames()).toIterable().containsExactlyInAnyOrder(
+                "exigeTemplateForaDaJanela", "gerenciaTemplates");
         assertThat(corpo.path("exigeTemplateForaDaJanela").asBoolean()).isTrue();
-        assertThat(corpo.size()).isEqualTo(1);
+        assertThat(corpo.path("gerenciaTemplates").asBoolean()).isTrue();
+        assertThat(corpo.size()).isEqualTo(2);
         assertThat(resposta.getBody()).doesNotContain("token", "telefone", "url");
     }
 }

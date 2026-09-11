@@ -13,6 +13,12 @@ public final class EventoDeChatInterno {
     public record MensagemEnviada(UUID conversaId, UUID mensagemId, UUID remetenteId,
             List<UUID> destinatarios, String conteudo, Instant enviadoEm) {}
 
+    public record MensagemRemovida(UUID conversaId, UUID mensagemId, List<UUID> destinatarios) {
+        public MensagemRemovida {
+            destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);
+        }
+    }
+
     public record ReacaoAlterada(
             UUID conversaId,
             UUID mensagemId,

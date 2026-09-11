@@ -44,6 +44,7 @@ public final class PrepararImportacaoLeadsCsv {
 
         List<LeadImportavel> aceitos = new ArrayList<>();
         List<LinhaRecusada> recusados = new ArrayList<>();
+        Map<String, Integer> linhaPorTelefone = new HashMap<>();
         Set<String> telefonesDoArquivo = new HashSet<>();
         int numeroDaLinha = 1;
         int linhasComDados = 0;
@@ -74,12 +75,21 @@ public final class PrepararImportacaoLeadsCsv {
                 if (!telefonesDoArquivo.add(telefone)) {
                     throw new LinhaInvalidaException("telefone duplicado no arquivo");
                 }
-                aceitos.add(new LeadImportavel(nome, telefone));
+                aceitos.add(new LeadImportavel(
+                        nome,
+                        telefone,
+                        valorOpcional(valores, indices, "empresa"),
+                        valorOpcional(valores, indices, "cpf"),
+                        valorOpcional(valores, indices, "localizacao"),
+                        valorOpcional(valores, indices, "etapa"),
+                        tags(valorOpcional(valores, indices, "tags"))));
+                linhaPorTelefone.put(telefone, numeroDaLinha);
             } catch (LinhaInvalidaException e) {
                 recusados.add(new LinhaRecusada(numeroDaLinha, e.getMessage()));
             }
         }
-        return new Resultado(linhasComDados, List.copyOf(aceitos), List.copyOf(recusados));
+        return new Resultado(
+                linhasComDados, List.copyOf(aceitos), List.copyOf(recusados), Map.copyOf(linhaPorTelefone));
     }
 
     private String normalizar(String telefone) {
@@ -90,17 +100,41 @@ public final class PrepararImportacaoLeadsCsv {
         }
     }
 
+    private static String valorOpcional(List<String> valores, Map<String, Integer> indices, String nome) {
+        Integer indice = indices.get(nome);
+        return indice == null ? "" : valores.get(indice).trim();
+    }
+
+    private static List<String> tags(String valor) {
+        if (valor.isBlank()) return List.of();
+        return java.util.Arrays.stream(valor.split(";"))
+                .map(String::trim)
+                .filter(tag -> !tag.isBlank())
+                .distinct()
+                .toList();
+    }
+
     private static Map<String, Integer> indices(List<String> colunas) {
         Map<String, Integer> resultado = new HashMap<>();
         for (int i = 0; i < colunas.size(); i++) {
-            resultado.put(normalizarCabecalho(colunas.get(i)), i);
+            String cabecalho = normalizarCabecalho(colunas.get(i));
+            resultado.put(aliased(cabecalho), i);
         }
         return resultado;
+    }
+
+    private static String aliased(String cabecalho) {
+        return switch (cabecalho) {
+            case "cnpj", "cnpj/cpf", "cnpj_cpf", "cnpjcpf", "cpf/cnpj", "cpfcnpj" -> "cpf";
+            case "cidade" -> "localizacao";
+            default -> cabecalho;
+        };
     }
 
     private static String normalizarCabecalho(String valor) {
         return Normalizer.normalize(valor.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "")
+                .replaceAll("\\s+", "")
                 .toLowerCase(Locale.ROOT);
     }
 
@@ -162,12 +196,37 @@ public final class PrepararImportacaoLeadsCsv {
         return valores;
     }
 
-    public record LeadImportavel(String nome, String telefone) {}
+    public record LeadImportavel(
+            String nome,
+            String telefone,
+            String empresa,
+            String cpf,
+            String localizacao,
+            String etapa,
+            List<String> tags) {
+
+        public LeadImportavel {
+            tags = tags == null ? List.of() : List.copyOf(tags);
+        }
+
+        /** Compatibilidade com o gerador de script operacional legado. */
+        public LeadImportavel(String nome, String telefone) {
+            this(nome, telefone, "", "", "", "", List.of());
+        }
+    }
 
     public record LinhaRecusada(int linha, String motivo) {}
 
     public record Resultado(
-            int totalDeLinhas, List<LeadImportavel> aceitos, List<LinhaRecusada> recusados) {}
+            int totalDeLinhas,
+            List<LeadImportavel> aceitos,
+            List<LinhaRecusada> recusados,
+            Map<String, Integer> linhaPorTelefone) {
+
+        public Resultado(int totalDeLinhas, List<LeadImportavel> aceitos, List<LinhaRecusada> recusados) {
+            this(totalDeLinhas, aceitos, recusados, Map.of());
+        }
+    }
 
     private static final class LinhaInvalidaException extends RuntimeException {
 

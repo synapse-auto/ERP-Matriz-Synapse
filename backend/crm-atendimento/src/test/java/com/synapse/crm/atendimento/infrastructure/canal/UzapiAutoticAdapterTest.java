@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.canal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -15,6 +16,8 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,11 +30,13 @@ import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 
 class UzapiAutoticAdapterTest {
 
@@ -44,21 +49,26 @@ class UzapiAutoticAdapterTest {
 
     private final ObjectMapper json = new ObjectMapper();
     private final ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+    private final ConversorDeAudio conversorDeAudio = mock(ConversorDeAudio.class);
 
     private MockRestServiceServer servidor;
+    private RestClient.Builder builder;
     private UzapiAutoticAdapter adapter;
+    private CircuitBreakerRegistry breakers;
 
     @BeforeEach
     void configurar() {
         when(armazenamento.baixar(REFERENCIA)).thenReturn(new byte[] {1, 2, 3});
-        RestClient.Builder builder = RestClient.builder();
+        builder = RestClient.builder();
         servidor = MockRestServiceServer.bindTo(builder).build();
+        breakers = CircuitBreakerRegistry.ofDefaults();
         adapter = new UzapiAutoticAdapter(
                 builder,
                 propriedades(),
                 json,
-                CircuitBreakerRegistry.ofDefaults(),
-                armazenamento);
+                breakers,
+                armazenamento,
+                conversorDeAudio);
     }
 
     private CanalProperties propriedades() {
@@ -158,9 +168,15 @@ class UzapiAutoticAdapterTest {
         String[] corpoDoUpload = {null};
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(requisicao -> corpoDoUpload[0] = new String(
-                        ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
-                        java.nio.charset.StandardCharsets.ISO_8859_1))
+                .andExpect(requisicao -> {
+                    assertThat(requisicao.getHeaders().getContentType())
+                            .isNotNull()
+                            .satisfies(contentType -> assertThat(contentType.isCompatibleWith(
+                                    MediaType.MULTIPART_FORM_DATA)).isTrue());
+                    corpoDoUpload[0] = new String(
+                            ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
+                            java.nio.charset.StandardCharsets.ISO_8859_1);
+                })
                 .andRespond(withSuccess("{\"id\":\"media-id-123\"}", MediaType.APPLICATION_JSON));
 
         JsonNode[] corpoDoEnvio = new JsonNode[1];
@@ -190,6 +206,14 @@ class UzapiAutoticAdapterTest {
         if (tipo == TipoMensagem.AUDIO) {
             // Confirmado no Swagger: audio e "LinkMessage", sem campo caption.
             assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("caption")).isFalse();
+            // O contrato da Uzapi nao documenta voice/ptt/duration/seconds: a duracao e
+            // descoberta a partir do OGG/Opus valido que foi salvo no storage.
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("voice")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("ptt")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("duration")).isFalse();
+            assertThat(corpoDoEnvio[0].path(tipoNoProvedor).has("seconds")).isFalse();
+            assertThat(corpoDoUpload[0]).contains("Content-Type: audio/ogg");
+            assertThat(corpoDoUpload[0]).contains("filename=\"anexo.ogg\"");
         } else {
             assertThat(corpoDoEnvio[0].path(tipoNoProvedor).path("caption").asText())
                     .isEqualTo("Legenda de teste");
@@ -200,6 +224,134 @@ class UzapiAutoticAdapterTest {
         }
     }
 
+    @Test
+    void gravacaoDoComposerPreservaBytesValidosAoSubirParaUzapi() {
+        byte[] ogg = oggOpusValido();
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(ogg);
+        byte[][] corpoDoUpload = {null};
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> corpoDoUpload[0] = ((MockClientHttpRequest) requisicao).getBodyAsBytes())
+                .andRespond(withSuccess("{\"id\":\"media-id-composer\"}", MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.composer\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.ogg\",\"mimetype\":\"audio/ogg\",\"gravacaoDoComposer\":true}",
+                        null),
+                UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(contemSubsequencia(corpoDoUpload[0], ogg)).isTrue();
+        String corpo = new String(corpoDoUpload[0], java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertThat(corpo).contains("Content-Type: audio/ogg").contains("filename=\"gravacao.ogg\"");
+    }
+
+    @Test
+    void gravacaoDoComposerComOggInvalidoERecusadaAntesDoUpload() {
+        byte[] oggSemDuracao = paginaOgg(0, 0, new byte[] {'O', 'p', 'u', 's', 'H', 'e', 'a', 'd'});
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(oggSemDuracao);
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.ogg\",\"mimetype\":\"audio/ogg\",\"gravacaoDoComposer\":true}",
+                        null),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(ResultadoDeEnvio.Recusado.permanente(
+                "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp"));
+        servidor.verify();
+    }
+
+    @Test
+    void audioFragmentadoEConvertidoParaAacAntesDoUpload() {
+        byte[] fmp4 = fmp4();
+        byte[] aac = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(aac, "audio/aac"));
+
+        String[] corpoDoUpload = {null};
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> corpoDoUpload[0] = new String(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes(),
+                        java.nio.charset.StandardCharsets.ISO_8859_1))
+                .andRespond(withSuccess("{\"id\":\"media-id-123\"}", MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.midia\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
+                        null),
+                UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(corpoDoUpload[0]).contains("Content-Type: audio/aac");
+        assertThat(corpoDoUpload[0]).contains("filename=\"gravacao.aac\"");
+        verify(conversorDeAudio).converterParaAacAdts(fmp4, "audio/mp4");
+    }
+
+    @Test
+    void audioFragmentadoQueNaoConverteERecusadoSemAbrirBreakers() {
+        byte[] fmp4 = fmp4();
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenThrow(new FalhaNaConversaoDeAudioException("ffmpeg indisponivel"));
+        breakers = CircuitBreakerRegistry.of(CircuitBreakerConfig.custom()
+                .slidingWindowSize(1)
+                .minimumNumberOfCalls(1)
+                .failureRateThreshold(1)
+                .build());
+        adapter = new UzapiAutoticAdapter(
+                builder,
+                propriedades(),
+                json,
+                breakers,
+                armazenamento,
+                conversorDeAudio);
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
+                        null),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(ResultadoDeEnvio.Recusado.permanente(
+                "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp"));
+        assertThat(breakers.circuitBreaker("canal-uzapi-autotic").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        assertThat(breakers.circuitBreaker("canal-uzapi-autotic-midia").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        servidor.verify();
+    }
+
     private static String mimetypeDeExemplo(TipoMensagem tipo) {
         return switch (tipo) {
             case IMAGEM -> "image/png";
@@ -208,6 +360,46 @@ class UzapiAutoticAdapterTest {
             case DOCUMENTO -> "application/pdf";
             default -> throw new IllegalArgumentException("sem exemplo para " + tipo);
         };
+    }
+
+    private static byte[] oggOpusValido() {
+        byte[] opusHead = {
+            'O', 'p', 'u', 's', 'H', 'e', 'a', 'd',
+            1, 1, 0, 0, (byte) 0x80, (byte) 0xBB, 0, 0, 0, 0, 0
+        };
+        return concatenar(paginaOgg(0, 0, opusHead), paginaOgg(0x04, 960, new byte[] {0}));
+    }
+
+    private static byte[] paginaOgg(int flags, long granule, byte[] payload) {
+        byte[] pagina = new byte[28 + payload.length];
+        pagina[0] = 'O';
+        pagina[1] = 'g';
+        pagina[2] = 'g';
+        pagina[3] = 'S';
+        pagina[5] = (byte) flags;
+        for (int indice = 0; indice < Long.BYTES; indice++) {
+            pagina[6 + indice] = (byte) (granule >>> (8 * indice));
+        }
+        pagina[26] = 1;
+        pagina[27] = (byte) payload.length;
+        System.arraycopy(payload, 0, pagina, 28, payload.length);
+        return pagina;
+    }
+
+    private static byte[] concatenar(byte[] primeiro, byte[] segundo) {
+        byte[] resultado = java.util.Arrays.copyOf(primeiro, primeiro.length + segundo.length);
+        System.arraycopy(segundo, 0, resultado, primeiro.length, segundo.length);
+        return resultado;
+    }
+
+    private static boolean contemSubsequencia(byte[] corpo, byte[] esperado) {
+        if (corpo == null || esperado.length > corpo.length) return false;
+        for (int inicio = 0; inicio <= corpo.length - esperado.length; inicio++) {
+            if (java.util.Arrays.mismatch(corpo, inicio, inicio + esperado.length, esperado, 0, esperado.length) < 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- respostas 2xx que nao confirmam sucesso -----------------------------
@@ -354,7 +546,12 @@ class UzapiAutoticAdapterTest {
                 "",
                 VERSAO);
         UzapiAutoticAdapter adapterSemUsuario = new UzapiAutoticAdapter(
-                builder, semUsuario, json, CircuitBreakerRegistry.ofDefaults(), armazenamento);
+                builder,
+                semUsuario,
+                json,
+                CircuitBreakerRegistry.ofDefaults(),
+                armazenamento,
+                conversorDeAudio);
 
         CanalGateway.AutenticacaoDoCanal autenticacao = adapterSemUsuario.verificarAutenticacao();
 
@@ -362,19 +559,51 @@ class UzapiAutoticAdapterTest {
         assertThat(autenticacao.autenticada()).isFalse();
     }
 
-    // --- recebimento e templates fora de escopo -------------------------------
+    // --- recebimento -----------------------------------------------------------
 
     @Test
-    void baixarMidiaRecebidaLancaUnsupportedOperationException() {
-        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("qualquer-id"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("recebimento uzapi-autotic ainda nao investigado");
+    void baixarMidiaRecebidaResolveUrlEBaixaBytesSemReenviarBearerAoHostDaUrl() {
+        servidor.expect(once(), requestTo(URL_BASE + "/" + USUARIO + "/" + VERSAO + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.jpg\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("https://media.example.test/file.jpg"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(new byte[] {9, 8, 7}, MediaType.IMAGE_JPEG));
+
+        CanalGateway.MidiaRecebida recebida = adapter.baixarMidiaRecebida("media-inbound");
+
+        servidor.verify();
+        assertThat(recebida.conteudo()).containsExactly(9, 8, 7);
+        assertThat(recebida.mimetype()).isEqualTo("image/jpeg");
     }
 
     @Test
-    void naoSobrescreveListarNemCriarTemplate_usaDefaultsDaInterface() {
+    void baixarMidiaRecebidaComIdAusenteNaoChamaProvedor() {
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida(" "))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("id de midia recebido ausente");
+        servidor.verify();
+    }
+
+    @Test
+    void naoSobrescreveListarNemCriarEditarOuExcluirTemplate_usaDefaultsDaInterface() {
+        assertThat(adapter.gerenciaTemplates()).isFalse();
         assertThat(adapter.listarTemplates()).isEmpty();
         assertThat(adapter.criarTemplate(null))
                 .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
+        assertThat(adapter.editarTemplate(null))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
+        assertThat(adapter.excluirTemplate("id", "nome"))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate.Recusado.class);
+    }
+
+    private static byte[] fmp4() {
+        return new byte[] {
+            0, 0, 0, 12, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm',
+            0, 0, 0, 8, 'm', 'o', 'o', 'f',
+            0, 0, 0, 8, 'm', 'd', 'a', 't'
+        };
     }
 }

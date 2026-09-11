@@ -124,9 +124,11 @@ export function enviarMensagem(
   leadId: string,
   conteudo: string,
   resposta?: AlvoDeResposta,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({
       leadId,
       conteudo,
@@ -137,9 +139,13 @@ export function enviarMensagem(
   });
 }
 
-export function iniciarNovoContato(pedido: PedidoDeNovoContato): Promise<NovoContatoResposta> {
+export function iniciarNovoContato(
+  pedido: PedidoDeNovoContato,
+  idempotencyKey?: string,
+): Promise<NovoContatoResposta> {
   return apiFetch<NovoContatoResposta>("/api/v1/atendimentos/novo-contato", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify(pedido),
   });
 }
@@ -154,14 +160,23 @@ export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoRes
   });
 }
 
+/** Leitura pontual autorizada para abrir a conversa confirmada, sem depender da visão da lista. */
+export function obterCartaoAtendimento(atendimentoId: string): Promise<CartaoAtendimento> {
+  return apiFetch<CartaoAtendimento>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/cartao`,
+  );
+}
+
 export function enviarTemplate(
   leadId: string,
   nome: string,
   idioma: string,
   parametros: string[] = [],
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens/template", {
     method: "POST",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({ leadId, nome, idioma, parametros }),
   });
 }
@@ -182,15 +197,34 @@ export function criarTemplateWhatsApp(pedido: {
   });
 }
 
+export function editarTemplateWhatsApp(id: string, pedido: { corpo: string }): Promise<void> {
+  return apiFetch<void>(`/api/v1/whatsapp/templates/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(pedido),
+  });
+}
+
+export function excluirTemplateWhatsApp(id: string, nome: string): Promise<void> {
+  return apiFetch<void>(
+    `/api/v1/whatsapp/templates/${encodeURIComponent(id)}?nome=${encodeURIComponent(nome)}`,
+    { method: "DELETE" },
+  );
+}
+
 export function encaminharMensagem(
   origemAtendimentoId: string,
   mensagemId: string,
   enviadoEm: string,
   destinoAtendimentoId: string,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>(
     `/api/v1/atendimentos/${origemAtendimentoId}/mensagens/${mensagemId}/encaminhamentos?enviadoEm=${encodeURIComponent(enviadoEm)}`,
-    { method: "POST", body: JSON.stringify({ destinoAtendimentoId }) },
+    {
+      method: "POST",
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      body: JSON.stringify({ destinoAtendimentoId }),
+    },
   );
 }
 
@@ -209,6 +243,8 @@ export function enviarMidia(
   legenda: string | undefined,
   onProgresso: (percentual: number) => void,
   resposta?: AlvoDeResposta,
+  gravacaoDoComposer = false,
+  idempotencyKey?: string,
 ): Promise<EnvioResposta> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -222,12 +258,18 @@ export function enviarMidia(
       params.set("mensagemOrigemId", resposta.mensagemId);
       params.set("origemEnviadaEm", resposta.enviadoEm);
     }
+    if (gravacaoDoComposer) {
+      params.set("gravacaoDoComposer", "true");
+    }
     const query = params.toString() ? `?${params.toString()}` : "";
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_URL}/api/v1/atendimentos/${atendimentoId}/mensagens/midia${query}`);
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
       xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    }
+    if (idempotencyKey) {
+      xhr.setRequestHeader("Idempotency-Key", idempotencyKey);
     }
 
     xhr.upload.onprogress = (evento) => {
@@ -238,7 +280,13 @@ export function enviarMidia(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText) as EnvioResposta);
+        try {
+          resolve(JSON.parse(xhr.responseText) as EnvioResposta);
+        } catch {
+          // O servidor pode ter aceitado o envio e a resposta ter sido truncada. Deixe o hook
+          // tratar isso como transporte ambíguo e reconciliar pela Idempotency-Key.
+          reject(new ErroDeApi(0, null, "Resposta incompleta ao enviar anexo"));
+        }
         return;
       }
       const problema = parseProblemaHttp(xhr.responseText);

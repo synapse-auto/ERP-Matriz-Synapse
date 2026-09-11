@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
-import { Mic, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
+import { Fragment, useEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
+import { Mic, PanelRightOpen, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { urlSegura, cn } from "@/lib/utils";
@@ -14,9 +14,13 @@ import type { Textos } from "@/lib/config/schema";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
 import { parseEventoSistema, textoEventoSistema } from "@/lib/chat-interno/mensagem-sistema";
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
+import { CitacaoMensagemVisual } from "@/components/atendimentos/citacao-mensagem";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { diaDaMensagem, rotuloDaData } from "@/components/atendimentos/lista-mensagens";
 
 type TextosChat = Textos["chatInterno"];
 export { TIPOS_DE_ANEXO_ACEITOS };
@@ -32,15 +36,86 @@ export function duracaoLegivel(segundos: number): string {
   return `${String(minutos).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
 }
 
+export function DialogoEncaminharChatInterno({
+  aberto,
+  conversas,
+  conversaOrigemId,
+  textos,
+  carregando,
+  enviando,
+  erro,
+  onFechar,
+  onConfirmar,
+}: {
+  aberto: boolean;
+  conversas: ChatConversa[];
+  conversaOrigemId: string;
+  textos: TextosChat;
+  carregando?: boolean;
+  enviando?: boolean;
+  erro?: boolean;
+  onFechar: () => void;
+  onConfirmar: (conversaDestinoId: string) => Promise<unknown>;
+}) {
+  const [destinoId, setDestinoId] = useState("");
+  const destinos = conversas.filter((conversa) => conversa.id !== conversaOrigemId);
+  async function confirmar() {
+    if (!destinoId) return;
+    await onConfirmar(destinoId);
+    setDestinoId("");
+  }
+  return (
+    <Dialog open={aberto} onOpenChange={(valor) => {
+      if (!valor) {
+        setDestinoId("");
+        onFechar();
+      }
+    }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{textos.encaminharTitulo}</DialogTitle>
+          <DialogDescription>{textos.encaminharDescricao}</DialogDescription>
+        </DialogHeader>
+        <label className="space-y-1 text-sm">
+          <span className="font-medium">{textos.encaminharDestino}</span>
+          <Select value={destinoId} onValueChange={(valor) => setDestinoId(valor ?? "")} disabled={Boolean(carregando || enviando)}>
+            <SelectTrigger className="w-full" aria-label={textos.encaminharDestino}>
+              <SelectValue placeholder={carregando ? textos.carregando : textos.selecioneConversa} />
+            </SelectTrigger>
+            <SelectContent>
+            {destinos.map((conversa) => (
+              <SelectItem key={conversa.id} value={conversa.id}>
+                {conversa.participantes || textos.titulo}
+              </SelectItem>
+            ))}
+            </SelectContent>
+          </Select>
+        </label>
+        {erro && <p className="text-sm text-destructive" role="alert">{textos.encaminharErro}</p>}
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => { setDestinoId(""); onFechar(); }} disabled={Boolean(enviando)}>
+            {textos.encaminharCancelar}
+          </Button>
+          <Button type="button" onClick={() => void confirmar()} disabled={!destinoId || Boolean(enviando || carregando)}>
+            {textos.encaminharConfirmar}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function CabecalhoChatInterno({
   conversa,
   textos,
   onGerenciarGrupo,
+  painelGrupoAberto = false,
 }: {
   conversa?: ChatConversa;
   textos: TextosChat;
   onGerenciarGrupo?: () => void;
+  painelGrupoAberto?: boolean;
 }) {
   const nome = conversa?.participantes?.trim() || textos.titulo;
   const grupo = conversa?.tipo === "GRUPO";
@@ -60,9 +135,18 @@ export function CabecalhoChatInterno({
         </h2>
         <p className="text-xs text-muted-foreground">{grupo ? textos.tipoGrupo : textos.tipoDireta}</p>
       </div>
-      {grupo && onGerenciarGrupo && (
-        <Button type="button" variant="outline" size="sm" onClick={onGerenciarGrupo}>
-          {textos.participantesDoGrupo}
+      {grupo && onGerenciarGrupo && !painelGrupoAberto && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onGerenciarGrupo}
+          aria-expanded="false"
+          aria-controls="painel-grupo"
+          aria-label={textos.reabrir}
+          title={textos.reabrir}
+        >
+          <PanelRightOpen className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
       )}
     </header>
@@ -75,23 +159,46 @@ export function ListaMensagensChatInterno({
   textos,
   onDefinirReacao,
   onRemoverReacao,
+  onResponder,
+  onEncaminhar,
+  onExcluir,
 }: {
   mensagens: ChatMensagem[];
   usuarioAtual: string | null;
   textos: TextosChat;
   onDefinirReacao: (mensagem: ChatMensagem, emoji: string) => Promise<void>;
   onRemoverReacao: (mensagem: ChatMensagem) => Promise<void>;
+  onResponder?: (mensagem: ChatMensagem) => void;
+  onEncaminhar?: (mensagem: ChatMensagem) => void;
+  onExcluir?: (mensagem: ChatMensagem) => Promise<void>;
 }) {
   const catalogoAtendimentos = useTextos().atendimentos;
   const textosAtendimentos = catalogoAtendimentos.media;
   const acoes = catalogoAtendimentos.mensagem.acoes;
+  const historicoRef = useRef<HTMLDivElement>(null);
+  const ultimoId = mensagens.at(-1)?.id;
+
+  useEffect(() => {
+    if (!ultimoId || !historicoRef.current) return;
+    historicoRef.current.scrollTop = historicoRef.current.scrollHeight;
+  }, [ultimoId]);
+
   if (!mensagens.length) return <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.semMensagens}</p>;
   return (
     <div
+      ref={historicoRef}
       className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-5"
       data-slot="historico-chat-interno"
     >
-      {mensagens.map((mensagem) => {
+      {mensagens.map((mensagem, indice) => {
+        const mostrarData = indice === 0 || diaDaMensagem(mensagem.enviadoEm) !== diaDaMensagem(mensagens[indice - 1].enviadoEm);
+        const separador = mostrarData ? (
+          <div className="flex justify-center" data-slot="separador-data-chat-interno">
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+              {rotuloDaData(mensagem.enviadoEm, catalogoAtendimentos.mensagem.hoje, catalogoAtendimentos.mensagem.ontem)}
+            </span>
+          </div>
+        ) : null;
         const propria = mensagem.remetenteId === usuarioAtual;
         const tipo = mensagem.tipo ?? "TEXTO";
         if (tipo === "SISTEMA") {
@@ -100,13 +207,12 @@ export function ListaMensagensChatInterno({
             ? textoEventoSistema(evento, mensagem.remetenteNome, textos.sistema)
             : mensagem.conteudo ?? textos.sistema.eventoDesconhecido;
           return (
-            <p
-              key={mensagem.id}
-              className="px-4 text-center text-xs text-muted-foreground"
-              data-slot="mensagem-sistema-chat"
-            >
-              {texto}
-            </p>
+            <Fragment key={mensagem.id}>
+              {separador}
+              <p className="px-4 text-center text-xs text-muted-foreground" data-slot="mensagem-sistema-chat">
+                {texto}
+              </p>
+            </Fragment>
           );
         }
         const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
@@ -118,24 +224,37 @@ export function ListaMensagensChatInterno({
             : null;
 
         return (
-          <InteracaoMensagem
-            key={mensagem.id}
-            alinhadaADireita={propria}
-            textoCopiavel={textoCopiavel}
-            reacoes={mensagem.reacoes ?? []}
-            textos={acoes}
-            onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
-            onRemoverReacao={() => onRemoverReacao(mensagem)}
-          >
-            <div
-              className={cn(
-                "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
-                propria
-                  ? "rounded-tr-md bg-primary text-primary-foreground"
-                  : "rounded-tl-md border border-border bg-background text-foreground",
-              )}
+          <Fragment key={mensagem.id}>
+            {separador}
+            <InteracaoMensagem
+              alinhadaADireita={propria}
+              textoCopiavel={textoCopiavel}
+              reacoes={mensagem.reacoes ?? []}
+              textos={acoes}
+              onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
+              onRemoverReacao={() => onRemoverReacao(mensagem)}
+              onResponder={onResponder ? () => onResponder(mensagem) : undefined}
+              onEncaminhar={onEncaminhar && !mensagem.removida ? () => onEncaminhar(mensagem) : undefined}
+              onExcluir={onExcluir && propria && !mensagem.removida ? () => void onExcluir(mensagem) : undefined}
             >
+              <div
+                className={cn(
+                  "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
+                  propria
+                    ? "rounded-tr-md bg-primary text-primary-foreground"
+                    : "rounded-tl-md border border-border bg-background text-foreground",
+                )}
+              >
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
+
+              {mensagem.citacao && (
+                <CitacaoMensagemVisual citacao={mensagem.citacao} textos={catalogoAtendimentos.mensagem.citacao} />
+              )}
+
+              {mensagem.removida ? (
+                <p className="italic opacity-75" data-slot="mensagem-removida-chat">{textos.mensagemRemovida}</p>
+              ) : (
+                <>
 
               {tipo === "IMAGEM" && (
                 <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
@@ -161,6 +280,12 @@ export function ListaMensagensChatInterno({
                   : <p>{textosAtendimentos.audio}</p>
               )}
 
+              {tipo === "VIDEO" && (
+                midiaUrl
+                  ? <video controls className="max-h-64 max-w-full rounded-md" src={midiaUrl} aria-label={textosAtendimentos.visualizador.video} />
+                  : <p>{textosAtendimentos.visualizador.video}</p>
+              )}
+
               {tipo === "DOCUMENTO" && (
                 <a href={midiaUrl ?? "#"} target="_blank" rel="noopener noreferrer" title={textosAtendimentos.baixar} className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 no-underline">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/15"><FileText className="size-5" /></span>
@@ -175,11 +300,15 @@ export function ListaMensagensChatInterno({
 
               {tipo === "TEXTO" && <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>}
 
+                </>
+              )}
+
               <time className={cn("mt-1 block text-[10px]", propria ? "text-primary-foreground/70" : "text-muted-foreground")} dateTime={mensagem.enviadoEm}>
                 {new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
               </time>
-            </div>
-          </InteracaoMensagem>
+              </div>
+            </InteracaoMensagem>
+          </Fragment>
         );
       })}
     </div>
@@ -192,6 +321,8 @@ export type ComposerChatHandle = {
 export function ComposerChatInterno({
   textos,
   onEnviar,
+  resposta,
+  onCancelarResposta,
   onEnviarMidia,
   enviando = false,
   erro = false,
@@ -199,6 +330,8 @@ export function ComposerChatInterno({
 }: {
   textos: TextosChat;
   onEnviar: (conteudo: string) => Promise<unknown>;
+  resposta?: ChatMensagem | null;
+  onCancelarResposta?: () => void;
   onEnviarMidia?: (arquivo: File, legenda?: string) => Promise<unknown>;
   enviando?: boolean;
   erro?: boolean;
@@ -322,6 +455,27 @@ export function ComposerChatInterno({
       {erroDeGravacao && <p className="mb-2 text-sm text-destructive">{erroDeGravacao}</p>}
       {avisoTipo && <p className="mb-2 text-sm text-destructive" role="alert">{tComp.anexoTipoNaoPermitido}</p>}
       <div className="mx-auto flex max-w-[780px] flex-col gap-2 rounded-xl border border-input bg-card p-2 shadow-sm">
+        {resposta && (
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-2">
+            <div className="min-w-0 flex-1">
+              <CitacaoMensagemVisual
+                citacao={resposta.citacao ?? {
+                  origemId: resposta.id,
+                  tipoReferencia: "RESPOSTA",
+                  autor: resposta.remetenteNome,
+                  tipoConteudo: resposta.tipo ?? "TEXTO",
+                  previa: resposta.conteudo ?? "",
+                }}
+                textos={textosAtendimentos.mensagem.citacao}
+              />
+            </div>
+            {onCancelarResposta && (
+              <Button type="button" variant="ghost" size="icon-xs" onClick={onCancelarResposta} aria-label={textos.respostaCancelar}>
+                <X className="size-(--tamanho-icone-interface)" aria-hidden />
+              </Button>
+            )}
+          </div>
+        )}
         {arquivos.length > 0 && (
           <div className="space-y-1">
             {indiceEnvio !== null && arquivos.length > 1 && (

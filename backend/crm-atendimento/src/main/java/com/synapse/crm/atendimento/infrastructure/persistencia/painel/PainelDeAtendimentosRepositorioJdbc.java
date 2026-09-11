@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -154,6 +155,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_FINALIZADOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 
+    private static final String SQL_POR_ATENDIMENTO = agrupar(CAMPOS + ORIGEM + " WHERE a.id = ?");
+
     private static final String COLUNAS_CARTAO =
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
                     + "etapa_atendimento_id, etapa_nome, etapa_cor, status, atendente_id, atendente_nome, "
@@ -206,6 +209,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             // restricao continua sendo aplicado nas visoes de andamento; aqui a RLS faz o recorte.
             case FINALIZADOS -> chat.query(SQL_FINALIZADOS, MAPEADOR, usuarioId);
         };
+    }
+
+    @Override
+    public Optional<CartaoAtendimento> porAtendimentoId(UUID atendimentoId, UUID usuarioId) {
+        TransacaoObrigatoria.exigir("porAtendimentoId");
+        return primeiro(chat.query(SQL_POR_ATENDIMENTO, MAPEADOR, usuarioId, atendimentoId));
     }
 
     @Override
@@ -268,6 +277,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private long queryForCount(String sql, Object... parametros) {
         Long total = chat.queryForObject(sql, Long.class, parametros);
         return total == null ? 0 : total;
+    }
+
+    private static <T> Optional<T> primeiro(List<T> itens) {
+        return itens.isEmpty() ? Optional.empty() : Optional.of(itens.getFirst());
     }
 
     private static CartaoAtendimento paraCartao(ResultSet linha, int indice) throws SQLException {

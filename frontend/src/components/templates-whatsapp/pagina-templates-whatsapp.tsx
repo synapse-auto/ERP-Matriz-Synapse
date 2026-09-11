@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { LayoutTemplate, Search } from "lucide-react";
+import { LayoutTemplate, Pencil, Search, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,13 @@ import { PillDeStatus } from "@/components/ui/pill-de-status";
 import type { TomDePill } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
-import { criarTemplateWhatsApp, listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import {
+  criarTemplateWhatsApp,
+  editarTemplateWhatsApp,
+  excluirTemplateWhatsApp,
+  listarTemplatesWhatsApp,
+  obterCapacidadeDoCanal,
+} from "@/lib/atendimento/api";
 import {
   analisarVariaveisDoCorpo,
   interpolarCatalogo,
@@ -31,6 +37,12 @@ import type {
   TemplateWhatsApp,
 } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { podeCriarTemplates, podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
+import { useAuthStore } from "@/lib/auth/auth-store";
+import {
+  DialogoConfirmacaoExclusaoTemplate,
+  FormularioEdicaoTemplate,
+} from "./acoes-template-whatsapp";
 
 const TOM_DO_STATUS: Record<StatusTemplateWhatsApp, TomDePill> = {
   APROVADO: "sucesso",
@@ -48,10 +60,20 @@ const ORDEM_DAS_CATEGORIAS: CategoriaTemplateWhatsApp[] = [
 
 export function PaginaTemplatesWhatsApp() {
   const t = useTextos().templatesWhatsApp;
+  const papel = useAuthStore((estado) => estado.papel);
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [editando, setEditando] = useState<TemplateWhatsApp | null>(null);
+  const [excluindo, setExcluindo] = useState<TemplateWhatsApp | null>(null);
+
+  const capacidade = useQuery({
+    queryKey: ["capacidade-do-canal"],
+    queryFn: obterCapacidadeDoCanal,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 
   const consulta = useQuery({
     queryKey: ["whatsapp-templates"],
@@ -68,6 +90,29 @@ export function PaginaTemplatesWhatsApp() {
       }
     },
   });
+  const editarTemplate = useMutation({
+    mutationFn: (pedido: { id: string; corpo: string }) => editarTemplateWhatsApp(pedido.id, { corpo: pedido.corpo }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      setEditando(null);
+    },
+  });
+  const excluirTemplate = useMutation({
+    mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      setExcluindo(null);
+    },
+  });
+
+  if (capacidade.isPending) {
+    return <p className="p-6">{t.carregando}</p>;
+  }
+  if (capacidade.data && !capacidade.data.gerenciaTemplates) {
+    return null;
+  }
+  const podeGerenciar = podeGerenciarTemplates(papel);
+  const podeCriar = podeCriarTemplates(papel);
 
   const todos = consulta.data ?? [];
   const filtrados = filtrarTemplates(todos, busca, t.categorias, t.status);
@@ -93,7 +138,7 @@ export function PaginaTemplatesWhatsApp() {
               />
             </div>
           )}
-          <Button onClick={() => setAberto(true)}>{t.novo}</Button>
+          {podeCriar && <Button onClick={() => setAberto(true)}>{t.novo}</Button>}
         </div>
       </header>
 
@@ -146,6 +191,30 @@ export function PaginaTemplatesWhatsApp() {
                         <PillDeStatus tom={TOM_DO_STATUS[template.status]}>
                           {t.status[template.status]}
                         </PillDeStatus>
+                        {podeGerenciar && template.id && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              aria-label={`${t.editar}: ${template.nome}`}
+                              title={t.editar}
+                              onClick={() => setEditando(template)}
+                            >
+                              <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              aria-label={`${t.excluir}: ${template.nome}`}
+                              title={t.excluir}
+                              onClick={() => setExcluindo(template)}
+                            >
+                              <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{template.corpo}</p>
@@ -170,6 +239,22 @@ export function PaginaTemplatesWhatsApp() {
         textos={t}
         onFechar={() => setAberto(false)}
         onSalvar={(pedido) => criar.mutate(pedido)}
+      />
+      <FormularioEdicaoTemplate
+        key={editando?.id ?? "sem-template"}
+        template={editando}
+        salvando={editarTemplate.isPending}
+        erro={editarTemplate.isError ? t.formulario.erroEdicao : null}
+        textos={t}
+        onFechar={() => setEditando(null)}
+        onSalvar={(corpo) => editando && editarTemplate.mutate({ id: editando.id, corpo })}
+      />
+      <DialogoConfirmacaoExclusaoTemplate
+        template={excluindo}
+        excluindo={excluirTemplate.isPending}
+        textos={t}
+        onFechar={() => setExcluindo(null)}
+        onConfirmar={() => excluindo && excluirTemplate.mutate(excluindo)}
       />
     </div>
   );

@@ -20,6 +20,11 @@ public interface MensagemRepositorio {
     /** Grava a mensagem. O {@code enviadoEm} do agregado escolhe a particao. */
     Mensagem registrar(Mensagem mensagem);
 
+    /** Reconstitui uma mensagem por sua chave de partição, usada na resposta idempotente. */
+    default Optional<Mensagem> porId(UUID mensagemId, Instant enviadoEm) {
+        return Optional.empty();
+    }
+
     /**
      * Move a mensagem no ciclo de entrega.
      *
@@ -28,8 +33,11 @@ public interface MensagemRepositorio {
      * enviado numa mensagem que nao saiu.
      *
      * @param enviadoEm chave de particao da mensagem; sem ela o banco varre todas as particoes
+     * @param motivoFalha motivo capturado pelo canal quando {@code status} e {@code FALHOU}; nulo
+     *     nos demais estados
      */
-    void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status);
+    void atualizarStatusEntrega(
+            UUID mensagemId, Instant enviadoEm, StatusEntrega status, String motivoFalha);
 
     /**
      * Avanca o ciclo de entrega a partir do {@code wamid} que o provedor mandou em {@code statuses[]}.

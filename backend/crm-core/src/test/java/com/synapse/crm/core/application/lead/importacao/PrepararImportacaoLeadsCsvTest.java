@@ -78,4 +78,21 @@ class PrepararImportacaoLeadsCsvTest {
                         "Cliente; Matriz", "5561666666666"));
         assertThat(resultado.recusados()).isEmpty();
     }
+
+    @Test
+    void extraiCamposOpcionaisETagsDoCsv() throws Exception {
+        var resultado = importacao.executar(new StringReader("""
+                NOME,Empresa,CNPJ/CPF,Cidade,Telefone,Etapa,Tags
+                Maria Silva,Acme,12345678901,Brasília,61999999999,Proposta,"vip; orçamento;vip"
+                """));
+
+        assertThat(resultado.aceitos()).singleElement().satisfies(lead -> {
+            assertThat(lead.nome()).isEqualTo("Maria Silva");
+            assertThat(lead.empresa()).isEqualTo("Acme");
+            assertThat(lead.cpf()).isEqualTo("12345678901");
+            assertThat(lead.localizacao()).isEqualTo("Brasília");
+            assertThat(lead.etapa()).isEqualTo("Proposta");
+            assertThat(lead.tags()).containsExactly("vip", "orçamento");
+        });
+    }
 }

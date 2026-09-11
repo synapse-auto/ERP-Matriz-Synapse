@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.application.painel;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,13 @@ public interface PainelDeAtendimentosRepositorio {
      */
     List<CartaoAtendimento> listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
+
+    /**
+     * Cartão de um atendimento que o usuário corrente já alcança pelas mesmas políticas RLS das
+     * demais leituras. Não recebe visão/filtro: a abertura confirmada por comando não pode
+     * depender de o cartão pertencer ao recorte atualmente exibido na lista.
+     */
+    Optional<CartaoAtendimento> porAtendimentoId(UUID atendimentoId, UUID usuarioId);
 
     /**
      * Leitura limitada para composição da inbox; a chave é (sem atendimento aberto, última

@@ -296,7 +296,7 @@ function LinhaDeInicio({
   );
 }
 
-function diaDaMensagem(valor: string): string {
+export function diaDaMensagem(valor: string): string {
   const data = new Date(valor);
   return `${data.getFullYear()}-${data.getMonth()}-${data.getDate()}`;
 }

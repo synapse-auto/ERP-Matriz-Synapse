@@ -5,6 +5,9 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -51,6 +54,8 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Service
 public class EnviarMensagemUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(EnviarMensagemUseCase.class);
+
     private final AtendimentoRepositorio atendimentos;
     private final MensagemRepositorio mensagens;
     private final LeadNoCaminhoDeMensagem leads;
@@ -63,7 +68,10 @@ public class EnviarMensagemUseCase {
     private final MensagemIdExternoRepositorio idsExternos;
     private final MensagemReferenciaRepositorio referencias;
     private final ParticipacaoAtendimentoRepositorio participacoes;
+    private final IdempotenciaDeMensagemEnvioRepositorio idempotencia;
 
+    /** Construtor usado pela aplicação: o índice de idempotência é persistente e transacional. */
+    @Autowired
     public EnviarMensagemUseCase(
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
@@ -76,7 +84,8 @@ public class EnviarMensagemUseCase {
             OrigemDeMensagemRepositorio origens,
             MensagemIdExternoRepositorio idsExternos,
             MensagemReferenciaRepositorio referencias,
-            ParticipacaoAtendimentoRepositorio participacoes) {
+            ParticipacaoAtendimentoRepositorio participacoes,
+            IdempotenciaDeMensagemEnvioRepositorio idempotencia) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
@@ -91,6 +100,37 @@ public class EnviarMensagemUseCase {
         this.idsExternos = idsExternos;
         this.referencias = referencias;
         this.participacoes = participacoes;
+        this.idempotencia = idempotencia;
+    }
+
+    /** Compatibilidade para testes e consumidores que ainda não precisam de idempotência. */
+    public EnviarMensagemUseCase(
+            AtendimentoRepositorio atendimentos,
+            MensagemRepositorio mensagens,
+            LeadNoCaminhoDeMensagem leads,
+            Outbox outbox,
+            CanalGateway canal,
+            UsuarioContext usuarioContext,
+            ApplicationEventPublisher eventos,
+            Clock relogio,
+            OrigemDeMensagemRepositorio origens,
+            MensagemIdExternoRepositorio idsExternos,
+            MensagemReferenciaRepositorio referencias,
+            ParticipacaoAtendimentoRepositorio participacoes) {
+        this(
+                atendimentos,
+                mensagens,
+                leads,
+                outbox,
+                canal,
+                usuarioContext,
+                eventos,
+                relogio,
+                origens,
+                idsExternos,
+                referencias,
+                participacoes,
+                new IdempotenciaDeMensagemEnvioRepositorio() {});
     }
 
     /**
@@ -110,14 +150,30 @@ public class EnviarMensagemUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, null);
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, null, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, String chaveIdempotencia) {
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, null, chaveIdempotencia);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta) {
         ReferenciaDeMensagem referencia = resposta == null ? null : resolverResposta(leadId, resposta);
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia);
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(
+            UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta, String chaveIdempotencia) {
+        ReferenciaDeMensagem referencia = resposta == null ? null : resolverResposta(leadId, resposta);
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, referencia, chaveIdempotencia);
     }
 
     /**
@@ -128,7 +184,18 @@ public class EnviarMensagemUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComReferencia(
             UUID leadId, ConteudoDeEnvio conteudo, ReferenciaDeMensagem referencia) {
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia);
+        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executarComReferencia(
+            UUID leadId,
+            ConteudoDeEnvio conteudo,
+            ReferenciaDeMensagem referencia,
+            String chaveIdempotencia) {
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, referencia, chaveIdempotencia);
     }
 
     /**
@@ -140,7 +207,7 @@ public class EnviarMensagemUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComoServico(
             UUID leadId, UUID remetenteId, ConteudoDeEnvio conteudo, UUID mensagemProgramadaId) {
-        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId, null);
+        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId, null, null);
     }
 
     private Resultado executarInterno(
@@ -148,13 +215,15 @@ public class EnviarMensagemUseCase {
             ConteudoDeEnvio conteudo,
             UUID remetenteId,
             UUID mensagemProgramadaId,
-            ReferenciaDeMensagem referencia) {
+            ReferenciaDeMensagem referencia,
+            String chaveIdempotencia) {
         Instant agora = Instant.now(relogio);
 
         // Alcanca o lead? Telefone e janela vem juntos, numa consulta so.
         LeadNoCaminhoDeMensagem.ContatoParaEnvio contato = leads.contatoParaEnvio(leadId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead", leadId));
 
+        String chave = normalizarChave(chaveIdempotencia);
         // A janela de 24h e verificada AQUI, antes de gravar e antes de enfileirar.
         // Deixar a Meta recusar custaria uma chamada de rede, um 400 cru para traduzir,
         // uma linha de outbox que vai esgotar, e um atendente vendo "erro de envio" sem
@@ -218,6 +287,20 @@ public class EnviarMensagemUseCase {
             }
         }
 
+        if (chave != null) {
+            IdempotenciaDeMensagemEnvioRepositorio.Reserva reserva =
+                    idempotencia.reservar(chave, remetenteId, leadId, aberto.id());
+            if (!reserva.nova()) {
+                log.info(
+                        "Envio manual idempotente concorrente reutilizado: chave={}, usuario={}, lead={}, atendimento={}",
+                        chave,
+                        remetenteId,
+                        leadId,
+                        reserva.atendimentoId());
+                return reconstruirResultado(reserva, aberto);
+            }
+        }
+
         // PENDENTE, nao ENVIADO: nenhum provedor viu esta mensagem ainda. Gravar ENVIADO
         // aqui — como a E04 fazia — poe um tique de enviado numa mensagem que talvez
         // nunca saia. O publisher da outbox move para ENVIADO ou FALHOU.
@@ -236,6 +319,15 @@ public class EnviarMensagemUseCase {
                 midiaMetadadosDe(conteudo),
                 StatusEntrega.PENDENTE,
                 agora));
+
+        if (chave != null) {
+            idempotencia.concluir(chave, remetenteId, gravada.id(), gravada.enviadoEm(), trocouDeDono);
+            log.info(
+                    "Envio manual aceito para reconciliacao: chave={}, mensagem={}, atendimento={}, resultado=PENDENTE",
+                    chave,
+                    gravada.id(),
+                    aberto.id());
+        }
 
         if (referencia != null) {
             referencias.gravar(gravada.id(), agora, referencia);
@@ -295,9 +387,34 @@ public class EnviarMensagemUseCase {
                 gravada.opcoes(),
                 gravada.statusEntrega().name(),
                 agora,
-                MontadorDeReferenciaDeMensagem.citacaoDe(referencia)));
+                MontadorDeReferenciaDeMensagem.citacaoDe(referencia),
+                chave));
 
-        return new Resultado(aberto, gravada, trocouDeDono);
+        return new Resultado(aberto, gravada, trocouDeDono, chave, false);
+    }
+
+    private Resultado reconstruirResultado(
+            IdempotenciaDeMensagemEnvioRepositorio.Reserva reserva, Atendimento atendimentoFallback) {
+        Atendimento atendimento = atendimentoFallback != null && atendimentoFallback.id().equals(reserva.atendimentoId())
+                ? atendimentoFallback
+                : atendimentos.porId(reserva.atendimentoId())
+                        .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException(
+                                "atendimento", reserva.atendimentoId()));
+        if (reserva.mensagemId() == null || reserva.enviadoEm() == null) {
+            throw new IllegalStateException("reserva de idempotencia de envio sem mensagem concluida");
+        }
+        Mensagem mensagem = mensagens.porId(reserva.mensagemId(), reserva.enviadoEm())
+                .orElseThrow(() -> new IllegalStateException("mensagem idempotente nao encontrada"));
+        return new Resultado(atendimento, mensagem, reserva.transferiuOLead(), reserva.chave(), true);
+    }
+
+    private static String normalizarChave(String chave) {
+        if (chave == null || chave.isBlank()) return null;
+        String normalizada = chave.trim();
+        if (normalizada.length() > 255) {
+            throw new IllegalArgumentException("Idempotency-Key excede 255 caracteres");
+        }
+        return normalizada;
     }
 
     private ReferenciaDeMensagem resolverResposta(UUID leadId, AlvoDeResposta resposta) {
@@ -334,7 +451,23 @@ public class EnviarMensagemUseCase {
     }
 
     /** @param transferiuOLead se a RN-CRM-06 mudou o dono de fato */
-    public record Resultado(Atendimento atendimento, Mensagem mensagem, boolean transferiuOLead) {
+    public record Resultado(
+            Atendimento atendimento,
+            Mensagem mensagem,
+            boolean transferiuOLead,
+            String chaveIdempotencia,
+            boolean reutilizadoIdempotente) {
+        public Resultado(Atendimento atendimento, Mensagem mensagem, boolean transferiuOLead) {
+            this(atendimento, mensagem, transferiuOLead, null, false);
+        }
+
+        public Resultado(
+                Atendimento atendimento,
+                Mensagem mensagem,
+                boolean transferiuOLead,
+                String chaveIdempotencia) {
+            this(atendimento, mensagem, transferiuOLead, chaveIdempotencia, false);
+        }
         public Atendimento atendimento() {
             return atendimento;
         }

@@ -17,7 +17,19 @@ import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquiv
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
-import { abrirAtendimentoParaLead, definirReacao, iniciarNovoContato, marcarAtendimentoComoLido, removerReacao } from "@/lib/atendimento/api";
+import {
+  abrirAtendimentoParaLead,
+  definirReacao,
+  iniciarNovoContato,
+  marcarAtendimentoComoLido,
+  obterCartaoAtendimento,
+  removerReacao,
+} from "@/lib/atendimento/api";
+import {
+  mensagemDaFalhaDeAbertura,
+  registrarDiagnosticoDeAbertura,
+  statusHttpDoErro,
+} from "@/lib/atendimento/abertura-atendimento";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
@@ -54,12 +66,13 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   leadInicialId: string | null;
+  atendimentoInicialId: string | null;
   visaoInicial: VisaoAtendimento | null;
 }
 
 type NotificacaoDeAtendimento = Exclude<
   NotificacaoTempoReal,
-  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" }
+  { tipo: "CHAT_INTERNO_MENSAGEM" } | { tipo: "CHAT_INTERNO_REACAO" } | { tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA" }
 >;
 
 /**
@@ -82,12 +95,15 @@ function chaveDaNotificacao(notificacao: NotificacaoDeAtendimento): string {
  */
 export function PaginaAtendimentosCliente({
   leadInicialId,
+  atendimentoInicialId,
   visaoInicial,
 }: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.atendimentos;
   const cache = useQueryClient();
-  const [leadSelecionadoId, setLeadSelecionadoId] = useState<string | null>(null);
+  const [atendimentoSelecionadoId, setAtendimentoSelecionadoId] = useState<string | null>(null);
+  const [atendimentoParaAbrirId, setAtendimentoParaAbrirId] = useState(atendimentoInicialId);
+  const [erroDeAbertura, setErroDeAbertura] = useState<string | null>(null);
   const [atendimentos, setAtendimentos] = useState<ItemInbox[]>([]);
   const [cartaoSelecionado, setCartaoSelecionado] = useState<CartaoAtendimento | null>(null);
   const [visaoAtendimento, setVisaoAtendimento] = useState<VisaoAtendimento | null>(null);
@@ -98,6 +114,7 @@ export function PaginaAtendimentosCliente({
   const [falhasDeMidia, setFalhasDeMidia] = useState<FalhaDeEnvioMidia[]>([]);
   const notificacoesProcessadas = useRef(new Set<string>());
   const mudancasDeResponsavel = useRef<RegistroDeMudancas>(new Map());
+  const aberturaProcessada = useRef<string | null>(null);
   const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
@@ -120,7 +137,6 @@ export function PaginaAtendimentosCliente({
     mutationFn: abrirConversaDireta,
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
-      setLeadSelecionadoId(null);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
@@ -129,42 +145,163 @@ export function PaginaAtendimentosCliente({
       criarGrupoChat(nome, participantes),
     onSuccess: (resposta) => {
       setConversaInternaId(resposta.id);
-      setLeadSelecionadoId(null);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
+  const sessao = useAuthStore.getState();
+
+  const selecionarAtendimento = useCallback(
+    (cartao: ItemInbox, origem: "lista" | "rota" = "lista") => {
+      if (cartao.tipo === "EQUIPE_INTERNA") {
+        setConversaInternaId(cartao.conversaId);
+        setAtendimentoSelecionadoId(null);
+        setCartaoSelecionado(null);
+        setAvisoRevogacao(false);
+        setBuscaAberta(false);
+        return;
+      }
+      const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+      setAvisoRevogacao(false);
+      setConversaInternaId(null);
+      setBuscaAberta(false);
+      setErroDeAbertura(null);
+      setAtendimentoSelecionadoId(idParaAbrir);
+      setCartaoSelecionado(cartao);
+      zerarNaoLidasDoLead(cache, cartao.leadId);
+      registrarDiagnosticoDeAbertura({
+        origem,
+        etapa: "cartao_resolvido",
+        leadId: cartao.leadId,
+        atendimentoId: idParaAbrir,
+        usuarioId: sessao.usuarioId,
+        papel: sessao.papel,
+        visao: visaoAtendimento,
+        cartaoSelecionadoId: idParaAbrir,
+      });
+      void marcarAtendimentoComoLido(idParaAbrir)
+        .catch(() => {
+          // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
+        })
+        .finally(() => {
+          void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+        });
+    },
+    [cache, sessao.papel, sessao.usuarioId, visaoAtendimento],
+  );
 
   /**
    * Depois de iniciar/reativar: o lead cai em Ativos. Sem trocar a visão, a lista atual
    * (Pendentes/Potenciais/Finalizados) não contém o cartão e o chat nunca abre.
    */
   const focarAtendimentoIniciado = useCallback(
-    (leadId: string) => {
+    (resposta: { leadId: string; atendimentoId: string }) => {
       setAvisoRevogacao(false);
       setConversaInternaId(null);
       setVisaoAtendimento("ATIVOS");
-      setLeadSelecionadoId(leadId);
-      setLeadParaAbrir(leadId);
-      setLeadParaAbrirGatilho((atual) => atual + 1);
+      setAtendimentoSelecionadoId(null);
+      setCartaoSelecionado(null);
+      setErroDeAbertura(null);
+      aberturaProcessada.current = null;
+      setAtendimentoParaAbrirId(resposta.atendimentoId);
       void cache.invalidateQueries({ queryKey: ["atendimentos"] });
     },
     [cache],
   );
 
   const iniciarContato = useMutation({
-    mutationFn: iniciarNovoContato,
+    // Uma chave nasce por clique no diálogo e acompanha qualquer repetição desse POST.
+    mutationFn: (pedido: Parameters<typeof iniciarNovoContato>[0]) =>
+      iniciarNovoContato(pedido, crypto.randomUUID()),
     onSuccess: (resposta) => {
       setNovoContatoAberto(false);
-      focarAtendimentoIniciado(resposta.leadId);
+      focarAtendimentoIniciado(resposta);
     },
   });
   const abrirNovoAtendimento = useMutation({
     mutationFn: abrirAtendimentoParaLead,
     onSuccess: (resposta) => {
-      focarAtendimentoIniciado(resposta.leadId);
+      focarAtendimentoIniciado(resposta);
     },
   });
+
+  useEffect(() => {
+    let cancelado = false;
+    queueMicrotask(() => {
+      if (!cancelado) setAtendimentoParaAbrirId(atendimentoInicialId);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [atendimentoInicialId]);
+
+  const cartaoDaAbertura = useQuery({
+    queryKey: ["atendimentos", "cartao", atendimentoParaAbrirId],
+    queryFn: () => obterCartaoAtendimento(atendimentoParaAbrirId as string),
+    enabled: atendimentoParaAbrirId != null,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (
+      !atendimentoParaAbrirId
+      || (!cartaoDaAbertura.data && !cartaoDaAbertura.isError)
+      || aberturaProcessada.current === atendimentoParaAbrirId
+    ) return;
+    aberturaProcessada.current = atendimentoParaAbrirId;
+    let cancelado = false;
+    queueMicrotask(() => {
+      if (cancelado) return;
+      if (cartaoDaAbertura.data) {
+        const cartaoNaLista = atendimentos.some(
+          (item) =>
+            item.tipo !== "EQUIPE_INTERNA"
+            && (item.atendimentoId === atendimentoParaAbrirId
+              || item.atendimentoAtivoId === atendimentoParaAbrirId),
+        );
+        selecionarAtendimento(cartaoDaAbertura.data, "rota");
+        registrarDiagnosticoDeAbertura({
+          origem: "rota",
+          etapa: "confirmada",
+          leadId: cartaoDaAbertura.data.leadId,
+          atendimentoId: atendimentoParaAbrirId,
+          usuarioId: sessao.usuarioId,
+          papel: sessao.papel,
+          visao: visaoAtendimento,
+          cartaoNaLista,
+          cartaoSelecionadoId: atendimentoParaAbrirId,
+          httpStatus: 200,
+        });
+        setAtendimentoParaAbrirId(null);
+        return;
+      }
+      setErroDeAbertura(mensagemDaFalhaDeAbertura(cartaoDaAbertura.error, textos.abertura));
+      registrarDiagnosticoDeAbertura({
+        origem: "rota",
+        etapa: "falhou",
+        atendimentoId: atendimentoParaAbrirId,
+        usuarioId: sessao.usuarioId,
+        papel: sessao.papel,
+        visao: visaoAtendimento,
+        httpStatus: statusHttpDoErro(cartaoDaAbertura.error),
+      });
+      setAtendimentoParaAbrirId(null);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    atendimentoParaAbrirId,
+    atendimentos,
+    cartaoDaAbertura.data,
+    cartaoDaAbertura.error,
+    cartaoDaAbertura.isError,
+    selecionarAtendimento,
+    sessao.papel,
+    sessao.usuarioId,
+    textos.abertura,
+    visaoAtendimento,
+  ]);
 
   // Notificações são efêmeras: o evento continua persistido no backend, mas o aviso de trabalho
   // não pode ocupar a tela indefinidamente. O timer é apenas apresentação (não regra de negócio)
@@ -210,8 +347,22 @@ export function PaginaAtendimentosCliente({
   const { conexao, estado } = useConexaoTempoReal(
     () => useAuthStore.getState().accessToken,
     (atendimentoRevogado) => {
-      setLeadSelecionadoId((atual) => {
-        const selecionado = atendimentos.find((item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === atual) as CartaoAtendimento | undefined;
+      registrarDiagnosticoDeAbertura({
+        origem: "rota",
+        etapa: "evento_websocket",
+        atendimentoId: atendimentoRevogado,
+        usuarioId: sessao.usuarioId,
+        papel: sessao.papel,
+        visao: visaoAtendimento,
+        cartaoSelecionadoId: atendimentoSelecionadoId,
+        evento: "REVOGACAO",
+      });
+      setAtendimentoSelecionadoId((atual) => {
+        const selecionado = atendimentos.find(
+          (item) =>
+            item.tipo !== "EQUIPE_INTERNA"
+            && (item.atendimentoId === atual || item.atendimentoAtivoId === atual),
+        ) as CartaoAtendimento | undefined;
         const ativoId = selecionado?.atendimentoAtivoId
           ?? (selecionado?.status !== "FINALIZADO" ? selecionado?.atendimentoId : null);
         if (ativoId !== atendimentoRevogado) {
@@ -222,6 +373,17 @@ export function PaginaAtendimentosCliente({
       });
     },
     (evento) => {
+      registrarDiagnosticoDeAbertura({
+        origem: "rota",
+        etapa: "evento_websocket",
+        leadId: "leadId" in evento.dados ? evento.dados.leadId : null,
+        atendimentoId: "atendimentoId" in evento.dados ? evento.dados.atendimentoId : null,
+        usuarioId: sessao.usuarioId,
+        papel: sessao.papel,
+        visao: visaoAtendimento,
+        cartaoSelecionadoId: atendimentoSelecionadoId,
+        evento: evento.tipo,
+      });
       if (
         evento.tipo === "TRANSFERENCIA_RECEBIDA" ||
         evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
@@ -262,15 +424,18 @@ export function PaginaAtendimentosCliente({
   }, [cache, estado]);
 
   const conversaDaLista = atendimentos.find(
-    (atendimento) => atendimento.tipo !== "EQUIPE_INTERNA" && atendimento.leadId === leadSelecionadoId,
+    (atendimento) =>
+      atendimento.tipo !== "EQUIPE_INTERNA"
+      && (atendimento.atendimentoId === atendimentoSelecionadoId
+        || atendimento.atendimentoAtivoId === atendimentoSelecionadoId),
   ) as CartaoAtendimento | undefined;
-  const snapshotFinalizado = cartaoSelecionado?.leadId === leadSelecionadoId
+  const snapshotFinalizado = cartaoSelecionado?.atendimentoId === atendimentoSelecionadoId
     && cartaoSelecionado.status === "FINALIZADO"
     && cartaoSelecionado.atendimentoAtivoId === null
     ? cartaoSelecionado
     : null;
   const conversa = snapshotFinalizado ?? conversaDaLista
-    ?? (cartaoSelecionado?.leadId === leadSelecionadoId ? cartaoSelecionado : null);
+    ?? (cartaoSelecionado?.atendimentoId === atendimentoSelecionadoId ? cartaoSelecionado : null);
   const conversaAberta = Boolean(conversa || conversaInternaId);
   const respostaDaTela =
     conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
@@ -309,6 +474,19 @@ export function PaginaAtendimentosCliente({
     marcarConversaAbertaComoLida,
     atendimentoAtivo?.atendimentoId ?? null,
     aoEventoEstadoDaConversa,
+    (evento) => {
+      registrarDiagnosticoDeAbertura({
+        origem: "rota",
+        etapa: "evento_websocket",
+        leadId: evento.tipo === "REACAO" ? null : evento.dados.leadId,
+        atendimentoId: evento.dados.atendimentoId,
+        usuarioId: sessao.usuarioId,
+        papel: sessao.papel,
+        visao: visaoAtendimento,
+        cartaoSelecionadoId: atendimentoSelecionadoId,
+        evento: evento.tipo,
+      });
+    },
   );
   const enviar = useEnviarMensagem();
   const reenviarMidia = useEnviarMidia();
@@ -366,36 +544,14 @@ export function PaginaAtendimentosCliente({
       return aplicarResponsavelAoCartao(item, marca);
     });
     setAtendimentos(reconciliados);
-    setCartaoSelecionado((atual) =>
-      mesclarCartaoComLista(atual, reconciliados, registro),
-    );
-  }, []);
-
-  function abrirAtendimento(cartao: ItemInbox) {
-    if (cartao.tipo === "EQUIPE_INTERNA") {
-      setConversaInternaId(cartao.conversaId);
-      setLeadSelecionadoId(null);
-      setCartaoSelecionado(null);
-      setAvisoRevogacao(false);
-      setBuscaAberta(false);
-      return;
-    }
-    setAvisoRevogacao(false);
-    setConversaInternaId(null);
-    setBuscaAberta(false);
-    setLeadSelecionadoId(cartao.leadId);
-    setCartaoSelecionado(cartao);
-    const idParaLeitura = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
-    zerarNaoLidasDoLead(cache, cartao.leadId);
-    if (!idParaLeitura) return;
-    void marcarAtendimentoComoLido(idParaLeitura)
-      .catch(() => {
-        // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
-      })
-      .finally(() => {
-        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
-      });
-  }
+    setCartaoSelecionado((atual) => {
+      const mesclado = mesclarCartaoComLista(atual, reconciliados, registro);
+      if (!atual || !mesclado || !atendimentoSelecionadoId) return mesclado;
+      const idAtual = atual.atendimentoAtivoId ?? atual.atendimentoId;
+      const idMesclado = mesclado.atendimentoAtivoId ?? mesclado.atendimentoId;
+      return idMesclado === idAtual ? mesclado : atual;
+    });
+  }, [atendimentoSelecionadoId]);
 
   function reenviar(mensagem: MensagemResposta) {
     if (!atendimentoAtivo || !mensagem.conteudo) return;
@@ -435,8 +591,21 @@ export function PaginaAtendimentosCliente({
     <div
       className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
     >
-      {(falhasDeMidia.length > 0 || notificacao) && (
+      {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
         <div className="pointer-events-none absolute right-4 top-4 z-30 flex w-80 max-w-[calc(100%-2rem)] flex-col gap-2">
+          {erroDeAbertura && (
+            <div className="pointer-events-auto relative rounded-xl border border-destructive/30 bg-background p-4 shadow-lg" role="alert">
+              <button
+                type="button"
+                className="absolute right-2 top-2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={textos.tempoReal.fechar}
+                onClick={() => setErroDeAbertura(null)}
+              >
+                <X className="size-(--tamanho-icone-interface)" aria-hidden />
+              </button>
+              <p className="pr-6 text-sm text-foreground">{erroDeAbertura}</p>
+            </div>
+          )}
           {falhasDeMidia.length > 0 && (
             <div className="pointer-events-auto relative rounded-xl border border-destructive/30 bg-background p-4 shadow-lg" role="alert">
               <button
@@ -525,7 +694,7 @@ export function PaginaAtendimentosCliente({
         visaoAtual={visaoAtendimento ?? undefined}
         onVisaoAlterada={setVisaoAtendimento}
         onAtendimentosAtualizados={atualizarAtendimentos}
-        onAbrirAtendimento={abrirAtendimento}
+        onAbrirAtendimento={selecionarAtendimento}
         chatInternoHabilitado={chatInternoHabilitado}
         contatosInternos={contatosInternos.data ?? []}
         contatosInternosCarregando={contatosInternos.isLoading || contatosInternos.isFetching}
@@ -588,7 +757,7 @@ export function PaginaAtendimentosCliente({
               onVoltar={
                 telaEstreita
                   ? () => {
-                      setLeadSelecionadoId(null);
+                      setAtendimentoSelecionadoId(null);
                       setCartaoSelecionado(null);
                       setConversaInternaId(null);
                     }

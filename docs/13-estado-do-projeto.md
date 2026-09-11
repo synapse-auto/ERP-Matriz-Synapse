@@ -1,12 +1,45 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 30/08/2026 a partir de
-`origin/main` (`a47362c`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado reconstruído em 09/09/2026 a partir de
+`origin/main` (`5ac6b9d`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
 
 O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
+
+### 09/09/2026 — Gravações do composer como nota de voz (E179)
+
+Gravações novas são convertidas para OGG/Opus mono a 48 kHz, com timestamps contínuos e duração
+estrutural validada. A Meta recebe `voice: true`; a Uzapi/Autotic recebe somente o `mediaId`
+documentado, sem campos não previstos de duração ou PTT. Anexos de áudio escolhidos manualmente
+mantêm o fluxo existente.
+
+### 09/09/2026 — Diagnóstico de duração na Uzapi/Autotic
+
+O worker identifica gravações do composer por uma marca interna nos metadados da outbox e valida
+novamente o OGG/Opus recuperado do storage antes do upload. O resumo seguro (tamanho, MIME e
+SHA-256) é registrado nos limites antes do storage, na leitura e no upload; o conteúdo nunca é
+registrado. O caminho normal não transforma bytes entre storage e Uzapi. O Swagger oficial não
+documenta `voice`, `ptt`, `duration` ou `seconds`, então o CRM não envia campos inventados: a duração
+precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real para a conta da
+Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
+operacional do provedor.
+
+### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
+
+Envios iniciados pela interface recebem uma chave `Idempotency-Key` estável por clique. A reserva
+da chave, a mensagem e o evento da transactional outbox são persistidos na mesma transação; uma
+repetição para o mesmo usuário, lead e atendimento devolve a mensagem já criada sem duplicar
+outbox. A chave é devolvida no histórico, na resposta HTTP e no evento `MENSAGEM` do WebSocket,
+permitindo reconciliar a bolha otimista por identidade, nunca por texto ou horário.
+
+Uma rejeição de transporte (fetch/XHR sem resposta ou erro 5xx) mantém a bolha pendente enquanto o
+frontend consulta o histórico em até três tentativas. Se a mensagem for encontrada, a bolha é
+substituída pelo registro real; somente uma resposta 4xx definitiva ou o esgotamento documentado
+da reconciliação transforma a bolha em `FALHOU`. O código de UI `-1` usa o texto de “envio não
+confirmado”, distinto de uma falha informada pelo provedor. A migration V64 cria o índice durável
+`mensagem_envio_idempotencia`; as mensagens continuam na tabela particionada existente.
 
 ---
 
@@ -18,7 +51,7 @@ mas não registra por si só o instante do deploy nem prova todos os smoke tests
 Não tratar esse SHA como imagem necessariamente em execução: o Dokploy deve ser conferido
 pelo digest da imagem.
 
-O HEAD de referência é `a47362c` (`origin/main`), promovido pelo PR #28. O trabalho normal
+O HEAD de referência é `5ac6b9d` (`origin/main`), após a integração do PR #129. O trabalho normal
 é feito em branch própria, publicado no `origin` e entregue por Pull Request para `main`.
 O agente não faz merge do próprio PR e não faz deploy; essas ações ficam com o responsável
 pela operação.
@@ -82,6 +115,14 @@ Confirmado pela árvore de `origin/main`:
   Meta e encaminhamento como novo envio com referência denormalizada.
 - **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
   de vários arquivos/arrastar para o composer.
+- **Áudio gravado no composer para Meta Cloud e Uzapi/Autotic:** antes de persistir, FFmpeg
+  normaliza a gravação para OGG/Opus mono a 48 kHz (perfil `voip`, timestamps contínuos). A
+  validação exige páginas OGG completas, cabeçalho Opus e uma página EOS com `granule position`
+  positivo, garantindo duração estrutural diferente de zero. A Meta recebe `audio.id` com
+  `voice: true`; a Uzapi recebe apenas o `audio.id` documentado e calcula a duração a partir do
+  OGG válido — não há campo documentado de `voice`, `ptt` ou duração para enviar. Áudio anexado
+  como arquivo continua sem transcodificação forçada; o fallback AAC/ADTS no worker só protege
+  registros antigos ISO-BMFF fragmentados.
 - **Emoji:** catálogo amplo categorizado no composer; o backend valida uma sequência Unicode
   válida para reações. A aparência final depende da plataforma/fonte emoji do navegador.
 - **Código numérico do lead:** `lead.codigo`, somente dígitos, editável e visível na ficha/
@@ -92,7 +133,7 @@ Confirmado pela árvore de `origin/main`:
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V47**, última `V47__lead_codigo.sql`.
+- Migrations presentes: **V1 a V47 e V65**, última `V65__acoes_mensagens_chat_interno.sql`.
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.
@@ -147,3 +188,28 @@ não como painel vivo.
 3. Validar operação real: imagem/digest, WABA/Phone Number ID, RLS, backup, watchdog,
    domínios e rotação de credenciais.
 4. Só então transformar a próxima pendência confirmada em prompt isolado.
+
+## 8. E176 — paridade de ações do chat interno
+
+O chat interno reutiliza `InteracaoMensagem`, `CitacaoMensagemVisual`, o composer de anexos e o
+mesmo catálogo de ações do chat de atendimentos. A autorização continua sendo por participação na
+conversa, inclusive para gestores; nenhuma ação consulta ou publica dados de um lead externo.
+
+| Ação no chat de atendimento | Aplicável ao chat interno | Implementação/paridade | Motivo quando não aplicável |
+|---|---|---|---|
+| Reações | ✅ | `InteracaoMensagem`, `PUT/DELETE /chat-interno/.../reacao`, evento `CHAT_INTERNO_REACAO` | — |
+| Copiar texto | ✅ | `InteracaoMensagem`/`copiarTexto` | — |
+| Responder/citar | ✅ | `ResponderMensagemChatUseCase`, `.../{mensagemId}/responder`, `CitacaoMensagemVisual` | — |
+| Encaminhar | ✅ | `EncaminharMensagemChatUseCase`, destino limitado a conversa interna participante | — |
+| Excluir | ✅ | `ExcluirMensagemChatUseCase`, tombstone e evento `CHAT_INTERNO_MENSAGEM_REMOVIDA` | — |
+| Mídia, áudio e documento | ✅ | `ComposerChatInterno`, `ZonaSoltarArquivos`, URL assinada autorizada | — |
+| Colar imagem/anexo | ✅ | `ComposerChatInterno` usa o mesmo `onPaste`/validação do caminho de anexos | — |
+| Status de entrega / retry de provedor | ⚠️ | Não há provedor nem outbox de canal no chat interno; erros HTTP permanecem no composer | Não existe entrega externa para confirmar ou repetir. |
+| Template WhatsApp | ❌ | Não exposto | Template é contrato exclusivo do canal WhatsApp, sem semântica interna. |
+| Finalizar/transferir atendimento | ❌ | Não exposto | Conversa interna não possui lead, responsável ou ciclo de atendimento. |
+
+Exclusões são lógicas: conteúdo e referência de mídia ficam nulos, o registro permanece para
+auditoria e referências posteriores recebem apenas o estado seguro “mensagem removida”. O trigger da
+V65 atualiza citações mesmo quando a conversa de origem não está no escopo RLS do autor. Os eventos
+de mensagem, reação e remoção são publicados pelo relay somente `AFTER_COMMIT`; reconexão e
+paginação continuam recarregando o histórico por HTTP.

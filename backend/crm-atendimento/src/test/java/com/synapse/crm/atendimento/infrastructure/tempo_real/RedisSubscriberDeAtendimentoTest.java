@@ -132,6 +132,29 @@ class RedisSubscriberDeAtendimentoTest {
     }
 
     @Test
+    void chat_interno_remocao_entrega_somente_o_identificador_sem_conteudo() throws Exception {
+        String mensagemId = UUID.randomUUID().toString();
+        String conversaId = UUID.randomUUID().toString();
+        String corpo = "{\"tipo\":\"CHAT_INTERNO_MENSAGEM_REMOVIDA\",\"destinatarios\":[\""
+                + destinatarioId + "\"],\"conversaId\":\"" + conversaId
+                + "\",\"mensagemId\":\"" + mensagemId + "\"}";
+        Message mensagem = mock(Message.class);
+        org.mockito.Mockito.when(mensagem.getChannel()).thenReturn(
+                ("synapse:chat-interno:" + conversaId).getBytes(StandardCharsets.UTF_8));
+        org.mockito.Mockito.when(mensagem.getBody()).thenReturn(corpo.getBytes(StandardCharsets.UTF_8));
+
+        subscriber.onMessage(mensagem, null);
+
+        ArgumentCaptor<String> entregue = ArgumentCaptor.forClass(String.class);
+        verify(template).convertAndSendToUser(eq(destinatarioId.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES), entregue.capture());
+        JsonNode envelope = new ObjectMapper().readTree(entregue.getValue());
+        assertThat(envelope.path("tipo").asText()).isEqualTo("CHAT_INTERNO_MENSAGEM_REMOVIDA");
+        assertThat(envelope.path("dados").path("mensagemId").asText()).isEqualTo(mensagemId);
+        assertThat(envelope.path("dados").has("conteudo")).isFalse();
+    }
+
+    @Test
     void reacao_nao_e_entregue_sem_assinatura() {
         String corpo = "{\"tipo\":\"REACAO\",\"dados\":{\"atendimentoId\":\"" + atendimentoId
                 + "\",\"mensagemId\":\"" + UUID.randomUUID()

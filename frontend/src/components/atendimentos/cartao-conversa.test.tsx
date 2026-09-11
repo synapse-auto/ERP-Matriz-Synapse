@@ -26,6 +26,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         semAtendente: "Sem atendente",
         naoLidas: "{quantidade} mensagens não lidas",
         codigo: "Código {codigo}",
+        atrasoAtendente: "Sem resposta há mais de 20 minutos",
       },
     },
   }),
@@ -92,6 +93,88 @@ describe("CartaoConversa — RN-CRM-05", () => {
     expect(screen.getByText("Vidraçaria Cristal Clara")).toBeInTheDocument();
     expect(screen.getByText("Orçamento")).toHaveClass("bg-muted");
     expect(screen.getByTitle("WhatsApp")).toBeInTheDocument();
+  });
+
+  it("marca sutilmente o card quando o lead aguarda resposta há 20 minutos", () => {
+    render(
+      <CartaoConversa
+        cartao={{
+          ...cartao,
+          ultimaMensagemRemetenteTipo: "LEAD",
+          ultimaMensagemEm: "2026-08-16T12:00:00Z",
+        }}
+        agora={new Date("2026-08-16T12:20:00Z")}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByRole("button", { name: /Cliente E12/ });
+    expect(card).toHaveClass("bg-cor-atencao/10");
+    expect(card).toHaveAttribute("title", "Sem resposta há mais de 20 minutos");
+  });
+
+  it("não marca o card quando o atendente, a IA ou o sistema responderam", () => {
+    for (const remetenteTipo of ["ATENDENTE", "IA", "SISTEMA"] as const) {
+      const { unmount } = render(
+        <CartaoConversa
+          cartao={{
+            ...cartao,
+            ultimaMensagemRemetenteTipo: remetenteTipo,
+            ultimaMensagemEm: "2026-08-16T11:00:00Z",
+          }}
+          agora={new Date("2026-08-16T12:30:00Z")}
+          selecionado={false}
+          onAbrirAtendimento={vi.fn()}
+        />,
+      );
+
+      const card = screen.getByRole("button", { name: /Cliente E12/ });
+      expect(card).not.toHaveClass("bg-cor-atencao/10");
+      expect(card).not.toHaveAttribute("title");
+      unmount();
+    }
+  });
+
+  it("não marca conversa interna nem atendimento finalizado", () => {
+    const interno: CartaoEquipeInterna = {
+      tipo: "EQUIPE_INTERNA",
+      atendimentoId: null,
+      conversaId: "conversa-1",
+      nome: "Equipe comercial",
+      avatarUrl: null,
+      identificadorVisual: "conversa-1",
+      ultimaMensagemPreview: "Vamos revisar a proposta",
+      ultimaMensagemEm: "2026-08-16T11:00:00Z",
+      naoLidas: 2,
+      participantes: "Ana, Bruno",
+      tipoConversa: "GRUPO",
+    };
+    const { unmount } = render(
+      <CartaoConversa
+        cartao={interno}
+        agora={new Date("2026-08-16T12:30:00Z")}
+        selecionado
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Equipe comercial/ })).not.toHaveClass("bg-cor-atencao/10");
+    unmount();
+
+    render(
+      <CartaoConversa
+        cartao={{
+          ...cartao,
+          status: "FINALIZADO",
+          ultimaMensagemRemetenteTipo: "LEAD",
+          ultimaMensagemEm: "2026-08-16T11:00:00Z",
+        }}
+        agora={new Date("2026-08-16T12:30:00Z")}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Cliente E12/ })).not.toHaveClass("bg-cor-atencao/10");
   });
 
   it("não cria empresa, etapa ou canal quando o backend não fornece os dados", () => {

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -29,12 +30,17 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.atendimento.application.AplicarStatusDeEntregaDoCanalUseCase;
+import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
+import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
+import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
@@ -67,6 +73,12 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
 
     @Autowired
     private AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
+
+    @Autowired
+    private MensagemRepositorio mensagens;
+
+    @Autowired
+    @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) private PlatformTransactionManager gerenteDoChat;
 
     private UUID leadId;
     private UUID atendimentoId;
@@ -160,6 +172,32 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
 
         assertThat(postar(payload).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(statusDaMensagem()).isEqualTo("FALHOU");
+        assertThat(jdbc.queryForObject(
+                        "SELECT erro_entrega->>'codigo' FROM mensagem WHERE id = ?",
+                        String.class,
+                        mensagemId))
+                .isEqualTo("131053");
+        assertThat(jdbc.queryForObject(
+                        "SELECT erro_entrega->>'titulo' FROM mensagem WHERE id = ?",
+                        String.class,
+                        mensagemId))
+                .isEqualTo("Media upload error");
+    }
+
+    @Test
+    @DisplayName("aceite posterior nao apaga o motivo ja informado pelo provedor")
+    void aceitePosterior_preservaErroDoWebhook() {
+        assertThat(postar(payloadDeStatusComErro(wamid, 131053, "Media upload error"))
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        ContextoDeServico.executarComo(
+                "teste-e164",
+                () -> new TransactionTemplate(gerenteDoChat)
+                        .executeWithoutResult(status -> mensagens.atualizarStatusEntrega(
+                                mensagemId, enviadoEm, StatusEntrega.ENVIADO, null)));
+
+        assertThat(statusDaMensagem()).isEqualTo("ENVIADO");
         assertThat(jdbc.queryForObject(
                         "SELECT erro_entrega->>'codigo' FROM mensagem WHERE id = ?",
                         String.class,

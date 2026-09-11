@@ -29,9 +29,11 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeEdicaoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -39,6 +41,8 @@ import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
+import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 
 /**
  * Anti-Corruption Layer da Meta Cloud API.
@@ -91,13 +95,15 @@ class MetaCloudApiAdapter implements CanalGateway {
     private final CircuitBreaker breakerSaude;
     private final CircuitBreaker breakerMidia;
     private final ArmazenamentoDeMidia armazenamento;
+    private final ConversorDeAudio conversorDeAudio;
 
     MetaCloudApiAdapter(
             RestClient.Builder builder,
             CanalProperties propriedades,
             ObjectMapper json,
             CircuitBreakerRegistry breakers,
-            ArmazenamentoDeMidia armazenamento) {
+            ArmazenamentoDeMidia armazenamento,
+            ConversorDeAudio conversorDeAudio) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
@@ -106,6 +112,7 @@ class MetaCloudApiAdapter implements CanalGateway {
         this.breakerSaude = breakers.circuitBreaker(NOME_DO_BREAKER_SAUDE);
         this.breakerMidia = breakers.circuitBreaker(NOME_DO_BREAKER_MIDIA);
         this.armazenamento = armazenamento;
+        this.conversorDeAudio = conversorDeAudio;
     }
 
     @Override
@@ -129,6 +136,11 @@ class MetaCloudApiAdapter implements CanalGateway {
 
     @Override
     public boolean exigeTemplateForaDaJanela() {
+        return true;
+    }
+
+    @Override
+    public boolean gerenciaTemplates() {
         return true;
     }
 
@@ -204,6 +216,9 @@ class MetaCloudApiAdapter implements CanalGateway {
 
         } catch (RestClientResponseException e) {
             return traduzirErro(e);
+        } catch (FalhaNaConversaoDeAudioException e) {
+            return ResultadoDeEnvio.Recusado.permanente(
+                    "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp");
         }
         // Timeout, DNS, conexao recusada sobem como excecao de propósito: o breaker
         // precisa conta-las como falha para chegar a abrir.
@@ -267,10 +282,10 @@ class MetaCloudApiAdapter implements CanalGateway {
                 // acontece aqui, dentro do mesmo breaker.executeSupplier de chamar() — falha de
                 // upload conta para o circuit breaker igual falha de envio.
                 String campoTipo = campoDeTipoMeta(midia.tipo());
-                String mediaId = subirMidiaParaAMeta(midia);
+                MidiaSubida midiaSubida = subirMidiaParaAMeta(midia);
                 raiz.put("type", campoTipo);
                 ObjectNode midiaNo = raiz.putObject(campoTipo);
-                midiaNo.put("id", mediaId);
+                midiaNo.put("id", midiaSubida.id());
                 // A API da Meta so admite caption em image, video e document. Audio com esse
                 // campo e rejeitado por inteiro; a legenda continua no historico do CRM, mas nao
                 // pode fazer parte deste payload.
@@ -282,8 +297,7 @@ class MetaCloudApiAdapter implements CanalGateway {
                     midiaNo.put("caption", midia.legenda());
                 }
                 if (midia.tipo() == TipoMensagem.AUDIO
-                        && MetaCloudMidiaUpload.ehNotaDeVoz(
-                                campoDeMetadados(midia.metadados(), "mimetype"))) {
+                        && MetaCloudMidiaUpload.ehNotaDeVoz(midiaSubida.mimetype())) {
                     // Nota de voz: OGG Opus com voice=true. M4A/AAC e audio basico — a Meta
                     // recusa voice=true nesses containers.
                     midiaNo.put("voice", true);
@@ -312,22 +326,24 @@ class MetaCloudApiAdapter implements CanalGateway {
     }
 
     /** Upload multipart para {@code /{numero}/media} — devolve o {@code media id} da Meta. */
-    private String subirMidiaParaAMeta(ConteudoDeEnvio.MensagemMidia midia) {
+    private MidiaSubida subirMidiaParaAMeta(ConteudoDeEnvio.MensagemMidia midia) {
         byte[] conteudo = armazenamento.baixar(midia.referenciaStorage());
         String mimetype = campoDeMetadados(midia.metadados(), "mimetype");
         String nomeArquivo = campoDeMetadados(midia.metadados(), "nome");
 
-        if (midia.tipo() == TipoMensagem.AUDIO && AacAdtsDeIsoBmff.contemMoof(conteudo)) {
-            var aac = AacAdtsDeIsoBmff.extrairSeFragmentado(conteudo);
-            if (aac.isPresent()) {
-                conteudo = aac.get();
-                mimetype = "audio/aac";
-                log.info(
-                        "audio ISO-BMFF fragmentado reconstruido como AAC ADTS ({} bytes)",
-                        conteudo.length);
-            } else {
-                log.warn("audio ISO-BMFF fragmentado nao reconstruido; enviando bytes originais");
+        if (midia.tipo() == TipoMensagem.AUDIO && IsoBmffAudioOnly.ehFragmentado(conteudo)) {
+            ConversorDeAudio.Resultado convertido =
+                    conversorDeAudio.converterParaAacAdts(conteudo, mimetype);
+            if (!"audio/aac".equals(MetaCloudMidiaUpload.tipoPrincipal(convertido.mimetype()))
+                    || convertido.conteudo().length == 0) {
+                throw new FalhaNaConversaoDeAudioException(
+                        "conversor de audio nao produziu AAC/ADTS valido");
             }
+            conteudo = convertido.conteudo();
+            mimetype = convertido.mimetype();
+            log.info(
+                    "audio ISO-BMFF fragmentado convertido para AAC/ADTS no worker de entrega ({} bytes)",
+                    conteudo.length);
         }
 
         String tipoDoCampo = MetaCloudMidiaUpload.tipoDoCampo(mimetype, midia.tipo());
@@ -357,11 +373,13 @@ class MetaCloudApiAdapter implements CanalGateway {
                 .body(String.class);
 
         try {
-            return json.readTree(resposta).path("id").asText();
+            return new MidiaSubida(json.readTree(resposta).path("id").asText(), tipoDoArquivo);
         } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new IllegalStateException("resposta de upload de midia da Meta ilegivel", e);
         }
     }
+
+    private record MidiaSubida(String id, String mimetype) {}
 
     private String campoDeMetadados(String metadadosJson, String campo) {
         if (metadadosJson == null) {
@@ -399,11 +417,35 @@ class MetaCloudApiAdapter implements CanalGateway {
         }
     }
 
+    @Override
+    public ResultadoDeTemplate editarTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        String conta = exigirContaNegocio();
+        try {
+            return breakerTemplates.executeSupplier(() -> submeterEdicaoDeTemplate(pedido));
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("editar", e);
+        }
+    }
+
+    @Override
+    public ResultadoDeTemplate excluirTemplate(String id, String nome) {
+        String conta = exigirContaNegocio();
+        try {
+            return breakerTemplates.executeSupplier(() -> excluirNaMeta(conta, id, nome));
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new CanalIndisponivelException("circuit breaker aberto para templates da Meta");
+        } catch (RestClientException e) {
+            throw indisponibilidadeAoAdministrarTemplates("excluir", e);
+        }
+    }
+
     private List<TemplateDoCanal> buscarTemplates(String conta) {
         RespostaBrutaDaMeta bruta = lerRespostaBruta(
                 http.get()
                         .uri(
-                                "/{conta}/message_templates?limit=100&fields=name,language,status,category,components",
+                                "/{conta}/message_templates?limit=100&fields=id,name,language,status,category,components",
                                 conta)
                         .header("Authorization", "Bearer " + propriedades.token()));
         if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
@@ -456,6 +498,7 @@ class MetaCloudApiAdapter implements CanalGateway {
             categoria = traduzirCategoria(resposta.path("category").asText());
         }
         return new ResultadoDeTemplate.Aceito(new TemplateDoCanal(
+                resposta.path("id").asText(""),
                 pedido.nome(),
                 pedido.idioma(),
                 categoria,
@@ -464,6 +507,86 @@ class MetaCloudApiAdapter implements CanalGateway {
                         : status,
                 pedido.corpo(),
                 contarParametros(pedido.corpo())));
+    }
+
+    private ResultadoDeTemplate submeterEdicaoDeTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        RespostaBrutaDaMeta atual = lerRespostaBruta(
+                http.get()
+                        .uri("/{id}?fields=status,components", pedido.id())
+                        .header("Authorization", "Bearer " + propriedades.token()));
+        if (atual.status() >= 500 || atual.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(atual);
+        }
+        if (atual.status() >= 400) {
+            String motivo = resumoDoErro(atual.corpo());
+            return new ResultadoDeTemplate.Recusado(
+                    motivo.isBlank() ? ("HTTP " + atual.status()) : motivo);
+        }
+        JsonNode templateAtual = jsonDaRespostaDeTemplate(atual, "consultar template para edicao");
+        String status = templateAtual.path("status").asText("").toUpperCase(Locale.ROOT);
+        if (!status.equals("APPROVED") && !status.equals("REJECTED") && !status.equals("PAUSED")) {
+            return new ResultadoDeTemplate.Recusado("status do template nao permite edicao");
+        }
+        if (!temSomenteCorpoTextual(templateAtual.path("components"))) {
+            return new ResultadoDeTemplate.Recusado(
+                    "somente templates com corpo textual, sem cabecalho, rodape ou botoes, podem ser editados");
+        }
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.post()
+                        .uri("/{id}", pedido.id())
+                        .header("Authorization", "Bearer " + propriedades.token())
+                        .header("Content-Type", "application/json")
+                        .body(corpoDaEdicao(pedido)));
+        return interpretarResultadoDaAdministracao(bruta, "editar");
+    }
+
+    private static boolean temSomenteCorpoTextual(JsonNode componentes) {
+        if (!componentes.isArray() || componentes.size() != 1) {
+            return false;
+        }
+        JsonNode corpo = componentes.get(0);
+        return "BODY".equalsIgnoreCase(corpo.path("type").asText())
+                && corpo.path("text").isTextual();
+    }
+
+    private ResultadoDeTemplate excluirNaMeta(String conta, String id, String nome) {
+        RespostaBrutaDaMeta bruta = lerRespostaBruta(
+                http.delete()
+                        .uri(uri -> uri.path("/{conta}/message_templates")
+                                .queryParam("hsm_id", id)
+                                .queryParam("name", nome)
+                                .build(conta))
+                        .header("Authorization", "Bearer " + propriedades.token()));
+        return interpretarResultadoDaAdministracao(bruta, "excluir");
+    }
+
+    private ResultadoDeTemplate interpretarResultadoDaAdministracao(
+            RespostaBrutaDaMeta bruta, String operacao) {
+        if (bruta.status() >= 500 || bruta.status() == EXCESSO_DE_CHAMADAS) {
+            throw falhaHttpDaMeta(bruta);
+        }
+        if (bruta.status() >= 400) {
+            String motivo = resumoDoErro(bruta.corpo());
+            return new ResultadoDeTemplate.Recusado(
+                    motivo.isBlank() ? ("HTTP " + bruta.status()) : motivo);
+        }
+        jsonDaRespostaDeTemplate(bruta, operacao);
+        return new ResultadoDeTemplate.Aceito(null);
+    }
+
+    private ObjectNode corpoDaEdicao(PedidoDeEdicaoDeTemplate pedido) {
+        ObjectNode raiz = json.createObjectNode();
+        ObjectNode corpo = raiz.putArray("components").addObject();
+        corpo.put("type", "BODY");
+        corpo.put("text", pedido.corpo());
+        int parametros = contarParametros(pedido.corpo());
+        if (parametros > 0) {
+            ArrayNode amostra = corpo.putObject("example").putArray("body_text").addArray();
+            for (int i = 1; i <= parametros; i++) {
+                amostra.add(AMOSTRAS_DE_PARAMETRO[(i - 1) % AMOSTRAS_DE_PARAMETRO.length]);
+            }
+        }
+        return raiz;
     }
 
     private RespostaBrutaDaMeta lerRespostaBruta(RestClient.RequestHeadersSpec<?> spec) {
@@ -602,6 +725,7 @@ class MetaCloudApiAdapter implements CanalGateway {
     private static TemplateDoCanal paraTemplateDoCanal(JsonNode item) {
         String corpo = corpoDoTemplate(item.path("components"));
         return new TemplateDoCanal(
+                item.path("id").asText(""),
                 item.path("name").asText(),
                 idiomaDoItem(item.path("language")),
                 traduzirCategoria(item.path("category").asText()),

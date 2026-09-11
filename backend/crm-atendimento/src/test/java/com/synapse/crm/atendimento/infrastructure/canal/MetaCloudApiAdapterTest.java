@@ -36,9 +36,11 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeEdicaoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -46,6 +48,7 @@ import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
+import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 
 class MetaCloudApiAdapterTest {
 
@@ -55,9 +58,11 @@ class MetaCloudApiAdapterTest {
 
     private final ObjectMapper json = new ObjectMapper();
     private final ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+    private final ConversorDeAudio conversorDeAudio = mock(ConversorDeAudio.class);
 
     private MockRestServiceServer servidor;
     private MetaCloudApiAdapter adapter;
+    private CircuitBreakerRegistry breakers;
 
     @BeforeEach
     void configurar() {
@@ -76,12 +81,14 @@ class MetaCloudApiAdapterTest {
                 "waba-teste",
                 "",
                 "");
+        breakers = CircuitBreakerRegistry.ofDefaults();
         adapter = new MetaCloudApiAdapter(
                 builder,
                 propriedades,
                 json,
-                CircuitBreakerRegistry.ofDefaults(),
-                armazenamento);
+                breakers,
+                armazenamento,
+                conversorDeAudio);
     }
 
     @Test
@@ -101,6 +108,7 @@ class MetaCloudApiAdapterTest {
         assertThat(payload.path("type").asText()).isEqualTo("audio");
         assertThat(payload.path("audio").path("id").asText()).isEqualTo("media-id");
         assertThat(payload.path("audio").has("caption")).isFalse();
+        assertThat(payload.path("audio").path("voice").asBoolean()).isTrue();
     }
 
     @Test
@@ -125,19 +133,45 @@ class MetaCloudApiAdapterTest {
     }
 
     @Test
-    void audioFragmentadoEReconstruidoComoAacAntesDoUpload() {
-        byte[] fmp4 = AacAdtsDeIsoBmffTest.fmp4ComUmFrame(new byte[] {0x21, 0x10, 0x04, 0x60});
+    void audioFragmentadoEConvertidoParaAacAntesDoUpload() {
+        byte[] fmp4 = fmp4();
+        byte[] aac = {(byte) 0xFF, (byte) 0xF1, 0x50, (byte) 0x80, 0x00, 0x1F, (byte) 0xFC};
         when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenReturn(new ConversorDeAudio.Resultado(aac, "audio/aac"));
         String[] upload = {null};
-        enviarMidiaComMetadados(
+        JsonNode payload = enviarMidiaComMetadados(
                 TipoMensagem.AUDIO,
                 "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
                 upload);
 
         assertThat(upload[0]).contains("Content-Type: audio/aac");
         assertThat(upload[0]).contains("filename=\"gravacao.aac\"");
-        assertThat(upload[0]).contains("audio/aac");
-        assertThat(upload[0]).contains(new String(new byte[] {(byte) 0xFF, (byte) 0xF1}, java.nio.charset.StandardCharsets.ISO_8859_1));
+        assertThat(payload.path("audio").has("voice")).isFalse();
+    }
+
+    @Test
+    void audioFragmentadoQueNaoConverteERecusadoSemAbrirOBreaker() {
+        byte[] fmp4 = fmp4();
+        when(armazenamento.baixar(REFERENCIA)).thenReturn(fmp4);
+        when(conversorDeAudio.converterParaAacAdts(fmp4, "audio/mp4"))
+                .thenThrow(new FalhaNaConversaoDeAudioException("ffmpeg indisponivel"));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(),
+                "5561999999999",
+                new ConteudoDeEnvio.MensagemMidia(
+                        TipoMensagem.AUDIO,
+                        REFERENCIA,
+                        "{\"nome\":\"gravacao.m4a\",\"mimetype\":\"audio/mp4\"}",
+                        null),
+                UUID.randomUUID()));
+
+        assertThat(resultado).isEqualTo(ResultadoDeEnvio.Recusado.permanente(
+                "nao foi possivel converter o audio para um formato reproduzivel no WhatsApp"));
+        assertThat(breakers.circuitBreaker("canal-meta-cloud").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+        servidor.verify();
     }
 
     @Test
@@ -327,11 +361,11 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
                         """
-                        {"data":[{"name":"boas_vindas","language":"pt_BR","status":"APPROVED",
+                        {"data":[{"id":"meta-1","name":"boas_vindas","language":"pt_BR","status":"APPROVED",
                         "category":"UTILITY","components":[{"type":"BODY","text":"Ola {{1}}"}]}]}
                         """,
                         MediaType.APPLICATION_JSON));
@@ -341,6 +375,7 @@ class MetaCloudApiAdapterTest {
         servidor.verify();
         assertThat(templates).hasSize(1);
         assertThat(templates.getFirst().nome()).isEqualTo("boas_vindas");
+        assertThat(templates.getFirst().id()).isEqualTo("meta-1");
         assertThat(templates.getFirst().status()).isEqualTo(TemplateDoCanal.Status.APROVADO);
         assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
     }
@@ -363,7 +398,7 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
-                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento, conversorDeAudio);
 
         for (int tentativa = 0; tentativa < 10; tentativa++) {
             assertThatThrownBy(adapterSemConta::listarTemplates)
@@ -395,7 +430,7 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         MetaCloudApiAdapter adapterSemConta =
-                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento);
+                new MetaCloudApiAdapter(builder, semConta, json, breakers, armazenamento, conversorDeAudio);
         PedidoDeTemplate pedido = new PedidoDeTemplate(
                 "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
 
@@ -415,7 +450,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -437,7 +472,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -455,7 +490,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -473,7 +508,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(request -> {
                     throw new ResourceAccessException("read timed out");
@@ -517,6 +552,107 @@ class MetaCloudApiAdapterTest {
                         .get(0)
                         .asText())
                 .isEqualTo("Maria");
+    }
+
+    @Test
+    void editaSomenteComponentesPeloIdDoTemplate() {
+        final JsonNode[] payloadCapturado = new JsonNode[1];
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + "/123"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> payloadCapturado[0] = json.readTree(
+                        ((MockClientHttpRequest) requisicao).getBodyAsBytes()))
+                .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo {{1}}"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Aceito.class);
+        assertThat(payloadCapturado[0].has("name")).isFalse();
+        assertThat(payloadCapturado[0].path("components").get(0).path("text").asText())
+                .isEqualTo("Novo {{1}}");
+    }
+
+    @Test
+    void edicaoRecusadaPelaMetaViraRecusadoSemAbrirBreaker() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + "/123"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("{\"error\":{\"message\":\"template bloqueado\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo()).contains("template bloqueado");
+        assertThat(breakers.circuitBreaker("canal-meta-cloud-templates").getState())
+                .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    void excluiUmaVarianteComIdENomeConformeContratoDaMeta() {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.excluirTemplate("123", "boas_vindas");
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Aceito.class);
+    }
+
+    @Test
+    void exclusaoRecusadaPelaMetaViraRecusado() {
+        servidor.expect(once(), requestTo(URL_BASE
+                        + "/waba-teste/message_templates?hsm_id=123&name=boas_vindas"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("{\"error\":{\"message\":\"template inexistente\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.excluirTemplate("123", "boas_vindas");
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
+        assertThat(((ResultadoDeTemplate.Recusado) resultado).motivo()).contains("template inexistente");
+    }
+
+    @Test
+    void indisponibilidadeNaEdicaoViraCanalIndisponivel() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("{\"error\":{\"message\":\"upstream\"}}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo")))
+                .isInstanceOf(CanalIndisponivelException.class);
+        servidor.verify();
+    }
+
+    @Test
+    void naoSubstituiComponentesDeTemplateQueNaoSaoSomenteTexto() {
+        servidor.expect(once(), requestTo(URL_BASE + "/123?fields=status,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"HEADER\",\"format\":\"IMAGE\"},{\"type\":\"BODY\",\"text\":\"Antigo\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        var resultado = adapter.editarTemplate(new PedidoDeEdicaoDeTemplate("123", "Novo"));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeTemplate.Recusado.class);
     }
 
     @Test
@@ -615,7 +751,8 @@ class MetaCloudApiAdapterTest {
                         ""),
                 json,
                 breakers,
-                armazenamento);
+                armazenamento,
+                conversorDeAudio);
         PedidoDeTemplate pedido = new PedidoDeTemplate(
                 "retorno_orcamento", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
 
@@ -675,7 +812,7 @@ class MetaCloudApiAdapterTest {
         servidor.expect(
                         once(),
                         requestTo(URL_BASE
-                                + "/waba-teste/message_templates?limit=100&fields=name,language,status,category,components"))
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
                         """
@@ -879,7 +1016,16 @@ class MetaCloudApiAdapterTest {
                 "",
                 "");
         return new AdaptadorLocal(
-                new MetaCloudApiAdapter(builder, propriedades, json, breakers, armazenamento), local);
+                new MetaCloudApiAdapter(
+                        builder, propriedades, json, breakers, armazenamento, conversorDeAudio),
+                local);
+    }
+
+    private static byte[] fmp4() {
+        return new byte[] {
+            0, 0, 0, 8, 'f', 't', 'y', 'p',
+            0, 0, 0, 8, 'm', 'o', 'o', 'f'
+        };
     }
 
     private static CircuitBreakerRegistry breakersSensiveis() {

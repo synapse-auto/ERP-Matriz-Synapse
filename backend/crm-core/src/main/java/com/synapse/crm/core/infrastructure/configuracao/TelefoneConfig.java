@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.synapse.crm.core.application.lead.importacao.PrepararImportacaoLeadsCsv;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
 
 /** Liga a regra pura de telefone a configuracao desta instancia. */
@@ -14,5 +15,11 @@ class TelefoneConfig {
     TelefoneCanonico telefoneCanonico(
             @Value("${synapse.telefone.ddi-padrao}") String ddiPadrao) {
         return new TelefoneCanonico(ddiPadrao);
+    }
+
+    @Bean
+    PrepararImportacaoLeadsCsv prepararImportacaoLeadsCsv(
+            @Value("${synapse.telefone.ddi-padrao}") String ddiPadrao) {
+        return new PrepararImportacaoLeadsCsv(ddiPadrao);
     }
 }

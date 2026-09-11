@@ -43,6 +43,11 @@ public interface CanalGateway {
      */
     boolean exigeTemplateForaDaJanela();
 
+    /** Indica se o provedor possui API de administracao de templates. */
+    default boolean gerenciaTemplates() {
+        return false;
+    }
+
     /**
      * Confirma que a credencial configurada ainda autentica no provedor.
      *
@@ -85,6 +90,16 @@ public interface CanalGateway {
      * aqui significa "entrou na fila da Meta", nao "ja pode enviar".
      */
     default ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        return new ResultadoDeTemplate.Recusado("provedor nao gerencia templates");
+    }
+
+    /** Edita somente os campos suportados pela tela de templates desta instancia. */
+    default ResultadoDeTemplate editarTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        return new ResultadoDeTemplate.Recusado("provedor nao gerencia templates");
+    }
+
+    /** Exclui uma variante por ID; o nome e exigido pela API da Meta para evitar ambiguidade. */
+    default ResultadoDeTemplate excluirTemplate(String id, String nome) {
         return new ResultadoDeTemplate.Recusado("provedor nao gerencia templates");
     }
 

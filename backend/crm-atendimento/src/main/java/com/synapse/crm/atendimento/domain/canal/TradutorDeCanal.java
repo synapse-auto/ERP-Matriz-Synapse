@@ -15,8 +15,9 @@ import java.util.Objects;
  * <p>A verificacao de posse e a validacao de assinatura vivem aqui pelo mesmo motivo do resto: cada
  * provedor faz isso de um jeito. Na Meta sao dois mecanismos independentes: o {@code GET} compara o
  * token de verificacao escolhido pela instancia; o {@code POST} valida o HMAC-SHA256 do corpo com o
- * App Secret. Misturar os dois impede cadastrar o webhook ou, pior, reutiliza um segredo onde nao
- * deveria.
+ * App Secret. A Uzapi/Autotic nao documenta assinatura nativa e usa o segredo configurado na query
+ * da URL de callback. Misturar os dois impede cadastrar o webhook ou, pior, reutiliza um segredo
+ * onde nao deveria.
  */
 public interface TradutorDeCanal {
 
@@ -36,9 +37,12 @@ public interface TradutorDeCanal {
      *
      * <p>Verificado <b>antes</b> de qualquer processamento e antes de gravar qualquer coisa: a rota
      * do webhook e publica, entao qualquer um na internet consegue chamar. Sem esta checagem, injetar
-     * mensagem falsa na conversa de um cliente e um {@code curl}.
+     * mensagem falsa na conversa de um cliente e um {@code curl}. O terceiro argumento e opcional:
+     * a Meta usa o cabecalho e a Uzapi/Autotic usa o segredo da query; cada adaptador ignora o canal
+     * que nao faz parte do proprio protocolo.
      */
-    boolean assinaturaValida(String payloadCru, String assinaturaRecebida);
+    boolean assinaturaValida(
+            String payloadCru, String assinaturaCabecalho, String segredoConsulta);
 
     /**
      * Destinos declarados em cada evento contido no POST do provedor.
@@ -96,9 +100,10 @@ public interface TradutorDeCanal {
      * @param telefoneRemetente e por ele que se acha (ou se cria) o lead — o provedor nao conhece
      *     nosso id
      * @param nomeExibicao como o cliente aparece no WhatsApp; serve para nomear um lead novo
-     * @param texto {@code null} quando a mensagem e midia
-     * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"}, {@code "DOCUMENTO"} ou
-     *     {@code "VIDEO"} — nome
+     * @param texto {@code null} quando a mensagem e midia; para {@code "LOCALIZACAO"}, carrega os
+     *     metadados estruturados normalizados
+     * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"}, {@code "DOCUMENTO"},
+     *     {@code "VIDEO"} ou {@code "LOCALIZACAO"} — nome
      *     de {@code TipoMensagem} como String, e nao o enum em si, para o dominio de canal nao
      *     depender do de mensagem so por causa disto; quem converte e
      *     {@code ProcessadorDeWebhookEntradaOperacoes}
@@ -189,7 +194,10 @@ public interface TradutorDeCanal {
         }
 
         public boolean ehMidia() {
-            return "AUDIO".equals(tipo) || "IMAGEM".equals(tipo) || "DOCUMENTO".equals(tipo) || "VIDEO".equals(tipo);
+            return "AUDIO".equals(tipo)
+                    || "IMAGEM".equals(tipo)
+                    || "DOCUMENTO".equals(tipo)
+                    || "VIDEO".equals(tipo);
         }
     }
 }

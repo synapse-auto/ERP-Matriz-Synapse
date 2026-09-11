@@ -291,6 +291,62 @@ class EnviarMensagemUseCaseTest {
     }
 
     @Test
+    void mesmaChaveRetornaMensagemOriginalSemDuplicarMensagemOuOutbox() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID mensagemId = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
+        String chave = "clique-123";
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+        IdempotenciaDeMensagemEnvioRepositorio idempotencia = mock(IdempotenciaDeMensagemEnvioRepositorio.class);
+        Atendimento atendimento = atendimentoAberto(atendimentoId, leadId, usuarioId, agora);
+        Mensagem mensagem = Mensagem.texto(mensagemId, atendimentoId, Remetente.atendente(usuarioId), "oi", agora);
+
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuarioId, PapelUsuario.ATENDENTE, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(leads.assumirSeSemDono(leadId, usuarioId))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(usuarioId));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(atendimento));
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(atendimento));
+        when(mensagens.registrar(any(Mensagem.class))).thenReturn(mensagem);
+        when(mensagens.porId(mensagemId, agora)).thenReturn(Optional.of(mensagem));
+        when(participacoes.eParticipanteAtivo(atendimentoId, usuarioId)).thenReturn(false);
+        when(idempotencia.reservar(chave, usuarioId, leadId, atendimentoId))
+                .thenReturn(
+                        new IdempotenciaDeMensagemEnvioRepositorio.Reserva(
+                                chave, usuarioId, leadId, atendimentoId, null, null, false, true),
+                        new IdempotenciaDeMensagemEnvioRepositorio.Reserva(
+                                chave, usuarioId, leadId, atendimentoId, mensagemId, agora, false, false));
+
+        EnviarMensagemUseCase useCase = new EnviarMensagemUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos,
+                Clock.fixed(agora, ZoneOffset.UTC),
+                mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class),
+                participacoes, idempotencia);
+
+        EnviarMensagemUseCase.Resultado primeiro = useCase.executar(
+                leadId, new com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemLivre("oi"), chave);
+        EnviarMensagemUseCase.Resultado segundo = useCase.executar(
+                leadId, new com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemLivre("oi"), chave);
+
+        assertThat(primeiro.mensagem().id()).isEqualTo(mensagemId);
+        assertThat(segundo.mensagem().id()).isEqualTo(mensagemId);
+        verify(mensagens, times(1)).registrar(any(Mensagem.class));
+        verify(outbox, times(1)).enfileirarEnvio(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(idempotencia).concluir(chave, usuarioId, mensagemId, agora, false);
+    }
+
+    @Test
     void respostaSemWamidNaoGravaMensagem() {
         UUID leadId = UUID.randomUUID();
         UUID origemId = UUID.randomUUID();

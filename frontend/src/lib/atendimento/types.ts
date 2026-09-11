@@ -33,6 +33,7 @@ export interface ConfiguracaoComposer {
 /** Espelha ConfigInstanciaController — GET /api/v1/config/canal. */
 export interface CapacidadeDoCanal {
   exigeTemplateForaDaJanela: boolean;
+  gerenciaTemplates: boolean;
 }
 
 export type CategoriaTemplateWhatsApp = "UTILIDADE" | "MARKETING" | "AUTENTICACAO";
@@ -44,6 +45,7 @@ export type StatusTemplateWhatsApp =
   | "DESCONHECIDO";
 
 export interface TemplateWhatsApp {
+  id: string;
   nome: string;
   idioma: string;
   categoria: CategoriaTemplateWhatsApp;
@@ -116,11 +118,12 @@ export interface ResumoReacao {
 }
 
 export interface CitacaoMensagem {
-  origemId: string;
+  origemId: string | null;
   tipoReferencia: "RESPOSTA" | "ENCAMINHAMENTO";
   autor: string;
   tipoConteudo: TipoMensagem | string;
   previa: string;
+  origemRemovida?: boolean;
 }
 
 /** Motivo informado pelo provedor quando a entrega falhou. */
@@ -150,6 +153,8 @@ export interface MensagemResposta {
   enviadoEm: string;
   reacoes?: ResumoReacao[];
   citacao?: CitacaoMensagem | null;
+  /** Chave do clique de envio, presente nas mensagens humanas e usada para reconciliar o otimista. */
+  idempotencyKey?: string | null;
 }
 
 export interface PaginaMensagens {
@@ -164,6 +169,7 @@ export interface EnvioResposta {
   statusEntrega: StatusEntrega;
   enviadoEm: string;
   transferiuOLead: boolean;
+  idempotencyKey?: string | null;
 }
 
 /** Espelha AtendimentoAcoesController.NovoContatoResposta — POST /api/v1/atendimentos/novo-contato. */
@@ -267,6 +273,7 @@ export interface MensagemTempoReal {
   statusEntrega: StatusEntrega;
   enviadoEm: string;
   citacao?: CitacaoMensagem | null;
+  idempotencyKey?: string | null;
 }
 
 export interface StatusTempoReal {
@@ -275,6 +282,7 @@ export interface StatusTempoReal {
   mensagemId: string;
   statusEntrega: StatusEntrega;
   ocorridoEm: string;
+  idempotencyKey?: string | null;
 }
 
 export interface TransferenciaTempoReal {
@@ -339,6 +347,9 @@ export type NotificacaoTempoReal = {
 } | {
   tipo: "CHAT_INTERNO_REACAO";
   dados: ChatInternoReacaoTempoReal;
+} | {
+  tipo: "CHAT_INTERNO_MENSAGEM_REMOVIDA";
+  dados: ChatInternoMensagemRemovidaTempoReal;
 };
 
 export interface ChatInternoMensagemTempoReal {
@@ -355,6 +366,11 @@ export interface ChatInternoReacaoTempoReal {
   atorId: string;
   emojiDoAtor: string | null;
   reacoes: { emoji: string; quantidade: number }[];
+}
+
+export interface ChatInternoMensagemRemovidaTempoReal {
+  conversaId: string;
+  mensagemId: string;
 }
 
 /** Payload de /user/queue/revogacoes. */

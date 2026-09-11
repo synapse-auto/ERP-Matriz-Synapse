@@ -1,7 +1,46 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const authMock = vi.hoisted(() => ({ papel: "ATENDENTE" }));
+const apiMock = vi.hoisted(() => ({
+  editar: vi.fn(),
+  excluir: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor(authMock),
+}));
+
+vi.mock("@/lib/config/textos-provider", () => ({
+  useTextos: () => ({
+    templatesWhatsApp: {
+      editar: "Editar",
+      excluir: "Excluir",
+      formulario: {
+        editarTitulo: "Editar template",
+        corpo: "Corpo",
+        variavelInvalida: "Variável inválida",
+        cancelar: "Cancelar edição",
+        salvarEdicao: "Salvar alteração",
+        erroEdicao: "Erro ao editar",
+      },
+      confirmacaoExclusao: {
+        titulo: "Excluir template?",
+        descricao: "A exclusão de {nome} afeta a conta compartilhada.",
+        confirmar: "Excluir na Meta",
+        cancelar: "Cancelar exclusão",
+      },
+    },
+  }),
+}));
+
+vi.mock("@/lib/atendimento/api", () => ({
+  editarTemplateWhatsApp: apiMock.editar,
+  excluirTemplateWhatsApp: apiMock.excluir,
+}));
 
 import type { TemplateWhatsApp } from "@/lib/atendimento/types";
 import type { Textos } from "@/lib/config/schema";
@@ -47,6 +86,7 @@ const rotulosDeStatus = {
 };
 
 const aprovado: TemplateWhatsApp = {
+  id: "template-1",
   nome: "boas_vindas",
   idioma: "pt_BR",
   categoria: "UTILIDADE",
@@ -56,6 +96,7 @@ const aprovado: TemplateWhatsApp = {
 };
 
 const comVariaveis: TemplateWhatsApp = {
+  id: "template-2",
   nome: "retorno_orcamento",
   idioma: "pt_BR",
   categoria: "UTILIDADE",
@@ -65,6 +106,7 @@ const comVariaveis: TemplateWhatsApp = {
 };
 
 const marketing: TemplateWhatsApp = {
+  id: "template-3",
   nome: "promocao",
   idioma: "pt_BR",
   categoria: "MARKETING",
@@ -79,11 +121,25 @@ const pendente: TemplateWhatsApp = {
   status: "PENDENTE",
 };
 
+afterEach(() => {
+  authMock.papel = "ATENDENTE";
+  apiMock.editar.mockReset();
+  apiMock.excluir.mockReset();
+});
+
+function comProvider(element: ReactElement) {
+  return (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      {element}
+    </QueryClientProvider>
+  );
+}
+
 function renderizar(
   props: Partial<ComponentProps<typeof ModalDeTemplates>> = {},
 ) {
   return render(
-    <ModalDeTemplates
+    comProvider(<ModalDeTemplates
       aberto
       onAbertoChange={vi.fn()}
       textos={textos}
@@ -95,7 +151,7 @@ function renderizar(
       enviando={false}
       onEnviar={vi.fn()}
       {...props}
-    />,
+    />),
   );
 }
 
@@ -106,7 +162,7 @@ function ModalControlado(
 ) {
   const { parametrosIniciais = {}, ...rest } = props;
   const [parametros, setParametros] = useState(parametrosIniciais);
-  return (
+  return comProvider(
     <ModalDeTemplates
       aberto
       onAbertoChange={vi.fn()}
@@ -121,11 +177,116 @@ function ModalControlado(
       enviando={false}
       onEnviar={vi.fn()}
       {...rest}
-    />
+    />,
   );
 }
 
 describe("ModalDeTemplates", () => {
+  it("esconde editar e excluir para atendente", () => {
+    authMock.papel = "ATENDENTE";
+    renderizar();
+
+    expect(screen.queryByRole("button", { name: "Editar: boas_vindas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir: boas_vindas" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Criar template" })).toBeInTheDocument();
+  });
+
+  it("mostra acoes de gestao sem selecionar o card e abre os dialogos compartilhados", () => {
+    authMock.papel = "GESTOR";
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar: boas_vindas" }));
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("Editar template");
+    expect(screen.getByText("Escolha um template para preencher as variáveis de envio.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar edição" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
+    const confirmacao = screen.getByRole("dialog");
+    expect(confirmacao).toHaveTextContent("boas_vindas");
+    expect(confirmacao).toHaveTextContent("conta compartilhada");
+  });
+
+  it("edita pelo modal e reflete o corpo atualizado na previa após a revalidacao", async () => {
+    authMock.papel = "SUBGESTOR";
+    apiMock.editar.mockResolvedValue(undefined);
+    const { rerender } = renderizar({
+      templates: { data: [comVariaveis], isError: false, isLoading: false },
+    });
+
+    const item = screen.getByText("retorno_orcamento").closest("li");
+    fireEvent.click(item!.querySelector("button[aria-pressed]")!);
+    fireEvent.click(screen.getByRole("button", { name: "Editar: retorno_orcamento" }));
+    const formulario = screen.getByRole("dialog");
+    fireEvent.change(within(formulario).getByRole("textbox", { name: "Corpo" }), {
+      target: { value: "Mensagem nova {{1}} e {{2}}" },
+    });
+    fireEvent.click(within(formulario).getByRole("button", { name: "Salvar alteração" }));
+
+    await waitFor(() =>
+      expect(apiMock.editar).toHaveBeenCalledWith("template-2", { corpo: "Mensagem nova {{1}} e {{2}}" }),
+    );
+    rerender(
+      comProvider(
+        <ModalDeTemplates
+          aberto
+          onAbertoChange={vi.fn()}
+          textos={textos}
+          rotulosDeCategoria={rotulosDeCategoria}
+          rotulosDeStatus={rotulosDeStatus}
+          templates={{
+            data: [{ ...comVariaveis, corpo: "Mensagem nova {{1}} e {{2}}" }],
+            isError: false,
+            isLoading: false,
+          }}
+          parametros={{ "retorno_orcamento:pt_BR": ["Maria", "42"] }}
+          onParametros={vi.fn()}
+          enviando={false}
+          onEnviar={vi.fn()}
+        />,
+      ),
+    );
+
+    expect(screen.getByText("Mensagem nova Maria e 42")).toBeInTheDocument();
+  });
+
+  it("limpa a selecao quando exclui o template selecionado", async () => {
+    authMock.papel = "ADMINISTRADOR";
+    apiMock.excluir.mockResolvedValue(undefined);
+    const onTemplateExcluido = vi.fn();
+    const { rerender } = renderizar({
+      templates: { data: [aprovado, comVariaveis], isError: false, isLoading: false },
+      onTemplateExcluido,
+    });
+
+    const item = screen.getByText("boas_vindas").closest("li");
+    fireEvent.click(item!.querySelector("button[aria-pressed]")!);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir na Meta" }));
+    await waitFor(() => expect(apiMock.excluir).toHaveBeenCalledWith("template-1", "boas_vindas"));
+    expect(onTemplateExcluido).toHaveBeenCalledWith(aprovado);
+
+    rerender(
+      comProvider(
+        <ModalDeTemplates
+          aberto
+          onAbertoChange={vi.fn()}
+          textos={textos}
+          rotulosDeCategoria={rotulosDeCategoria}
+          rotulosDeStatus={rotulosDeStatus}
+          templates={{ data: [comVariaveis], isError: false, isLoading: false }}
+          parametros={{}}
+          onParametros={vi.fn()}
+          enviando={false}
+          onEnviar={vi.fn()}
+        />,
+      ),
+    );
+
+    expect(screen.queryByRole("button", { name: /boas_vindas/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Escolha um template para preencher as variáveis de envio.")).toBeInTheDocument();
+  });
+
   it("só oferece templates aprovados e envia o escolhido", () => {
     const onEnviar = vi.fn();
     renderizar({
@@ -192,7 +353,7 @@ describe("ModalDeTemplates", () => {
     expect(screen.getByRole("button", { name: "Enviar este template" })).toBeDisabled();
 
     rerender(
-      <ModalDeTemplates
+      comProvider(<ModalDeTemplates
         aberto
         onAbertoChange={vi.fn()}
         textos={textos}
@@ -203,7 +364,7 @@ describe("ModalDeTemplates", () => {
         onParametros={vi.fn()}
         enviando={false}
         onEnviar={onEnviar}
-      />,
+      />),
     );
 
     expect(screen.getByText("Olá Maria, o orçamento do pedido 42 ficou pronto.")).toBeInTheDocument();

@@ -48,6 +48,7 @@ const LEADS = [
 
 const push = vi.fn();
 const abrirAtendimentoApi = vi.fn();
+let papel = "ATENDENTE";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -58,7 +59,7 @@ vi.mock("@/lib/atendimento/api", () => ({
 }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor({ papel: "ATENDENTE" }),
+  useAuthStore: (seletor: (estado: { papel: string }) => unknown) => seletor({ papel }),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -75,6 +76,16 @@ vi.mock("@/lib/config/textos-provider", () => ({
       abrirAtendimento: "Abrir atendimento",
       abrindoAtendimento: "Abrindo atendimento...",
       erroAbrirAtendimento: "Não foi possível abrir o atendimento.",
+      importarCsv: "Importar CSV",
+      exportarCsv: "Exportar CSV",
+      importacao: {
+        titulo: "Importar leads (CSV)", descricao: "Adicione contatos em lote à base", arraste: "Arraste um arquivo .csv aqui", colunas: "Colunas: nome, empresa, telefone, CNPJ/CPF, cidade, etapa, tags",
+        selecionarArquivo: "Selecionar arquivo", baixarModelo: "Baixar modelo", cancelar: "Cancelar",
+        importar: "Importar", importando: "Importando...", preview: "Prévia", linhas: "Linhas",
+        validas: "Novas", jaExistiam: "Já existentes", recusadas: "Recusadas", arquivoInvalido: "CSV inválido",
+        erro: "Erro", erroImportar: "Erro ao importar", modeloArquivo: "modelo.csv",
+      },
+      exportacao: { arquivo: "leads.csv", erro: "Erro ao exportar" },
       colunas: {
         lead: "Lead",
         telefone: "Telefone",
@@ -175,6 +186,7 @@ vi.mock("@/lib/agenda/use-agenda", () => ({
   useCatalogosDeFiltro: () => useCatalogosDeFiltro(),
   useLeadsDaAgenda: (...args: unknown[]) => useLeadsDaAgenda(...args),
   useContagemDeLeads: (...args: unknown[]) => useContagemDeLeads(...args),
+  criterioDosFiltrosAtivos: vi.fn(() => ({ tipo: "SIMPLES", campo: "criadoEm", operador: "PREENCHIDO" })),
   SEM_RESPONSAVEL: "__sem_responsavel__",
 }));
 
@@ -191,6 +203,7 @@ function renderAgenda() {
 
 describe("pagina da agenda", () => {
   beforeEach(() => {
+    papel = "ATENDENTE";
     push.mockReset();
     abrirAtendimentoApi.mockReset();
     abrirAtendimentoApi.mockResolvedValue({
@@ -214,6 +227,13 @@ describe("pagina da agenda", () => {
       isError: false,
     });
     useContagemDeLeads.mockReturnValue({ data: 2 });
+  });
+
+  it("mostra importacao e exportacao apenas para gestao", () => {
+    papel = "GESTOR";
+    renderAgenda();
+    expect(screen.getByRole("button", { name: "Importar CSV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exportar CSV" })).toBeInTheDocument();
   });
 
   it("mostra a tabela com as colunas do design e o contador vindo de /contagem", () => {
@@ -297,14 +317,16 @@ describe("pagina da agenda", () => {
     expect(screen.getByRole("button", { name: "Próxima" })).toBeDisabled();
   });
 
-  it("botão Abrir atendimento chama a API e navega para Ativos com o lead", async () => {
+  it("botão Abrir atendimento usa o atendimento confirmado pela API na navegação", async () => {
     renderAgenda();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!);
 
     await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-1"));
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&visao=ATIVOS"),
+      expect(push).toHaveBeenCalledWith(
+        "/atendimentos?leadId=lead-1&atendimentoId=atendimento-1&visao=ATIVOS",
+      ),
     );
   });
 
@@ -326,9 +348,11 @@ describe("pagina da agenda", () => {
 
     await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-finalizado"));
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/atendimentos?leadId=lead-finalizado&visao=ATIVOS"),
+      expect(push).toHaveBeenCalledWith(
+        "/atendimentos?leadId=lead-finalizado&atendimentoId=atendimento-novo&visao=ATIVOS",
+      ),
     );
-    expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1));
   });
 
   it("falha da API mantém a ficha aberta e exibe o erro", async () => {
@@ -351,5 +375,26 @@ describe("pagina da agenda", () => {
     );
     expect(screen.getByTestId("painel-lateral")).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("dois cliques imediatos não duplicam a abertura", async () => {
+    let resolver: (resposta: {
+      leadId: string;
+      atendimentoId: string;
+      mensagemId: null;
+      leadCriado: boolean;
+    }) => void;
+    abrirAtendimentoApi.mockImplementationOnce(
+      () => new Promise((resolve) => { resolver = resolve; }),
+    );
+    renderAgenda();
+
+    const botao = screen.getAllByRole("button", { name: "Abrir atendimento" })[0]!;
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledTimes(1));
+    resolver!({ leadId: "lead-1", atendimentoId: "atendimento-1", mensagemId: null, leadCriado: false });
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
 });

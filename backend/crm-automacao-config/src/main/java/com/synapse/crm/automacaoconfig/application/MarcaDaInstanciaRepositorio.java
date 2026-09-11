@@ -10,4 +10,10 @@ public interface MarcaDaInstanciaRepositorio {
     MarcaDaInstancia salvarTema(String temaJson, java.util.UUID atualizadoPorId, java.time.Instant atualizadoEm);
 
     MarcaDaInstancia salvarLogo(String logoReferenciaStorage, java.util.UUID atualizadoPorId, java.time.Instant atualizadoEm);
+
+    MarcaDaInstancia salvarIdentidade(
+            String nomeDaMarca,
+            String subtitulo,
+            java.util.UUID atualizadoPorId,
+            java.time.Instant atualizadoEm);
 }

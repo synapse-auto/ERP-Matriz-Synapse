@@ -29,17 +29,26 @@ public interface ChatInternoRepositorio {
     /** Apaga a conversa se nao restou ninguem — evita linha orfa invisivel. */
     boolean apagarSeSemParticipantes(UUID conversaId);
     PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite);
+    List<MidiaResumo> listarMidias(UUID conversaId, int limite, int deslocamento);
+    Optional<MidiaResumo> midia(UUID conversaId, UUID mensagemId);
     MensagemResumo salvarMensagem(UUID conversaId, UUID remetenteId, String conteudo);
     MensagemResumo salvarMensagemSistema(UUID conversaId, UUID atorId, String conteudoJson);
     MensagemResumo salvarMensagemDeMidia(UUID conversaId, UUID remetenteId, String tipo, String conteudo, String midiaUrl, String midiaMetadados);
+    Optional<MensagemResumo> mensagem(UUID conversaId, UUID mensagemId);
+    MensagemResumo salvarMensagemComReferencia(UUID conversaId, UUID remetenteId, String conteudo,
+            String tipo, String midiaUrl, String midiaMetadados, UUID origemConversaId, UUID origemId,
+            String referenciaTipo);
+    MensagemResumo removerMensagem(UUID conversaId, UUID mensagemId, UUID remetenteId, Instant removidaEm);
     void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando);
 
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
             Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
     record ContatoResumo(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
+    record MidiaResumo(UUID mensagemId, String tipo, String nome, String mimetype, long tamanho,
+            String legenda, String referenciaStorage, Instant enviadoEm) {}
     record MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
             String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
-            List<ResumoDeReacao> reacoes) {
+            List<ResumoDeReacao> reacoes, boolean removida, ReferenciaResumo referencia) {
         public MensagemResumo {
             reacoes = reacoes == null ? List.of() : List.copyOf(reacoes);
         }
@@ -47,13 +56,22 @@ public interface ChatInternoRepositorio {
         public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
                 String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm) {
             this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
-                    enviadoEm, List.of());
+                    enviadoEm, List.of(), false, null);
+        }
+
+        public MensagemResumo(UUID id, UUID conversaId, UUID remetenteId, String remetenteNome,
+                String tipo, String conteudo, String midiaUrl, String midiaMetadados, Instant enviadoEm,
+                List<ResumoDeReacao> reacoes) {
+            this(id, conversaId, remetenteId, remetenteNome, tipo, conteudo, midiaUrl, midiaMetadados,
+                    enviadoEm, reacoes, false, null);
         }
 
         public MensagemResumo comReacoes(List<ResumoDeReacao> novas) {
             return new MensagemResumo(id, conversaId, remetenteId, remetenteNome, tipo, conteudo,
-                    midiaUrl, midiaMetadados, enviadoEm, novas);
+                    midiaUrl, midiaMetadados, enviadoEm, novas, removida, referencia);
         }
     }
+    record ReferenciaResumo(UUID origemId, String tipo, String autor, String tipoConteudo,
+            String previa, boolean origemRemovida) {}
     record PaginaMensagens(List<MensagemResumo> mensagens, Instant proximoCursor) {}
 }

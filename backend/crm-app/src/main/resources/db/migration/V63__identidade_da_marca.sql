@@ -1,0 +1,3 @@
+ALTER TABLE marca_da_instancia
+    ADD COLUMN nome_da_marca VARCHAR(120) DEFAULT NULL,
+    ADD COLUMN subtitulo VARCHAR(120) DEFAULT NULL;

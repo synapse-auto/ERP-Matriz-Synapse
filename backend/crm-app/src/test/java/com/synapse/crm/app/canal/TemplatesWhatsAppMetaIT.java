@@ -1,7 +1,9 @@
 package com.synapse.crm.app.canal;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -201,8 +203,36 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         assertThat(detalhe).doesNotContain("Bearer token-de-teste");
     }
 
+    @Test
+    @DisplayName("gestao edita pelo ID e exclui a variante com nome exigido pela Meta")
+    void gestaoEditaEExcluiPeloContratoDaMeta() throws Exception {
+        corpoGraph.set(
+                "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}");
+        ResponseEntity<String> editado = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.PUT,
+                "/api/v1/whatsapp/templates/meta-1",
+                Map.of("corpo", "Novo {{1}}"));
+        assertThat(editado.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        corpoGraph.set("{\"success\":true}");
+        ResponseEntity<String> excluido = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
+                null);
+        assertThat(excluido.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
-        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        return chamarComo(EMAIL_ANA, SENHA_ATENDENTE, metodo, url, corpo);
+    }
+
+    private ResponseEntity<String> chamarComo(
+            String email, String senha, HttpMethod metodo, String url, Object corpo) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);

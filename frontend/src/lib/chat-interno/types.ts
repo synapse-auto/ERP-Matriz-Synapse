@@ -1,3 +1,5 @@
+import type { CitacaoMensagem } from "@/lib/atendimento/types";
+
 export type StatusPresencaChat = "ONLINE" | "AUSENTE" | "OFFLINE";
 export interface ChatContato {
   id: string;
@@ -18,6 +20,8 @@ export interface ChatMensagem {
   id: string; conversaId: string; remetenteId: string; remetenteNome: string;
   tipo?: string; conteudo: string | null; midiaUrl?: string | null; midiaMetadados?: unknown; enviadoEm: string;
   reacoes?: { emoji: string; quantidade: number; reagi: boolean }[];
+  removida?: boolean;
+  citacao?: (CitacaoMensagem & { origemRemovida?: boolean }) | null;
 }
 export interface EventoSistemaChat {
   evento: string;
@@ -27,3 +31,15 @@ export interface EventoSistemaChat {
   alvoNome?: string;
 }
 export interface PaginaChatMensagens { mensagens: ChatMensagem[]; proximoCursor: string | null }
+
+export type TipoMidiaChatInterno = "IMAGEM" | "AUDIO" | "DOCUMENTO" | "VIDEO";
+
+export interface MidiaDoGrupo {
+  mensagemId: string;
+  tipo: TipoMidiaChatInterno;
+  nome: string | null;
+  mimetype: string | null;
+  tamanho: number;
+  legenda: string | null;
+  enviadoEm: string;
+}

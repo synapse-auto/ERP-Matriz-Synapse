@@ -33,6 +33,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Repository
 class MensagemRepositorioJdbc implements MensagemRepositorio {
 
+    private static final String SQL_POR_ID =
+            "SELECT id, atendimento_id, remetente_tipo, remetente_id, tipo, conteudo, midia_url, "
+                    + "midia_metadados, opcoes, status_entrega, enviado_em FROM mensagem "
+                    + "WHERE id = ? AND enviado_em = ?";
+
     private static final String SQL_REGISTRAR =
             """
             INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,
@@ -44,7 +49,19 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
     // enviado_em no WHERE porque e a chave de particao: sem ela o PostgreSQL
     // varreria todas as particoes para achar uma unica linha.
     private static final String SQL_STATUS_ENTREGA =
-            "UPDATE mensagem SET status_entrega = ?::status_entrega WHERE id = ? AND enviado_em = ?";
+            """
+            UPDATE mensagem m
+               SET status_entrega = ?::status_entrega,
+                   erro_entrega = CASE
+                       WHEN ?::status_entrega = 'FALHOU'
+                       THEN jsonb_strip_nulls(jsonb_build_object(
+                           'codigo', NULL::integer,
+                           'titulo', ?::text))
+                       ELSE m.erro_entrega
+                   END
+             WHERE m.id = ?
+               AND m.enviado_em = ?
+            """;
 
     /**
      * A monotonia e a mesma de {@link StatusEntrega#ehPosteriorA(StatusEntrega)}, no SQL, para duas
@@ -107,6 +124,27 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
         return mensagem;
     }
 
+    @Override
+    public Optional<Mensagem> porId(UUID mensagemId, Instant enviadoEm) {
+        TransacaoObrigatoria.exigir("buscar mensagem por id");
+        return chat.query(SQL_POR_ID, (rs, linha) -> new Mensagem(
+                        rs.getObject("id", UUID.class),
+                        rs.getObject("atendimento_id", UUID.class),
+                        new com.synapse.crm.atendimento.domain.mensagem.Remetente(
+                                com.synapse.crm.atendimento.domain.mensagem.RemetenteTipo.valueOf(
+                                        rs.getString("remetente_tipo")),
+                                rs.getObject("remetente_id", UUID.class)),
+                        com.synapse.crm.atendimento.domain.mensagem.TipoMensagem.valueOf(rs.getString("tipo")),
+                        rs.getString("conteudo"),
+                        rs.getString("midia_url"),
+                        rs.getString("midia_metadados"),
+                        StatusEntrega.valueOf(rs.getString("status_entrega")),
+                        rs.getTimestamp("enviado_em").toInstant(),
+                        rs.getString("opcoes")),
+                mensagemId,
+                Timestamp.from(enviadoEm)).stream().findFirst();
+    }
+
     /**
      * Move a mensagem no ciclo de entrega. Chamado pelo publisher da outbox depois de o provedor
      * responder — {@code PENDENTE} vira {@code ENVIADO} ou {@code FALHOU}.
@@ -115,9 +153,16 @@ class MensagemRepositorioJdbc implements MensagemRepositorio {
      * varreria todas as particoes para achar uma linha.
      */
     @Override
-    public void atualizarStatusEntrega(UUID mensagemId, Instant enviadoEm, StatusEntrega status) {
+    public void atualizarStatusEntrega(
+            UUID mensagemId, Instant enviadoEm, StatusEntrega status, String motivoFalha) {
         TransacaoObrigatoria.exigir("atualizarStatusEntrega");
-        chat.update(SQL_STATUS_ENTREGA, status.name(), mensagemId, Timestamp.from(enviadoEm));
+        chat.update(
+                SQL_STATUS_ENTREGA,
+                status.name(),
+                status.name(),
+                motivoFalha,
+                mensagemId,
+                Timestamp.from(enviadoEm));
     }
 
     @Override

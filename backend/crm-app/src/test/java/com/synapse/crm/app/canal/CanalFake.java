@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.PedidoDeEdicaoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.PedidoDeTemplate;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
@@ -104,6 +105,11 @@ public class CanalFake implements CanalGateway {
     }
 
     @Override
+    public boolean gerenciaTemplates() {
+        return true;
+    }
+
+    @Override
     public AutenticacaoDoCanal verificarAutenticacao() {
         return AutenticacaoDoCanal.aceita();
     }
@@ -146,6 +152,7 @@ public class CanalFake implements CanalGateway {
     @Override
     public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
         TemplateDoCanal template = new TemplateDoCanal(
+                "fake-template-" + pedido.nome() + "-" + pedido.idioma(),
                 pedido.nome(),
                 pedido.idioma(),
                 pedido.categoria(),
@@ -156,6 +163,36 @@ public class CanalFake implements CanalGateway {
                 && existente.idioma().equals(template.idioma()));
         templates.add(template);
         return new ResultadoDeTemplate.Aceito(template);
+    }
+
+    @Override
+    public ResultadoDeTemplate editarTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        for (int indice = 0; indice < templates.size(); indice++) {
+            TemplateDoCanal atual = templates.get(indice);
+            if (!atual.id().equals(pedido.id())) {
+                continue;
+            }
+            TemplateDoCanal editado = new TemplateDoCanal(
+                    atual.id(),
+                    atual.nome(),
+                    atual.idioma(),
+                    atual.categoria(),
+                    atual.status(),
+                    pedido.corpo(),
+                    contarParametros(pedido.corpo()));
+            templates.set(indice, editado);
+            return new ResultadoDeTemplate.Aceito(editado);
+        }
+        return new ResultadoDeTemplate.Recusado("template inexistente");
+    }
+
+    @Override
+    public ResultadoDeTemplate excluirTemplate(String id, String nome) {
+        boolean removido = templates.removeIf(template -> template.id().equals(id)
+                && template.nome().equals(nome));
+        return removido
+                ? new ResultadoDeTemplate.Aceito(null)
+                : new ResultadoDeTemplate.Recusado("template inexistente");
     }
 
     private static int contarParametros(String corpo) {

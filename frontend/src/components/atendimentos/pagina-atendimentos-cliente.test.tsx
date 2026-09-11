@@ -10,6 +10,7 @@ import type {
   NotificacaoTempoReal,
 } from "@/lib/atendimento/types";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
+import { ErroDeApi } from "@/lib/api/errors";
 
 const callbacks = vi.hoisted(() => ({
   abrir: undefined as ((cartao: ItemInbox) => void) | undefined,
@@ -25,6 +26,7 @@ const callbacks = vi.hoisted(() => ({
 const abrirExistente = vi.hoisted(() => vi.fn());
 const iniciarNovo = vi.hoisted(() => vi.fn());
 const reenviarMidia = vi.hoisted(() => vi.fn());
+const obterCartao = vi.hoisted(() => vi.fn());
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -292,7 +294,8 @@ vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: iniciarNovo,
   abrirAtendimentoParaLead: abrirExistente,
-  enviarMensagem: vi.fn(() => Promise.reject(new Error("falha de rede"))),
+  obterCartaoAtendimento: obterCartao,
+  enviarMensagem: vi.fn(() => Promise.reject(new ErroDeApi(422, null, "falha definitiva"))),
   enviarTemplate: vi.fn(),
 }));
 vi.mock("@/lib/atendimento/use-configuracao-composer", () => ({
@@ -347,6 +350,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         confirmar: "Iniciar atendimento",
         erro: "Não foi possível iniciar o atendimento.",
       },
+      abertura: {
+        erroAcesso: "Sem acesso ao atendimento.",
+        erroNaoEncontrado: "Atendimento indisponível.",
+        erroConflito: "Atendimento mudou.",
+        erroGenerico: "Falha ao abrir atendimento.",
+      },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",
@@ -363,11 +372,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 import { PaginaAtendimentosCliente } from "./pagina-atendimentos-cliente";
 
-function renderPagina() {
+function renderPagina(atendimentoInicialId: string | null = null, visaoInicial = "TODOS" as const) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const resultado = render(
     <QueryClientProvider client={queryClient}>
-      <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="TODOS" />
+      <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={atendimentoInicialId} visaoInicial={visaoInicial} />
     </QueryClientProvider>,
   );
   return { ...resultado, queryClient };
@@ -402,6 +411,8 @@ describe("PaginaAtendimentosCliente", () => {
       mensagemId: null,
       leadCriado: false,
     });
+    obterCartao.mockReset();
+    obterCartao.mockResolvedValue(cartaoInicial);
     iniciarNovo.mockReset();
     iniciarNovo.mockResolvedValue({
       leadId: "lead-existente",
@@ -421,6 +432,60 @@ describe("PaginaAtendimentosCliente", () => {
 
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
     expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+  });
+
+  it("abre pelo atendimento retornado mesmo quando ele não pertence à visão atual", async () => {
+    const cartaoForaDaLista = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-colaborativo",
+      leadId: "lead-colaborativo",
+      leadNome: "Lead colaborativo",
+      atendimentoAtivoId: "atendimento-colaborativo",
+    };
+    obterCartao.mockResolvedValueOnce(cartaoForaDaLista);
+    renderPagina("atendimento-colaborativo");
+
+    await waitFor(() => {
+      expect(obterCartao).toHaveBeenCalledWith("atendimento-colaborativo");
+      expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    });
+    expect(callbacks.mensagens).toEqual({
+      historico: "atendimento-colaborativo",
+      assinatura: "atendimento-colaborativo",
+    });
+
+    act(() => callbacks.atualizarLista?.([]));
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+    expect(screen.getByTestId("composer")).toBeInTheDocument();
+  });
+
+  it("abre quando o cartão chega depois da resposta e não troca a seleção em refetch atrasado", async () => {
+    let resolver: (cartao: CartaoAtendimento) => void;
+    obterCartao.mockImplementationOnce(
+      () => new Promise((resolve) => { resolver = resolve; }),
+    );
+    renderPagina("atendimento-novo");
+
+    act(() => callbacks.atualizarLista?.([]));
+    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
+    resolver!({ ...cartaoInicial, atendimentoId: "atendimento-novo", atendimentoAtivoId: "atendimento-novo" });
+
+    await waitFor(() => expect(callbacks.mensagens?.assinatura).toBe("atendimento-novo"));
+    act(() => callbacks.atualizarLista?.([{ ...cartaoInicial, atendimentoId: "atendimento-de-outro" }]));
+    expect(callbacks.mensagens?.assinatura).toBe("atendimento-novo");
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, "Sem acesso ao atendimento."],
+    [404, "Atendimento indisponível."],
+    [409, "Atendimento mudou."],
+  ])("mostra retorno %i sem deixar uma seleção inconsistente", async (status, mensagem) => {
+    obterCartao.mockRejectedValueOnce(new ErroDeApi(status, null, "falha"));
+    renderPagina(`atendimento-${status}`);
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(mensagem));
+    expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
   });
 
   it("remove o atendente do cabeçalho e do painel ao receber devolução para IA (#sair)", () => {
@@ -528,7 +593,7 @@ describe("PaginaAtendimentosCliente", () => {
   it("preserva a conversa selecionada enquanto a lista é refiltrada depois da primeira resposta", () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="PENDENTES" />
       </QueryClientProvider>,
     );
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
@@ -546,7 +611,7 @@ describe("PaginaAtendimentosCliente", () => {
   it("preserva FINALIZADOS quando o envio bem-sucedido não partiu de Pendentes", () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="FINALIZADOS" />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="FINALIZADOS" />
       </QueryClientProvider>,
     );
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
@@ -561,7 +626,7 @@ describe("PaginaAtendimentosCliente", () => {
   it("mantém conversa e visão Pendentes quando o envio real falha", async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="PENDENTES" />
       </QueryClientProvider>,
     );
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
@@ -726,7 +791,7 @@ describe("PaginaAtendimentosCliente", () => {
       await pagina.queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       pagina.rerender(
         <QueryClientProvider client={pagina.queryClient}>
-          <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="TODOS" />
+          <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="TODOS" />
         </QueryClientProvider>,
       );
       act(() => {
@@ -880,9 +945,15 @@ describe("PaginaAtendimentosCliente", () => {
   });
 
   it("iniciar contato existente em Pendentes muda para Ativos e abre o chat", async () => {
+    obterCartao.mockResolvedValueOnce({
+      ...cartaoInicial,
+      atendimentoId: "atendimento-reusado",
+      atendimentoAtivoId: "atendimento-reusado",
+      leadId: "lead-existente",
+    });
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="PENDENTES" />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="PENDENTES" />
       </QueryClientProvider>,
     );
     act(() => callbacks.alterarVisao?.("PENDENTES"));
@@ -899,7 +970,8 @@ describe("PaginaAtendimentosCliente", () => {
     );
     await waitFor(() => {
       expect(callbacks.visaoAtual).toBe("ATIVOS");
-      expect(callbacks.leadInicialId).toBe("lead-existente");
+      expect(obterCartao).toHaveBeenCalledWith("atendimento-reusado");
+      expect(callbacks.mensagens?.assinatura).toBe("atendimento-reusado");
     });
     expect(screen.queryByTestId("dialogo-novo-contato")).not.toBeInTheDocument();
     await waitFor(() =>
@@ -911,7 +983,7 @@ describe("PaginaAtendimentosCliente", () => {
     iniciarNovo.mockRejectedValueOnce(new Error("Numero indisponivel para iniciar atendimento."));
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PaginaAtendimentosCliente leadInicialId={null} visaoInicial="POTENCIAIS" />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="POTENCIAIS" />
       </QueryClientProvider>,
     );
     act(() => callbacks.atualizarLista?.([cartaoInicial]));

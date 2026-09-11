@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ErroDeApi } from "@/lib/api/errors";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
-import { listarTemplatesWhatsApp } from "@/lib/atendimento/api";
+import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
@@ -154,12 +154,21 @@ export function Composer({
   });
   const lead = useLead(conversa.leadId);
   const [variaveisPendentes, setVariaveisPendentes] = useState<string[]>([]);
+  const capacidadeDoCanal = useQuery({
+    queryKey: ["config", "canal"],
+    queryFn: obterCapacidadeDoCanal,
+    staleTime: 5 * 60 * 1000,
+  });
+  const exigeTemplateForaDaJanela = capacidadeDoCanal.data?.exigeTemplateForaDaJanela ?? true;
   const estadoDaJanela = estadoDaJanelaTextoLivre(conversa.ultimaMensagemDoLeadEm);
-  const janelaAberta = estadoDaJanela === "aberta";
+  const janelaAberta = !exigeTemplateForaDaJanela || estadoDaJanela === "aberta";
   const templates = useQuery({
     queryKey: ["whatsapp-templates"],
     queryFn: listarTemplatesWhatsApp,
-    enabled: conversa.status !== "FINALIZADO" && (!janelaAberta || painelTemplateAberto),
+    enabled:
+      conversa.status !== "FINALIZADO" &&
+      capacidadeDoCanal.data?.gerenciaTemplates !== false &&
+      (!janelaAberta || painelTemplateAberto),
   });
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
@@ -387,6 +396,7 @@ export function Composer({
         leadId: conversa.leadId,
         arquivo: gravador.arquivo,
         onProgresso: setProgresso,
+        gravacaoDoComposer: true,
       },
       {
         onSuccess: () => {
@@ -727,12 +737,14 @@ export function Composer({
                       }}
                       disabled={gravador.fase !== "INATIVO"}
                     />
-                    <AcaoMenuAnexo
-                      label={textos.anexoMenuTemplates}
-                      icone={LayoutTemplate}
-                      aoSelecionar={abrirTemplatesPeloMenu}
-                      disabled={gravador.fase !== "INATIVO"}
-                    />
+                    {capacidadeDoCanal.data?.gerenciaTemplates !== false && (
+                      <AcaoMenuAnexo
+                        label={textos.anexoMenuTemplates}
+                        icone={LayoutTemplate}
+                        aoSelecionar={abrirTemplatesPeloMenu}
+                        disabled={gravador.fase !== "INATIVO"}
+                      />
+                    )}
                     {!rapidas.isError && (
                       <AcaoMenuAnexo
                         label={textos.mensagensRapidas}

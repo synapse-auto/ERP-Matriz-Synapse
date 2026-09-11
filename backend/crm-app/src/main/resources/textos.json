@@ -260,6 +260,12 @@
       "confirmar": "Iniciar atendimento",
       "erro": "Não foi possível iniciar o atendimento."
     },
+    "abertura": {
+      "erroAcesso": "Você não tem permissão para abrir este atendimento.",
+      "erroNaoEncontrado": "O atendimento não está disponível para sua sessão.",
+      "erroConflito": "O atendimento mudou enquanto era aberto. Tente novamente.",
+      "erroGenerico": "Não foi possível abrir o atendimento."
+    },
     "visoes": {
       "ativos": "Ativos",
       "pendentes": "Pendentes",
@@ -278,7 +284,8 @@
       "vazio": "Nenhuma conversa nesta visão.",
       "naoLidas": "{quantidade} mensagens não lidas",
       "atendidoPelaIa": "Atendido pela IA",
-      "codigo": "Código {codigo}"
+      "codigo": "Código {codigo}",
+      "atrasoAtendente": "Sem resposta há mais de 20 minutos"
     },
     "cabecalho": {
       "atendidoPor": "Atendido por",
@@ -375,6 +382,7 @@
         "132001": "Template não existe nesse idioma"
       },
       "motivoFalhaNaoInformado": "O provedor não informou o motivo da falha",
+      "envioNaoConfirmado": "Não foi possível confirmar o envio",
       "carregarAnteriores": "Carregar mensagens anteriores",
       "carregandoAnteriores": "Carregando mensagens...",
       "acoes": {
@@ -392,6 +400,7 @@
         "reacaoErro": "Não foi possível salvar a reação.",
         "responder": "Responder",
         "encaminhar": "Encaminhar",
+        "excluir": "Excluir",
         "rapidas": ["👍", "❤️", "😂", "😮", "😢", "🙏"],
         "seletor": {
           "search": "Buscar emoji",
@@ -427,6 +436,7 @@
         "encaminhamento": "Encaminhada",
         "cancelar": "Cancelar resposta",
         "origemIndisponivel": "Mensagem original indisponível",
+        "mensagemRemovida": "Mensagem removida",
         "imagem": "Foto",
         "audio": "Áudio",
         "documento": "Documento"
@@ -771,6 +781,9 @@
     "erro": "Não foi possível falar com a Meta para listar os templates.",
     "dica": "Depois de aprovado, o template aparece no composer da conversa quando a janela de 24h estiver fechada. Use {{1}}, {{2}} para variáveis na ordem.",
     "avisoPendente": "Enviado para aprovação. Só poderá ser usado depois que a Meta aprovar.",
+    "gerenciaIndisponivel": "Este provedor não permite gerenciar templates.",
+    "editar": "Editar",
+    "excluir": "Excluir",
     "busca": "Buscar template",
     "semResultados": "Nenhum template encontrado.",
     "categorias": {
@@ -797,8 +810,17 @@
       "variavelAusente": "Falta {marcador}. Os índices precisam ser sequenciais, sem pular.",
       "variavelInvalida": "O índice {marcador} é inválido. As variáveis começam em {{1}}.",
       "salvar": "Enviar para aprovação",
+      "salvarEdicao": "Salvar alteração",
       "cancelar": "Cancelar",
-      "erro": "Não foi possível criar o template. Confira o nome e o texto."
+      "erro": "Não foi possível criar o template. Confira o nome e o texto.",
+      "erroEdicao": "Não foi possível editar o template. Confira o texto e o status na Meta.",
+      "editarTitulo": "Editar template na Meta"
+    },
+    "confirmacaoExclusao": {
+      "titulo": "Excluir template na Meta?",
+      "descricao": "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
+      "confirmar": "Excluir na Meta",
+      "cancelar": "Cancelar"
     }
   },
   "equipe": {
@@ -890,6 +912,8 @@
     "participantesMinimos": "Selecione ao menos uma outra pessoa.",
     "erroCriarGrupo": "Não foi possível criar o grupo. Tente novamente.",
     "participantesDoGrupo": "Participantes do grupo",
+    "retrair": "Retrair dados do grupo",
+    "reabrir": "Reabrir dados do grupo",
     "adicionarParticipante": "Adicionar pessoa",
     "removerParticipante": "Remover",
     "sairDoGrupo": "Sair do grupo",
@@ -917,9 +941,26 @@
     "carregando": "Carregando conversas...",
     "erro": "Não foi possível carregar o chat interno.",
     "erroEnviar": "Não foi possível enviar a mensagem.",
+    "respostaCancelar": "Cancelar resposta",
+    "mensagemRemovida": "Mensagem removida",
+    "encaminharTitulo": "Encaminhar mensagem",
+    "encaminharDescricao": "Escolha uma conversa interna autorizada.",
+    "encaminharDestino": "Conversa de destino",
+    "encaminharConfirmar": "Encaminhar",
+    "encaminharCancelar": "Cancelar",
+    "encaminharErro": "Não foi possível encaminhar a mensagem.",
     "naoLidas": "{quantidade} não lidas",
     "tipoGrupo": "Grupo",
     "tipoDireta": "Conversa direta",
+    "midias": {
+      "titulo": "Mídias compartilhadas",
+      "vazio": "Nenhuma mídia compartilhada.",
+      "carregando": "Carregando mídias...",
+      "erro": "Não foi possível carregar as mídias.",
+      "carregarMais": "Carregar mais",
+      "abrir": "Abrir {nome}",
+      "baixar": "Baixar {nome}"
+    },
     "sistema": {
       "grupoCriado": "criou o grupo {nome}",
       "participanteAdicionado": "adicionou {alvo}",
@@ -1034,6 +1075,32 @@
     "abrirAtendimento": "Abrir atendimento",
     "abrindoAtendimento": "Abrindo atendimento...",
     "erroAbrirAtendimento": "Não foi possível abrir o atendimento.",
+    "importarCsv": "Importar CSV",
+    "exportarCsv": "Exportar CSV",
+    "importacao": {
+      "titulo": "Importar leads (CSV)",
+      "descricao": "Adicione contatos em lote à base",
+      "arraste": "Arraste um arquivo .csv aqui",
+      "colunas": "Colunas: nome, empresa, telefone, CNPJ/CPF, cidade, etapa, tags",
+      "selecionarArquivo": "Selecionar arquivo",
+      "baixarModelo": "Baixar modelo de planilha",
+      "cancelar": "Cancelar",
+      "importar": "Importar",
+      "importando": "Importando...",
+      "preview": "Prévia da importação",
+      "linhas": "Linhas",
+      "validas": "Novas",
+      "jaExistiam": "Já existentes",
+      "recusadas": "Recusadas",
+      "arquivoInvalido": "Selecione um arquivo CSV.",
+      "erro": "Não foi possível preparar o arquivo.",
+      "erroImportar": "Não foi possível importar os leads.",
+      "modeloArquivo": "modelo-leads.csv"
+    },
+    "exportacao": {
+      "arquivo": "leads.csv",
+      "erro": "Não foi possível exportar a agenda."
+    },
     "entrada": {
       "placeholder": "Buscar contato de outro atendente...",
       "pedir": "Pedir para entrar",

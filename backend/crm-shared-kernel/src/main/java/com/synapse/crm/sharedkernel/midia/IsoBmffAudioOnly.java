@@ -19,6 +19,31 @@ public final class IsoBmffAudioOnly {
     }
 
     /**
+     * Indica se o contêiner ISO-BMFF possui fragmentos ({@code moof}) no nível superior.
+     * Gravações de navegador nesse formato exigem transcodificação antes do upload à Meta.
+     */
+    public static boolean ehFragmentado(byte[] bytes) {
+        if (bytes == null || bytes.length < CABECALHO) return false;
+        int posicao = 0;
+        while (posicao + CABECALHO <= bytes.length) {
+            long tamanho = inteiro32(bytes, posicao);
+            int dados = posicao + CABECALHO;
+            if (tamanho == 1) {
+                if (bytes.length - dados < 8) return false;
+                tamanho = inteiro64(bytes, dados);
+                dados += 8;
+            } else if (tamanho == 0) {
+                tamanho = bytes.length - posicao;
+            }
+            if (tamanho < dados - posicao || tamanho > bytes.length - posicao) return false;
+            String tipo = new String(bytes, posicao + 4, 4, java.nio.charset.StandardCharsets.US_ASCII);
+            if ("moof".equals(tipo)) return true;
+            posicao += (int) tamanho;
+        }
+        return false;
+    }
+
+    /**
      * MediaRecorder em alguns navegadores gera ISO-BMFF de áudio que o Tika rotula como
      * {@code video/quicktime} ou {@code video/mp4}. Se as trilhas forem só de áudio, trata como
      * {@code audio/mp4} — o mesmo critério do envio no atendimento.

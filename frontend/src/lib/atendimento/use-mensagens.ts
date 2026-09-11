@@ -19,12 +19,14 @@ export function useMensagens(
   onMensagemRecebida?: () => void,
   atendimentoParaAssinar: string | null = atendimentoId,
   onEventoEstado?: (evento: EventoTempoReal) => void,
+  onEventoRecebido?: (evento: EventoTempoReal) => void,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
   const ultimoInstanteRef = useRef<string | null>(null);
   const onMensagemRecebidaRef = useRef(onMensagemRecebida);
   const onEventoEstadoRef = useRef(onEventoEstado);
+  const onEventoRecebidoRef = useRef(onEventoRecebido);
 
   useEffect(() => {
     onMensagemRecebidaRef.current = onMensagemRecebida;
@@ -33,6 +35,10 @@ export function useMensagens(
   useEffect(() => {
     onEventoEstadoRef.current = onEventoEstado;
   }, [onEventoEstado]);
+
+  useEffect(() => {
+    onEventoRecebidoRef.current = onEventoRecebido;
+  }, [onEventoRecebido]);
 
   const query = useInfiniteQuery({
     queryKey,
@@ -57,7 +63,9 @@ export function useMensagens(
       return;
     }
     conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
+      onEventoRecebidoRef.current?.(evento);
       if (evento.tipo === "MENSAGEM") {
+        if (!evento.dados.mensagemId) return;
         const nova: MensagemResposta = {
           id: evento.dados.mensagemId,
           atendimentoId: evento.dados.atendimentoId,
@@ -73,15 +81,13 @@ export function useMensagens(
           erroEntrega: null,
           enviadoEm: evento.dados.enviadoEm,
           citacao: evento.dados.citacao ?? null,
+          idempotencyKey: evento.dados.idempotencyKey ?? null,
         };
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, [nova]));
         ultimoInstanteRef.current = evento.dados.enviadoEm;
         onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
-        if (evento.dados.statusEntrega === "FALHOU") {
-          void queryClient.invalidateQueries({ queryKey });
-          return;
-        }
+        if (!evento.dados.mensagemId) return;
         queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
           atual
             ? {
@@ -90,7 +96,15 @@ export function useMensagens(
                   ...pagina,
                   mensagens: pagina.mensagens.map((mensagem) =>
                     mensagem.id === evento.dados.mensagemId
-                      ? { ...mensagem, statusEntrega: evento.dados.statusEntrega }
+                    || (evento.dados.idempotencyKey != null
+                      && mensagem.idempotencyKey === evento.dados.idempotencyKey)
+                      ? {
+                          ...mensagem,
+                          id: evento.dados.mensagemId,
+                          statusEntrega: evento.dados.statusEntrega,
+                          idempotencyKey:
+                            mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
+                        }
                       : mensagem,
                   ),
                 })),

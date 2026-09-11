@@ -10,12 +10,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.automacaoconfig.application.AtualizarIdentidadeDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarLogoDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.AtualizarTemaDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterLogoDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterTemaDaInstanciaUseCase;
+import com.synapse.crm.automacaoconfig.application.ObterTextosDaInstanciaUseCase;
 import com.synapse.crm.automacaoconfig.application.featureflag.FeatureService;
-import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaResources;
 
 /**
  * Unitario, sem Spring context: os casos de uso sao mockados para isolar o contrato HTTP das rotas
@@ -24,23 +25,34 @@ import com.synapse.crm.automacaoconfig.infrastructure.ConfiguracaoDeInstanciaRes
 class ConfigInstanciaControllerTest {
 
     private final FeatureService features = mock(FeatureService.class);
-    private final ConfiguracaoDeInstanciaResources recursos = mock(ConfiguracaoDeInstanciaResources.class);
     private final CanalGateway canal = mock(CanalGateway.class);
     private final ObterTemaDaInstanciaUseCase obterTema = mock(ObterTemaDaInstanciaUseCase.class);
     private final ObterLogoDaInstanciaUseCase obterLogo = mock(ObterLogoDaInstanciaUseCase.class);
     private final AtualizarTemaDaInstanciaUseCase atualizarTema = mock(AtualizarTemaDaInstanciaUseCase.class);
     private final AtualizarLogoDaInstanciaUseCase atualizarLogo = mock(AtualizarLogoDaInstanciaUseCase.class);
+    private final ObterTextosDaInstanciaUseCase obterTextos = mock(ObterTextosDaInstanciaUseCase.class);
+    private final AtualizarIdentidadeDaInstanciaUseCase atualizarIdentidade =
+            mock(AtualizarIdentidadeDaInstanciaUseCase.class);
     private final ConfigInstanciaController controller = new ConfigInstanciaController(
-            features, recursos, canal, obterTema, obterLogo, atualizarTema, atualizarLogo);
+            features,
+            canal,
+            obterTema,
+            obterLogo,
+            atualizarTema,
+            atualizarLogo,
+            obterTextos,
+            atualizarIdentidade);
 
     @Test
-    @DisplayName("canal devolve apenas a capacidade de exigir template")
+    @DisplayName("canal devolve as capacidades do gateway")
     void canal_devolveCapacidadeDoGateway() {
         when(canal.exigeTemplateForaDaJanela()).thenReturn(true);
+        when(canal.gerenciaTemplates()).thenReturn(true);
 
         var resposta = controller.canal();
 
         assertThat(resposta.exigeTemplateForaDaJanela()).isTrue();
+        assertThat(resposta.gerenciaTemplates()).isTrue();
     }
 
     @Test
@@ -64,5 +76,14 @@ class ConfigInstanciaControllerTest {
         var resposta = controller.logo();
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("textos delega a resolucao banco/classpath")
+    void textos_delegaAoCasoDeUso() {
+        var textos = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+        when(obterTextos.executar()).thenReturn(textos);
+
+        assertThat(controller.textos()).isSameAs(textos);
     }
 }

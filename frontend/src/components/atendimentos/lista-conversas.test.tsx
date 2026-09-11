@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ItemInbox } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, ItemInbox } from "@/lib/atendimento/types";
 
 const finalizarTodos = vi.fn();
 const quantidadeFinalizavel = vi.hoisted(() => ({
@@ -173,10 +173,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         todosResultado: "{finalizados} finalizados; {recusados} recusados",
         todosErro: "Erro",
       },
-        cartao: {
+      cartao: {
         semAtendente: "Sem atendente",
         vazio: "Nenhuma conversa",
         naoLidas: "{quantidade} mensagens não lidas",
+        atrasoAtendente: "Sem resposta há mais de 20 minutos",
       },
       novoContato: { botao: "Novo atendimento" },
     },
@@ -238,6 +239,31 @@ describe("ListaConversas", () => {
     expect(screen.queryByText("Ana Vidros")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Bruno Almeida/ }));
     expect(abrir).toHaveBeenCalledWith(cartoes[1]);
+  });
+
+  it("recalcula o aviso no relógio sem depender de uma nova mensagem", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-16T12:19:00Z"));
+    atendimentosMock.data = [{
+      ...(cartoes[0] as CartaoAtendimento),
+      ultimaMensagemRemetenteTipo: "LEAD",
+      ultimaMensagemEm: "2026-08-16T12:00:00Z",
+    }];
+
+    try {
+      render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+      const card = screen.getByRole("button", { name: /Ana Vidros/ });
+      expect(card).not.toHaveClass("bg-cor-atencao/10");
+
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(card).not.toHaveClass("bg-cor-atencao/10");
+
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(card).toHaveClass("bg-cor-atencao/10");
+      expect(card).toHaveAttribute("title", "Sem resposta há mais de 20 minutos");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("oferece somente as visões permitidas e ignora Todos na URL para atendente", () => {

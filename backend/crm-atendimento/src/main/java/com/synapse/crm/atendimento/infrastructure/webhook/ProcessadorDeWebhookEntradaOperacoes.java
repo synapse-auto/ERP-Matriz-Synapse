@@ -169,6 +169,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             ReferenciaDeMensagem referencia = referenciaDaMensagem(mensagem, leadId);
             RegistrarMensagemRecebidaUseCase.MensagemRecebida requisicao;
             if (mensagem.ehMidia()) {
+                if (mensagem.midiaIdExterno() == null || mensagem.midiaIdExterno().isBlank()) {
+                    // Um webhook de midia sem referencia nao pode ser baixado com seguranca. O item
+                    // e descartado isoladamente para que as demais mensagens do mesmo POST sigam.
+                    log.warn("Mensagem de midia sem id externo; item descartado.");
+                    continue;
+                }
                 requisicao = mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia);
             } else if (TipoMensagem.LOCALIZACAO.name().equals(mensagem.tipo())) {
                 requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(

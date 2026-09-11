@@ -3,9 +3,13 @@ set -eu
 
 RAIZ_REPOSITORIO=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 COMPOSE="$RAIZ_REPOSITORIO/docker/verificacao/websocket-empacotado.yml"
+DIRETORIO_TEMPORARIO=''
 
 limpar() {
   docker compose -f "$COMPOSE" down --volumes --remove-orphans >/dev/null 2>&1 || true
+  if [ -n "$DIRETORIO_TEMPORARIO" ]; then
+    rm -rf "$DIRETORIO_TEMPORARIO"
+  fi
 }
 trap limpar EXIT INT TERM
 
@@ -82,6 +86,127 @@ testar_boot_por_papel 'admin@dev.local' 'admin123' 'ADMINISTRADOR'
 testar_boot_por_papel 'gestor@dev.local' 'gestor123' 'GESTOR'
 testar_boot_por_papel 'subgestor@dev.local' 'subgestor123' 'SUBGESTOR'
 testar_boot_por_papel 'ana@dev.local' 'atendente123' 'ATENDENTE'
+
+# E172: a imagem empacotada precisa provar que autentica e grava em um MinIO real.
+# A IT do EnviarMidiaUseCase cobre tambem XLSX com o mimetype ja normalizado; aqui
+# PDF e PNG atravessam ainda o endpoint, o Tika, a imagem de runtime e a rede Docker.
+docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+  --username synapse_ws --dbname synapse_ws --set ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO lead
+    (id, nome, telefone, atendente_responsavel_id, status_basico,
+     ultima_interacao_em, ultima_mensagem_do_lead_em)
+VALUES
+    ('e1720000-0000-4000-8000-000000000001', 'Smoke de mídia empacotada',
+     '5561977700172', '11000000-0000-4000-8000-000000000004',
+     'EM_ATENDIMENTO'::status_basico_lead, now(), now())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO atendimento
+    (id, lead_id, canal_id, canal_credencial_id, atendente_id, status, iniciado_em)
+VALUES
+    ('e1720000-0000-4000-8000-000000000002',
+     'e1720000-0000-4000-8000-000000000001',
+     'ca000000-0000-4000-8000-000000000001',
+     'cc000000-0000-4000-8000-000000000001',
+     '11000000-0000-4000-8000-000000000004',
+     'EM_ATENDIMENTO'::status_atendimento, now())
+ON CONFLICT (id) DO NOTHING;
+SQL
+
+DIRETORIO_TEMPORARIO=$(mktemp -d)
+printf '%%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%%%EOF\n' \
+  > "$DIRETORIO_TEMPORARIO/documento.pdf"
+printf '\211PNG\r\n\032\n\000' > "$DIRETORIO_TEMPORARIO/imagem.png"
+
+testar_upload_midia() {
+  arquivo=$1
+  gravacao_do_composer=${2:-false}
+  resposta=$(curl --fail-with-body --silent --show-error \
+    --header 'Host: crm.ws.test' \
+    --header "Authorization: Bearer $access_token" \
+    --form "arquivo=@$arquivo" \
+    --form "gravacaoDoComposer=$gravacao_do_composer" \
+    http://127.0.0.1:18080/api/v1/atendimentos/e1720000-0000-4000-8000-000000000002/mensagens/midia)
+  printf '%s' "$resposta" | grep --quiet '"statusEntrega":"PENDENTE"' || {
+    echo "upload empacotado nao foi persistido: $resposta" >&2
+    exit 1
+  }
+}
+
+testar_upload_midia "$DIRETORIO_TEMPORARIO/documento.pdf"
+testar_upload_midia "$DIRETORIO_TEMPORARIO/imagem.png"
+
+# Gera uma gravacao fragmentada dentro da propria imagem empacotada. Assim o smoke
+# tambem prova que o FFmpeg converte o audio do composer para OGG/Opus antes
+# de persistir no mesmo MinIO real usado pelos anexos comuns.
+docker run --rm --entrypoint ffmpeg synapse-backend-websocket-test:local \
+  -hide_banner -loglevel error -f lavfi \
+  -i sine=frequency=1000:duration=0.2 -c:a aac \
+  -movflags frag_keyframe+empty_moov -f mp4 pipe:1 \
+  > "$DIRETORIO_TEMPORARIO/gravacao.m4a"
+testar_upload_midia "$DIRETORIO_TEMPORARIO/gravacao.m4a" true
+
+total_midias=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+  --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
+  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND midia_url IS NOT NULL")
+[ "$total_midias" = "3" ] || {
+  echo "smoke esperava 3 mídias persistidas, encontrou $total_midias" >&2
+  exit 1
+}
+total_audio_ogg=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+  --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
+  --command "SELECT count(*) FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/ogg'")
+[ "$total_audio_ogg" = "1" ] || {
+  echo "smoke nao encontrou a gravacao convertida para OGG/Opus" >&2
+  exit 1
+}
+
+# Lê o objeto que acabou de ser salvo no MinIO e inspeciona os bytes com o ffprobe da imagem. A
+# verificação não se limita ao MIME persistido: exige codec, canais, taxa e duração positiva.
+audio_ref=$(docker compose -f "$COMPOSE" exec --no-TTY postgres psql \
+  --username synapse_ws --dbname synapse_ws --tuples-only --no-align \
+  --command "SELECT midia_url FROM mensagem WHERE atendimento_id = 'e1720000-0000-4000-8000-000000000002' AND tipo = 'AUDIO' AND midia_metadados ->> 'mimetype' = 'audio/ogg' LIMIT 1" \
+  | tr -d '[:space:]')
+[ -n "$audio_ref" ] || {
+  echo "smoke nao encontrou a referencia da gravacao OGG no banco" >&2
+  exit 1
+}
+docker compose -f "$COMPOSE" exec --no-TTY minio mc alias set smoke http://127.0.0.1:9000 \
+  e172-access-key e172-secret-key-com-tamanho-suficiente >/dev/null
+docker compose -f "$COMPOSE" exec --no-TTY minio mc cat "smoke/e172-smoke-midia/$audio_ref" \
+  > "$DIRETORIO_TEMPORARIO/gravacao.ogg"
+# mktemp cria o diretório com modo 0700; torne somente a leitura do artefato possível
+# para o usuário não-root do runtime ao inspecioná-lo com ffprobe.
+chmod a+rx "$DIRETORIO_TEMPORARIO"
+chmod a+r "$DIRETORIO_TEMPORARIO/gravacao.ogg"
+ffprobe_audio=$(docker run --rm --entrypoint ffprobe \
+  --volume "$DIRETORIO_TEMPORARIO:/input:ro" synapse-backend-websocket-test:local \
+  -v error -select_streams a:0 -show_entries stream=codec_name,channels,sample_rate,duration \
+  -of default=noprint_wrappers=1 -i /input/gravacao.ogg)
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'codec_name=opus' || {
+  echo "smoke encontrou codec diferente de Opus na gravacao" >&2
+  exit 1
+}
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'channels=1' || {
+  echo "smoke encontrou gravacao sem canal mono" >&2
+  exit 1
+}
+printf '%s\n' "$ffprobe_audio" | grep --quiet 'sample_rate=48000' || {
+  echo "smoke encontrou gravacao sem taxa de 48 kHz" >&2
+  exit 1
+}
+duracao_audio=$(printf '%s\n' "$ffprobe_audio" | sed -n 's/^duration=//p' | head -n 1)
+case "$duracao_audio" in
+  ''|*[!0-9.]* )
+    echo "smoke encontrou gravacao sem duracao numerica: $duracao_audio" >&2
+    exit 1
+    ;;
+esac
+awk -v duracao="$duracao_audio" 'BEGIN { exit !(duracao + 0 > 0) }' || {
+  echo "smoke encontrou gravacao sem duracao positiva" >&2
+  exit 1
+}
+echo 'uploads empacotados confirmados contra MinIO real: PDF=200, PNG=200, audio OGG/Opus=200, mensagens=3'
 
 docker run --rm --interactive \
   --network synapse-ws-proxy \

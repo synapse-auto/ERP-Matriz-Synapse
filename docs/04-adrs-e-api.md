@@ -92,6 +92,22 @@
 | POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
 
+#### Envio resiliente no navegador
+
+Os endpoints de novo contato, texto, template, mídia e encaminhamento aceitam o header opcional
+`Idempotency-Key`. A interface sempre envia uma chave UUID por ação; o backend reserva essa chave
+para o par usuário/lead/atendimento no mesmo transaction boundary que grava a mensagem e a
+transactional outbox. Repetir a mesma chave retorna a mesma `EnvioResposta` (HTTP 200), enquanto
+duas chaves diferentes continuam representando mensagens distintas, mesmo com conteúdo igual.
+
+O histórico de mensagens e o evento WebSocket `MENSAGEM` devolvem a mesma chave. Quando o navegador
+perde a resposta, a UI mantém a mensagem otimista pendente e consulta o histórico por essa
+identidade em três tentativas (1 s, 2 s e uma tentativa final imediata). Encontrar a chave substitui
+o otimista pelo registro real; apenas 4xx definitivo ou o esgotamento sem confirmação exibe
+`FALHOU`/`Reenviar`. O status de transporte não é apresentado como erro informado pelo provedor.
+Eventos WebSocket sem `mensagemId` são ignorados, e `STATUS` só pode alterar a mensagem cujo id
+real (ou chave idempotente) corresponde ao evento.
+
 ### CRM Core
 
 | Método | Rota | Descrição | Papel mínimo | Evidência |
@@ -215,6 +231,23 @@ O endpoint específico de chat interno permanece para compatibilidade. O botão 
 | `/user/queue/revogacoes` | Servidor → Cliente | Atendimento cuja assinatura deixou de ser visível | Revalidação após transferência | `RedisSubscriberDeAtendimento` · `TempoRealIT` |
 
 Dados de lead não usam `/topic` de broadcast. Redis replica os eventos entre instâncias; a entrega final continua sendo uma fila pessoal do usuário autenticado.
+
+### Chat interno — ações de mensagem (E176)
+
+As ações abaixo são parte do contrato do chat interno e só podem ser chamadas por participante da
+conversa. A origem e o destino de um encaminhamento são validados no backend; não há conversão para
+mensagem de WhatsApp.
+
+| Método | Rota | Regra | Evento |
+|---|---|---|---|
+| POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/responder` | Cria texto com referência segura à mensagem da mesma conversa | `CHAT_INTERNO_MENSAGEM` após commit |
+| POST | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/encaminhar` | Copia mensagem para outra conversa interna da qual o usuário participa | `CHAT_INTERNO_MENSAGEM` após commit |
+| DELETE | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor marca tombstone; conteúdo e mídia deixam de ser lidos | `CHAT_INTERNO_MENSAGEM_REMOVIDA` após commit |
+
+`GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Referências mantêm apenas
+autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, recebem o marcador seguro
+“mensagem removida”. A migration V65 adiciona os campos e um trigger que atualiza referências entre
+conversas. A URL assinada de mídia recusa mensagens removidas.
 
 ## Parte E — Contrato CRM ↔ Automação
 

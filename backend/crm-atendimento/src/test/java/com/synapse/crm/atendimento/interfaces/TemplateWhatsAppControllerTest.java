@@ -2,10 +2,13 @@ package com.synapse.crm.atendimento.interfaces;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,6 +26,8 @@ import org.springframework.web.client.UnknownContentTypeException;
 
 import com.synapse.crm.atendimento.application.template.CanalRecusouTemplateException;
 import com.synapse.crm.atendimento.application.template.CriarTemplateWhatsAppUseCase;
+import com.synapse.crm.atendimento.application.template.EditarTemplateWhatsAppUseCase;
+import com.synapse.crm.atendimento.application.template.ExcluirTemplateWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.ListarTemplatesWhatsAppUseCase;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
@@ -31,13 +36,17 @@ class TemplateWhatsAppControllerTest {
 
     private ListarTemplatesWhatsAppUseCase listar;
     private CriarTemplateWhatsAppUseCase criar;
+    private EditarTemplateWhatsAppUseCase editar;
+    private ExcluirTemplateWhatsAppUseCase excluir;
     private MockMvc mvc;
 
     @BeforeEach
     void configurar() {
         listar = mock(ListarTemplatesWhatsAppUseCase.class);
         criar = mock(CriarTemplateWhatsAppUseCase.class);
-        mvc = MockMvcBuilders.standaloneSetup(new TemplateWhatsAppController(listar, criar)).build();
+        editar = mock(EditarTemplateWhatsAppUseCase.class);
+        excluir = mock(ExcluirTemplateWhatsAppUseCase.class);
+        mvc = MockMvcBuilders.standaloneSetup(new TemplateWhatsAppController(listar, criar, editar, excluir)).build();
     }
 
     @Test
@@ -116,6 +125,7 @@ class TemplateWhatsAppControllerTest {
     void listaValidaDevolve200() throws Exception {
         when(listar.executar())
                 .thenReturn(List.of(new TemplateDoCanal(
+                        "meta-1",
                         "boas_vindas",
                         "pt_BR",
                         TemplateDoCanal.Categoria.UTILIDADE,
@@ -126,5 +136,54 @@ class TemplateWhatsAppControllerTest {
         mvc.perform(get("/api/v1/whatsapp/templates"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nome").value("boas_vindas"));
+    }
+
+    @Test
+    void putEDeleteDelegamParaCasosDeGestao() throws Exception {
+        mvc.perform(put("/api/v1/whatsapp/templates/meta-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"corpo\":\"Ola {{1}}\"}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/whatsapp/templates/meta-1")
+                        .param("nome", "boas_vindas"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void recusaDeEdicaoEExclusaoDevolve422() throws Exception {
+        doThrow(new CanalRecusouTemplateException("status do template nao permite edicao"))
+                .when(editar)
+                .executar("meta-1", "Ola {{1}}");
+        doThrow(new CanalRecusouTemplateException("template inexistente"))
+                .when(excluir)
+                .executar("meta-1", "boas_vindas");
+
+        mvc.perform(put("/api/v1/whatsapp/templates/meta-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"corpo\":\"Ola {{1}}\"}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422));
+        mvc.perform(delete("/api/v1/whatsapp/templates/meta-1").param("nome", "boas_vindas"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422));
+    }
+
+    @Test
+    void indisponibilidadeDeEdicaoEExclusaoDevolve503() throws Exception {
+        doThrow(new CanalIndisponivelException("provedor indisponivel"))
+                .when(editar)
+                .executar("meta-1", "Ola");
+        doThrow(new CanalIndisponivelException("provedor indisponivel"))
+                .when(excluir)
+                .executar("meta-1", "boas_vindas");
+
+        mvc.perform(put("/api/v1/whatsapp/templates/meta-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"corpo\":\"Ola\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503));
+        mvc.perform(delete("/api/v1/whatsapp/templates/meta-1").param("nome", "boas_vindas"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503));
     }
 }

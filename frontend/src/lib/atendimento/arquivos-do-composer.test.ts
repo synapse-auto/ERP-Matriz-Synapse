@@ -5,9 +5,10 @@ import {
   arquivosDaAreaDeTransferencia,
   arquivosDeDataTransfer,
   filtrarArquivos,
+  TIPOS_DE_ANEXO_ACEITOS,
 } from "./arquivos-do-composer";
 
-const ACCEPT = "image/jpeg,image/png,image/webp,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+const ACCEPT = TIPOS_DE_ANEXO_ACEITOS;
 
 function arquivo(nome: string, tipo: string): File {
   return new File(["x"], nome, { type: tipo });
@@ -18,6 +19,12 @@ describe("arquivos-do-composer", () => {
     expect(arquivoCompativel(arquivo("foto.png", "image/png"), ACCEPT)).toBe(true);
     expect(arquivoCompativel(arquivo("voz.mp3", "audio/mpeg"), ACCEPT)).toBe(true);
     expect(arquivoCompativel(arquivo("orcamento.pdf", "application/pdf"), ACCEPT)).toBe(true);
+    expect(
+      arquivoCompativel(
+        arquivo("apresentacao.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+        ACCEPT,
+      ),
+    ).toBe(true);
     expect(arquivoCompativel(arquivo("setup.exe", "application/x-msdownload"), ACCEPT)).toBe(false);
   });
 

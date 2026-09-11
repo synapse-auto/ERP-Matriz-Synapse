@@ -17,9 +17,9 @@ import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 @Service
 public class CriarTemplateWhatsAppUseCase {
 
-    private static final Pattern NOME_META = Pattern.compile("[a-z0-9_]{1,512}");
-    private static final Pattern VARIAVEL = Pattern.compile("\\{\\{(\\d+)\\}\\}");
-    private static final Pattern IDIOMA = Pattern.compile("[a-z]{2}(_[A-Z]{2})?");
+    static final Pattern NOME_META = Pattern.compile("[a-z0-9_]{1,512}");
+    static final Pattern VARIAVEL = Pattern.compile("\\{\\{(\\d+)\\}\\}");
+    static final Pattern IDIOMA = Pattern.compile("[a-z]{2}(_[A-Z]{2})?");
 
     private final CanalGateway canal;
 
@@ -51,9 +51,7 @@ public class CriarTemplateWhatsAppUseCase {
             throw new PedidoDeTemplateInvalidoException(
                     "nome do template aceita so letras minusculas, numeros e _");
         }
-        if (corpo == null || corpo.isBlank()) {
-            throw new PedidoDeTemplateInvalidoException("template exige um corpo de texto");
-        }
+        String corpoNormalizado = validarCorpo(corpo);
         String idiomaNormalizado =
                 (idioma == null || idioma.isBlank()) ? "pt_BR" : idioma.trim();
         if (!IDIOMA.matcher(idiomaNormalizado).matches()) {
@@ -63,8 +61,16 @@ public class CriarTemplateWhatsAppUseCase {
             throw new PedidoDeTemplateInvalidoException(
                     "categoria deve ser UTILIDADE ou MARKETING");
         }
-        exigirParametrosSequenciais(corpo.trim());
-        return new PedidoDeTemplate(nomeNormalizado, idiomaNormalizado, categoria, corpo.trim());
+        return new PedidoDeTemplate(nomeNormalizado, idiomaNormalizado, categoria, corpoNormalizado);
+    }
+
+    static String validarCorpo(String corpo) {
+        if (corpo == null || corpo.isBlank()) {
+            throw new PedidoDeTemplateInvalidoException("template exige um corpo de texto");
+        }
+        String normalizado = corpo.trim();
+        exigirParametrosSequenciais(normalizado);
+        return normalizado;
     }
 
     private static void exigirParametrosSequenciais(String corpo) {

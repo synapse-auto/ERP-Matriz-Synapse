@@ -7,5 +7,7 @@ public interface RecursosDeMarcaDaInstancia {
 
     JsonNode tema();
 
+    JsonNode textos();
+
     byte[] logo();
 }

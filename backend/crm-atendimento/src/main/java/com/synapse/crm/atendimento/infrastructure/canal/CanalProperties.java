@@ -15,7 +15,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param urlBase raiz da API do provedor
  * @param webhookVerifyToken token escolhido pela instancia para o desafio {@code GET} de cadastro
  *     do webhook; nao e o App Secret
- * @param webhookSecret App Secret usado exclusivamente no HMAC do {@code POST}. Sem default: se nao
+ * @param webhookSecret segredo usado na autenticacao do {@code POST}. Na Meta e o App Secret do
+ *     HMAC; na Uzapi/Autotic e comparado ao parametro {@code secret} da query. Sem default: se nao
  *     vier, o verificador recusa tudo, que e melhor que aceitar qualquer requisicao que chegue na
  *     rota
  * @param janelaTextoLivre 24h na Meta oficial; configuravel porque nao e lei da natureza e a Meta ja

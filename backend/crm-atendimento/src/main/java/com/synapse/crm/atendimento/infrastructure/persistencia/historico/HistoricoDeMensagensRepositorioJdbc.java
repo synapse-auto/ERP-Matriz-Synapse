@@ -38,7 +38,7 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                     + " m.erro_entrega ->> 'titulo' AS erro_entrega_titulo,"
                     + " u.nome AS remetente_nome,"
                     + " r.tipo AS citacao_tipo_ref, r.origem_mensagem_id, r.citacao_autor,"
-                    + " r.citacao_tipo, r.citacao_previa";
+                    + " r.citacao_tipo, r.citacao_previa, i.chave_idempotencia";
 
     private static final String JOINS =
             " FROM mensagem m"
@@ -47,7 +47,9 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                     + " LEFT JOIN usuario u ON u.id = m.remetente_id"
                     + " LEFT JOIN usuario ua ON ua.id = a.atendente_id"
                     + " LEFT JOIN mensagem_referencia r"
-                    + "   ON r.mensagem_id = m.id AND r.mensagem_enviada_em = m.enviado_em";
+                    + "   ON r.mensagem_id = m.id AND r.mensagem_enviada_em = m.enviado_em"
+                    + " LEFT JOIN mensagem_envio_idempotencia i"
+                    + "   ON i.mensagem_id = m.id AND i.mensagem_enviada_em = m.enviado_em";
 
     private static final String SQL_ULTIMAS = "SELECT " + COLUNAS + JOINS
             + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ?";
@@ -111,7 +113,8 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
                 linha.getString("atendimento_responsavel_nome"),
                 erroDeEntrega(linha),
                 List.of(),
-                citacaoDe(linha));
+                citacaoDe(linha),
+                linha.getString("chave_idempotencia"));
     }
 
     private static ErroDeEntrega erroDeEntrega(ResultSet linha) throws SQLException {

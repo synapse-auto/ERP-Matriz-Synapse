@@ -48,6 +48,17 @@ public class EncaminharMensagemUseCase {
             UUID origemMensagemId,
             java.time.Instant origemEnviadaEm,
             UUID destinoAtendimentoId) {
+        return executar(origemAtendimentoId, origemMensagemId, origemEnviadaEm, destinoAtendimentoId, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public EnviarMensagemUseCase.Resultado executar(
+            UUID origemAtendimentoId,
+            UUID origemMensagemId,
+            java.time.Instant origemEnviadaEm,
+            UUID destinoAtendimentoId,
+            String chaveIdempotencia) {
         Atendimento origemAtendimento = atendimentos
                 .porId(origemAtendimentoId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException(
@@ -83,7 +94,9 @@ public class EncaminharMensagemUseCase {
                 CitacaoDeMensagem.previaDe(
                         mensagem.tipo(), mensagem.conteudo(), mensagem.midiaMetadados()),
                 null);
-        return enviar.executarComReferencia(destino.leadId(), conteudo, referencia);
+        return chaveIdempotencia == null || chaveIdempotencia.isBlank()
+                ? enviar.executarComReferencia(destino.leadId(), conteudo, referencia)
+                : enviar.executarComReferencia(destino.leadId(), conteudo, referencia, chaveIdempotencia);
     }
 
     private static ConteudoDeEnvio conteudoDe(Mensagem mensagem) {

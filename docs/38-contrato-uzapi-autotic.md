@@ -56,7 +56,44 @@ Document, Reaction, Location, Contacts, Poll, Sticker, Revoke, Interactive):
    `Midias`). Resposta `{"id": "<mediaId>"}` (confirmado nas duas fontes; o Swagger não documenta o
    schema da resposta 201, só a descrição vazia).
 2. `POST .../messages` com `{"to", "type": "<image|audio|video|document>", "<type>": {"id":
-   "<mediaId>", "caption": "<opcional>"}}`.
+   "<mediaId>"}}`; `caption` só acompanha os tipos cujo schema o declara (veja a tabela abaixo).
+
+Antes de persistir uma gravação do composer, ela é convertida localmente para OGG/Opus mono a
+48 kHz, perfil de voz (`voip`) e timestamps contínuos. A validação local exige páginas OGG
+completas, cabeçalho `OpusHead` e uma página EOS com `granule position` positivo, para que a
+duração não seja interpretada como zero. Como proteção para registros antigos, áudio ISO-BMFF
+fragmentado (`moof`, formato gerado pelo `MediaRecorder` do navegador) ainda é convertido para
+AAC/ADTS no worker de entrega. A conversão ocorre fora dos disjuntores do provedor: erro de
+conversão recusa somente aquela mensagem, sem degradar os demais envios. Áudios anexados como
+arquivos seguem para o upload sem transformação.
+
+O corpo enviado à Uzapi continua exatamente o contrato do Swagger: o upload multipart devolve um
+`mediaId` e o `POST .../messages` leva somente `audio: {"id":"<mediaId>"}`. Não há campo
+documentado para `voice`, `ptt`, `duration` ou `seconds`; nenhum desses campos é inventado pelo
+adaptador. Assim, o cronômetro é derivado pelo provedor dos metadados estruturais do OGG/Opus.
+
+### Diagnóstico de duração e identidade do artefato
+
+Gravações do composer carregam uma marca interna (`gravacaoDoComposer`) nos metadados da outbox.
+Ela não altera o contrato público nem o conteúdo da mensagem: serve para o worker revalidar, antes
+do upload Uzapi, que o objeto recuperado ainda é OGG/Opus com páginas completas, `OpusHead`, EOS e
+`granule position` positivo. Um OGG apenas com a assinatura ou com EOS de duração zero é recusado
+antes de qualquer chamada ao provedor. Áudios anexados manualmente não recebem essa marca e não
+passam por conversão.
+
+Nos limites do fluxo são registrados somente dados técnicos, sem conteúdo: tamanho, MIME quando
+conhecido e SHA-256. O primeiro registro ocorre depois da conversão e antes do storage; o adaptador
+de storage registra a gravação e a leitura; e o adaptador Uzapi registra o mesmo resumo no objeto
+recuperado e no artefato entregue ao multipart. Quando não há transformação (o caso normal do OGG
+do composer), os resumos são idênticos. O fallback de registros antigos ISO-BMFF fragmentados é
+explicitamente convertido para AAC/ADTS e recebe um novo resumo, sem atingir gravações novas.
+
+Não existe, no Swagger consultado, campo ou endpoint que permita informar a duração à Uzapi. Sem
+enviar para uma conta real não é possível afirmar como uma versão específica do provedor calcula o
+relógio; a evidência objetiva disponível é que o arquivo entregue pelo CRM preserva bytes e MIME do
+OGG/Opus validado, com duração positiva verificada localmente por `ffprobe`. Se uma instância ainda
+mostrar `0:00` com esse artefato, a próxima investigação precisa ser feita no processamento de
+mídia da própria Uzapi/Autotic — não há ajuste seguro no payload documentado do CRM.
 
 O objeto de mídia também aceita `link` (URL pública) no lugar de `id` — confirmado no schema
 (`image`/`video`/`document` são `CaptionedLinkMessage`/`CaptionedFileMessage`, `audio` é
@@ -126,10 +163,36 @@ idempotência de envio comprovada)". Critério adotado:
   documentada para isso), ou 2xx com `status != "success"` / `error` presente / sem
   `messages[0].id` → `permanente`.
 
-## 8. Recebimento — NÃO implementado, material de referência para etapa futura
+## 8. Recebimento — implementado na E155
 
-**Fora desta etapa.** `TradutorDeCanal`, `WebhookCanalController` e qualquer parsing de webhook para
-este provedor não foram criados. `baixarMidiaRecebida` lança `UnsupportedOperationException`.
+O recebimento da Uzapi/Autotic agora usa o mesmo endpoint único do CRM, sem habilitar o provedor em
+nenhum ambiente: `POST /webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>`. O tradutor
+`UzapiAutoticWebhookTradutor` absorve aliases do payload, filtra Status/Story, traduz texto, mídia,
+interativas e localização, e mantém os identificadores no vocabulário do CRM. O segredo da query é
+comparado em tempo constante; sem segredo configurado o webhook é recusado.
+
+Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId` em
+`GET /{username}/{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado.
+Localização não chama o downloader e é persistida em metadados estruturados.
+
+### 8.0 Registro do callback
+
+O Swagger oficial concentra o callback no campo `webhook` da atualização da instância; os 16 paths
+`/webhook/message/*` e `/webhook/status/*` são eventos documentados pelo fornecedor, não sufixos que
+o CRM precise expor. No momento do corte, Lucas deverá configurar (fora desta etapa):
+
+```
+PUT https://api.uzapi.com.br/{username}/{version}/{phone_number_id}/instance/update
+Authorization: Bearer <token>
+{
+  "webhook": "https://<host-do-synapse>/webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>",
+  "webhookEvents": {"authentication": true, "connection": true, "group_messages": true,
+    "message_status": true, "group_events": true, "history": false}
+}
+```
+
+O endpoint do Synapse é único: `POST /webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>`. Nenhum
+registro foi executado contra uma conta real nesta etapa.
 
 ### 8.1 O que o Swagger oficial documenta — confirmado, primário
 
@@ -175,18 +238,18 @@ O envelope é **estruturalmente idêntico ao da Meta** (`entry[].changes[].value
 nos nomes de campo (`messaging_product`, `metadata.phone_number_id`, `contacts[].wa_id`). Os eventos
 de status (`/webhook/status/delivered` etc.) usam o mesmo envelope, trocando `messages[]` por
 `statuses[]` com `id`/`status`/`timestamp`/`recipient_id`/`conversation`/`pricing` — também idêntico
-ao formato Meta. Isso é uma boa notícia para a etapa futura: o parsing de envelope Meta já existente
-no CRM (`MetaCloudWebhookTradutor`) é candidato natural a reaproveitamento estrutural, não um
-tradutor do zero.
+ao formato Meta. O tradutor dedicado reaproveita essa navegação estrutural sem compartilhar regras
+específicas do fornecedor com `MetaCloudWebhookTradutor`.
 
 O endpoint `getchat` mencionado na documentação narrativa (para buscar conteúdo completo por ID) não
 foi localizado como path próprio nos 36 do Swagger — pode estar sob outro nome ou não documentado
-publicamente; não investigado a fundo, por estar fora do escopo desta etapa.
+publicamente; ele não é necessário para o fluxo implementado, que resolve mídias pelo endpoint
+documentado de `mediaId`.
 
 **Isto não é confirmação de como o número real desta clínica vai se comportar** — é o que o Swagger
 documenta. Só um teste empírico contra a instância real confirma.
 
-### 8.2 O que a referência de produção (`Clinica-CRM-FMNA`) já resolve — não confirmado com teste próprio
+### 8.2 Decisões de compatibilidade trazidas da referência de produção
 
 Meses de produção real, com correções de bugs reais (mídia inbound, Status/Story vazando pro chat).
 Não copiado, só registrado como referência de formato:
@@ -202,11 +265,12 @@ Não copiado, só registrado como referência de formato:
   `?secret=` na URL, comparado em tempo constante (`MessageDigest.isEqual`) mais validação estrutural
   do payload e do identificador de instância esperado. Documentado lá mesmo como proteção **fraca**
   (query string vaza em log de proxy/histórico), mas é precedente real de meses em produção sem
-  incidente conhecido. Fica registrado como candidato a decisão default para a etapa futura, não como
-  algo a implementar agora.
+  incidente conhecido. Esta etapa adota esse mecanismo como fallback porque o Swagger não oferece
+  segredo/header próprio; a URL deve ser protegida por TLS e o segredo configurado fora do código.
 
-A etapa de recebimento decide, com o Marcondes, se testa empiricamente contra a instância real antes
-de implementar ou se aceita esta referência como base.
+O Swagger não documenta desafio `GET` nem um segredo/header de assinatura próprio. Por isso o
+tradutor recusa a verificação GET (falha fechada) e usa o segredo de query já adotado pela referência
+de produção, sem chamada à instância real nesta etapa.
 
 ## 9. Segredos
 
@@ -215,10 +279,9 @@ Três variáveis já existentes cobrem autenticação (`WHATSAPP_URL_BASE`, `WHA
 valor real entrou neste documento, no código ou nos testes — todos os exemplos acima são do Swagger
 público ou de fixtures.
 
-## Ponto de parada da E152
+## Ponto de parada da E155
 
-Envio confirmado e implementado (`UzapiAutoticAdapter`). Recebimento é etapa futura — ver seção 8.
-Não ligar `synapse.canal.whatsapp.provedor=uzapi-autotic` em nenhum ambiente real antes disso: com o
-provedor de envio pronto mas sem `TradutorDeCanal` correspondente, `SeletorDeCanalGateway` falha a
-inicialização do Spring inteira (por desenho — "falhar na inicialização quando o nome não casa é
-deliberado").
+Envio e recebimento estão implementados (`UzapiAutoticAdapter` e
+`UzapiAutoticWebhookTradutor`), mas o provedor continua desligado por configuração. Não ligar
+`synapse.canal.whatsapp.provedor=uzapi-autotic` nem registrar webhook em ambiente real nesta etapa;
+isso exige credenciais e uma decisão operacional fora do código.
