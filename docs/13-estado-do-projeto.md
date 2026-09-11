@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 09/09/2026 a partir de
-`origin/main` (`5ac6b9d`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado reconstruído em 11/09/2026 a partir de
+`origin/main` (`43b56f7`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -25,6 +25,14 @@ documenta `voice`, `ptt`, `duration` ou `seconds`, então o CRM não envia campo
 precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real para a conta da
 Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
 operacional do provedor.
+
+### 11/09/2026 — Rotas atuais da Uzapi/Autotic (correção do incidente de mídia)
+
+O adaptador usa as rotas publicadas no Swagger oficial: `/{version}/{phone_number_id}/instance`,
+`/{version}/{phone_number_id}/messages`, `/{version}/{phone_number_id}/media` e
+`/{version}/{mediaId}` para resolver mídia recebida. A versão atual não possui o segmento
+`{username}`. `WHATSAPP_USUARIO_API` é mantida apenas como variável legada e não é lida para montar
+URLs nem para validar credenciais; `WHATSAPP_VERSAO_API` continua fornecendo `{version}`.
 
 ### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
 

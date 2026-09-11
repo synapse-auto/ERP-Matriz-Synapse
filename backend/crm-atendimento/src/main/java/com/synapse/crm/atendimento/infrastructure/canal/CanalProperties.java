@@ -24,10 +24,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param contaNegocio WABA ID usado para administrar templates. A Graph API nao oferece uma
  *     resolucao reversa suportada a partir do Phone Number ID; vazio deixa somente a administracao
  *     de templates indisponivel, sem afetar envio e recebimento.
- * @param usuarioApi {@code {username}} da rota da Uzapi/Autotic (E152), especifico deste provedor.
- *     Vazio e ignorado por qualquer outro adaptador.
- * @param versaoApi {@code {version}} da rota da Uzapi/Autotic (E152). Mesma logica de
- *     {@code usuarioApi}: vazio nao afeta provedores que nao usam esse segmento de URL.
+ * @param usuarioApi variavel legada da investigacao E152. A versao atual do contrato Uzapi/Autotic
+ *     nao usa username em nenhuma rota; o campo permanece apenas para nao quebrar ambientes que
+ *     ainda o declaram e nunca participa de autenticacao ou montagem de URL.
+ * @param versaoApi {@code {version}} da rota da Uzapi/Autotic. Vazio nao afeta provedores que nao
+ *     usam esse segmento de URL.
  */
 @ConfigurationProperties("synapse.canal.whatsapp")
 public record CanalProperties(

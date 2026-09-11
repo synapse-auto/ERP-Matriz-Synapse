@@ -41,10 +41,11 @@ import com.synapse.crm.sharedkernel.midia.ConversorDeAudio;
 class UzapiAutoticAdapterTest {
 
     private static final String URL_BASE = "https://uzapi.example.test";
-    private static final String USUARIO = "usuario-de-teste";
+    // Valor legado deliberadamente parecido com um username. Nenhuma URL pode carregá-lo.
+    private static final String USUARIO = "lucas_rezende";
     private static final String VERSAO = "v1";
     private static final String NUMERO = "numero-de-teste";
-    private static final String CAMINHO_BASE = "/" + USUARIO + "/" + VERSAO + "/" + NUMERO;
+    private static final String CAMINHO_BASE = "/" + VERSAO + "/" + NUMERO;
     private static final String REFERENCIA = "midias/anexo";
 
     private final ObjectMapper json = new ObjectMapper();
@@ -530,7 +531,7 @@ class UzapiAutoticAdapterTest {
     }
 
     @Test
-    void verificarAutenticacaoComUsuarioApiAusenteNaoChamaHttp() {
+    void verificarAutenticacaoAceitaSemUsuarioApiLegado() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer servidorLocal = MockRestServiceServer.bindTo(builder).build();
         CanalProperties semUsuario = new CanalProperties(
@@ -545,6 +546,14 @@ class UzapiAutoticAdapterTest {
                 "",
                 "",
                 VERSAO);
+        servidorLocal.expect(once(), requestTo(URL_BASE + "/" + VERSAO + "/" + NUMERO + "/instance"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(requisicao -> {
+                    String autorizacao = requisicao.getHeaders().getFirst("Authorization");
+                    assertThat(autorizacao).startsWith("Bearer ");
+                    assertThat(autorizacao).doesNotContain(USUARIO);
+                })
+                .andRespond(withSuccess("{\"status\":\"connected\"}", MediaType.APPLICATION_JSON));
         UzapiAutoticAdapter adapterSemUsuario = new UzapiAutoticAdapter(
                 builder,
                 semUsuario,
@@ -555,15 +564,15 @@ class UzapiAutoticAdapterTest {
 
         CanalGateway.AutenticacaoDoCanal autenticacao = adapterSemUsuario.verificarAutenticacao();
 
-        servidorLocal.verify(); // nenhuma expectativa: confirma que nenhuma chamada saiu.
-        assertThat(autenticacao.autenticada()).isFalse();
+        servidorLocal.verify();
+        assertThat(autenticacao.autenticada()).isTrue();
     }
 
     // --- recebimento -----------------------------------------------------------
 
     @Test
     void baixarMidiaRecebidaResolveUrlEBaixaBytesSemReenviarBearerAoHostDaUrl() {
-        servidor.expect(once(), requestTo(URL_BASE + "/" + USUARIO + "/" + VERSAO + "/media-inbound"))
+        servidor.expect(once(), requestTo(URL_BASE + "/" + VERSAO + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
                         "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.jpg\"}",

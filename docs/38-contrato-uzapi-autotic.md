@@ -6,7 +6,8 @@ pelo Marcondes em 06/09/2026. Não confundir com a **UazAPI** (`uazapi.dev`/uaza
 idênticos. Toda esta etapa usa a chave de provedor `uzapi-autotic` (nunca `uazapi`) para nunca mais
 confundir os dois.
 
-Levantamento feito em 09/09/2026 a partir de duas fontes:
+Levantamento feito em 11/09/2026 a partir do Swagger oficial (HTTP 200) e das evidências de
+integração já registradas:
 
 1. **Swagger oficial**, baixado diretamente de `https://api.uzapi.com.br/docs/swagger.json`
    (o link publicado, `https://api.uzapi.com.br/swagger`, é só a casca do Swagger UI — o JSON real
@@ -17,27 +18,28 @@ Levantamento feito em 09/09/2026 a partir de duas fontes:
 
 ## 1. Autenticação e identificação da instância
 
-`Authorization: Bearer <token>` — **não** é o header `token` da UazAPI real. Toda rota de negócio
-carrega `{username}` e `{version}` como segmentos de URL, além do `{phone_number_id}` (o número
-principal da instância):
+`Authorization: Bearer <token>` — **não** é o header `token` da UazAPI real. O Swagger oficial
+atual usa somente a versão e o identificador do número nas rotas de negócio:
 
 ```
-{baseUrl}/{username}/{version}/{phone_number_id}/...
+{baseUrl}/{version}/{phone_number_id}/...
 ```
 
-`{username}` e `{version}` não existiam em `CanalProperties` antes desta etapa; agora são
-`usuarioApi`/`versaoApi`, com default vazio (`WHATSAPP_USUARIO_API`/`WHATSAPP_VERSAO_API`).
+O endpoint de resolução de mídia é a única exceção de identificação: `/{version}/{mediaId}`.
+`WHATSAPP_USUARIO_API` permanece como variável legada da investigação E152, com default vazio, para
+não quebrar ambientes que ainda a declaram. A versão atual do contrato **não usa username**: esse
+campo não participa da autenticação, da validação de credencial ou da montagem de URL.
 
 ## 2. Saúde da instância
 
-`GET /{username}/{version}/{phone_number_id}/instance` — confirmado literalmente no Swagger:
+`GET /{version}/{phone_number_id}/instance` — confirmado literalmente no Swagger:
 `operationId: KubernetesController_getDeployment`, tag `Instancias`, summary "Consultar uma
 instancia". 201 com corpo (o schema de resposta não é documentado no Swagger, mas 4xx/5xx e erro de
 conexão bastam para `AutenticacaoDoCanal.recusada(...)`).
 
 ## 3. Envio de texto
 
-`POST /{username}/{version}/{phone_number_id}/messages`, corpo:
+`POST /{version}/{phone_number_id}/messages`, corpo:
 
 ```json
 {"to": "5561999999999", "type": "text", "text": {"body": "Olá, tudo bem?"}}
@@ -51,7 +53,7 @@ conexão bastam para `AutenticacaoDoCanal.recusada(...)`).
 Confirmado nos doze variantes do `oneOf` de `POST .../messages` (Text, Image, Audio, Video,
 Document, Reaction, Location, Contacts, Poll, Sticker, Revoke, Interactive):
 
-1. `POST /{username}/{version}/{phone_number_id}/media`, multipart, campos `file` (binário) e
+1. `POST /{version}/{phone_number_id}/media`, multipart, campos `file` (binário) e
    `messaging_product: whatsapp` — confirmado no Swagger (`MediaController_uploadMedia`, tag
    `Midias`). Resposta `{"id": "<mediaId>"}` (confirmado nas duas fontes; o Swagger não documenta o
    schema da resposta 201, só a descrição vazia).
@@ -172,7 +174,7 @@ interativas e localização, e mantém os identificadores no vocabulário do CRM
 comparado em tempo constante; sem segredo configurado o webhook é recusado.
 
 Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId` em
-`GET /{username}/{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado.
+`GET /{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado.
 Localização não chama o downloader e é persistida em metadados estruturados.
 
 ### 8.0 Registro do callback
@@ -182,7 +184,7 @@ O Swagger oficial concentra o callback no campo `webhook` da atualização da in
 o CRM precise expor. No momento do corte, Lucas deverá configurar (fora desta etapa):
 
 ```
-PUT https://api.uzapi.com.br/{username}/{version}/{phone_number_id}/instance/update
+PUT https://api.uzapi.com.br/{version}/{phone_number_id}/instance/update
 Authorization: Bearer <token>
 {
   "webhook": "https://<host-do-synapse>/webhook/canal?secret=<WHATSAPP_WEBHOOK_SECRET>",
@@ -275,9 +277,9 @@ de produção, sem chamada à instância real nesta etapa.
 ## 9. Segredos
 
 Três variáveis já existentes cobrem autenticação (`WHATSAPP_URL_BASE`, `WHATSAPP_NUMERO`,
-`WHATSAPP_TOKEN`); duas novas cobrem o path (`WHATSAPP_USUARIO_API`, `WHATSAPP_VERSAO_API`). Nenhum
-valor real entrou neste documento, no código ou nos testes — todos os exemplos acima são do Swagger
-público ou de fixtures.
+`WHATSAPP_TOKEN`); `WHATSAPP_VERSAO_API` cobre o segmento `{version}`. `WHATSAPP_USUARIO_API` é
+legada, não participa do contrato atual e pode permanecer vazia. Nenhum valor real entrou neste
+documento, no código ou nos testes — todos os exemplos acima são do Swagger público ou de fixtures.
 
 ## Ponto de parada da E155
 

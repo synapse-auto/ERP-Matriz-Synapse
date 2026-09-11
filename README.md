@@ -401,7 +401,8 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
-| `WHATSAPP_USUARIO_API` / `WHATSAPP_VERSAO_API` | vazio | `{username}`/`{version}` da rota da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só essa instância usa; vazio não afeta `meta-cloud`. |
+| `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
+| `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
 | `WEBHOOK_PRAZO_ABSOLUTO` | `2h` | Esgota a linha de `webhook_entrada` mesmo com o disjuntor aberto, a partir de `recebido_em`. |

@@ -162,8 +162,9 @@ synapse:
       # Phone Number ID. Vazio desabilita somente essa administracao; envio/recebimento continuam.
       # Nao usar :?obrigatoria — instancia sem templates nao pode derrubar o stack inteiro.
       conta-negocio: ${WHATSAPP_CONTA_NEGOCIO:}
-      # {username} e {version} da rota da Uzapi/Autotic (E152, provedor uzapi-autotic). Vazio e
-      # ignorado por qualquer outro provedor — mesma logica de conta-negocio acima.
+      # Variavel legada da investigacao E152; a Uzapi/Autotic atual usa somente {version} e
+      # {phone_number_id}. E mantida para nao quebrar ambientes existentes, mas nao participa das
+      # URLs nem da validacao de credencial.
       usuario-api: ${WHATSAPP_USUARIO_API:}
       versao-api: ${WHATSAPP_VERSAO_API:}
 
