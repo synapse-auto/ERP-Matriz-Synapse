@@ -94,6 +94,11 @@ public sealed interface EventoDeAtendimento {
             UUID leadId, UUID atendimentoId, UUID quemFinalizou, Instant ocorridoEm)
             implements EventoDeAtendimento {}
 
+    /** Finalizacao solicitada pelo n8n; nao existe usuario tecnico para preencher como ator. */
+    record AtendimentoFinalizadoPelaAutomacao(
+            UUID leadId, UUID atendimentoId, Instant ocorridoEm)
+            implements EventoDeAtendimento {}
+
     record PedidoEntradaSolicitado(UUID leadId, UUID atendimentoId, UUID solicitanteId,
             String solicitanteNome, UUID donoId, Instant ocorridoEm) implements EventoDeAtendimento {}
 

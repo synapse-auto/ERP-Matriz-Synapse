@@ -146,6 +146,17 @@ class RelayDeTempoRealListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoFinalizarPelaAutomacao(EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("leadId", evento.leadId().toString());
+        dados.putNull("quemFinalizou");
+        dados.put("atorTipo", "AUTOMACAO");
+        dados.put("ocorridoEm", evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "FINALIZACAO", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoPedirEntrada(EventoDeAtendimento.PedidoEntradaSolicitado evento) {
         ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
         dados.put("leadId",evento.leadId().toString()); dados.put("solicitanteId",evento.solicitanteId().toString());

@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 
@@ -78,5 +79,30 @@ class FinalizarAtendimentoUseCaseTest {
 
         verify(atendimentos, never()).elevarRlsParaEscritaDeNovoDono();
         verify(avaliacao, never()).preparar(any());
+    }
+
+    @Test
+    void automacaoUsaMesmaTransicao_preparaAvaliacaoEPublicaAtorTipado() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        SolicitacaoDeAvaliacao avaliacao = mock(SolicitacaoDeAvaliacao.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        Atendimento aberto = Atendimento.abrirComIa(
+                atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(60));
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Atendimento finalizado = new FinalizarAtendimentoUseCase(
+                        atendimentos, leads, eventos, RELOGIO, avaliacao)
+                .executarPelaAutomacao(atendimentoId);
+
+        assertThat(finalizado.status()).isEqualTo(StatusAtendimento.FINALIZADO);
+        verify(avaliacao).preparar(finalizado);
+        verify(eventos).publishEvent(new EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao(
+                leadId, atendimentoId, AGORA));
     }
 }

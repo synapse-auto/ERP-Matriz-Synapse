@@ -129,6 +129,25 @@ class TransferenciaAutomacaoInternalController {
                 "transferir-proximo-humano", () -> comandos.transferirProximoHumano(id, chave));
     }
 
+    @Operation(
+            summary = "Finalizar atendimento pela Automação",
+            description = "Encerra um atendimento visível ao serviço, marca o lead como FINALIZADO e publica os eventos pós-commit. A origem é registrada como AUTOMACAO, sem usuário técnico; não chama nenhum provedor neste request.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Atendimento finalizado ou mesma resposta de um retry."),
+                @ApiResponse(responseCode = "400", description = "Idempotency-Key ausente ou inválido."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
+                @ApiResponse(responseCode = "409", description = "Atendimento já finalizado ou chave reutilizada com outro comando.")
+            })
+    @PostMapping("/{id}/finalizar")
+    ComandosAutomacaoUseCase.FinalizacaoResposta finalizar(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Parameter(description = "Chave única da operação; repetições devolvem a mesma resposta.", required = true)
+                    @RequestHeader("Idempotency-Key") String chave) {
+        return ContextoDeServico.buscarComo(
+                "finalizar-atendimento-automacao", () -> comandos.finalizar(id, chave));
+    }
+
     @ExceptionHandler({IdempotencyKeyInvalidaException.class, MensagemAutomacaoInvalidaException.class})
     ProblemDetail aoReceberRequisicaoInvalida(RuntimeException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());

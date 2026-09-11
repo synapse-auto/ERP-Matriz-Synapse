@@ -25,6 +25,7 @@ public class ComandosAutomacaoUseCase {
     private final ResponderAtendimentoDaAutomacaoUseCase responder;
     private final TransferirAtendimentoDaAutomacaoUseCase transferir;
     private final TransferirAtendimentoUseCase transferirAtendimento;
+    private final FinalizarAtendimentoUseCase finalizarAtendimento;
     private final CriarLembreteDaAutomacaoUseCase criarLembrete;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
@@ -33,12 +34,14 @@ public class ComandosAutomacaoUseCase {
             ResponderAtendimentoDaAutomacaoUseCase responder,
             TransferirAtendimentoDaAutomacaoUseCase transferir,
             TransferirAtendimentoUseCase transferirAtendimento,
+            FinalizarAtendimentoUseCase finalizarAtendimento,
             CriarLembreteDaAutomacaoUseCase criarLembrete,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
         this.responder = responder;
         this.transferir = transferir;
         this.transferirAtendimento = transferirAtendimento;
+        this.finalizarAtendimento = finalizarAtendimento;
         this.criarLembrete = criarLembrete;
         this.idempotencia = idempotencia;
         this.json = json;
@@ -94,6 +97,19 @@ public class ComandosAutomacaoUseCase {
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public FinalizacaoResposta finalizar(UUID atendimentoId, String chave) {
+        return executar(
+                chave,
+                "FINALIZAR",
+                atendimentoId,
+                "",
+                FinalizacaoResposta.class,
+                () -> finalizarAtendimento.validarPelaAutomacao(atendimentoId),
+                () -> FinalizacaoResposta.de(finalizarAtendimento.executarPelaAutomacao(atendimentoId)));
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public LembreteResposta criarLembrete(
             UUID atendimentoId, String chave, String texto, Instant dataHora) {
         return executar(
@@ -113,25 +129,66 @@ public class ComandosAutomacaoUseCase {
             String requisicao,
             Class<T> tipoResposta,
             Supplier<T> efeito) {
+        return executar(chave, operacao, atendimentoId, requisicao, tipoResposta, () -> {}, efeito);
+    }
+
+    private <T> T executar(
+            String chave,
+            String operacao,
+            UUID atendimentoId,
+            String requisicao,
+            Class<T> tipoResposta,
+            Runnable validarAntesDaReserva,
+            Supplier<T> efeito) {
         exigirChave(chave);
         String hash = hash(operacao + "\n" + atendimentoId + "\n" + requisicao);
+        var existente = idempotencia.buscar(chave);
+        if (existente.isPresent()) {
+            return resolverReserva(existente.get(), chave, operacao, atendimentoId, hash, tipoResposta);
+        }
+
+        // A tabela de idempotencia referencia atendimento por FK. Validar antes da reserva evita
+        // transformar um atendimento inexistente em 500 por violacao de integridade, sem perder o
+        // replay: reservas existentes foram resolvidas acima antes desta validacao. Se outra
+        // requisicao com a mesma chave concluir enquanto aguardamos o lock do atendimento, ela
+        // pode ter tornado a validacao um conflito; nesse caso, o replay que apareceu no intervalo
+        // ainda tem precedencia sobre o erro de estado.
+        try {
+            validarAntesDaReserva.run();
+        } catch (RuntimeException erro) {
+            var corrida = idempotencia.buscar(chave);
+            if (corrida.isPresent()) {
+                return resolverReserva(corrida.get(), chave, operacao, atendimentoId, hash, tipoResposta);
+            }
+            throw erro;
+        }
         IdempotenciaDeComandoAutomacao.Reserva reserva = idempotencia.reservar(
                 chave, operacao, atendimentoId, hash);
         if (!reserva.nova()) {
-            if (!reserva.operacao().equals(operacao)
-                    || !reserva.atendimentoId().equals(atendimentoId)
-                    || !reserva.hashDaRequisicao().equals(hash)) {
-                throw new ChaveIdempotenciaReutilizadaException(chave, operacao, atendimentoId);
-            }
-            if (reserva.respostaJson() == null) {
-                throw new IllegalStateException("reserva de Idempotency-Key sem resposta concluida");
-            }
-            return desserializar(reserva.respostaJson(), tipoResposta);
+            return resolverReserva(reserva, chave, operacao, atendimentoId, hash, tipoResposta);
         }
 
         T resultado = efeito.get();
         idempotencia.concluir(chave, serializar(resultado));
         return resultado;
+    }
+
+    private <T> T resolverReserva(
+            IdempotenciaDeComandoAutomacao.Reserva reserva,
+            String chave,
+            String operacao,
+            UUID atendimentoId,
+            String hash,
+            Class<T> tipoResposta) {
+        if (!reserva.operacao().equals(operacao)
+                || !reserva.atendimentoId().equals(atendimentoId)
+                || !reserva.hashDaRequisicao().equals(hash)) {
+            throw new ChaveIdempotenciaReutilizadaException(chave, operacao, atendimentoId);
+        }
+        if (reserva.respostaJson() == null) {
+            throw new IllegalStateException("reserva de Idempotency-Key sem resposta concluida");
+        }
+        return desserializar(reserva.respostaJson(), tipoResposta);
     }
 
     private static void exigirChave(String chave) {
@@ -185,6 +242,24 @@ public class ComandosAutomacaoUseCase {
         static TransferenciaResposta de(Atendimento atendimento) {
             return new TransferenciaResposta(
                     atendimento.id(), atendimento.atendenteId(), atendimento.status().name());
+        }
+    }
+
+    /** Resumo sem historico ou dados de contato, suficiente para o workflow confirmar a transicao. */
+    public record FinalizacaoResposta(
+            UUID atendimentoId,
+            UUID leadId,
+            String status,
+            Instant finalizadoEm,
+            String origem) {
+
+        static FinalizacaoResposta de(Atendimento atendimento) {
+            return new FinalizacaoResposta(
+                    atendimento.id(),
+                    atendimento.leadId(),
+                    atendimento.status().name(),
+                    atendimento.finalizadoEm(),
+                    "AUTOMACAO");
         }
     }
 

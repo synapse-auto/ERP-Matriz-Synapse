@@ -125,6 +125,42 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/finalizar" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FinalizacaoResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/lembretes" : {
       "post" : {
         "parameters" : [ {
@@ -790,6 +826,29 @@
         }
       },
       "required" : [ "tipo" ],
+      "type" : "object"
+    },
+    "FinalizacaoResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "finalizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "origem" : {
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "string"
+        }
+      },
       "type" : "object"
     },
     "FotoDoLeadResposta" : {

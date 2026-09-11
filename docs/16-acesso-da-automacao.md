@@ -121,6 +121,32 @@ nunca receberam vêm antes de quem já recebeu. Ao consultar
 recomendado; não reordene a lista no workflow. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
+Para encerrar um único atendimento, use `POST /internal/v1/atendimentos/{id}/finalizar` sem corpo.
+O CRM marca o atendimento e o lead como `FINALIZADO`, prepara a avaliação individual já prevista
+quando houver responsável e publica timeline, auditoria e WebSocket somente depois do commit. A
+resposta é um resumo seguro; não contém telefone, histórico ou conteúdo de mensagens. A origem é
+`AUTOMACAO` e não há usuário técnico:
+
+```text
+POST /internal/v1/atendimentos/{atendimentoId}/finalizar
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Idempotency-Key: workflow-123-finalizacao-1
+```
+
+```json
+{
+  "atendimentoId": "00000000-0000-0000-0000-000000000000",
+  "leadId": "00000000-0000-0000-0000-000000000000",
+  "status": "FINALIZADO",
+  "finalizadoEm": "2026-09-10T13:00:00Z",
+  "origem": "AUTOMACAO"
+}
+```
+
+Repetir a mesma chave para o mesmo atendimento devolve exatamente a resposta original. Reutilizar
+a chave em outro atendimento ou operação, ou tentar finalizar novamente com uma chave nova, responde
+`409`; chave ausente ou vazia responde `400`.
+
 Depois que o atendimento estiver `FINALIZADO`, a Automação pode gravar o CSAT
 na escala 1–5 (a mesma do `CHECK` de `avaliacao.nota`). Uma nota por conversa;
 segunda tentativa responde `409`. Conversa ainda aberta ou sem atendente
