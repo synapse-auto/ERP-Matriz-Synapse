@@ -42,14 +42,15 @@ import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
  * sozinho — ver {@code docs/38-contrato-uzapi-autotic.md}.
  *
  * <p>Contrato confirmado contra o Swagger oficial ({@code https://api.uzapi.com.br/docs/swagger.json})
- * em 09/09/2026: {@code GET .../instance} para saude, {@code POST .../messages} para envio,
- * {@code POST .../media} (multipart) para upload previo de midia. Nao existe endpoint de gestao de
+ * em 11/09/2026: as rotas usam somente {@code {version}} e {@code {phone_number_id}} — nunca
+ * {@code {username}}. {@code GET .../instance} consulta a saude, {@code POST .../messages} envia,
+ * {@code POST .../media} (multipart) faz upload previo de midia. Nao existe endpoint de gestao de
  * template no Swagger — o valor {@code "template"} aparece apenas no enum solto do campo
  * {@code type}, sem nenhum schema de corpo correspondente nos doze variantes documentados
  * (Text/Image/Audio/Video/Document/Reaction/Location/Contacts/Poll/Sticker/Revoke/Interactive).
  *
  * <p>O recebimento usa o mesmo identificador de midia que chega no webhook: primeiro resolve a URL
- * pelo endpoint {@code GET /{username}/{version}/{mediaId}} e depois baixa os bytes nessa URL. O
+ * pelo endpoint {@code GET /{version}/{mediaId}} e depois baixa os bytes nessa URL. O
  * segundo passo fica protegido pelo disjuntor dedicado de midia, assim a fila de entrada pode
  * retentar sem bloquear o caminho sincrono do webhook.
  */
@@ -108,7 +109,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     }
 
     /**
-     * {@code GET /{username}/{version}/{phone_number_id}/instance} — "Consultar uma instancia" no
+     * {@code GET /{version}/{phone_number_id}/instance} — "Consultar uma instancia" no
      * Swagger oficial, tag "Instancias". Confirmado literalmente no spec, nao suposto.
      */
     @Override
@@ -135,8 +136,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     private AutenticacaoDoCanal consultarInstancia() {
         http.get()
                 .uri(
-                        "/{username}/{version}/{phone_number_id}/instance",
-                        propriedades.usuarioApi(),
+                        "/{version}/{phone_number_id}/instance",
                         propriedades.versaoApi(),
                         propriedades.numeroPrincipal())
                 .header("Authorization", "Bearer " + propriedades.token())
@@ -228,8 +228,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     private ResultadoDeEnvio postarMensagem(ObjectNode corpo) {
         String resposta = http.post()
                 .uri(
-                        "/{username}/{version}/{phone_number_id}/messages",
-                        propriedades.usuarioApi(),
+                        "/{version}/{phone_number_id}/messages",
                         propriedades.versaoApi(),
                         propriedades.numeroPrincipal())
                 .header("Authorization", "Bearer " + propriedades.token())
@@ -328,8 +327,7 @@ class UzapiAutoticAdapter implements CanalGateway {
 
         String resposta = http.post()
                 .uri(
-                        "/{username}/{version}/{phone_number_id}/media",
-                        propriedades.usuarioApi(),
+                        "/{version}/{phone_number_id}/media",
                         propriedades.versaoApi(),
                         propriedades.numeroPrincipal())
                 .header("Authorization", "Bearer " + propriedades.token())
@@ -413,7 +411,6 @@ class UzapiAutoticAdapter implements CanalGateway {
     private boolean credencialIncompleta() {
         return vazio(propriedades.token())
                 || vazio(propriedades.numeroPrincipal())
-                || vazio(propriedades.usuarioApi())
                 || vazio(propriedades.versaoApi());
     }
 
@@ -490,8 +487,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     private MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
         String resposta = http.get()
                 .uri(
-                        "/{username}/{version}/{mediaId}",
-                        propriedades.usuarioApi(),
+                        "/{version}/{mediaId}",
                         propriedades.versaoApi(),
                         midiaIdExterno)
                 .header("Authorization", "Bearer " + propriedades.token())

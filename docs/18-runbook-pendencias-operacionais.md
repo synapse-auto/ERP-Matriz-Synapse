@@ -238,6 +238,45 @@ Procedimento seguro, somente após decisão do arquiteto:
 
 Não execute este procedimento automaticamente: ele traz conversas antigas para a operação.
 
+### 4.8.1 — Incidente de mídia Uzapi/Autotic sem username
+
+O contrato atual da Uzapi/Autotic não usa `username` em nenhuma rota. Antes de promover uma imagem
+que contenha essa correção, confirme no ambiente da instância:
+
+```text
+WHATSAPP_PROVEDOR=uzapi-autotic
+WHATSAPP_URL_BASE=https://api.uzapi.com.br
+WHATSAPP_VERSAO_API=v1
+WHATSAPP_NUMERO=<phone_number_id>
+WHATSAPP_TOKEN=<token>
+```
+
+`WHATSAPP_USUARIO_API` é legado e pode ficar vazio; não é requisito para iniciar o adaptador. O
+deploy da Fêmina precisa publicar a imagem desta correção e recriar o container do backend para que
+o código novo seja carregado. Depois, faça um teste controlado com uma imagem e um documento novos,
+confirmando no CRM que a resolução `GET /v1/{mediaId}` e o download subsequente concluíram. Não
+reprocesse automaticamente as linhas esgotadas: elas podem trazer mensagens antigas para a fila e
+dependem de decisão operacional explícita.
+
+Para medir o passivo sem alterá-lo, execute somente a consulta abaixo com acesso administrativo à
+base da instância e registre o resultado antes de qualquer recuperação:
+
+```sql
+SELECT
+  id_externo,
+  recebido_em,
+  tentativas,
+  esgotado_em,
+  ultimo_erro
+FROM webhook_entrada
+WHERE esgotado_em IS NOT NULL
+  AND ultimo_erro ILIKE '%Username parameter is missing%'
+ORDER BY recebido_em DESC;
+```
+
+Esse número não foi medido neste checkout: não há acesso à base de produção. A ausência de resultado
+local não significa que os eventos não existam na Fêmina.
+
 **4.1 — Token permanente**
 
 O token da tela de "Configuração da API" **expira em 24 horas**. Gere o permanente:
