@@ -1,9 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
 
 let opcoesDoVirtualizador: Record<string, unknown> | null = null;
+const { obterMensagem } = vi.hoisted(() => ({ obterMensagem: vi.fn() }));
+
+vi.mock("@/lib/atendimento/api", () => ({ obterMensagem }));
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: (opcoes: Record<string, unknown>) => {
@@ -41,8 +44,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("./bolha-mensagem", () => ({
-  BolhaMensagem: ({ mensagem }: { mensagem: MensagemResposta }) => (
-    <div data-slot="bolha-mensagem">{mensagem.conteudo}</div>
+  BolhaMensagem: ({ mensagem, onNavegarParaCitacao }: { mensagem: MensagemResposta; onNavegarParaCitacao?: () => void }) => (
+    <div data-slot="bolha-mensagem">
+      {mensagem.conteudo}
+      {mensagem.citacao && <button type="button" onClick={onNavegarParaCitacao}>Ir para mensagem respondida</button>}
+    </div>
   ),
 }));
 
@@ -69,6 +75,44 @@ function mensagem(id: string, conteudo: string): MensagemResposta {
 }
 
 describe("ListaMensagens: área útil do histórico", () => {
+  it("busca e destaca a mensagem citada fora da página sem perder a lista atual", async () => {
+    const origem = mensagem("origem", "imagem original");
+    obterMensagem.mockResolvedValueOnce(origem);
+    render(
+      <ListaMensagens
+        mensagens={[
+          {
+            ...mensagem("resposta", "resposta"),
+            citacao: {
+              origemId: "origem",
+              tipoReferencia: "RESPOSTA",
+              autor: "Ana",
+              tipoConteudo: "IMAGEM",
+              previa: "Foto",
+            },
+          },
+          mensagem("atual", "mensagem atual"),
+        ]}
+        carregando={false}
+        onReenviar={vi.fn()}
+        onDefinirReacao={vi.fn().mockResolvedValue(undefined)}
+        onRemoverReacao={vi.fn().mockResolvedValue(undefined)}
+        temMais={false}
+        carregandoMais={false}
+        onCarregarMais={vi.fn()}
+        buscaAberta={false}
+        canalTipo="WHATSAPP"
+        atendenteId={null}
+        atendenteNome={null}
+        atendimentoId="atendimento-1"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ir para mensagem respondida" }));
+    await waitFor(() => expect(obterMensagem).toHaveBeenCalledWith("atendimento-1", "origem"));
+    expect(screen.getByText("imagem original")).toBeInTheDocument();
+  });
+
   it("reserva espaço no virtualizador antes da primeira e depois da última mensagem", () => {
     render(
       <ListaMensagens

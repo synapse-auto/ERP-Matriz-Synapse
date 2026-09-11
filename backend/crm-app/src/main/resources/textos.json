@@ -454,7 +454,10 @@
         "mensagemRemovida": "Mensagem removida",
         "imagem": "Foto",
         "audio": "Áudio",
-        "documento": "Documento"
+        "documento": "Documento",
+        "video": "Vídeo",
+        "localizacao": "Localização",
+        "irParaOrigem": "Ir para mensagem respondida"
       }
     },
     "encaminhar": {

@@ -49,6 +49,7 @@ import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMidiasDoGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarParticipantesChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
+import com.synapse.crm.equipe.application.chat.MensagemChatInternoNaoEncontradaException;
 import com.synapse.crm.equipe.application.chat.MidiaChatInternoNaoEncontradaException;
 import com.synapse.crm.equipe.application.chat.OperacaoDeGrupoInvalidaException;
 import com.synapse.crm.equipe.application.chat.RemoverParticipanteGrupoChatUseCase;
@@ -207,6 +208,15 @@ public class ChatInternoController {
         return PaginaResposta.de(mensagens.executar(id, antesDe, limite), armazenamento);
     }
 
+    @Operation(summary = "Buscar mensagem citada", description = "Busca uma mensagem específica da conversa interna para navegar até uma resposta. A participação do usuário é validada antes da leitura e mídias usam URL assinada de curta duração.", responses = {
+            @ApiResponse(responseCode = "200", description = "Mensagem autorizada."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa."),
+            @ApiResponse(responseCode = "404", description = "Mensagem inexistente na conversa.")})
+    @GetMapping("/conversas/{id}/mensagens/{mensagemId}")
+    MensagemResposta mensagem(@PathVariable UUID id, @PathVariable UUID mensagemId) {
+        return MensagemResposta.de(mensagens.executarPorId(id, mensagemId), armazenamento);
+    }
+
     @Operation(summary = "Listar mídias compartilhadas", description = "Lista somente metadados das mídias da conversa interna. A URL assinada é emitida sob demanda e respeita a participação na conversa.", responses = {
             @ApiResponse(responseCode = "200", description = "Mídias paginadas."),
             @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
@@ -326,6 +336,11 @@ public class ChatInternoController {
 
     @ExceptionHandler(MidiaChatInternoNaoEncontradaException.class)
     ProblemDetail midiaNaoEncontrada(MidiaChatInternoNaoEncontradaException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(MensagemChatInternoNaoEncontradaException.class)
+    ProblemDetail mensagemNaoEncontrada(MensagemChatInternoNaoEncontradaException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 

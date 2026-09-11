@@ -16,6 +16,7 @@ import {
   listarContatosChat,
   listarConversasChat,
   listarMensagensChat,
+  obterMensagemChat,
   abrirConversaDireta,
   criarGrupoChat,
   enviarMensagemChat,
@@ -238,6 +239,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                     <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p>
                   ) : (
                   <ListaMensagensChatInterno
+                      conversaId={conversaId}
                       mensagens={mensagens.data?.mensagens ?? []}
                       usuarioAtual={usuarioAtual}
                       textos={textos}
@@ -247,6 +249,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                       onEncaminhar={setEncaminharAlvo}
                       onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }}
                       onEditar={setEdicaoAlvo}
+                      onBuscarMensagem={(mensagemId) => obterMensagemChat(conversaId, mensagemId)}
                     />
                   )}
                   <ComposerChatInterno

@@ -126,6 +126,16 @@ export interface CitacaoMensagem {
   origemRemovida?: boolean;
 }
 
+/** Projeção segura da mensagem de origem, usada apenas para miniatura e navegação. */
+export interface OrigemDaCitacao {
+  id: string;
+  tipo?: TipoMensagem | string | null;
+  conteudo?: string | null;
+  midiaUrl?: string | null;
+  midiaMetadados?: string | Record<string, unknown> | null;
+  removida?: boolean;
+}
+
 /** Motivo informado pelo provedor quando a entrega falhou. */
 export interface ErroDeEntrega {
   codigo: number | null;

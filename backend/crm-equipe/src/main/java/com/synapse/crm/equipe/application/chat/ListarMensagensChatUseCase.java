@@ -27,6 +27,18 @@ public class ListarMensagensChatUseCase {
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
+    public ChatInternoRepositorio.MensagemResumo executarPorId(UUID conversaId, UUID mensagemId) {
+        UUID atual = usuario.atual().id();
+        exigirParticipacao(conversaId, atual);
+        ChatInternoRepositorio.MensagemResumo mensagem = repositorio
+                .mensagem(conversaId, mensagemId)
+                .orElseThrow(MensagemChatInternoNaoEncontradaException::new);
+        var resumos = reacoes.resumir(List.of(mensagem.id()), atual);
+        return mensagem.comReacoes(resumos.getOrDefault(mensagem.id(), List.of()));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(readOnly = true)
     public ChatInternoRepositorio.PaginaMensagens executar(UUID conversaId, Instant antesDe, int limite) {
         UUID atual = usuario.atual().id();
         exigirParticipacao(conversaId, atual);

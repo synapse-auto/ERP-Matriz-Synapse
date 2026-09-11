@@ -109,6 +109,13 @@ export function paginaMensagens(
   return apiFetch<PaginaMensagens>(`/api/v1/atendimentos/${atendimentoId}/mensagens${query}`);
 }
 
+/** Leitura pontual para navegar a uma citação antiga sem substituir as páginas já carregadas. */
+export function obterMensagem(atendimentoId: string, mensagemId: string): Promise<MensagemResposta> {
+  return apiFetch<MensagemResposta>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/mensagens/${encodeURIComponent(mensagemId)}`,
+  );
+}
+
 export function mensagensDesde(atendimentoId: string, desde: string): Promise<MensagemResposta[]> {
   return apiFetch<MensagemResposta[]>(
     `/api/v1/atendimentos/${atendimentoId}/mensagens/desde?desde=${encodeURIComponent(desde)}`,

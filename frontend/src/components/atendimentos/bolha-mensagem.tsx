@@ -5,7 +5,7 @@ import { FileText, Maximize2, MapPin } from "lucide-react";
 
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
-import type { MensagemResposta } from "@/lib/atendimento/types";
+import type { MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types";
 
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 
@@ -67,6 +67,9 @@ type Props = {
   onRemoverReacao: () => Promise<void>;
   onResponder?: () => void;
   onEncaminhar?: () => void;
+  origemDaCitacao?: OrigemDaCitacao | null;
+  carregandoOrigemDaCitacao?: boolean;
+  onNavegarParaCitacao?: () => void;
 };
 
 export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
@@ -102,6 +105,9 @@ export function BolhaMensagem({
   onRemoverReacao,
   onResponder,
   onEncaminhar,
+  origemDaCitacao,
+  carregandoOrigemDaCitacao = false,
+  onNavegarParaCitacao,
 }: Props) {
   const catalogo = useTextos().atendimentos;
   const textos = catalogo.media;
@@ -144,7 +150,13 @@ export function BolhaMensagem({
         )}
 
         {mensagem.citacao && (
-          <CitacaoMensagemVisual citacao={mensagem.citacao} textos={catalogo.mensagem.citacao} />
+          <CitacaoMensagemVisual
+            citacao={mensagem.citacao}
+            textos={catalogo.mensagem.citacao}
+            origem={origemDaCitacao}
+            carregandoOrigem={carregandoOrigemDaCitacao}
+            onNavegar={onNavegarParaCitacao}
+          />
         )}
 
         {mensagem.tipo === "IMAGEM" && (

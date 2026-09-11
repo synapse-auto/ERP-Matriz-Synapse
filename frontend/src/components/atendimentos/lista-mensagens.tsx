@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTextos } from "@/lib/config/textos-provider";
-import type { MensagemResposta } from "@/lib/atendimento/types";
+import { obterMensagem } from "@/lib/atendimento/api";
+import { origemDaMensagem } from "@/lib/atendimento/citacao";
+import { cn } from "@/lib/utils";
+import type { CitacaoMensagem, MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types";
 
 import { BolhaMensagem } from "./bolha-mensagem";
 
@@ -27,6 +30,7 @@ type Props = {
   atendenteId: string | null;
   atendenteNome: string | null;
   leadId?: string;
+  atendimentoId?: string;
   janelaTextoLivreAberta?: boolean;
   onResponder?: (mensagem: MensagemResposta) => void;
   onEncaminhar?: (mensagem: MensagemResposta) => void;
@@ -53,23 +57,47 @@ export function ListaMensagens({
   atendenteId,
   atendenteNome,
   leadId,
+  atendimentoId,
   janelaTextoLivreAberta = true,
   onResponder,
   onEncaminhar,
 }: Props) {
   const textos = useTextos();
   const [busca, setBusca] = useState("");
+  const [mensagensExtrasPorConversa, setMensagensExtrasPorConversa] = useState<Record<string, MensagemResposta[]>>({});
+  const [origemCarregandoId, setOrigemCarregandoId] = useState<string | null>(null);
+  const [mensagemDestacadaId, setMensagemDestacadaId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const chaveDaConversa = atendimentoId ?? leadId ?? "sem-conversa";
+  const mensagensExtras = useMemo(
+    () => mensagensExtrasPorConversa[chaveDaConversa] ?? [],
+    [chaveDaConversa, mensagensExtrasPorConversa],
+  );
+
+  const mensagensComExtras = useMemo(() => {
+    const porId = new Map<string, MensagemResposta>();
+    [...mensagens, ...mensagensExtras].forEach((mensagem) => porId.set(mensagem.id, mensagem));
+    return [...porId.values()].sort((a, b) =>
+      a.enviadoEm.localeCompare(b.enviadoEm) || a.id.localeCompare(b.id),
+    );
+  }, [mensagens, mensagensExtras]);
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) {
-      return mensagens;
+      return mensagensComExtras;
     }
-    return mensagens.filter((mensagem) =>
+    return mensagensComExtras.filter((mensagem) =>
       mensagem.conteudo?.toLowerCase().includes(termo),
     );
-  }, [mensagens, busca]);
+  }, [mensagensComExtras, busca]);
+
+  const origensPorId = useMemo(() => {
+    const mapa = new Map<string, OrigemDaCitacao>();
+    mensagensComExtras.forEach((mensagem) => mapa.set(mensagem.id, origemDaMensagem(mensagem)));
+    return mapa;
+  }, [mensagensComExtras]);
 
   const virtualizador = useVirtualizer({
     count: filtradas.length,
@@ -90,6 +118,47 @@ export function ListaMensagens({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao entrar novas mensagens no fim, não a cada resize do virtualizador
   }, [ultimoId]);
+
+  useEffect(() => {
+    if (!mensagemDestacadaId) return;
+    const timer = window.setTimeout(() => {
+      setMensagemDestacadaId(null);
+    }, 1800);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [mensagemDestacadaId]);
+
+  useEffect(() => {
+    if (!mensagemDestacadaId) return;
+    const indice = filtradas.findIndex((mensagem) => mensagem.id === mensagemDestacadaId);
+    if (indice < 0) return;
+    const frame = requestAnimationFrame(() => virtualizador.scrollToIndex(indice, { align: "center" }));
+    return () => cancelAnimationFrame(frame);
+  }, [filtradas, mensagemDestacadaId, virtualizador]);
+
+  async function navegarParaCitacao(citacao: CitacaoMensagem) {
+    if (!citacao.origemId || citacao.origemRemovida) return;
+    if (!origensPorId.has(citacao.origemId)) {
+      if (!atendimentoId) return;
+      setOrigemCarregandoId(citacao.origemId);
+      try {
+        const origem = await obterMensagem(atendimentoId, citacao.origemId);
+        setMensagensExtrasPorConversa((atuais) => ({
+          ...atuais,
+          [chaveDaConversa]: [
+            ...(atuais[chaveDaConversa] ?? []).filter((item) => item.id !== origem.id),
+            origem,
+          ],
+        }));
+      } catch {
+        setOrigemCarregandoId(null);
+        return;
+      }
+      setOrigemCarregandoId(null);
+    }
+    setMensagemDestacadaId(citacao.origemId);
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-slot="lista-mensagens">
@@ -171,6 +240,7 @@ export function ListaMensagens({
                 return (
                   <div
                     key={mensagem.id}
+                    data-mensagem-id={mensagem.id}
                     data-index={item.index}
                     ref={virtualizador.measureElement}
                     style={{
@@ -180,7 +250,10 @@ export function ListaMensagens({
                       width: "100%",
                       transform: `translateY(${item.start}px)`,
                     }}
-                    className="py-1"
+                    className={cn(
+                      "rounded-md py-1 transition-colors",
+                      mensagemDestacadaId === mensagem.id && "bg-primary/10 ring-2 ring-primary/40",
+                    )}
                   >
                     {mostrarData && (
                       <SeparadorDeData enviadoEm={mensagem.enviadoEm} />
@@ -200,6 +273,9 @@ export function ListaMensagens({
                       leadId={leadId}
                       janelaTextoLivreAberta={janelaTextoLivreAberta}
                       nomeDoRemetente={nomeDoRemetente}
+                      origemDaCitacao={mensagem.citacao?.origemId ? origensPorId.get(mensagem.citacao.origemId) : null}
+                      carregandoOrigemDaCitacao={mensagem.citacao?.origemId === origemCarregandoId}
+                      onNavegarParaCitacao={mensagem.citacao ? () => void navegarParaCitacao(mensagem.citacao!) : undefined}
                       onReenviar={
                         mensagem.statusEntrega === "FALHOU"
                           ? () => onReenviar(mensagem)

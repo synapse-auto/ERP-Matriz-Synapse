@@ -121,7 +121,9 @@ Confirmado pela árvore de `origin/main`:
 - **Reações:** reações de mensagens do atendimento e do chat interno, com persistência,
   autorização por participação/visibilidade e publicação em tempo real.
 - **Responder e encaminhar:** citação persistida, `wamid` para `context.message_id` da
-  Meta e encaminhamento como novo envio com referência denormalizada.
+  Meta e encaminhamento como novo envio com referência denormalizada. A origem de uma citação
+  pode ser carregada pontualmente por ID, sempre ancorada no atendimento visível (ou na conversa
+  interna participante); a resposta devolve somente metadados e URL assinada de curta duração.
 - **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
   de vários arquivos/arrastar para o composer.
 - **Áudio gravado no composer para Meta Cloud e Uzapi/Autotic:** antes de persistir, FFmpeg
@@ -236,3 +238,14 @@ auditoria e referências posteriores recebem apenas o estado seguro “mensagem 
 V65 atualiza citações mesmo quando a conversa de origem não está no escopo RLS do autor. Os eventos
 de mensagem, reação e remoção são publicados pelo relay somente `AFTER_COMMIT`; reconexão e
 paginação continuam recarregando o histórico por HTTP.
+
+### E178 — prévia e navegação de mensagens citadas
+
+`CitacaoMensagemVisual` é o componente compartilhado por atendimentos Meta/Uzapi e pelo chat interno.
+Quando a origem está na janela carregada, a imagem usa a URL assinada já presente no histórico; quando
+está fora da página, o frontend chama `GET /api/v1/atendimentos/{atendimentoId}/mensagens/{mensagemId}`
+ou `GET /api/v1/chat-interno/conversas/{conversaId}/mensagens/{mensagemId}`. O backend valida a
+visibilidade/participação antes de consultar e nunca faz busca global. A referência inteira é um
+controle de teclado/mouse que centraliza e destaca a mensagem por tempo curto. Tombstones, falhas de
+autorização e origens ausentes permanecem como “mensagem removida”/indisponível, sem conteúdo, URL ou
+metadados sensíveis.

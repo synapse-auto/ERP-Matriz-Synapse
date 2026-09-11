@@ -11,6 +11,7 @@ import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
 import { PlayerAudio } from "@/components/atendimentos/player-audio";
 import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import type { Textos } from "@/lib/config/schema";
+import type { OrigemDaCitacao } from "@/lib/atendimento/types";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
 import { parseEventoSistema, textoEventoSistema } from "@/lib/chat-interno/mensagem-sistema";
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
@@ -34,6 +35,26 @@ export function tamanhoLegivel(bytes: number): string {
 export function duracaoLegivel(segundos: number): string {
   const minutos = Math.floor(segundos / 60);
   return `${String(minutos).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
+}
+
+function metadadosDaOrigemInterna(valor: unknown): string | Record<string, unknown> | null {
+  if (typeof valor === "string") return valor;
+  if (valor && typeof valor === "object" && !Array.isArray(valor)) {
+    return valor as Record<string, unknown>;
+  }
+  return null;
+}
+
+function origemDaMensagemInterna(mensagem: ChatMensagem | undefined): OrigemDaCitacao | null {
+  if (!mensagem) return null;
+  return {
+    id: mensagem.id,
+    tipo: mensagem.tipo,
+    conteudo: mensagem.conteudo,
+    midiaUrl: mensagem.midiaUrl,
+    midiaMetadados: metadadosDaOrigemInterna(mensagem.midiaMetadados),
+    removida: mensagem.removida,
+  };
 }
 
 export function DialogoEncaminharChatInterno({
@@ -155,6 +176,7 @@ export function CabecalhoChatInterno({
 
 export function ListaMensagensChatInterno({
   mensagens,
+  conversaId,
   usuarioAtual,
   textos,
   onDefinirReacao,
@@ -163,8 +185,10 @@ export function ListaMensagensChatInterno({
   onEncaminhar,
   onExcluir,
   onEditar,
+  onBuscarMensagem,
 }: {
   mensagens: ChatMensagem[];
+  conversaId?: string;
   usuarioAtual: string | null;
   textos: TextosChat;
   onDefinirReacao: (mensagem: ChatMensagem, emoji: string) => Promise<void>;
@@ -173,12 +197,60 @@ export function ListaMensagensChatInterno({
   onEncaminhar?: (mensagem: ChatMensagem) => void;
   onExcluir?: (mensagem: ChatMensagem) => Promise<void>;
   onEditar?: (mensagem: ChatMensagem) => void;
+  onBuscarMensagem?: (mensagemId: string) => Promise<ChatMensagem | null>;
 }) {
   const catalogoAtendimentos = useTextos().atendimentos;
   const textosAtendimentos = catalogoAtendimentos.media;
   const acoes = catalogoAtendimentos.mensagem.acoes;
   const historicoRef = useRef<HTMLDivElement>(null);
   const ultimoId = mensagens.at(-1)?.id;
+  const [mensagensExtrasPorConversa, setMensagensExtrasPorConversa] = useState<Record<string, ChatMensagem[]>>({});
+  const [origemCarregandoId, setOrigemCarregandoId] = useState<string | null>(null);
+  const [mensagemDestacadaId, setMensagemDestacadaId] = useState<string | null>(null);
+
+  const mensagensExtras = conversaId ? (mensagensExtrasPorConversa[conversaId] ?? []) : [];
+
+  const mensagensComExtras = [...mensagens, ...mensagensExtras].filter((mensagem, indice, todas) =>
+    todas.findIndex((item) => item.id === mensagem.id) === indice,
+  ).sort((a, b) => a.enviadoEm.localeCompare(b.enviadoEm) || a.id.localeCompare(b.id));
+  const origensPorId = new Map(mensagensComExtras.map((mensagem) => [mensagem.id, mensagem]));
+
+  useEffect(() => {
+    if (!mensagemDestacadaId) return;
+    const timer = window.setTimeout(() => setMensagemDestacadaId(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [mensagemDestacadaId]);
+
+  useEffect(() => {
+    if (!mensagemDestacadaId || !historicoRef.current) return;
+    const elemento = historicoRef.current.querySelector<HTMLElement>(
+      `[data-mensagem-id="${mensagemDestacadaId}"]`,
+    );
+    if (!elemento) return;
+    elemento.scrollIntoView?.({ block: "center" });
+  }, [mensagemDestacadaId, mensagensComExtras.length]);
+
+  async function navegarParaCitacao(citacao: NonNullable<ChatMensagem["citacao"]>) {
+    if (!citacao.origemId || citacao.origemRemovida) return;
+    if (!origensPorId.has(citacao.origemId) && onBuscarMensagem) {
+      setOrigemCarregandoId(citacao.origemId);
+      const origem = await onBuscarMensagem(citacao.origemId).catch(() => null);
+      setOrigemCarregandoId(null);
+      if (!origem) return;
+      if (conversaId) {
+        setMensagensExtrasPorConversa((atuais) => ({
+          ...atuais,
+          [conversaId]: [
+            ...(atuais[conversaId] ?? []).filter((item) => item.id !== origem.id),
+            origem,
+          ],
+        }));
+      }
+    } else if (!origensPorId.has(citacao.origemId)) {
+      return;
+    }
+    setMensagemDestacadaId(citacao.origemId);
+  }
 
   useEffect(() => {
     if (!ultimoId || !historicoRef.current) return;
@@ -192,8 +264,8 @@ export function ListaMensagensChatInterno({
       className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-muted/20 p-5"
       data-slot="historico-chat-interno"
     >
-      {mensagens.map((mensagem, indice) => {
-        const mostrarData = indice === 0 || diaDaMensagem(mensagem.enviadoEm) !== diaDaMensagem(mensagens[indice - 1].enviadoEm);
+      {mensagensComExtras.map((mensagem, indice) => {
+        const mostrarData = indice === 0 || diaDaMensagem(mensagem.enviadoEm) !== diaDaMensagem(mensagensComExtras[indice - 1].enviadoEm);
         const separador = mostrarData ? (
           <div className="flex justify-center" data-slot="separador-data-chat-interno">
             <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
@@ -242,8 +314,10 @@ export function ListaMensagensChatInterno({
               rotuloEditar={textos.editar}
             >
               <div
+                data-mensagem-id={mensagem.id}
                 className={cn(
                   "w-fit max-w-full rounded-2xl px-3 py-2 text-sm font-normal shadow-sm",
+                  mensagemDestacadaId === mensagem.id && "ring-2 ring-primary/50 transition-shadow",
                   propria
                     ? "rounded-tr-md bg-primary text-primary-foreground"
                     : "rounded-tl-md border border-border bg-background text-foreground",
@@ -252,7 +326,13 @@ export function ListaMensagensChatInterno({
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
 
               {mensagem.citacao && (
-                <CitacaoMensagemVisual citacao={mensagem.citacao} textos={catalogoAtendimentos.mensagem.citacao} />
+                <CitacaoMensagemVisual
+                  citacao={mensagem.citacao}
+                  textos={catalogoAtendimentos.mensagem.citacao}
+                  origem={mensagem.citacao.origemId ? origemDaMensagemInterna(origensPorId.get(mensagem.citacao.origemId)) : null}
+                  carregandoOrigem={mensagem.citacao.origemId === origemCarregandoId}
+                  onNavegar={() => void navegarParaCitacao(mensagem.citacao!)}
+                />
               )}
 
               {mensagem.removida ? (
@@ -545,6 +625,14 @@ export function ComposerChatInterno({
                   previa: resposta.conteudo ?? "",
                 }}
                 textos={textosAtendimentos.mensagem.citacao}
+                origem={{
+                  id: resposta.id,
+                  tipo: resposta.tipo,
+                  conteudo: resposta.conteudo,
+                  midiaUrl: resposta.midiaUrl,
+                  midiaMetadados: metadadosDaOrigemInterna(resposta.midiaMetadados),
+                  removida: resposta.removida,
+                }}
               />
             </div>
             {onCancelarResposta && (

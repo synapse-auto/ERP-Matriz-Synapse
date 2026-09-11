@@ -33,7 +33,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
-import { citacaoDeResposta } from "@/lib/atendimento/citacao";
+import { citacaoDeResposta, origemDaMensagem } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
@@ -571,7 +571,11 @@ export function Composer({
         {citacaoResposta && (
           <div className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
             <div className="min-w-0 flex-1 text-muted-foreground">
-              <CitacaoMensagemVisual citacao={citacaoResposta} textos={textosAtendimentos.mensagem.citacao} />
+              <CitacaoMensagemVisual
+                citacao={citacaoResposta}
+                textos={textosAtendimentos.mensagem.citacao}
+                origem={resposta ? origemDaMensagem(resposta) : undefined}
+              />
             </div>
             <button
               type="button"

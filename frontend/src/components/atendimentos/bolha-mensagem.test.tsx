@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
@@ -51,7 +51,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
           "132001": "Template não existe nesse idioma",
         },
         acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher emoji", seletorFechar: "Fechar", reacaoErro: "erro reação", responder: "Responder", encaminhar: "Encaminhar", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "Custom", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } },
-        citacao: { resposta: "Respondendo a {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar resposta", origemIndisponivel: "Mensagem original indisponível", imagem: "Foto", audio: "Áudio", documento: "Documento" },
+        citacao: { resposta: "Respondendo a {autor}", encaminhamento: "Encaminhada", cancelar: "Cancelar resposta", origemIndisponivel: "Mensagem original indisponível", imagem: "Foto", audio: "Áudio", documento: "Documento", video: "Vídeo", localizacao: "Localização", irParaOrigem: "Ir para mensagem respondida", mensagemRemovida: "Mensagem removida" },
       },
     },
   }),
@@ -306,6 +306,72 @@ describe("BolhaMensagem", () => {
 
     expect(screen.getByText("Respondendo a Mensagem original indisponível")).toBeInTheDocument();
     expect(screen.getByText("Mensagem original indisponível")).toBeInTheDocument();
+  });
+
+  it("mostra a miniatura da imagem citada e navega para a origem", () => {
+    const navegar = vi.fn();
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          conteudo: "Pode verificar esta foto?",
+          citacao: {
+            origemId: "origem-imagem",
+            tipoReferencia: "RESPOSTA",
+            autor: "Maria",
+            tipoConteudo: "IMAGEM",
+            previa: "Foto da medida",
+          },
+        })}
+        origemDaCitacao={{
+          id: "origem-imagem",
+          tipo: "IMAGEM",
+          conteudo: null,
+          midiaUrl: "https://media.example.test/assinada.jpg",
+          midiaMetadados: JSON.stringify({ legenda: "Foto da medida" }),
+        }}
+        onNavegarParaCitacao={navegar}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Foto da medida" })).toHaveAttribute(
+      "src",
+      "https://media.example.test/assinada.jpg",
+    );
+    const referencia = screen.getByRole("button", { name: "Ir para mensagem respondida" });
+    fireEvent.click(referencia);
+    expect(navegar).toHaveBeenCalledOnce();
+  });
+
+  it("não exibe miniatura nem navegação para origem removida", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          citacao: {
+            origemId: "origem-removida",
+            tipoReferencia: "RESPOSTA",
+            autor: "Maria",
+            tipoConteudo: "IMAGEM",
+            previa: "",
+            origemRemovida: true,
+          },
+        })}
+        origemDaCitacao={{
+          id: "origem-removida",
+          tipo: "IMAGEM",
+          midiaUrl: "https://media.example.test/nao-deve-aparecer.jpg",
+          removida: true,
+        }}
+        onNavegarParaCitacao={vi.fn()}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ir para mensagem respondida" })).not.toBeInTheDocument();
+    expect(screen.getByText("Mensagem removida")).toBeInTheDocument();
   });
 
   it("traduz 131026 e não oferece reenviar", () => {
