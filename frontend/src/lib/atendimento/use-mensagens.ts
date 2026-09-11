@@ -105,6 +105,12 @@ export function useMensagens(
                           ...mensagem,
                           id: evento.dados.mensagemId,
                           statusEntrega: evento.dados.statusEntrega,
+                          // Um status posterior do backend reconcilia qualquer marcador local
+                          // transitório; motivo de erro só pertence a FALHOU persistido.
+                          erroEntrega:
+                            evento.dados.statusEntrega === "FALHOU"
+                              ? mensagem.erroEntrega
+                              : null,
                           idempotencyKey:
                             mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
                         }

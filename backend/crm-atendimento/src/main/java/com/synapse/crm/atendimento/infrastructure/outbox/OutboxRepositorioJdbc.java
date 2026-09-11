@@ -91,15 +91,16 @@ class OutboxRepositorioJdbc implements Outbox {
             """;
 
     private static final String SQL_PUBLICADO =
-            "UPDATE outbox_evento SET publicado_em = ?, ultimo_erro = NULL WHERE id = ?";
+            "UPDATE outbox_evento SET publicado_em = ?, ultimo_erro = NULL "
+                    + "WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
     private static final String SQL_REAGENDAR =
             "UPDATE outbox_evento SET tentativas = tentativas + 1, proxima_tentativa_em = ?,"
-                    + " ultimo_erro = ? WHERE id = ?";
+                    + " ultimo_erro = ? WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
     private static final String SQL_ESGOTAR =
             "UPDATE outbox_evento SET tentativas = tentativas + 1, esgotado_em = ?, ultimo_erro = ?"
-                    + " WHERE id = ?";
+                    + " WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
     private static final String SQL_ESGOTADAS =
             "SELECT count(*) FROM outbox_evento WHERE tipo = ? AND esgotado_em IS NOT NULL";
@@ -229,21 +230,21 @@ class OutboxRepositorioJdbc implements Outbox {
     }
 
     @Override
-    public void marcarPublicado(UUID outboxId, Instant quando) {
+    public boolean marcarPublicado(UUID outboxId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarPublicado");
-        chat.update(SQL_PUBLICADO, Timestamp.from(quando), outboxId);
+        return chat.update(SQL_PUBLICADO, Timestamp.from(quando), outboxId) == 1;
     }
 
     @Override
-    public void reagendar(UUID outboxId, Instant proximaTentativa, String erro) {
+    public boolean reagendar(UUID outboxId, Instant proximaTentativa, String erro) {
         TransacaoObrigatoria.exigir("reagendar");
-        chat.update(SQL_REAGENDAR, Timestamp.from(proximaTentativa), truncar(erro), outboxId);
+        return chat.update(SQL_REAGENDAR, Timestamp.from(proximaTentativa), truncar(erro), outboxId) == 1;
     }
 
     @Override
-    public void esgotar(UUID outboxId, Instant quando, String erro) {
+    public boolean esgotar(UUID outboxId, Instant quando, String erro) {
         TransacaoObrigatoria.exigir("esgotar");
-        chat.update(SQL_ESGOTAR, Timestamp.from(quando), truncar(erro), outboxId);
+        return chat.update(SQL_ESGOTAR, Timestamp.from(quando), truncar(erro), outboxId) == 1;
     }
 
     @Override

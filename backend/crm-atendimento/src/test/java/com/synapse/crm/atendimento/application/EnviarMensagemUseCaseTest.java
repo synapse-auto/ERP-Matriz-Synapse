@@ -347,6 +347,76 @@ class EnviarMensagemUseCaseTest {
     }
 
     @Test
+    void replayDepoisDeFinalizarNaoAbreNovoAtendimentoNemRetornaRecusa() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID usuarioId = UUID.randomUUID();
+        UUID mensagemId = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-09-11T12:00:00Z");
+        String chave = "tentativa-finalizada";
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+        IdempotenciaDeMensagemEnvioRepositorio idempotencia = mock(IdempotenciaDeMensagemEnvioRepositorio.class);
+        Atendimento finalizado = new Atendimento(
+                atendimentoId,
+                leadId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                usuarioId,
+                com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.FINALIZADO,
+                agora.minusSeconds(60),
+                agora.minusSeconds(10));
+        Mensagem mensagem = Mensagem.texto(
+                mensagemId, atendimentoId, Remetente.atendente(usuarioId), "oi", agora.minusSeconds(5));
+
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuarioId, PapelUsuario.ATENDENTE, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(idempotencia.existente(chave, usuarioId, leadId))
+                .thenReturn(Optional.of(new IdempotenciaDeMensagemEnvioRepositorio.Reserva(
+                        chave, usuarioId, leadId, atendimentoId, mensagemId, mensagem.enviadoEm(), false, false)));
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(finalizado));
+        when(mensagens.porId(mensagemId, mensagem.enviadoEm())).thenReturn(Optional.of(mensagem));
+
+        EnviarMensagemUseCase useCase = new EnviarMensagemUseCase(
+                atendimentos,
+                mensagens,
+                leads,
+                outbox,
+                canal,
+                contexto,
+                eventos,
+                Clock.fixed(agora, ZoneOffset.UTC),
+                mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class),
+                participacoes,
+                idempotencia);
+
+        EnviarMensagemUseCase.Resultado resultado = useCase.executar(
+                leadId,
+                new com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemLivre("oi"),
+                chave);
+
+        assertThat(resultado.reutilizadoIdempotente()).isTrue();
+        assertThat(resultado.mensagem().id()).isEqualTo(mensagemId);
+        assertThat(resultado.atendimento().status())
+                .isEqualTo(com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.FINALIZADO);
+        verify(leads, never()).bloquearParaAtendimento(leadId);
+        verify(leads, never()).contatoParaEnvio(leadId);
+        verify(atendimentos, never()).abertoDoLead(leadId);
+        verify(atendimentos, never()).salvar(any());
+        verify(mensagens, never()).registrar(any());
+        verify(outbox, never()).enfileirarEnvio(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(eventos, never()).publishEvent(any());
+    }
+
+    @Test
     void respostaSemWamidNaoGravaMensagem() {
         UUID leadId = UUID.randomUUID();
         UUID origemId = UUID.randomUUID();

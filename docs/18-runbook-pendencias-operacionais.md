@@ -336,6 +336,57 @@ esgotada com status HTTP, tipo de mídia e ID técnico. Para recuperar históric
 publique a imagem, meça as linhas com a consulta acima, exporte apenas os `id_externo` aprovados e
 recoloque-as na fila conforme decisão operacional explícita; nunca faça reprocessamento automático.
 
+### 4.8.2 — 400 transitório no envio manual após finalização
+
+Quando a bolha mostra brevemente um 400 e a mensagem chega logo depois, investigue a tentativa por
+`Idempotency-Key`, nunca por texto, horário ou telefone. A primeira chamada pode ter confirmado a
+mensagem/outbox e o navegador pode ter perdido a resposta; um replay da mesma chave deve retornar
+o mesmo `mensagemId`/`atendimentoId`, mesmo que o atendimento tenha sido finalizado entre as duas
+chamadas. O resultado agora é `200` idempotente, sem abrir atendimento ou outbox adicional.
+
+Colete somente identificadores e estados (sem conteúdo, telefone, token, URL assinada ou payload
+cru):
+
+```sql
+SELECT m.id AS mensagem_id, m.atendimento_id, m.status_entrega, m.enviado_em,
+       l.atendente_responsavel_id, a.status
+  FROM mensagem m
+  JOIN atendimento a ON a.id = m.atendimento_id
+  JOIN lead l ON l.id = a.lead_id
+ WHERE m.id = :mensagem_id;
+
+SELECT chave_idempotencia, usuario_id, lead_id, atendimento_id, mensagem_id,
+       mensagem_enviada_em, transferiu_lead
+  FROM mensagem_envio_idempotencia
+ WHERE chave_idempotencia = :chave;
+
+SELECT p.outbox_id, p.atendimento_id, p.mensagem_id, p.publicado_em,
+       p.esgotado_em, p.tentativas, p.ultimo_erro
+  FROM (
+      SELECT id AS outbox_id,
+             payload->>'atendimentoId' AS atendimento_id,
+             payload->>'mensagemId' AS mensagem_id,
+             publicado_em, esgotado_em, tentativas, ultimo_erro
+        FROM outbox_evento
+       WHERE tipo = 'canal.mensagem.enviar'
+  ) p
+ WHERE p.mensagem_id = :mensagem_id;
+
+SELECT atendimento_id, usuario_id, ativo
+  FROM atendimento_participante
+ WHERE atendimento_id = :atendimento_id;
+```
+
+Compare a resposta HTTP observada no browser, o status/responsável/participantes acima e o evento
+WebSocket `MENSAGEM`/`STATUS` pelo `mensagemId`. Um `404`/`409` de visibilidade ou atendimento
+finalizado é falha definitiva de negócio e não deve virar “provedor recusou”; transporte perdido ou
+5xx continua `PENDENTE` durante a reconciliação do E130. Se a outbox já estiver publicada, um
+resultado tardio de outro worker é ignorado pelo compare-and-set e não pode reintroduzir erro na
+bolha. Não reenvie manualmente sem decidir antes se a chave original ainda é recuperável.
+
+Não foi possível medir ocorrência em produção neste checkout: não há acesso ao banco, logs ou
+tráfego da Fêmina. Registre atendimentoId, mensagemId, usuário, HTTP e estados, mas nunca o texto.
+
 **4.1 — Token permanente**
 
 O token da tela de "Configuração da API" **expira em 24 horas**. Gere o permanente:

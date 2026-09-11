@@ -106,18 +106,24 @@ export function useEnviarMidia() {
         }
       }
       if (variaveis.resposta) {
+        // Respostas/citações mantêm o comportamento existente: sem confirmação da API, a
+        // referência otimista é retirada para não deixar um vínculo local que nunca foi aceito.
         atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
           atual.filter((mensagem) => mensagem.id !== contexto.idOtimista),
         );
         return;
       }
+      const erroDefinitivo = erro instanceof ErroDeApi ? {
+        codigo: erro.status,
+        titulo: erro.message,
+      } : null;
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
         atual.map((mensagem) =>
           mensagem.id === contexto.idOtimista
             ? ({
                 ...mensagem,
                 statusEntrega: "FALHOU",
-                erroEntrega: definitiva ? null : { codigo: -1, titulo: null },
+                erroEntrega: erroDefinitivo ?? { codigo: -1, titulo: null },
               } as MensagemResposta)
             : mensagem,
         ),

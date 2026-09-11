@@ -87,11 +87,15 @@ public interface Outbox {
     /** Repasses de webhook cuja proxima tentativa ja chegou. */
     List<RepasseWebhookPendente> reservarRepassesWebhookPendentes(int limite, Instant agora);
 
-    /** Deu certo: marca publicado e sai da fila para sempre. */
-    void marcarPublicado(UUID outboxId, Instant quando);
+    /** Deu certo: marca publicado e sai da fila para sempre.
+     *
+     * @return {@code true} somente quando esta chamada ganhou a transição; {@code false} indica
+     * que outro worker já publicou ou esgotou a mesma linha.
+     */
+    boolean marcarPublicado(UUID outboxId, Instant quando);
 
     /** Falhou, mas ainda ha esperanca: incrementa tentativas e agenda a proxima com backoff. */
-    void reagendar(UUID outboxId, Instant proximaTentativa, String erro);
+    boolean reagendar(UUID outboxId, Instant proximaTentativa, String erro);
 
     /**
      * Desistiu.
@@ -100,7 +104,7 @@ public interface Outbox {
      * erro. Descartar em silencio uma mensagem que o atendente escreveu e a pior falha deste modulo —
      * ninguem descobre, e para o cliente e como se a empresa nunca tivesse respondido.
      */
-    void esgotar(UUID outboxId, Instant quando, String erro);
+    boolean esgotar(UUID outboxId, Instant quando, String erro);
 
     /** Quantas desistiram. Espera-se zero; qualquer valor acima disso e alarme. */
     long quantidadeEsgotada();

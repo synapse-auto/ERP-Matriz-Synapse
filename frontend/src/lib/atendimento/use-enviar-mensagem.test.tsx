@@ -127,6 +127,27 @@ describe("useEnviarMensagem", () => {
     expect(mensagensDoHistorico(queryClient, "at-resposta")).toEqual([]);
   });
 
+  it("marca 4xx definitivo sem atribuir a recusa ao provedor", async () => {
+    vi.mocked(api.enviarMensagem).mockRejectedValue(
+      new ErroDeApi(404, null, "Atendimento não está disponível para este usuário"),
+    );
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-finalizado");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+
+    result.current.mutate({
+      atendimentoId: "at-finalizado",
+      leadId: "lead-finalizado",
+      conteudo: "resposta atrasada",
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(mensagensDoHistorico(queryClient, "at-finalizado")).toMatchObject([{
+      statusEntrega: "FALHOU",
+      erroEntrega: { codigo: 404, titulo: "Atendimento não está disponível para este usuário" },
+    }]);
+  });
+
   it("falha de rede mantém pendente durante a reconciliação e só então exibe FALHOU", async () => {
     vi.mocked(api.enviarMensagem).mockRejectedValue(new Error("falha de rede"));
     const { queryClient, Wrapper } = criarWrapper();
@@ -326,5 +347,52 @@ describe("useEnviarMensagem", () => {
     }));
 
     expect(leitura).toHaveBeenCalledOnce();
+  });
+
+  it("status real reconcilia uma falha local residual e limpa o motivo de erro", async () => {
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-status", [{
+      id: "temp-status",
+      remetenteTipo: "ATENDENTE",
+      remetenteId: "atendente",
+      remetenteNome: "Ana",
+      tipo: "TEXTO",
+      conteudo: "olá",
+      midiaUrl: null,
+      midiaMetadados: null,
+      opcoes: null,
+      statusEntrega: "FALHOU",
+      erroEntrega: { codigo: 400, titulo: "provedor recusou" },
+      enviadoEm: "2026-01-01T00:00:00Z",
+      citacao: null,
+      idempotencyKey: "chave-status",
+    }]);
+    let receber!: (evento: EventoTempoReal) => void;
+    const conexao = {
+      abrirConversa: vi.fn((_id: string, callback: (evento: EventoTempoReal) => void) => {
+        receber = callback;
+      }),
+      fecharConversa: vi.fn(),
+    } as unknown as ConexaoTempoReal;
+
+    renderHook(() => useMensagens("at-status", conexao, "desconectado"), { wrapper: Wrapper });
+    await waitFor(() => expect(receber).toBeDefined());
+    act(() => receber({
+      tipo: "STATUS",
+      dados: {
+        atendimentoId: "at-status",
+        leadId: "lead-status",
+        mensagemId: "msg-real-status",
+        statusEntrega: "ENVIADO",
+        idempotencyKey: "chave-status",
+        ocorridoEm: "2026-01-01T00:00:01Z",
+      },
+    }));
+
+    expect(mensagensDoHistorico(queryClient, "at-status")).toMatchObject([{
+      id: "msg-real-status",
+      statusEntrega: "ENVIADO",
+      erroEntrega: null,
+    }]);
   });
 });

@@ -74,6 +74,9 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     @AfterEach
     void limpar() {
         jdbc.update(
+                "DELETE FROM mensagem_envio_idempotencia WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
+                PREFIXO + "%");
+        jdbc.update(
                 """
                 DELETE FROM mensagem WHERE atendimento_id IN (
                     SELECT a.id FROM atendimento a JOIN lead l ON l.id = a.lead_id
@@ -435,6 +438,45 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("replay da mensagem apos finalizar devolve a mesma resposta sem nova outbox")
+    void enviar_replayDepoisDeFinalizar_retornaMensagemOriginal() {
+        UUID lead = criarLead("lead replay finalizado " + sufixo(), idAna, Instant.now());
+        String chave = "replay-" + sufixo();
+
+        ResponseEntity<String> primeiro = enviarComoComChave(
+                EMAIL_ANA, SENHA_ATENDENTE, lead, "resposta aceita", chave);
+        assertThat(primeiro.getStatusCode()).isEqualTo(HttpStatus.OK);
+        UUID atendimentoId = extrairUuid(primeiro.getBody(), "atendimentoId");
+        UUID mensagemId = extrairUuid(primeiro.getBody(), "mensagemId");
+
+        ResponseEntity<String> finalizacao = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/finalizar",
+                null);
+        assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> replay = enviarComoComChave(
+                EMAIL_ANA, SENHA_ATENDENTE, lead, "resposta aceita", chave);
+
+        assertThat(replay.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(replay.getBody()).contains(mensagemId.toString(), atendimentoId.toString());
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isOne();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM atendimento WHERE lead_id = ?", Long.class, lead))
+                .isOne();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isOne();
+    }
+
+    @Test
     @DisplayName("finalizar em lote respeita a visibilidade do atendente")
     void finalizarEmLote_finalizaSomenteAtendimentosVisiveis() {
         UUID leadDaAna = criarLead("lead lote ana " + sufixo(), idAna, Instant.now());
@@ -641,12 +683,22 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     private ResponseEntity<String> enviarComo(String email, String senha, UUID leadId, String conteudo) {
+        return enviarComoComChave(email, senha, leadId, conteudo, null);
+    }
+
+    private ResponseEntity<String> enviarComoComChave(
+            String email, String senha, UUID leadId, String conteudo, String chave) {
+        HttpHeaders extras = new HttpHeaders();
+        if (chave != null) {
+            extras.set("Idempotency-Key", chave);
+        }
         return chamar(
                 email,
                 senha,
                 HttpMethod.POST,
                 "/api/v1/atendimentos/mensagens",
-                Map.of("leadId", leadId.toString(), "conteudo", conteudo));
+                Map.of("leadId", leadId.toString(), "conteudo", conteudo),
+                extras);
     }
 
     private ResponseEntity<String> enviarTemplateComo(String email, String senha, UUID leadId) {
@@ -702,10 +754,21 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
 
     private ResponseEntity<String> chamar(
             String email, String senha, HttpMethod metodo, String url, Object corpo) {
+        return chamar(email, senha, metodo, url, corpo, new HttpHeaders());
+    }
+
+    private ResponseEntity<String> chamar(
+            String email,
+            String senha,
+            HttpMethod metodo,
+            String url,
+            Object corpo,
+            HttpHeaders extras) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        cabecalhos.putAll(extras);
         return http.exchange(url, metodo, new HttpEntity<>(corpo, cabecalhos), String.class);
     }
 
