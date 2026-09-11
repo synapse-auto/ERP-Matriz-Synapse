@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   CalendarClock,
+  Check,
   ChevronDown,
   ChevronUp,
   Hash,
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEtapas, useLead, useMidiasDoLead, useSalvarFicha } from "@/lib/lead/use-painel-lead";
 import {
@@ -462,9 +464,7 @@ function SecaoDeProgramadas({
     },
     onSettled: () => cache.invalidateQueries({ queryKey: chave }),
   });
-  const itens = (programadas.data?.mensagens ?? []).filter(
-    (item) => item.status === "AGENDADA",
-  );
+  const itens = programadas.data?.mensagens ?? [];
   return (
     <SecaoColapsavel
       icone={<CalendarClock className="size-(--tamanho-icone-interface) text-primary" />}
@@ -487,43 +487,16 @@ function SecaoDeProgramadas({
         ) : (
           <div className="space-y-1.5">
             {itens.map((item) => (
-              <div
+              <MensagemProgramadaDoPainel
                 key={item.id}
-                data-slot="mensagem-programada"
-                className="rounded-lg border-2 border-primary bg-primary/10 p-2.5 shadow-sm"
-              >
-                <p className="text-xs font-medium text-foreground">{item.conteudo}</p>
-                <p className="mt-1 text-[0.7rem] text-muted-foreground">
-                  {new Intl.DateTimeFormat("pt-BR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  }).format(new Date(item.dataEnvio))}
-                </p>
-                <div className="mt-2 flex justify-end gap-1">
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`${textos.atendimentos.painel.editar} ${item.conteudo}`}
-                    onClick={() => setFormulario(item)}
-                  >
-                    <Pencil className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
-                    aria-label={`${textos.atendimentos.painel.remover} ${item.conteudo}`}
-                    onClick={() => {
-                      setErro(false);
-                      setItemParaRemover(item);
-                    }}
-                  >
-                    <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-                  </Button>
-                </div>
-              </div>
+                item={item}
+                textos={textos}
+                onEditar={() => setFormulario(item)}
+                onRemover={() => {
+                  setErro(false);
+                  setItemParaRemover(item);
+                }}
+              />
             ))}
           </div>
         )}
@@ -548,6 +521,88 @@ function SecaoDeProgramadas({
         onConfirmar={() => itemParaRemover && remover.mutate(itemParaRemover.id)}
       />
     </SecaoColapsavel>
+  );
+}
+
+function MensagemProgramadaDoPainel({
+  item,
+  textos,
+  onEditar,
+  onRemover,
+}: {
+  item: MensagemProgramada;
+  textos: ReturnType<typeof useTextos>;
+  onEditar: () => void;
+  onRemover: () => void;
+}) {
+  const enviada = item.status === "ENVIADA";
+  const cancelada = item.status === "CANCELADA";
+  const classeDoCartao = enviada
+    ? "rounded-lg border-2 border-cor-sucesso bg-cor-sucesso/10 p-2.5 shadow-sm"
+    : cancelada
+      ? "rounded-lg border border-border bg-muted/30 p-2.5"
+      : "rounded-lg border-2 border-primary bg-primary/10 p-2.5 shadow-sm";
+
+  return (
+    <div
+      data-slot="mensagem-programada"
+      data-status={item.status}
+      className={classeDoCartao}
+    >
+      <div className="flex items-start gap-2">
+        {enviada && (
+          <span
+            data-slot="indicador-concluido"
+            className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-cor-sucesso bg-cor-sucesso"
+            aria-hidden
+          >
+            <Check className="size-3 text-white" />
+          </span>
+        )}
+        <p
+          className={`text-xs font-medium ${enviada ? "text-muted-foreground line-through" : cancelada ? "text-muted-foreground" : "text-foreground"}`}
+        >
+          {item.conteudo}
+        </p>
+      </div>
+      <p className="mt-1 text-[0.7rem] text-muted-foreground">
+        {new Intl.DateTimeFormat("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }).format(new Date(item.dataEnvio))}
+      </p>
+      {item.status === "AGENDADA" ? (
+        <div className="mt-2 flex justify-end gap-1">
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`${textos.atendimentos.painel.editar} ${item.conteudo}`}
+            onClick={onEditar}
+          >
+            <Pencil className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive"
+            aria-label={`${textos.atendimentos.painel.remover} ${item.conteudo}`}
+            onClick={onRemover}
+          >
+            <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-2">
+          <PillDeStatus tom={enviada ? "sucesso" : "neutro"}>
+            {enviada
+              ? textos.mensagensProgramadas.status.enviada
+              : textos.mensagensProgramadas.status.cancelada}
+          </PillDeStatus>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -616,15 +671,41 @@ function SecaoDeLembretes({
             {itens.map((item) => (
               <div
                 key={item.id}
-                className="rounded-lg border border-border bg-muted/30 p-2.5"
+                data-slot="lembrete"
+                data-status={item.status}
+                className={
+                  item.status === "CONCLUIDO"
+                    ? "rounded-lg border-2 border-cor-sucesso bg-cor-sucesso/10 p-2.5 shadow-sm"
+                    : "rounded-lg border border-border bg-muted/30 p-2.5"
+                }
               >
-                <p className="text-xs font-medium text-foreground">{item.texto}</p>
+                <div className="flex items-start gap-2">
+                  {item.status === "CONCLUIDO" && (
+                    <span
+                      data-slot="indicador-concluido"
+                      className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-cor-sucesso bg-cor-sucesso"
+                      aria-hidden
+                    >
+                      <Check className="size-3 text-white" />
+                    </span>
+                  )}
+                  <p
+                    className={`text-xs font-medium ${item.status === "CONCLUIDO" ? "text-muted-foreground line-through" : "text-foreground"}`}
+                  >
+                    {item.texto}
+                  </p>
+                </div>
                 <p className="mt-1 text-[0.7rem] text-muted-foreground">
                   {new Intl.DateTimeFormat("pt-BR", {
                     dateStyle: "short",
                     timeStyle: "short",
                   }).format(new Date(item.dataHora))}
                 </p>
+                {item.status === "CONCLUIDO" && (
+                  <div className="mt-2">
+                    <PillDeStatus tom="sucesso">{textos.lembretes.status.concluido}</PillDeStatus>
+                  </div>
+                )}
                 <div className="mt-2 flex justify-end gap-1">
                   <Button
                     type="button"

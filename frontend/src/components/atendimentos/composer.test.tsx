@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const mutateMidia = vi.fn();
 const mutateTexto = vi.fn();
@@ -249,9 +250,11 @@ function renderizar(resposta?: MensagemResposta) {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={cliente}>
-      <Composer conversa={conversa} resposta={resposta ?? null} onCancelarResposta={onCancelarResposta} />
-    </QueryClientProvider>,
+    <TooltipProvider>
+      <QueryClientProvider client={cliente}>
+        <Composer conversa={conversa} resposta={resposta ?? null} onCancelarResposta={onCancelarResposta} />
+      </QueryClientProvider>
+    </TooltipProvider>,
   );
 }
 
@@ -333,13 +336,50 @@ describe("Composer — anexo", () => {
     expect(screen.getByText("foto.png")).toBeInTheDocument();
   });
 
-  it("abre o menu do clipe para cima com Arquivos e Templates", async () => {
+  it("abre o menu do clipe para cima com a grade de acoes acessiveis", async () => {
     renderizar();
     fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
 
     expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Mensagens rápidas" })).toBeInTheDocument();
+    expect(screen.queryByText("Arquivos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Templates")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mensagens rápidas")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Enviar template" })).not.toBeInTheDocument();
+  });
+
+  it("mantem foco acessivel e permite navegar pelas acoes do menu com as setas", async () => {
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+
+    const arquivos = await screen.findByRole("menuitem", { name: "Arquivos" });
+    const templates = screen.getByRole("menuitem", { name: "Templates" });
+    const rapidas = screen.getByRole("menuitem", { name: "Mensagens rápidas" });
+
+    expect(arquivos).toHaveAttribute("aria-label", "Arquivos");
+    expect(templates).toHaveAttribute("aria-label", "Templates");
+    expect(rapidas).toHaveAttribute("aria-label", "Mensagens rápidas");
+
+    arquivos.focus();
+    fireEvent.keyDown(arquivos, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(templates);
+    fireEvent.keyDown(templates, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(rapidas);
+  });
+
+  it("fecha ao clicar fora sem perder o rascunho", async () => {
+    renderizar();
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "rascunho preservado" } });
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    fireEvent.click(document.body);
+
+    await waitFor(() => expect(screen.queryByRole("menuitem", { name: "Arquivos" })).not.toBeInTheDocument());
+    expect(campo).toHaveValue("rascunho preservado");
   });
 
   it("oculta templates do menu quando o provedor não gerencia templates", async () => {
@@ -364,6 +404,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Arquivos" }));
 
     await waitFor(() => expect(abrir).toHaveBeenCalled());
+    expect(screen.queryByRole("menuitem", { name: "Arquivos" })).not.toBeInTheDocument();
   });
 
   it("Templates no menu abre o catálogo aprovado e envia sem texto livre", async () => {
@@ -372,6 +413,7 @@ describe("Composer — anexo", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Templates" }));
 
     expect(await screen.findByRole("heading", { name: "Enviar template" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Templates" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText("boas_vindas"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar este template" }));
 
@@ -673,8 +715,9 @@ describe("Composer — anexo", () => {
   it("abre respostas rápidas reais e preenche o textarea sem enviar", async () => {
     renderizar();
 
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
     fireEvent.click(
-      await screen.findByRole("button", { name: "Mensagens rápidas" }),
+      await screen.findByRole("menuitem", { name: "Mensagens rápidas" }),
     );
     fireEvent.click(await screen.findByText("Olá! Como posso ajudar?"));
 
@@ -682,6 +725,7 @@ describe("Composer — anexo", () => {
       "Olá! Como posso ajudar?",
     );
     expect(mutateTexto).not.toHaveBeenCalled();
+    expect(screen.queryByRole("listbox", { name: "Mensagens rápidas" })).not.toBeInTheDocument();
   });
 
   it("mostra na tela quando o envio de texto falha", () => {
@@ -693,7 +737,7 @@ describe("Composer — anexo", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Falha ao enviar");
   });
 
-  it("mostra a citação da resposta, envia o vínculo e cancela com Escape sem perder o rascunho", () => {
+  it("mostra a citação da resposta, envia o vínculo e cancela com Escape sem perder o rascunho", async () => {
     const origem: MensagemResposta = {
       id: "msg-origem",
       remetenteTipo: "LEAD",
@@ -712,6 +756,14 @@ describe("Composer — anexo", () => {
     const campo = screen.getByPlaceholderText("Digite uma mensagem...");
     fireEvent.change(campo, { target: { value: "já estou vendo" } });
 
+    expect(screen.getByText("Respondendo a Maria")).toBeInTheDocument();
+    expect(screen.getByText("preciso de orçamento")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    await waitFor(() => expect(screen.queryByRole("menuitem", { name: "Arquivos" })).not.toBeInTheDocument());
+    expect(campo).toHaveValue("já estou vendo");
     expect(screen.getByText("Respondendo a Maria")).toBeInTheDocument();
     expect(screen.getByText("preciso de orçamento")).toBeInTheDocument();
 

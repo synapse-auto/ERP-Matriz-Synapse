@@ -34,6 +34,7 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 
 - [`13-estado-do-projeto.md`](./13-estado-do-projeto.md) — **leia primeiro se estiver retomando o projeto.** Onde estamos, o que falta, decisões que não se revertem, as nove proteções silenciosas e as dívidas com prazo.
 - [`14-pendencias-de-funcionalidade.md`](./14-pendencias-de-funcionalidade.md) — funcionalidades que ainda não existem.
+- [`24-menu-de-acoes-do-composer.md`](./24-menu-de-acoes-do-composer.md) — comportamento e limites do menu único de ações do composer.
 - [`15-operacao-watchdog-externo.md`](./15-operacao-watchdog-externo.md) — provisionamento e teste destrutivo do monitor externo de `/health/critical`.
 
 ### Execução com Claude Code

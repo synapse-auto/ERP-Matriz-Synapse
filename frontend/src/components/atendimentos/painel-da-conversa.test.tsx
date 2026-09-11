@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -85,6 +85,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         origemMidia: "Origem",
       },
     },
+    lembretes: {
+      status: { pendente: "Pendente", concluido: "Concluído" },
+    },
+    mensagensProgramadas: {
+      status: { agendada: "Agendada", enviada: "Enviada", cancelada: "Cancelada" },
+    },
     painelLead: {
       dados: {
         nome: "Nome",
@@ -150,6 +156,8 @@ import { PainelDaConversa } from "./painel-da-conversa";
 describe("painel da conversa", () => {
   beforeEach(() => {
     salvarFichaState.mutate.mockClear();
+    suporteState.mensagens = [];
+    suporteState.lembretes = [];
     leadState.data = {
       id: "lead-1",
       nome: "Marcos Vinícius",
@@ -238,6 +246,116 @@ describe("painel da conversa", () => {
     expect(screen.queryByText("Localização")).not.toBeInTheDocument();
     expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Código")).toBeInTheDocument();
+  });
+
+  it("destaca lembretes concluidos e preserva o visual dos pendentes", () => {
+    suporteState.lembretes = [
+      {
+        id: "lembrete-pendente",
+        leadId: "lead-1",
+        leadNome: "Marcos",
+        atendenteId: "atendente-1",
+        atendenteNome: "Jardel Lima",
+        texto: "Ligar",
+        dataHora: "2030-01-01T12:00:00Z",
+        origemAutomatica: false,
+        status: "PENDENTE",
+      },
+      {
+        id: "lembrete-concluido",
+        leadId: "lead-1",
+        leadNome: "Marcos",
+        atendenteId: "atendente-1",
+        atendenteNome: "Jardel Lima",
+        texto: "Enviar contrato",
+        dataHora: "2030-01-02T12:00:00Z",
+        origemAutomatica: false,
+        status: "CONCLUIDO",
+      },
+    ];
+
+    renderizarPainel("lead-1", "Jardel Lima");
+    fireEvent.click(screen.getByRole("button", { name: /Lembretes/ }));
+
+    const pendente = screen.getByText("Ligar").closest('[data-slot="lembrete"]');
+    const concluido = screen.getByText("Enviar contrato").closest('[data-slot="lembrete"]');
+    expect(pendente).not.toBeNull();
+    expect(concluido).not.toBeNull();
+    expect(pendente).toHaveClass("border-border", "bg-muted/30");
+    expect(screen.getByText("Ligar")).toHaveClass("text-foreground");
+    expect(screen.getByText("Ligar")).not.toHaveClass("line-through");
+    expect(concluido).toHaveClass("border-2", "border-cor-sucesso", "bg-cor-sucesso/10");
+    expect(screen.getByText("Enviar contrato")).toHaveClass(
+      "text-muted-foreground",
+      "line-through",
+    );
+    expect(within(concluido as HTMLElement).getByText(/Conclu/)).toBeInTheDocument();
+    expect(
+      (concluido as HTMLElement).querySelector('[data-slot="indicador-concluido"]'),
+    ).not.toBeNull();
+  });
+
+  it("mostra mensagens enviadas como concluidas e canceladas sem acoes", () => {
+    suporteState.mensagens = [
+      {
+        id: "mensagem-agendada",
+        leadId: "lead-1",
+        leadNome: "Marcos",
+        atendenteId: "atendente-1",
+        atendenteNome: "Jardel Lima",
+        conteudo: "Mensagem agendada",
+        dataEnvio: "2030-01-01T12:00:00Z",
+        status: "AGENDADA",
+      },
+      {
+        id: "mensagem-enviada",
+        leadId: "lead-1",
+        leadNome: "Marcos",
+        atendenteId: "atendente-1",
+        atendenteNome: "Jardel Lima",
+        conteudo: "Mensagem enviada",
+        dataEnvio: "2030-01-02T12:00:00Z",
+        status: "ENVIADA",
+      },
+      {
+        id: "mensagem-cancelada",
+        leadId: "lead-1",
+        leadNome: "Marcos",
+        atendenteId: "atendente-1",
+        atendenteNome: "Jardel Lima",
+        conteudo: "Mensagem cancelada",
+        dataEnvio: "2030-01-03T12:00:00Z",
+        status: "CANCELADA",
+      },
+    ];
+
+    renderizarPainel("lead-1", "Jardel Lima");
+    const secao = screen.getByRole("button", { name: /Mensagens programadas/ });
+    fireEvent.click(secao);
+
+    expect(secao).toHaveTextContent("3");
+    expect(document.querySelectorAll('[data-slot="mensagem-programada"]')).toHaveLength(3);
+
+    const agendada = screen.getByText("Mensagem agendada").closest('[data-slot="mensagem-programada"]');
+    const enviada = screen.getByText("Mensagem enviada").closest('[data-slot="mensagem-programada"]');
+    const cancelada = screen.getByText("Mensagem cancelada").closest('[data-slot="mensagem-programada"]');
+    expect(agendada).toHaveClass("border-2", "border-primary", "bg-primary/10", "shadow-sm");
+    expect(
+      within(agendada as HTMLElement).getByRole("button", { name: "Editar Mensagem agendada" }),
+    ).toBeInTheDocument();
+    expect(enviada).toHaveClass("border-2", "border-cor-sucesso", "bg-cor-sucesso/10", "shadow-sm");
+    expect(screen.getByText("Mensagem enviada")).toHaveClass(
+      "text-muted-foreground",
+      "line-through",
+    );
+    expect(within(enviada as HTMLElement).getByText("Enviada")).toBeInTheDocument();
+    expect(
+      (enviada as HTMLElement).querySelector('[data-slot="indicador-concluido"]'),
+    ).not.toBeNull();
+    expect(within(enviada as HTMLElement).queryByRole("button")).not.toBeInTheDocument();
+    expect(cancelada).toHaveClass("border-border", "bg-muted/30");
+    expect(within(cancelada as HTMLElement).getByText("Cancelada")).toBeInTheDocument();
+    expect(within(cancelada as HTMLElement).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("grava o nome ao sair do campo", () => {
