@@ -85,4 +85,24 @@ class RelayDeChatInternoTest {
                 "oi", Instant.parse("2026-08-28T15:00:00Z")));
         verify(redis).convertAndSend(org.mockito.ArgumentMatchers.eq("synapse:chat-interno:" + conversa), anyString());
     }
+
+    @Test
+    void remocao_soDepoisDoCommit_e_sem_conteudo() throws Exception {
+        var metodo = RelayDeChatInterno.class.getDeclaredMethod(
+                "publicarRemocao", EventoDeChatInterno.MensagemRemovida.class);
+        assertThat(metodo.getAnnotation(TransactionalEventListener.class).phase())
+                .isEqualTo(TransactionPhase.AFTER_COMMIT);
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        var relay = new RelayDeChatInterno(redis, new ObjectMapper().findAndRegisterModules());
+        UUID conversa = UUID.randomUUID();
+        UUID mensagem = UUID.randomUUID();
+        relay.publicarRemocao(new EventoDeChatInterno.MensagemRemovida(
+                conversa, mensagem, List.of(UUID.randomUUID())));
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(redis).convertAndSend(anyString(), payload.capture());
+        JsonNode envelope = new ObjectMapper().readTree(payload.getValue());
+        assertThat(envelope.path("tipo").asText()).isEqualTo("CHAT_INTERNO_MENSAGEM_REMOVIDA");
+        assertThat(envelope.path("mensagemId").asText()).isEqualTo(mensagem.toString());
+        assertThat(envelope.toString()).doesNotContain("conteudo");
+    }
 }

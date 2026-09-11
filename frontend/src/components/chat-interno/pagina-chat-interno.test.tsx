@@ -58,6 +58,9 @@ vi.mock("@/lib/chat-interno/api", () => ({
   marcarChatComoLido: vi.fn(),
   definirReacaoChat: vi.fn(),
   removerReacaoChat: vi.fn(),
+  responderMensagemChat: vi.fn(),
+  encaminharMensagemChat: vi.fn(),
+  excluirMensagemChat: vi.fn(),
 }));
 
 vi.mock("@/lib/atendimento/reacoes-cache", () => ({
@@ -88,6 +91,7 @@ vi.mock("./componentes-chat-interno", () => ({
   ),
   ComposerChatInterno: () => null,
   ListaMensagensChatInterno: () => null,
+  DialogoEncaminharChatInterno: () => null,
 }));
 
 vi.mock("./dialogo-selecionar-pessoa", () => ({ DialogoSelecionarPessoa: () => null }));

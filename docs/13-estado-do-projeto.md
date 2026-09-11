@@ -133,7 +133,7 @@ Confirmado pela árvore de `origin/main`:
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V47**, última `V47__lead_codigo.sql`.
+- Migrations presentes: **V1 a V47 e V65**, última `V65__acoes_mensagens_chat_interno.sql`.
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.
@@ -188,3 +188,28 @@ não como painel vivo.
 3. Validar operação real: imagem/digest, WABA/Phone Number ID, RLS, backup, watchdog,
    domínios e rotação de credenciais.
 4. Só então transformar a próxima pendência confirmada em prompt isolado.
+
+## 8. E176 — paridade de ações do chat interno
+
+O chat interno reutiliza `InteracaoMensagem`, `CitacaoMensagemVisual`, o composer de anexos e o
+mesmo catálogo de ações do chat de atendimentos. A autorização continua sendo por participação na
+conversa, inclusive para gestores; nenhuma ação consulta ou publica dados de um lead externo.
+
+| Ação no chat de atendimento | Aplicável ao chat interno | Implementação/paridade | Motivo quando não aplicável |
+|---|---|---|---|
+| Reações | ✅ | `InteracaoMensagem`, `PUT/DELETE /chat-interno/.../reacao`, evento `CHAT_INTERNO_REACAO` | — |
+| Copiar texto | ✅ | `InteracaoMensagem`/`copiarTexto` | — |
+| Responder/citar | ✅ | `ResponderMensagemChatUseCase`, `.../{mensagemId}/responder`, `CitacaoMensagemVisual` | — |
+| Encaminhar | ✅ | `EncaminharMensagemChatUseCase`, destino limitado a conversa interna participante | — |
+| Excluir | ✅ | `ExcluirMensagemChatUseCase`, tombstone e evento `CHAT_INTERNO_MENSAGEM_REMOVIDA` | — |
+| Mídia, áudio e documento | ✅ | `ComposerChatInterno`, `ZonaSoltarArquivos`, URL assinada autorizada | — |
+| Colar imagem/anexo | ✅ | `ComposerChatInterno` usa o mesmo `onPaste`/validação do caminho de anexos | — |
+| Status de entrega / retry de provedor | ⚠️ | Não há provedor nem outbox de canal no chat interno; erros HTTP permanecem no composer | Não existe entrega externa para confirmar ou repetir. |
+| Template WhatsApp | ❌ | Não exposto | Template é contrato exclusivo do canal WhatsApp, sem semântica interna. |
+| Finalizar/transferir atendimento | ❌ | Não exposto | Conversa interna não possui lead, responsável ou ciclo de atendimento. |
+
+Exclusões são lógicas: conteúdo e referência de mídia ficam nulos, o registro permanece para
+auditoria e referências posteriores recebem apenas o estado seguro “mensagem removida”. O trigger da
+V65 atualiza citações mesmo quando a conversa de origem não está no escopo RLS do autor. Os eventos
+de mensagem, reação e remoção são publicados pelo relay somente `AFTER_COMMIT`; reconexão e
+paginação continuam recarregando o histórico por HTTP.
