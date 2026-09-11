@@ -28,6 +28,7 @@ export function NotificacoesTempoReal() {
   const pathname = usePathname();
   const router = useRouter();
   const usuarioId = useAuthStoreId();
+  const accessToken = useAuthStore((estado) => estado.accessToken);
   const { somHabilitado } = usePreferenciaSomDeNotificacao();
   const [avisos, setAvisos] = useState<NotificacaoTempoReal[]>([]);
   const servico = useRef(new ServicoDeNotificacoesTempoReal());
@@ -56,7 +57,7 @@ export function NotificacoesTempoReal() {
     }
   }, [cache, pathname, somHabilitado, usuarioId]);
 
-  useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, aoReceber);
+  useConexaoTempoReal(() => accessToken, undefined, aoReceber);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
   useEffect(() => {

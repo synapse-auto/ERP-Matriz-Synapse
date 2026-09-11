@@ -10,7 +10,6 @@ import type {
   NotificacaoTempoReal,
   RevogacaoTempoReal,
 } from "./types";
-import { useAuthStore } from "@/lib/auth/auth-store";
 
 export type EstadoConexao = "conectando" | "conectado" | "reconectando" | "desconectado";
 
@@ -128,11 +127,18 @@ export class ConexaoTempoReal {
   private tentativas = 0;
   private timerReconexao: ReturnType<typeof setTimeout> | null = null;
   private desativadoManualmente = false;
+  private leitorDeAccessToken: () => string | null;
   private readonly ouvintesDeNotificacao = new Set<OuvinteDeNotificacao>();
   private readonly ouvintesDeRevogacao = new Set<(atendimentoId: string) => void>();
   private readonly ouvintesDeEstado = new Set<(estado: EstadoConexao) => void>();
 
-  constructor(private readonly opcoes: OpcoesConexaoTempoReal) {}
+  constructor(private readonly opcoes: OpcoesConexaoTempoReal) {
+    this.leitorDeAccessToken = opcoes.obterAccessToken;
+  }
+
+  atualizarLeitorDeAccessToken(leitor: () => string | null): void {
+    this.leitorDeAccessToken = leitor;
+  }
 
   adicionarOuvinteDeNotificacao(ouvinte: OuvinteDeNotificacao): () => void {
     this.ouvintesDeNotificacao.add(ouvinte);
@@ -195,7 +201,7 @@ export class ConexaoTempoReal {
   }
 
   private abrirClienteEConectar(): void {
-    const accessToken = this.opcoes.obterAccessToken();
+    const accessToken = this.leitorDeAccessToken();
     if (!accessToken) {
       this.cliente = null;
       this.emitirEstado("desconectado");
@@ -281,7 +287,11 @@ export function useConexaoTempoReal(
 ): { conexao: ConexaoTempoReal; estado: EstadoConexao } {
   const [estado, setEstado] = useState<EstadoConexao>("desconectado");
   const [conexao] = useState(() => obterConexaoTempoRealCompartilhada(obterAccessToken));
-  const accessTokenAtual = useAuthStore((sessao) => sessao.accessToken);
+  const accessTokenAtual = obterAccessToken();
+
+  useEffect(() => {
+    conexao.atualizarLeitorDeAccessToken(obterAccessToken);
+  }, [conexao, obterAccessToken]);
 
   useEffect(() => {
     const removerOuvinte = conexao.adicionarOuvinteDeEstado(setEstado);
