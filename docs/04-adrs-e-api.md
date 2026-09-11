@@ -249,8 +249,9 @@ mensagem de WhatsApp.
 `GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Mensagens editadas incluem
 `editadoEm`; o texto original não é exposto no contrato. Referências mantêm apenas
 autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, recebem o marcador seguro
-“mensagem removida”. A migration V65 adiciona os campos e um trigger que atualiza referências entre
-conversas. A URL assinada de mídia recusa mensagens removidas.
+“mensagem removida”. A migration V65 adiciona o tombstone e o trigger de remoção das referências;
+V66 adiciona `editadoEm` e atualiza a prévia quando o texto de origem é editado. A URL assinada de
+mídia recusa mensagens removidas.
 
 ## Parte E — Contrato CRM ↔ Automação
 
