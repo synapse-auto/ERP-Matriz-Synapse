@@ -62,7 +62,7 @@ A fila pessoal passou a receber novas mensagens externas para o dono/participant
 atendimento e mensagens do chat interno para seus destinatários. O frontend mantém uma conexão
 STOMP compartilhada, decide deduplicação/autoria/conversa ativa em um serviço comum e exibe aviso
 visual com som opcional. O contrato detalhado está em [`24-notificacoes-tempo-real.md`](./24-notificacoes-tempo-real.md);
-esta entrega ainda aguarda o PR e o número da execução de CI antes de ser considerada promovida.
+esta entrega está no PR #135, com CI verde no run `34553824975`; permanece aguardando revisão e merge para ser considerada promovida.
 
 ### Etapas reconstruídas
 
@@ -98,7 +98,7 @@ esta entrega ainda aguarda o PR e o número da execução de CI antes de ser con
 | E124 | pausa do gatilho de avaliação no caminho do atendente | PR #58: `0eeed43` |
 | E126 | religação do gatilho no contrato EV-08, payload de 8 campos e toggle V55 | branch `feat/avaliacao-ev08` |
 | E133 | sonda de saúde isolada do tráfego de mídia/envio; disjuntor aberto não gasta tentativa da fila | branch `fix/sonda-de-saude-derruba-midia` |
-| Notificações em tempo real | nova mensagem externa, chat interno, transferências, deduplicação e som opcional | branch `codex/notificacoes-tempo-real` (em revisão) |
+| Notificações em tempo real | nova mensagem externa, chat interno, transferências, deduplicação e som opcional | PR #135, branch `codex/notificacoes-tempo-real` (CI verde, aguardando revisão) |
 
 Não foi encontrado um merge independente identificado como E82, E87b ou E89–E91. Isso não
 prova que nenhum ajuste correspondente entrou como parte de outro PR; por isso esses itens
