@@ -56,6 +56,19 @@ da reconciliação transforma a bolha em `FALHOU`. O código de UI `-1` usa o te
 confirmado”, distinto de uma falha informada pelo provedor. A migration V64 cria o índice durável
 `mensagem_envio_idempotencia`; as mensagens continuam na tabela particionada existente.
 
+### 11/09/2026 — Diagnóstico de 400 transitório após finalização
+
+Uma resposta HTTP de negócio (`4xx`) não representa recusa do provedor. A chave idempotente é
+consultada antes de qualquer alteração no lead ou no atendimento: se a primeira requisição já
+persistiu a mensagem, um replay (inclusive depois de a conversa ter sido finalizada) devolve a
+mesma `EnvioResposta` e não cria atendimento/outbox novos. Isso fecha a janela em que a resposta
+do navegador podia ser perdida e o retry receber um 409 enquanto a primeira outbox ainda entregava.
+
+As transições da outbox agora são compare-and-set (`publicado_em`/`esgotado_em` ainda nulos).
+Resultado tardio de outro worker é ignorado e não pode regravar `status_entrega` nem publicar um
+evento residual. O E130 de reconciliação de transporte permanece inalterado; falhas ambíguas
+continuam pendentes até a reconciliação por chave.
+
 ---
 
 ## 1. Onde estamos

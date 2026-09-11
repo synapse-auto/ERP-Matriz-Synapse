@@ -61,7 +61,14 @@ class PublicadorDaOutboxTransacoes {
             Outbox.EnvioPendente pendente, ResultadoDeEnvio resultado, Instant quando) {
         switch (resultado) {
             case ResultadoDeEnvio.Aceito aceito -> {
-                outbox.marcarPublicado(pendente.outboxId(), quando);
+                if (!outbox.marcarPublicado(pendente.outboxId(), quando)) {
+                    log.warn(
+                            "Resultado aceito tardio ignorado: outbox={}, mensagem={}, atendimento={}, resultado=STALE",
+                            pendente.outboxId(),
+                            pendente.mensagemId(),
+                            pendente.atendimentoId());
+                    return;
+                }
                 mensagens.atualizarStatusEntrega(
                         pendente.mensagemId(), pendente.enviadoEm(), StatusEntrega.ENVIADO, null);
                 idsExternos.gravar(
@@ -90,10 +97,17 @@ class PublicadorDaOutboxTransacoes {
                 if (desiste) {
                     esgotar(pendente, quando, recusado, tentativasFeitas);
                 } else {
-                    outbox.reagendar(
+                    boolean reagendado = outbox.reagendar(
                             pendente.outboxId(),
                             quando.plus(propriedades.esperaApos(pendente.tentativas())),
                             recusado.motivo());
+                    if (!reagendado) {
+                        log.warn(
+                                "Resultado temporario tardio ignorado: outbox={}, mensagem={}, atendimento={}, resultado=STALE",
+                                pendente.outboxId(),
+                                pendente.mensagemId(),
+                                pendente.atendimentoId());
+                    }
                 }
             }
         }
@@ -140,7 +154,14 @@ class PublicadorDaOutboxTransacoes {
             Instant quando,
             ResultadoDeEnvio.Recusado recusado,
             int tentativasFeitas) {
-        outbox.esgotar(pendente.outboxId(), quando, recusado.motivo());
+        if (!outbox.esgotar(pendente.outboxId(), quando, recusado.motivo())) {
+            log.warn(
+                    "Recusa tardia ignorada: outbox={}, mensagem={}, atendimento={}, resultado=STALE",
+                    pendente.outboxId(),
+                    pendente.mensagemId(),
+                    pendente.atendimentoId());
+            return;
+        }
         mensagens.atualizarStatusEntrega(
                 pendente.mensagemId(),
                 pendente.enviadoEm(),

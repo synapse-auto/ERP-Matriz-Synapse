@@ -229,6 +229,11 @@ class PublicadorDaOutboxOperacoesTest {
                 eventos);
         Outbox.EnvioPendente pendente = pendente();
 
+        when(outbox.reagendar(
+                        pendente.outboxId(), AGORA.plus(Duration.ofSeconds(5)), "429"))
+                .thenReturn(true);
+        when(outbox.esgotar(pendente.outboxId(), AGORA, "numero invalido"))
+                .thenReturn(true);
         transacoes.registrarResultado(pendente, ResultadoDeEnvio.Recusado.temporario("429"), AGORA);
         verify(outbox).reagendar(
                 pendente.outboxId(), AGORA.plus(Duration.ofSeconds(5)), "429");
@@ -261,6 +266,7 @@ class PublicadorDaOutboxOperacoesTest {
                 mock(ApplicationEventPublisher.class));
         Outbox.EnvioPendente pendente = pendente();
 
+        when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(true);
         transacoes.registrarResultado(
                 pendente, new ResultadoDeEnvio.Aceito("wamid.1", "556188887777"), AGORA);
 
@@ -289,6 +295,7 @@ class PublicadorDaOutboxOperacoesTest {
                 mock(ApplicationEventPublisher.class));
         Outbox.EnvioPendente pendente = pendente();
 
+        when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(true);
         transacoes.registrarResultado(
                 pendente, new ResultadoDeEnvio.Aceito("wamid.eco", pendente.telefoneDestino()), AGORA);
         transacoes.registrarResultado(pendente, new ResultadoDeEnvio.Aceito("wamid.sem"), AGORA);
@@ -316,10 +323,65 @@ class PublicadorDaOutboxOperacoesTest {
                 mock(ApplicationEventPublisher.class));
         Outbox.EnvioPendente pendente = pendente();
 
+        when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(true);
         transacoes.registrarResultado(
                 pendente, new ResultadoDeEnvio.Aceito("wamid.ok", "556188887777"), AGORA);
 
         verify(outbox).marcarPublicado(pendente.outboxId(), AGORA);
+    }
+
+    @Test
+    void resultadoAceitoTardioNaoRegrideMensagemNemPublicaStatus() {
+        Outbox outbox = mock(Outbox.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        var idsExternos =
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class);
+        var leads = mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        when(canal.provedor()).thenReturn("teste");
+        PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                outbox,
+                mensagens,
+                idsExternos,
+                leads,
+                canal,
+                propriedades(),
+                mock(ApplicationEventPublisher.class));
+        Outbox.EnvioPendente pendente = pendente();
+        when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(false);
+
+        transacoes.registrarResultado(
+                pendente, new ResultadoDeEnvio.Aceito("wamid.tardio"), AGORA);
+
+        verify(mensagens, org.mockito.Mockito.never()).atualizarStatusEntrega(any(), any(), any(), any());
+        verify(idsExternos, org.mockito.Mockito.never()).gravar(any(), any(), any(), any());
+        verify(leads, org.mockito.Mockito.never()).registrarTelefoneProvedor(any(), any());
+    }
+
+    @Test
+    void recusaTardiaNaoMarcaFalhaNemPublicaStatus() {
+        Outbox outbox = mock(Outbox.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        when(canal.provedor()).thenReturn("teste");
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
+                outbox,
+                mensagens,
+                mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
+                mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class),
+                canal,
+                propriedades(),
+                eventos);
+        Outbox.EnvioPendente pendente = pendente();
+        when(outbox.esgotar(pendente.outboxId(), AGORA, "recusa"))
+                .thenReturn(false);
+
+        transacoes.registrarResultado(
+                pendente, ResultadoDeEnvio.Recusado.permanente("recusa"), AGORA);
+
+        verify(mensagens, org.mockito.Mockito.never()).atualizarStatusEntrega(any(), any(), any(), any());
+        verify(eventos, org.mockito.Mockito.never()).publishEvent(any());
     }
 
     private static OutboxProperties propriedades() {

@@ -219,11 +219,37 @@ public class EnviarMensagemUseCase {
             String chaveIdempotencia) {
         Instant agora = Instant.now(relogio);
 
-        // Alcanca o lead? Telefone e janela vem juntos, numa consulta so.
+        String chave = normalizarChave(chaveIdempotencia);
+        // A resposta HTTP pode ter se perdido depois do commit. Reapresentar a mesma chave deve
+        // devolver exatamente a mensagem já aceita, antes de tocar no estado do lead/conversa.
+        // Isso também cobre o intervalo em que a primeira mensagem foi aceita e o atendimento
+        // acabou sendo finalizado: não abrimos outro atendimento nem transformamos o replay em
+        // uma recusa de negócio para o navegador.
+        if (chave != null) {
+            Optional<IdempotenciaDeMensagemEnvioRepositorio.Reserva> existente =
+                    idempotencia.existente(chave, remetenteId, leadId);
+            if (existente.isPresent()
+                    && existente.get().mensagemId() != null
+                    && existente.get().enviadoEm() != null) {
+                IdempotenciaDeMensagemEnvioRepositorio.Reserva reserva = existente.get();
+                log.info(
+                        "Replay idempotente reconciliado: chave={}, usuario={}, lead={}, atendimento={}, mensagem={}, resultado=REPLAY",
+                        chave,
+                        remetenteId,
+                        leadId,
+                        reserva.atendimentoId(),
+                        reserva.mensagemId());
+                return reconstruirResultado(reserva, null);
+            }
+        }
+
+        // Alcanca o lead? Telefone e janela vem juntos, numa consulta so. Esta verificacao ocorre
+        // depois do replay idempotente: se a conversa mudou de dono entre o commit e a resposta,
+        // a chave da propria tentativa ainda permite devolver a resposta original sem transformar
+        // uma corrida de estado em uma falsa recusa para o navegador.
         LeadNoCaminhoDeMensagem.ContatoParaEnvio contato = leads.contatoParaEnvio(leadId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead", leadId));
 
-        String chave = normalizarChave(chaveIdempotencia);
         // A janela de 24h e verificada AQUI, antes de gravar e antes de enfileirar.
         // Deixar a Meta recusar custaria uma chamada de rede, um 400 cru para traduzir,
         // uma linha de outbox que vai esgotar, e um atendente vendo "erro de envio" sem
