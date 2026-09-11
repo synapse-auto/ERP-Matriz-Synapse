@@ -10,8 +10,8 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
-import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;

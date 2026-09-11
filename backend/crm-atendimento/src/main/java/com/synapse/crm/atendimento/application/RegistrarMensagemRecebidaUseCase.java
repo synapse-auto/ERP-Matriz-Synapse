@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
@@ -18,7 +19,6 @@ import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
-import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
