@@ -157,4 +157,51 @@ class ChatInternoUseCaseTest {
         org.junit.jupiter.api.Assertions.assertTrue(resultado.removida());
         verify(eventos).publishEvent(any(EventoDeChatInterno.MensagemRemovida.class));
     }
+
+    @Test
+    void autor_edita_texto_preservando_id_e_publica_evento() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        UUID mensagem = UUID.randomUUID();
+        Instant enviado = Instant.parse("2026-08-24T03:00:00Z");
+        when(repositorio.mensagem(conversa, mensagem)).thenReturn(java.util.Optional.of(
+                new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, usuario, "Ana", "TEXTO",
+                        "antes", null, null, enviado)));
+        Instant editado = Instant.parse("2026-08-24T04:00:00Z");
+        var resultado = new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, usuario, "Ana", "TEXTO",
+                "depois", null, null, enviado, List.of(), false, null);
+        when(repositorio.editarMensagem(org.mockito.ArgumentMatchers.eq(conversa),
+                org.mockito.ArgumentMatchers.eq(mensagem), org.mockito.ArgumentMatchers.eq(usuario),
+                org.mockito.ArgumentMatchers.eq("depois"), any())).thenReturn(resultado);
+        when(repositorio.participantes(conversa)).thenReturn(List.of(usuario, UUID.randomUUID()));
+
+        var relogio = Clock.fixed(editado, ZoneOffset.UTC);
+        var salvo = new EditarMensagemChatUseCase(repositorio, contexto, eventos, relogio)
+                .executar(mensagem, conversa, " depois ");
+
+        org.junit.jupiter.api.Assertions.assertEquals(mensagem, salvo.id());
+        verify(repositorio).editarMensagem(conversa, mensagem, usuario, "depois", editado);
+        verify(eventos).publishEvent(any(EventoDeChatInterno.MensagemEditada.class));
+    }
+
+    @Test
+    void editar_bloqueia_autor_diferente_e_mensagem_de_midia() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(usuario, PapelUsuario.ATENDENTE, false));
+        when(repositorio.participante(conversa, usuario)).thenReturn(true);
+        UUID mensagem = UUID.randomUUID();
+        when(repositorio.mensagem(conversa, mensagem)).thenReturn(java.util.Optional.of(
+                new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, UUID.randomUUID(), "Bruno", "TEXTO",
+                        "texto", null, null, Instant.now())));
+        assertThrows(ChatSemAcessoException.class,
+                () -> new EditarMensagemChatUseCase(repositorio, contexto, eventos, Clock.systemUTC())
+                        .executar(mensagem, conversa, "novo"));
+
+        when(repositorio.mensagem(conversa, mensagem)).thenReturn(java.util.Optional.of(
+                new ChatInternoRepositorio.MensagemResumo(mensagem, conversa, usuario, "Ana", "AUDIO",
+                        null, "url", "{}", Instant.now())));
+        assertThrows(OperacaoDeGrupoInvalidaException.class,
+                () -> new EditarMensagemChatUseCase(repositorio, contexto, eventos, Clock.systemUTC())
+                        .executar(mensagem, conversa, "novo"));
+        verifyNoInteractions(eventos);
+    }
 }

@@ -211,11 +211,25 @@ conversa, inclusive para gestores; nenhuma ação consulta ou publica dados de u
 | Responder/citar | ✅ | `ResponderMensagemChatUseCase`, `.../{mensagemId}/responder`, `CitacaoMensagemVisual` | — |
 | Encaminhar | ✅ | `EncaminharMensagemChatUseCase`, destino limitado a conversa interna participante | — |
 | Excluir | ✅ | `ExcluirMensagemChatUseCase`, tombstone e evento `CHAT_INTERNO_MENSAGEM_REMOVIDA` | — |
+| Editar texto próprio | ✅ | `EditarMensagemChatUseCase`, `PATCH .../mensagens/{mensagemId}`, `editadoEm` e evento `CHAT_INTERNO_MENSAGEM_EDITADA` | Áudio, imagem, vídeo, documento, figurinha, tombstone e mensagens de outro autor preservam o conteúdo original. |
 | Mídia, áudio e documento | ✅ | `ComposerChatInterno`, `ZonaSoltarArquivos`, URL assinada autorizada | — |
 | Colar imagem/anexo | ✅ | `ComposerChatInterno` usa o mesmo `onPaste`/validação do caminho de anexos | — |
 | Status de entrega / retry de provedor | ⚠️ | Não há provedor nem outbox de canal no chat interno; erros HTTP permanecem no composer | Não existe entrega externa para confirmar ou repetir. |
 | Template WhatsApp | ❌ | Não exposto | Template é contrato exclusivo do canal WhatsApp, sem semântica interna. |
 | Finalizar/transferir atendimento | ❌ | Não exposto | Conversa interna não possui lead, responsável ou ciclo de atendimento. |
+
+### E177 — edição e painel lateral do chat interno
+
+Mensagens textuais só podem ser editadas pelo próprio autor, sem limite de tempo. A alteração mantém
+o identificador, remetente, data original e reações; `editadoEm` marca a última alteração. O trigger
+`app_atualizar_citacoes_chat_editadas` recalcula a prévia sanitizada de respostas/encaminhamentos,
+inclusive entre conversas. O evento `CHAT_INTERNO_MENSAGEM_EDITADA` é publicado somente após commit e
+é consumido como atualização de cache, sem criar aviso sonoro.
+
+O painel lateral reutiliza `PainelLateralGrupo` e `ListaDeMidiasDoGrupo`: em conversa direta mostra o
+outro participante e suas mídias autorizadas; em grupo mantém participantes, ações de gestão e mídias.
+Não há campos de lead, telefone, atendimento, tags ou IA. Em telas estreitas o painel vira drawer
+sem desmontar o histórico.
 
 Exclusões são lógicas: conteúdo e referência de mídia ficam nulos, o registro permanece para
 auditoria e referências posteriores recebem apenas o estado seguro “mensagem removida”. O trigger da

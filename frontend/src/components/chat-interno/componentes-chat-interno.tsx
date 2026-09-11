@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
-import { Mic, PanelRightOpen, Paperclip, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
+import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { urlSegura, cn } from "@/lib/utils";
@@ -135,7 +135,7 @@ export function CabecalhoChatInterno({
         </h2>
         <p className="text-xs text-muted-foreground">{grupo ? textos.tipoGrupo : textos.tipoDireta}</p>
       </div>
-      {grupo && onGerenciarGrupo && !painelGrupoAberto && (
+      {onGerenciarGrupo && !painelGrupoAberto && (
         <Button
           type="button"
           variant="ghost"
@@ -162,6 +162,7 @@ export function ListaMensagensChatInterno({
   onResponder,
   onEncaminhar,
   onExcluir,
+  onEditar,
 }: {
   mensagens: ChatMensagem[];
   usuarioAtual: string | null;
@@ -171,6 +172,7 @@ export function ListaMensagensChatInterno({
   onResponder?: (mensagem: ChatMensagem) => void;
   onEncaminhar?: (mensagem: ChatMensagem) => void;
   onExcluir?: (mensagem: ChatMensagem) => Promise<void>;
+  onEditar?: (mensagem: ChatMensagem) => void;
 }) {
   const catalogoAtendimentos = useTextos().atendimentos;
   const textosAtendimentos = catalogoAtendimentos.media;
@@ -236,6 +238,8 @@ export function ListaMensagensChatInterno({
               onResponder={onResponder ? () => onResponder(mensagem) : undefined}
               onEncaminhar={onEncaminhar && !mensagem.removida ? () => onEncaminhar(mensagem) : undefined}
               onExcluir={onExcluir && propria && !mensagem.removida ? () => void onExcluir(mensagem) : undefined}
+              onEditar={onEditar && propria && !mensagem.removida && tipo === "TEXTO" && Boolean(mensagem.conteudo?.trim()) ? () => onEditar(mensagem) : undefined}
+              rotuloEditar={textos.editar}
             >
               <div
                 className={cn(
@@ -305,6 +309,7 @@ export function ListaMensagensChatInterno({
 
               <time className={cn("mt-1 block text-[10px]", propria ? "text-primary-foreground/70" : "text-muted-foreground")} dateTime={mensagem.enviadoEm}>
                 {new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                {mensagem.editadoEm && <span className="ml-1">· {textos.mensagemEditada}</span>}
               </time>
               </div>
             </InteracaoMensagem>
@@ -323,6 +328,9 @@ export function ComposerChatInterno({
   onEnviar,
   resposta,
   onCancelarResposta,
+  edicao,
+  onSalvarEdicao,
+  onCancelarEdicao,
   onEnviarMidia,
   enviando = false,
   erro = false,
@@ -332,6 +340,9 @@ export function ComposerChatInterno({
   onEnviar: (conteudo: string) => Promise<unknown>;
   resposta?: ChatMensagem | null;
   onCancelarResposta?: () => void;
+  edicao?: ChatMensagem | null;
+  onSalvarEdicao?: (conteudo: string) => Promise<unknown>;
+  onCancelarEdicao?: () => void;
   onEnviarMidia?: (arquivo: File, legenda?: string) => Promise<unknown>;
   enviando?: boolean;
   erro?: boolean;
@@ -351,6 +362,15 @@ export function ComposerChatInterno({
   const configuracaoComposer = useConfiguracaoComposer();
   const gravador = useGravadorAudio(configuracaoComposer.data);
 
+  useEffect(() => {
+    if (!edicao) return;
+    const frame = requestAnimationFrame(() => {
+      setTexto(edicao.conteudo ?? "");
+      textareaRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [edicao]);
+
   function adicionarArquivos(novos: File[]) {
     if (gravador.fase !== "INATIVO" || pendente) return;
     const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS);
@@ -363,6 +383,19 @@ export function ComposerChatInterno({
   useImperativeHandle(ref, () => ({ adicionarArquivos }));
 
   async function enviarConteudo() {
+    if (edicao) {
+      const conteudoEditado = texto.trim();
+      if (!conteudoEditado || !onSalvarEdicao) return;
+      setEnviandoLocal(true);
+      try {
+        await onSalvarEdicao(conteudoEditado);
+        setTexto("");
+        onCancelarEdicao?.();
+      } finally {
+        setEnviandoLocal(false);
+      }
+      return;
+    }
     if (arquivos.length > 0) {
       if (!onEnviarMidia) return;
       const fila = arquivos;
@@ -431,6 +464,11 @@ export function ComposerChatInterno({
   }
 
   function aoPressionarTecla(evento: KeyboardEvent<HTMLTextAreaElement>) {
+    if (evento.key === "Escape" && edicao) {
+      evento.preventDefault();
+      onCancelarEdicao?.();
+      return;
+    }
     if (evento.key === "Enter" && !evento.shiftKey) {
       evento.preventDefault();
       void enviarConteudo();
@@ -455,6 +493,17 @@ export function ComposerChatInterno({
       {erroDeGravacao && <p className="mb-2 text-sm text-destructive">{erroDeGravacao}</p>}
       {avisoTipo && <p className="mb-2 text-sm text-destructive" role="alert">{tComp.anexoTipoNaoPermitido}</p>}
       <div className="mx-auto flex max-w-[780px] flex-col gap-2 rounded-xl border border-input bg-card p-2 shadow-sm">
+        {edicao && (
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-2">
+            <Pencil className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-sm">{textos.editar}: {edicao.conteudo}</span>
+            {onCancelarEdicao && (
+              <Button type="button" variant="ghost" size="icon-xs" onClick={onCancelarEdicao} aria-label={textos.cancelarEdicao}>
+                <X className="size-(--tamanho-icone-interface)" aria-hidden />
+              </Button>
+            )}
+          </div>
+        )}
         {resposta && (
           <div className="flex items-start gap-2 rounded-md border border-border bg-muted/50 p-2">
             <div className="min-w-0 flex-1">
@@ -516,14 +565,14 @@ export function ComposerChatInterno({
 
         <div className="flex items-end gap-2">
           <div className="flex shrink-0 items-center gap-1">
-            <input ref={inputArquivoRef} type="file" accept={TIPOS_DE_ANEXO_ACEITOS} multiple className="hidden" onChange={aoSelecionarArquivo} disabled={gravador.fase !== "INATIVO" || pendente} />
-            <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={gravador.fase !== "INATIVO" || pendente}>
+            <input ref={inputArquivoRef} type="file" accept={TIPOS_DE_ANEXO_ACEITOS} multiple className="hidden" onChange={aoSelecionarArquivo} disabled={Boolean(edicao) || gravador.fase !== "INATIVO" || pendente} />
+            <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={Boolean(edicao) || gravador.fase !== "INATIVO" || pendente}>
               <Paperclip className="size-(--tamanho-icone-interface)" />
             </Button>
             <PainelEmojiComposer
               rotulo={tComp.emoji}
               i18n={textosAtendimentos.mensagem.acoes.seletor}
-              disabled={gravador.fase !== "INATIVO" || pendente}
+              disabled={Boolean(edicao) || gravador.fase !== "INATIVO" || pendente}
               onEscolher={(emoji) => {
                 const campo = textareaRef.current;
                 setTexto((atual) => {
@@ -535,7 +584,7 @@ export function ComposerChatInterno({
             />
           </div>
 
-          {gravador.disponivel && gravador.fase === "INATIVO" && arquivos.length === 0 && (
+          {gravador.disponivel && !edicao && gravador.fase === "INATIVO" && arquivos.length === 0 && (
             <div className="order-last shrink-0">
               <Button type="button" variant="ghost" size="icon" aria-label={tComp.audioGravar} onClick={gravador.iniciar} disabled={pendente}>
                 <Mic className="size-(--tamanho-icone-interface)" />

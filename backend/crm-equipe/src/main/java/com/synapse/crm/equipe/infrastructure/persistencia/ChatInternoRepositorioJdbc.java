@@ -200,7 +200,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        CASE WHEN m.removida_em IS NULL THEN m.conteudo END AS conteudo,
                        CASE WHEN m.removida_em IS NULL THEN m.midia_url END AS midia_url,
                        CASE WHEN m.removida_em IS NULL THEN m.midia_metadados END AS midia_metadados,
-                       m.enviado_em,m.removida_em IS NOT NULL AS removida,
+                       m.enviado_em,m.editado_em,m.removida_em IS NOT NULL AS removida,
                        m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
                        m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
                   FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
@@ -210,7 +210,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 r.getObject("remetente_id", UUID.class), r.getString("nome"),
                 r.getString("tipo"), r.getString("conteudo"),
                 r.getString("midia_url"), r.getString("midia_metadados"),
-                instant(r, "enviado_em"), List.of(), r.getBoolean("removida"),
+                instant(r, "enviado_em"), instant(r, "editado_em"), List.of(), r.getBoolean("removida"),
                 referencia(r)), args);
         Instant proximo = mensagens.size() == limite && !mensagens.isEmpty()
                 ? mensagens.get(mensagens.size() - 1).enviadoEm() : null;
@@ -264,7 +264,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 tipo,
                 conteudo);
         return jdbc.queryForObject(
-                "SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em"
+                "SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em,m.editado_em"
                         + " FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
                 (r, i) -> new MensagemResumo(
                         r.getObject("id", UUID.class),
@@ -275,7 +275,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                         r.getString("conteudo"),
                         r.getString("midia_url"),
                         r.getString("midia_metadados"),
-                        instant(r, "enviado_em")),
+                        instant(r, "enviado_em"), instant(r, "editado_em"), List.of(), false, null),
                 id);
     }
 
@@ -284,12 +284,12 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
         UUID id = UUID.randomUUID();
         jdbc.update("INSERT INTO chat_interno_mensagem(id,conversa_id,remetente_id,tipo,conteudo,midia_url,midia_metadados) VALUES (?, ?, ?, ?::tipo_mensagem, ?, ?, ?::jsonb)",
                 id, conversaId, remetenteId, tipo, conteudo, midiaUrl, midiaMetadados);
-        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
+        return jdbc.queryForObject("SELECT m.id,m.conversa_id,m.remetente_id,u.nome,m.tipo,m.conteudo,m.midia_url,m.midia_metadados,m.enviado_em,m.editado_em FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id WHERE m.id=?",
                 (r, i) -> new MensagemResumo(r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
                         r.getObject("remetente_id", UUID.class), r.getString("nome"),
                         r.getString("tipo"), r.getString("conteudo"),
                         r.getString("midia_url"), r.getString("midia_metadados"),
-                        instant(r, "enviado_em")), id);
+                        instant(r, "enviado_em"), instant(r, "editado_em"), List.of(), false, null), id);
     }
 
     @Override
@@ -299,12 +299,27 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        CASE WHEN m.removida_em IS NULL THEN m.conteudo END AS conteudo,
                        CASE WHEN m.removida_em IS NULL THEN m.midia_url END AS midia_url,
                        CASE WHEN m.removida_em IS NULL THEN m.midia_metadados END AS midia_metadados,
-                       m.enviado_em,m.removida_em IS NOT NULL AS removida,
+                       m.enviado_em,m.editado_em,m.removida_em IS NOT NULL AS removida,
                        m.referencia_origem_id,m.referencia_tipo,m.referencia_autor,
                        m.referencia_tipo_conteudo,m.referencia_previa,m.referencia_origem_removida
                   FROM chat_interno_mensagem m JOIN usuario u ON u.id=m.remetente_id
                  WHERE m.conversa_id=? AND m.id=?
                 """, (r, i) -> mapearMensagem(r), conversaId, mensagemId).stream().findFirst();
+    }
+
+    @Override
+    public MensagemResumo editarMensagem(UUID conversaId, UUID mensagemId, UUID remetenteId,
+            String conteudo, Instant editadoEm) {
+        int alteradas = jdbc.update("""
+                UPDATE chat_interno_mensagem
+                   SET conteudo=?, editado_em=?
+                 WHERE conversa_id=? AND id=? AND remetente_id=?
+                   AND tipo='TEXTO'::tipo_mensagem AND removida_em IS NULL
+                """, conteudo, Timestamp.from(editadoEm), conversaId, mensagemId, remetenteId);
+        if (alteradas == 0) {
+            throw new IllegalArgumentException("Mensagem inexistente, removida ou nao editavel.");
+        }
+        return mensagem(conversaId, mensagemId).orElseThrow();
     }
 
     @Override
@@ -361,7 +376,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                 r.getObject("id", UUID.class), r.getObject("conversa_id", UUID.class),
                 r.getObject("remetente_id", UUID.class), r.getString("nome"), r.getString("tipo"),
                 r.getString("conteudo"), r.getString("midia_url"), r.getString("midia_metadados"),
-                instant(r, "enviado_em"), List.of(), r.getBoolean("removida"), referencia(r));
+                instant(r, "enviado_em"), instant(r, "editado_em"), List.of(), r.getBoolean("removida"), referencia(r));
     }
 
     private static ReferenciaResumo referencia(ResultSet r) throws SQLException {

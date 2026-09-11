@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
-import { listarConversasChat, listarMensagensChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido, definirReacaoChat, removerReacaoChat, responderMensagemChat, encaminharMensagemChat, excluirMensagemChat } from "@/lib/chat-interno/api";
+import { listarConversasChat, listarMensagensChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido, definirReacaoChat, removerReacaoChat, responderMensagemChat, encaminharMensagemChat, excluirMensagemChat, editarMensagemChat } from "@/lib/chat-interno/api";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -14,6 +14,7 @@ import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tempo-real";
 
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
+import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
 export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const catalogo = useTextos();
@@ -22,6 +23,8 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const composerRef = useRef<ComposerChatHandle>(null);
   const [respostaAlvo, setRespostaAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const [painelAberto, setPainelAberto] = useState(false);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
   const mensagens = useQuery({ queryKey: ["chat-interno", "mensagens", conversaId], queryFn: () => listarMensagensChat(conversaId) });
   const usuarioAtual = useAuthStore((estado) => estado.usuarioId);
@@ -46,13 +49,17 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     mutationFn: ({ mensagemId, destinoId }: { mensagemId: string; destinoId: string }) => encaminharMensagemChat(conversaId, mensagemId, destinoId),
     onSuccess: () => { setEncaminharAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
   });
+  const editar = useMutation({
+    mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => editarMensagemChat(conversaId, mensagemId, conteudo),
+    onSuccess: () => { setEdicaoAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
+  });
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
-    if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
+    if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
       atualizar();
-      if (evento.tipo === "CHAT_INTERNO_MENSAGEM") void marcarChatComoLido(conversaId);
+      if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarChatComoLido(conversaId);
     }
     if (evento.tipo === "CHAT_INTERNO_REACAO" && evento.dados.conversaId === conversaId) {
       atualizarReacoesDoChatInterno(cache, conversaId, evento.dados.mensagemId, evento.dados.reacoes, { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor }, useAuthStore.getState().usuarioId);
@@ -83,19 +90,24 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   }
   return (
     <Fragment>
-      <div className="flex h-full min-h-0 flex-1 flex-col">
-      <CabecalhoChatInterno conversa={conversa} textos={textos} />
-      <ZonaSoltarArquivos
-        accept={TIPOS_DE_ANEXO_ACEITOS}
-        disabled={enviar.isPending || enviarMidia.isPending}
-        rotulo={catalogo.atendimentos.composer.anexoSoltar}
-        onArquivos={({ aceitos, rejeitados }) =>
-          composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
-        }
-      >
-        {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} />}
-        <ComposerChatInterno ref={composerRef} textos={textos} resposta={respostaAlvo} onCancelarResposta={() => setRespostaAlvo(null)} enviando={enviar.isPending || enviarMidia.isPending || responder.isPending} erro={enviar.isError || enviarMidia.isError || responder.isError} onEnviar={enviarConteudo} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ arquivo, legenda })} />
-      </ZonaSoltarArquivos>
+      <div className="relative flex h-full min-h-0 min-w-0 flex-1">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
+          <CabecalhoChatInterno conversa={conversa} textos={textos} painelGrupoAberto={painelAberto} onGerenciarGrupo={() => setPainelAberto((aberto) => !aberto)} />
+          <ZonaSoltarArquivos
+            accept={TIPOS_DE_ANEXO_ACEITOS}
+            disabled={enviar.isPending || enviarMidia.isPending}
+            rotulo={catalogo.atendimentos.composer.anexoSoltar}
+            onArquivos={({ aceitos, rejeitados }) =>
+              composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
+            }
+          >
+            {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} onEditar={setEdicaoAlvo} />}
+            <ComposerChatInterno ref={composerRef} textos={textos} resposta={respostaAlvo} onCancelarResposta={() => setRespostaAlvo(null)} edicao={edicaoAlvo} onSalvarEdicao={(conteudo) => editar.mutateAsync({ mensagemId: edicaoAlvo!.id, conteudo })} onCancelarEdicao={() => setEdicaoAlvo(null)} enviando={enviar.isPending || enviarMidia.isPending || responder.isPending || editar.isPending} erro={enviar.isError || enviarMidia.isError || responder.isError || editar.isError} onEnviar={enviarConteudo} onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ arquivo, legenda })} />
+          </ZonaSoltarArquivos>
+        </div>
+        {painelAberto && conversa && (
+          <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} onRetrair={() => setPainelAberto(false)} />
+        )}
       </div>
       <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })} />
     </Fragment>

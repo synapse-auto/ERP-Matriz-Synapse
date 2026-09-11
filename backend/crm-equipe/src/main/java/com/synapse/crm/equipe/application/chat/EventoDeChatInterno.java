@@ -30,6 +30,14 @@ public final class EventoDeChatInterno {
         }
     }
 
+    public record MensagemEditada(UUID conversaId, UUID mensagemId, UUID remetenteId,
+            List<UUID> destinatarios, String conteudo, Instant enviadoEm, Instant editadoEm,
+            String remetenteNome, String tipo, String midiaMetadados) {
+        public MensagemEditada {
+            destinatarios = destinatarios == null ? List.of() : List.copyOf(destinatarios);
+        }
+    }
+
     public record ReacaoAlterada(
             UUID conversaId,
             UUID mensagemId,

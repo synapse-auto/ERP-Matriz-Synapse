@@ -93,6 +93,29 @@ class AcoesDeMensagemChatInternoIT extends PostgresIT {
         assertThat(grupoResposta.path("citacao").path("previa").asText()).isEqualTo("mensagem do grupo");
     }
 
+    @Test
+    @DisplayName("autor edita texto interno, preservando id e bloqueando outro participante")
+    void editarMensagemPreservaIdentidadeEAutorizacao() throws Exception {
+        Tokens ana = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE);
+        Tokens bruno = ApoioAutenticacao.login(http, EMAIL_BRUNO, SENHA_ATENDENTE);
+        String direta = abrir(ana, idDo(EMAIL_BRUNO));
+        String origem = enviar(ana, direta, "versao inicial");
+
+        ResponseEntity<String> editada = chamar(ana, HttpMethod.PATCH,
+                "/api/v1/chat-interno/conversas/" + direta + "/mensagens/" + origem,
+                "{\"conteudo\":\"versao atualizada\"}", String.class);
+        assertThat(editada.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode corpo = json.readTree(editada.getBody());
+        assertThat(corpo.path("id").asText()).isEqualTo(origem);
+        assertThat(corpo.path("conteudo").asText()).isEqualTo("versao atualizada");
+        assertThat(corpo.path("editadoEm").isMissingNode()).isFalse();
+
+        ResponseEntity<String> bloqueada = chamar(bruno, HttpMethod.PATCH,
+                "/api/v1/chat-interno/conversas/" + direta + "/mensagens/" + origem,
+                "{\"conteudo\":\"nao autorizado\"}", String.class);
+        assertThat(bloqueada.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     private UUID idDo(String email) {
         return db.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, email);
     }
