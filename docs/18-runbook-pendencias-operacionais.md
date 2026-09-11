@@ -253,8 +253,9 @@ WHATSAPP_TOKEN=<token>
 
 `WHATSAPP_USUARIO_API` é legado e pode ficar vazio; não é requisito para iniciar o adaptador. O
 deploy da Fêmina precisa publicar a imagem desta correção e recriar o container do backend para que
-o código novo seja carregado. Depois, faça um teste controlado com uma imagem e um documento novos,
-confirmando no CRM que a resolução `GET /v1/{mediaId}` e o download subsequente concluíram. Não
+o código novo seja carregado. Depois, faça um teste controlado com uma imagem, um documento, um áudio
+e um vídeo novos, confirmando no CRM que a resolução `GET /v1/{phone_number_id}/{mediaId}` e o
+download subsequente concluíram. Não
 reprocesse automaticamente as linhas esgotadas: elas podem trazer mensagens antigas para a fila e
 dependem de decisão operacional explícita.
 
@@ -276,6 +277,20 @@ ORDER BY recebido_em DESC;
 
 Esse número não foi medido neste checkout: não há acesso à base de produção. A ausência de resultado
 local não significa que os eventos não existam na Fêmina.
+
+O Swagger público da Uzapi lista `GET /{version}/{mediaId}`, mas a conta funcional da Fêmina foi
+testada sem expor o token e só alcançou o resolvedor em `GET /{version}/{phone_number_id}/{mediaId}`.
+Os testes observados foram: sem `phone_number_id`, HTTP 400 `Username parameter is missing`; com o
+identificador do número, HTTP 404 `Arquivo ... não encontrado` para a mídia antiga — evidência de
+que a rota é válida, não de que o arquivo solicitado esteja disponível. A aplicação usa sempre a
+rota com `WHATSAPP_NUMERO` e não usa `WHATSAPP_USUARIO_API`.
+
+O processador agora grava `proxima_tentativa_em` e retenta falhas do resolvedor com backoff durável
+(5s, dobrando até 30min por padrão). HTTP 400/404/5xx não é convertido em erro de credencial e o
+corpo da resposta não é persistido. Após o limite de tentativas ou o prazo absoluto, a linha fica
+esgotada com status HTTP, tipo de mídia e ID técnico. Para recuperar histórico, primeiro corrija e
+publique a imagem, meça as linhas com a consulta acima, exporte apenas os `id_externo` aprovados e
+recoloque-as na fila conforme decisão operacional explícita; nunca faça reprocessamento automático.
 
 **4.1 — Token permanente**
 

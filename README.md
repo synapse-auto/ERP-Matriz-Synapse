@@ -405,6 +405,8 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
+| `WEBHOOK_BACKOFF_INICIAL` | `5s` | Espera da primeira retentativa de webhook; dobra a cada falha até o teto. |
+| `WEBHOOK_BACKOFF_MAXIMO` | `30m` | Teto da espera entre retentativas de webhook; persistido em `webhook_entrada`. |
 | `WEBHOOK_PRAZO_ABSOLUTO` | `2h` | Esgota a linha de `webhook_entrada` mesmo com o disjuntor aberto, a partir de `recebido_em`. |
 | `SAUDE_INTERVALO_MONITORAMENTO` | `30s` | Intervalo da sonda de saúde. Isolada dos disjuntores de envio e de mídia. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |

@@ -23,6 +23,7 @@ import org.springframework.web.client.RestClientResponseException;
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -50,7 +51,7 @@ import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
  * (Text/Image/Audio/Video/Document/Reaction/Location/Contacts/Poll/Sticker/Revoke/Interactive).
  *
  * <p>O recebimento usa o mesmo identificador de midia que chega no webhook: primeiro resolve a URL
- * pelo endpoint {@code GET /{version}/{mediaId}} e depois baixa os bytes nessa URL. O
+ * pelo endpoint {@code GET /{version}/{phone_number_id}/{mediaId}} e depois baixa os bytes nessa URL. O
  * segundo passo fica protegido pelo disjuntor dedicado de midia, assim a fila de entrada pode
  * retentar sem bloquear o caminho sincrono do webhook.
  */
@@ -476,19 +477,27 @@ class UzapiAutoticAdapter implements CanalGateway {
                     "circuit breaker aberto para " + PROVEDOR + "; midia " + midiaIdExterno
                             + " sera retentada",
                     breakerAberto);
+        } catch (RestClientResponseException respostaDoProvedor) {
+            // A conta em producao responde 404 quando o arquivo ainda nao esta disponivel. Isso
+            // nao e uma credencial invalida: a fila deve retentar com backoff, sem guardar o corpo
+            // da resposta (que pode conter URL temporaria ou outros dados do provedor).
+            throw new MidiaRecebidaTemporariamenteIndisponivelException(
+                    "resolvedor de midia " + PROVEDOR + " respondeu HTTP "
+                            + respostaDoProvedor.getStatusCode().value() + "; midiaId=" + midiaIdExterno);
         }
     }
 
     /**
-     * A Uzapi documenta o primeiro GET como resolvedor de URL, não como endpoint de bytes. A URL
-     * devolvida já é autorizada pelo fornecedor; não enviamos o Bearer novamente para um host
-     * externo e evitamos vazar a credencial do canal.
+     * A conta em produção usa o primeiro GET como resolvedor de URL, com o identificador do
+     * número no caminho. A URL devolvida já é autorizada pelo fornecedor; não enviamos o Bearer
+     * novamente para um host externo e evitamos vazar a credencial do canal.
      */
     private MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
         String resposta = http.get()
                 .uri(
-                        "/{version}/{mediaId}",
+                        "/{version}/{phone_number_id}/{mediaId}",
                         propriedades.versaoApi(),
+                        propriedades.numeroPrincipal(),
                         midiaIdExterno)
                 .header("Authorization", "Bearer " + propriedades.token())
                 .retrieve()

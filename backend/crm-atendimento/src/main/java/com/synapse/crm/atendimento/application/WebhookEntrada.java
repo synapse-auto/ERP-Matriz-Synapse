@@ -30,17 +30,18 @@ public interface WebhookEntrada {
 
     void marcarProcessado(String idExterno, Instant quando);
 
-    void reagendar(String idExterno, String erro);
+    /** Falhou depois de consultar o provedor; incrementa tentativa e agenda com backoff. */
+    void reagendar(String idExterno, Instant proximaTentativa, String erro);
 
     /**
      * Volta para a fila sem gastar tentativa. O provedor nao foi consultado (disjuntor aberto);
      * contar como falha esgotaria a linha enquanto a Meta estava saudavel.
      *
-     * <p>{@code webhook_entrada} nao tem {@code proxima_tentativa_em} — essa coluna e da outbox, e
-     * criar uma exigiria migration, que esta etapa nao faz. A linha permanece elegivel na proxima
-     * rodada; o prazo absoluto a partir de {@code recebido_em} e a guarda contra fila eterna.
+     * <p>A linha permanece elegivel depois do instante informado, sem gastar tentativa. O prazo
+     * absoluto a partir de {@code recebido_em} e a guarda contra fila eterna quando o disjuntor nao
+     * fecha.
      */
-    void adiar(String idExterno, String erro);
+    void adiar(String idExterno, Instant proximaTentativa, String erro);
 
     /** Desistiu. A linha fica, com o erro, para alguem olhar. */
     void esgotar(String idExterno, Instant quando, String erro);

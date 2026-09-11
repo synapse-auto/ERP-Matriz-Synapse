@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,6 +34,7 @@ import org.springframework.web.client.RestClient;
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -572,8 +574,13 @@ class UzapiAutoticAdapterTest {
 
     @Test
     void baixarMidiaRecebidaResolveUrlEBaixaBytesSemReenviarBearerAoHostDaUrl() {
-        servidor.expect(once(), requestTo(URL_BASE + "/" + VERSAO + "/media-inbound"))
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
+                .andExpect(requisicao -> {
+                    String autorizacao = requisicao.getHeaders().getFirst("Authorization");
+                    assertThat(autorizacao).startsWith("Bearer ");
+                    assertThat(autorizacao).doesNotContain(USUARIO);
+                })
                 .andRespond(withSuccess(
                         "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.jpg\"}",
                         MediaType.APPLICATION_JSON));
@@ -586,6 +593,23 @@ class UzapiAutoticAdapterTest {
         servidor.verify();
         assertThat(recebida.conteudo()).containsExactly(9, 8, 7);
         assertThat(recebida.mimetype()).isEqualTo("image/jpeg");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 404, 500, 502})
+    void erroHttpAoResolverMidiaEClassificadoComoIndisponibilidadeRetentavel(int status) {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.valueOf(status)));
+
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
+                .isInstanceOf(MidiaRecebidaTemporariamenteIndisponivelException.class)
+                .hasMessageContaining("HTTP " + status)
+                .hasMessageContaining("midiaId=media-inbound")
+                .hasMessageNotContaining("token-de-teste")
+                .hasMessageNotContaining(URL_BASE);
+
+        servidor.verify();
     }
 
     @Test

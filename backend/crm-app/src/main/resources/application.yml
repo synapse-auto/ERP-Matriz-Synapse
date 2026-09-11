@@ -186,6 +186,8 @@ synapse:
       intervalo-ms: ${WEBHOOK_INTERVALO_MS:1000}
       lote: ${WEBHOOK_LOTE:50}
       maximo-de-tentativas: ${WEBHOOK_MAX_TENTATIVAS:5}
+      backoff-inicial: ${WEBHOOK_BACKOFF_INICIAL:5s}
+      backoff-maximo: ${WEBHOOK_BACKOFF_MAXIMO:30m}
       # Guarda contra fila eterna quando o disjuntor de midia fica aberto e a linha
       # nao gasta tentativa. 2h cobre uma queda longa da Meta (wait do breaker e 30s)
       # sem retentar no dia seguinte um payload cuja URL de download ja expirou.

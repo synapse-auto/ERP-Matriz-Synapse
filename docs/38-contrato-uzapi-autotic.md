@@ -25,10 +25,13 @@ atual usa somente a versão e o identificador do número nas rotas de negócio:
 {baseUrl}/{version}/{phone_number_id}/...
 ```
 
-O endpoint de resolução de mídia é a única exceção de identificação: `/{version}/{mediaId}`.
+O endpoint de resolução de mídia usa também o identificador do número: `/{version}/{phone_number_id}/{mediaId}`.
+Esta é uma divergência confirmada entre o Swagger público e a conta Uzapi/Autotic em produção: o
+Swagger lista `/{version}/{mediaId}`, mas a conta que atende a Fêmina responde `400 Username parameter
+is missing` nessa rota e alcança o resolvedor somente com `/{version}/{phone_number_id}/{mediaId}`.
 `WHATSAPP_USUARIO_API` permanece como variável legada da investigação E152, com default vazio, para
-não quebrar ambientes que ainda a declaram. A versão atual do contrato **não usa username**: esse
-campo não participa da autenticação, da validação de credencial ou da montagem de URL.
+não quebrar ambientes que ainda a declaram. A versão funcional **não usa username**: esse campo não
+participa da autenticação, da validação de credencial ou da montagem de URL.
 
 ## 2. Saúde da instância
 
@@ -174,8 +177,14 @@ interativas e localização, e mantém os identificadores no vocabulário do CRM
 comparado em tempo constante; sem segredo configurado o webhook é recusado.
 
 Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId` em
-`GET /{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado.
+`GET /{version}/{phone_number_id}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor
+dedicado. O `phone_number_id` é `WHATSAPP_NUMERO`; nenhuma rota usa `WHATSAPP_USUARIO_API`.
 Localização não chama o downloader e é persistida em metadados estruturados.
+
+Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
+identificador técnico da mídia e devolve uma indisponibilidade retentável. O processador mantém o
+payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o
+prazo absoluto; o corpo da resposta do provedor nunca vai para `ultimo_erro`.
 
 ### 8.0 Registro do callback
 

@@ -98,8 +98,8 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
 
         processador(Duration.ofHours(2)).rodada();
 
-        verify(entrada).adiar(eq(ID_EXTERNO), anyString());
-        verify(entrada, never()).reagendar(anyString(), anyString());
+        verify(entrada).adiar(eq(ID_EXTERNO), eq(AGORA.plusSeconds(5)), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
     }
 
@@ -113,8 +113,8 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         processador(Duration.ofHours(2)).rodada();
 
         verify(entrada).esgotar(eq(ID_EXTERNO), eq(AGORA), anyString());
-        verify(entrada, never()).adiar(anyString(), anyString());
-        verify(entrada, never()).reagendar(anyString(), anyString());
+        verify(entrada, never()).adiar(anyString(), any(), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
     }
 
     @Test
@@ -125,8 +125,8 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
 
         processador(Duration.ofHours(2)).rodada();
 
-        verify(entrada).reagendar(eq(ID_EXTERNO), anyString());
-        verify(entrada, never()).adiar(anyString(), anyString());
+        verify(entrada).reagendar(eq(ID_EXTERNO), eq(AGORA.plusSeconds(5)), anyString());
+        verify(entrada, never()).adiar(anyString(), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
     }
 
@@ -139,8 +139,8 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         processador(Duration.ofHours(2)).rodada();
 
         verify(entrada).esgotar(eq(ID_EXTERNO), eq(AGORA), anyString());
-        verify(entrada, never()).adiar(anyString(), anyString());
-        verify(entrada, never()).reagendar(anyString(), anyString());
+        verify(entrada, never()).adiar(anyString(), any(), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
     }
 
     @Test
@@ -152,7 +152,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
 
         verify(canal, never()).baixarMidiaRecebida(anyString());
         verify(entrada).marcarProcessado(ID_EXTERNO, AGORA);
-        verify(entrada, never()).reagendar(anyString(), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
     }
 
@@ -177,7 +177,9 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 transacoes,
                 50,
                 5,
-                prazoAbsoluto);
+                prazoAbsoluto,
+                Duration.ofSeconds(5),
+                Duration.ofMinutes(30));
     }
 
     private static PlatformTransactionManager transacaoPassThrough() {
