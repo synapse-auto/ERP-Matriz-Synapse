@@ -216,6 +216,34 @@ Não existe scheduler, rotina de varredura ou disparo no backend. O snapshot
 `POST /internal/v1/eventos`; portanto a frequência é a frequência dos eventos
 que o workflow envia, e não um job periódico do CRM.
 
+### 3.5 EV-05 — resumo e preenchimento automático
+
+O cron de cinco horas é exclusivamente do n8n. O CRM oferece somente o contrato interno abaixo;
+não há credencial PostgreSQL para o workflow nem rota publicada pelo Traefik:
+
+```text
+GET  /internal/v1/automation-config/ev05
+GET  /internal/v1/ev05/candidatos?pagina=0&tamanho=20
+GET  /internal/v1/ev05/atendimentos/{atendimentoId}/contexto
+GET  /internal/v1/ev05/leads/{leadId}/resumo
+POST /internal/v1/ev05/leads/{leadId}/resumo
+GET  /internal/v1/ev05/leads/{leadId}/preenchimento
+POST /internal/v1/ev05/leads/{leadId}/preenchimento
+```
+
+Todas as chamadas levam `X-Synapse-Token`. As duas escritas também levam `Idempotency-Key` estável.
+`candidatos` devolve apenas IDs, situação e `atualizadoEm`, sempre `EM_ATENDIMENTO`; `contexto` é limitado ao
+teto de histórico da instância e não devolve URL/token de mídia. O resumo aceita `{leadId,resumo,
+contextoGeradoEm?}` e recusa ciclo tardio; o preenchimento aceita `{leadId,email?,cpf?,empresa?,
+localizacao?}`, preenche apenas campos vazios e devolve o resultado de cada campo (`APLICADO`,
+`IGNORADO_JA_PREENCHIDO`, `IGNORADO_INVALIDO` ou `AUSENTE`). Uma entrada inválida não aplica
+nenhum outro campo, mas registra o instante da avaliação.
+
+O workflow deve consultar configuração, paginar candidatos, consultar cada situação, buscar contexto
+somente de atendimento elegível e então gravar resumo e preenchimento de forma independente. Erros
+usam RFC 7807; diagnósticos devem usar apenas `leadId`, `atendimentoId` e status, sem conteúdo,
+telefone, CPF, token ou prompt.
+
 ## 4. Por que não acessar o banco direto
 
 Três motivos, em ordem de gravidade:

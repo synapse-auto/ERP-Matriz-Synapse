@@ -69,6 +69,17 @@ Resultado tardio de outro worker é ignorado e não pode regravar `status_entreg
 evento residual. O E130 de reconciliação de transporte permanece inalterado; falhas ambíguas
 continuam pendentes até a reconciliação por chave.
 
+### 12/09/2026 — Contrato EV-05 para resumo e preenchimento automático
+
+O ciclo de cinco horas é responsabilidade exclusiva do n8n. O CRM agora expõe o contrato
+interno `/internal/v1/ev05` para listar, de forma paginada, somente atendimentos
+`EM_ATENDIMENTO`, consultar contexto limitado e ler/gravar resumo e preenchimento automático de
+`email`, `cpf`, `empresa` e `localizacao`. Todas as escritas exigem `Idempotency-Key`, validam
+entrada e preservam campos já preenchidos; a mesma chave devolve a resposta concluída. Os
+intervalos independentes de resumo e preenchimento vivem em `configuracao_automacao` (V68), e os
+marcos de última escrita/avaliação ficam no lead. O n8n não recebe acesso ao PostgreSQL, e nenhum
+cron ou chamada de IA foi adicionado ao backend.
+
 ---
 
 ## 1. Onde estamos

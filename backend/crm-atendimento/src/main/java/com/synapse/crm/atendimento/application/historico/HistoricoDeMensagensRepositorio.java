@@ -13,5 +13,8 @@ public interface HistoricoDeMensagensRepositorio {
     List<MensagemDoHistorico> anteriores(
             UUID atendimentoId, Instant cursorEnviadoEm, UUID cursorId, int limite);
 
+    /** Mensagens somente do atendimento informado, sem incluir atendimentos anteriores do lead. */
+    List<MensagemDoHistorico> doAtendimento(UUID atendimentoId, int limite);
+
     List<MensagemDoHistorico> desde(UUID atendimentoId, Instant desde);
 }

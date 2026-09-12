@@ -11,13 +11,16 @@ divergir dele, o Swagger está certo. `/swagger-ui` e `/v3/api-docs` no domínio
 
 ## 1. Resumo em cinco linhas
 
-Foram abertos **quatro contratos internos** que faltavam: listar atendimentos em andamento, criar
+Foram abertos **quatro contratos internos na entrega E51**: listar atendimentos em andamento, criar
 lembrete, sobrescrever o resumo da IA, e aplicar tag do catálogo ao lead. Todos exigem
 `X-Synapse-Token` e papel de serviço; nenhum deles aparece na API de usuário. A varredura por
 `GET /api/v1/atendimentos?visao=TODOS` **sai de cena** e é substituída por
 `GET /internal/v1/atendimentos/em-andamento`. Nenhuma ação de infraestrutura é necessária: os
 parâmetros novos têm padrão seguro. Ficaram **fora** desta entrega o FAQ institucional e a avaliação
 de atendimento.
+
+Esta etapa acrescenta o contrato **EV-05**, descrito na seção 5, para resumo e preenchimento
+automático por ciclo do n8n; ele não cria um quinto cron no backend.
 
 ---
 
@@ -234,7 +237,37 @@ reutilizada em outro atendimento/operação ou uma segunda finalização com cha
 
 ---
 
-## 5. O que ficou de fora, e por quê
+## 5. EV-05 — contrato de ciclo do n8n
+
+O EV-05 não cria job no CRM. O n8n executa o cron (cinco horas) e usa
+`GET /internal/v1/automation-config/ev05` para obter, separadamente, `resumo.habilitado` e
+`resumo.intervaloHoras`, e `preenchimentoAutomatico.habilitado` e
+`preenchimentoAutomatico.intervaloHoras`. Os intervalos vêm de `configuracao_automacao` e têm
+faixa persistida (1–720 horas).
+
+`GET /internal/v1/ev05/candidatos` pagina somente `EM_ATENDIMENTO` (`atendimentoId`, `leadId`,
+`situacao`, `atualizadoEm`). Para cada candidato, o workflow pode consultar `.../leads/{leadId}/resumo`,
+`.../leads/{leadId}/preenchimento` e `.../atendimentos/{atendimentoId}/contexto`. O contexto é
+limitado pelo teto de histórico da instância e sinaliza `conteudoSuficiente`; não expõe telefone,
+notas, URL assinada, token ou payload do provedor.
+
+As escritas são idempotentes e exigem `Idempotency-Key`:
+
+```text
+POST /internal/v1/ev05/leads/{leadId}/resumo
+{ "leadId": "...", "resumo": "...", "contextoGeradoEm": "..." }
+
+POST /internal/v1/ev05/leads/{leadId}/preenchimento
+{ "leadId": "...", "email": "...", "cpf": "...", "empresa": "...", "localizacao": "..." }
+```
+
+O resumo substitui o retrato atual e recusa contexto obsoleto. O preenchimento normaliza e valida
+e-mail/CPF, nunca limpa nem sobrescreve campo manual e informa por campo `APLICADO`,
+`IGNORADO_JA_PREENCHIDO`, `IGNORADO_INVALIDO` ou `AUSENTE`; a avaliação é marcada mesmo sem
+aplicação. Replay da mesma chave devolve a mesma resposta; chave incompatível responde `409`,
+chave ausente `400`, recurso inelegível `404` e dados inválidos `422` (RFC 7807).
+
+## 6. O que ficou de fora, e por quê
 
 - **FAQ institucional** — é etapa própria: precisa de tela para o cliente editar o conteúdo. Não
   adianta abrir endpoint para um dado que ninguém consegue cadastrar.
@@ -245,7 +278,7 @@ reutilizada em outro atendimento/operação ou uma segunda finalização com cha
 
 ---
 
-## 6. Perguntas que dependem do Dylan
+## 7. Perguntas que dependem do Dylan
 
 1. **Credencial.** Com que credencial os workflows chamam `/api/v1/atendimentos` hoje? (não deu para
    confirmar: workflows não versionados)
@@ -265,7 +298,7 @@ reutilizada em outro atendimento/operação ou uma segunda finalização com cha
 
 ---
 
-## 7. Checklist de migração
+## 8. Checklist de migração
 
 - [ ] Trocar a varredura por `GET /internal/v1/atendimentos/em-andamento`, guardando o instante da
       última passagem em `atividadeDesde`.
