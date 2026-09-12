@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeApi } from "@/lib/api/errors";
@@ -8,7 +9,7 @@ import { enviarMensagem, enviarTemplate } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
 import { mesclarMensagens } from "./tempo-real";
-import type { MensagemResposta } from "./types";
+import type { EnvioResposta, MensagemResposta } from "./types";
 
 interface VariaveisEnvio {
   atendimentoId: string;
@@ -24,6 +25,35 @@ function idTemporario(): string {
   return `temp-${crypto.randomUUID()}`;
 }
 
+type ContextoOtimista = {
+  queryKey: readonly ["mensagens", string];
+  idOtimista: string;
+  criadoEm: string;
+};
+
+function erroDefinitivo(erro: unknown): boolean {
+  return erro instanceof ErroDeApi
+    && erro.status >= 400
+    && erro.status < 500
+    && ![408, 425, 429].includes(erro.status);
+}
+
+function respostaDaReconciliacao(
+  real: MensagemResposta,
+  variaveis: VariaveisEnvio,
+): EnvioResposta {
+  return {
+    atendimentoId: real.atendimentoId ?? variaveis.atendimentoId,
+    mensagemId: real.id,
+    statusEntrega: real.statusEntrega,
+    enviadoEm: real.enviadoEm,
+    // A propriedade pode ter mudado na confirmação que se perdeu. O cache da inbox é buscado de
+    // novo abaixo, portanto este valor só força a reconciliação conservadora da lista.
+    transferiuOLead: true,
+    idempotencyKey: real.idempotencyKey ?? variaveis.idempotencyKey ?? null,
+  };
+}
+
 /**
  * Estado real, não otimismo: a mensagem aparece assim que o `mutate` roda, já com o único status
  * possível naquele instante — `PENDENTE` — nunca fingindo `ENVIADO`. Falha de transporte mantém o
@@ -32,26 +62,50 @@ function idTemporario(): string {
  */
 export function useEnviarMensagem(onMensagemEnviada?: () => void) {
   const queryClient = useQueryClient();
+  const contextos = useRef(new Map<string, ContextoOtimista>());
+  const chavesReconciliadas = useRef(new Set<string>());
 
   return useMutation({
-    mutationFn: (variaveis: VariaveisEnvio) =>
-      variaveis.template
-        ? enviarTemplate(
-            variaveis.leadId,
-            variaveis.template.nome,
-            variaveis.template.idioma,
-            variaveis.template.parametros,
-            variaveis.idempotencyKey,
-          )
-        : enviarMensagem(
-            variaveis.leadId,
-            variaveis.conteudo,
-            variaveis.resposta,
-            variaveis.idempotencyKey,
-          ),
+    mutationFn: async (variaveis: VariaveisEnvio) => {
+      try {
+        return variaveis.template
+          ? await enviarTemplate(
+              variaveis.atendimentoId,
+              variaveis.leadId,
+              variaveis.template.nome,
+              variaveis.template.idioma,
+              variaveis.template.parametros,
+              variaveis.idempotencyKey,
+            )
+          : await enviarMensagem(
+              variaveis.atendimentoId,
+              variaveis.leadId,
+              variaveis.conteudo,
+              variaveis.resposta,
+              variaveis.idempotencyKey,
+            );
+      } catch (erro) {
+        const chave = variaveis.idempotencyKey;
+        const contexto = chave ? contextos.current.get(chave) : undefined;
+        if (erroDefinitivo(erro) || !chave || !contexto) throw erro;
+
+        const real = await reconciliarEnvioAmbiguo(
+          queryClient,
+          variaveis.atendimentoId,
+          contexto.queryKey,
+          contexto.idOtimista,
+          chave,
+          contexto.criadoEm,
+        );
+        if (!real) throw erro;
+        chavesReconciliadas.current.add(chave);
+        return respostaDaReconciliacao(real, variaveis);
+      }
+    },
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
-      variaveis.idempotencyKey ??= crypto.randomUUID();
+      const chaveIdempotencia = variaveis.idempotencyKey ?? crypto.randomUUID();
+      variaveis.idempotencyKey = chaveIdempotencia;
       const idOtimista = idTemporario();
       const identidade = identidadeAutenticada(queryClient);
       const otimista: MensagemResposta = {
@@ -68,35 +122,18 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         erroEntrega: null,
         enviadoEm: new Date().toISOString(),
         citacao: variaveis.citacao ?? null,
-        idempotencyKey: variaveis.idempotencyKey,
+        idempotencyKey: chaveIdempotencia,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      return { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      contextos.current.set(chaveIdempotencia, contexto);
+      return contexto;
     },
-    onError: async (erro, variaveis, contexto) => {
+    onError: (erro, variaveis, contexto) => {
       if (!contexto) {
         return;
       }
-      const definitiva =
-        erro instanceof ErroDeApi
-        && erro.status >= 400
-        && erro.status < 500
-        && ![408, 425, 429].includes(erro.status);
-      if (!definitiva) {
-        const reconciliada = await reconciliarEnvioAmbiguo(
-          queryClient,
-          variaveis.atendimentoId,
-          contexto.queryKey,
-          contexto.idOtimista,
-          variaveis.idempotencyKey!,
-          contexto.criadoEm,
-        );
-        if (reconciliada) {
-          queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
-          onMensagemEnviada?.();
-          return;
-        }
-      }
+      if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       if (variaveis.resposta) {
         // Respostas/citações mantêm o comportamento existente: sem confirmação da API, a
         // referência otimista é retirada para não deixar um vínculo local que nunca foi aceito.
@@ -125,6 +162,9 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
       if (!contexto) {
         return;
       }
+      const reconciliada = resposta.idempotencyKey != null
+        && chavesReconciliadas.current.delete(resposta.idempotencyKey);
+      if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       const identidade = identidadeAutenticada(queryClient);
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
         const otimista = atual.find(
@@ -157,7 +197,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
           [real],
         );
       });
-      if (resposta.transferiuOLead) {
+      if (resposta.transferiuOLead || reconciliada) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
       onMensagemEnviada?.();

@@ -128,6 +128,7 @@ export interface AlvoDeResposta {
 }
 
 export function enviarMensagem(
+  atendimentoId: string,
   leadId: string,
   conteudo: string,
   resposta?: AlvoDeResposta,
@@ -138,6 +139,7 @@ export function enviarMensagem(
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
     body: JSON.stringify({
       leadId,
+      atendimentoId,
       conteudo,
       ...(resposta
         ? { mensagemOrigemId: resposta.mensagemId, origemEnviadaEm: resposta.enviadoEm }
@@ -175,6 +177,7 @@ export function obterCartaoAtendimento(atendimentoId: string): Promise<CartaoAte
 }
 
 export function enviarTemplate(
+  atendimentoId: string,
   leadId: string,
   nome: string,
   idioma: string,
@@ -184,7 +187,7 @@ export function enviarTemplate(
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens/template", {
     method: "POST",
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
-    body: JSON.stringify({ leadId, nome, idioma, parametros }),
+    body: JSON.stringify({ atendimentoId, leadId, nome, idioma, parametros }),
   });
 }
 

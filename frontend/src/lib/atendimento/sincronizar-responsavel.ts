@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import type { CartaoAtendimento, ItemInbox, StatusAtendimento } from "./types";
 
-/** Última mudança de responsável aplicada por evento de tempo real, por lead. */
+/** Última mudança de responsável aplicada por evento de tempo real, por atendimento. */
 export type MudancaDeResponsavel = {
   ocorridoEm: string;
   atendimentoId: string;
@@ -17,22 +17,21 @@ export type RegistroDeMudancas = Map<string, MudancaDeResponsavel>;
 /** Descarta evento mais antigo que o já aplicado — evita resposta atrasada sobrescrever o estado. */
 export function ehMaisRecenteQue(
   registro: RegistroDeMudancas,
-  leadId: string,
+  atendimentoId: string,
   ocorridoEm: string,
 ): boolean {
-  const anterior = registro.get(leadId);
+  const anterior = registro.get(atendimentoId);
   return !anterior || ocorridoEm >= anterior.ocorridoEm;
 }
 
 export function registrarMudanca(
   registro: RegistroDeMudancas,
-  leadId: string,
   mudanca: MudancaDeResponsavel,
 ): boolean {
-  if (!ehMaisRecenteQue(registro, leadId, mudanca.ocorridoEm)) {
+  if (!ehMaisRecenteQue(registro, mudanca.atendimentoId, mudanca.ocorridoEm)) {
     return false;
   }
-  registro.set(leadId, mudanca);
+  registro.set(mudanca.atendimentoId, mudanca);
   return true;
 }
 
@@ -51,11 +50,14 @@ export function aplicarResponsavelAoCartao(
 
 export function aplicarResponsavelNaLista(
   itens: ItemInbox[],
-  leadId: string,
+  atendimentoId: string,
   mudanca: MudancaDeResponsavel,
 ): ItemInbox[] {
   return itens.map((item) => {
-    if (item.tipo === "EQUIPE_INTERNA" || item.leadId !== leadId) return item;
+    if (
+      item.tipo === "EQUIPE_INTERNA"
+      || (item.atendimentoId !== atendimentoId && item.atendimentoAtivoId !== atendimentoId)
+    ) return item;
     return aplicarResponsavelAoCartao(item, mudanca);
   });
 }
@@ -71,9 +73,11 @@ export function mesclarCartaoComLista(
 ): CartaoAtendimento | null {
   if (!selecionado) return null;
   const daLista = cartoes.find(
-    (item) => item.tipo !== "EQUIPE_INTERNA" && item.leadId === selecionado.leadId,
+    (item) => item.tipo !== "EQUIPE_INTERNA"
+      && (item.atendimentoId === selecionado.atendimentoId
+        || item.atendimentoAtivoId === selecionado.atendimentoId),
   ) as CartaoAtendimento | undefined;
-  const marca = registro.get(selecionado.leadId);
+  const marca = registro.get(selecionado.atendimentoId);
 
   if (daLista) {
     if (!marca) return daLista;
@@ -94,13 +98,12 @@ export function mesclarCartaoComLista(
 
 export function patchAtendimentosNoCache(
   cache: QueryClient,
-  leadId: string,
   mudanca: MudancaDeResponsavel,
 ): void {
   cache.setQueriesData({ queryKey: ["atendimentos"] }, (atual: unknown) => {
     if (!atual || typeof atual !== "object") return atual;
     if (Array.isArray(atual)) {
-      return aplicarResponsavelNaLista(atual as ItemInbox[], leadId, mudanca);
+      return aplicarResponsavelNaLista(atual as ItemInbox[], mudanca.atendimentoId, mudanca);
     }
     if ("pages" in atual && Array.isArray((atual as { pages: unknown }).pages)) {
       const inf = atual as { pages: { itens?: ItemInbox[] }[] };
@@ -108,7 +111,7 @@ export function patchAtendimentosNoCache(
         ...inf,
         pages: inf.pages.map((pagina) => ({
           ...pagina,
-          itens: aplicarResponsavelNaLista(pagina.itens ?? [], leadId, mudanca),
+          itens: aplicarResponsavelNaLista(pagina.itens ?? [], mudanca.atendimentoId, mudanca),
         })),
       };
     }

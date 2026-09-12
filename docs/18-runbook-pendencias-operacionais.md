@@ -336,13 +336,16 @@ esgotada com status HTTP, tipo de mídia e ID técnico. Para recuperar históric
 publique a imagem, meça as linhas com a consulta acima, exporte apenas os `id_externo` aprovados e
 recoloque-as na fila conforme decisão operacional explícita; nunca faça reprocessamento automático.
 
-### 4.8.2 — 400 transitório no envio manual após finalização
+### 4.8.2 — Resposta ambígua no envio manual após finalização
 
-Quando a bolha mostra brevemente um 400 e a mensagem chega logo depois, investigue a tentativa por
-`Idempotency-Key`, nunca por texto, horário ou telefone. A primeira chamada pode ter confirmado a
+Quando a bolha mostra um `5xx`, perda de rede ou outro erro antes de a resposta chegar, investigue
+a tentativa por `Idempotency-Key`, nunca por texto, horário ou telefone. A primeira chamada pode ter confirmado a
 mensagem/outbox e o navegador pode ter perdido a resposta; um replay da mesma chave deve retornar
 o mesmo `mensagemId`/`atendimentoId`, mesmo que o atendimento tenha sido finalizado entre as duas
 chamadas. O resultado agora é `200` idempotente, sem abrir atendimento ou outbox adicional.
+
+Para a matriz de estados, correlação sem conteúdo pessoal e sequência de triagem, use
+[`docs/39-runbook-consistencia-envio-atendimento.md`](39-runbook-consistencia-envio-atendimento.md).
 
 Colete somente identificadores e estados (sem conteúdo, telefone, token, URL assinada ou payload
 cru):

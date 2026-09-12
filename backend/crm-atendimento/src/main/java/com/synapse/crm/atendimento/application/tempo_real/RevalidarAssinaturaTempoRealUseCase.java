@@ -49,7 +49,8 @@ public class RevalidarAssinaturaTempoRealUseCase {
     public boolean aindaValida(UUID atendimentoId, UUID usuarioId, PapelUsuario papel) {
         return atendimentos
                 .porId(atendimentoId)
-                .map(atendimento -> atendimento.visivelPara(usuarioId, papel))
-                .orElseGet(() -> participacoes.eParticipanteAtivo(atendimentoId, usuarioId));
+                .map(atendimento -> atendimento.visivelPara(usuarioId, papel)
+                        || participacoes.eParticipanteAtivo(atendimentoId, usuarioId))
+                .orElse(false);
     }
 }

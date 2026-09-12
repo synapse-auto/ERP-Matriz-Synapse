@@ -317,14 +317,18 @@ export function PaginaAtendimentosCliente({
   }, [notificacao, configuracao?.tempoNotificacaoSegundos]);
 
   const aplicarMudancaDeResponsavel = useCallback(
-    (leadId: string, mudanca: MudancaDeResponsavel) => {
-      if (!registrarMudanca(mudancasDeResponsavel.current, leadId, mudanca)) {
+    (mudanca: MudancaDeResponsavel) => {
+      if (!registrarMudanca(mudancasDeResponsavel.current, mudanca)) {
         return;
       }
-      patchAtendimentosNoCache(cache, leadId, mudanca);
-      setAtendimentos((atual) => aplicarResponsavelNaLista(atual, leadId, mudanca));
+      patchAtendimentosNoCache(cache, mudanca);
+      setAtendimentos((atual) => aplicarResponsavelNaLista(atual, mudanca.atendimentoId, mudanca));
       setCartaoSelecionado((atual) =>
-        atual && atual.leadId === leadId ? aplicarResponsavelAoCartao(atual, mudanca) : atual,
+        atual
+          && (atual.atendimentoId === mudanca.atendimentoId
+            || atual.atendimentoAtivoId === mudanca.atendimentoId)
+          ? aplicarResponsavelAoCartao(atual, mudanca)
+          : atual,
       );
     },
     [cache],
@@ -332,9 +336,12 @@ export function PaginaAtendimentosCliente({
 
   const aoEventoEstadoDaConversa = useCallback(
     (evento: EventoTempoReal) => {
+      if (evento.dados.atendimentoId !== atendimentoSelecionadoId) {
+        return;
+      }
       if (evento.tipo === "TRANSFERENCIA") {
-        const { leadId, mudanca } = mudancaTransferencia(evento.dados);
-        aplicarMudancaDeResponsavel(leadId, mudanca);
+        const { mudanca } = mudancaTransferencia(evento.dados);
+        aplicarMudancaDeResponsavel(mudanca);
       }
       if (evento.tipo === "FINALIZACAO") {
         setCartaoSelecionado((atual) =>
@@ -344,7 +351,7 @@ export function PaginaAtendimentosCliente({
         );
       }
     },
-    [aplicarMudancaDeResponsavel],
+    [aplicarMudancaDeResponsavel, atendimentoSelecionadoId],
   );
 
   const { conexao, estado } = useConexaoTempoReal(
@@ -398,8 +405,8 @@ export function PaginaAtendimentosCliente({
         }
       }
       if (evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") {
-        const { leadId, mudanca } = mudancaDevolucaoParaIa(evento.dados);
-        aplicarMudancaDeResponsavel(leadId, mudanca);
+        const { mudanca } = mudancaDevolucaoParaIa(evento.dados);
+        aplicarMudancaDeResponsavel(mudanca);
       }
       if (evento.tipo !== "CHAT_INTERNO_REACAO") {
         void cache.invalidateQueries({ queryKey: ["atendimentos"] });
@@ -525,6 +532,7 @@ export function PaginaAtendimentosCliente({
           legenda: falha.legenda,
           resposta: falha.resposta,
           citacao: falha.citacao,
+          idempotencyKey: falha.idempotencyKey,
         });
       } catch (erro) {
         restantes.push({
@@ -542,7 +550,7 @@ export function PaginaAtendimentosCliente({
     const registro = mudancasDeResponsavel.current;
     const reconciliados = cartoes.map((item) => {
       if (item.tipo === "EQUIPE_INTERNA") return item;
-      const marca = registro.get(item.leadId);
+      const marca = registro.get(item.atendimentoAtivoId ?? item.atendimentoId);
       if (!marca || item.atendenteId === marca.atendenteId) return item;
       return aplicarResponsavelAoCartao(item, marca);
     });
@@ -563,6 +571,7 @@ export function PaginaAtendimentosCliente({
         atendimentoId: atendimentoAtivo.atendimentoId,
         leadId: atendimentoAtivo.leadId,
         conteudo: mensagem.conteudo,
+        idempotencyKey: mensagem.idempotencyKey ?? undefined,
       },
       { onSuccess: aposMensagemEnviada },
     );

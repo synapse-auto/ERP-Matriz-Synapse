@@ -127,13 +127,15 @@ class RelayDeTempoRealListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoEnviarComTransferencia(EventoDeAtendimento.MensagemEnviada evento) {
-        if (!evento.transferiu() || evento.donoAnterior().isEmpty()) return;
+        if (!evento.transferiu()) return;
         ObjectNode dados = json.createObjectNode();
         dados.put("eventoId", evento.atendimentoId() + ":" + evento.ocorridoEm());
         dados.put("atendimentoId", evento.atendimentoId().toString());
         dados.put("leadId", evento.leadId().toString());
         dados.put("leadNome", evento.leadNome());
-        dados.put("deAtendenteId", evento.donoAnterior().get().toString());
+        dados.put(
+                "deAtendenteId",
+                evento.donoAnterior().map(UUID::toString).orElse(null));
         dados.put("paraAtendenteId", evento.remetenteId().toString());
         dados.put("quemTransferiu", evento.remetenteId().toString());
         dados.put("atorTipo", "USUARIO");
