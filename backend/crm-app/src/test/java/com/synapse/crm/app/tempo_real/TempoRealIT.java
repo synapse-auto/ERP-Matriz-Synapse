@@ -263,18 +263,51 @@ class TempoRealIT extends PostgresIT {
     class EventoCanonicoComDoisAtendentes {
 
         @Test
-        @DisplayName("automacao transfere para B, revoga A e entrega snapshot somente a B")
+        @DisplayName("automacao atribui para A e transferencia posterior revoga A em favor de B")
         void transferenciaDaAutomacao_reconciliaNovoDonoSemVazarParaAntigo() throws Exception {
-            UUID atendimentoId = abrirAtendimentoComoAna();
+            UUID atendimentoId = abrirAtendimentoNaIa();
             StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
             StompSession sessaoBruno = conectar(tokenDe("bruno@dev.local"));
             Captura pessoalAna = assinar(sessaoAna, "/user/queue/notificacoes");
             Captura pessoalBruno = assinar(sessaoBruno, "/user/queue/notificacoes");
-            Captura selecionadoAna = assinar(sessaoAna, atendimentoId);
-            Captura revogacaoAna = assinar(sessaoAna, "/user/queue/revogacoes");
 
             ContextoDeServico.executarComo(
-                    "tempo-real-it-transferencia", () -> transferir.executarPelaAutomacao(atendimentoId, idBruno));
+                    "tempo-real-it-atribuicao", () -> transferir.executarPelaAutomacao(atendimentoId, idAna));
+
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
+                                    + " AND payload->>'atendimentoId' = ? AND publicado_em IS NULL",
+                            Integer.class,
+                            atendimentoId.toString()))
+                    .isGreaterThanOrEqualTo(1);
+            publicadorEstado.publicarPendentes();
+
+            String eventoAna = pessoalAna.aguardarContendo("ATENDIMENTO_TRANSFERIDO", ESPERA_CURTA);
+            assertThat(eventoAna)
+                    .contains("\"contrato\":\"atendimento.estado.v1\"")
+                    .contains("\"atendimentoId\":\"" + atendimentoId + "\"")
+                    .contains("\"eventoTipo\":\"ATENDIMENTO_TRANSFERIDO\"");
+            assertThat(pessoalBruno.aguardarSemTrecho("ATENDIMENTO_ESTADO", ESPERA_NEGATIVA)).isTrue();
+
+            ResponseEntity<String> estadoAnaAtribuido = estadoSelecionado(atendimentoId, "ana@dev.local");
+            assertThat(estadoAnaAtribuido.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(estadoAnaAtribuido.getBody())
+                    .contains("\"atendenteId\":\"" + idAna + "\"")
+                    .contains("\"podeEnviar\":true")
+                    .contains("\"versao\":");
+            assertThat(estadoSelecionado(atendimentoId, "bruno@dev.local").getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+
+            Captura selecionadoAna = assinar(sessaoAna, atendimentoId);
+            Captura revogacaoAna = assinar(sessaoAna, "/user/queue/revogacoes");
+            pessoalAna.descartarPendentes();
+
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            try {
+                transferir.executar(atendimentoId, idBruno, idGestor);
+            } finally {
+                ApoioRls.sair();
+            }
 
             assertThat(jdbc.queryForObject(
                             "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
@@ -568,6 +601,18 @@ class TempoRealIT extends PostgresIT {
         ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
         UUID atendimentoId = enviar.executar(leadDaAna, PREFIXO + "abertura").atendimento().id();
         ApoioRls.sair();
+        return atendimentoId;
+    }
+
+    private UUID abrirAtendimentoNaIa() {
+        UUID atendimentoId = UUID.randomUUID();
+        jdbc.update(
+                "UPDATE lead SET atendente_responsavel_id = NULL, status_basico = 'IA' WHERE id = ?",
+                leadDaAna);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, status, iniciado_em) VALUES (?, ?, 'EM_IA', now())",
+                atendimentoId,
+                leadDaAna);
         return atendimentoId;
     }
 
