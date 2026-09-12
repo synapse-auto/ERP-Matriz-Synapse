@@ -39,6 +39,7 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -105,6 +106,7 @@ class TempoRealIT extends PostgresIT {
 
     private int porta;
     private WebSocketStompClient stomp;
+    private ThreadPoolTaskScheduler stompScheduler;
     private UUID idAna;
     private UUID idBruno;
     private UUID idGestor;
@@ -119,6 +121,11 @@ class TempoRealIT extends PostgresIT {
     @BeforeEach
     void preparar() {
         stomp = new WebSocketStompClient(new StandardWebSocketClient());
+        stompScheduler = new ThreadPoolTaskScheduler();
+        stompScheduler.setPoolSize(1);
+        stompScheduler.setThreadNamePrefix("tempo-real-it-stomp-");
+        stompScheduler.initialize();
+        stomp.setTaskScheduler(stompScheduler);
 
         limpar();
         idAna = jdbc.queryForObject("SELECT id FROM usuario WHERE email = 'ana@dev.local'", UUID.class);
@@ -145,6 +152,8 @@ class TempoRealIT extends PostgresIT {
             }
         });
         sessoesAbertas.clear();
+        stomp.stop();
+        stompScheduler.destroy();
         ApoioRls.sair();
     }
 

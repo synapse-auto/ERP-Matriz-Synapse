@@ -255,7 +255,8 @@ class CanalWhatsAppIT extends PostgresIT {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID mensagemId = enviar.executar(leadDaAna, "mensagem com reserva orfa").mensagem().id();
             UUID outboxId = jdbc.queryForObject(
-                    "SELECT id FROM outbox_evento WHERE publicado_em IS NULL AND esgotado_em IS NULL",
+                    "SELECT id FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                            + " AND publicado_em IS NULL AND esgotado_em IS NULL",
                     UUID.class);
 
             jdbc.update(
@@ -954,18 +955,23 @@ class CanalWhatsAppIT extends PostgresIT {
 
     private int pendentesNaOutbox() {
         return jdbc.queryForObject(
-                "SELECT count(*) FROM outbox_evento WHERE publicado_em IS NULL AND esgotado_em IS NULL",
+                "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                        + " AND publicado_em IS NULL AND esgotado_em IS NULL",
                 Integer.class);
     }
 
     private int esgotadasNaOutbox() {
         return jdbc.queryForObject(
-                "SELECT count(*) FROM outbox_evento WHERE esgotado_em IS NOT NULL", Integer.class);
+                "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                        + " AND esgotado_em IS NOT NULL",
+                Integer.class);
     }
 
     private int tentativasNaOutbox() {
         return jdbc.queryForObject(
-                "SELECT coalesce(max(tentativas), 0) FROM outbox_evento", Integer.class);
+                "SELECT coalesce(max(tentativas), 0) FROM outbox_evento"
+                        + " WHERE tipo = 'canal.mensagem.enviar'",
+                Integer.class);
     }
 
     private int linhasNoWebhookEntrada() {
