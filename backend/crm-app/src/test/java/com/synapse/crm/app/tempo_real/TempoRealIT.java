@@ -52,6 +52,7 @@ import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorEventoEstadoOutbox;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
@@ -272,9 +273,8 @@ class TempoRealIT extends PostgresIT {
             Captura selecionadoAna = assinar(sessaoAna, atendimentoId);
             Captura revogacaoAna = assinar(sessaoAna, "/user/queue/revogacoes");
 
-            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
-            transferir.executarPelaAutomacao(atendimentoId, idBruno);
-            ApoioRls.sair();
+            ContextoDeServico.executarComo(
+                    "tempo-real-it-transferencia", () -> transferir.executarPelaAutomacao(atendimentoId, idBruno));
 
             assertThat(jdbc.queryForObject(
                             "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
