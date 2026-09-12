@@ -11,6 +11,9 @@ public interface AtendimentosEmAndamentoRepositorio {
 
     Pagina listar(Filtro filtro);
 
+    /** Atendimento humano em curso de um lead, usado para ancorar o ciclo EV-05. */
+    java.util.Optional<Item> porLeadEmAtendimento(UUID leadId);
+
     record Filtro(Instant atividadeDesde, Instant atividadeAte, int pagina, int tamanho) {}
 
     record Item(

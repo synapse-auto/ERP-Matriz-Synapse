@@ -275,6 +275,61 @@ class ContratosInternosAutomacaoIT extends PostgresIT {
                 .isNull();
     }
 
+    @Test
+    void ev05ExponeCicloIdempotenteSomenteParaAtendimentoElegivel() {
+        UUID responsavel = usuario("ana@dev.local");
+        UUID atendimento = criarAtendimento("EV05", "EM_ATENDIMENTO", responsavel, INICIO);
+        UUID lead = leadDo(atendimento);
+
+        ResponseEntity<String> configuracao = chamar(HttpMethod.GET, "/internal/v1/automation-config/ev05", null, null);
+        assertThat(configuracao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(configuracao.getBody())
+                .contains("\"resumo\"", "\"intervaloHoras\":24", "\"preenchimentoAutomatico\"");
+
+        ResponseEntity<String> candidatos = chamar(HttpMethod.GET, "/internal/v1/ev05/candidatos", null, null);
+        assertThat(candidatos.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(candidatos.getBody()).contains(atendimento.toString(), lead.toString(), "EM_ATENDIMENTO");
+
+        ResponseEntity<String> contexto = chamar(
+                HttpMethod.GET, "/internal/v1/ev05/atendimentos/" + atendimento + "/contexto", null, null);
+        assertThat(contexto.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(contexto.getBody()).contains(atendimento.toString(), lead.toString());
+
+        Map<String, Object> resumo = Map.of("leadId", lead.toString(), "resumo", "Cliente aguarda medidas.");
+        ResponseEntity<String> primeira = chamar(
+                HttpMethod.POST, "/internal/v1/ev05/leads/" + lead + "/resumo", "ev05-resumo", resumo);
+        ResponseEntity<String> repetida = chamar(
+                HttpMethod.POST, "/internal/v1/ev05/leads/" + lead + "/resumo", "ev05-resumo", resumo);
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(repetida.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(repetida.getBody()).isEqualTo(primeira.getBody());
+        assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("Cliente aguarda medidas.");
+
+        ResponseEntity<String> preenchido = chamar(
+                HttpMethod.POST,
+                "/internal/v1/ev05/leads/" + lead + "/preenchimento",
+                "ev05-preenchimento",
+                Map.of("email", " Cliente@Example.COM ", "empresa", " Vidros "));
+        assertThat(preenchido.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(preenchido.getBody()).contains("APLICADO");
+        assertThat(jdbc.queryForObject("SELECT email || '|' || empresa FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("cliente@example.com|Vidros");
+
+        UUID finalizado = criarAtendimento("EV05-FINAL", "FINALIZADO", responsavel, INICIO.plusSeconds(1_000));
+        UUID leadFinalizado = leadDo(finalizado);
+        ResponseEntity<String> inelegivel = chamar(
+                HttpMethod.GET, "/internal/v1/ev05/leads/" + leadFinalizado + "/resumo", null, null);
+        assertThat(inelegivel.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        assertSemServico(HttpMethod.GET, "/internal/v1/ev05/leads/" + lead + "/resumo", null, null);
+        assertSemServico(
+                HttpMethod.POST,
+                "/internal/v1/ev05/leads/" + lead + "/resumo",
+                "ev05-sem-token",
+                resumo);
+    }
+
     private void assertSemServico(
             HttpMethod metodo, String url, String chave, Object corpo) {
         HttpHeaders headers = new HttpHeaders();

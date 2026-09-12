@@ -25,7 +25,10 @@ class ResumoIaDoLeadRepositorioJdbc implements ResumoIaDoLeadRepositorio {
     @Override
     public void sobrescrever(UUID leadId, String resumo) {
         TransacaoObrigatoria.exigir("sobrescrever resumo da IA");
-        int alterados = chat.update("UPDATE lead SET resumo_ia = ? WHERE id = ?", resumo, leadId);
+        int alterados = chat.update(
+                "UPDATE lead SET resumo_ia = ?, resumo_ia_atualizado_em = now() WHERE id = ?",
+                resumo,
+                leadId);
         if (alterados != 1) {
             throw new IllegalStateException("lead do atendimento deixou de existir durante a atualizacao");
         }
