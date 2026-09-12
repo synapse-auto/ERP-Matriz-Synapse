@@ -553,7 +553,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/Resposta"
+                  "$ref" : "#/components/schemas/ContextoResposta"
                 }
               }
             }
@@ -567,14 +567,6 @@
     "/internal/v1/ev05/candidatos" : {
       "get" : {
         "parameters" : [ {
-          "in" : "query",
-          "name" : "atualizadoDesde",
-          "required" : false,
-          "schema" : {
-            "format" : "date-time",
-            "type" : "string"
-          }
-        }, {
           "in" : "query",
           "name" : "pagina",
           "required" : false,
@@ -593,6 +585,14 @@
             "format" : "int32",
             "minimum" : 1,
             "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "atualizadoDesde",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
           }
         } ],
         "responses" : {
@@ -1216,24 +1216,31 @@
       },
       "type" : "object"
     },
-    "Item" : {
+    "ContextoResposta" : {
       "properties" : {
-        "conteudo" : {
-          "type" : "string"
-        },
-        "enviadoEm" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "mensagemId" : {
+        "atendimentoId" : {
           "format" : "uuid",
           "type" : "string"
         },
-        "remetente" : {
+        "contextoAte" : {
+          "format" : "date-time",
           "type" : "string"
         },
-        "tipo" : {
+        "conteudoSuficiente" : {
+          "type" : "boolean"
+        },
+        "leadId" : {
+          "format" : "uuid",
           "type" : "string"
+        },
+        "mensagens" : {
+          "items" : {
+            "$ref" : "#/components/schemas/MensagemContextoResposta"
+          },
+          "type" : "array"
+        },
+        "temMais" : {
+          "type" : "boolean"
         }
       },
       "type" : "object"
@@ -1253,6 +1260,28 @@
           "type" : "string"
         },
         "situacao" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "MensagemContextoResposta" : {
+      "properties" : {
+        "conteudo" : {
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "remetente" : {
+          "type" : "string"
+        },
+        "tipo" : {
           "type" : "string"
         }
       },
@@ -1503,29 +1532,25 @@
     },
     "Resposta" : {
       "properties" : {
-        "atendimentoId" : {
+        "atendenteId" : {
           "format" : "uuid",
           "type" : "string"
         },
-        "contextoAte" : {
-          "format" : "date-time",
+        "atendenteNome" : {
           "type" : "string"
         },
-        "conteudoSuficiente" : {
-          "type" : "boolean"
+        "conteudo" : {
+          "type" : "string"
         },
-        "leadId" : {
+        "id" : {
           "format" : "uuid",
           "type" : "string"
         },
-        "mensagens" : {
-          "items" : {
-            "$ref" : "#/components/schemas/Item"
-          },
-          "type" : "array"
+        "palavraChave" : {
+          "type" : "string"
         },
-        "temMais" : {
-          "type" : "boolean"
+        "tipoMidia" : {
+          "type" : "string"
         }
       },
       "type" : "object"
@@ -1629,8 +1654,15 @@
     },
     "ResumoRequisicao" : {
       "properties" : {
+        "contextoGeradoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
         "resumo" : {
-          "example" : "Cliente solicitou orçamento e aguarda medidas.",
           "minLength" : 1,
           "type" : "string"
         }

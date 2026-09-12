@@ -34,7 +34,7 @@ public class ContextoEv05UseCase {
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public Resposta executar(UUID atendimentoId) {
+    public ContextoResposta executar(UUID atendimentoId) {
         var atendimento = atendimentos
                 .porId(atendimentoId)
                 .filter(item -> item.status() == StatusAtendimento.EM_ATENDIMENTO)
@@ -43,9 +43,9 @@ public class ContextoEv05UseCase {
         List<MensagemDoHistorico> mensagens = historico.doAtendimento(atendimentoId, limite + 1);
         boolean temMais = mensagens.size() > limite;
         List<MensagemDoHistorico> usadas = temMais ? mensagens.subList(0, limite) : mensagens;
-        List<Item> itens = usadas.reversed().stream().map(Item::de).toList();
+        List<MensagemContextoResposta> itens = usadas.reversed().stream().map(MensagemContextoResposta::de).toList();
         Instant contextoAte = itens.isEmpty() ? atendimento.iniciadoEm() : itens.getLast().enviadoEm();
-        return new Resposta(
+        return new ContextoResposta(
                 atendimento.id(), atendimento.leadId(), itens, temMais, !itens.isEmpty(), contextoAte);
     }
 
@@ -53,22 +53,23 @@ public class ContextoEv05UseCase {
         return limite;
     }
 
-    public record Resposta(
+    public record ContextoResposta(
             UUID atendimentoId,
             UUID leadId,
-            List<Item> mensagens,
+            List<MensagemContextoResposta> mensagens,
             boolean temMais,
             boolean conteudoSuficiente,
             Instant contextoAte) {
-        public Resposta {
+        public ContextoResposta {
             mensagens = List.copyOf(mensagens);
         }
     }
 
-    public record Item(UUID mensagemId, String remetente, String tipo, String conteudo, Instant enviadoEm) {
-        static Item de(MensagemDoHistorico item) {
+    public record MensagemContextoResposta(
+            UUID mensagemId, String remetente, String tipo, String conteudo, Instant enviadoEm) {
+        static MensagemContextoResposta de(MensagemDoHistorico item) {
             var mensagem = item.mensagem();
-            return new Item(
+            return new MensagemContextoResposta(
                     mensagem.id(),
                     item.remetenteNome(),
                     mensagem.tipo().name(),

@@ -36,6 +36,7 @@ import com.synapse.crm.atendimento.application.internal.ContextoEv05UseCase;
 import com.synapse.crm.atendimento.application.internal.Ev05LeadSemAtendimentoException;
 import com.synapse.crm.atendimento.application.internal.Ev05LeadUseCase;
 import com.synapse.crm.atendimento.application.internal.Ev05ResumoInvalidoException;
+import com.synapse.crm.atendimento.application.internal.ListarCandidatosEv05UseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Contrato /internal/v1 do ciclo EV-05 consumido pelo cron do n8n. */
@@ -45,13 +46,13 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 @Tag(name = "EV-05 Automação", description = "Candidatos, contexto e escritas idempotentes de IA.")
 @SecurityRequirement(name = "synapseToken")
 class Ev05AutomacaoInternalController {
-    private final CandidatosEv05Repositorio candidatos;
+    private final ListarCandidatosEv05UseCase candidatos;
     private final ContextoEv05UseCase contexto;
     private final Ev05LeadUseCase leads;
     private final int tamanhoMaximo;
 
     Ev05AutomacaoInternalController(
-            CandidatosEv05Repositorio candidatos,
+            ListarCandidatosEv05UseCase candidatos,
             ContextoEv05UseCase contexto,
             Ev05LeadUseCase leads,
             @Value("${synapse.suporte.tamanho-pagina}") int tamanhoMaximo) {
@@ -78,7 +79,7 @@ class Ev05AutomacaoInternalController {
         return ContextoDeServico.buscarComo(
                 "listar-candidatos-ev05", () -> {
                     int efetivo = Math.min(tamanho, tamanhoMaximo);
-                    return CandidatosResposta.de(candidatos.listar(pagina, efetivo, atualizadoDesde));
+                    return CandidatosResposta.de(candidatos.executar(pagina, efetivo, atualizadoDesde));
                 });
     }
 
@@ -93,13 +94,14 @@ class Ev05AutomacaoInternalController {
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou inelegível.")
             })
     @GetMapping("/atendimentos/{atendimentoId}/contexto")
-    ContextoEv05UseCase.Resposta contexto(
+    ContextoEv05UseCase.ContextoResposta contexto(
             @Parameter(required = true) @PathVariable UUID atendimentoId) {
         return ContextoDeServico.buscarComo("consultar-contexto-ev05", () -> contexto.executar(atendimentoId));
     }
 
     @Operation(
             summary = "Consultar situação do resumo do lead",
+            description = "Retorna a situação do resumo persistido para um lead com atendimento humano elegível.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Situação atual do resumo."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
@@ -112,6 +114,7 @@ class Ev05AutomacaoInternalController {
 
     @Operation(
             summary = "Gravar resumo do lead de forma idempotente",
+            description = "Persiste o resumo produzido pela automação após validar o contexto e a idempotência.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Resumo gravado ou resposta do replay."),
                 @ApiResponse(responseCode = "400", description = "Idempotency-Key ou corpo inválido."),
@@ -132,6 +135,7 @@ class Ev05AutomacaoInternalController {
 
     @Operation(
             summary = "Consultar situação do preenchimento automático",
+            description = "Retorna a situação dos campos avaliados pelo preenchimento automático.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Situação dos campos alvo."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
