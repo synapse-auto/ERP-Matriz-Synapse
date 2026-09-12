@@ -97,6 +97,18 @@ class HistoricoDeMensagensRepositorioJdbc implements HistoricoDeMensagensReposit
     }
 
     @Override
+    public List<MensagemDoHistorico> doAtendimento(UUID atendimentoId, int limite) {
+        TransacaoObrigatoria.exigir("doAtendimento");
+        return chat.query(
+                "SELECT " + COLUNAS + JOINS + " WHERE m.atendimento_id = ?"
+                        + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ?",
+                this::mapear,
+                atendimentoId,
+                atendimentoId,
+                limite);
+    }
+
+    @Override
     public List<MensagemDoHistorico> desde(UUID atendimentoId, Instant desde) {
         TransacaoObrigatoria.exigir("desde");
         return chat.query(SQL_DESDE, this::mapear, atendimentoId, Timestamp.from(desde));

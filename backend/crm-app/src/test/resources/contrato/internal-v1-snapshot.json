@@ -477,6 +477,23 @@
         }
       }
     },
+    "/internal/v1/automation-config/ev05" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Ev05ConfiguracaoResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/automation-config/recursos-ia" : {
       "get" : {
         "responses" : {
@@ -517,6 +534,223 @@
           "401" : { },
           "403" : { },
           "404" : { }
+        }
+      }
+    },
+    "/internal/v1/ev05/atendimentos/{atendimentoId}/contexto" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "atendimentoId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Resposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      }
+    },
+    "/internal/v1/ev05/candidatos" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "atualizadoDesde",
+          "required" : false,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pagina",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "tamanho",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CandidatosResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/ev05/leads/{leadId}/preenchimento" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EstadoPreenchimento"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      },
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PreenchimentoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResultadoPreenchimento"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
+    "/internal/v1/ev05/leads/{leadId}/resumo" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EstadoResumo"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      },
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResumoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResultadoResumo"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
         }
       }
     },
@@ -769,6 +1003,12 @@
             "$ref" : "#/components/schemas/ParametroResposta"
           },
           "type" : "array"
+        },
+        "preenchimentoAutomatico" : {
+          "$ref" : "#/components/schemas/Ev05PreenchimentoConfiguracao"
+        },
+        "resumo" : {
+          "$ref" : "#/components/schemas/Ev05ResumoConfiguracao"
         }
       },
       "type" : "object"
@@ -818,6 +1058,118 @@
       },
       "type" : "object"
     },
+    "CandidatosResposta" : {
+      "properties" : {
+        "itens" : {
+          "items" : {
+            "$ref" : "#/components/schemas/ItemResposta"
+          },
+          "type" : "array"
+        },
+        "pagina" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "tamanho" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "temMais" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "Campo" : {
+      "properties" : {
+        "origem" : {
+          "type" : "string"
+        },
+        "preenchido" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "EstadoPreenchimento" : {
+      "properties" : {
+        "cpf" : {
+          "$ref" : "#/components/schemas/Campo"
+        },
+        "email" : {
+          "$ref" : "#/components/schemas/Campo"
+        },
+        "empresa" : {
+          "$ref" : "#/components/schemas/Campo"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "localizacao" : {
+          "$ref" : "#/components/schemas/Campo"
+        },
+        "ultimaAvaliacaoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "EstadoResumo" : {
+      "properties" : {
+        "atualizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "contextoNovoSuficiente" : {
+          "type" : "boolean"
+        },
+        "existe" : {
+          "type" : "boolean"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "Ev05ConfiguracaoResposta" : {
+      "properties" : {
+        "preenchimentoAutomatico" : {
+          "$ref" : "#/components/schemas/Ev05PreenchimentoConfiguracao"
+        },
+        "resumo" : {
+          "$ref" : "#/components/schemas/Ev05ResumoConfiguracao"
+        }
+      },
+      "type" : "object"
+    },
+    "Ev05PreenchimentoConfiguracao" : {
+      "properties" : {
+        "habilitado" : {
+          "type" : "boolean"
+        },
+        "intervaloHoras" : {
+          "format" : "int32",
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "Ev05ResumoConfiguracao" : {
+      "properties" : {
+        "habilitado" : {
+          "type" : "boolean"
+        },
+        "intervaloHoras" : {
+          "format" : "int32",
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
     "EventoRequisicao" : {
       "properties" : {
         "tipo" : {
@@ -859,6 +1211,48 @@
         },
         "status" : {
           "enum" : [ "ATUALIZADA", "INALTERADA", "REMOVIDA" ],
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "Item" : {
+      "properties" : {
+        "conteudo" : {
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "remetente" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ItemResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "atualizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "situacao" : {
           "type" : "string"
         }
       },
@@ -986,6 +1380,27 @@
       },
       "type" : "object"
     },
+    "PreenchimentoRequisicao" : {
+      "properties" : {
+        "cpf" : {
+          "type" : "string"
+        },
+        "email" : {
+          "type" : "string"
+        },
+        "empresa" : {
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "localizacao" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "ParametroResposta" : {
       "properties" : {
         "atualizadoEm" : {
@@ -1086,6 +1501,35 @@
       },
       "type" : "object"
     },
+    "Resposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "contextoAte" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "conteudoSuficiente" : {
+          "type" : "boolean"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "mensagens" : {
+          "items" : {
+            "$ref" : "#/components/schemas/Item"
+          },
+          "type" : "array"
+        },
+        "temMais" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
     "RespostaComandoAutomacao" : {
       "properties" : {
         "atendimentoId" : {
@@ -1117,6 +1561,51 @@
           "type" : "string"
         },
         "resumo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResultadoPreenchimento" : {
+      "properties" : {
+        "avaliadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "cpf" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
+          "type" : "string"
+        },
+        "email" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
+          "type" : "string"
+        },
+        "empresa" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "localizacao" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO", "IGNORADO_INVALIDO", "AUSENTE" ],
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResultadoResumo" : {
+      "properties" : {
+        "aplicado" : {
+          "type" : "boolean"
+        },
+        "atualizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
           "type" : "string"
         }
       },
