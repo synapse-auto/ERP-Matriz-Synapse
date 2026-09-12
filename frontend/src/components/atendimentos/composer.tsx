@@ -57,6 +57,8 @@ type Props = {
   onCancelarResposta?: () => void;
   onMensagemEnviada?: () => void;
   onFalhasDeMidia?: (falhas: FalhaDeEnvioMidia[]) => void;
+  podeEnviar?: boolean;
+  onRevalidarEnvio?: () => Promise<boolean>;
   ref?: Ref<ComposerHandle>;
 };
 
@@ -125,6 +127,8 @@ export function Composer({
   onCancelarResposta,
   onMensagemEnviada,
   onFalhasDeMidia,
+  podeEnviar = true,
+  onRevalidarEnvio,
   ref,
 }: Props) {
   const catalogo = useTextos();
@@ -140,6 +144,7 @@ export function Composer({
   const [painelTemplateAberto, setPainelTemplateAberto] = useState(false);
   const [menuAnexoAberto, setMenuAnexoAberto] = useState(false);
   const [modoMenuAnexo, setModoMenuAnexo] = useState<"acoes" | "mensagens-rapidas">("acoes");
+  const [envioBloqueado, setEnvioBloqueado] = useState(false);
   const [atalhoSelecionado, setAtalhoSelecionado] = useState(0);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -189,6 +194,7 @@ export function Composer({
     setPainelTemplateAberto(false);
     setMenuAnexoAberto(false);
     setModoMenuAnexo("acoes");
+    setEnvioBloqueado(false);
     setAtalhoSelecionado(0);
     setVariaveisPendentes([]);
     setParametros({});
@@ -249,7 +255,7 @@ export function Composer({
   }
 
   function adicionarArquivos(novos: File[]) {
-    if (!janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
+    if (!podeEnviar || !janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
     const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS);
     if (aceitos.length > 0) {
       setArquivos((atual) => [...atual, ...aceitos]);
@@ -310,9 +316,25 @@ export function Composer({
     onCancelarResposta?.();
   }
 
+  async function confirmarEnvioPermitido(): Promise<boolean> {
+    if (!podeEnviar) {
+      setEnvioBloqueado(true);
+      return false;
+    }
+    try {
+      const permitido = await onRevalidarEnvio?.() ?? true;
+      setEnvioBloqueado(!permitido);
+      return permitido;
+    } catch {
+      setEnvioBloqueado(true);
+      return false;
+    }
+  }
+
   async function enviarConteudo() {
     const atendimentoIdDoEnvio = conversa.atendimentoId;
     if (variaveisPendentes.length > 0) return;
+    if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
     if (arquivos.length > 0) {
       const fila = arquivos;
       const legenda = texto.trim() || undefined;
@@ -419,8 +441,9 @@ export function Composer({
     setIndiceEnvio(null);
   }
 
-  function enviarGravacao() {
+  async function enviarGravacao() {
     if (!gravador.arquivo || gravador.erro) return;
+    if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
     const atendimentoIdDoEnvio = conversa.atendimentoId;
     setProgresso(0);
     enviarMidia.mutate(
@@ -515,7 +538,11 @@ export function Composer({
               ? textos.audioExcedeuLimite
               : null;
   const mensagemDeErro =
-    erroDeTexto ?? erroDeMidia ?? erroDeGravacao ?? (avisoTipo ? textos.anexoTipoNaoPermitido : null);
+    (envioBloqueado && !podeEnviar ? textosAtendimentos.tempoReal.conversaEncerrada : null)
+    ?? erroDeTexto
+    ?? erroDeMidia
+    ?? erroDeGravacao
+    ?? (avisoTipo ? textos.anexoTipoNaoPermitido : null);
   const termoAtalho =
     texto.startsWith("/") && !texto.includes(" ")
       ? texto.slice(1).toLowerCase()
@@ -527,10 +554,11 @@ export function Composer({
           m.palavraChave.toLowerCase().includes(termoAtalho),
         );
 
-  function enviarTemplateEscolhido(
+  async function enviarTemplateEscolhido(
     template: { nome: string; idioma: string; corpo: string },
     valores: string[],
   ) {
+    if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
     enviar.mutate({
       atendimentoId: conversa.atendimentoId,
       leadId: conversa.leadId,
@@ -556,7 +584,7 @@ export function Composer({
       onParametros={(chave, valores) =>
         setParametros((atual) => ({ ...atual, [chave]: valores }))
       }
-      enviando={enviar.isPending}
+      enviando={enviar.isPending || !podeEnviar}
       onEnviar={enviarTemplateEscolhido}
     />
   );
@@ -580,7 +608,7 @@ export function Composer({
               </p>
             </div>
           </div>
-          <Button type="button" className="mt-4" onClick={() => setPainelTemplateAberto(true)}>
+          <Button type="button" className="mt-4" onClick={() => setPainelTemplateAberto(true)} disabled={!podeEnviar}>
             {textos.novaMensagem}
           </Button>
         </div>
@@ -742,7 +770,7 @@ export function Composer({
               multiple
               className="hidden"
               onChange={aoSelecionarArquivo}
-              disabled={gravador.fase !== "INATIVO" || enviarMidia.isPending}
+              disabled={!podeEnviar || gravador.fase !== "INATIVO" || enviarMidia.isPending}
             />
             <Popover open={menuAnexoAberto} onOpenChange={aoAlterarMenuAnexo}>
               <Tooltip>
@@ -751,7 +779,7 @@ export function Composer({
                     <PopoverTrigger
                       className={buttonVariants({ variant: "ghost", size: "icon-lg" })}
                       aria-label={textos.anexo}
-                      disabled={gravador.fase !== "INATIVO"}
+                      disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                     >
                       <Paperclip className="size-[calc(var(--tamanho-icone-interface)*1.25)]" aria-hidden />
                     </PopoverTrigger>
@@ -774,14 +802,14 @@ export function Composer({
                         fecharMenuAnexo();
                         requestAnimationFrame(() => inputArquivoRef.current?.click());
                       }}
-                      disabled={gravador.fase !== "INATIVO"}
+                      disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                     />
                     {capacidadeDoCanal.data?.gerenciaTemplates !== false && (
                       <AcaoMenuAnexo
                         label={textos.anexoMenuTemplates}
                         icone={LayoutTemplate}
                         aoSelecionar={abrirTemplatesPeloMenu}
-                        disabled={gravador.fase !== "INATIVO"}
+                        disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                       />
                     )}
                     {!rapidas.isError && (
@@ -789,7 +817,7 @@ export function Composer({
                         label={textos.mensagensRapidas}
                         icone={Zap}
                         aoSelecionar={abrirMensagensRapidasPeloMenu}
-                        disabled={gravador.fase !== "INATIVO"}
+                        disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                       />
                     )}
                   </div>
@@ -821,7 +849,7 @@ export function Composer({
                 className={buttonVariants({ variant: "ghost", size: "icon" })}
                 aria-label={textos.agendar}
                 onClick={() => setAgendamentoAberto(true)}
-                disabled={gravador.fase !== "INATIVO"}
+                disabled={!podeEnviar || gravador.fase !== "INATIVO"}
               >
                 <Clock className="size-(--tamanho-icone-interface)" />
               </TooltipTrigger>
@@ -831,7 +859,7 @@ export function Composer({
             <PainelEmojiComposer
               rotulo={textos.emoji}
               i18n={textosAtendimentos.mensagem.acoes.seletor}
-              disabled={gravador.fase !== "INATIVO"}
+              disabled={!podeEnviar || gravador.fase !== "INATIVO"}
               onEscolher={(emoji) => {
                 const campo = textareaRef.current;
                 setTexto((atual) => {
@@ -851,7 +879,7 @@ export function Composer({
                   className={buttonVariants({ variant: "ghost", size: "icon" })}
                   aria-label={textos.audioGravar}
                   onClick={gravador.iniciar}
-                  disabled={enviarMidia.isPending}
+                  disabled={!podeEnviar || enviarMidia.isPending}
                 >
                   <Mic className="size-(--tamanho-icone-interface)" />
                 </TooltipTrigger>
@@ -876,7 +904,7 @@ export function Composer({
               }
               rows={1}
               className="min-h-11 max-h-32 w-full min-w-0 resize-none break-words border-0 bg-transparent px-2 py-2 shadow-none focus-visible:border-0 focus-visible:ring-2"
-              disabled={gravador.fase !== "INATIVO"}
+              disabled={!podeEnviar || gravador.fase !== "INATIVO"}
             />
             {sugestoes.length > 0 && (
               <ul
@@ -925,6 +953,7 @@ export function Composer({
               disabled={
                 enviar.isPending
                 || enviarMidia.isPending
+                || !podeEnviar
                 || (gravador.fase === "PREVISUALIZACAO"
                   ? Boolean(gravador.erro) || !gravador.arquivo
                   : gravador.fase !== "INATIVO" || (!texto.trim() && arquivos.length === 0) || variaveisPendentes.length > 0)

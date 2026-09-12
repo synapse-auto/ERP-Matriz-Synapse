@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 67 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V67__backoff_webhook_entrada.sql`
+**Estado:** 68 migrations neste branch · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V69__versao_eventos_atendimento.sql` (`V68` está reservada pela PR #144 e deve ser aplicada antes da V69)
 
 ---
 
@@ -78,6 +78,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V65__acoes_mensagens_chat_interno` | ações e tombstones do chat interno |
 | `V66__edicao_mensagens_chat_interno` | edição textual no chat interno |
 | `V67__backoff_webhook_entrada` | `proxima_tentativa_em` e índice da fila de entrada para retentativas duráveis com backoff |
+| `V69__versao_eventos_atendimento` | sequência monotônica `atendimento.versao_evento` e função técnica estreita para eventos canônicos |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -146,7 +147,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.4 Atendimento
 
-**`atendimento`** — `id`, `lead_id`, `canal_id`, `canal_credencial_id`, `atendente_id`, `status`, `iniciado_em`, `finalizado_em`
+**`atendimento`** — `id`, `lead_id`, `canal_id`, `canal_credencial_id`, `atendente_id`, `status`, `iniciado_em`, `finalizado_em`, `versao_evento` (V69, ordem monotônica por ciclo)
 
 **`mensagem`** — **particionada por `RANGE (enviado_em)`**, PK composta `(id, enviado_em)`:
 

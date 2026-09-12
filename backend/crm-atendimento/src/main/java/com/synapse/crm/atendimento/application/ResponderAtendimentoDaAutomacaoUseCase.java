@@ -14,6 +14,7 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -95,6 +96,13 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemEnviadaPelaAutomacao(
                 atendimento.leadId(), atendimento.id(), gravada.id(), agora));
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                EventoCanonicoDeAtendimento.Tipo.MENSAGEM_ENVIADA_AUTOMACAO,
+                atendimento.id(),
+                atendimento.leadId(),
+                agora);
         eventos.publishEvent(new MensagemParaTempoReal(
                 atendimento.id(),
                 atendimento.leadId(),

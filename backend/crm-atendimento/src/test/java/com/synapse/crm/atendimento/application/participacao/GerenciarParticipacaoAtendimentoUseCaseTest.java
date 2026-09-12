@@ -41,6 +41,7 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
         when(participacoes.leadId(atendimento)).thenReturn(Optional.of(lead));
         when(participacoes.donoId(atendimento)).thenReturn(Optional.of(dono));
         when(participacoes.eParticipanteAtivo(atendimento, dono)).thenReturn(true);
+        when(atendimentos.avancarVersaoDoEvento(atendimento)).thenReturn(1L, 2L, 3L, 4L);
 
         var useCase = new GerenciarParticipacaoAtendimentoUseCase(
                 participacoes, atendimentos, contexto, eventos, agora, usuarios);

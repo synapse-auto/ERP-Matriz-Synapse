@@ -109,6 +109,14 @@ describe("menu global de finalização", () => {
         <ListaConversas selecionadoId="atendimento-1" onAbrirAtendimento={vi.fn()} />
         <CabecalhoConversa
           conversa={conversa as CartaoAtendimento}
+          estado={{
+            cartao: conversa as CartaoAtendimento,
+            versao: 1,
+            participantes: [],
+            usuarioAtualEhResponsavel: true,
+            usuarioAtualParticipa: false,
+            podeEnviar: true,
+          }}
           buscaAberta={false}
           onAlternarBusca={vi.fn()}
           painelDetalhesAberto

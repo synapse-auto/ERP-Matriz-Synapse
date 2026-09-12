@@ -8,7 +8,11 @@ import { mensagensDesde, paginaMensagens } from "./api";
 import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
 import { atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
-import type { EventoTempoReal, MensagemResposta } from "./types";
+import type {
+  EventoCanonicoAtendimentoTempoReal,
+  EventoTempoReal,
+  MensagemResposta,
+} from "./types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { definirConversaAtiva } from "./servico-notificacoes-tempo-real";
 
@@ -19,8 +23,9 @@ export function useMensagens(
   estadoConexao: EstadoConexao,
   onMensagemRecebida?: () => void,
   atendimentoParaAssinar: string | null = atendimentoId,
-  onEventoEstado?: (evento: EventoTempoReal) => void,
+  onEventoEstado?: (evento: EventoCanonicoAtendimentoTempoReal) => void,
   onEventoRecebido?: (evento: EventoTempoReal) => void,
+  incrementaisLiberados = true,
 ) {
   const queryClient = useQueryClient();
   const queryKey = ["mensagens", atendimentoId] as const;
@@ -28,6 +33,7 @@ export function useMensagens(
   const onMensagemRecebidaRef = useRef(onMensagemRecebida);
   const onEventoEstadoRef = useRef(onEventoEstado);
   const onEventoRecebidoRef = useRef(onEventoRecebido);
+  const incrementaisLiberadosRef = useRef(incrementaisLiberados);
 
   useEffect(() => {
     onMensagemRecebidaRef.current = onMensagemRecebida;
@@ -40,6 +46,10 @@ export function useMensagens(
   useEffect(() => {
     onEventoRecebidoRef.current = onEventoRecebido;
   }, [onEventoRecebido]);
+
+  useEffect(() => {
+    incrementaisLiberadosRef.current = incrementaisLiberados;
+  }, [incrementaisLiberados]);
 
   const query = useInfiniteQuery({
     queryKey,
@@ -70,6 +80,13 @@ export function useMensagens(
         return;
       }
       onEventoRecebidoRef.current?.(evento);
+      if (evento.tipo === "ATENDIMENTO_ESTADO") {
+        onEventoEstadoRef.current?.(evento);
+        return;
+      }
+      // Na primeira conexao e em toda reconexao, o snapshot autorizado governa antes dos
+      // incrementais. Frames recebidos nessa janela sao recuperados pelo backfill HTTP abaixo.
+      if (!incrementaisLiberadosRef.current) return;
       if (evento.tipo === "MENSAGEM") {
         if (!evento.dados.mensagemId) return;
         const nova: MensagemResposta = {
@@ -136,11 +153,6 @@ export function useMensagens(
           { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
           useAuthStore.getState().usuarioId,
         );
-      } else {
-        // TRANSFERENCIA / FINALIZACAO: o chamador aplica o estado local com guarda de
-        // ocorridoEm; aqui só dispara o callback e reconcilia a inbox via HTTP.
-        onEventoEstadoRef.current?.(evento);
-        void queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
     });
     return () => {
@@ -159,14 +171,19 @@ export function useMensagens(
   }, [mensagens]);
 
   useEffect(() => {
-    if (estadoConexao !== "conectado" || !atendimentoParaAssinar || !ultimoInstanteRef.current) return;
-    mensagensDesde(atendimentoParaAssinar, ultimoInstanteRef.current).then((novas) => {
+    if (estadoConexao !== "conectado" || !atendimentoParaAssinar || !incrementaisLiberados) return;
+    const ultimoInstante = ultimoInstanteRef.current;
+    if (!ultimoInstante) {
+      void query.refetch();
+      return;
+    }
+    void mensagensDesde(atendimentoParaAssinar, ultimoInstante).then((novas) => {
       if (novas.length > 0) {
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, novas));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reage somente a transicao da conexao
-  }, [estadoConexao, atendimentoParaAssinar]);
+  }, [estadoConexao, atendimentoParaAssinar, incrementaisLiberados]);
 
   return { ...query, data: mensagens };
 }

@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.EventosCanonicosDeAtendimento;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.equipe.application.autenticacao.UsuarioRepositorio;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
@@ -34,6 +36,9 @@ public class GerenciarParticipacaoAtendimentoUseCase {
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
         UUID lead=participacoes.leadId(atendimentoId).orElseThrow();
         eventos.publishEvent(new EventoDeAtendimento.PedidoEntradaSolicitado(lead,atendimentoId,usuario,nome(usuario),dono(atendimentoId),agora()));
+        EventosCanonicosDeAtendimento.publicar(atendimentos, eventos,
+                EventoCanonicoDeAtendimento.Tipo.PEDIDO_ENTRADA_SOLICITADO,
+                atendimentoId, lead, agora());
         return pedido;
     }
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
@@ -52,13 +57,17 @@ public class GerenciarParticipacaoAtendimentoUseCase {
         UUID lead=participacoes.leadId(pedido.atendimentoId()).orElseThrow();
         eventos.publishEvent(new EventoDeAtendimento.PedidoEntradaRespondido(lead,pedido.atendimentoId(),pedido.solicitanteId(),dono,aprovado,agora));
         if (aprovado) eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,pedido.atendimentoId(),pedido.solicitanteId(),agora));
+        EventosCanonicosDeAtendimento.publicar(atendimentos, eventos,
+                aprovado ? EventoCanonicoDeAtendimento.Tipo.PEDIDO_ENTRADA_APROVADO
+                        : EventoCanonicoDeAtendimento.Tipo.PEDIDO_ENTRADA_RECUSADO,
+                pedido.atendimentoId(), lead, agora);
     }
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
-    public void entrar(UUID atendimentoId) { if(!usuarios.atual().enxergaTodosOsLeads()) throw new SecurityException("sem alçada para entrar diretamente"); Instant agora=agora(); participacoes.entrar(atendimentoId,usuarios.atual().id(),agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,atendimentoId,usuarios.atual().id(),agora)); }
+    public void entrar(UUID atendimentoId) { if(!usuarios.atual().enxergaTodosOsLeads()) throw new SecurityException("sem alçada para entrar diretamente"); Instant agora=agora(); participacoes.entrar(atendimentoId,usuarios.atual().id(),agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,atendimentoId,usuarios.atual().id(),agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU,atendimentoId,lead,agora); }
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
-    public void sair(UUID atendimentoId) { UUID u=usuarios.atual().id(); if(!participacoes.eParticipanteAtivo(atendimentoId,u)) throw new RecursoDeAtendimentoIndisponivelException("participação",atendimentoId); Instant agora=agora(); participacoes.sair(atendimentoId,u,agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteSaiu(lead,atendimentoId,u,agora)); }
+    public void sair(UUID atendimentoId) { UUID u=usuarios.atual().id(); if(!participacoes.eParticipanteAtivo(atendimentoId,u)) throw new RecursoDeAtendimentoIndisponivelException("participação",atendimentoId); Instant agora=agora(); participacoes.sair(atendimentoId,u,agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteSaiu(lead,atendimentoId,u,agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_SAIU,atendimentoId,lead,agora); }
 
     @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER, readOnly=true)
     public List<ParticipanteAtendimento> participantes(UUID atendimentoId) {

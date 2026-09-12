@@ -6,7 +6,11 @@ Esta entrega centraliza no navegador as notificações de mensagens novas e de m
 
 - O cliente mantém uma única conexão STOMP por sessão, compartilhada pelos componentes que usam tempo real.
 - A fila pessoal é `/user/queue/notificacoes`, protegida pelo interceptor de autenticação.
-- O publisher de atendimento continua em `@TransactionalEventListener(phase = AFTER_COMMIT)` e publica no canal Redis do atendimento. O subscriber faz a entrega pessoal somente para o dono e os participantes ativos do atendimento. Quando a entrada abre (ou mantém) um atendimento `EM_IA` sem dono, o caminho crítico calcula na mesma transação os usuários ativos autorizados a ver Potenciais e os usa como destinatários; isso evita que uma conversa nova fique invisível sem ampliar a RLS.
+- Mensagens e avisos legados continuam em `@TransactionalEventListener(phase = AFTER_COMMIT)`. Mudanças
+  de estado usam a outbox transacional `tempo-real.atendimento.estado.v1`: a linha é gravada junto da
+  ação e um worker publica no Redis somente após o commit. O subscriber calcula na entrega os usuários
+  ativos autorizados pela mesma regra da RLS; isso evita que uma conversa nova fique invisível sem
+  ampliar o recorte de acesso.
 - O chat interno continua usando seu canal Redis e entrega a mensagem pessoal aos destinatários já calculados pelo caso de uso, sem incluir o autor.
 - Edições usam o mesmo canal e o evento `CHAT_INTERNO_MENSAGEM_EDITADA`, com `mensagemId`, `conversaId`,
   conteúdo atual e `editadoEm`. A entrega ocorre após commit; o frontend invalida apenas o cache do chat
@@ -38,7 +42,15 @@ A preferência é exposta em Configurações, começa habilitada por padrão e �
 
 ## Reconexão e leitura
 
-O fluxo existente de reconexão e backfill HTTP permanece responsável por recuperar mensagens da conversa aberta. A fila pessoal serve como sinal de atualização e aviso fora da conversa. Ao receber mensagem no chat interno aberto, o componente solicita novamente a marcação como lida para que o badge não fique pendente.
+O fluxo de atendimento usa o sinal mínimo `ATENDIMENTO_ESTADO` e o snapshot autorizado
+`GET /api/v1/atendimentos/{atendimentoId}/estado`. Após cada reconexão, o snapshot termina antes de o
+cliente aceitar incrementais; o backfill HTTP recupera mensagens recebidas durante a queda. A fila
+pessoal também atualiza a inbox fora da conversa, enquanto a assinatura selecionada revalida a RLS a
+cada mudança de estado. Ordem, deduplicação, payload e diagnóstico estão documentados em
+[Consistência em tempo real dos atendimentos](40-consistencia-tempo-real-atendimentos.md).
+
+Ao receber mensagem no chat interno aberto, o componente solicita novamente a marcação como lida para
+que o badge não fique pendente. O contrato de chat interno não foi alterado.
 
 ## Cobertura
 

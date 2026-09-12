@@ -81,6 +81,18 @@ public interface AtendimentoRepositorio {
      */
     void elevarRlsParaEscritaDeNovoDono();
 
+    /**
+     * Reserva a proxima ordem do evento canonico dentro da transacao corrente.
+     *
+     * <p>A operacao e estreita e nao concede leitura do agregado. Ela existe separada de
+     * {@link #salvar(Atendimento)} porque mensagens e pedidos tambem alteram a projecao do painel
+     * sem necessariamente mudar status ou responsavel.
+     */
+    long avancarVersaoDoEvento(UUID atendimentoId);
+
+    /** Versao confirmada usada pelo snapshot REST autorizado. */
+    long versaoAtualDoEvento(UUID atendimentoId);
+
     /** Insere ou atualiza. Devolve o estado gravado. */
     Atendimento salvar(Atendimento atendimento);
 }

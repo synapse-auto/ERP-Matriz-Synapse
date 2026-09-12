@@ -2,6 +2,7 @@ package com.synapse.crm.app.tempo_real;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.AfterEach;
@@ -48,6 +50,7 @@ import com.synapse.crm.app.seguranca.ApoioRls;
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorDaOutbox;
+import com.synapse.crm.atendimento.infrastructure.outbox.PublicadorEventoEstadoOutbox;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
@@ -65,6 +68,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 @TestPropertySource(
         properties = {
             "synapse.canal.outbox.intervalo-ms=3600000",
+            "synapse.tempo-real.outbox.intervalo-ms=3600000",
             // Sem credencial real da Meta configurada neste teste; o provedor
             // falso (ja usado pela E05) aceita o envio e devolve ENVIADO.
             "synapse.canal.whatsapp.provedor=fake",
@@ -92,6 +96,9 @@ class TempoRealIT extends PostgresIT {
 
     @Autowired
     private PublicadorDaOutbox publicador;
+
+    @Autowired
+    private PublicadorEventoEstadoOutbox publicadorEstado;
 
     @Autowired
     private StringRedisTemplate redis;
@@ -187,9 +194,8 @@ class TempoRealIT extends PostgresIT {
         void assinatura_deLeadAlheio_naoRecebeNada() throws Exception {
             UUID atendimentoId = abrirAtendimentoComoAna();
 
-            Captura capturaBruno = assinar(conectar(tokenDe("bruno@dev.local")), atendimentoId);
+            Captura capturaBruno = assinarSemConfirmacao(conectar(tokenDe("bruno@dev.local")), atendimentoId);
             Captura capturaGestor = assinar(conectar(tokenDe("gestor@dev.local")), atendimentoId);
-            aguardarAssinatura();
 
             enviarComoAna("mensagem que so o gestor deveria ver");
 
@@ -202,7 +208,6 @@ class TempoRealIT extends PostgresIT {
         void assinatura_doProprioAtendimento_recebe() throws Exception {
             UUID atendimentoId = abrirAtendimentoComoAna();
             Captura captura = assinar(conectar(tokenDe("ana@dev.local")), atendimentoId);
-            aguardarAssinatura();
 
             enviarComoAna("ola, tudo bem?");
 
@@ -222,9 +227,7 @@ class TempoRealIT extends PostgresIT {
             StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
             Captura capturaAna = assinar(sessaoAna, atendimentoId);
             Captura revogacaoAna = new Captura();
-            sessaoAna.subscribe("/user/queue/revogacoes", revogacaoAna);
-
-            aguardarAssinatura();
+            assinar(sessaoAna, "/user/queue/revogacoes", revogacaoAna);
 
             // TransferirAtendimentoUseCase e @PreAuthorize("isAuthenticated()"):
             // precisa do SecurityContext de um usuario real, nao do contexto de
@@ -240,12 +243,59 @@ class TempoRealIT extends PostgresIT {
             // "revive" sozinha quando a situacao muda: o cliente real reassina ao
             // ser notificado da nova atribuicao, exatamente como aqui.
             Captura capturaBruno = assinar(conectar(tokenDe("bruno@dev.local")), atendimentoId);
-            aguardarAssinatura();
 
             enviarComoBruno("agora e comigo");
 
             assertThat(capturaBruno.aguardar(ESPERA_CURTA)).contains("agora e comigo");
             assertThat(capturaAna.aguardarNada(ESPERA_NEGATIVA)).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("evento canonico e RLS com duas sessoes de atendente")
+    class EventoCanonicoComDoisAtendentes {
+
+        @Test
+        @DisplayName("automacao transfere para B, revoga A e entrega snapshot somente a B")
+        void transferenciaDaAutomacao_reconciliaNovoDonoSemVazarParaAntigo() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+            StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
+            StompSession sessaoBruno = conectar(tokenDe("bruno@dev.local"));
+            Captura pessoalAna = assinar(sessaoAna, "/user/queue/notificacoes");
+            Captura pessoalBruno = assinar(sessaoBruno, "/user/queue/notificacoes");
+            Captura selecionadoAna = assinar(sessaoAna, atendimentoId);
+            Captura revogacaoAna = assinar(sessaoAna, "/user/queue/revogacoes");
+
+            ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
+            transferir.executarPelaAutomacao(atendimentoId, idBruno);
+            ApoioRls.sair();
+
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
+                                    + " AND payload->>'atendimentoId' = ? AND publicado_em IS NULL",
+                            Integer.class,
+                            atendimentoId.toString()))
+                    .isGreaterThanOrEqualTo(1);
+            publicadorEstado.publicarPendentes();
+
+            String eventoBruno = pessoalBruno.aguardarContendo("ATENDIMENTO_TRANSFERIDO", ESPERA_CURTA);
+            assertThat(eventoBruno)
+                    .contains("\"contrato\":\"atendimento.estado.v1\"")
+                    .contains("\"atendimentoId\":\"" + atendimentoId + "\"")
+                    .contains("\"eventoTipo\":\"ATENDIMENTO_TRANSFERIDO\"");
+            assertThat(revogacaoAna.aguardar(ESPERA_CURTA)).contains(atendimentoId.toString());
+            assertThat(pessoalAna.aguardarSemTrecho("ATENDIMENTO_ESTADO", ESPERA_NEGATIVA)).isTrue();
+            assertThat(selecionadoAna.aguardarSemTrecho("ATENDIMENTO_ESTADO", ESPERA_NEGATIVA)).isTrue();
+
+            ResponseEntity<String> estadoBruno = estadoSelecionado(atendimentoId, "bruno@dev.local");
+            assertThat(estadoBruno.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(estadoBruno.getBody())
+                    .contains("\"atendenteId\":\"" + idBruno + "\"")
+                    .contains("\"podeEnviar\":true")
+                    .contains("\"versao\":");
+
+            ResponseEntity<String> estadoAna = estadoSelecionado(atendimentoId, "ana@dev.local");
+            assertThat(estadoAna.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         }
     }
 
@@ -268,8 +318,7 @@ class TempoRealIT extends PostgresIT {
             StompSession sessaoAna = conectar(tokenDe("ana@dev.local"));
             Captura capturaAna = assinar(sessaoAna, atendimentoId);
             Captura revogacaoAna = new Captura();
-            sessaoAna.subscribe("/user/queue/revogacoes", revogacaoAna);
-            aguardarAssinatura();
+            assinar(sessaoAna, "/user/queue/revogacoes", revogacaoAna);
 
             // A transferencia de verdade (TransferirAtendimentoUseCase) publicaria o
             // evento TRANSFERENCIA no Redis e revogaria Ana na hora. Aqui pulamos o
@@ -280,13 +329,14 @@ class TempoRealIT extends PostgresIT {
             publicarMensagemDireta(atendimentoId, "antes do ttl vencer, ainda vaza");
             assertThat(capturaAna.aguardar(ESPERA_CURTA)).contains("antes do ttl vencer");
 
-            // TTL de teste = 2s (TestPropertySource da classe). Depois disto, a
-            // proxima entrega precisa revalidar antes de confiar na assinatura.
-            Thread.sleep(2500);
-
+            // Awaitility dispara condicionalmente uma entrega ate o TTL vencer e a revalidacao
+            // revogar a assinatura. O teste nao depende de uma pausa fixa.
+            await().atMost(Duration.ofSeconds(5)).pollInterval(Duration.ofMillis(100)).untilAsserted(() -> {
+                publicarMensagemDireta(atendimentoId, "sonda de expiracao do ttl");
+                assertThat(revogacaoAna.tentar(Duration.ofMillis(250))).contains(atendimentoId.toString());
+            });
+            capturaAna.descartarPendentes();
             publicarMensagemDireta(atendimentoId, "depois do ttl vencido, nao deveria vazar");
-
-            assertThat(revogacaoAna.aguardar(ESPERA_CURTA)).contains(atendimentoId.toString());
             assertThat(capturaAna.aguardarNada(ESPERA_NEGATIVA)).isTrue();
         }
     }
@@ -300,7 +350,6 @@ class TempoRealIT extends PostgresIT {
         void transicaoDeStatus_chegaNaTela() throws Exception {
             UUID atendimentoId = abrirAtendimentoComoAna();
             Captura captura = assinar(conectar(tokenDe("ana@dev.local")), atendimentoId);
-            aguardarAssinatura();
 
             enviarComoAna("vou verificar o estoque");
             // A primeira mensagem que chega e o MENSAGEM (PENDENTE); a segunda,
@@ -331,7 +380,6 @@ class TempoRealIT extends PostgresIT {
         void publicacaoNoRedis_chegaAoAssinanteLocalRapido() throws Exception {
             UUID atendimentoId = abrirAtendimentoComoAna();
             Captura captura = assinar(conectar(tokenDe("ana@dev.local")), atendimentoId);
-            aguardarAssinatura();
 
             long inicio = System.nanoTime();
             String envelope = "{\"tipo\":\"MENSAGEM\",\"dados\":{\"atendimentoId\":\"" + atendimentoId
@@ -422,24 +470,34 @@ class TempoRealIT extends PostgresIT {
     private StompSession conectar(String token) throws Exception {
         StompSession sessao =
                 stomp.connectAsync(urlWs(token), new StompSessionHandlerAdapter() {}).get(5, TimeUnit.SECONDS);
+        sessao.setAutoReceipt(true);
         sessoesAbertas.add(sessao);
         return sessao;
     }
 
-    /**
-     * O SUBSCRIBE trafega em canal assincrono separado do teste: {@code sessao.subscribe(...)} volta
-     * antes de o servidor ter processado, autorizado e registrado a assinatura. Sem esta espera, um
-     * envio disparado logo em seguida corre risco real de vencer a corrida — nao contra o mecanismo de
-     * autorizacao, so contra o tempo que ele leva para terminar.
-     */
-    private void aguardarAssinatura() throws InterruptedException {
-        Thread.sleep(400);
+    private Captura assinar(StompSession sessao, UUID atendimentoId) throws Exception {
+        return assinar(sessao, "/user/queue/atendimento." + atendimentoId);
     }
 
-    private Captura assinar(StompSession sessao, UUID atendimentoId) {
+    private Captura assinarSemConfirmacao(StompSession sessao, UUID atendimentoId) {
         Captura captura = new Captura();
         sessao.subscribe("/user/queue/atendimento." + atendimentoId, captura);
         return captura;
+    }
+
+    private Captura assinar(StompSession sessao, String destino) throws Exception {
+        Captura captura = new Captura();
+        assinar(sessao, destino, captura);
+        return captura;
+    }
+
+    private void assinar(StompSession sessao, String destino, Captura captura) throws Exception {
+        CompletableFuture<Void> confirmacao = new CompletableFuture<>();
+        StompSession.Subscription assinatura = sessao.subscribe(destino, captura);
+        assinatura.addReceiptTask(() -> confirmacao.complete(null));
+        assinatura.addReceiptLostTask(() -> confirmacao.completeExceptionally(
+                new AssertionError("servidor nao confirmou assinatura STOMP em " + destino)));
+        confirmacao.get(3, TimeUnit.SECONDS);
     }
 
     /** Frame handler que devolve o corpo cru como texto, e uma fila para o teste consumir. */
@@ -464,6 +522,36 @@ class TempoRealIT extends PostgresIT {
 
         boolean aguardarNada(Duration tempo) throws InterruptedException {
             return recebidas.poll(tempo.toMillis(), TimeUnit.MILLISECONDS) == null;
+        }
+
+        String tentar(Duration tempo) throws InterruptedException {
+            return recebidas.poll(tempo.toMillis(), TimeUnit.MILLISECONDS);
+        }
+
+        String aguardarContendo(String trecho, Duration tempo) {
+            AtomicReference<String> encontrado = new AtomicReference<>();
+            await().atMost(tempo).until(() -> {
+                String valor = recebidas.poll();
+                if (valor == null || !valor.contains(trecho)) return false;
+                encontrado.set(valor);
+                return true;
+            });
+            return encontrado.get();
+        }
+
+        boolean aguardarSemTrecho(String trecho, Duration tempo) throws InterruptedException {
+            long limite = System.nanoTime() + tempo.toNanos();
+            long restante;
+            while ((restante = limite - System.nanoTime()) > 0) {
+                String valor = recebidas.poll(restante, TimeUnit.NANOSECONDS);
+                if (valor == null) return true;
+                if (valor.contains(trecho)) return false;
+            }
+            return true;
+        }
+
+        void descartarPendentes() {
+            recebidas.clear();
         }
     }
 
@@ -493,6 +581,16 @@ class TempoRealIT extends PostgresIT {
                 ? ApoioAutenticacao.SENHA_GESTOR
                 : ApoioAutenticacao.SENHA_ATENDENTE;
         return ApoioAutenticacao.login(http, email, senha).accessToken();
+    }
+
+    private ResponseEntity<String> estadoSelecionado(UUID atendimentoId, String email) {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(tokenDe(email));
+        return http.exchange(
+                "/api/v1/atendimentos/" + atendimentoId + "/estado",
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhos),
+                String.class);
     }
 
     /** Publica direto no canal do Redis, sem passar pela outbox nem pelo relay — ver {@link Backplane}. */

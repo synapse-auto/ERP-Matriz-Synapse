@@ -234,6 +234,42 @@ describe("ConexaoTempoReal", () => {
     expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "NOVA_MENSAGEM", eventoId: "evento-1" }));
   });
 
+  it("encaminha o evento canônico versionado pela fila pessoal", () => {
+    const { cliente } = clienteStompFalso();
+    const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => cliente,
+    });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte);
+    conexao.conectar();
+
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    callback?.({
+      body: JSON.stringify({
+        tipo: "ATENDIMENTO_ESTADO",
+        contrato: "atendimento.estado.v1",
+        eventoId: "evento-estado-1",
+        versaoContrato: 1,
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          eventoTipo: "ATENDIMENTO_FINALIZADO",
+          versao: 8,
+          ocorridoEm: "2026-09-12T10:00:00Z",
+        },
+      }),
+    });
+
+    expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({
+      tipo: "ATENDIMENTO_ESTADO",
+      eventoId: "evento-estado-1",
+    }));
+  });
+
   it("trocar de conversa desassina a anterior antes de assinar a nova", () => {
     const { cliente } = clienteStompFalso();
     const unsubscribeConversa1 = vi.fn();

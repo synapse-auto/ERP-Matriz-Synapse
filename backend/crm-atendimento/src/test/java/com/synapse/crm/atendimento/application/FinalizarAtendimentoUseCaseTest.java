@@ -44,6 +44,7 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
         when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         Atendimento depois = new FinalizarAtendimentoUseCase(
                         atendimentos, leads, eventos, RELOGIO, avaliacao)
@@ -73,6 +74,7 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
         when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         new FinalizarAtendimentoUseCase(atendimentos, leads, eventos, RELOGIO, avaliacao)
                 .executarEmLote(atendimentoId, ana);
@@ -95,6 +97,7 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
         when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         Atendimento finalizado = new FinalizarAtendimentoUseCase(
                         atendimentos, leads, eventos, RELOGIO, avaliacao)

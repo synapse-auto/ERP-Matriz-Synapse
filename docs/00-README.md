@@ -37,6 +37,7 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 - [`24-menu-de-acoes-do-composer.md`](./24-menu-de-acoes-do-composer.md) — comportamento e limites do menu único de ações do composer.
 - [`15-operacao-watchdog-externo.md`](./15-operacao-watchdog-externo.md) — provisionamento e teste destrutivo do monitor externo de `/health/critical`.
 - [`24-notificacoes-tempo-real.md`](./24-notificacoes-tempo-real.md) — contrato de transporte, audiência, deduplicação e apresentação das notificações em tempo real.
+- [`40-consistencia-tempo-real-atendimentos.md`](./40-consistencia-tempo-real-atendimentos.md) — evento canônico, snapshot, ordem transacional, RLS e runbook de divergências no atendimento.
 
 ### Execução com Claude Code
 - [`CLAUDE.md`](./CLAUDE.md) — **vai na raiz do repositório**, não em `/docs`. Lido automaticamente pelo Claude Code em todo comando: stack, regras de arquitetura, padrões obrigatórios, proibições e regras de negócio sensíveis.

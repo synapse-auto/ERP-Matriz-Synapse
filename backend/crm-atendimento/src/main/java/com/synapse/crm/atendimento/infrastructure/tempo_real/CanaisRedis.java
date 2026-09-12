@@ -10,7 +10,7 @@ import java.util.UUID;
  * cada instancia ficar surda para atendimentos que ninguem conectado a ela esta olhando, sem ter que
  * filtrar mensagem por mensagem depois de recebida.
  */
-final class CanaisRedis {
+public final class CanaisRedis {
 
     private static final String PREFIXO = "synapse:atendimento:";
     private static final String PREFIXO_CHAT = "synapse:chat-interno:";
@@ -22,7 +22,7 @@ final class CanaisRedis {
     static final String PRESENCA = "synapse:presenca";
     static final String PADRAO_CHAT = PREFIXO_CHAT + "*";
 
-    static String doAtendimento(UUID atendimentoId) {
+    public static String doAtendimento(UUID atendimentoId) {
         return PREFIXO + atendimentoId;
     }
 

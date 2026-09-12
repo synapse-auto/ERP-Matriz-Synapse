@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CartaoAtendimento } from "@/lib/atendimento/types";
+import type { CartaoAtendimento, EstadoAtendimentoSelecionado } from "@/lib/atendimento/types";
 
 const finalizar = vi.fn();
 const participacao = vi.hoisted(() => ({
@@ -151,6 +151,24 @@ const conversa: CartaoAtendimento = {
   naoLidas: 0,
 };
 
+function estado(
+  sobrescritas: Partial<EstadoAtendimentoSelecionado> = {},
+): EstadoAtendimentoSelecionado {
+  const participantes = participacao.participantes.map((item) => ({
+    ...item,
+    entrouEm: "2026-09-01T10:00:00Z",
+  }));
+  return {
+    cartao: conversa,
+    versao: 1,
+    participantes,
+    usuarioAtualEhResponsavel: false,
+    usuarioAtualParticipa: participantes.some((item) => item.usuarioId === participacao.usuarioId),
+    podeEnviar: true,
+    ...sobrescritas,
+  };
+}
+
 describe("CabecalhoConversa", () => {
   beforeEach(() => {
     participacao.papel = "GESTOR";
@@ -171,6 +189,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={alternarBusca}
         painelDetalhesAberto
@@ -200,6 +219,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -214,11 +234,30 @@ describe("CabecalhoConversa", () => {
     expect(screen.getAllByRole("button", { name: "Transferir" }).length).toBeGreaterThan(0);
   });
 
+  it("não oferece pedir entrada nem sair para o responsável atual", () => {
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado({ usuarioAtualEhResponsavel: true })}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Pedir para entrar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Entrar no atendimento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sair do atendimento" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ao enviar agora, você assume este atendimento.")).not.toBeInTheDocument();
+  });
+
   it("oferece reabrir os detalhes somente quando o painel está retraído", () => {
     const onAlternar = vi.fn();
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto={false}
@@ -238,6 +277,10 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={{ ...conversa, status: "FINALIZADO" }}
+        estado={estado({
+          cartao: { ...conversa, status: "FINALIZADO" },
+          podeEnviar: false,
+        })}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -257,6 +300,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -274,6 +318,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -292,6 +337,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -312,6 +358,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado({ usuarioAtualEhResponsavel: true })}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -328,6 +375,7 @@ describe("CabecalhoConversa", () => {
     const { rerender } = render(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -340,6 +388,7 @@ describe("CabecalhoConversa", () => {
     rerender(
       <CabecalhoConversa
         conversa={conversa}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto
@@ -353,6 +402,7 @@ describe("CabecalhoConversa", () => {
     render(
       <CabecalhoConversa
         conversa={{ ...conversa, leadNome: "Cliente com um nome bastante comprido para testar o cabeçalho" }}
+        estado={estado()}
         buscaAberta={false}
         onAlternarBusca={vi.fn()}
         painelDetalhesAberto

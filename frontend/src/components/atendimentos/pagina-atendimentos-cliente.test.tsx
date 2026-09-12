@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
+  EventoCanonicoAtendimentoTempoReal,
   ItemInbox,
   NotificacaoTempoReal,
 } from "@/lib/atendimento/types";
@@ -27,6 +28,7 @@ const abrirExistente = vi.hoisted(() => vi.fn());
 const iniciarNovo = vi.hoisted(() => vi.fn());
 const reenviarMidia = vi.hoisted(() => vi.fn());
 const obterCartao = vi.hoisted(() => vi.fn());
+const backendEstado = vi.hoisted(() => ({ versao: 1 }));
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -86,6 +88,36 @@ const cartaoInicial: CartaoAtendimento = {
   naoLidas: 0,
 };
 
+function snapshotDe(cartao: CartaoAtendimento) {
+  return {
+    cartao,
+    versao: backendEstado.versao,
+    participantes: [],
+    usuarioAtualEhResponsavel: true,
+    usuarioAtualParticipa: false,
+    podeEnviar: cartao.status !== "FINALIZADO",
+  };
+}
+
+function eventoCanonico(
+  atendimentoId: string,
+  versao = 2,
+): EventoCanonicoAtendimentoTempoReal {
+  return {
+    tipo: "ATENDIMENTO_ESTADO",
+    contrato: "atendimento.estado.v1",
+    eventoId: `evento-${atendimentoId}-${versao}`,
+    versaoContrato: 1,
+    dados: {
+      atendimentoId,
+      leadId: "lead-1",
+      eventoTipo: "ATENDIMENTO_TRANSFERIDO",
+      versao,
+      ocorridoEm: "2026-09-04T15:00:00Z",
+    },
+  };
+}
+
 vi.mock("./lista-conversas", () => ({
   ListaConversas: ({
     leadInicialId = null,
@@ -104,8 +136,25 @@ vi.mock("./lista-conversas", () => ({
     onNovoContato?: () => void;
     visaoAtual?: string;
   }) => {
+    const cache = useQueryClient();
     const gatilhoAnterior = useRef(leadInicialGatilho);
-    callbacks.abrir = onAbrirAtendimento;
+    const abrir = useCallback((cartao: ItemInbox) => {
+      if (cartao.tipo !== "EQUIPE_INTERNA") {
+        const atendimentoId = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
+        cache.setQueryData(
+          ["atendimentos", "estado", atendimentoId],
+          snapshotDe({
+            ...cartao,
+            atendimentoId,
+            status: atendimentoId === cartao.atendimentoId
+              ? cartao.status
+              : "EM_ATENDIMENTO",
+          }),
+        );
+      }
+      onAbrirAtendimento(cartao);
+    }, [cache, onAbrirAtendimento]);
+    callbacks.abrir = abrir;
     callbacks.atualizarLista = onAtendimentosAtualizados;
     callbacks.alterarVisao = onVisaoAlterada;
     callbacks.visaoAtual = visaoAtual;
@@ -114,14 +163,14 @@ vi.mock("./lista-conversas", () => ({
     useEffect(() => {
       if (leadInicialGatilho === gatilhoAnterior.current) return;
       gatilhoAnterior.current = leadInicialGatilho;
-      onAbrirAtendimento({
+      abrir({
         ...cartaoInicial,
         leadId: leadInicialId ?? cartaoInicial.leadId,
       });
-    }, [leadInicialGatilho, leadInicialId, onAbrirAtendimento]);
+    }, [abrir, leadInicialGatilho, leadInicialId]);
     return (
       <div data-testid="lista-conversas-mock">
-        <button type="button" onClick={() => onAbrirAtendimento(cartaoInicial)}>
+        <button type="button" onClick={() => abrir(cartaoInicial)}>
           Abrir lista
         </button>
         {onNovoContato && (
@@ -294,7 +343,8 @@ vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
   iniciarNovoContato: iniciarNovo,
   abrirAtendimentoParaLead: abrirExistente,
-  obterCartaoAtendimento: obterCartao,
+  obterEstadoAtendimento: (...args: [string]) =>
+    Promise.resolve(obterCartao(...args)).then((cartao: CartaoAtendimento) => snapshotDe(cartao)),
   enviarMensagem: vi.fn(() => Promise.reject(new ErroDeApi(422, null, "falha definitiva"))),
   enviarTemplate: vi.fn(),
 }));
@@ -401,6 +451,7 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.eventoEstado = undefined;
     callbacks.novoContato = undefined;
     stomp.clientes.length = 0;
+    backendEstado.versao = 1;
     telaEstreita.atual = false;
     abrirExistente.mockReset();
     reenviarMidia.mockReset();
@@ -412,7 +463,11 @@ describe("PaginaAtendimentosCliente", () => {
       leadCriado: false,
     });
     obterCartao.mockReset();
-    obterCartao.mockResolvedValue(cartaoInicial);
+    obterCartao.mockImplementation((atendimentoId: string) => Promise.resolve({
+      ...cartaoInicial,
+      atendimentoId,
+      atendimentoAtivoId: atendimentoId,
+    }));
     iniciarNovo.mockReset();
     iniciarNovo.mockResolvedValue({
       leadId: "lead-existente",
@@ -422,16 +477,24 @@ describe("PaginaAtendimentosCliente", () => {
     });
   });
 
-  it("deriva cabeçalho e painel da lista atualizada após transferência, sem reabrir a conversa", () => {
+  it("mantém o snapshot até o evento canônico e então reconcilia cabeçalho e painel", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
-    act(() => callbacks.atualizarLista?.([{ ...cartaoInicial, atendenteId: "bruno-id", atendenteNome: "Bruno Atendente" }]));
+    const transferido = { ...cartaoInicial, atendenteId: "bruno-id", atendenteNome: "Bruno Atendente" };
+    act(() => callbacks.atualizarLista?.([transferido]));
+    expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
 
-    expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
-    expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue(transferido);
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
+      expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+    });
   });
 
   it("abre pelo atendimento retornado mesmo quando ele não pertence à visão atual", async () => {
@@ -488,44 +551,33 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.queryByTestId("responsavel-cabecalho")).not.toBeInTheDocument();
   });
 
-  it("remove o atendente do cabeçalho e do painel ao receber devolução para IA (#sair)", () => {
+  it("remove o atendente do cabeçalho e do painel após o evento canônico de devolução", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Ana Atendente");
 
-    act(() =>
-      emitirNotificacao({
-        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
-        dados: {
-          atendimentoId: "atendimento-1",
-          leadId: "lead-1",
-          leadNome: "Lead de teste",
-          ocorridoEm: "2026-09-04T15:00:00Z",
-        },
-      }),
-    );
+    const devolvido = { ...cartaoInicial, status: "EM_IA" as const, atendenteId: null, atendenteNome: null };
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue(devolvido);
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
 
-    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
-    expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
-    expect(screen.getByRole("status")).toHaveTextContent("Devolvido para IA");
+    await waitFor(() => {
+      expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
+      expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
+    });
   });
 
-  it("mantém o cabeçalho sem atendente quando a lista refiltrada some com o cartão após #sair", () => {
+  it("mantém o snapshot reconciliado quando a lista refiltrada some com o cartão", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
-    act(() =>
-      emitirNotificacao({
-        tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA",
-        dados: {
-          atendimentoId: "atendimento-1",
-          leadId: "lead-1",
-          leadNome: "Lead de teste",
-          ocorridoEm: "2026-09-04T15:00:00Z",
-        },
-      }),
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue({ ...cartaoInicial, status: "EM_IA", atendenteId: null, atendenteNome: null });
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
+    await waitFor(() =>
+      expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente"),
     );
     act(() => callbacks.atualizarLista?.([]));
 
@@ -534,27 +586,17 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
   });
 
-  it("não deixa resposta atrasada da API ressuscitar o atendente após TRANSFERENCIA para IA", () => {
+  it("não deixa uma lista atrasada ressuscitar o atendente após reconciliação", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
-    act(() =>
-      callbacks.eventoEstado?.({
-        tipo: "TRANSFERENCIA",
-        dados: {
-          atendimentoId: "atendimento-1",
-          leadId: "lead-1",
-          leadNome: "Lead de teste",
-          deAtendenteId: "ana-id",
-          paraAtendenteId: null,
-          quemTransferiu: null,
-          atorTipo: "AUTOMACAO",
-          ocorridoEm: "2026-09-04T15:00:00Z",
-        },
-      }),
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue({ ...cartaoInicial, status: "EM_IA", atendenteId: null, atendenteNome: null });
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
+    await waitFor(() =>
+      expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente"),
     );
-    expect(screen.getByTestId("responsavel-cabecalho")).not.toHaveTextContent("Ana Atendente");
 
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
 
@@ -562,7 +604,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
   });
 
-  it("ignora transferência tardia de ciclo anterior do mesmo lead", () => {
+  it("ignora evento canônico tardio de ciclo anterior do mesmo lead", () => {
     const novoCiclo = {
       ...cartaoInicial,
       atendimentoId: "atendimento-2",
@@ -576,37 +618,29 @@ describe("PaginaAtendimentosCliente", () => {
     const callbackDoCicloAntigo = callbacks.eventoEstado;
     act(() => callbacks.abrir?.(novoCiclo));
 
+    backendEstado.versao = 2;
     act(() =>
-      callbackDoCicloAntigo?.({
-        tipo: "TRANSFERENCIA",
-        dados: {
-          atendimentoId: "atendimento-1",
-          leadId: "lead-1",
-          leadNome: "Lead de teste",
-          deAtendenteId: "ana-id",
-          paraAtendenteId: null,
-          quemTransferiu: "ana-id",
-          atorTipo: "USUARIO",
-          ocorridoEm: "2026-09-11T20:00:00Z",
-        },
-      }),
+      callbackDoCicloAntigo?.(eventoCanonico("atendimento-1")),
     );
 
     expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
     expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
   });
 
-  it("encerra o composer quando a finalização bem-sucedida remove o cartão da lista", () => {
+  it("encerra o composer quando a finalização é confirmada pelo snapshot", async () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));
     act(() => callbacks.abrir?.(cartaoInicial));
 
     expect(screen.getByTestId("composer")).toBeInTheDocument();
+    obterCartao.mockResolvedValue({ ...cartaoInicial, status: "FINALIZADO", atendimentoAtivoId: null });
     fireEvent.click(screen.getByRole("button", { name: "Simular finalização" }));
     act(() => callbacks.atualizarLista?.([]));
 
-    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
-    expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+      expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+    });
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
     expect(screen.getByTestId("historico")).toBeInTheDocument();
   });
@@ -896,7 +930,7 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("assina somente o atendimento ativo e deixa o historico do lead navegavel", () => {
+  it("ancora histórico e assinatura no atendimento ativo selecionado", () => {
     const finalizadoComNovoAtivo: CartaoAtendimento = {
       ...cartaoInicial,
       atendimentoId: "atendimento-finalizado",
@@ -908,7 +942,7 @@ describe("PaginaAtendimentosCliente", () => {
     act(() => callbacks.abrir?.(finalizadoComNovoAtivo));
 
     expect(callbacks.mensagens).toEqual({
-      historico: "atendimento-finalizado",
+      historico: "atendimento-ativo",
       assinatura: "atendimento-ativo",
     });
     expect(screen.getByTestId("composer")).toBeInTheDocument();

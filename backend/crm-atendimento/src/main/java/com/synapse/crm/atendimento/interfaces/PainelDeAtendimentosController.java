@@ -21,8 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
 import com.synapse.crm.atendimento.application.painel.ContarAtendimentosPorVisaoUseCase;
+import com.synapse.crm.atendimento.application.painel.EstadoAtendimentoSelecionado;
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.painel.ObterCartaoAtendimentoVisivelUseCase;
+import com.synapse.crm.atendimento.application.painel.ObterEstadoAtendimentoSelecionadoUseCase;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 
 /**
@@ -38,14 +40,17 @@ class PainelDeAtendimentosController {
     private final ListarAtendimentosVisiveisUseCase listar;
     private final ContarAtendimentosPorVisaoUseCase contarPorVisao;
     private final ObterCartaoAtendimentoVisivelUseCase obterCartao;
+    private final ObterEstadoAtendimentoSelecionadoUseCase obterEstado;
 
     PainelDeAtendimentosController(
             ListarAtendimentosVisiveisUseCase listar,
             ContarAtendimentosPorVisaoUseCase contarPorVisao,
-            ObterCartaoAtendimentoVisivelUseCase obterCartao) {
+            ObterCartaoAtendimentoVisivelUseCase obterCartao,
+            ObterEstadoAtendimentoSelecionadoUseCase obterEstado) {
         this.listar = listar;
         this.contarPorVisao = contarPorVisao;
         this.obterCartao = obterCartao;
+        this.obterEstado = obterEstado;
     }
 
     @Operation(
@@ -69,6 +74,18 @@ class PainelDeAtendimentosController {
     @GetMapping("/{atendimentoId}/cartao")
     CartaoAtendimento obterCartao(@PathVariable UUID atendimentoId) {
         return obterCartao.executar(atendimentoId);
+    }
+
+    @Operation(
+            summary = "Obter estado canonico do atendimento selecionado",
+            description = "Snapshot versionado que governa responsável, participantes, status e permissão do composer.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Estado atual e autorizado do atendimento."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível.")
+            })
+    @GetMapping("/{atendimentoId}/estado")
+    EstadoAtendimentoSelecionado obterEstado(@PathVariable UUID atendimentoId) {
+        return obterEstado.executar(atendimentoId);
     }
 
     /**

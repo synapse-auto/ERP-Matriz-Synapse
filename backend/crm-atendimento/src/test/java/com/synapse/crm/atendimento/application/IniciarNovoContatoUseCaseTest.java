@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
@@ -49,6 +50,7 @@ class IniciarNovoContatoUseCaseTest {
     private CanalCredencialAtivaRepositorio canaisAtivos;
     private UsuarioContext usuarioContext;
     private ParticipacaoAtendimentoRepositorio participacoes;
+    private ApplicationEventPublisher eventos;
     private UUID quemPediu;
     private IniciarNovoContatoUseCase useCase;
 
@@ -60,6 +62,8 @@ class IniciarNovoContatoUseCaseTest {
         canal = mock(CanalGateway.class);
         canaisAtivos = mock(CanalCredencialAtivaRepositorio.class);
         participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+        eventos = mock(ApplicationEventPublisher.class);
+        when(atendimentos.avancarVersaoDoEvento(any())).thenReturn(1L);
         usuarioContext = mock(UsuarioContext.class);
         quemPediu = UUID.randomUUID();
         when(usuarioContext.atual())
@@ -74,7 +78,8 @@ class IniciarNovoContatoUseCaseTest {
                 new TelefoneCanonico("55"),
                 usuarioContext,
                 Clock.fixed(AGORA, ZoneOffset.UTC),
-                participacoes);
+                participacoes,
+                eventos);
     }
 
     @Test
