@@ -232,6 +232,16 @@ export interface ParticipanteAtendimento {
   fotoUrl?: string | null;
 }
 
+/** Snapshot REST que governa toda a conversa selecionada. */
+export interface EstadoAtendimentoSelecionado {
+  cartao: CartaoAtendimento;
+  versao: number;
+  participantes: ParticipanteAtendimento[];
+  usuarioAtualEhResponsavel: boolean;
+  usuarioAtualParticipa: boolean;
+  podeEnviar: boolean;
+}
+
 export type StatusPedidoEntrada = "PENDENTE" | "APROVADO" | "RECUSADO" | "EXPIRADO";
 export interface PedidoEntradaAtendimento {
   id: string;
@@ -340,12 +350,43 @@ export interface ReacaoTempoReal {
   reacoes: { emoji: string; quantidade: number }[];
 }
 
+export type TipoEventoEstadoAtendimento =
+  | "ATENDIMENTO_INICIADO"
+  | "MENSAGEM_RECEBIDA"
+  | "MENSAGEM_ENVIADA"
+  | "MENSAGEM_ENVIADA_AUTOMACAO"
+  | "ATENDIMENTO_TRANSFERIDO"
+  | "ATENDIMENTO_DEVOLVIDO_IA"
+  | "ATENDIMENTO_FINALIZADO"
+  | "PEDIDO_ENTRADA_SOLICITADO"
+  | "PEDIDO_ENTRADA_APROVADO"
+  | "PEDIDO_ENTRADA_RECUSADO"
+  | "PARTICIPANTE_ENTROU"
+  | "PARTICIPANTE_SAIU";
+
+export interface EstadoAtendimentoTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  eventoTipo: TipoEventoEstadoAtendimento;
+  versao: number;
+  ocorridoEm: string;
+}
+
+export type EventoCanonicoAtendimentoTempoReal = {
+  tipo: "ATENDIMENTO_ESTADO";
+  contrato: "atendimento.estado.v1";
+  eventoId: string;
+  versaoContrato: 1;
+  dados: EstadoAtendimentoTempoReal;
+};
+
 export type EventoTempoReal =
   | { tipo: "MENSAGEM"; dados: MensagemTempoReal }
   | { tipo: "STATUS"; dados: StatusTempoReal }
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
   | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal }
-  | { tipo: "REACAO"; dados: ReacaoTempoReal };
+  | { tipo: "REACAO"; dados: ReacaoTempoReal }
+  | EventoCanonicoAtendimentoTempoReal;
 
 export type NotificacaoTempoReal = {
   tipo: "NOVA_MENSAGEM";
@@ -375,7 +416,7 @@ export type NotificacaoTempoReal = {
   tipo: "CHAT_INTERNO_MENSAGEM_EDITADA";
   eventoId?: string;
   dados: ChatInternoMensagemEditadaTempoReal;
-};
+} | EventoCanonicoAtendimentoTempoReal;
 
 export interface NovaMensagemTempoReal {
   atendimentoId: string;

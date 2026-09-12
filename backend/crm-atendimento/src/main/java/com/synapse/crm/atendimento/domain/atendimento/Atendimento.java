@@ -128,7 +128,10 @@ public record Atendimento(
      * proprio dono/status deste agregado — nao reinventa a regra, so a aplica sem round-trip.
      */
     public boolean visivelPara(UUID usuarioId, PapelUsuario papel) {
-        return papel.enxergaTodosOsLeads() || pertenceA(usuarioId) || status == StatusAtendimento.EM_IA;
+        return papel.enxergaTodosOsLeads()
+                || pertenceA(usuarioId)
+                || status == StatusAtendimento.EM_IA
+                || status == StatusAtendimento.FINALIZADO;
     }
 
     private void exigirAberto(String tentativa) {

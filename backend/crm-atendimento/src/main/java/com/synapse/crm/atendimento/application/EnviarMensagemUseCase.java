@@ -26,6 +26,7 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -291,6 +292,23 @@ public class EnviarMensagemUseCase {
             }
         }
 
+        // O comando do composer e ancorado no atendimento selecionado. Validar essa ancora antes
+        // de procurar o lead evita devolver o diagnostico enganoso "lead nao encontrado" quando o
+        // que ficou obsoleto foi o ciclo da conversa. A checagem sob lock mais abaixo continua
+        // obrigatoria para cobrir finalizacao ou troca concorrente depois desta leitura.
+        if (atendimentoEsperadoId != null) {
+            Atendimento selecionado = atendimentos.porId(atendimentoEsperadoId)
+                    .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException(
+                            "atendimento", atendimentoEsperadoId));
+            if (!selecionado.leadId().equals(leadId)) {
+                throw new RecursoDeAtendimentoIndisponivelException(
+                        "atendimento", atendimentoEsperadoId);
+            }
+            if (!selecionado.estaAberto()) {
+                throw new AtendimentoJaFinalizadoException(atendimentoEsperadoId, "envio");
+            }
+        }
+
         // A referencia pode depender de uma consulta que deixa de ser visivel depois de uma
         // finalizacao. Resolva-a somente depois do replay idempotente: a repeticao do mesmo clique
         // deve devolver a mensagem ja aceita sem tocar no estado atual da conversa.
@@ -470,6 +488,13 @@ public class EnviarMensagemUseCase {
                 trocouDeDono,
                 participanteAtivo,
                 agora));
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                EventoCanonicoDeAtendimento.Tipo.MENSAGEM_ENVIADA,
+                aberto.id(),
+                leadId,
+                agora);
 
         // Evento a parte, so para a tela: o WebSocket (E06) entrega isto sem
         // uma segunda consulta ao banco.

@@ -74,7 +74,7 @@ class EnviarMensagemUseCaseTest {
         verify(atendimentos).salvar(any(Atendimento.class));
 
         ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(eventos, times(2)).publishEvent(eventoCaptor.capture());
+        verify(eventos, times(3)).publishEvent(eventoCaptor.capture());
         assertThat(eventoCaptor.getAllValues()).anySatisfy(evento -> {
             assertThat(evento).isInstanceOf(EventoDeAtendimento.MensagemEnviada.class);
             EventoDeAtendimento.MensagemEnviada mensagem = (EventoDeAtendimento.MensagemEnviada) evento;
@@ -129,7 +129,7 @@ class EnviarMensagemUseCaseTest {
         verify(atendimentos).salvar(any());
 
         ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(eventos, times(2)).publishEvent(eventoCaptor.capture());
+        verify(eventos, times(3)).publishEvent(eventoCaptor.capture());
         assertThat(eventoCaptor.getAllValues()).anySatisfy(evento -> {
             assertThat(evento).isInstanceOf(EventoDeAtendimento.MensagemEnviada.class);
             EventoDeAtendimento.MensagemEnviada mensagem = (EventoDeAtendimento.MensagemEnviada) evento;
@@ -241,6 +241,15 @@ class EnviarMensagemUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(atendente, PapelUsuario.ATENDENTE, false));
         prepararEnvioLivre(leads, canal, leadId, agora);
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.empty());
+        when(atendimentos.porId(atendimentoFinalizadoId)).thenReturn(Optional.of(new Atendimento(
+                atendimentoFinalizadoId,
+                leadId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                atendente,
+                com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.FINALIZADO,
+                agora.minusSeconds(60),
+                agora.minusSeconds(10))));
 
         EnviarMensagemUseCase useCase = novoUseCase(
                 atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
@@ -367,6 +376,7 @@ class EnviarMensagemUseCaseTest {
         when(mensagens.registrar(any(Mensagem.class))).thenReturn(mensagem);
         when(mensagens.porId(mensagemId, agora)).thenReturn(Optional.of(mensagem));
         when(participacoes.eParticipanteAtivo(atendimentoId, usuarioId)).thenReturn(false);
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
         when(idempotencia.reservar(chave, usuarioId, leadId, atendimentoId))
                 .thenReturn(
                         new IdempotenciaDeMensagemEnvioRepositorio.Reserva(
@@ -553,6 +563,7 @@ class EnviarMensagemUseCaseTest {
             ApplicationEventPublisher eventos,
             Instant agora,
             ParticipacaoAtendimentoRepositorio participacoes) {
+        when(atendimentos.avancarVersaoDoEvento(any())).thenReturn(1L);
         return new EnviarMensagemUseCase(
                 atendimentos,
                 mensagens,

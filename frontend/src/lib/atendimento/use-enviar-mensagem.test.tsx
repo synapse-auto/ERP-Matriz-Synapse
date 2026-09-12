@@ -243,6 +243,77 @@ describe("useEnviarMensagem", () => {
     });
   });
 
+  it("não aplica incrementais antes de o snapshot da conexão ser liberado", async () => {
+    vi.mocked(api.mensagensDesde).mockResolvedValue([]);
+    vi.mocked(api.paginaMensagens).mockResolvedValue({
+      mensagens: [{
+        id: "mensagem-1",
+        atendimentoId: "at-reconexao",
+        remetenteTipo: "LEAD",
+        remetenteId: null,
+        remetenteNome: null,
+        tipo: "TEXTO",
+        conteudo: "chegou durante a reconexão",
+        midiaUrl: null,
+        midiaMetadados: null,
+        opcoes: null,
+        statusEntrega: "ENVIADO",
+        erroEntrega: null,
+        enviadoEm: "2026-09-12T10:00:00Z",
+        citacao: null,
+        idempotencyKey: null,
+      }],
+      proximoCursor: null,
+    });
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-reconexao");
+    let receber!: (evento: EventoTempoReal) => void;
+    const conexao = {
+      abrirConversa: vi.fn((_id: string, callback: (evento: EventoTempoReal) => void) => {
+        receber = callback;
+      }),
+      fecharConversa: vi.fn(),
+    } as unknown as ConexaoTempoReal;
+    const { result, rerender } = renderHook(
+      ({ liberado }: { liberado: boolean }) => useMensagens(
+        "at-reconexao",
+        conexao,
+        "conectado",
+        undefined,
+        "at-reconexao",
+        undefined,
+        undefined,
+        liberado,
+      ),
+      { wrapper: Wrapper, initialProps: { liberado: false } },
+    );
+    const evento: EventoTempoReal = {
+      tipo: "MENSAGEM",
+      dados: {
+        atendimentoId: "at-reconexao",
+        leadId: "lead-1",
+        mensagemId: "mensagem-1",
+        remetenteTipo: "LEAD",
+        remetenteId: null,
+        tipo: "TEXTO",
+        conteudo: "chegou durante a reconexão",
+        midiaUrl: null,
+        midiaMetadados: null,
+        opcoes: null,
+        statusEntrega: "ENVIADO",
+        enviadoEm: "2026-09-12T10:00:00Z",
+      },
+    };
+
+    act(() => receber(evento));
+    expect(result.current.data).toEqual([]);
+
+    rerender({ liberado: true });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    act(() => receber(evento));
+    expect(result.current.data).toHaveLength(1);
+  });
+
   it("concilia quando o WebSocket chega antes do HTTP, sem duplicar e preservando autoria", async () => {
     let resolver!: (resposta: Awaited<ReturnType<typeof api.enviarMensagem>>) => void;
     vi.mocked(api.enviarMensagem).mockImplementation(

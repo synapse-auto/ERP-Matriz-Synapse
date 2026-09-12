@@ -13,6 +13,7 @@ import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendime
 import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -112,6 +113,15 @@ public class RegistrarMensagemRecebidaUseCase {
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemRecebida(
                 entrada.leadId(), aberto.id(), gravada.id(), abriu, agora));
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                abriu
+                        ? EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_INICIADO
+                        : EventoCanonicoDeAtendimento.Tipo.MENSAGEM_RECEBIDA,
+                aberto.id(),
+                entrada.leadId(),
+                agora);
 
         // Evento a parte, so para a tela: carrega o que o WebSocket precisa
         // entregar (E06) sem uma segunda consulta ao banco.

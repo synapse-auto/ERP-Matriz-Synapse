@@ -108,6 +108,7 @@ vi.mock("@/components/mensagens/painel-emoji-composer", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
+      tempoReal: { conversaEncerrada: "Conversa encerrada" },
       composer: {
         placeholder: "Digite uma mensagem...",
         enviar: "Enviar",
@@ -906,6 +907,30 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao gravar.");
     expect(screen.queryByLabelText("Pré-visualização da gravação")).not.toBeInTheDocument();
     expect(mutateMidia).not.toHaveBeenCalled();
+  });
+
+  it("revalida antes do envio e preserva o rascunho quando o atendimento mudou", async () => {
+    const revalidar = vi.fn().mockResolvedValue(false);
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <TooltipProvider>
+        <QueryClientProvider client={cliente}>
+          <Composer
+            conversa={conversa}
+            podeEnviar
+            onRevalidarEnvio={revalidar}
+          />
+        </QueryClientProvider>
+      </TooltipProvider>,
+    );
+    const campo = screen.getByPlaceholderText("Digite uma mensagem...");
+    fireEvent.change(campo, { target: { value: "rascunho preservado" } });
+
+    fireEvent.click(screen.getByLabelText("Enviar"));
+
+    await waitFor(() => expect(revalidar).toHaveBeenCalledOnce());
+    expect(mutateTexto).not.toHaveBeenCalled();
+    expect(campo).toHaveValue("rascunho preservado");
   });
 
   it("limpa preview e controles quando o upload da gravação falha", async () => {

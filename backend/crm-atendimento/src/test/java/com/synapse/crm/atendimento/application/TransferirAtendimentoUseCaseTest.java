@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +48,7 @@ class TransferirAtendimentoUseCaseTest {
         when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(antes));
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(antes));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
         doReturn(new AtendenteParaTransferenciaRepositorio.Destino(atendenteId, "Ana"))
                 .when(destinos)
                 .exigirAtendenteAtivo(atendenteId);
@@ -61,11 +63,7 @@ class TransferirAtendimentoUseCaseTest {
 
         useCase.executarPelaAutomacao(atendimentoId, atendenteId);
 
-        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
-        verify(eventos).publishEvent(evento.capture());
-        assertThat(evento.getValue()).isInstanceOf(EventoDeAtendimento.AtendimentoTransferido.class);
-        EventoDeAtendimento.AtendimentoTransferido transferencia =
-                (EventoDeAtendimento.AtendimentoTransferido) evento.getValue();
+        EventoDeAtendimento.AtendimentoTransferido transferencia = transferenciaPublicada(eventos);
         assertThat(transferencia.paraAtendenteId()).isEqualTo(atendenteId);
         assertThat(transferencia.atorId()).isNull();
         assertThat(transferencia.atorTipo()).isEqualTo(OrigemEvento.AUTOMACAO);
@@ -93,6 +91,7 @@ class TransferirAtendimentoUseCaseTest {
         when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(antes));
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(antes));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Lead"));
         when(leads.transferirPara(leadId, brunoId)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(anaId));
         when(usuarios.atual()).thenReturn(new UsuarioAutenticado(anaId, PapelUsuario.ATENDENTE, false));
@@ -173,6 +172,7 @@ class TransferirAtendimentoUseCaseTest {
         when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(antes));
         when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Lead"));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         TransferirAtendimentoUseCase useCase = new TransferirAtendimentoUseCase(
                 atendimentos,
@@ -189,10 +189,7 @@ class TransferirAtendimentoUseCaseTest {
         verify(atendimentos).salvar(depois);
         verify(leads).marcarStatus(leadId, StatusBasicoLead.IA);
 
-        ArgumentCaptor<Object> evento = ArgumentCaptor.forClass(Object.class);
-        verify(eventos).publishEvent(evento.capture());
-        EventoDeAtendimento.AtendimentoTransferido transferencia =
-                (EventoDeAtendimento.AtendimentoTransferido) evento.getValue();
+        EventoDeAtendimento.AtendimentoTransferido transferencia = transferenciaPublicada(eventos);
         assertThat(transferencia.atendimentoId()).isEqualTo(atendimentoId);
         assertThat(transferencia.leadId()).isEqualTo(leadId);
         assertThat(transferencia.deAtendenteId()).isEqualTo(humanoId);
@@ -230,5 +227,16 @@ class TransferirAtendimentoUseCaseTest {
         assertThat(depois.atendenteId()).isNull();
         verify(atendimentos, never()).salvar(jaNaIa);
         verify(eventos, never()).publishEvent(org.mockito.ArgumentMatchers.any());
+    }
+
+    private static EventoDeAtendimento.AtendimentoTransferido transferenciaPublicada(
+            ApplicationEventPublisher eventos) {
+        ArgumentCaptor<Object> publicados = ArgumentCaptor.forClass(Object.class);
+        verify(eventos, times(2)).publishEvent(publicados.capture());
+        return publicados.getAllValues().stream()
+                .filter(EventoDeAtendimento.AtendimentoTransferido.class::isInstance)
+                .map(EventoDeAtendimento.AtendimentoTransferido.class::cast)
+                .findFirst()
+                .orElseThrow();
     }
 }

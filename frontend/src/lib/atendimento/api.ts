@@ -24,6 +24,7 @@ import type {
   TemplateWhatsApp,
   UsuarioResposta,
   DestinoDeTransferencia,
+  EstadoAtendimentoSelecionado,
   VisaoAtendimento,
 } from "./types";
 
@@ -173,6 +174,15 @@ export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoRes
 export function obterCartaoAtendimento(atendimentoId: string): Promise<CartaoAtendimento> {
   return apiFetch<CartaoAtendimento>(
     `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/cartao`,
+  );
+}
+
+/** Fonte canonica da conversa selecionada; eventos apenas ordenam quando esta leitura deve ocorrer. */
+export function obterEstadoAtendimento(
+  atendimentoId: string,
+): Promise<EstadoAtendimentoSelecionado> {
+  return apiFetch<EstadoAtendimentoSelecionado>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/estado`,
   );
 }
 

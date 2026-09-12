@@ -14,6 +14,7 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import com.synapse.crm.atendimento.application.tempo_real.ListarDestinatariosTempoRealUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
@@ -47,16 +48,19 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     private final SimpMessagingTemplate template;
     private final ObjectMapper json;
     private final RevalidarAssinaturaTempoRealUseCase revalidar;
+    private final ListarDestinatariosTempoRealUseCase listarDestinatarios;
 
     RedisSubscriberDeAtendimento(
             RegistroDeAssinaturas registro,
             SimpMessagingTemplate template,
             ObjectMapper json,
-            RevalidarAssinaturaTempoRealUseCase revalidar) {
+            RevalidarAssinaturaTempoRealUseCase revalidar,
+            ListarDestinatariosTempoRealUseCase listarDestinatarios) {
         this.registro = registro;
         this.template = template;
         this.json = json;
         this.revalidar = revalidar;
+        this.listarDestinatarios = listarDestinatarios;
     }
 
     @Override
@@ -95,6 +99,9 @@ class RedisSubscriberDeAtendimento implements MessageListener {
             JsonNode p=dados.path("participanteId");
             if (!p.isMissingNode() && !p.isNull()) registro.removerUsuarioDoAtendimento(atendimentoId, UUID.fromString(p.asText()));
         }
+        if ("ATENDIMENTO_ESTADO".equals(tipo)) {
+            avisarEstadoCanonico(envelope, dados);
+        }
 
         // Um usuario pode ter mais de uma sessao (duas abas) autorizadas ao mesmo
         // atendimento; convertAndSendToUser ja entrega a TODAS as sessoes daquele
@@ -102,12 +109,40 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         Set<UUID> usuariosEntregues = new java.util.HashSet<>();
         String corpoParaAtendimento = removerDestinatarios(envelope);
         for (AssinaturaAutorizada assinatura : registro.doAtendimento(atendimentoId)) {
-            if (registro.expirou(assinatura) && !revalidarERenovar(assinatura)) {
+            boolean exigeRevalidacao = "ATENDIMENTO_ESTADO".equals(tipo) || registro.expirou(assinatura);
+            if (exigeRevalidacao && !revalidarERenovarComFalhaFechada(assinatura)) {
                 continue;
             }
             if (usuariosEntregues.add(assinatura.usuarioId())) {
                 enviarParaUsuario(assinatura.usuarioId(), "/queue/atendimento." + atendimentoId, corpoParaAtendimento);
             }
+        }
+    }
+
+    private void avisarEstadoCanonico(JsonNode envelope, JsonNode dados) {
+        UUID atendimentoId;
+        try {
+            atendimentoId = UUID.fromString(dados.path("atendimentoId").asText());
+        } catch (IllegalArgumentException erro) {
+            log.warn("Evento canonico com atendimentoId invalido.", erro);
+            return;
+        }
+        try {
+            var destinatarios = ContextoDeServico.buscarComo(
+                    "tempo-real.destinatarios-estado",
+                    () -> listarDestinatarios.executar(atendimentoId));
+            for (UUID destinatario : destinatarios) {
+                enviarParaUsuario(destinatario, DESTINO_NOTIFICACOES, envelope.toString());
+            }
+        } catch (RuntimeException erro) {
+            log.warn(
+                    "Falha ao entregar evento canonico na fila pessoal: atendimentoId={}, leadId={}, eventoId={}, versao={}, tipo={}",
+                    dados.path("atendimentoId").asText(),
+                    dados.path("leadId").asText(),
+                    envelope.path("eventoId").asText(),
+                    dados.path("versao").asLong(),
+                    dados.path("eventoTipo").asText(),
+                    erro);
         }
     }
 
@@ -269,6 +304,24 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                 assinatura.atendimentoId(),
                 assinatura.usuarioId());
         return false;
+    }
+
+    private boolean revalidarERenovarComFalhaFechada(AssinaturaAutorizada assinatura) {
+        try {
+            return revalidarERenovar(assinatura);
+        } catch (RuntimeException erro) {
+            registro.remover(assinatura);
+            enviarParaUsuario(
+                    assinatura.usuarioId(),
+                    DESTINO_REVOGACAO,
+                    "{\"atendimentoId\":\"" + assinatura.atendimentoId() + "\"}");
+            log.warn(
+                    "Falha ao revalidar assinatura; acesso revogado: atendimentoId={}, usuarioId={}",
+                    assinatura.atendimentoId(),
+                    assinatura.usuarioId(),
+                    erro);
+            return false;
+        }
     }
 
     /**

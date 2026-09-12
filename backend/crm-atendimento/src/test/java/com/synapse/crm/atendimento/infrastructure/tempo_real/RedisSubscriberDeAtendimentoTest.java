@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import com.synapse.crm.atendimento.application.tempo_real.ListarDestinatariosTempoRealUseCase;
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
@@ -34,11 +36,13 @@ class RedisSubscriberDeAtendimentoTest {
 
     private final SimpMessagingTemplate template = mock(SimpMessagingTemplate.class);
     private final RevalidarAssinaturaTempoRealUseCase revalidar = mock(RevalidarAssinaturaTempoRealUseCase.class);
+    private final ListarDestinatariosTempoRealUseCase listarDestinatarios =
+            mock(ListarDestinatariosTempoRealUseCase.class);
     private final RegistroDeAssinaturas registro = new RegistroDeAssinaturas(
             Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneOffset.UTC),
             new TempoRealProperties(1, 1, 1, 1, "*", 60));
     private final RedisSubscriberDeAtendimento subscriber = new RedisSubscriberDeAtendimento(
-            registro, template, new ObjectMapper(), revalidar);
+            registro, template, new ObjectMapper(), revalidar, listarDestinatarios);
 
     private final UUID atendimentoId = UUID.randomUUID();
     private final UUID transferidorId = UUID.randomUUID();
@@ -49,7 +53,7 @@ class RedisSubscriberDeAtendimentoTest {
     void limparAssinaturas() {
         ContextoDeServico.instalarPonteDeAutoridade(nome -> () -> {});
         registro.doAtendimento(atendimentoId).forEach(registro::remover);
-        reset(template, revalidar);
+        reset(template, revalidar, listarDestinatarios);
     }
 
     @AfterEach
@@ -228,6 +232,61 @@ class RedisSubscriberDeAtendimentoTest {
                 eq(participanteId.toString()), eq("/queue/atendimento." + atendimentoId), anyString());
     }
 
+    @Test
+    void estado_canonico_chega_as_duas_sessoes_de_atendentes_autorizados() {
+        UUID atendenteA = UUID.randomUUID();
+        UUID atendenteB = UUID.randomUUID();
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-a", "sub-a", atendimentoId, atendenteA, PapelUsuario.ATENDENTE));
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-b", "sub-b", atendimentoId, atendenteB, PapelUsuario.ATENDENTE));
+        when(listarDestinatarios.executar(atendimentoId)).thenReturn(List.of(atendenteA, atendenteB));
+        when(revalidar.aindaValida(atendimentoId, atendenteA, PapelUsuario.ATENDENTE)).thenReturn(true);
+        when(revalidar.aindaValida(atendimentoId, atendenteB, PapelUsuario.ATENDENTE)).thenReturn(true);
+
+        subscriber.onMessage(mensagem(estadoCanonico()), null);
+
+        for (UUID atendente : List.of(atendenteA, atendenteB)) {
+            verify(template).convertAndSendToUser(
+                    eq(atendente.toString()),
+                    eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES),
+                    contains("ATENDIMENTO_ESTADO"));
+            verify(template).convertAndSendToUser(
+                    eq(atendente.toString()),
+                    eq("/queue/atendimento." + atendimentoId),
+                    contains("ATENDIMENTO_ESTADO"));
+        }
+    }
+
+    @Test
+    void estado_canonico_falha_fechado_para_atendente_sem_acesso_rls() {
+        UUID semAcesso = UUID.randomUUID();
+        UUID autorizado = UUID.randomUUID();
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-sem-acesso", "sub-sem-acesso", atendimentoId, semAcesso, PapelUsuario.ATENDENTE));
+        when(listarDestinatarios.executar(atendimentoId)).thenReturn(List.of(autorizado));
+        when(revalidar.aindaValida(atendimentoId, semAcesso, PapelUsuario.ATENDENTE)).thenReturn(false);
+
+        subscriber.onMessage(mensagem(estadoCanonico()), null);
+
+        verify(template).convertAndSendToUser(
+                eq(autorizado.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES),
+                contains("ATENDIMENTO_ESTADO"));
+        verify(template).convertAndSendToUser(
+                eq(semAcesso.toString()), eq("/queue/revogacoes"), contains(atendimentoId.toString()));
+        verify(template, never()).convertAndSendToUser(
+                eq(semAcesso.toString()),
+                eq(RedisSubscriberDeAtendimento.DESTINO_NOTIFICACOES),
+                contains("ATENDIMENTO_ESTADO"));
+        verify(template, never()).convertAndSendToUser(
+                eq(semAcesso.toString()),
+                eq("/queue/atendimento." + atendimentoId),
+                contains("ATENDIMENTO_ESTADO"));
+        assertThat(registro.doAtendimento(atendimentoId))
+                .noneMatch(assinatura -> assinatura.usuarioId().equals(semAcesso));
+    }
+
     private Message mensagem(String corpo) {
         Message mensagem = mock(Message.class);
         org.mockito.Mockito.when(mensagem.getChannel())
@@ -259,5 +318,17 @@ class RedisSubscriberDeAtendimentoTest {
                 + "\"quemTransferiu\":null,"
                 + "\"atorTipo\":\"SISTEMA\","
                 + "\"ocorridoEm\":\"2026-08-23T12:00:00Z\"}}";
+    }
+
+    private String estadoCanonico() {
+        return "{\"tipo\":\"ATENDIMENTO_ESTADO\","
+                + "\"contrato\":\"atendimento.estado.v1\","
+                + "\"eventoId\":\"" + UUID.randomUUID() + "\","
+                + "\"versaoContrato\":1,\"dados\":{"
+                + "\"atendimentoId\":\"" + atendimentoId + "\","
+                + "\"leadId\":\"" + UUID.randomUUID() + "\","
+                + "\"eventoTipo\":\"ATENDIMENTO_TRANSFERIDO\","
+                + "\"versao\":2,"
+                + "\"ocorridoEm\":\"2026-09-12T12:00:00Z\"}}";
     }
 }

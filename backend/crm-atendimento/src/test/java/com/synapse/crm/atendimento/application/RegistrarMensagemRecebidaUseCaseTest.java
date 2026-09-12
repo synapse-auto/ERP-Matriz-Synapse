@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,6 +51,7 @@ class RegistrarMensagemRecebidaUseCaseTest {
         participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
         when(leads.alcancavel(any())).thenReturn(true);
         when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(any())).thenReturn(1L);
         when(mensagens.registrar(any())).thenAnswer(inv -> inv.getArgument(0));
         when(participacoes.ativos(any())).thenReturn(List.of());
         useCase = new RegistrarMensagemRecebidaUseCase(
@@ -79,9 +81,8 @@ class RegistrarMensagemRecebidaUseCaseTest {
 
         useCase.executar(entrada(leadId));
 
-        ArgumentCaptor<MensagemParaTempoReal> evento = ArgumentCaptor.forClass(MensagemParaTempoReal.class);
-        verify(eventos).publishEvent(evento.capture());
-        assertThat(evento.getValue().destinatarios()).containsExactly(atendente, gestora);
+        MensagemParaTempoReal evento = mensagemPublicada();
+        assertThat(evento.destinatarios()).containsExactly(atendente, gestora);
     }
 
     @Test
@@ -118,11 +119,20 @@ class RegistrarMensagemRecebidaUseCaseTest {
 
         useCase.executar(entrada(leadId));
 
-        ArgumentCaptor<MensagemParaTempoReal> evento = ArgumentCaptor.forClass(MensagemParaTempoReal.class);
-        verify(eventos).publishEvent(evento.capture());
-        assertThat(evento.getValue().leadId()).isEqualTo(leadId);
-        assertThat(evento.getValue().leadNome()).isEqualTo("");
-        assertThat(evento.getValue().destinatarios()).containsExactly(donoId, participanteId);
+        MensagemParaTempoReal evento = mensagemPublicada();
+        assertThat(evento.leadId()).isEqualTo(leadId);
+        assertThat(evento.leadNome()).isEqualTo("");
+        assertThat(evento.destinatarios()).containsExactly(donoId, participanteId);
+    }
+
+    private MensagemParaTempoReal mensagemPublicada() {
+        ArgumentCaptor<Object> publicados = ArgumentCaptor.forClass(Object.class);
+        verify(eventos, times(3)).publishEvent(publicados.capture());
+        return publicados.getAllValues().stream()
+                .filter(MensagemParaTempoReal.class::isInstance)
+                .map(MensagemParaTempoReal.class::cast)
+                .findFirst()
+                .orElseThrow();
     }
 
     private static RegistrarMensagemRecebidaUseCase.MensagemRecebida entrada(UUID leadId) {

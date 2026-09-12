@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
@@ -133,6 +134,15 @@ public class TransferirAtendimentoUseCase {
                 atorId,
                 atorTipo,
                 agora));
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                paraAtendenteId == null
+                        ? EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_DEVOLVIDO_IA
+                        : EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_TRANSFERIDO,
+                antes.id(),
+                antes.leadId(),
+                agora);
 
         return depois;
     }

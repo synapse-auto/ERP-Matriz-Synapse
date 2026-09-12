@@ -83,6 +83,9 @@ const ITENS_MENU: ItemDeMenu[] = ITENS_MENU_BASE.map((item) => ({
   icone: ICONES_MENU[item.chave],
 }));
 
+// Feedbacks permanece no menu "Mais" do mobile; no desktop é um atalho compacto do rodapé.
+const ITENS_MENU_SIDEBAR = ITENS_MENU.filter((item) => item.chave !== "feedbacks");
+
 const ITENS_GESTAO: ItemDeMenu[] = ITENS_GESTAO_BASE.map((item) => ({
   ...item,
   icone: ICONES_MENU[item.chave],
@@ -302,7 +305,7 @@ export function Sidebar({
         )}
         <MenuGrupo
           titulo={textos.menu.grupoMenu}
-          itens={ITENS_MENU}
+          itens={ITENS_MENU_SIDEBAR}
           visivel={itemVisivel}
           rotulos={textos.menu.itens}
           pathname={pathname}
@@ -320,31 +323,6 @@ export function Sidebar({
           retraida={retraida}
           rotuloContagemPendentes={textos.menu.contagemPendentes}
         />
-        {textos.novidades?.titulo && (
-          <div className="mb-2 mt-2">
-            <ul className="flex flex-col gap-0.5">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setNovidadesAberto(true)}
-                  aria-label={retraida ? textos.novidades.titulo : undefined}
-                  title={textos.novidades.titulo}
-                  className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[16px] font-medium text-texto-sidebar-item hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover"
-                >
-                  <Sparkles className="size-(--tamanho-icone-sidebar) shrink-0" />
-                  <span
-                    className="flex-1 truncate text-left whitespace-nowrap"
-                    style={estiloDoRotuloDaSidebar(retraida)}
-                    aria-hidden={retraida}
-                    data-slot="rotulo-sidebar"
-                  >
-                    {textos.novidades.titulo}
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </div>
-        )}
       </nav>
 
       <div className={retraida ? "relative border-t border-white/8 px-2 py-3" : "relative border-t border-white/8 px-3 py-3.5"}>
@@ -432,6 +410,25 @@ export function Sidebar({
             </span>
           </span>
           </button>
+          {textos.novidades?.titulo && (
+            <button
+              type="button"
+              onClick={() => setNovidadesAberto(true)}
+              aria-label={textos.novidades.titulo}
+              title={textos.novidades.titulo}
+              className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
+            >
+              <Sparkles className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" aria-hidden />
+            </button>
+          )}
+          <Link
+            href="/feedbacks"
+            aria-label={textos.menu.itens.feedbacks}
+            title={textos.menu.itens.feedbacks}
+            className="flex size-8 flex-none items-center justify-center rounded-lg text-texto-sidebar-sub hover:bg-sidebar-item-overlay-hover hover:text-sidebar-item-texto-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-item-texto-hover"
+          >
+            <MessageSquarePlus className="size-[calc(var(--tamanho-icone-sidebar)*0.761905)]" aria-hidden />
+          </Link>
           <Link
             href="/configuracoes"
             aria-label={textos.configuracoes.abrir}

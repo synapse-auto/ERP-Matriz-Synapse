@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
@@ -70,6 +71,13 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
         mensagens.registrar(mensagem);
         idsExternos.gravar(requisicao.wamid(), mensagem.id(), mensagem.enviadoEm(), atendimento.id());
         leads.registrarInteracao(atendimento.leadId(), agora, 0, 1);
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                EventoCanonicoDeAtendimento.Tipo.MENSAGEM_ENVIADA_AUTOMACAO,
+                atendimento.id(),
+                atendimento.leadId(),
+                agora);
         eventos.publishEvent(new MensagemParaTempoReal(
                 atendimento.id(),
                 atendimento.leadId(),

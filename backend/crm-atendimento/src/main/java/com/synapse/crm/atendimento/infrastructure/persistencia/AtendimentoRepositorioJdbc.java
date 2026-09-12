@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
@@ -114,6 +115,12 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String SQL_ELEVAR_SERVICO = "SELECT set_config('app.papel', 'SERVICO', TRUE)";
 
+    private static final String SQL_AVANCAR_VERSAO_EVENTO =
+            "SELECT app_avancar_versao_evento_atendimento(?)";
+
+    private static final String SQL_VERSAO_ATUAL_EVENTO =
+            "SELECT versao_evento FROM atendimento WHERE id = ?";
+
     private static final RowMapper<Atendimento> MAPEADOR = AtendimentoRepositorioJdbc::paraDominio;
 
     private final JdbcTemplate chat;
@@ -190,6 +197,26 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     public void elevarRlsParaEscritaDeNovoDono() {
         TransacaoObrigatoria.exigir("elevarRlsParaEscritaDeNovoDono");
         chat.queryForObject(SQL_ELEVAR_SERVICO, String.class);
+    }
+
+    @Override
+    public long avancarVersaoDoEvento(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("avancarVersaoDoEvento");
+        Long versao = chat.queryForObject(SQL_AVANCAR_VERSAO_EVENTO, Long.class, atendimentoId);
+        if (versao == null) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId);
+        }
+        return versao;
+    }
+
+    @Override
+    public long versaoAtualDoEvento(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("versaoAtualDoEvento");
+        List<Long> versoes = chat.query(SQL_VERSAO_ATUAL_EVENTO, (linha, indice) -> linha.getLong(1), atendimentoId);
+        if (versoes.isEmpty()) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId);
+        }
+        return versoes.getFirst();
     }
 
     @Override

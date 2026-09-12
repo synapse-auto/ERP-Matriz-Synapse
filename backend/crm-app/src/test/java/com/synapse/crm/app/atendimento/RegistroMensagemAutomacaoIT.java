@@ -64,7 +64,8 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
     @DisplayName("registra saída da IA sem chamar o adaptador da Meta")
     void registraSemReenviar() {
         UUID atendimento = criarAtendimento("REGISTRO");
-        long outboxAntes = jdbc.queryForObject("SELECT count(*) FROM outbox_evento", Long.class);
+        long outboxAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'", Long.class);
 
         ResponseEntity<String> resposta = chamar(TOKEN, atendimento, corpo("wamid.E30-1"));
 
@@ -76,7 +77,8 @@ class RegistroMensagemAutomacaoIT extends PostgresIT {
         assertThat(jdbc.queryForObject(
                         "SELECT remetente_tipo::text FROM mensagem WHERE atendimento_id = ?", String.class, atendimento))
                 .isEqualTo("IA");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento", Long.class))
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'", Long.class))
                 .isEqualTo(outboxAntes);
         assertThat(canal.enviados()).isEmpty();
     }

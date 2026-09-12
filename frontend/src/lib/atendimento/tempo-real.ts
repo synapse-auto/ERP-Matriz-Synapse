@@ -289,6 +289,7 @@ export class ConexaoTempoReal {
         const notificacao = JSON.parse(mensagem.body) as NotificacaoTempoReal;
         if (
           notificacao.tipo === "NOVA_MENSAGEM" ||
+          notificacao.tipo === "ATENDIMENTO_ESTADO" ||
           notificacao.tipo === "TRANSFERENCIA_RECEBIDA" ||
           notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA" ||
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM" ||
@@ -345,8 +346,9 @@ export function useConexaoTempoReal(
   obterAccessToken: () => string | null,
   onRevogacao?: (atendimentoId: string) => void,
   onNotificacao?: (notificacao: NotificacaoTempoReal) => void,
-): { conexao: ConexaoTempoReal; estado: EstadoConexao } {
+): { conexao: ConexaoTempoReal; estado: EstadoConexao; ciclo: number } {
   const [estado, setEstado] = useState<EstadoConexao>("desconectado");
+  const [ciclo, setCiclo] = useState(0);
   const [conexao] = useState(() => obterConexaoTempoRealCompartilhada(obterAccessToken));
   const accessTokenAtual = obterAccessToken();
 
@@ -355,7 +357,10 @@ export function useConexaoTempoReal(
   }, [conexao, obterAccessToken]);
 
   useEffect(() => {
-    const removerOuvinte = conexao.adicionarOuvinteDeEstado(setEstado);
+    const removerOuvinte = conexao.adicionarOuvinteDeEstado((proximo) => {
+      setEstado(proximo);
+      if (proximo === "conectado") setCiclo((atual) => atual + 1);
+    });
     return () => {
       removerOuvinte();
       setEstado("desconectado");
@@ -390,7 +395,7 @@ export function useConexaoTempoReal(
     };
   }, [accessTokenAtual, conexao]);
 
-  return { conexao, estado };
+  return { conexao, estado, ciclo };
 }
 
 let conexaoCompartilhada: ConexaoTempoReal | null = null;

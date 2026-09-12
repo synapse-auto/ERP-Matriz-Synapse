@@ -233,7 +233,8 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
                 .isOne();
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM outbox_evento WHERE payload->>'atendimentoId' = ?",
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
                         Long.class,
                         atendimentoId.toString()))
                 .isOne();
@@ -269,7 +270,8 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
                 .isZero();
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM outbox_evento WHERE payload->>'atendimentoId' = ?",
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
                         Long.class,
                         atendimentoId.toString()))
                 .isZero();

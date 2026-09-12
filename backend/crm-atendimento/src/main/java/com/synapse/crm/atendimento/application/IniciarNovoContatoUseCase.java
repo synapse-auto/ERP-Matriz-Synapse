@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
@@ -48,6 +50,7 @@ public class IniciarNovoContatoUseCase {
     private final UsuarioContext usuarioContext;
     private final Clock relogio;
     private final ParticipacaoAtendimentoRepositorio participacoes;
+    private final ApplicationEventPublisher eventos;
 
     public IniciarNovoContatoUseCase(
             LeadNoCaminhoDeMensagem leads,
@@ -58,7 +61,8 @@ public class IniciarNovoContatoUseCase {
             TelefoneCanonico telefoneCanonico,
             UsuarioContext usuarioContext,
             Clock relogio,
-            ParticipacaoAtendimentoRepositorio participacoes) {
+            ParticipacaoAtendimentoRepositorio participacoes,
+            ApplicationEventPublisher eventos) {
         this.leads = leads;
         this.atendimentos = atendimentos;
         this.enviar = enviar;
@@ -68,6 +72,7 @@ public class IniciarNovoContatoUseCase {
         this.usuarioContext = usuarioContext;
         this.relogio = relogio;
         this.participacoes = participacoes;
+        this.eventos = eventos;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -133,6 +138,7 @@ public class IniciarNovoContatoUseCase {
         if (!assuncao.alcancavel()) {
             throw new ContatoIndisponivelParaInicioException();
         }
+        EventoCanonicoDeAtendimento.Tipo tipoEventoAntesDoEnvio = null;
         Optional<Atendimento> abertoAtual = atendimentos.abertoDoLead(leadId);
         if (abertoAtual.isPresent()) {
             Atendimento atendimentoAtual = abertoAtual.get();
@@ -141,9 +147,11 @@ public class IniciarNovoContatoUseCase {
             // lead e atendimento ficariam divergentes e a próxima mensagem voltaria à IA.
             if (assuncao.assumiu() && atendimentoAtual.atendenteId() == null) {
                 atendimentoAtual = atendimentos.salvar(atendimentoAtual.transferirPara(quemPediu));
+                tipoEventoAntesDoEnvio = EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_TRANSFERIDO;
             }
-            if (!atendimentoAtual.pertenceA(quemPediu)) {
-                entrarComoColaborador(atendimentoAtual, quemPediu, agora);
+            if (!atendimentoAtual.pertenceA(quemPediu)
+                    && entrarComoColaborador(atendimentoAtual, quemPediu, agora)) {
+                tipoEventoAntesDoEnvio = EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU;
             }
         }
 
@@ -168,15 +176,19 @@ public class IniciarNovoContatoUseCase {
             return new Resultado(leadId, envio.atendimento(), envio.mensagem(), existente.isEmpty());
         }
 
-        Atendimento aberto = abrirSemMensagem(
+        Abertura abertura = abrirSemMensagem(
                 leadId,
                 quemPediu,
                 assuncao.responsavelAtual().orElse(quemPediu),
                 agora,
                 canalAtivo);
+        if (abertura.tipoEvento() == null && tipoEventoAntesDoEnvio != null) {
+            abertura = new Abertura(abertura.atendimento(), tipoEventoAntesDoEnvio);
+        }
+        publicarAberturaSeMudou(abertura, leadId, agora);
         // Sem mensagem do cliente e sem envio: nao toca ultima_interacao_em. Registrar agora
         // fingiria janela de 24h aberta — a Meta so abre essa janela quando o usuario fala.
-        return new Resultado(leadId, aberto, null, existente.isEmpty());
+        return new Resultado(leadId, abertura.atendimento(), null, existente.isEmpty());
     }
 
     /**
@@ -197,26 +209,28 @@ public class IniciarNovoContatoUseCase {
             throw new ContatoIndisponivelParaInicioException();
         }
         CanalEntradaAtiva canalAtivo = canaisAtivos.primeiraAtiva().orElse(null);
-        Atendimento aberto = abrirSemMensagem(
+        Abertura abertura = abrirSemMensagem(
                 leadId,
                 quemPediu,
                 assuncao.responsavelAtual().orElse(quemPediu),
                 agora,
                 canalAtivo);
-        return new Resultado(leadId, aberto, null, false);
+        publicarAberturaSeMudou(abertura, leadId, agora);
+        return new Resultado(leadId, abertura.atendimento(), null, false);
     }
 
     private LeadNoCaminhoDeMensagem.Assuncao assumirLead(UUID leadId, UUID quemPediu) {
         return leads.assumirSeSemDono(leadId, quemPediu);
     }
 
-    private Atendimento abrirSemMensagem(
+    private Abertura abrirSemMensagem(
             UUID leadId,
             UUID quemPediu,
             UUID responsavelOficial,
             Instant agora,
             CanalEntradaAtiva canalAtivo) {
         Atendimento aberto = atendimentos.abertoDoLead(leadId).orElse(null);
+        EventoCanonicoDeAtendimento.Tipo tipoEvento = null;
         if (aberto == null) {
             aberto = atendimentos.salvar(Atendimento.abrirComIa(
                             UUID.randomUUID(),
@@ -225,21 +239,35 @@ public class IniciarNovoContatoUseCase {
                             canalAtivo == null ? null : canalAtivo.canalCredencialId(),
                             agora)
                     .transferirPara(responsavelOficial));
+            tipoEvento = EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_INICIADO;
         } else if (aberto.atendenteId() == null) {
             // A assunção do lead sem dono também vale para a conversa já aberta pela IA.
             aberto = atendimentos.salvar(aberto.transferirPara(responsavelOficial));
+            tipoEvento = EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_TRANSFERIDO;
         }
-        if (!aberto.pertenceA(quemPediu)) {
-            entrarComoColaborador(aberto, quemPediu, agora);
+        if (!aberto.pertenceA(quemPediu) && entrarComoColaborador(aberto, quemPediu, agora)) {
+            tipoEvento = EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU;
         }
-        return aberto;
+        return new Abertura(aberto, tipoEvento);
     }
 
-    private void entrarComoColaborador(Atendimento atendimento, UUID usuarioId, Instant agora) {
+    private boolean entrarComoColaborador(Atendimento atendimento, UUID usuarioId, Instant agora) {
         if (participacoes.eParticipanteAtivo(atendimento.id(), usuarioId)) {
-            return;
+            return false;
         }
         participacoes.entrar(atendimento.id(), usuarioId, agora);
+        return true;
+    }
+
+    private void publicarAberturaSeMudou(Abertura abertura, UUID leadId, Instant agora) {
+        if (abertura.tipoEvento() == null) return;
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                abertura.tipoEvento(),
+                abertura.atendimento().id(),
+                leadId,
+                agora);
     }
 
     private static boolean preenchido(String valor) {
@@ -256,4 +284,6 @@ public class IniciarNovoContatoUseCase {
 
     public record Resultado(
             UUID leadId, Atendimento atendimento, Mensagem mensagem, boolean leadCriado) {}
+
+    private record Abertura(Atendimento atendimento, EventoCanonicoDeAtendimento.Tipo tipoEvento) {}
 }

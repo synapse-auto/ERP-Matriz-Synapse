@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
+import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
@@ -132,6 +133,13 @@ public class FinalizarAtendimentoUseCase {
             eventos.publishEvent(new EventoDeAtendimento.AtendimentoFinalizado(
                     aberto.leadId(), aberto.id(), quemFinalizou, agora));
         }
+        EventosCanonicosDeAtendimento.publicar(
+                atendimentos,
+                eventos,
+                EventoCanonicoDeAtendimento.Tipo.ATENDIMENTO_FINALIZADO,
+                aberto.id(),
+                aberto.leadId(),
+                agora);
 
         return finalizado;
     }

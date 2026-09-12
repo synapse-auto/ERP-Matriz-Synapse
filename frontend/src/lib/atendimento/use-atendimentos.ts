@@ -6,10 +6,6 @@ import { useMemo } from "react";
 import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
-const INTERVALO_DE_REVALIDACAO_MS = Number(
-  process.env.NEXT_PUBLIC_ATENDIMENTOS_POLLING_MS ?? "10000",
-);
-
 export function useAtendimentos(visao: VisaoAtendimento) {
   const usaInboxPaginada = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
   const inbox = useInfiniteQuery({
@@ -20,8 +16,6 @@ export function useAtendimentos(visao: VisaoAtendimento) {
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
-    // Também detecta a abertura de um novo atendimento pela IA quando a conversa estava sem socket.
-    refetchInterval: INTERVALO_DE_REVALIDACAO_MS,
   });
   const paginas = inbox.data?.pages;
   const itensInbox = useMemo(
@@ -32,7 +26,6 @@ export function useAtendimentos(visao: VisaoAtendimento) {
     queryKey: ["atendimentos", "legado", visao],
     enabled: !usaInboxPaginada,
     queryFn: () => listarAtendimentos(visao),
-    refetchInterval: INTERVALO_DE_REVALIDACAO_MS,
   });
   if (usaInboxPaginada) {
     return {
