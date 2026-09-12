@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeApi } from "@/lib/api/errors";
@@ -8,7 +9,7 @@ import { enviarMidia } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
 import { mesclarMensagens } from "./tempo-real";
-import type { MensagemResposta, TipoMensagem } from "./types";
+import type { EnvioResposta, MensagemResposta, TipoMensagem } from "./types";
 
 interface VariaveisEnvioMidia {
   atendimentoId: string;
@@ -32,6 +33,33 @@ function tipoDoArquivo(mimetype: string): TipoMensagem {
   return "DOCUMENTO";
 }
 
+type ContextoOtimista = {
+  queryKey: readonly ["mensagens", string];
+  idOtimista: string;
+  criadoEm: string;
+};
+
+function erroDefinitivo(erro: unknown): boolean {
+  return erro instanceof ErroDeApi
+    && erro.status >= 400
+    && erro.status < 500
+    && ![408, 425, 429].includes(erro.status);
+}
+
+function respostaDaReconciliacao(
+  real: MensagemResposta,
+  variaveis: VariaveisEnvioMidia,
+): EnvioResposta {
+  return {
+    atendimentoId: real.atendimentoId ?? variaveis.atendimentoId,
+    mensagemId: real.id,
+    statusEntrega: real.statusEntrega,
+    enviadoEm: real.enviadoEm,
+    transferiuOLead: true,
+    idempotencyKey: real.idempotencyKey ?? variaveis.idempotencyKey ?? null,
+  };
+}
+
 /**
  * Mesmo contrato de estado de {@link import("./use-enviar-mensagem").useEnviarMensagem}: bolha
  * `PENDENTE` de verdade assim que o `mutate` roda; falhas de transporte ficam pendentes durante a
@@ -40,21 +68,43 @@ function tipoDoArquivo(mimetype: string): TipoMensagem {
  */
 export function useEnviarMidia() {
   const queryClient = useQueryClient();
+  const contextos = useRef(new Map<string, ContextoOtimista>());
+  const chavesReconciliadas = useRef(new Set<string>());
 
   return useMutation({
-    mutationFn: (variaveis: VariaveisEnvioMidia) =>
-      enviarMidia(
-        variaveis.atendimentoId,
-        variaveis.arquivo,
-        variaveis.legenda,
-        variaveis.onProgresso ?? (() => {}),
-        variaveis.resposta,
-        variaveis.gravacaoDoComposer,
-        variaveis.idempotencyKey,
-      ),
+    mutationFn: async (variaveis: VariaveisEnvioMidia) => {
+      try {
+        return await enviarMidia(
+          variaveis.atendimentoId,
+          variaveis.arquivo,
+          variaveis.legenda,
+          variaveis.onProgresso ?? (() => {}),
+          variaveis.resposta,
+          variaveis.gravacaoDoComposer,
+          variaveis.idempotencyKey,
+        );
+      } catch (erro) {
+        const chave = variaveis.idempotencyKey;
+        const contexto = chave ? contextos.current.get(chave) : undefined;
+        if (erroDefinitivo(erro) || !chave || !contexto) throw erro;
+
+        const real = await reconciliarEnvioAmbiguo(
+          queryClient,
+          variaveis.atendimentoId,
+          contexto.queryKey,
+          contexto.idOtimista,
+          chave,
+          contexto.criadoEm,
+        );
+        if (!real) throw erro;
+        chavesReconciliadas.current.add(chave);
+        return respostaDaReconciliacao(real, variaveis);
+      }
+    },
     onMutate: (variaveis) => {
       const queryKey = ["mensagens", variaveis.atendimentoId] as const;
-      variaveis.idempotencyKey ??= crypto.randomUUID();
+      const chaveIdempotencia = variaveis.idempotencyKey ?? crypto.randomUUID();
+      variaveis.idempotencyKey = chaveIdempotencia;
       const idOtimista = idTemporario();
       const identidade = identidadeAutenticada(queryClient);
       const previewUrl = URL.createObjectURL(variaveis.arquivo);
@@ -77,34 +127,18 @@ export function useEnviarMidia() {
         erroEntrega: null,
         enviadoEm: new Date().toISOString(),
         citacao: variaveis.citacao ?? null,
-        idempotencyKey: variaveis.idempotencyKey,
+        idempotencyKey: chaveIdempotencia,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      return { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      contextos.current.set(chaveIdempotencia, contexto);
+      return contexto;
     },
-    onError: async (erro, variaveis, contexto) => {
+    onError: (erro, variaveis, contexto) => {
       if (!contexto) {
         return;
       }
-      const definitiva =
-        erro instanceof ErroDeApi
-        && erro.status >= 400
-        && erro.status < 500
-        && ![408, 425, 429].includes(erro.status);
-      if (!definitiva) {
-        const reconciliada = await reconciliarEnvioAmbiguo(
-          queryClient,
-          variaveis.atendimentoId,
-          contexto.queryKey,
-          contexto.idOtimista,
-          variaveis.idempotencyKey!,
-          contexto.criadoEm,
-        );
-        if (reconciliada) {
-          queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
-          return;
-        }
-      }
+      if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       if (variaveis.resposta) {
         // Respostas/citações mantêm o comportamento existente: sem confirmação da API, a
         // referência otimista é retirada para não deixar um vínculo local que nunca foi aceito.
@@ -129,10 +163,13 @@ export function useEnviarMidia() {
         ),
       );
     },
-    onSuccess: (resposta, _variaveis, contexto) => {
+    onSuccess: (resposta, variaveis, contexto) => {
       if (!contexto) {
         return;
       }
+      const reconciliada = resposta.idempotencyKey != null
+        && chavesReconciliadas.current.delete(resposta.idempotencyKey);
+      if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       const identidade = identidadeAutenticada(queryClient);
       atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
         // O WebSocket pode ter entregue a versão definitiva (inclusive a URL assinada) antes
@@ -166,7 +203,7 @@ export function useEnviarMidia() {
           remetenteNome: identidade.nome ?? otimista.remetenteNome,
           statusEntrega: resposta.statusEntrega,
           enviadoEm: resposta.enviadoEm,
-          idempotencyKey: resposta.idempotencyKey ?? _variaveis?.idempotencyKey,
+          idempotencyKey: resposta.idempotencyKey ?? variaveis.idempotencyKey,
         };
         return mesclarMensagens(
           atual.filter(
@@ -177,7 +214,7 @@ export function useEnviarMidia() {
           [real],
         );
       });
-      if (resposta.transferiuOLead) {
+      if (resposta.transferiuOLead || reconciliada) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
     },

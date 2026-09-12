@@ -21,6 +21,7 @@ import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDe
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -39,16 +40,18 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * Alguem da equipe mandou uma mensagem ou template manual. A mensagem tira a conversa da IA, mas
- * não muda o responsável comercial quando já existe dono; somente uma transferência explícita o
- * altera. Lead sem responsável é assumido pelo primeiro humano que envia.
+ * Alguem da equipe mandou uma mensagem ou template manual. A mensagem transfere o responsável
+ * comercial para quem a enviou, desde que esse usuário alcance o lead pela RN-CRM-01. A mesma
+ * transação grava lead, atendimento, mensagem e outbox; não existe intervalo em que a conversa e
+ * a comissão pertençam a pessoas diferentes.
  *
- * <p>Participar é o mecanismo que permite colaboração sem herdar a comissão — entrar sozinho e
- * enviar como participante não transferem. A RN-CRM-01 continua impedindo o alcance fora do recorte
- * de visibilidade; a Agenda registra a participação antes de abrir a conversa.
+ * <p>A participação continua sendo a forma de alcançar uma conversa colaborativa, mas não é uma
+ * exceção à RN-CRM-06: se o participante envia manualmente, assume a responsabilidade. A
+ * RN-CRM-01 continua impedindo o alcance fora do recorte de visibilidade.
  *
- * <p><b>Quem o remetente alcança continua sendo decidido pela RN-CRM-01.</b> Um lead de colega só
- * chega a este caso de uso depois de a participação colaborativa ter sido registrada; sem isso a
+ * <p><b>Quem o remetente alcança continua sendo decidido pela RN-CRM-01.</b> Para um atendente, um
+ * lead de colega só chega a este caso de uso depois de a participação colaborativa ser registrada;
+ * gestor e subgestor aplicam o mesmo envio dentro do recorte amplo do próprio papel. Sem alcance, a
  * consulta do caminho crítico continua respondendo como recurso inexistente.
  */
 @Service
@@ -150,30 +153,62 @@ public class EnviarMensagemUseCase {
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, null, null);
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, null, null, null, null, true);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, String chaveIdempotencia) {
         return executarInterno(
-                leadId, conteudo, usuarioContext.atual().id(), null, null, chaveIdempotencia);
+                leadId, conteudo, usuarioContext.atual().id(), null, null, null, chaveIdempotencia, null, true);
+    }
+
+    /**
+     * Envio da conversa que o navegador tem aberta. A âncora impede que uma resposta atrasada seja
+     * aplicada a uma nova conversa do mesmo lead depois de a anterior ter sido finalizada.
+     */
+    @PreAuthorize("isAuthenticated()")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(
+            UUID leadId,
+            UUID atendimentoEsperadoId,
+            ConteudoDeEnvio conteudo,
+            AlvoDeResposta resposta,
+            String chaveIdempotencia) {
+        return executarInterno(
+                leadId,
+                conteudo,
+                usuarioContext.atual().id(),
+                null,
+                null,
+                resposta,
+                chaveIdempotencia,
+                atendimentoEsperadoId,
+                true);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta) {
-        ReferenciaDeMensagem referencia = resposta == null ? null : resolverResposta(leadId, resposta);
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia, null);
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, null, resposta, null, null, true);
     }
 
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(
             UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta, String chaveIdempotencia) {
-        ReferenciaDeMensagem referencia = resposta == null ? null : resolverResposta(leadId, resposta);
         return executarInterno(
-                leadId, conteudo, usuarioContext.atual().id(), null, referencia, chaveIdempotencia);
+                leadId,
+                conteudo,
+                usuarioContext.atual().id(),
+                null,
+                null,
+                resposta,
+                chaveIdempotencia,
+                null,
+                true);
     }
 
     /**
@@ -184,7 +219,8 @@ public class EnviarMensagemUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComReferencia(
             UUID leadId, ConteudoDeEnvio conteudo, ReferenciaDeMensagem referencia) {
-        return executarInterno(leadId, conteudo, usuarioContext.atual().id(), null, referencia, null);
+        return executarInterno(
+                leadId, conteudo, usuarioContext.atual().id(), null, referencia, null, null, null, true);
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -195,7 +231,15 @@ public class EnviarMensagemUseCase {
             ReferenciaDeMensagem referencia,
             String chaveIdempotencia) {
         return executarInterno(
-                leadId, conteudo, usuarioContext.atual().id(), null, referencia, chaveIdempotencia);
+                leadId,
+                conteudo,
+                usuarioContext.atual().id(),
+                null,
+                referencia,
+                null,
+                chaveIdempotencia,
+                null,
+                true);
     }
 
     /**
@@ -207,7 +251,8 @@ public class EnviarMensagemUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComoServico(
             UUID leadId, UUID remetenteId, ConteudoDeEnvio conteudo, UUID mensagemProgramadaId) {
-        return executarInterno(leadId, conteudo, remetenteId, mensagemProgramadaId, null, null);
+        return executarInterno(
+                leadId, conteudo, remetenteId, mensagemProgramadaId, null, null, null, null, false);
     }
 
     private Resultado executarInterno(
@@ -216,7 +261,10 @@ public class EnviarMensagemUseCase {
             UUID remetenteId,
             UUID mensagemProgramadaId,
             ReferenciaDeMensagem referencia,
-            String chaveIdempotencia) {
+            AlvoDeResposta alvoDeResposta,
+            String chaveIdempotencia,
+            UUID atendimentoEsperadoId,
+            boolean transfereResponsabilidade) {
         Instant agora = Instant.now(relogio);
 
         String chave = normalizarChave(chaveIdempotencia);
@@ -241,6 +289,13 @@ public class EnviarMensagemUseCase {
                         reserva.mensagemId());
                 return reconstruirResultado(reserva, null);
             }
+        }
+
+        // A referencia pode depender de uma consulta que deixa de ser visivel depois de uma
+        // finalizacao. Resolva-a somente depois do replay idempotente: a repeticao do mesmo clique
+        // deve devolver a mensagem ja aceita sem tocar no estado atual da conversa.
+        if (referencia == null && alvoDeResposta != null) {
+            referencia = resolverResposta(leadId, alvoDeResposta);
         }
 
         // Alcanca o lead? Telefone e janela vem juntos, numa consulta so. Esta verificacao ocorre
@@ -270,24 +325,46 @@ public class EnviarMensagemUseCase {
         }
 
         Atendimento aberto = atendimentos.abertoDoLead(leadId).orElse(null);
+        if (atendimentoEsperadoId != null
+                && (aberto == null || !atendimentoEsperadoId.equals(aberto.id()))) {
+            // A transação já segura o lock do lead. Portanto este não é um snapshot velho: a
+            // conversa solicitada acabou ou foi substituída e nenhuma mensagem/outbox pode nascer
+            // em outro ciclo para o mesmo clique do navegador.
+            throw new AtendimentoJaFinalizadoException(atendimentoEsperadoId, "envio");
+        }
         boolean participanteAtivo =
                 aberto != null && participacoes.eParticipanteAtivo(aberto.id(), remetenteId);
 
         Optional<UUID> donoAnterior;
         boolean trocouDeDono;
-        if (participanteAtivo) {
-            donoAnterior = Optional.ofNullable(aberto.atendenteId());
-            trocouDeDono = false;
-            // Posse e IA sao coisas diferentes: participante nao herda o lead, mas qualquer
-            // humano que fala tira a conversa da IA. Sem isso o ramo de cima deixava EM_IA
-            // intacto e a automacao respondia por cima de quem acabou de entrar.
-            if (aberto.status() == StatusAtendimento.EM_IA) {
-                aberto = atendimentos.salvar(aberto.retirarDaIa());
-                leads.marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
+        if (transfereResponsabilidade) {
+            // A transferência roda ainda com a identidade humana da requisição. Só depois de a
+            // RLS confirmar que ela alcança o lead elevamos o papel técnico para gravar a troca de
+            // dono do atendimento; elevar antes criaria uma porta lateral à RN-CRM-01.
+            LeadNoCaminhoDeMensagem.Transferencia transferencia =
+                    leads.transferirPara(leadId, remetenteId);
+            if (!transferencia.aconteceu()) {
+                throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
+            }
+            donoAnterior = transferencia.donoAnterior();
+            trocouDeDono = donoAnterior.map(anterior -> !anterior.equals(remetenteId)).orElse(true);
+
+            if (aberto == null) {
+                aberto = atendimentos.salvar(
+                        Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora)
+                                .transferirPara(remetenteId));
+            } else if (!remetenteId.equals(aberto.atendenteId())
+                    || aberto.status() != StatusAtendimento.EM_ATENDIMENTO) {
+                // A leitura e o lock aconteceram sob a identidade humana. A RLS impede o UPDATE
+                // de uma linha que deixa de ser visível para o dono anterior; daqui em diante a
+                // única escrita é a transição já autorizada e atômica para quem enviou.
+                atendimentos.elevarRlsParaEscritaDeNovoDono();
+                aberto = aberto.transferirPara(remetenteId);
+                aberto = atendimentos.salvar(aberto);
             }
         } else {
-            // RN-CRM-06: só assume se o lead ainda não tem responsável. Dono existente permanece
-            // dono; troca deliberada passa pelo caso de uso de transferência.
+            // Agendamento de serviço não é envio manual e preserva a semântica anterior: só
+            // atribui quando o lead não tem dono. Isso evita um job antigo alterar a comissão.
             LeadNoCaminhoDeMensagem.Assuncao assuncao =
                     leads.assumirSeSemDono(leadId, remetenteId);
             if (!assuncao.alcancavel()) {
@@ -296,15 +373,11 @@ public class EnviarMensagemUseCase {
             donoAnterior = assuncao.responsavelAtual();
             trocouDeDono = assuncao.assumiu();
             UUID responsavelOficial = assuncao.responsavelAtual().orElse(remetenteId);
-
             if (aberto == null) {
                 aberto = atendimentos.salvar(
                         Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, agora)
                                 .transferirPara(responsavelOficial));
             } else if (aberto.status() == StatusAtendimento.EM_IA) {
-                // O atendimento sem dono precisa sair da IA e ganhar o responsavel no mesmo
-                // UPDATE. Persistir primeiro EM_ATENDIMENTO sem atendente violaria a policy RLS;
-                // a transicao atomica tambem evita uma janela em que o lead ficaria sem posse.
                 aberto = aberto.atendenteId() == null
                         ? aberto.transferirPara(responsavelOficial)
                         : aberto.retirarDaIa();

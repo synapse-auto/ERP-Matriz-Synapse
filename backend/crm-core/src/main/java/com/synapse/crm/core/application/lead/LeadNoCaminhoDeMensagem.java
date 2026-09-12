@@ -65,9 +65,11 @@ public interface LeadNoCaminhoDeMensagem {
      * <p>E a contrapartida do isolamento de agenda — o lead fica com quem trabalhou nele. Como
      * envolve comissao, devolve quem era o dono antes: a timeline precisa dizer de quem para quem.
      *
-     * <p>A transferencia respeita a RLS de {@code lead}: um atendente so alcanca o proprio lead ou o
-     * que ainda nao tem dono. Nao ha aqui caminho para puxar o lead de um colega — o {@code UPDATE}
-     * simplesmente nao encontra a linha.
+     * <p>A transferencia respeita a RLS de {@code lead}: um atendente alcanca o proprio lead, um
+     * potencial em IA ou a conversa em que e participante ativo. A participacao so concede o
+     * alcance; ao enviar manualmente, a RN-CRM-06 transfere a responsabilidade. Nao ha aqui caminho
+     * para puxar o lead de um colega fora desse recorte — o {@code UPDATE} simplesmente nao encontra
+     * a linha.
      */
     Transferencia transferirPara(UUID leadId, UUID novoAtendenteId);
 

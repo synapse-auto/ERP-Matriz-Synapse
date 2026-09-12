@@ -64,10 +64,10 @@ public record Atendimento(
     }
 
     /**
-     * Humano falou: a IA sai, o dono permanece quem era — inclusive ninguem.
+     * Retira a conversa da IA sem alterar o responsável que já estava registrado.
      *
-     * <p>Separado de {@link #transferirPara(UUID)} de proposito. Participante nao herda a posse, mas
-     * deixar {@code EM_IA} depois de um humano responder faria a automacao continuar falando por cima.
+     * <p>É usado por fluxos de serviço que apenas retomam o atendimento. O envio manual humano usa
+     * {@link #transferirPara(UUID)} para aplicar a RN-CRM-06; participação não é exceção a essa regra.
      */
     public Atendimento retirarDaIa() {
         exigirAberto("retirada da IA");

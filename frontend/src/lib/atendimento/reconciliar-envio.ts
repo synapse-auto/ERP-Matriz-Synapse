@@ -17,7 +17,7 @@ export async function reconciliarEnvioAmbiguo(
   idOtimista: string,
   chaveIdempotencia: string,
   criadoEm: string,
-): Promise<boolean> {
+): Promise<MensagemResposta | null> {
   const tentativas = 3;
   for (let tentativa = 0; tentativa < tentativas; tentativa += 1) {
     try {
@@ -30,7 +30,7 @@ export async function reconciliarEnvioAmbiguo(
       );
       if (real) {
         substituirOtimista(queryClient, queryKey, idOtimista, real);
-        return true;
+        return real;
       }
     } catch {
       // A reconciliação é best effort nesta rodada; o critério só termina após todas as tentativas.
@@ -41,7 +41,7 @@ export async function reconciliarEnvioAmbiguo(
       });
     }
   }
-  return false;
+  return null;
 }
 
 export function substituirOtimista(

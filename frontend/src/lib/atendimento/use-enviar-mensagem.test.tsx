@@ -97,7 +97,7 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(api.enviarTemplate).toHaveBeenCalledWith(
-      "lead-template", "reativacao", "pt_BR", ["Cliente"], expect.any(String));
+      "at-template", "lead-template", "reativacao", "pt_BR", ["Cliente"], expect.any(String));
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
   });
 
@@ -164,6 +164,51 @@ describe("useEnviarMensagem", () => {
     expect(mensagens?.[0].erroEntrega?.codigo).toBe(-1);
   });
 
+  it("trata um 500 ambíguo como sucesso quando a chave confirma a mensagem persistida", async () => {
+    vi.mocked(api.enviarMensagem).mockRejectedValue(new Error("resposta perdida"));
+    vi.mocked(api.paginaMensagens).mockResolvedValue({
+      mensagens: [{
+        id: "msg-confirmada",
+        atendimentoId: "at-confirmacao",
+        remetenteTipo: "ATENDENTE",
+        remetenteId: "atendente-1",
+        remetenteNome: "Ana",
+        tipo: "TEXTO",
+        conteudo: "envio confirmado",
+        midiaUrl: null,
+        midiaMetadados: null,
+        opcoes: null,
+        statusEntrega: "PENDENTE",
+        erroEntrega: null,
+        enviadoEm: "2026-09-11T20:00:00Z",
+        citacao: null,
+        idempotencyKey: "chave-confirmada",
+      }],
+      proximoCursor: null,
+    });
+    vi.mocked(api.mensagensDesde).mockResolvedValue([]);
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-confirmacao");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+
+    let resposta: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined;
+    await act(async () => {
+      resposta = await result.current.mutateAsync({
+        atendimentoId: "at-confirmacao",
+        leadId: "lead-confirmacao",
+        conteudo: "envio confirmado",
+        idempotencyKey: "chave-confirmada",
+      });
+    });
+
+    expect(resposta).toMatchObject({ mensagemId: "msg-confirmada", idempotencyKey: "chave-confirmada" });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mensagensDoHistorico(queryClient, "at-confirmacao")).toMatchObject([{
+      id: "msg-confirmada",
+      statusEntrega: "PENDENTE",
+    }]);
+  });
+
   it("a otimista PENDENTE aparece no resultado consumido pela tela via useMensagens", async () => {
     vi.mocked(api.enviarMensagem).mockImplementation(() => new Promise(() => {}));
     const { queryClient, Wrapper } = criarWrapper();
@@ -220,7 +265,7 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(receber).toBeDefined());
     act(() => result.current.envio.mutate({ atendimentoId: "at-corrida-1", leadId: "lead-1", conteudo: "olá" }));
     await waitFor(() => expect(resolver).toBeDefined());
-    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][3] as string;
+    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][4] as string;
     act(() => receber({
       tipo: "MENSAGEM",
       dados: {
@@ -282,7 +327,7 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(result.current.historico.data).toBeDefined());
     act(() => result.current.envio.mutate({ atendimentoId: "at-corrida-2", leadId: "lead-2", conteudo: "retorno" }));
     await waitFor(() => expect(result.current.envio.isSuccess).toBe(true));
-    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][3] as string;
+    const chave = vi.mocked(api.enviarMensagem).mock.calls[0][4] as string;
     const antesDoSocket = mensagensDoHistorico(queryClient, "at-corrida-2");
     expect(antesDoSocket).toHaveLength(1);
 
@@ -393,6 +438,52 @@ describe("useEnviarMensagem", () => {
       id: "msg-real-status",
       statusEntrega: "ENVIADO",
       erroEntrega: null,
+    }]);
+  });
+
+  it("status tardio não rebaixa uma confirmação mais avançada que já chegou pelo WebSocket", async () => {
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-status-tardio", [{
+      id: "msg-status-tardio",
+      remetenteTipo: "ATENDENTE",
+      remetenteId: "atendente",
+      remetenteNome: "Ana",
+      tipo: "TEXTO",
+      conteudo: "olá",
+      midiaUrl: null,
+      midiaMetadados: null,
+      opcoes: null,
+      statusEntrega: "LIDO",
+      erroEntrega: null,
+      enviadoEm: "2026-01-01T00:00:00Z",
+      citacao: null,
+      idempotencyKey: "chave-status-tardio",
+    }]);
+    let receber!: (evento: EventoTempoReal) => void;
+    const conexao = {
+      abrirConversa: vi.fn((_id: string, callback: (evento: EventoTempoReal) => void) => {
+        receber = callback;
+      }),
+      fecharConversa: vi.fn(),
+    } as unknown as ConexaoTempoReal;
+
+    renderHook(() => useMensagens("at-status-tardio", conexao, "desconectado"), { wrapper: Wrapper });
+    await waitFor(() => expect(receber).toBeDefined());
+    act(() => receber({
+      tipo: "STATUS",
+      dados: {
+        atendimentoId: "at-status-tardio",
+        leadId: "lead-status-tardio",
+        mensagemId: "msg-status-tardio",
+        statusEntrega: "PENDENTE",
+        idempotencyKey: "chave-status-tardio",
+        ocorridoEm: "2026-01-01T00:00:01Z",
+      },
+    }));
+
+    expect(mensagensDoHistorico(queryClient, "at-status-tardio")).toMatchObject([{
+      id: "msg-status-tardio",
+      statusEntrega: "LIDO",
     }]);
   });
 });

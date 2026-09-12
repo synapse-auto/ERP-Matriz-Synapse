@@ -161,11 +161,10 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
         }
 
         UUID donoAnterior = donos.get(0);
-        if (novoAtendenteId.equals(donoAnterior)) {
-            // Ja e dele. Evita UPDATE inutil e evento de transferencia sem transferencia.
-            return Transferencia.de(donoAnterior);
-        }
-
+        // Mesmo quando o histórico do lead já aponta para o destino, a conversa pode ter sido
+        // devolvida à IA e estar com status_basico=IA. O UPDATE restaura o par canônico
+        // (responsável, EM_ATENDIMENTO) numa única escrita; pular esta linha deixava lead e
+        // atendimento divergentes depois de modo-ia -> transferir para o mesmo atendente.
         chat.update(SQL_TRANSFERIR, novoAtendenteId, leadId);
         return Transferencia.de(donoAnterior);
     }

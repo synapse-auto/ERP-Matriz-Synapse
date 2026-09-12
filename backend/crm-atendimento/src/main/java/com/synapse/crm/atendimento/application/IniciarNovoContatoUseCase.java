@@ -33,8 +33,8 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * modo humano e o composer oferece os templates.
  *
  * <p>Telefone já presente na Agenda é reutilizado. Quando o contato pertence a outro atendente,
- * a abertura registra o solicitante como participante e preserva o responsável comercial; somente
- * uma transferência explícita troca a posse.
+ * a abertura registra o solicitante como participante e preserva o responsável comercial; uma
+ * transferência deliberada ou envio manual posterior aplica a RN-CRM-06 e troca a posse.
  */
 @Service
 public class IniciarNovoContatoUseCase {

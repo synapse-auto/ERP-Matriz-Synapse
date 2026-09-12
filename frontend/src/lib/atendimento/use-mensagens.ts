@@ -66,6 +66,9 @@ export function useMensagens(
     }
     definirConversaAtiva({ origem: "ATENDIMENTO", id: atendimentoParaAssinar });
     conexao.abrirConversa(atendimentoParaAssinar, (evento) => {
+      if (evento.dados.atendimentoId !== atendimentoParaAssinar) {
+        return;
+      }
       onEventoRecebidoRef.current?.(evento);
       if (evento.tipo === "MENSAGEM") {
         if (!evento.dados.mensagemId) return;
@@ -97,24 +100,28 @@ export function useMensagens(
                 ...atual,
                 pages: atual.pages.map((pagina) => ({
                   ...pagina,
-                  mensagens: pagina.mensagens.map((mensagem) =>
-                    mensagem.id === evento.dados.mensagemId
-                    || (evento.dados.idempotencyKey != null
-                      && mensagem.idempotencyKey === evento.dados.idempotencyKey)
-                      ? {
-                          ...mensagem,
-                          id: evento.dados.mensagemId,
-                          statusEntrega: evento.dados.statusEntrega,
-                          // Um status posterior do backend reconcilia qualquer marcador local
-                          // transitório; motivo de erro só pertence a FALHOU persistido.
-                          erroEntrega:
-                            evento.dados.statusEntrega === "FALHOU"
-                              ? mensagem.erroEntrega
-                              : null,
-                          idempotencyKey:
-                            mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
-                        }
-                      : mensagem,
+                  mensagens: mesclarMensagens(
+                    pagina.mensagens,
+                    pagina.mensagens
+                      .filter(
+                        (mensagem) =>
+                          mensagem.id === evento.dados.mensagemId
+                          || (evento.dados.idempotencyKey != null
+                            && mensagem.idempotencyKey === evento.dados.idempotencyKey),
+                      )
+                      .map((mensagem) => ({
+                        ...mensagem,
+                        id: evento.dados.mensagemId,
+                        statusEntrega: evento.dados.statusEntrega,
+                        // Um status posterior do backend reconcilia qualquer marcador local
+                        // transitório; motivo de erro só pertence a FALHOU persistido.
+                        erroEntrega:
+                          evento.dados.statusEntrega === "FALHOU"
+                            ? mensagem.erroEntrega
+                            : null,
+                        idempotencyKey:
+                          mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
+                      })),
                   ),
                 })),
               }

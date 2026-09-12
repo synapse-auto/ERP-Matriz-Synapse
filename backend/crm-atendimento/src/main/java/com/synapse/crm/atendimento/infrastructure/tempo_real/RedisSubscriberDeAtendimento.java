@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
-import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
  * Onde a autorizacao <b>de verdade</b> acontece para quem ja esta assinado: na entrega, nao na
@@ -273,10 +272,10 @@ class RedisSubscriberDeAtendimento implements MessageListener {
     }
 
     /**
-     * A revogacao (E06 secao 1). Reusa os dois mesmos ingredientes de {@code Atendimento.visivelPara}:
-     * {@link PapelUsuario#enxergaTodosOsLeads()} — a fonte unica do que "papel amplo" significa — e o
-     * novo dono que a transferencia acabou de definir. Nao reabre transacao em nome do dono anterior:
-     * ele nao tem requisicao em andamento para carregar aquele contexto.
+     * A revogacao (E06 secao 1). Papel amplo, novo dono e retorno para IA podem ser decididos pelo
+     * proprio evento. Para um atendente que nao se encaixa nesses casos, a participacao ativa tambem
+     * mantem a colaboracao; ela e confirmada com a mesma regra usada pela revalidacao de TTL antes de
+     * remover a assinatura. Se a consulta falhar, a assinatura e revogada para nao vazar o atendimento.
      */
     private void revogarQuemPerdeuAcesso(UUID atendimentoId, JsonNode dados) {
         JsonNode paraNo = dados.path("paraAtendenteId");
@@ -290,6 +289,10 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                     || paraAtendenteId.equals(assinatura.usuarioId());
 
             if (!continuaAutorizado) {
+                continuaAutorizado = aindaPodeColaborarAposTransferencia(assinatura);
+            }
+
+            if (!continuaAutorizado) {
                 registro.remover(assinatura);
                 enviarParaUsuario(assinatura.usuarioId(), DESTINO_REVOGACAO,
                         "{\"atendimentoId\":\"" + atendimentoId + "\"}");
@@ -298,6 +301,25 @@ class RedisSubscriberDeAtendimento implements MessageListener {
                         atendimentoId,
                         assinatura.usuarioId());
             }
+        }
+    }
+
+    private boolean aindaPodeColaborarAposTransferencia(AssinaturaAutorizada assinatura) {
+        try {
+            boolean valida = ContextoDeServico.buscarComo(
+                    "tempo-real.revalidacao-transferencia",
+                    () -> revalidar.aindaValida(
+                            assinatura.atendimentoId(), assinatura.usuarioId(), assinatura.papel()));
+            if (valida) {
+                registro.renovar(assinatura);
+            }
+            return valida;
+        } catch (RuntimeException erro) {
+            log.warn(
+                    "Nao foi possivel revalidar a assinatura de {} apos transferencia; a sessao sera revogada.",
+                    assinatura.atendimentoId(),
+                    erro);
+            return false;
         }
     }
 
