@@ -40,14 +40,14 @@ describe("sincronizar-responsavel", () => {
       leadId: "lead-1",
       ocorridoEm: "2026-09-04T12:00:01Z",
     });
-    expect(registrarMudanca(registro, recente.leadId, recente.mudanca)).toBe(true);
+    expect(registrarMudanca(registro, recente.mudanca)).toBe(true);
     const atrasado = mudancaDevolucaoParaIa({
       atendimentoId: "at-1",
       leadId: "lead-1",
       ocorridoEm: "2026-09-04T12:00:00Z",
     });
-    expect(registrarMudanca(registro, atrasado.leadId, atrasado.mudanca)).toBe(false);
-    expect(ehMaisRecenteQue(registro, "lead-1", "2026-09-04T12:00:02Z")).toBe(true);
+    expect(registrarMudanca(registro, atrasado.mudanca)).toBe(false);
+    expect(ehMaisRecenteQue(registro, "at-1", "2026-09-04T12:00:02Z")).toBe(true);
   });
 
   it("remove o atendente da lista ao devolver para a IA", () => {
@@ -56,7 +56,7 @@ describe("sincronizar-responsavel", () => {
       leadId: "lead-1",
       ocorridoEm: "2026-09-04T12:00:00Z",
     });
-    const lista = aplicarResponsavelNaLista([cartao()], "lead-1", mudanca);
+    const lista = aplicarResponsavelNaLista([cartao()], "at-1", mudanca);
     expect(lista[0]).toMatchObject({
       atendenteId: null,
       atendenteNome: null,
@@ -66,12 +66,12 @@ describe("sincronizar-responsavel", () => {
 
   it("mantém o snapshot sem atendente quando o cartão some da visão filtrada", () => {
     const registro: RegistroDeMudancas = new Map();
-    const { leadId, mudanca } = mudancaDevolucaoParaIa({
+    const { mudanca } = mudancaDevolucaoParaIa({
       atendimentoId: "at-1",
       leadId: "lead-1",
       ocorridoEm: "2026-09-04T12:00:00Z",
     });
-    registrarMudanca(registro, leadId, mudanca);
+    registrarMudanca(registro, mudanca);
     const mesclado = mesclarCartaoComLista(cartao(), [], registro);
     expect(mesclado).toMatchObject({
       atendenteId: null,
@@ -82,12 +82,12 @@ describe("sincronizar-responsavel", () => {
 
   it("não deixa a lista atrasada ressuscitar o atendente antigo", () => {
     const registro: RegistroDeMudancas = new Map();
-    const { leadId, mudanca } = mudancaDevolucaoParaIa({
+    const { mudanca } = mudancaDevolucaoParaIa({
       atendimentoId: "at-1",
       leadId: "lead-1",
       ocorridoEm: "2026-09-04T12:00:00Z",
     });
-    registrarMudanca(registro, leadId, mudanca);
+    registrarMudanca(registro, mudanca);
     const mesclado = mesclarCartaoComLista(cartao({ status: "EM_IA" }), [cartao()], registro);
     expect(mesclado).toMatchObject({
       atendenteId: null,
@@ -109,5 +109,23 @@ describe("sincronizar-responsavel", () => {
       atendenteNome: "Bruno",
       status: "EM_ATENDIMENTO",
     });
+  });
+
+  it("não aplica uma marca do atendimento finalizado ao novo ciclo do mesmo lead", () => {
+    const registro: RegistroDeMudancas = new Map();
+    const { mudanca } = mudancaDevolucaoParaIa({
+      atendimentoId: "at-antigo",
+      leadId: "lead-1",
+      ocorridoEm: "2026-09-11T20:00:00Z",
+    });
+    registrarMudanca(registro, mudanca);
+
+    const mesclado = mesclarCartaoComLista(
+      cartao({ atendimentoId: "at-novo", atendimentoAtivoId: "at-novo", atendenteId: "bruno" }),
+      [],
+      registro,
+    );
+
+    expect(mesclado).toMatchObject({ atendimentoId: "at-novo", atendenteId: "bruno" });
   });
 });

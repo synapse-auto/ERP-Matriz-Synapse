@@ -82,32 +82,78 @@ export function calcularBackoffMs(tentativa: number, comJitter = true): number {
   return Math.round(bruto * (0.5 + Math.random() * 0.5));
 }
 
+function mesmaMensagem(a: MensagemResposta, b: MensagemResposta): boolean {
+  return a.id === b.id
+    || (a.idempotencyKey != null
+      && b.idempotencyKey != null
+      && a.idempotencyKey === b.idempotencyKey);
+}
+
+function idPreferencial(anterior: string, nova: string): string {
+  if (anterior.startsWith("temp-") && !nova.startsWith("temp-")) return nova;
+  return nova.startsWith("temp-") && !anterior.startsWith("temp-") ? anterior : nova;
+}
+
+function statusMaisAvancado(
+  anterior: MensagemResposta["statusEntrega"],
+  novo: MensagemResposta["statusEntrega"],
+): MensagemResposta["statusEntrega"] {
+  if (anterior === "FALHOU") return novo === "PENDENTE" ? anterior : novo;
+  if (novo === "FALHOU") return anterior === "PENDENTE" ? novo : anterior;
+  const ordem = { PENDENTE: 0, ENVIADO: 1, ENTREGUE: 2, LIDO: 3, FALHOU: 0 } as const;
+  return ordem[novo] >= ordem[anterior] ? novo : anterior;
+}
+
+function fundirMensagem(anterior: MensagemResposta, nova: MensagemResposta): MensagemResposta {
+  const statusEntrega = statusMaisAvancado(anterior.statusEntrega, nova.statusEntrega);
+  const manterMidiaAnterior = nova.midiaUrl?.startsWith("blob:") && anterior.midiaUrl != null;
+  return {
+    ...anterior,
+    ...nova,
+    id: idPreferencial(anterior.id, nova.id),
+    atendimentoId: nova.atendimentoId ?? anterior.atendimentoId,
+    remetenteId: nova.remetenteId ?? anterior.remetenteId,
+    remetenteNome: nova.remetenteNome ?? anterior.remetenteNome,
+    midiaUrl: manterMidiaAnterior ? anterior.midiaUrl : nova.midiaUrl ?? anterior.midiaUrl,
+    midiaMetadados: nova.midiaMetadados ?? anterior.midiaMetadados,
+    statusEntrega,
+    erroEntrega:
+      statusEntrega === "FALHOU"
+        ? (nova.statusEntrega === "FALHOU" ? nova.erroEntrega : anterior.erroEntrega)
+        : null,
+    idempotencyKey: nova.idempotencyKey ?? anterior.idempotencyKey,
+  };
+}
+
 /**
- * Funde o backfill HTTP (`GET /mensagens/desde?desde=`) com o que já estava no cache, por `id` — uma
- * mensagem que chega tanto pelo backfill quanto por um evento WS não pode duplicar na tela, e uma
- * mudança de status (PENDENTE → ENVIADO) precisa substituir a entrada antiga, não somar outra.
+ * Funde histórico, resposta HTTP e WebSocket pelas duas identidades duráveis que podem coexistir:
+ * `id` do servidor e `idempotencyKey` do clique. Um evento que traz ambas também une entradas que
+ * chegaram por caminhos distintos. Status nunca recua quando a resposta HTTP chega depois do WS.
  */
 export function mesclarMensagens(
   existentes: MensagemResposta[],
   novas: MensagemResposta[],
 ): MensagemResposta[] {
-  const porId = new Map<string, MensagemResposta>();
+  const resultado: MensagemResposta[] = [];
   for (const mensagem of [...existentes, ...novas]) {
-    const identidade = mensagem.idempotencyKey ?? mensagem.id;
-    const anterior = porId.get(identidade);
-    porId.set(
-      identidade,
-      anterior
-        ? {
-            ...anterior,
-            ...mensagem,
-            remetenteId: mensagem.remetenteId ?? anterior.remetenteId,
-            remetenteNome: mensagem.remetenteNome ?? anterior.remetenteNome,
-          }
-        : mensagem,
-    );
+    const indices = resultado
+      .map((existente, indice) => (mesmaMensagem(existente, mensagem) ? indice : -1))
+      .filter((indice) => indice >= 0);
+    if (indices.length === 0) {
+      resultado.push(mensagem);
+      continue;
+    }
+
+    let fundida = mensagem;
+    for (const indice of indices) {
+      fundida = fundirMensagem(resultado[indice], fundida);
+    }
+    for (const indice of [...indices].reverse()) {
+      resultado.splice(indice, 1);
+    }
+    resultado.push(fundida);
   }
-  return Array.from(porId.values()).sort(
+  return resultado.sort(
     (a, b) => new Date(a.enviadoEm).getTime() - new Date(b.enviadoEm).getTime(),
   );
 }
@@ -195,8 +241,22 @@ export class ConexaoTempoReal {
     atendimentoId: string,
     onEvento: (evento: EventoTempoReal) => void,
   ): StompSubscription | undefined {
-    return this.cliente?.subscribe(destinoAtendimento(atendimentoId), (mensagem) => {
-      onEvento(JSON.parse(mensagem.body) as EventoTempoReal);
+    const clienteDaAssinatura = this.cliente;
+    return clienteDaAssinatura?.subscribe(destinoAtendimento(atendimentoId), (mensagem) => {
+      // unsubscribe é assíncrono no broker. Um frame que já estava em trânsito da conversa
+      // anterior não pode alcançar os callbacks (nem o cache) da conversa atualmente aberta.
+      if (
+        this.cliente !== clienteDaAssinatura
+        || this.atendimentoAberto !== atendimentoId
+        || this.onEventoAtual !== onEvento
+      ) {
+        return;
+      }
+      const evento = JSON.parse(mensagem.body) as EventoTempoReal;
+      if (evento.dados.atendimentoId !== atendimentoId) {
+        return;
+      }
+      onEvento(evento);
     });
   }
 

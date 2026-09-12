@@ -182,8 +182,8 @@ class NovoContatoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("mensagem de colaborador preserva o responsável original")
-    void novoContato_colaboradorEnviaMensagem_preservaResponsavel() {
+    @DisplayName("mensagem de colaborador transfere a responsabilidade conforme RN-CRM-06")
+    void novoContato_colaboradorEnviaMensagem_transfereResponsavel() {
         String telefone = telefoneNacional();
         String canonico = "55" + telefone.replaceAll("\\D", "");
         UUID lead = UUID.randomUUID();
@@ -209,10 +209,10 @@ class NovoContatoIT extends PostgresIT {
         assertThat(envio.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
-                .isEqualTo(idAna);
+                .isEqualTo(idBruno);
         assertThat(jdbc.queryForObject(
                         "SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento))
-                .isEqualTo(idAna);
+                .isEqualTo(idBruno);
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM mensagem WHERE atendimento_id = ? AND remetente_tipo = 'ATENDENTE'",
                         Integer.class,

@@ -177,10 +177,11 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Enviar mensagem de texto",
-        description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente preserva o responsável existente e assume apenas leads sem responsável.",
+            description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o atendimento elegível para quem enviou. atendimentoId ancora o clique à conversa aberta e evita que uma resposta tardia entre em outro ciclo do mesmo lead.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Mensagem aceita para entrega."),
                 @ApiResponse(responseCode = "404", description = "Lead ou atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "O clique referencia um atendimento finalizado ou substituído."),
                 @ApiResponse(responseCode = "422", description = "Canal fora da janela de texto livre.")
             })
     @PostMapping("/mensagens")
@@ -188,13 +189,20 @@ class AtendimentoAcoesController {
             @Valid @RequestBody EnviarMensagemRequisicao requisicao,
             @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         AlvoDeResposta resposta = requisicao.alvoDeResposta();
-        EnviarMensagemUseCase.Resultado resultado = resposta == null
-                ? enviar.executar(
-                        requisicao.leadId(),
-                        new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
-                        chaveIdempotencia)
+        EnviarMensagemUseCase.Resultado resultado = requisicao.atendimentoId() == null
+                ? (resposta == null
+                        ? enviar.executar(
+                                requisicao.leadId(),
+                                new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
+                                chaveIdempotencia)
+                        : enviar.executar(
+                                requisicao.leadId(),
+                                new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
+                                resposta,
+                                chaveIdempotencia))
                 : enviar.executar(
                         requisicao.leadId(),
+                        requisicao.atendimentoId(),
                         new ConteudoDeEnvio.MensagemLivre(requisicao.conteudo()),
                         resposta,
                         chaveIdempotencia);
@@ -203,20 +211,22 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Enviar template do WhatsApp",
-            description = "Envia um template já aprovado. Não exige janela de 24h; a ação humana tira a conversa da IA e assume somente lead sem responsável antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
+            description = "Envia um template já aprovado. Não exige janela de 24h; a ação humana transfere o atendimento elegível para quem enviou antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Template aceito para entrega."),
-                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "O clique referencia um atendimento finalizado ou substituído.")
             })
     @PostMapping("/mensagens/template")
     EnvioResposta enviarTemplate(
             @Valid @RequestBody EnviarTemplateRequisicao requisicao,
             @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
-        EnviarMensagemUseCase.Resultado resultado = enviar.executar(
-                requisicao.leadId(),
-                new ConteudoDeEnvio.MensagemTemplate(
-                        requisicao.nome(), requisicao.idioma(), requisicao.parametros()),
-                chaveIdempotencia);
+        ConteudoDeEnvio.MensagemTemplate conteudo = new ConteudoDeEnvio.MensagemTemplate(
+                requisicao.nome(), requisicao.idioma(), requisicao.parametros());
+        EnviarMensagemUseCase.Resultado resultado = requisicao.atendimentoId() == null
+                ? enviar.executar(requisicao.leadId(), conteudo, chaveIdempotencia)
+                : enviar.executar(
+                        requisicao.leadId(), requisicao.atendimentoId(), conteudo, null, chaveIdempotencia);
         return EnvioResposta.de(resultado);
     }
 
@@ -232,6 +242,7 @@ class AtendimentoAcoesController {
                 @ApiResponse(responseCode = "200", description = "Mídia aceita para entrega."),
                 @ApiResponse(responseCode = "400", description = "Arquivo não pôde ser lido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "O atendimento foi finalizado ou substituído durante o upload."),
                 @ApiResponse(responseCode = "413", description = "Arquivo excede o limite configurado."),
                 @ApiResponse(responseCode = "422", description = "Tipo de mídia não permitido ou canal fora da janela.")
             })
@@ -261,8 +272,8 @@ class AtendimentoAcoesController {
         }
         AlvoDeResposta resposta = alvoOpcional(mensagemOrigemId, origemEnviadaEm);
         EnviarMensagemUseCase.Resultado resultado = enviarMidia.executar(
-                leadId, conteudo, arquivo.getOriginalFilename(), legenda, resposta, gravacaoDoComposer,
-                chaveIdempotencia);
+                leadId, id, conteudo, arquivo.getOriginalFilename(), legenda, resposta,
+                gravacaoDoComposer, chaveIdempotencia);
         return EnvioResposta.de(resultado);
     }
 
@@ -637,6 +648,8 @@ class AtendimentoAcoesController {
     record EnviarMensagemRequisicao(
             @Schema(description = "Lead visível que receberá a mensagem.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotNull UUID leadId,
+            @Schema(description = "Atendimento aberto no qual o clique foi iniciado. Quando informado, recusa uma conversa finalizada ou substituída sem criar mensagem ou outbox.")
+                    UUID atendimentoId,
             @Schema(description = "Conteúdo textual.", example = "Olá! Posso ajudar?", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String conteudo,
             @Schema(description = "Mensagem de origem quando esta é uma resposta.")
@@ -654,6 +667,7 @@ class AtendimentoAcoesController {
 
     record EnviarTemplateRequisicao(
             @NotNull UUID leadId,
+            UUID atendimentoId,
             @NotBlank String nome,
             @NotBlank String idioma,
             List<String> parametros) {

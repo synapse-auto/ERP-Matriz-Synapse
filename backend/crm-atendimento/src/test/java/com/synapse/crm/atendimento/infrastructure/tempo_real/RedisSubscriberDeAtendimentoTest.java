@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,7 @@ import org.springframework.data.redis.connection.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.synapse.crm.atendimento.application.tempo_real.RevalidarAssinaturaTempoRealUseCase;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class RedisSubscriberDeAtendimentoTest {
@@ -44,8 +47,14 @@ class RedisSubscriberDeAtendimentoTest {
 
     @BeforeEach
     void limparAssinaturas() {
+        ContextoDeServico.instalarPonteDeAutoridade(nome -> () -> {});
         registro.doAtendimento(atendimentoId).forEach(registro::remover);
-        reset(template);
+        reset(template, revalidar);
+    }
+
+    @AfterEach
+    void restaurarPonteDeAutoridade() {
+        ContextoDeServico.instalarPonteDeAutoridade(ContextoDeServico.PonteDeAutoridade.NAO_INSTALADA);
     }
 
     @Test
@@ -201,6 +210,22 @@ class RedisSubscriberDeAtendimentoTest {
 
         verify(template).convertAndSendToUser(
                 eq(donoAnteriorId.toString()), eq("/queue/revogacoes"), contains(atendimentoId.toString()));
+    }
+
+    @Test
+    void participante_ativo_permanece_assinado_apos_transferencia() {
+        UUID participanteId = UUID.randomUUID();
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-participante", "sub-participante", atendimentoId, participanteId, PapelUsuario.ATENDENTE));
+        when(revalidar.aindaValida(atendimentoId, participanteId, PapelUsuario.ATENDENTE)).thenReturn(true);
+
+        subscriber.onMessage(mensagem(transferencia(destinatarioId, transferidorId, "USUARIO")), null);
+
+        verify(revalidar).aindaValida(atendimentoId, participanteId, PapelUsuario.ATENDENTE);
+        verify(template, never()).convertAndSendToUser(
+                eq(participanteId.toString()), eq("/queue/revogacoes"), contains(atendimentoId.toString()));
+        verify(template).convertAndSendToUser(
+                eq(participanteId.toString()), eq("/queue/atendimento." + atendimentoId), anyString());
     }
 
     private Message mensagem(String corpo) {

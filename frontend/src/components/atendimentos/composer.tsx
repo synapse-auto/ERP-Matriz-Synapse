@@ -172,6 +172,31 @@ export function Composer({
   });
   const [parametros, setParametros] = useState<Record<string, string[]>>({});
   const citacaoResposta = resposta ? citacaoDeResposta(resposta) : null;
+  const atendimentoAtualRef = useRef(conversa.atendimentoId);
+
+  // O composer permanece montado ao trocar de cartão. Limpe todo estado específico da conversa
+  // para que rascunho, anexos, erro e gravação não vazem para o próximo atendimento.
+  useEffect(() => {
+    if (atendimentoAtualRef.current === conversa.atendimentoId) return;
+    atendimentoAtualRef.current = conversa.atendimentoId;
+    setTexto("");
+    setArquivos([]);
+    setAvisoTipo(false);
+    setProgresso(null);
+    setIndiceEnvio(null);
+    setFalhasArquivos(new Map());
+    setAgendamentoAberto(false);
+    setPainelTemplateAberto(false);
+    setMenuAnexoAberto(false);
+    setModoMenuAnexo("acoes");
+    setAtalhoSelecionado(0);
+    setVariaveisPendentes([]);
+    setParametros({});
+    gravador.descartar();
+    enviar.reset?.();
+    enviarMidia.reset?.();
+    onCancelarResposta?.();
+  }, [conversa.atendimentoId, enviar, enviarMidia, gravador, onCancelarResposta]);
 
   function fecharMenuAnexo() {
     setMenuAnexoAberto(false);
@@ -274,7 +299,8 @@ export function Composer({
       : undefined;
   }
 
-  function limparAposEnvio() {
+  function limparAposEnvio(atendimentoIdDoEnvio: string) {
+    if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
     setArquivos([]);
     setTexto("");
     setProgresso(null);
@@ -285,6 +311,7 @@ export function Composer({
   }
 
   async function enviarConteudo() {
+    const atendimentoIdDoEnvio = conversa.atendimentoId;
     if (variaveisPendentes.length > 0) return;
     if (arquivos.length > 0) {
       const fila = arquivos;
@@ -299,16 +326,19 @@ export function Composer({
         const legendaDoArquivo = indice === 0 ? legenda : undefined;
         const respostaDoArquivo = indice === 0 ? respostaAlvo : undefined;
         const citacaoDoArquivo = indice === 0 ? citacaoResposta : undefined;
+        const idempotencyKey = crypto.randomUUID();
         try {
           await enviarMidia.mutateAsync({
-            atendimentoId: conversa.atendimentoId,
+            atendimentoId: atendimentoIdDoEnvio,
             leadId: conversa.leadId,
             arquivo,
             legenda: legendaDoArquivo,
             onProgresso: setProgresso,
             resposta: respostaDoArquivo,
             citacao: citacaoDoArquivo,
+            idempotencyKey,
           });
+          if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
           if (!primeiraMensagemNotificada) {
             onMensagemEnviada?.();
             primeiraMensagemNotificada = true;
@@ -326,10 +356,12 @@ export function Composer({
             legenda: legendaDoArquivo,
             resposta: respostaDoArquivo,
             citacao: citacaoDoArquivo,
+            idempotencyKey,
             motivo: motivoDaFalhaDeMidia(erro, textos.anexoErro),
           });
         }
       }
+      if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
       setProgresso(null);
       setIndiceEnvio(null);
       if (falhas.length > 0) {
@@ -337,7 +369,7 @@ export function Composer({
         setFalhasArquivos(new Map(falhas.map(({ arquivo, motivo }) => [arquivo, motivo])));
         onFalhasDeMidia?.(falhas);
       } else {
-        limparAposEnvio();
+        limparAposEnvio(atendimentoIdDoEnvio);
       }
       return;
     }
@@ -356,7 +388,7 @@ export function Composer({
         resposta: alvoDeResposta(),
         citacao: citacaoResposta,
       },
-      { onSuccess: limparAposEnvio },
+      { onSuccess: () => limparAposEnvio(atendimentoIdDoEnvio) },
     );
   }
 
@@ -389,10 +421,11 @@ export function Composer({
 
   function enviarGravacao() {
     if (!gravador.arquivo || gravador.erro) return;
+    const atendimentoIdDoEnvio = conversa.atendimentoId;
     setProgresso(0);
     enviarMidia.mutate(
       {
-        atendimentoId: conversa.atendimentoId,
+        atendimentoId: atendimentoIdDoEnvio,
         leadId: conversa.leadId,
         arquivo: gravador.arquivo,
         onProgresso: setProgresso,
@@ -400,11 +433,13 @@ export function Composer({
       },
       {
         onSuccess: () => {
+          if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
           onMensagemEnviada?.();
           gravador.descartar();
           setProgresso(null);
         },
         onError: () => {
+          if (atendimentoAtualRef.current !== atendimentoIdDoEnvio) return;
           gravador.descartar();
           setProgresso(null);
         },

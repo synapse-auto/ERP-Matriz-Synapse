@@ -105,6 +105,52 @@ public class EnviarMidiaUseCase {
             AlvoDeResposta resposta,
             boolean gravacaoDoComposer,
             String chaveIdempotencia) {
+        return executarInterno(
+                leadId,
+                null,
+                conteudo,
+                nomeArquivoOriginal,
+                legenda,
+                resposta,
+                gravacaoDoComposer,
+                chaveIdempotencia);
+    }
+
+    /**
+     * Variante da rota HTTP: mantém a mídia ligada ao atendimento que estava aberto no composer.
+     * Se o upload terminar depois de a conversa mudar, {@link EnviarMensagemUseCase} recusa o
+     * clique ancorado antes de gravar mensagem ou outbox e este caso de uso remove o objeto recém-salvo.
+     */
+    @PreAuthorize("isAuthenticated()")
+    public EnviarMensagemUseCase.Resultado executar(
+            UUID leadId,
+            UUID atendimentoEsperadoId,
+            byte[] conteudo,
+            String nomeArquivoOriginal,
+            String legenda,
+            AlvoDeResposta resposta,
+            boolean gravacaoDoComposer,
+            String chaveIdempotencia) {
+        return executarInterno(
+                leadId,
+                atendimentoEsperadoId,
+                conteudo,
+                nomeArquivoOriginal,
+                legenda,
+                resposta,
+                gravacaoDoComposer,
+                chaveIdempotencia);
+    }
+
+    private EnviarMensagemUseCase.Resultado executarInterno(
+            UUID leadId,
+            UUID atendimentoEsperadoId,
+            byte[] conteudo,
+            String nomeArquivoOriginal,
+            String legenda,
+            AlvoDeResposta resposta,
+            boolean gravacaoDoComposer,
+            String chaveIdempotencia) {
         String mimetypeReal =
                 IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
         TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
@@ -170,7 +216,10 @@ public class EnviarMidiaUseCase {
                 new ConteudoDeEnvio.MensagemMidia(tipo, referencia, metadados, legenda);
         try {
             EnviarMensagemUseCase.Resultado resultado;
-            if (chaveIdempotencia == null || chaveIdempotencia.isBlank()) {
+            if (atendimentoEsperadoId != null) {
+                resultado = enviarMensagem.executar(
+                        leadId, atendimentoEsperadoId, envio, resposta, chaveIdempotencia);
+            } else if (chaveIdempotencia == null || chaveIdempotencia.isBlank()) {
                 // Mantém o contrato legado para chamadas internas que não participam do fluxo HTTP
                 // idempotente (mensagens programadas e testes de anexo).
                 resultado = resposta == null

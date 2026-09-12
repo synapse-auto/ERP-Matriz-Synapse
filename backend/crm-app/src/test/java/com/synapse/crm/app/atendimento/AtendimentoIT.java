@@ -240,20 +240,18 @@ class AtendimentoIT extends PostgresIT {
             assertThat(contador(leadDaAna, "num_mensagens")).isZero();
         }
 
-        /**
-         * Quem enxerga a base inteira alcanca qualquer lead, mas enviar mensagem nao e transferencia
-         * implicita: a posse comercial continua com o responsavel original.
-         */
+        /** Quem enxerga a base inteira ainda assume a responsabilidade ao enviar manualmente. */
         @Test
-        @DisplayName("gestor que responde lead de atendente preserva o responsavel")
-        void envio_gestorEmLeadDeAtendente_preservaResponsavel() {
+        @DisplayName("gestor que responde lead de atendente assume o responsavel")
+        void envio_gestorEmLeadDeAtendente_transfereResponsavel() {
             ApoioRls.entrarComo(idGestor, PapelUsuario.GESTOR);
 
             var resultado = enviar.executar(leadDaAna, CONTEUDO);
 
-            assertThat(resultado.transferiuOLead()).isFalse();
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
-            assertThat(tiposDaTimeline(leadDaAna)).doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
+            assertThat(resultado.transferiuOLead()).isTrue();
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
+            assertThat(atendenteDoAtendimento(resultado.atendimento().id())).isEqualTo(idGestor);
+            assertThat(tiposDaTimeline(leadDaAna)).contains("LEAD_TRANSFERIDO_POR_ENVIO");
         }
 
         /** Responder o proprio lead nao e transferencia: nao pode gerar evento de troca de dono. */
@@ -284,12 +282,12 @@ class AtendimentoIT extends PostgresIT {
     }
 
     @Nested
-    @DisplayName("participante ativo fala sem assumir o atendimento")
-    class ParticipanteFalaSemAssumir {
+    @DisplayName("envio manual por participante assume o atendimento")
+    class ParticipanteAssumeAoEnviar {
 
         @Test
-        @DisplayName("subgestora entra e fala: mensagem e dela, o lead continua da Ana")
-        void participanteAtivo_enviaSemTransferir() {
+        @DisplayName("subgestora entra e fala: mensagem e dela e ela assume o lead")
+        void participanteAtivo_enviaETransfere() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
 
@@ -297,28 +295,30 @@ class AtendimentoIT extends PostgresIT {
             participacao.entrar(atendimentoId);
             var resultado = enviar.executar(leadDaAna, "Michele na conversa");
 
-            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.transferiuOLead()).isTrue();
             assertThat(resultado.mensagem().remetente().tipo()).isEqualTo(RemetenteTipo.ATENDENTE);
             assertThat(resultado.mensagem().remetente().id()).isEqualTo(idSubgestor);
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
-            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idSubgestor);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idSubgestor);
             assertThat(tiposDaTimeline(leadDaAna))
-                    .contains("MENSAGEM_ENVIADA")
-                    .doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
+                .contains("MENSAGEM_ENVIADA")
+                    .contains("LEAD_TRANSFERIDO_POR_ENVIO");
             assertThat(jdbc.queryForObject(
                             "SELECT dados->>'participante' FROM evento_timeline"
-                                    + " WHERE lead_id = ? AND tipo = 'MENSAGEM_ENVIADA'"
-                                    + " ORDER BY criado_em DESC LIMIT 1",
+                                    + " WHERE lead_id = ? AND tipo = 'LEAD_TRANSFERIDO_POR_ENVIO' AND ator_id = ?",
                             String.class,
-                            leadDaAna))
+                            leadDaAna,
+                            idSubgestor))
                     .isEqualTo("true");
-            assertThat(contarAuditoria(leadDaAna, "MENSAGEM_ENVIADA_POR_PARTICIPANTE")).isEqualTo(1);
-            assertThat(contarAuditoria(leadDaAna, "ENVIO_COM_TRANSFERENCIA_DE_LEAD")).isZero();
+            // A auditoria registra a transferência, que é o fato comercial relevante. A
+            // participação continua preservada no evento da timeline acima.
+            assertThat(contarAuditoria(leadDaAna, "MENSAGEM_ENVIADA_POR_PARTICIPANTE")).isZero();
+            assertThat(contarAuditoria(leadDaAna, "ENVIO_COM_TRANSFERENCIA_DE_LEAD")).isEqualTo(1);
         }
 
         @Test
-        @DisplayName("participante fala em EM_IA: tira da IA e nao herda o lead")
-        void participanteFalaEmAtendimentoEmIa_tiraDaIaSemHerdar() {
+        @DisplayName("participante fala em EM_IA: assume lead e atendimento")
+        void participanteFalaEmAtendimentoEmIa_assume() {
             var aberto = comoServico(() -> registrarRecebida.executar(entrada(leadSemDono)));
             UUID atendimentoId = aberto.atendimento().id();
             assertThat(aberto.atendimento().status()).isEqualTo(StatusAtendimento.EM_IA);
@@ -327,21 +327,21 @@ class AtendimentoIT extends PostgresIT {
             participacao.entrar(atendimentoId);
             var resultado = enviar.executar(leadSemDono, "humano na conversa da IA");
 
-            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.transferiuOLead()).isTrue();
             assertThat(resultado.mensagem().remetente().id()).isEqualTo(idGestor);
-            assertThat(donoDoLead(leadSemDono)).isNull();
+            assertThat(donoDoLead(leadSemDono)).isEqualTo(idGestor);
             assertThat(statusDoLead(leadSemDono)).isEqualTo("EM_ATENDIMENTO");
             assertThat(resultado.atendimento().status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
             assertThat(jdbc.queryForObject(
-                            "SELECT atendente_id IS NULL FROM atendimento WHERE id = ?",
-                            Boolean.class,
+                            "SELECT atendente_id FROM atendimento WHERE id = ?",
+                            UUID.class,
                             atendimentoId))
-                    .isTrue();
+                    .isEqualTo(idGestor);
         }
 
         @Test
-        @DisplayName("atendente convidado fala sem tomar o lead do colega")
-        void atendenteParticipante_enviaSemTransferir() {
+        @DisplayName("atendente convidado fala e assume o lead do atendimento em que participa")
+        void atendenteParticipante_enviaETransfere() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
             ApoioRls.sair();
@@ -353,10 +353,10 @@ class AtendimentoIT extends PostgresIT {
             ApoioRls.entrarComo(idBruno, PapelUsuario.ATENDENTE);
             var resultado = enviar.executar(leadDaAna, "Bruno ajudando");
 
-            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.transferiuOLead()).isTrue();
             assertThat(resultado.mensagem().remetente().id()).isEqualTo(idBruno);
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
-            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idBruno);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idBruno);
         }
 
         @Test
@@ -383,8 +383,8 @@ class AtendimentoIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("quem saiu da conversa envia sem transferir a posse")
-        void participanteQueSaiu_enviaSemTransferir() {
+        @DisplayName("gestor que saiu da conversa ainda assume ao enviar")
+        void participanteQueSaiu_enviaETransfere() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
 
@@ -393,10 +393,10 @@ class AtendimentoIT extends PostgresIT {
             participacao.sair(atendimentoId);
             var resultado = enviar.executar(leadDaAna, "assumo daqui");
 
-            assertThat(resultado.transferiuOLead()).isFalse();
-            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
-            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
-            assertThat(tiposDaTimeline(leadDaAna)).doesNotContain("LEAD_TRANSFERIDO_POR_ENVIO");
+            assertThat(resultado.transferiuOLead()).isTrue();
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idGestor);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idGestor);
+            assertThat(tiposDaTimeline(leadDaAna)).contains("LEAD_TRANSFERIDO_POR_ENVIO");
         }
     }
 

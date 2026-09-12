@@ -160,6 +160,38 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("upload ancorado em atendimento finalizado retorna 409 sem mídia, mensagem ou outbox")
+    void upload_atendimentoFinalizado_retorna409SemEscritaParcial() {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        int mensagensAntes = mensagensDoLead();
+        long outboxAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                        + " AND payload->>'atendimentoId' = ?",
+                Long.class,
+                atendimentoId.toString());
+
+        assertThat(autenticado(
+                        EMAIL_ANA,
+                        HttpMethod.POST,
+                        "/api/v1/atendimentos/" + atendimentoId + "/finalizar")
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> resposta = enviarAnexoParaAtendimento(
+                atendimentoId, PNG_VALIDO, "resposta-tardia.png", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensagensDoLead()).isEqualTo(mensagensAntes);
+        assertThat(armazenamento.contagemDeObjetos()).isZero();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isEqualTo(outboxAntes);
+    }
+
+    @Test
     @DisplayName("M4A/AAC real e detectado como audio/mp4 e aceito")
     void upload_m4aAacReal_eAceito() {
         ResponseEntity<String> resposta = enviarAnexo(leadDaAna, M4A_AAC_VALIDO, "gravacao.m4a", null);
@@ -440,6 +472,11 @@ class AnexoMidiaIT extends PostgresIT {
 
     private ResponseEntity<String> enviarAnexo(UUID leadId, byte[] conteudo, String nomeArquivo, String legenda) {
         UUID atendimentoId = atendimentoDoLeadOuAbrir(leadId);
+        return enviarAnexoParaAtendimento(atendimentoId, conteudo, nomeArquivo, legenda);
+    }
+
+    private ResponseEntity<String> enviarAnexoParaAtendimento(
+            UUID atendimentoId, byte[] conteudo, String nomeArquivo, String legenda) {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
 
         MultiValueMap<String, Object> corpo = new LinkedMultiValueMap<>();

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -164,6 +165,38 @@ class EnviarMidiaUseCaseTest {
 
         ArgumentCaptor<ConteudoDeEnvio> envio = ArgumentCaptor.forClass(ConteudoDeEnvio.class);
         verify(enviarMensagem).executar(eq(leadId), envio.capture());
+        assertThat(((ConteudoDeEnvio.MensagemMidia) envio.getValue()).tipo()).isEqualTo(TipoMensagem.DOCUMENTO);
+    }
+
+    @Test
+    void uploadAncoradoDelegaParaOEnvioDaMesmaConversa() {
+        DetectorDeTipoReal detector = mock(DetectorDeTipoReal.class);
+        ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+        LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
+        EnviarMensagemUseCase enviarMensagem = mock(EnviarMensagemUseCase.class);
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        byte[] conteudo = {0x01, 0x02, 0x03};
+
+        when(detector.detectar(conteudo)).thenReturn("application/msword");
+        when(limites.limiteEmBytes(CategoriaDeMidia.DOCUMENTO)).thenReturn(Optional.of(1024L));
+        when(armazenamento.salvar(any(), any(), eq("application/msword"))).thenReturn("midias/documento");
+        EnviarMidiaUseCase useCase = new EnviarMidiaUseCase(
+                detector, armazenamento, limites, enviarMensagem, new ObjectMapper());
+
+        useCase.executar(
+                leadId,
+                atendimentoId,
+                conteudo,
+                "documento.doc",
+                null,
+                null,
+                false,
+                "chave-upload");
+
+        ArgumentCaptor<ConteudoDeEnvio> envio = ArgumentCaptor.forClass(ConteudoDeEnvio.class);
+        verify(enviarMensagem).executar(
+                eq(leadId), eq(atendimentoId), envio.capture(), isNull(), eq("chave-upload"));
         assertThat(((ConteudoDeEnvio.MensagemMidia) envio.getValue()).tipo()).isEqualTo(TipoMensagem.DOCUMENTO);
     }
 

@@ -160,6 +160,38 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void modoIa_eTransferenciaDeVoltaParaMesmoHumano_restauramLeadEAtendimento() {
+        UUID humano = criarAtendente("RETORNO-MESMO-HUMANO");
+        UUID atendimento = criarAtendimento("MODO-IA-RETORNO", "EM_ATENDIMENTO", humano, false);
+        UUID lead = jdbc.queryForObject("SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+
+        ResponseEntity<String> modoIa = chamar(
+                HttpMethod.PATCH, url(atendimento, "modo-ia"), TOKEN, "modo-ia-retorno", Map.of());
+        assertThat(modoIa.getStatusCode()).isEqualTo(HttpStatus.OK);
+        // O responsável histórico do lead é preservado enquanto a conversa espera na IA.
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(humano);
+        assertThat(jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("IA");
+
+        ResponseEntity<String> retorno = chamar(
+                HttpMethod.POST,
+                url(atendimento, "transferir"),
+                TOKEN,
+                "transferir-retorno",
+                Map.of("atendenteId", humano.toString()));
+
+        assertThat(retorno.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isEqualTo(humano);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(humano);
+        assertThat(jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("EM_ATENDIMENTO");
+    }
+
+    @Test
     void modoIa_segundaExecucaoComChaveNova_permaneceSemResponsavel() {
         UUID humano = criarAtendente("HUMANO-2");
         UUID atendimento = criarAtendimento("MODO-IA-2", "EM_ATENDIMENTO", humano, false);

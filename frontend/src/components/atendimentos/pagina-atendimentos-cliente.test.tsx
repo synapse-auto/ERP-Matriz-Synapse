@@ -562,6 +562,40 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("responsavel-painel")).not.toHaveTextContent("Ana Atendente");
   });
 
+  it("ignora transferência tardia de ciclo anterior do mesmo lead", () => {
+    const novoCiclo = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-2",
+      atendimentoAtivoId: "atendimento-2",
+      atendenteId: "bruno-id",
+      atendenteNome: "Bruno Atendente",
+    };
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial, novoCiclo]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    const callbackDoCicloAntigo = callbacks.eventoEstado;
+    act(() => callbacks.abrir?.(novoCiclo));
+
+    act(() =>
+      callbackDoCicloAntigo?.({
+        tipo: "TRANSFERENCIA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          leadNome: "Lead de teste",
+          deAtendenteId: "ana-id",
+          paraAtendenteId: null,
+          quemTransferiu: "ana-id",
+          atorTipo: "USUARIO",
+          ocorridoEm: "2026-09-11T20:00:00Z",
+        },
+      }),
+    );
+
+    expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
+    expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
+  });
+
   it("encerra o composer quando a finalização bem-sucedida remove o cartão da lista", () => {
     renderPagina();
     act(() => callbacks.atualizarLista?.([cartaoInicial]));

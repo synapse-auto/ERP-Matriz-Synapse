@@ -87,6 +87,30 @@ describe("mesclarMensagens", () => {
       remetenteNome: "Ana Atendente",
     });
   });
+
+  it("une as entradas quando o WebSocket conecta id do servidor e chave idempotente", () => {
+    const otimista = { ...mensagem("temp-1", "2026-01-01T00:00:00Z", "PENDENTE"), idempotencyKey: "clique-1" };
+    const historicoSemChave = mensagem("real-1", "2026-01-01T00:00:01Z", "ENVIADO");
+    const websocket = {
+      ...mensagem("real-1", "2026-01-01T00:00:01Z", "ENVIADO"),
+      idempotencyKey: "clique-1",
+    };
+
+    const resultado = mesclarMensagens([otimista, historicoSemChave], [websocket]);
+
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({ id: "real-1", idempotencyKey: "clique-1" });
+  });
+
+  it("nao deixa a resposta HTTP pendente rebaixar o status entregue pelo WebSocket", () => {
+    const websocket = mensagem("real-1", "2026-01-01T00:00:01Z", "ENTREGUE");
+    const respostaHttp = mensagem("real-1", "2026-01-01T00:00:01Z", "PENDENTE");
+
+    const resultado = mesclarMensagens([websocket], [respostaHttp]);
+
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0].statusEntrega).toBe("ENTREGUE");
+  });
 });
 
 function clienteStompFalso() {
@@ -237,5 +261,38 @@ describe("ConexaoTempoReal", () => {
     conexao.abrirConversa("atendimento-2", () => {});
 
     expect(unsubscribeConversa1).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignora frame que chegou atrasado da assinatura da conversa anterior", () => {
+    const { cliente } = clienteStompFalso();
+    const callbackDaConversa1 = vi.fn();
+    const callbackDaConversa2 = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => cliente,
+    });
+
+    conexao.abrirConversa("atendimento-1", callbackDaConversa1);
+    conexao.conectar();
+    const callbackAntigo = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[2]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    conexao.abrirConversa("atendimento-2", callbackDaConversa2);
+
+    callbackAntigo?.({
+      body: JSON.stringify({
+        tipo: "TRANSFERENCIA",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          paraAtendenteId: "bruno",
+          ocorridoEm: "2026-09-11T20:00:00Z",
+        },
+      }),
+    });
+
+    expect(callbackDaConversa1).not.toHaveBeenCalled();
+    expect(callbackDaConversa2).not.toHaveBeenCalled();
   });
 });

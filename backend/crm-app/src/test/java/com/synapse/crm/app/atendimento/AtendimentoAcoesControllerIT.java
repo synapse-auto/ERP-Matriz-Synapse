@@ -101,6 +101,99 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("enviar: POST ancorado após voltar para IA reassume lead e atendimento sem 500")
+    void enviar_depoisDeVoltarParaIa_reassumeEstadoCanonico() {
+        UUID leadId = criarLead("lead volta ia " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(leadId);
+
+        ResponseEntity<String> devolucao = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                null);
+        assertThat(devolucao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, leadId))
+                .isEqualTo("IA");
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_BRUNO,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/mensagens",
+                Map.of(
+                        "leadId", leadId.toString(),
+                        "atendimentoId", atendimentoId.toString(),
+                        "conteudo", "assumo esta conversa"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"transferiuOLead\":true");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idBruno);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadId))
+                .isEqualTo(idBruno);
+        assertThat(jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, leadId))
+                .isEqualTo("EM_ATENDIMENTO");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isEqualTo(2L);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("enviar: clique ancorado em atendimento finalizado responde 409 sem nova outbox")
+    void enviar_atendimentoFinalizadoComAncora_retorna409SemNovoCiclo() {
+        UUID leadId = criarLead("lead clique tardio " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(leadId);
+        long mensagensAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId);
+        long outboxAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                        + " AND payload->>'atendimentoId' = ?",
+                Long.class,
+                atendimentoId.toString());
+
+        ResponseEntity<String> finalizacao = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/finalizar",
+                null);
+        assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/mensagens",
+                Map.of(
+                        "leadId", leadId.toString(),
+                        "atendimentoId", atendimentoId.toString(),
+                        "conteudo", "clique que chegou tarde"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(resposta.getBody()).contains("Atendimento ja finalizado");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM atendimento WHERE lead_id = ?", Long.class, leadId))
+                .isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem WHERE atendimento_id = ?", Long.class, atendimentoId))
+                .isEqualTo(mensagensAntes);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                                + " AND payload->>'atendimentoId' = ?",
+                        Long.class,
+                        atendimentoId.toString()))
+                .isEqualTo(outboxAntes);
+    }
+
+    @Test
     @DisplayName("enviar: lead de colega nao e alcancado, responde 404")
     void enviar_leadDeColega_retorna404() {
         UUID leadDaAna = criarLead("lead ana " + sufixo(), idAna, Instant.now());

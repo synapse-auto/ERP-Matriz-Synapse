@@ -85,7 +85,7 @@
 | DELETE | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}/reacao` | Remove a própria reação. Idempotente | Atendente | `AtendimentoMensagensController` · `ReacoesDeMensagemIT` |
 | GET | `/api/v1/atendimentos/inbox` | Inbox unificada paginada por recência; item `CLIENTE` inclui `leadCodigo` | Atendente | `InboxUnificadaController` |
 | POST | `/api/v1/atendimentos/novo-contato` | Inicia conversa WhatsApp: cria ou reusa lead visível do telefone, abre atendimento humano e envia texto livre ou template | Atendente | `AtendimentoAcoesController` · `NovoContatoIT` |
-| POST | `/api/v1/atendimentos/mensagens` | Envia mensagem de texto | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| POST | `/api/v1/atendimentos/mensagens` | Envia texto; o `atendimentoId` do clique ancora o ciclo e o envio humano transfere a responsabilidade elegível | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
@@ -100,6 +100,17 @@ Os endpoints de novo contato, texto, template, mídia e encaminhamento aceitam o
 para o par usuário/lead/atendimento no mesmo transaction boundary que grava a mensagem e a
 transactional outbox. Repetir a mesma chave retorna a mesma `EnvioResposta` (HTTP 200), enquanto
 duas chaves diferentes continuam representando mensagens distintas, mesmo com conteúdo igual.
+
+Para texto e template, a interface também envia `atendimentoId` junto de `leadId`. Ele ancora o
+clique na conversa que estava aberta: se ela foi finalizada ou substituída antes de o request obter
+o lock do lead, o endpoint devolve `409` e não cria mensagem, outbox nem um novo ciclo. A ausência
+do campo permanece aceita somente para clientes legados; a tela de Atendimentos sempre o informa.
+O upload usa o `{id}` da rota como a mesma âncora e remove o objeto recém-gravado no storage quando
+esse atendimento já não pode receber a mídia.
+Em um envio humano aceito, a RN-CRM-06 é aplicada na mesma transação: `lead.atendente_responsavel_id`
+e `atendimento.atendente_id` passam ao remetente e ambos ficam no estado humano antes de a mensagem
+e a outbox serem gravadas. Participação ativa dá alcance colaborativo, mas não preserva a posse
+quando o participante envia.
 
 O histórico de mensagens e o evento WebSocket `MENSAGEM` devolvem a mesma chave. Quando o navegador
 perde a resposta, a UI mantém a mensagem otimista pendente e consulta o histórico por essa

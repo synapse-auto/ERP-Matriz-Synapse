@@ -157,11 +157,18 @@ mesmo com HTTP 2xx — é falha, não sucesso. O HTTP 200 do endpoint de mensage
 como "Mensagem colocada na fila de envios com sucesso" — é confirmação de enfileiramento, não de
 entrega; a leitura do corpo continua obrigatória.
 
-## 7. Classificação de erro — sem retry documentado
+## 7. Classificação de erro e retry durável da outbox
 
-Sem confirmação de rate limit ou retentativa para este fornecedor. A referência de produção real
-(`Clinica-CRM-FMNA`/`UazapClient`) documenta explicitamente "Sem retry automático (não há chave de
-idempotência de envio comprovada)". Critério adotado:
+A referência de produção real (`Clinica-CRM-FMNA`/`UazapClient`) não comprovou uma chave de
+idempotência de envio da Uzapi. Ainda assim, o CRM já executa retry **durável** no worker da outbox:
+uma recusa temporária permanece na mesma linha e é tentada até `OUTBOX_MAX_TENTATIVAS` (padrão 8),
+com backoff iniciado em 5 s e limitado a 30 min. Isso não bloqueia o request humano, que apenas
+persiste mensagem e intenção de envio.
+
+O efeito é ao menos uma vez no provedor: o CRM não duplica sua mensagem/outbox interna, mas uma
+resposta perdida pelo fornecedor pode deixar a confirmação externa ambígua. Não há base para tratar
+isso como entrega exatamente uma vez; a decisão de reduzir ou eliminar retries da Uzapi deve ser
+tomada com evidência de idempotência do fornecedor. Critério atual:
 
 - timeout, erro de conexão, `5xx` → `temporario`.
 - `4xx` (**incluindo 429** — diferente da Meta, que trata 429 como exceção; aqui não há base
@@ -293,7 +300,8 @@ Não copiado, só registrado como referência de formato:
   Meta-compatível e o evento nativo da UazAPI/Autotic.
 - **Tolerância de nomes de mídia**: aceita `media_id`/`mediaId`/`id` e `mime_type`/`mimeType`/
   `mimetype` como aliases do mesmo dado, dependendo de qual variante do payload chega.
-- **Sem retry automático** no envio (já usado no Bloco 7 acima).
+- **Retry durável da outbox** para recusas temporárias, conforme o Bloco 7; não há retry síncrono
+  no request humano.
 - **Segurança do webhook**: sem assinatura nativa documentada. A referência mitiga com um parâmetro
   `?secret=` na URL, comparado em tempo constante (`MessageDigest.isEqual`) mais validação estrutural
   do payload e do identificador de instância esperado. Documentado lá mesmo como proteção **fraca**
