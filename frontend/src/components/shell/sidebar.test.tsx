@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -178,31 +178,35 @@ describe("sidebar", () => {
   });
 
 
-  it("oferece Feedbacks para qualquer papel autenticado", async () => {
+  it("mantém Feedbacks fora da navegação principal e oferece o atalho compacto no rodapé", async () => {
     renderSidebar();
 
-    expect(await screen.findByRole("link", { name: "Feedbacks" })).toHaveAttribute(
+    const linkFeedbacks = await screen.findByRole("link", { name: "Feedbacks" });
+    expect(within(screen.getByRole("navigation")).queryByRole("link", { name: "Feedbacks" })).not.toBeInTheDocument();
+    expect(linkFeedbacks).toHaveAttribute(
       "href",
       "/feedbacks",
     );
+    expect(linkFeedbacks).toHaveAttribute("title", "Feedbacks");
+    expect(linkFeedbacks).not.toHaveTextContent("Feedbacks");
   });
 
   it("mostra Administração somente ao ADMINISTRADOR, sem selo adicional", async () => {
     authMock.papel = "GESTOR";
     const telaGestor = renderSidebar();
-    await screen.findByText("Feedbacks");
+    await screen.findByRole("link", { name: "Feedbacks" });
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
     telaGestor.unmount();
 
     authMock.papel = "SUBGESTOR";
     const telaSub = renderSidebar();
-    await screen.findByText("Feedbacks");
+    await screen.findByRole("link", { name: "Feedbacks" });
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
     telaSub.unmount();
 
     authMock.papel = "ATENDENTE";
     const telaAtendente = renderSidebar();
-    await screen.findByText("Feedbacks");
+    await screen.findByRole("link", { name: "Feedbacks" });
     expect(screen.queryByText("Administração")).not.toBeInTheDocument();
     telaAtendente.unmount();
 
@@ -343,7 +347,7 @@ describe("sidebar", () => {
     expect(await screen.findByRole("link", { name: /Atendimentos/ })).toHaveTextContent("7");
   });
 
-  it("não mostra o botão de novidades quando o título está ausente nos textos", async () => {
+  it("não mostra o atalho de novidades quando o título está ausente nos textos", async () => {
     renderSidebar();
 
     await screen.findByText("Agenda de Contatos");
@@ -351,14 +355,25 @@ describe("sidebar", () => {
     expect(screen.queryByTestId("novidades-dialog")).not.toBeInTheDocument();
   });
 
-  it("mostra o botão de novidades e abre o dialog quando o título existe", async () => {
+  it("mostra o ícone de novidades no rodapé e abre o dialog quando o título existe", async () => {
     textosNovidades.titulo = ROTULO_NOVIDADES_TESTE;
     renderSidebar();
 
     const botao = await screen.findByRole("button", { name: ROTULO_NOVIDADES_TESTE });
     expect(botao).toHaveAttribute("title", ROTULO_NOVIDADES_TESTE);
+    expect(botao).not.toHaveTextContent(ROTULO_NOVIDADES_TESTE);
     fireEvent.click(botao);
     expect(screen.getByTestId("novidades-dialog")).toBeInTheDocument();
+  });
+
+  it("mantém os atalhos de novidades e feedbacks acessíveis quando retraída", async () => {
+    textosNovidades.titulo = ROTULO_NOVIDADES_TESTE;
+    renderSidebar();
+
+    expect(await screen.findByRole("button", { name: ROTULO_NOVIDADES_TESTE })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Feedbacks" })).toBeInTheDocument();
+    expect(screen.queryByText(ROTULO_NOVIDADES_TESTE)).not.toBeInTheDocument();
+    expect(screen.queryByText("Feedbacks")).not.toBeInTheDocument();
   });
 
   it("omite o badge quando a contagem falha", async () => {

@@ -144,7 +144,7 @@ describe("NavegacaoInferior", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Mais" }));
 
     expect(screen.queryByRole("button", { name: ROTULO_NOVIDADES_TESTE })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Feedbacks" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Feedbacks" })).toHaveAttribute("href", "/feedbacks");
     expect(screen.queryByTestId("novidades-dialog")).not.toBeInTheDocument();
   });
 
