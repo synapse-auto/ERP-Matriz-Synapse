@@ -235,6 +235,17 @@ class SchemaMigracoesIT extends PostgresIT {
                             String.class))
                     .contains("Identificador do destinatario no provedor");
         }
+
+        @Test
+        @DisplayName("lead tem marcos independentes do EV-05")
+        void lead_temMarcosDoEv05() {
+            assertThat(jdbc.queryForList(
+                            "SELECT column_name FROM information_schema.columns "
+                                    + "WHERE table_schema = 'public' AND table_name = 'lead' "
+                                    + "AND column_name IN ('resumo_ia_atualizado_em', 'preenchimento_automatico_avaliado_em')",
+                            String.class))
+                    .containsExactlyInAnyOrder("resumo_ia_atualizado_em", "preenchimento_automatico_avaliado_em");
+        }
     }
 
     @Nested

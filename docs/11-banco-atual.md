@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 67 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V67__backoff_webhook_entrada.sql`
+**Estado:** 68 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V68__ev05_resumo_e_preenchimento.sql`
 
 ---
 
@@ -78,6 +78,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V65__acoes_mensagens_chat_interno` | ações e tombstones do chat interno |
 | `V66__edicao_mensagens_chat_interno` | edição textual no chat interno |
 | `V67__backoff_webhook_entrada` | `proxima_tentativa_em` e índice da fila de entrada para retentativas duráveis com backoff |
+| `V68__ev05_resumo_e_preenchimento` | Marcos de atualização do resumo/preenchimento automático e intervalos configuráveis do EV-05 |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -130,9 +131,9 @@ Documentação do schema **como está implementado**, extraída das migrations F
 
 ### 3.3 CRM Core
 
-**`lead`** — 23 colunas:
+**`lead`** — 25 colunas:
 
-`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18), **`foto_referencia`**, **`foto_hash`**, **`foto_atualizada_em`** (V48)
+`id`, `nome`, `foto_url`, `telefone`, `email`, `cpf`, `empresa`, **`codigo`** (V47, somente dígitos), `localizacao`, `canal_origem_id`, `status_basico`, `etapa_atendimento_id`, `atendente_responsavel_id`, `notas`, `resumo_ia`, `num_atendimentos`, `num_mensagens`, `criado_em`, **`ultima_interacao_em`** (V14), **`dados_customizados`** JSONB (V18), **`foto_referencia`**, **`foto_hash`**, **`foto_atualizada_em`** (V48), **`resumo_ia_atualizado_em`** e **`preenchimento_automatico_avaliado_em`** (V68)
 
 > Contadores e `ultima_interacao_em` são **denormalizados**, escritos na mesma transação que registra mensagem/atendimento. `ultima_interacao_em` usa `GREATEST` para não retroceder em reentrega de webhook.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.

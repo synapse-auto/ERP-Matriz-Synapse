@@ -70,6 +70,24 @@ class AtendimentosEmAndamentoRepositorioJdbc implements AtendimentosEmAndamentoR
         return new Pagina(itens, filtro.pagina(), filtro.tamanho(), temMais);
     }
 
+    @Override
+    public java.util.Optional<Item> porLeadEmAtendimento(UUID leadId) {
+        TransacaoObrigatoria.exigir("buscar atendimento EV-05 do lead");
+        return chat.query(
+                        "SELECT a.id AS atendimento_id, a.lead_id, a.status::text, "
+                                + "u.id AS responsavel_id, u.nome AS responsavel_nome, "
+                                + "ultima.enviado_em AS ultima_mensagem_em "
+                                + "FROM atendimento a LEFT JOIN usuario u ON u.id = a.atendente_id "
+                                + "LEFT JOIN LATERAL (SELECT m.enviado_em FROM mensagem m "
+                                + "WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC, m.id DESC LIMIT 1) ultima ON TRUE "
+                                + "WHERE a.lead_id = ? AND a.status = 'EM_ATENDIMENTO' "
+                                + "ORDER BY a.iniciado_em DESC LIMIT 1",
+                        AtendimentosEmAndamentoRepositorioJdbc::mapear,
+                        leadId)
+                .stream()
+                .findFirst();
+    }
+
     private static Item mapear(ResultSet linha, int indice) throws SQLException {
         UUID responsavelId = linha.getObject("responsavel_id", UUID.class);
         Responsavel responsavel = responsavelId == null
