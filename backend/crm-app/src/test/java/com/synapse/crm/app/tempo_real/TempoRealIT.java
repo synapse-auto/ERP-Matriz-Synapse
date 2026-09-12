@@ -39,7 +39,7 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
@@ -104,9 +104,11 @@ class TempoRealIT extends PostgresIT {
     @Autowired
     private StringRedisTemplate redis;
 
+    @Autowired
+    private SimpUserRegistry usuariosStomp;
+
     private int porta;
     private WebSocketStompClient stomp;
-    private ThreadPoolTaskScheduler stompScheduler;
     private UUID idAna;
     private UUID idBruno;
     private UUID idGestor;
@@ -121,11 +123,6 @@ class TempoRealIT extends PostgresIT {
     @BeforeEach
     void preparar() {
         stomp = new WebSocketStompClient(new StandardWebSocketClient());
-        stompScheduler = new ThreadPoolTaskScheduler();
-        stompScheduler.setPoolSize(1);
-        stompScheduler.setThreadNamePrefix("tempo-real-it-stomp-");
-        stompScheduler.initialize();
-        stomp.setTaskScheduler(stompScheduler);
 
         limpar();
         idAna = jdbc.queryForObject("SELECT id FROM usuario WHERE email = 'ana@dev.local'", UUID.class);
@@ -153,7 +150,7 @@ class TempoRealIT extends PostgresIT {
         });
         sessoesAbertas.clear();
         stomp.stop();
-        stompScheduler.destroy();
+        await().atMost(ESPERA_CURTA).until(() -> usuariosStomp.getUserCount() == 0);
         ApoioRls.sair();
     }
 
@@ -479,7 +476,6 @@ class TempoRealIT extends PostgresIT {
     private StompSession conectar(String token) throws Exception {
         StompSession sessao =
                 stomp.connectAsync(urlWs(token), new StompSessionHandlerAdapter() {}).get(5, TimeUnit.SECONDS);
-        sessao.setAutoReceipt(true);
         sessoesAbertas.add(sessao);
         return sessao;
     }
@@ -501,12 +497,14 @@ class TempoRealIT extends PostgresIT {
     }
 
     private void assinar(StompSession sessao, String destino, Captura captura) throws Exception {
-        CompletableFuture<Void> confirmacao = new CompletableFuture<>();
-        StompSession.Subscription assinatura = sessao.subscribe(destino, captura);
-        assinatura.addReceiptTask(() -> confirmacao.complete(null));
-        assinatura.addReceiptLostTask(() -> confirmacao.completeExceptionally(
-                new AssertionError("servidor nao confirmou assinatura STOMP em " + destino)));
-        confirmacao.get(3, TimeUnit.SECONDS);
+        int assinaturasAntes = usuariosStomp.findSubscriptions(
+                        assinatura -> destino.equals(assinatura.getDestination()))
+                .size();
+        sessao.subscribe(destino, captura);
+        await().atMost(ESPERA_CURTA).until(() -> usuariosStomp.findSubscriptions(
+                        assinatura -> destino.equals(assinatura.getDestination()))
+                .size()
+                > assinaturasAntes);
     }
 
     /** Frame handler que devolve o corpo cru como texto, e uma fila para o teste consumir. */
