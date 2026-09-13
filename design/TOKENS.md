@@ -147,6 +147,20 @@ O protótipo usa muitos valores próximos (16, 11, 9, 12, 10, 20, 8, 14…). **C
 | `--sombra-xl` | `0 40px 120px -34px rgba(12,42,67,.5)` |
 | `--sombra-primaria` | `0 8px 18px -8px rgba(31,116,224,.7)` |
 
+### Raios derivados para botões (E171)
+
+Os raios dos botões não alteram os cinco tokens compartilhados acima. O frontend deriva uma
+escala exclusiva com `1.15` sobre o raio efetivo correspondente: `--raio-botao-xs` e
+`--raio-botao-sm` preservam os tetos históricos de 10px e 12px antes da escala, enquanto
+`--raio-botao-md`, `--raio-botao-lg` e `--raio-botao-xl` escalam diretamente `--raio-md`,
+`--raio-lg` e `--raio-xl`. `--raio-botao-util-sm` cobre o utilitário genérico `rounded-sm`,
+`--raio-botao-micro` cobre o utilitário legado `rounded`, enquanto `--raio-pill`/`rounded-full`
+permanece inalterado.
+
+Essa derivação fica em `frontend/src/app/globals.css` e é consumida pelo `Button` compartilhado
+e por botões nativos com classes `rounded-sm/md/lg/xl`; cards, inputs, diálogos e demais elementos
+não sofrem alteração.
+
 ---
 
 ## 5. Estrutura de navegação (da Sidebar)

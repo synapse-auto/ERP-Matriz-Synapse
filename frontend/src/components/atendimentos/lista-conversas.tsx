@@ -256,7 +256,7 @@ export function ListaConversas({
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="inline-flex size-10 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-10 items-center justify-center rounded-[var(--raio-botao-md)] text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label={textos.finalizar.todosMenu}
               >
                 <MoreHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
@@ -293,7 +293,7 @@ export function ListaConversas({
             {chatInternoHabilitado && (
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-[var(--raio-botao-md)] border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                   aria-label="Opções de chat interno"
                   title="Chat interno"
                 >
