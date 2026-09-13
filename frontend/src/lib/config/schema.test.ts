@@ -75,6 +75,7 @@ describe("TemaSchema", () => {
     delete tema.marcaIconeGradienteFim;
     delete tema.sidebarItemTextoPerigo;
     delete tema.sidebarItemOverlayPerigo;
+    delete tema.mensagemLidaTexto;
 
     const resultado = TemaSchema.parse(tema);
 
@@ -82,6 +83,7 @@ describe("TemaSchema", () => {
     expect(resultado.sidebarItemTextoHover).toBe(resultado.textoSidebarItem);
     expect(resultado.sidebarItemAcentoAtivo).toBe(resultado.corPrimaria);
     expect(resultado.sidebarItemTextoPerigo).toBe(resultado.corErro);
+    expect(resultado.mensagemLidaTexto).toBe(resultado.corSucesso);
   });
 
   it("mantém obrigatórios os tokens da primeira versão", () => {

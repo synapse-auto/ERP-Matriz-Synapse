@@ -57,6 +57,7 @@
   --color-sidebar-item-overlay-ativo-hover: var(--sidebar-item-overlay-ativo-hover);
   --color-sidebar-item-texto-perigo: var(--sidebar-item-texto-perigo);
   --color-sidebar-item-overlay-perigo: var(--sidebar-item-overlay-perigo);
+  --color-mensagem-lida-texto: var(--mensagem-lida-texto);
 
   /* Cinco raios (TOKENS.md pede consolidação — os 8 a 20px do protótipo viram estes 5). */
   --radius-sm: var(--raio-sm);

@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buscarTema, buscarTextos } from "./fetch-config";
+import { buscarTema, buscarTextos, temaParaCssVariaveis } from "./fetch-config";
+import { TemaSchema } from "./schema";
 
 vi.mock("@/lib/api/server-api-url", () => ({
   obterUrlApiServidor: () => "http://backend",
@@ -36,6 +37,14 @@ afterEach(() => {
 });
 
 describe("configuração raiz tolerante a versões desalinhadas", () => {
+  it("publica o token de texto do status lido no CSS runtime", () => {
+    const tema = TemaSchema.parse(carregarJson("tema.json"));
+
+    expect(temaParaCssVariaveis(tema)).toContain(
+      `--mensagem-lida-texto: ${tema.mensagemLidaTexto}`,
+    );
+  });
+
   it("buscarTextos aceita o catálogo anterior às E158 e E159", async () => {
     const catalogo = carregarJson("textos.json");
     const atendimentos = catalogo.atendimentos as Record<string, unknown>;

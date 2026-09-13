@@ -136,18 +136,27 @@ describe("StatusEntregaIcone", () => {
     expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
   });
 
-  // O balão de saída é sempre bg-primary (azul). Estes quatro testes provam o motivo real do
-  // "só fica com um traço": as cores antigas eram pensadas para fundo claro.
-  it("LIDO não carrega mais text-primary — era a própria cor do balão, ícone azul sobre balão azul", () => {
+  it("LIDO usa o token verde calibrado para a superfície azul do balão", () => {
     renderComTextos(<StatusEntregaIcone status="LIDO" />);
     const icone = screen.getByTitle("Lido").querySelector("svg");
     expect(icone).not.toBeNull();
     expect(icone).not.toHaveClass("text-primary");
+    expect(icone).toHaveClass("text-mensagem-lida-texto");
   });
 
-  it("LIDO se distingue de ENTREGUE herdando a MESMA cor do balão, mas sem a opacidade reduzida", () => {
+  it("LIDO se distingue de ENTREGUE pela cor verde dedicada", () => {
     renderComTextos(<StatusEntregaIcone status="LIDO" />);
-    expect(screen.getByTitle("Lido").querySelector("svg")).toHaveClass("text-primary-foreground");
+    expect(screen.getByTitle("Lido").querySelector("svg")).toHaveClass("text-mensagem-lida-texto");
+  });
+
+  it.each([
+    ["PENDENTE", "Enviando"],
+    ["ENVIADO", "Enviado"],
+  ] as const)("%s permanece sem o token verde de lida", (status, rotulo) => {
+    renderComTextos(<StatusEntregaIcone status={status} />);
+    expect(screen.getByTitle(rotulo).querySelector("svg")).not.toHaveClass(
+      "text-mensagem-lida-texto",
+    );
   });
 
   it("ENTREGUE não define cor própria — herda text-primary-foreground/70 do rodapé do balão", () => {
