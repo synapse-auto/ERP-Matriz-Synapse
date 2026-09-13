@@ -196,7 +196,7 @@ export function ModalDeTemplates({
                                     type="button"
                                     aria-pressed={ativo}
                                     className={cn(
-                                      "min-w-0 flex-1 rounded-l-xl p-3 text-left",
+                                      "min-w-0 flex-1 rounded-l-[var(--raio-botao-xl)] p-3 text-left",
                                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                     )}
                                     onClick={() => setChaveClicada(chave)}

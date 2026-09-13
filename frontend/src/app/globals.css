@@ -72,6 +72,38 @@
 }
 
 /*
+ * Botões nativos que ainda não usam o componente Button compartilhado também
+ * acompanham a escala E171. O seletor exclui componentes com raio arbitrário,
+ * que declaram sua variante explicitamente, e preserva rounded-full/pill.
+ */
+@layer components {
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded {
+    border-radius: var(--raio-botao-micro);
+  }
+
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded-sm {
+    border-radius: var(--raio-botao-util-sm);
+  }
+
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded-md {
+    border-radius: var(--raio-botao-md);
+  }
+
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded-lg {
+    border-radius: var(--raio-botao-lg);
+  }
+
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded-xl {
+    border-radius: var(--raio-botao-xl);
+  }
+
+  button:not([data-slot="button"]):not([class*="rounded-["]).rounded-l-xl {
+    border-top-left-radius: var(--raio-botao-xl);
+    border-bottom-left-radius: var(--raio-botao-xl);
+  }
+}
+
+/*
  * E18: cada token shadcn abaixo é um ALIAS para o token Synapse equivalente (design/TOKENS.md,
  * injetado em runtime por temaParaCssVariaveis() em lib/config/fetch-config.ts, via <style> no
  * <head> de layout.tsx). O var(--token-synapse, #fallback) — nunca cor literal solta — é o que
@@ -120,6 +152,16 @@
   --chart-5: var(--cor-atencao, #E0A61C);
 
   --radius: var(--raio-md, 11px);
+
+  /* E171: o raio dos botões acompanha o tema, mas fica 15% acima dos raios
+     equivalentes sem alterar cards, inputs, diálogos ou outros componentes. */
+  --raio-botao-xs: min(calc(var(--radius-md) * 1.15), 11.5px);
+  --raio-botao-sm: min(calc(var(--radius-md) * 1.15), 13.8px);
+  --raio-botao-util-sm: calc(var(--radius-sm) * 1.15);
+  --raio-botao-micro: calc(var(--radius-sm) * 0.575);
+  --raio-botao-md: calc(var(--radius-md) * 1.15);
+  --raio-botao-lg: calc(var(--radius-lg) * 1.15);
+  --raio-botao-xl: calc(var(--radius-xl) * 1.15);
 
   --sidebar: var(--fundo-sidebar, #0C2A43);
   --sidebar-foreground: var(--texto-sidebar-item, #C3D6E8);
