@@ -36,6 +36,13 @@ export class ReconciliadorEstadoAtendimento {
     if (snapshot.versao >= anterior) this.versoes.set(atendimentoId, snapshot.versao);
   }
 
+  /** Último snapshot REST aceito para o atendimento, sem ir à rede. */
+  ultimoSnapshot(atendimentoId: string): EstadoAtendimentoSelecionado | null {
+    return this.cache.getQueryData<EstadoAtendimentoSelecionado>(
+      chaveEstadoAtendimento(atendimentoId),
+    ) ?? null;
+  }
+
   deveReconciliar(evento: EventoCanonicoAtendimentoTempoReal): boolean {
     return !this.eventosProcessados.has(evento.eventoId)
       && evento.dados.versao > this.versaoConhecida(evento.dados.atendimentoId);

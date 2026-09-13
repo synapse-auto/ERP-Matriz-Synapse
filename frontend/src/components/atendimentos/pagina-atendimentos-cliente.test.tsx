@@ -10,6 +10,7 @@ import type {
   ItemInbox,
   NotificacaoTempoReal,
 } from "@/lib/atendimento/types";
+import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { ErroDeApi } from "@/lib/api/errors";
 
@@ -21,6 +22,7 @@ const callbacks = vi.hoisted(() => ({
   leadInicialId: undefined as string | null | undefined,
   finalizar: undefined as ((resumo: AtendimentoResumo) => void) | undefined,
   mensagens: undefined as { historico: string | null; assinatura: string | null } | undefined,
+  tempoRealDasMensagens: undefined as { estado: string; incrementaisLiberados: boolean } | undefined,
   eventoEstado: undefined as ((evento: unknown) => void) | undefined,
   novoContato: undefined as (() => void) | undefined,
 }));
@@ -29,6 +31,7 @@ const iniciarNovo = vi.hoisted(() => vi.fn());
 const reenviarMidia = vi.hoisted(() => vi.fn());
 const obterCartao = vi.hoisted(() => vi.fn());
 const backendEstado = vi.hoisted(() => ({ versao: 1 }));
+const revalidacoes = vi.hoisted(() => [] as boolean[]);
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -38,7 +41,7 @@ interface ClienteStompFalso {
   assinaturas: Map<string, (mensagem: { body: string }) => void>;
 }
 
-const stomp = vi.hoisted(() => ({ clientes: [] as ClienteStompFalso[] }));
+const stomp = vi.hoisted(() => ({ clientes: [] as ClienteStompFalso[], conectarAoAtivar: true }));
 
 vi.mock("@stomp/stompjs", () => ({
   Client: class implements ClienteStompFalso {
@@ -53,6 +56,7 @@ vi.mock("@stomp/stompjs", () => ({
     }
 
     activate() {
+      if (!stomp.conectarAoAtivar) return;
       this.connected = true;
       this.onConnect?.();
     }
@@ -270,15 +274,27 @@ function ComposerDeTeste({
   conversa,
   onMensagemEnviada,
   onFalhasDeMidia,
+  podeEnviar,
+  onRevalidarEnvio,
 }: {
   conversa: CartaoAtendimento;
   onMensagemEnviada?: () => void;
   onFalhasDeMidia?: (falhas: unknown[]) => void;
+  podeEnviar?: boolean;
+  onRevalidarEnvio?: () => Promise<boolean>;
 }) {
   const enviar = useEnviarMensagem(onMensagemEnviada);
   return (
     <>
-      <div data-testid="composer" />
+      <div data-testid="composer" data-pode-enviar={String(podeEnviar)} />
+      {onRevalidarEnvio && (
+        <button
+          type="button"
+          onClick={() => void onRevalidarEnvio().then((permitido) => revalidacoes.push(permitido))}
+        >
+          Revalidar envio
+        </button>
+      )}
       {onMensagemEnviada && (
         <button type="button" onClick={onMensagemEnviada}>
           Simular envio
@@ -324,15 +340,21 @@ vi.mock("./composer", () => ({
     conversa,
     onMensagemEnviada,
     onFalhasDeMidia,
+    podeEnviar,
+    onRevalidarEnvio,
   }: {
     conversa: CartaoAtendimento;
     onMensagemEnviada?: () => void;
     onFalhasDeMidia?: (falhas: unknown[]) => void;
+    podeEnviar?: boolean;
+    onRevalidarEnvio?: () => Promise<boolean>;
   }) => (
     <ComposerDeTeste
       conversa={conversa}
       onMensagemEnviada={onMensagemEnviada}
       onFalhasDeMidia={onFalhasDeMidia}
+      podeEnviar={podeEnviar}
+      onRevalidarEnvio={onRevalidarEnvio}
     />
   ),
 }));
@@ -358,6 +380,10 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
       assinatura: (args[4] as string | null) ?? null,
     };
     callbacks.eventoEstado = args[5] as ((evento: unknown) => void) | undefined;
+    callbacks.tempoRealDasMensagens = {
+      estado: args[2] as string,
+      incrementaisLiberados: args[7] as boolean,
+    };
     return { data: [], isLoading: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() };
   },
 }));
@@ -451,6 +477,8 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.eventoEstado = undefined;
     callbacks.novoContato = undefined;
     stomp.clientes.length = 0;
+    stomp.conectarAoAtivar = true;
+    revalidacoes.length = 0;
     backendEstado.versao = 1;
     telaEstreita.atual = false;
     abrirExistente.mockReset();
@@ -1085,5 +1113,153 @@ describe("PaginaAtendimentosCliente", () => {
     expect(screen.getByTestId("composer")).toBeInTheDocument();
     expect(pagina.container.firstElementChild).toHaveClass("grid-cols-1");
     expect(screen.queryByTestId("responsavel-painel")).not.toBeInTheDocument();
+  });
+});
+
+describe("E175 — permissão de envio independente do tempo real", () => {
+  beforeEach(() => {
+    stomp.clientes.length = 0;
+    stomp.conectarAoAtivar = true;
+    revalidacoes.length = 0;
+    backendEstado.versao = 1;
+    telaEstreita.atual = false;
+    obterCartao.mockReset();
+    obterCartao.mockImplementation((atendimentoId: string) => Promise.resolve({
+      ...cartaoInicial,
+      atendimentoId,
+      atendimentoAtivoId: atendimentoId,
+    }));
+  });
+
+  function abrirConversaAberta() {
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+  }
+
+  /** A sincronização de abertura em voo é compartilhada pelo reconciliador; o clique precisa da própria. */
+  async function aguardarSincronizacaoDeAbertura() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  function clicarRevalidarEnvio() {
+    fireEvent.click(screen.getByRole("button", { name: "Revalidar envio" }));
+  }
+
+  it("libera o composer em atendimento aberto com o WebSocket sem conectar", () => {
+    stomp.conectarAoAtivar = false;
+    renderPagina();
+    abrirConversaAberta();
+
+    expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true");
+  });
+
+  it("libera o composer quando a conexão compartilhada já estava de pé antes de a tela montar", async () => {
+    function ConsumidorDoLayout() {
+      useConexaoTempoReal(() => "token");
+      return null;
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const pagina = render(
+      <QueryClientProvider client={queryClient}>
+        <ConsumidorDoLayout />
+      </QueryClientProvider>,
+    );
+    pagina.rerender(
+      <QueryClientProvider client={queryClient}>
+        <ConsumidorDoLayout />
+        <PaginaAtendimentosCliente leadInicialId={null} atendimentoInicialId={null} visaoInicial="TODOS" />
+      </QueryClientProvider>,
+    );
+    expect(stomp.clientes).toHaveLength(1);
+    abrirConversaAberta();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true"),
+    );
+    expect(screen.queryByText("Reconectando")).not.toBeInTheDocument();
+    // O tempo real também volta: a tela enxerga o socket de pé e aplica incrementais após o snapshot.
+    await waitFor(() =>
+      expect(callbacks.tempoRealDasMensagens).toEqual({ estado: "conectado", incrementaisLiberados: true }),
+    );
+  });
+
+  it("não espera a sincronização incremental para liberar o composer", () => {
+    renderPagina();
+    obterCartao.mockImplementation(() => new Promise(() => {}));
+    abrirConversaAberta();
+
+    expect(stomp.clientes.at(-1)?.connected).toBe(true);
+    expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true");
+  });
+
+  it("não oferece composer quando o snapshot diz que o atendimento está finalizado, mesmo sem WebSocket", () => {
+    stomp.conectarAoAtivar = false;
+    const finalizado: CartaoAtendimento = {
+      ...cartaoInicial,
+      atendimentoId: "atendimento-finalizado",
+      atendimentoAtivoId: null,
+      status: "FINALIZADO",
+    };
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([finalizado]));
+    act(() => callbacks.abrir?.(finalizado));
+
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+  });
+
+  it("revalidação pré-envio bloqueia quando o atendimento finalizou entre a abertura e o clique", async () => {
+    stomp.conectarAoAtivar = false;
+    renderPagina();
+    abrirConversaAberta();
+    await aguardarSincronizacaoDeAbertura();
+    expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true");
+
+    backendEstado.versao = 2;
+    obterCartao.mockResolvedValue({ ...cartaoInicial, status: "FINALIZADO", atendimentoAtivoId: null });
+    clicarRevalidarEnvio();
+
+    await waitFor(() => expect(revalidacoes).toEqual([false]));
+    await waitFor(() => {
+      expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+      expect(screen.getByText("Atendimento finalizado.")).toBeInTheDocument();
+    });
+  });
+
+  it("falha transitória do /estado na revalidação usa o último snapshot válido e não trava o envio", async () => {
+    stomp.conectarAoAtivar = false;
+    renderPagina();
+    abrirConversaAberta();
+    await aguardarSincronizacaoDeAbertura();
+
+    obterCartao.mockRejectedValue(new ErroDeApi(503, null, "indisponível"));
+    clicarRevalidarEnvio();
+
+    await waitFor(() => expect(revalidacoes).toEqual([true]));
+    expect(screen.getByTestId("composer")).toHaveAttribute("data-pode-enviar", "true");
+  });
+
+  it("falha de rede sem status HTTP na revalidação também usa o último snapshot válido", async () => {
+    renderPagina();
+    abrirConversaAberta();
+    await aguardarSincronizacaoDeAbertura();
+
+    obterCartao.mockRejectedValue(new TypeError("Failed to fetch"));
+    clicarRevalidarEnvio();
+
+    await waitFor(() => expect(revalidacoes).toEqual([true]));
+  });
+
+  it("recusa definitiva do /estado na revalidação (403) bloqueia o envio", async () => {
+    renderPagina();
+    abrirConversaAberta();
+    await aguardarSincronizacaoDeAbertura();
+
+    obterCartao.mockRejectedValue(new ErroDeApi(403, null, "sem acesso"));
+    clicarRevalidarEnvio();
+
+    await waitFor(() => expect(revalidacoes).toEqual([false]));
   });
 });
