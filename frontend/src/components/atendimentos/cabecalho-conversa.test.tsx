@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento, EstadoAtendimentoSelecionado } from "@/lib/atendimento/types";
+import { ErroDeApi } from "@/lib/api/errors";
 
 const finalizar = vi.fn();
 const participacao = vi.hoisted(() => ({
@@ -330,6 +331,49 @@ describe("CabecalhoConversa", () => {
 
     expect(await screen.findByRole("status")).toHaveTextContent("Você entrou no atendimento.");
     expect(await screen.findByRole("button", { name: "Sair do atendimento" })).toBeInTheDocument();
+  });
+
+  it.each([403, 404])("mantém o sucesso ao sair mesmo quando a reconciliação perde acesso (%s)", async (status) => {
+    participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima" }];
+    const reconciliar = vi.fn().mockRejectedValue(new ErroDeApi(status, null, "Atendimento indisponível"));
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado({ usuarioAtualParticipa: true })}
+        onReconciliarEstado={reconciliar}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sair do atendimento" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Você saiu do atendimento.");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(participacao.sair).toHaveBeenCalledWith("atendimento-1");
+    expect(reconciliar).toHaveBeenCalledOnce();
+  });
+
+  it("mantém a reconciliação de entrada quando o snapshot retorna com sucesso", async () => {
+    const reconciliar = vi.fn().mockResolvedValue(undefined);
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado()}
+        onReconciliarEstado={reconciliar}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no atendimento" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Você entrou no atendimento.");
+    expect(reconciliar).toHaveBeenCalledOnce();
   });
 
   it("distingue participantes do responsável", () => {
