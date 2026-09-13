@@ -59,3 +59,14 @@ export function registrarDiagnosticoDeAbertura(evento: DiagnosticoDeAbertura): v
 export function statusHttpDoErro(erro: unknown): number | undefined {
   return erro instanceof ErroDeApi ? erro.status : undefined;
 }
+
+const STATUS_HTTP_TRANSITORIOS = new Set([408, 429]);
+
+/**
+ * Falha que nada diz sobre o atendimento — rede, timeout, sobrecarga, 5xx ou snapshot ainda
+ * atrasado em relação ao evento canônico. Recusas 4xx (403, 404, 409...) são respostas de verdade.
+ */
+export function ehFalhaTransitoria(erro: unknown): boolean {
+  const status = statusHttpDoErro(erro);
+  return status === undefined || status >= 500 || STATUS_HTTP_TRANSITORIOS.has(status);
+}

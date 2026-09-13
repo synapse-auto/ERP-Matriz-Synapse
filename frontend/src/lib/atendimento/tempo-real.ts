@@ -177,6 +177,7 @@ export class ConexaoTempoReal {
   private readonly ouvintesDeNotificacao = new Set<OuvinteDeNotificacao>();
   private readonly ouvintesDeRevogacao = new Set<(atendimentoId: string) => void>();
   private readonly ouvintesDeEstado = new Set<(estado: EstadoConexao) => void>();
+  private estadoAtual: EstadoConexao = "desconectado";
 
   constructor(private readonly opcoes: OpcoesConexaoTempoReal) {
     this.leitorDeAccessToken = opcoes.obterAccessToken;
@@ -191,8 +192,14 @@ export class ConexaoTempoReal {
     return () => this.ouvintesDeNotificacao.delete(ouvinte);
   }
 
+  /**
+   * A conexão é compartilhada: quem assina depois de ela já estar de pé (a tela de Atendimentos,
+   * montada após o `NotificacoesTempoReal` do layout) recebe o estado atual na hora. Sem isso o
+   * ouvinte tardio ficaria em "desconectado" até a próxima reconexão.
+   */
   adicionarOuvinteDeEstado(ouvinte: (estado: EstadoConexao) => void): () => void {
     this.ouvintesDeEstado.add(ouvinte);
+    ouvinte(this.estadoAtual);
     return () => this.ouvintesDeEstado.delete(ouvinte);
   }
 
@@ -328,6 +335,7 @@ export class ConexaoTempoReal {
   }
 
   private emitirEstado(estado: EstadoConexao): void {
+    this.estadoAtual = estado;
     this.opcoes.onEstadoMudou?.(estado);
     for (const ouvinte of this.ouvintesDeEstado) {
       ouvinte(estado);

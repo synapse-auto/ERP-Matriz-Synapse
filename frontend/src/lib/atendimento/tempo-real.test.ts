@@ -149,6 +149,22 @@ describe("ConexaoTempoReal", () => {
     expect(estados).toEqual(["desconectado"]);
   });
 
+  it("entrega o estado atual ao ouvinte que chega depois de a conexão compartilhada já estar de pé", () => {
+    // Produção: NotificacoesTempoReal (layout raiz) conecta antes de a tela de Atendimentos montar.
+    const { cliente } = clienteStompFalso();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => cliente,
+    });
+    conexao.conectar();
+
+    const estadosDoOuvinteTardio: string[] = [];
+    conexao.adicionarOuvinteDeEstado((estado) => estadosDoOuvinteTardio.push(estado));
+
+    expect(estadosDoOuvinteTardio).toEqual(["conectado"]);
+  });
+
   it("assina a conversa e a fila de revogações ANTES de avisar 'conectado' — o gatilho do backfill", () => {
     const { cliente, chamadas } = clienteStompFalso();
 

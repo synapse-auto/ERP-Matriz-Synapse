@@ -26,6 +26,7 @@ import {
   removerReacao,
 } from "@/lib/atendimento/api";
 import {
+  ehFalhaTransitoria,
   mensagemDaFalhaDeAbertura,
   registrarDiagnosticoDeAbertura,
   statusHttpDoErro,
@@ -428,6 +429,8 @@ export function PaginaAtendimentosCliente({
     },
   );
 
+  // Governa só a aplicação de frames incrementais (snapshot antes de incremental, a cada ciclo de
+  // conexão). Nunca a permissão de envio: essa vem do snapshot REST, que independe do WebSocket.
   const incrementaisLiberados = estado === "conectado"
     && sincronizacaoLiberada?.atendimentoId === atendimentoSelecionadoId
     && sincronizacaoLiberada.ciclo === ciclo;
@@ -541,16 +544,24 @@ export function PaginaAtendimentosCliente({
       });
   }, [indisponibilizarAtendimento, reconciliador]);
 
+  /**
+   * Rede de segurança no instante do envio: rebusca o estado canônico e recusa ciclo finalizado ou
+   * substituído. Falha transitória do `/estado` não trava o atendente — vale o último snapshot
+   * aceito, e o backend continua recusando envio para atendimento que não está aberto.
+   */
   const revalidarEnvio = useCallback(async (): Promise<boolean> => {
     const atendimentoId = atendimentoSelecionadoId;
     if (!atendimentoId) return false;
-    setSincronizacaoLiberada(null);
     try {
       const snapshot = await reconciliador.sincronizar(atendimentoId);
       const permitido = snapshot.cartao.atendimentoId === atendimentoId && snapshot.podeEnviar;
       setSincronizacaoLiberada(permitido ? { atendimentoId, ciclo } : null);
       return permitido;
     } catch (erro) {
+      if (ehFalhaTransitoria(erro)) {
+        return reconciliador.ultimoSnapshot(atendimentoId)?.podeEnviar ?? false;
+      }
+      setSincronizacaoLiberada(null);
       if (statusHttpDoErro(erro) === 404) indisponibilizarAtendimento(atendimentoId);
       return false;
     }
@@ -811,7 +822,6 @@ export function PaginaAtendimentosCliente({
               accept={TIPOS_DE_ANEXO_ACEITOS}
               disabled={
                 !atendimentoAtivo
-                || !incrementaisLiberados
                 || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)
               }
               rotulo={textos.composer.anexoSoltar}
@@ -852,7 +862,7 @@ export function PaginaAtendimentosCliente({
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}
                   onFalhasDeMidia={registrarFalhasDeMidia}
-                  podeEnviar={incrementaisLiberados && Boolean(estadoSelecionado?.podeEnviar)}
+                  podeEnviar={Boolean(estadoSelecionado?.podeEnviar)}
                   onRevalidarEnvio={revalidarEnvio}
                 />
               ) : (
