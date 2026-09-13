@@ -65,12 +65,10 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
       icone: <CheckCheck className="size-3.5" aria-hidden />,
       rotulo: textos.status.entregue,
     },
-    // LIDO precisa se distinguir de ENTREGUE (mesmo ícone CheckCheck). O rodapé do balão já usa
-    // text-primary-foreground/70 para o horário; LIDO fica na MESMA cor sem a opacidade reduzida
-    // — mais "cheio" que os demais, sem sair da paleta do balão (era text-primary, a própria cor
-    // do fundo: ícone azul sobre balão azul, invisível).
+    // LIDO precisa se distinguir de ENTREGUE (mesmo ícone CheckCheck). O token dedicado é um
+    // verde claro calibrado para o balão azul; corSucesso é escuro demais sobre essa superfície.
     LIDO: {
-      icone: <CheckCheck className="size-3.5 text-primary-foreground" aria-hidden />,
+      icone: <CheckCheck className="size-3.5 text-mensagem-lida-texto" aria-hidden />,
       rotulo: textos.status.lido,
     },
   };

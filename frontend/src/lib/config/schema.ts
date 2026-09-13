@@ -42,6 +42,7 @@ const TemaBaseSchema = z.object({
   bordaSuave: z.string(),
 
   corSucesso: z.string(),
+  mensagemLidaTexto: z.string().optional(),
   corAtencao: z.string(),
   corAtencaoEscura: z.string(),
   corIa: z.string(),
@@ -90,6 +91,7 @@ export const TemaSchema = TemaBaseSchema.transform((tema) => ({
   marcaIconeGradienteFim: tema.marcaIconeGradienteFim ?? tema.corPrimariaHover,
   sidebarItemTextoPerigo: tema.sidebarItemTextoPerigo ?? tema.corErro,
   sidebarItemOverlayPerigo: tema.sidebarItemOverlayPerigo ?? tema.fundoSidebarBloco,
+  mensagemLidaTexto: tema.mensagemLidaTexto ?? tema.corSucesso,
 }));
 
 export type Tema = z.infer<typeof TemaSchema>;
