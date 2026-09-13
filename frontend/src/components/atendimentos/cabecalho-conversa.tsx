@@ -107,15 +107,24 @@ export function CabecalhoConversa({
     setFeedbackParticipacao(null);
     try {
       await acao();
-      setEstadoLocal(proximo);
-      setFeedbackParticipacao({ tipo: "sucesso", texto: sucesso });
-      invalidarParticipacao(conversa.atendimentoId);
-      await onReconciliarEstado?.();
     } catch (erro) {
       setFeedbackParticipacao({ tipo: "erro", texto: mensagemDeErroParticipacao(erro, textos) });
-    } finally {
       setProcessandoParticipacao(false);
+      return;
     }
+
+    setEstadoLocal(proximo);
+    setFeedbackParticipacao({ tipo: "sucesso", texto: sucesso });
+    invalidarParticipacao(conversa.atendimentoId);
+
+    // A ação já foi concluída. A reconciliação é apenas best-effort: ao sair, perder acesso
+    // ao atendimento faz o snapshot retornar 403/404 e não pode transformar o sucesso em erro.
+    try {
+      await onReconciliarEstado?.();
+    } catch {
+      // O próximo evento/refetch pode atualizar a tela; o feedback da ação permanece sucesso.
+    }
+    setProcessandoParticipacao(false);
   }
 
   const subtitulo = [
