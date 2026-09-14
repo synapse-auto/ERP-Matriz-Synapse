@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 69 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V69__versao_eventos_atendimento.sql` (aplicada depois da `V68__ev05_resumo_e_preenchimento.sql`)
+**Estado:** 70 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V70__estrategia_distribuicao_ia.sql` (aplicada depois da `V69__versao_eventos_atendimento.sql`)
 
 ---
 
@@ -80,6 +80,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V67__backoff_webhook_entrada` | `proxima_tentativa_em` e índice da fila de entrada para retentativas duráveis com backoff |
 | `V68__ev05_resumo_e_preenchimento` | Marcos de atualização do resumo/preenchimento automático e intervalos configuráveis do EV-05 |
 | `V69__versao_eventos_atendimento` | sequência monotônica `atendimento.versao_evento` e função técnica estreita para eventos canônicos |
+| `V70__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -162,7 +163,7 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 
 ### 3.6 Automação — configuração
 
-`configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva`, `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton)
+`configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva`, `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton). A chave `ia.distribuicao.sequencial` é BOOLEAN e controla a ordem do rodízio da IA sem redeploy.
 
 ### 3.7 Chat interno *(E44/E80/E86 — texto, mídia e entrada pela equipe)*
 

@@ -113,12 +113,17 @@ Idempotency-Key: workflow-123-transferencia-1
 Para devolver ao robô, use `PATCH /internal/v1/atendimentos/{id}/modo-ia` com
 corpo `{}`. Para distribuição automática, use
 `POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` sem corpo: o
-CRM escolhe o primeiro disponível na ordem recomendada: menor quantidade de
+CRM escolhe o primeiro disponível conforme `ia.distribuicao.sequencial` em
+`configuracao_automacao`. Com `false` (padrão), usa menor quantidade de
 atendimentos abertos (`status = EM_ATENDIMENTO`), depois quem está há mais tempo
-sem receber e, por fim, o `id` para desempate determinístico. Atendentes que
-nunca receberam vêm antes de quem já recebeu. Ao consultar
+sem receber e, por fim, o `id`; com `true`, ignora a carga e usa somente quem está
+há mais tempo sem receber e o `id`. Atendentes que nunca receberam vêm antes de
+quem já recebeu nos dois modos. Ao consultar
 `GET /internal/v1/atendentes/disponiveis`, o primeiro item é portanto o destino
-recomendado; não reordene a lista no workflow. Ambas as ações registram
+recomendado; não reordene a lista no workflow. Para habilitar o rodízio sequencial
+em uma instância, a gestão altera a chave `ia.distribuicao.sequencial` para `true`
+no CRUD administrativo, sem deploy; a Estrutural permanece em `false` por padrão.
+Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
 Para encerrar um único atendimento, use `POST /internal/v1/atendimentos/{id}/finalizar` sem corpo.

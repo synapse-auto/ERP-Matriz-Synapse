@@ -155,6 +155,8 @@ INSERT INTO configuracao_automacao
      'Permite que a automacao preencha dados do cliente a partir da conversa.'),
     ('transferencia.por_lista', 'false', NULL, 'BOOLEAN', NULL, NULL,
      'Modo de transferencia usado pela Automacao: ligado, ela usa o modo por lista; desligado, mantem o modo padrao de hoje. Quem executa a transferencia e a Automacao; o CRM apenas publica a escolha.'),
+    ('ia.distribuicao.sequencial', 'false', NULL, 'BOOLEAN', NULL, NULL,
+     'Distribuicao da IA: true gira sequencialmente por quem recebeu ha mais tempo; false prioriza menor carga.'),
                  ('automacao.saudacao', 'Ola, aqui e o assistente da Estrutural Vidros.', NULL, 'TEXT',
                   NULL, NULL, 'Primeira mensagem enviada pela IA.'),
                  ('automacao.comando_reset', '#reset', NULL, 'TEXT',
