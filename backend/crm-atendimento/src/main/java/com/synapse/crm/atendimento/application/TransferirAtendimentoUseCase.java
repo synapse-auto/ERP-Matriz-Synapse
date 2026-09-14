@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
@@ -60,7 +61,7 @@ public class TransferirAtendimentoUseCase {
     @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento executar(UUID atendimentoId, UUID paraAtendenteId, UUID quemPediu) {
-        return transferir(atendimentoId, paraAtendenteId, quemPediu, OrigemEvento.USUARIO, false);
+        return transferir(atendimentoId, paraAtendenteId, quemPediu, OrigemEvento.USUARIO, false, false);
     }
 
     /** Mesma transferencia, com identidade tecnica e somente a partir do estado da IA. */
@@ -70,21 +71,36 @@ public class TransferirAtendimentoUseCase {
         if (paraAtendenteId == null) {
             throw new IllegalArgumentException("transferencia da Automacao exige atendente destino");
         }
-        return transferir(atendimentoId, paraAtendenteId, null, OrigemEvento.AUTOMACAO, true);
+        return transferir(atendimentoId, paraAtendenteId, null, OrigemEvento.AUTOMACAO, true, false);
+    }
+
+    /**
+     * Reatribui, por pedido explícito do cliente, qualquer atendimento ainda aberto.
+     *
+     * <p>Esse caminho não é o rodízio: a Automação só pode reatribuir um atendimento humano quando
+     * recebeu um destino explícito. Atendimento finalizado continua sendo estado terminal.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Atendimento reatribuirPelaAutomacao(UUID atendimentoId, UUID paraAtendenteId) {
+        if (paraAtendenteId == null) {
+            throw new IllegalArgumentException("reatribuicao da Automacao exige atendente destino");
+        }
+        return transferir(atendimentoId, paraAtendenteId, null, OrigemEvento.AUTOMACAO, false, true);
     }
 
     /** A Automação pode devolver uma conversa humana para a IA, sem fabricar um usuário. */
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento devolverParaIaPelaAutomacao(UUID atendimentoId) {
-        return transferir(atendimentoId, null, null, OrigemEvento.AUTOMACAO, false);
+        return transferir(atendimentoId, null, null, OrigemEvento.AUTOMACAO, false, false);
     }
 
     /** Devolve uma conversa por comando do sistema, sem fabricar um usuario para a auditoria. */
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento devolverParaIaPeloSistema(UUID atendimentoId) {
-        return transferir(atendimentoId, null, null, OrigemEvento.SISTEMA, false);
+        return transferir(atendimentoId, null, null, OrigemEvento.SISTEMA, false, false);
     }
 
     private Atendimento transferir(
@@ -92,13 +108,17 @@ public class TransferirAtendimentoUseCase {
             UUID paraAtendenteId,
             UUID atorId,
             OrigemEvento atorTipo,
-            boolean exigirOrigemIa) {
+            boolean exigirOrigemIa,
+            boolean exigirAtendimentoAberto) {
         Instant agora = Instant.now(relogio);
 
         Atendimento antes = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
 
         if (exigirOrigemIa && antes.status() != StatusAtendimento.EM_IA) {
             throw new TransferenciaDaAutomacaoInvalidaException(atendimentoId);
+        }
+        if (exigirAtendimentoAberto && !antes.estaAberto()) {
+            throw new AtendimentoJaFinalizadoException(atendimentoId, "transferencia");
         }
 
         if (paraAtendenteId == null && antes.status() == StatusAtendimento.EM_IA) {

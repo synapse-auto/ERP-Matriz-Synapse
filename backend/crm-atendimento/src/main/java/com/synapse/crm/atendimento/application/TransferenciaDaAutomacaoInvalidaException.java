@@ -2,7 +2,7 @@ package com.synapse.crm.atendimento.application;
 
 import java.util.UUID;
 
-/** A Automacao somente entrega conversas que ainda estao sob responsabilidade da IA. */
+/** O rodízio da Automação somente entrega conversas que ainda estão sob responsabilidade da IA. */
 public class TransferenciaDaAutomacaoInvalidaException extends RuntimeException {
 
     public TransferenciaDaAutomacaoInvalidaException(UUID atendimentoId) {

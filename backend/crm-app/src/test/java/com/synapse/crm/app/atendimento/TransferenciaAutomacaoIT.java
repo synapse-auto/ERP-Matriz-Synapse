@@ -80,6 +80,44 @@ class TransferenciaAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("transferencia explicita reatribui atendimento humano e atualiza o lead")
+    void transferenciaExplicitaReatribuiAtendimentoHumano() {
+        UUID michele = criarAtendenteDisponivel("MICHELE");
+        UUID daiane = criarAtendenteDisponivel("DAIANE");
+        UUID atendimento = criarAtendimentoHumano("PEDIDO-CLIENTE", michele);
+
+        ResponseEntity<String> resposta = chamarComToken(
+                TOKEN, atendimento, Map.of("atendenteId", daiane.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dono(atendimento)).isEqualTo(daiane);
+        assertThat(statusDoLead(atendimento)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(origemDoEvento(atendimento)).isEqualTo("AUTOMACAO");
+        assertThat(atorDoEvento(atendimento)).isNull();
+    }
+
+    @Test
+    @DisplayName("transferencia explicita nao reatribui atendimento finalizado")
+    void transferenciaExplicitaBloqueiaAtendimentoFinalizado() {
+        UUID michele = criarAtendenteDisponivel("MICHELE-FINALIZADO");
+        UUID daiane = criarAtendenteDisponivel("DAIANE-FINALIZADO");
+        UUID atendimento = criarAtendimentoHumano("FINALIZADO", michele);
+        UUID lead = jdbc.queryForObject(
+                "SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+        jdbc.update(
+                "UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = CURRENT_TIMESTAMP WHERE id = ?",
+                atendimento);
+        jdbc.update("UPDATE lead SET status_basico = 'FINALIZADO' WHERE id = ?", lead);
+
+        ResponseEntity<String> resposta = chamarComToken(
+                TOKEN, atendimento, Map.of("atendenteId", daiane.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(dono(atendimento)).isEqualTo(michele);
+        assertThat(quantidadeDeTransferencias(atendimento)).isZero();
+    }
+
+    @Test
     @DisplayName("sem token retorna 401 e nao transfere")
     void semTokenNaoTransfere() {
         criarAtendenteDisponivel("SEM-TOKEN-DESTINO");
@@ -150,13 +188,34 @@ class TransferenciaAutomacaoIT extends PostgresIT {
         assertThat(quantidadeDeTransferencias(atendimento)).isZero();
     }
 
+    @Test
+    @DisplayName("rodizio continua recusando atendimento que ja tem humano")
+    void rodizioNaoReatribuiAtendimentoHumano() {
+        UUID michele = criarAtendenteDisponivel("MICHELE-RODIZIO");
+        criarAtendenteDisponivel("DAIANE-RODIZIO");
+        UUID atendimento = criarAtendimentoHumano("RODIZIO-HUMANO", michele);
+
+        ResponseEntity<String> resposta = http.exchange(
+                url(atendimento).replace("/transferir", "/transferir-proximo-humano"),
+                HttpMethod.POST,
+                entidadeComToken(TOKEN, PREFIXO + "rodizio-humano", null),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(dono(atendimento)).isEqualTo(michele);
+        assertThat(quantidadeDeTransferencias(atendimento)).isZero();
+    }
+
     private ResponseEntity<String> chamarComToken(String token, UUID atendimento, Object corpo) {
+        return http.exchange(url(atendimento), HttpMethod.POST, entidadeComToken(token, PREFIXO + atendimento, corpo), String.class);
+    }
+
+    private HttpEntity<Object> entidadeComToken(String token, String chave, Object corpo) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.set("X-Synapse-Token", token);
-        cabecalhos.set("Idempotency-Key", PREFIXO + atendimento);
+        cabecalhos.set("Idempotency-Key", chave);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
-        return http.exchange(
-                url(atendimento), HttpMethod.POST, new HttpEntity<>(corpo, cabecalhos), String.class);
+        return new HttpEntity<>(corpo, cabecalhos);
     }
 
     private static String url(UUID atendimento) {
@@ -194,13 +253,15 @@ class TransferenciaAutomacaoIT extends PostgresIT {
         return atendimento;
     }
 
-    private void criarAtendimentoHumano(String marcador, UUID atendente) {
+    private UUID criarAtendimentoHumano(String marcador, UUID atendente) {
         UUID lead = criarLead(marcador, atendente, "EM_ATENDIMENTO");
+        UUID atendimento = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO atendimento(id,lead_id,atendente_id,status) VALUES (?,?,?,'EM_ATENDIMENTO')",
-                UUID.randomUUID(),
+                atendimento,
                 lead,
                 atendente);
+        return atendimento;
     }
 
     private UUID criarLead(String marcador, UUID atendente, String status) {
@@ -212,6 +273,13 @@ class TransferenciaAutomacaoIT extends PostgresIT {
                 atendente,
                 status);
         return lead;
+    }
+
+    private String statusDoLead(UUID atendimento) {
+        return jdbc.queryForObject(
+                "SELECT status_basico::text FROM lead WHERE id = (SELECT lead_id FROM atendimento WHERE id = ?)",
+                String.class,
+                atendimento);
     }
 
     private UUID dono(UUID atendimento) {

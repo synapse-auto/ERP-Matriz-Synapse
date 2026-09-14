@@ -143,12 +143,16 @@ Doc:   /swagger-ui  e  /v3/api-docs  no domínio do CRM</code></pre>
 
 <div class="alerta">
   <strong>São duas transferências, e elas não são intercambiáveis.</strong>
-  <code>POST /atendimentos/{id}/transferir</code> exige <code>atendenteId</code> no corpo e só aceita
-  usuário <em>ativo</em> com papel <code>ATENDENTE</code> — gestor, subgestor, IA e UUID inexistente
-  respondem <code>422</code>. <code>POST /atendimentos/{id}/transferir-proximo-humano</code> não aceita
-  destinatário: o CRM escolhe pelo rodízio (menor carga, depois quem está há mais tempo sem receber,
-  depois o <code>id</code>). Os atendentes trabalham por comissão; se o workflow não tem um motivo de
-  negócio para apontar a pessoa, use a segunda e deixe o rodízio decidir.
+  <code>POST /atendimentos/{id}/transferir</code> exige <code>atendenteId</code> no corpo e aceita
+  usuário <em>ativo</em> com papel <code>ATENDENTE</code> ou <code>SUBGESTOR</code>. A Automação pode
+  reatribuir um atendimento ainda aberto (<code>EM_IA</code> ou <code>EM_ATENDIMENTO</code>) quando
+  houver pedido explícito do cliente; gestor, administrador, IA e UUID inexistente respondem
+  <code>422</code>, e atendimento <code>FINALIZADO</code> responde <code>409</code>.
+  <code>POST /atendimentos/{id}/transferir-proximo-humano</code> não aceita destinatário: o CRM
+  escolhe pelo rodízio (menor carga, depois quem está há mais tempo sem receber, depois o
+  <code>id</code>) e só aplica a atendimentos <code>EM_IA</code>. Os atendentes trabalham por comissão;
+  se o workflow não tem um motivo de negócio para apontar a pessoa, use a segunda e deixe o rodízio
+  decidir.
 </div>
 
 <div class="nota">
