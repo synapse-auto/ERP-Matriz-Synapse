@@ -46,6 +46,22 @@ class PrepararImportacaoLeadsCsvTest {
     }
 
     @Test
+    void numeroDeDiscagemBrasileiraPassaPelaMesmaNormalizacaoDoDominio() throws Exception {
+        var resultado = importacao.executar(new StringReader("""
+                nome;telefone
+                Fêmina;01548988593561
+                Fêmina repetida;5548988593561
+                """));
+
+        assertThat(resultado.aceitos())
+                .extracting(PrepararImportacaoLeadsCsv.LeadImportavel::telefone)
+                .containsExactly("5548988593561");
+        assertThat(resultado.recusados())
+                .extracting(PrepararImportacaoLeadsCsv.LinhaRecusada::motivo)
+                .containsExactly("telefone duplicado no arquivo");
+    }
+
+    @Test
     void linhasInvalidasSaoRelatadasESeguemParaAProxima() throws Exception {
         var resultado = importacao.executar(new StringReader("""
                 nome;telefone

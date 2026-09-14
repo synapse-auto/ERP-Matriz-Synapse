@@ -29,6 +29,41 @@ class TelefoneCanonicoTest {
         assertThat(telefone.normalizar("1234567890123")).isEqualTo("1234567890123");
     }
 
+    @Nested
+    @DisplayName("prefixo de discagem brasileiro")
+    class PrefixoDeDiscagem {
+
+        @Test
+        @DisplayName("remove trunk de um numero nacional de doze digitos")
+        void trunk_12Digitos_removeZero() {
+            assertThat(telefone.normalizar("061999999999")).isEqualTo("5561999999999");
+        }
+
+        @Test
+        @DisplayName("remove operadora de um celular nacional de quatorze digitos")
+        void operadora_14Digitos_removeZeroEDoisDigitos() {
+            assertThat(telefone.normalizar("01548988593561")).isEqualTo("5548988593561");
+        }
+
+        @Test
+        @DisplayName("remove operadora de um fixo nacional de treze digitos e completa o nono")
+        void operadora_13Digitos_removePrefixoECompletaCelular() {
+            assertThat(telefone.normalizar("0154899123456")).isEqualTo("5548999123456");
+        }
+
+        @Test
+        @DisplayName("nao transforma prefixos de servico nem entradas ambiguas")
+        void especiaisEAmbiguas_ficamIntactas() {
+            assertThat(telefone.normalizar("08001234567")).isEqualTo("08001234567");
+            assertThat(telefone.normalizar("080012345678")).isEqualTo("080012345678");
+            assertThat(telefone.normalizar("03001234567")).isEqualTo("03001234567");
+            assertThat(telefone.normalizar("015123456789012")).isEqualTo("015123456789012");
+            assertThat(telefone.normalizar("131234567890")).isEqualTo("131234567890");
+            assertThat(telefone.normalizar("119123456789")).isEqualTo("119123456789");
+            assertThat(telefone.normalizar("526123456789")).isEqualTo("526123456789");
+        }
+    }
+
     @Test
     void entradaAusenteContinuaValidaMasEntradaCurtaEhRecusada() {
         assertThat(telefone.normalizar(null)).isNull();
@@ -36,6 +71,8 @@ class TelefoneCanonicoTest {
                 .isInstanceOf(TelefoneInvalidoException.class)
                 .hasMessageContaining("DDD e numero");
         assertThatThrownBy(() -> telefone.normalizar(" + - "))
+                .isInstanceOf(TelefoneInvalidoException.class);
+        assertThatThrownBy(() -> telefone.normalizar("0800"))
                 .isInstanceOf(TelefoneInvalidoException.class);
     }
 
