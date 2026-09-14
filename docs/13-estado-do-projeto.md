@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
 Documento de continuidade. **Estado reconstruído em 14/09/2026 a partir de
-`origin/main` (`9cd93c9`), das migrations e do código.** Se este arquivo divergir do
+`origin/main` (`50b2cf4`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -278,7 +278,24 @@ V65 atualiza citações mesmo quando a conversa de origem não está no escopo R
 de mensagem, reação e remoção são publicados pelo relay somente `AFTER_COMMIT`; reconexão e
 paginação continuam recarregando o histórico por HTTP.
 
-### E178 — prévia e navegação de mensagens citadas
+### E178 — distribuição sequencial da IA por configuração
+
+`AtendenteDisponivelRepositorioJdbc` mantém a consulta de elegibilidade única para a Automação e
+seleciona uma de duas ordenações constantes. Por padrão, `ia.distribuicao.sequencial = false`
+preserva o critério de menor carga, seguido de recência e `id`. Quando a gestão altera a chave para
+`true` no CRUD de `configuracao_automacao`, a ordem passa a ser `ultimo_recebido_em NULLS FIRST,
+id`, fazendo o próximo atendimento girar por quem recebeu há mais tempo, sem redeploy. A chave é
+BOOLEAN para fechar os dois estados e aproveitar a validação já existente; se a linha estiver
+ausente durante uma atualização, o código retorna ao comportamento de menor carga.
+
+A ordenação sequencial afeta a escolha do primeiro destino (`findFirst`) e não a semântica da tela:
+`GET /internal/v1/atendentes/disponiveis` continua devolvendo a mesma lista elegível, apenas na
+ordem que a Automação deve consumir. A recência combina `atendimento.iniciado_em` com os eventos
+`ATENDIMENTO_TRANSFERIDO` (`paraAtendenteId`) e `LEAD_TRANSFERIDO_POR_ENVIO`, portanto uma
+transferência automática atualiza a posição do atendente. A Estrutural permanece no padrão
+`false`; a FMNA deve habilitar `true` somente pela configuração da própria instância.
+
+### Citações — prévia e navegação de mensagens citadas
 
 `CitacaoMensagemVisual` é o componente compartilhado por atendimentos Meta/Uzapi e pelo chat interno.
 Quando a origem está na janela carregada, a imagem usa a URL assinada já presente no histórico; quando

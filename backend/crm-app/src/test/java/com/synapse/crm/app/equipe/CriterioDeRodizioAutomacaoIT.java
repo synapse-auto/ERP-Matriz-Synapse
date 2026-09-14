@@ -49,6 +49,7 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
     void preparar() {
         // Os atendentes do seed não fazem parte do cenário e permanecem fora do rodízio.
         jdbc.update("UPDATE usuario SET status_presenca = 'OFFLINE' WHERE email IN ('ana@dev.local', 'bruno@dev.local')");
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'false' WHERE chave = 'ia.distribuicao.sequencial'");
     }
 
     @AfterEach
@@ -60,6 +61,7 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
         jdbc.update("DELETE FROM disponibilidade_atendente_ia WHERE atendente_id IN (SELECT id FROM usuario WHERE nome LIKE ?)", PREFIXO + "%");
         jdbc.update("DELETE FROM usuario WHERE nome LIKE ?", PREFIXO + "%");
         jdbc.update("UPDATE usuario SET status_presenca = 'OFFLINE' WHERE email IN ('ana@dev.local', 'bruno@dev.local')");
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'false' WHERE chave = 'ia.distribuicao.sequencial'");
     }
 
     @Test
@@ -159,6 +161,44 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void sequencialIgnoraCargaECiclaPelaRecencia() {
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'true' WHERE chave = 'ia.distribuicao.sequencial'");
+        Instant agora = Instant.now();
+        UUID primeiro = criarAtendente("SEQUENCIAL-PRIMEIRO");
+        UUID segundo = criarAtendente("SEQUENCIAL-SEGUNDO");
+        UUID terceiro = criarAtendente("SEQUENCIAL-TERCEIRO");
+        criarAtendimento("historico-primeiro", "FINALIZADO", primeiro, agora.minus(3, ChronoUnit.HOURS));
+        criarAtendimento("historico-segundo", "FINALIZADO", segundo, agora.minus(2, ChronoUnit.HOURS));
+        criarAtendimento("historico-terceiro", "FINALIZADO", terceiro, agora.minus(1, ChronoUnit.HOURS));
+
+        List<UUID> destinos = new ArrayList<>();
+        for (int indice = 0; indice < 3; indice++) {
+            UUID atendimento = criarAtendimento("sequencial-ciclo-" + indice, "EM_IA", null, agora);
+            ResponseEntity<String> resposta = transferirProximo(atendimento, "sequencial-ciclo-" + indice);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            destinos.add(dono(atendimento));
+        }
+
+        assertThat(destinos).containsExactly(primeiro, segundo, terceiro);
+    }
+
+    @Test
+    void alterarConfiguracaoTrocaEstrategiaSemRedeploy() {
+        Instant agora = Instant.now();
+        UUID muitaCarga = criarAtendente("CONFIG-MUITA-CARGA");
+        UUID poucaCarga = criarAtendente("CONFIG-POUCA-CARGA");
+        criarAbertos("config-carga", muitaCarga, 5, agora.minus(2, ChronoUnit.HOURS));
+        criarAtendimento("config-historico-carga", "FINALIZADO", muitaCarga, agora.minus(2, ChronoUnit.HOURS));
+        criarAtendimento("config-historico-pouca", "FINALIZADO", poucaCarga, agora.minus(1, ChronoUnit.HOURS));
+
+        assertThat(disponiveis()).startsWith(poucaCarga);
+
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'true' WHERE chave = 'ia.distribuicao.sequencial'");
+
+        assertThat(disponiveis()).startsWith(muitaCarga);
+    }
+
+    @Test
     void semElegivelMantem409SemAlterarAtendimento() {
         UUID atendente = criarAtendente("SEM-ELEGIVEL");
         UUID atendimento = criarAtendimento("sem-elegivel", "EM_IA", null, Instant.now());
@@ -211,8 +251,12 @@ class CriterioDeRodizioAutomacaoIT extends PostgresIT {
     }
 
     private void criarAbertos(String marcador, UUID dono, int quantidade) {
+        criarAbertos(marcador, dono, quantidade, Instant.now());
+    }
+
+    private void criarAbertos(String marcador, UUID dono, int quantidade, Instant iniciadoEm) {
         for (int indice = 0; indice < quantidade; indice++) {
-            criarAtendimento(marcador + "-aberto-" + indice, "EM_ATENDIMENTO", dono, Instant.now());
+            criarAtendimento(marcador + "-aberto-" + indice, "EM_ATENDIMENTO", dono, iniciadoEm);
         }
     }
 
