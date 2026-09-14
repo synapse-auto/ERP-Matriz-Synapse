@@ -397,6 +397,8 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `SYNAPSE_REFRESH_TOKEN_VALIDADE` | `7d` | Revogável e rotativo a cada uso; ver `RenovarSessaoUseCase`. |
 | `SYNAPSE_SENHA_TAMANHO_MINIMO` | `8` | Política de senha (E29): vale na troca, na criação de usuário e na senha provisória gerada pelo gestor. |
 | `MENSAGENS_PROGRAMADAS_LOTE` | `50` | Quantidade máxima de mensagens programadas vencidas reservadas por rodada do scheduler. |
+| `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE` | `50` | Quantidade máxima de atendimentos humanos finalizados por rodada; a seleção continua na rodada seguinte. |
+| `ATENDIMENTOS_FINALIZAR_INATIVOS_INTERVALO_MS` | `300000` | Intervalo entre rodadas de finalização automática por inatividade (5 minutos). |
 | `ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS` | `8` | Duração do aviso visual de transferência/devolução; aceita valores de 1 a 60 segundos. |
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |

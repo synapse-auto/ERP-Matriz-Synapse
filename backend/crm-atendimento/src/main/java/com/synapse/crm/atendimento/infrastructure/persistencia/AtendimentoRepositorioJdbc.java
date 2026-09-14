@@ -50,6 +50,24 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
             + " WHERE lead_id = ? AND status <> 'FINALIZADO'"
             + " ORDER BY iniciado_em DESC LIMIT 1";
 
+    private static final String SQL_IDS_INATIVOS =
+            """
+            SELECT a.id
+              FROM atendimento a
+              LEFT JOIN LATERAL (
+                    SELECT max(m.enviado_em) AS ultima_mensagem_em
+                      FROM mensagem m
+                     WHERE m.atendimento_id = a.id
+              ) ultima ON TRUE
+             WHERE a.status = 'EM_ATENDIMENTO'
+               AND COALESCE(ultima.ultima_mensagem_em, a.iniciado_em) < ?
+             ORDER BY COALESCE(ultima.ultima_mensagem_em, a.iniciado_em), a.id
+             LIMIT ?
+            """;
+
+    private static final String SQL_ULTIMA_MENSAGEM =
+            "SELECT max(enviado_em) FROM mensagem WHERE atendimento_id = ?";
+
     private static final String SQL_POR_ID = "SELECT " + COLUNAS + " FROM atendimento WHERE id = ?";
 
     /**
@@ -156,6 +174,23 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     public List<Atendimento> abertosVisiveis(UUID atendenteIdFiltro) {
         TransacaoObrigatoria.exigir("abertosVisiveis");
         return chat.query(SQL_ABERTOS_VISIVEIS, MAPEADOR, atendenteIdFiltro, atendenteIdFiltro);
+    }
+
+    @Override
+    public List<UUID> idsEmAtendimentoInativosAntesDe(Instant corte, int limite) {
+        TransacaoObrigatoria.exigir("idsEmAtendimentoInativosAntesDe");
+        return chat.query(
+                SQL_IDS_INATIVOS,
+                (rs, rowNum) -> rs.getObject(1, UUID.class),
+                Timestamp.from(corte),
+                limite);
+    }
+
+    @Override
+    public Optional<Instant> ultimaMensagemEm(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("ultimaMensagemEm");
+        Timestamp ultima = chat.queryForObject(SQL_ULTIMA_MENSAGEM, Timestamp.class, atendimentoId);
+        return Optional.ofNullable(ultima).map(Timestamp::toInstant);
     }
 
     @Override

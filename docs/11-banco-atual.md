@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 70 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V70__estrategia_distribuicao_ia.sql` (aplicada depois da `V69__versao_eventos_atendimento.sql`)
+**Estado:** 71 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V71__estrategia_distribuicao_ia.sql` (aplicada depois da `V70__finalizacao_automatica_por_inatividade.sql`)
 
 ---
 
@@ -80,9 +80,19 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V67__backoff_webhook_entrada` | `proxima_tentativa_em` e índice da fila de entrada para retentativas duráveis com backoff |
 | `V68__ev05_resumo_e_preenchimento` | Marcos de atualização do resumo/preenchimento automático e intervalos configuráveis do EV-05 |
 | `V69__versao_eventos_atendimento` | sequência monotônica `atendimento.versao_evento` e função técnica estreita para eventos canônicos |
-| `V70__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
+| `V70__finalizacao_automatica_por_inatividade` | parâmetro `atendimento.finalizar_apos_horas` (24 horas por padrão, faixa 1–720) para o scheduler de atendimentos humanos inativos |
+| `V71__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
+
+### Configuração de finalização automática
+
+`configuracao_automacao.atendimento.finalizar_apos_horas` é uma configuração de negócio editável
+por instância. A V70 cria a linha em instalações existentes sem sobrescrever valor já ajustado;
+o valor inicial é 24 horas, com faixa validada de 1 a 720 horas. O job consulta a linha a cada
+rodada e considera a última mensagem de qualquer lado do atendimento, usando `iniciado_em` como
+fallback quando não há mensagem. Apenas `EM_ATENDIMENTO` entra na varredura; `EM_IA` permanece na
+fila de Potenciais.
 
 ---
 

@@ -89,6 +89,32 @@ public class FinalizarAtendimentoUseCase {
     }
 
     /**
+     * Finaliza somente se o atendimento ainda estiver humano e inativo no corte informado.
+     *
+     * <p>A leitura é refeita sob os mesmos locks da finalização antes de aplicar a transição. Isso
+     * torna a decisão idempotente entre rodadas do scheduler: uma mensagem que chegou depois da
+     * seleção não será encerrada por uma fotografia antiga.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+            })
+    public java.util.Optional<Atendimento> executarPelaAutomacaoSeInativo(
+            UUID atendimentoId, Instant corte) {
+        Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (aberto.status() != StatusAtendimento.EM_ATENDIMENTO) {
+            return java.util.Optional.empty();
+        }
+        Instant ultimaInteracao = atendimentos.ultimaMensagemEm(atendimentoId).orElse(aberto.iniciadoEm());
+        if (!ultimaInteracao.isBefore(corte)) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(finalizar(aberto, null, Origem.AUTOMACAO));
+    }
+
+    /**
      * Valida a existência e o estado antes da reserva de idempotência do comando interno.
      *
      * <p>A reserva possui FK para {@code atendimento}; por isso o comando valida antes de inserir
@@ -110,6 +136,10 @@ public class FinalizarAtendimentoUseCase {
 
     private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        return finalizar(aberto, quemFinalizou, origem);
+    }
+
+    private Atendimento finalizar(Atendimento aberto, UUID quemFinalizou, Origem origem) {
         Instant agora = Instant.now(relogio);
 
         // Mesma parede da transferencia (E107): UPDATE que tira a linha da visibilidade de quem

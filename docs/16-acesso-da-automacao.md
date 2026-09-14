@@ -215,11 +215,22 @@ contrato interno de leitura para o n8n é
 `ia.preenchimento_automatico` está ligado. A escrita desse parâmetro continua
 no CRUD administrativo de `configuracao_automacao`.
 
-Não existe scheduler, rotina de varredura ou disparo no backend. O snapshot
+Não existe scheduler para executar regras de follow-up/fidelização ou disparar a IA no backend. O snapshot
 `status_automacao_telemetria` é atualizado exclusivamente pelo caso de uso
 `RegistrarEventoDeAutomacaoUseCase`, chamado pelo n8n através de
 `POST /internal/v1/eventos`; portanto a frequência é a frequência dos eventos
 que o workflow envia, e não um job periódico do CRM.
+
+### 3.4.1 Finalização automática por inatividade (E177)
+
+Além dos comandos explícitos do n8n, o CRM possui um job interno de manutenção que roda em
+contexto `SERVICO`. Ele lê `atendimento.finalizar_apos_horas` em `configuracao_automacao` e, em
+lotes limitados, finaliza somente atendimentos `EM_ATENDIMENTO` cuja última mensagem (de qualquer
+lado; `iniciado_em` quando vazia) ultrapassou o limiar. Cada candidato é revalidado sob lock pela
+mesma `FinalizarAtendimentoUseCase`, preservando lead `FINALIZADO`, avaliação, timeline e eventos
+pós-commit. `EM_IA` não é incluído para não esvaziar a fila de Potenciais. O primeiro ciclo após
+o deploy pode processar um backlog; acompanhe os contadores `candidatos/finalizados/ignorados` no
+log antes de ajustar a configuração.
 
 ### 3.5 EV-05 — resumo e preenchimento automático
 
@@ -264,7 +275,7 @@ Três motivos, em ordem de gravidade:
 
 A linha existe no banco e é como se não existisse no produto.
 
-**3. O schema pertence ao Flyway.** São 47 migrations versionadas, até `V47__lead_codigo.sql`. Uma coluna criada na mão fica fora desse controle: no próximo deploy o `validate` pode recusar subir, ou o filho seguinte nasce sem ela. Este é um produto multi-instância — o schema tem que ser idêntico em todos.
+**3. O schema pertence ao Flyway.** São 71 migrations versionadas, até `V71__estrategia_distribuicao_ia.sql`. Uma coluna criada na mão fica fora desse controle: no próximo deploy o `validate` pode recusar subir, ou o filho seguinte nasce sem ela. Este é um produto multi-instância — o schema tem que ser idêntico em todos.
 
 ### 4.1 Templates da Meta não são contrato interno
 

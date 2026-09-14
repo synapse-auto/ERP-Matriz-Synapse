@@ -55,7 +55,22 @@ http://synapse-n8n-internal:5678/webhook/<caminho-do-webhook>
   circuit breaker. Após 8 tentativas o CRM registra `ALERTA_REPASSE_AUTOMACAO_ESGOTADO`. O
   corpo permanece na outbox, mas **não é reenviado automaticamente** quando o n8n volta.
 
-## 5. Do n8n — não alterar
+## 5. Operação do scheduler do CRM (E177)
+
+Estas variáveis pertencem ao container do backend, não ao workflow do n8n. O limiar de negócio é
+editado no CRM em `configuracao_automacao.atendimento.finalizar_apos_horas` (migration V70, padrão
+24 horas). As variáveis abaixo controlam somente cadência e tamanho de lote:
+
+| Variável | Default | Uso |
+|---|---:|---|
+| `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE` | `50` | Máximo de candidatos processados em uma rodada. |
+| `ATENDIMENTOS_FINALIZAR_INATIVOS_INTERVALO_MS` | `300000` | Intervalo entre rodadas (5 minutos). |
+
+Não é necessário configurar nada no n8n para esse job. `EM_IA` não é finalizado automaticamente;
+somente conversas humanas sem interação acima do limiar retornam ao estado finalizado, prontas para
+que uma nova mensagem do cliente abra outro atendimento em IA.
+
+## 6. Do n8n — não alterar
 
 | Variável | Observação |
 |---|---|
@@ -63,7 +78,7 @@ http://synapse-n8n-internal:5678/webhook/<caminho-do-webhook>
 | `N8N_ENCRYPTION_KEY` | Cifra as Credentials. Alterada, **todas as Credentials salvas deixam de abrir** e precisam ser recadastradas. Por isso o token vai em Credential, e não digitado no nó — valor solto trafega em texto claro no JSON exportado. |
 | `N8N_HOST`<br>`WEBHOOK_URL`<br>`N8N_EDITOR_BASE_URL` | Derivam de `AUTOMACAO_DOMINIO`. Mudam com a entrada dos subdomínios reais; webhooks cadastrados em serviços externos precisarão ser refeitos. |
 
-## 6. Não são suas
+## 7. Não são suas
 
 Presentes no mesmo Environment porque a instância é uma stack única. Nenhuma tem uso legítimo
 em workflow.
@@ -81,7 +96,7 @@ em workflow.
 Se um fluxo depender de alguma delas, o caminho é solicitar um endpoint em `/internal/v1` —
 não utilizar a credencial.
 
-## 7. Isolamento por número
+## 8. Isolamento por número
 
 `WHATSAPP_NUMERO` não é o telefone: é o **Phone Number ID** da Meta. Em homologação,
 `1307417749115229`.

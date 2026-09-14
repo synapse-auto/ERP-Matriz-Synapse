@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 11/09/2026 a partir de
-`origin/main` (`43b56f7`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado reconstruído em 14/09/2026 a partir de
+`origin/main` (`50b2cf4`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -305,3 +305,18 @@ visibilidade/participação antes de consultar e nunca faz busca global. A refer
 controle de teclado/mouse que centraliza e destaca a mensagem por tempo curto. Tombstones, falhas de
 autorização e origens ausentes permanecem como “mensagem removida”/indisponível, sem conteúdo, URL ou
 metadados sensíveis.
+
+### 14/09/2026 — E177: finalização automática por inatividade
+
+Foi criado o parâmetro de produção `atendimento.finalizar_apos_horas` na V70, com valor inicial de
+24 horas e faixa de 1 a 720. O scheduler `AgendadorDeFinalizacaoDeAtendimentosInativos` executa em
+contexto `SERVICO`, a cada intervalo operacional configurável, e processa no máximo o lote definido
+por `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE`. A recência é a última mensagem de qualquer lado no
+atendimento, com `iniciado_em` como fallback. Cada candidato é relido sob lock e passa pela
+`FinalizarAtendimentoUseCase`, então lead, avaliação, timeline e eventos mantêm o mesmo contrato da
+finalização manual/automação. Apenas `EM_ATENDIMENTO` é elegível; `EM_IA` permanece em Potenciais.
+
+O primeiro ciclo após o deploy pode finalizar um backlog real de conversas humanas paradas. O log
+registra apenas contagens agregadas e o corte (`candidatos`, `finalizados`, `ignorados`, `falhas`),
+sem conteúdo ou dados de contato. O job não reabre conversas: uma nova mensagem do cliente seguirá
+o fluxo existente e abrirá atendimento em IA.

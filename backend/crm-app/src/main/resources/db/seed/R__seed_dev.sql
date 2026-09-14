@@ -145,7 +145,7 @@ INSERT INTO configuracao_automacao
      'Mensagens trocadas com a IA antes de sugerir transferencia para humano.'),
     ('ia.resumo.a_cada_mensagens', '20', 'mensagens', 'INT', 5, 200,
      'Intervalo de mensagens para gerar o resumo por IA.'),
-    ('atendimento.finalizar_apos_horas', '48', 'horas', 'INT', 1, 720,
+    ('atendimento.finalizar_apos_horas', '24', 'horas', 'INT', 1, 720,
      'Horas de inatividade ate finalizar o atendimento automaticamente.'),
     ('campanha.intervalo_padrao_dias', '3', 'dias', 'INT', 1, 7,
      'Intervalo padrao entre mensagens de uma campanha.'),

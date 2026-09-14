@@ -212,6 +212,22 @@ class SchemaMigracoesIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("migration cria o limiar de finalizacao automatica por inatividade")
+        void configuracaoFinalizacaoInatividade_migrationCriaParametroComFaixa() {
+            var parametro = jdbc.queryForMap(
+                    "SELECT valor, unidade, tipo, valor_min, valor_max "
+                            + "FROM configuracao_automacao "
+                            + "WHERE chave = 'atendimento.finalizar_apos_horas'");
+
+            assertThat(parametro)
+                    .containsEntry("valor", "24")
+                    .containsEntry("unidade", "horas")
+                    .containsEntry("tipo", "INT");
+            assertThat(((Number) parametro.get("valor_min")).intValue()).isEqualTo(1);
+            assertThat(((Number) parametro.get("valor_max")).intValue()).isEqualTo(720);
+        }
+
+        @Test
         @DisplayName("lead tem endereco opcional de envio do provedor")
         void lead_temEnderecoDeEnvioDoProvedor() {
             assertThat(jdbc.queryForObject(
