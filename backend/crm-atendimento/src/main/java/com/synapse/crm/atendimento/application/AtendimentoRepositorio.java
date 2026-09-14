@@ -48,6 +48,18 @@ public interface AtendimentoRepositorio {
     List<Atendimento> abertosVisiveis(UUID atendenteIdFiltro);
 
     /**
+     * IDs de atendimentos humanos cuja última interação já ficou antes do corte.
+     *
+     * <p>A recência é a mesma da Agenda: última mensagem de qualquer lado, com
+     * {@code iniciado_em} como fallback. O limite mantém cada rodada curta e permite
+     * que a próxima rodada continue de onde esta parou.
+     */
+    List<UUID> idsEmAtendimentoInativosAntesDe(Instant corte, int limite);
+
+    /** Última mensagem persistida deste atendimento, para revalidar a corrida antes de finalizar. */
+    Optional<Instant> ultimaMensagemEm(UUID atendimentoId);
+
+    /**
      * Quebra da mesma populacao de {@link #abertosVisiveis(UUID)} sem filtro de dono — uma linha
      * por {@code atendente_id}, com nome, para alimentar o seletor do lote (E137).
      */
