@@ -129,9 +129,15 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         JsonNode contagensGestor = json.readTree(get(tokenGestor, "/api/v1/atendimentos/contagem"));
         assertThat(contagensGestor.has("TODOS")).isTrue();
         for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
+            JsonNode lista = listar(tokenGestor, visao);
+            long esperado = "TODOS".equals(visao)
+                    // O badge TODOS mede somente leads com atendimento aberto, enquanto a lista
+                    // preserva o historico finalizado (194eded).
+                    ? quantidadeComAtendimentoAberto(lista)
+                    : lista.size();
             assertThat(contagensGestor.path(visao).asLong())
                     .as("contagem de %s deve usar o mesmo recorte da lista", visao)
-                    .isEqualTo(listar(tokenGestor, visao).size());
+                    .isEqualTo(esperado);
         }
     }
 
@@ -175,6 +181,12 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
                 .map(item -> item.path("atendimentoId").asText())
                 .toList();
+    }
+
+    private long quantidadeComAtendimentoAberto(JsonNode itens) {
+        return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
+                .filter(item -> !item.path("atendimentoAtivoId").asText().isBlank())
+                .count();
     }
 
     private List<String> idsDeLead(JsonNode itens) {

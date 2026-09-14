@@ -109,7 +109,13 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 .isEqualTo(ativoDoHistorico.toString());
 
         JsonNode contagem = json.readTree(get(token, "/api/v1/atendimentos/contagem").getBody());
-        assertThat(contagem.path("TODOS").asLong()).isEqualTo(lista.size());
+        // O badge TODOS conta somente leads com atendimento aberto; a lista inclui o historico
+        // finalizado para permitir a navegacao da gestao (194eded).
+        long leadsComAtendimentoAberto = java.util.stream.StreamSupport.stream(
+                        lista.spliterator(), false)
+                .filter(item -> !item.path("atendimentoAtivoId").asText().isBlank())
+                .count();
+        assertThat(contagem.path("TODOS").asLong()).isEqualTo(leadsComAtendimentoAberto);
 
         List<String> idsPaginados = percorrerInbox(token);
         assertThat(idsPaginados).doesNotHaveDuplicates();
