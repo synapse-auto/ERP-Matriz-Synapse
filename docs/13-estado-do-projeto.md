@@ -320,14 +320,21 @@ metadados sensíveis.
 ### 14/09/2026 — E177: finalização automática por inatividade
 
 Foi criado o parâmetro de produção `atendimento.finalizar_apos_horas` na V70, com valor inicial de
-24 horas e faixa de 1 a 720. O scheduler `AgendadorDeFinalizacaoDeAtendimentosInativos` executa em
-contexto `SERVICO`, a cada intervalo operacional configurável, e processa no máximo o lote definido
-por `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE`. A recência é a última mensagem de qualquer lado no
-atendimento, com `iniciado_em` como fallback. Cada candidato é relido sob lock e passa pela
-`FinalizarAtendimentoUseCase`, então lead, avaliação, timeline e eventos mantêm o mesmo contrato da
-finalização manual/automação. Apenas `EM_ATENDIMENTO` é elegível; `EM_IA` permanece em Potenciais.
+24 horas e faixa de 1 a 720, e a V72 adicionou a trava `atendimento.finalizar_inativos.habilitado`,
+BOOLEAN e `false` por padrão em todas as instâncias. O scheduler
+`AgendadorDeFinalizacaoDeAtendimentosInativos` lê a trava a cada rodada: ausente ou `false` é um
+estado normal (sem seleção, alteração ou alerta); somente `true` habilita a finalização e então lê
+o limiar. A troca do valor no CRUD da instância passa a valer no próximo tick, sem redeploy.
 
-O primeiro ciclo após o deploy pode finalizar um backlog real de conversas humanas paradas. O log
-registra apenas contagens agregadas e o corte (`candidatos`, `finalizados`, `ignorados`, `falhas`),
-sem conteúdo ou dados de contato. O job não reabre conversas: uma nova mensagem do cliente seguirá
-o fluxo existente e abrirá atendimento em IA.
+Quando ligado, o scheduler executa em contexto `SERVICO`, a cada intervalo operacional configurável,
+e processa no máximo o lote definido por `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE`. A recência é a
+última mensagem de qualquer lado no atendimento, com `iniciado_em` como fallback. Cada candidato é
+relido sob lock e passa pela `FinalizarAtendimentoUseCase`, então lead, avaliação, timeline e eventos
+mantêm o mesmo contrato da finalização manual/automação. Apenas `EM_ATENDIMENTO` é elegível;
+`EM_IA` permanece em Potenciais.
+
+O primeiro ciclo após ligar o toggle pode finalizar um backlog real de conversas humanas paradas e,
+quando a configuração de avaliação estiver ativa, preparar as solicitações correspondentes pela
+mesma transição de finalização. O log registra apenas contagens agregadas e o corte (`candidatos`,
+`finalizados`, `ignorados`, `falhas`), sem conteúdo ou dados de contato. O job não reabre conversas:
+uma nova mensagem do cliente seguirá o fluxo existente e abrirá atendimento em IA.

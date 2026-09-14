@@ -228,13 +228,16 @@ que o workflow envia, e não um job periódico do CRM.
 ### 3.4.1 Finalização automática por inatividade (E177)
 
 Além dos comandos explícitos do n8n, o CRM possui um job interno de manutenção que roda em
-contexto `SERVICO`. Ele lê `atendimento.finalizar_apos_horas` em `configuracao_automacao` e, em
-lotes limitados, finaliza somente atendimentos `EM_ATENDIMENTO` cuja última mensagem (de qualquer
-lado; `iniciado_em` quando vazia) ultrapassou o limiar. Cada candidato é revalidado sob lock pela
-mesma `FinalizarAtendimentoUseCase`, preservando lead `FINALIZADO`, avaliação, timeline e eventos
-pós-commit. `EM_IA` não é incluído para não esvaziar a fila de Potenciais. O primeiro ciclo após
-o deploy pode processar um backlog; acompanhe os contadores `candidatos/finalizados/ignorados` no
-log antes de ajustar a configuração.
+contexto `SERVICO`. Antes de qualquer seleção, ele lê o toggle por instância
+`atendimento.finalizar_inativos.habilitado` (V72): ausente ou `false` encerra a rodada em silêncio,
+sem alerta; somente `true` habilita o job. Quando ligado, lê `atendimento.finalizar_apos_horas` em
+`configuracao_automacao` e, em lotes limitados, finaliza somente atendimentos `EM_ATENDIMENTO` cuja
+última mensagem (de qualquer lado; `iniciado_em` quando vazia) ultrapassou o limiar. Cada candidato
+é revalidado sob lock pela mesma `FinalizarAtendimentoUseCase`, preservando lead `FINALIZADO`,
+avaliação, timeline e eventos pós-commit. `EM_IA` não é incluído para não esvaziar a fila de
+Potenciais. A gestão pode alterar o toggle no CRUD e o próximo tick aplica a mudança sem redeploy.
+O primeiro ciclo após ligar pode processar um backlog e preparar avaliações quando essa configuração
+estiver ativa; acompanhe os contadores `candidatos/finalizados/ignorados` no log antes de habilitar.
 
 ### 3.5 EV-05 — resumo e preenchimento automático
 

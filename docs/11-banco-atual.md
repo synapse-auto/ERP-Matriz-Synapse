@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 71 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V71__estrategia_distribuicao_ia.sql` (aplicada depois da `V70__finalizacao_automatica_por_inatividade.sql`)
+**Estado:** 72 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V72__toggle_finalizacao_automatica.sql` (aplicada depois da `V71__estrategia_distribuicao_ia.sql`)
 
 ---
 
@@ -82,6 +82,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V69__versao_eventos_atendimento` | sequência monotônica `atendimento.versao_evento` e função técnica estreita para eventos canônicos |
 | `V70__finalizacao_automatica_por_inatividade` | parâmetro `atendimento.finalizar_apos_horas` (24 horas por padrão, faixa 1–720) para o scheduler de atendimentos humanos inativos |
 | `V71__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
+| `V72__toggle_finalizacao_automatica` | parâmetro BOOLEAN `atendimento.finalizar_inativos.habilitado`; false por padrão, opt-in por instância para o scheduler de inatividade |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -93,6 +94,13 @@ o valor inicial é 24 horas, com faixa validada de 1 a 720 horas. O job consulta
 rodada e considera a última mensagem de qualquer lado do atendimento, usando `iniciado_em` como
 fallback quando não há mensagem. Apenas `EM_ATENDIMENTO` entra na varredura; `EM_IA` permanece na
 fila de Potenciais.
+
+O parâmetro `configuracao_automacao.atendimento.finalizar_inativos.habilitado` é a trava por
+instância criada na V72. Ele usa o tipo `BOOLEAN` já suportado pelo schema e pelo CRUD e nasce
+`false` em todas as instâncias. O scheduler lê a chave em cada rodada: ausente ou `false` é um
+estado normal, sem seleção de candidatos e sem alerta; somente `true` habilita o uso do limiar
+acima. Assim, ligar ou desligar a finalização exige apenas alterar o valor da configuração, sem
+redeploy. O limiar de 24 horas continua separado e não é o liga/desliga.
 
 ---
 

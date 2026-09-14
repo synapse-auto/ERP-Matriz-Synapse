@@ -228,6 +228,22 @@ class SchemaMigracoesIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("migration cria toggle de finalizacao automatica desligado por padrao")
+        void configuracaoFinalizacaoInatividade_toggleNasceDesligado() {
+            var parametro = jdbc.queryForMap(
+                    "SELECT valor, unidade, tipo, valor_min, valor_max "
+                            + "FROM configuracao_automacao "
+                            + "WHERE chave = 'atendimento.finalizar_inativos.habilitado'");
+
+            assertThat(parametro)
+                    .containsEntry("valor", "false")
+                    .containsEntry("unidade", null)
+                    .containsEntry("tipo", "BOOLEAN")
+                    .containsEntry("valor_min", null)
+                    .containsEntry("valor_max", null);
+        }
+
+        @Test
         @DisplayName("lead tem endereco opcional de envio do provedor")
         void lead_temEnderecoDeEnvioDoProvedor() {
             assertThat(jdbc.queryForObject(

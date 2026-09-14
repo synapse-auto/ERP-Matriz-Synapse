@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import com.synapse.crm.atendimento.application.FinalizarAtendimentosInativosUseCase;
 import com.synapse.crm.automacaoconfig.application.ConfiguracaoAutomacaoRepositorio;
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
+import com.synapse.crm.automacaoconfig.domain.TipoConfiguracaoAutomacao;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /**
@@ -25,6 +26,7 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 public class AgendadorDeFinalizacaoDeAtendimentosInativos {
 
     static final String CHAVE_HORAS = "atendimento.finalizar_apos_horas";
+    static final String CHAVE_HABILITADO = "atendimento.finalizar_inativos.habilitado";
 
     private static final Logger log =
             LoggerFactory.getLogger(AgendadorDeFinalizacaoDeAtendimentosInativos.class);
@@ -51,6 +53,11 @@ public class AgendadorDeFinalizacaoDeAtendimentosInativos {
     }
 
     private void executarRodada() {
+        ConfiguracaoAutomacao habilitado = configuracoes.porChave(CHAVE_HABILITADO).orElse(null);
+        if (!estaHabilitado(habilitado)) {
+            return;
+        }
+
         ConfiguracaoAutomacao configuracao = configuracoes.porChave(CHAVE_HORAS).orElse(null);
         if (configuracao == null) {
             log.error("{} parâmetro {} não encontrado; rodada não executada", "[ALERTA_CONFIG_AUTOMACAO]", CHAVE_HORAS);
@@ -80,5 +87,26 @@ public class AgendadorDeFinalizacaoDeAtendimentosInativos {
                     resultado.falhas(),
                     resultado.corte());
         }
+    }
+
+    private boolean estaHabilitado(ConfiguracaoAutomacao configuracao) {
+        if (configuracao == null) {
+            log.debug("Finalização automática de atendimentos inativos desabilitada: parâmetro {} ausente", CHAVE_HABILITADO);
+            return false;
+        }
+        if (configuracao.tipo() != TipoConfiguracaoAutomacao.BOOLEAN) {
+            log.warn("Parâmetro {} inválido (tipo {}); finalização automática permanece desabilitada", CHAVE_HABILITADO, configuracao.tipo());
+            return false;
+        }
+        String valor = configuracao.valor().trim();
+        if ("false".equalsIgnoreCase(valor)) {
+            log.debug("Finalização automática de atendimentos inativos desabilitada pelo parâmetro {}", CHAVE_HABILITADO);
+            return false;
+        }
+        if ("true".equalsIgnoreCase(valor)) {
+            return true;
+        }
+        log.warn("Parâmetro {} inválido; finalização automática permanece desabilitada", CHAVE_HABILITADO);
+        return false;
     }
 }
