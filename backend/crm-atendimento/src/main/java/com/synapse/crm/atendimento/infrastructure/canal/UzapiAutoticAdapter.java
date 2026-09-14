@@ -43,15 +43,17 @@ import com.synapse.crm.sharedkernel.midia.ValidadorDeOggOpus;
  * sozinho — ver {@code docs/38-contrato-uzapi-autotic.md}.
  *
  * <p>Contrato confirmado contra o Swagger oficial ({@code https://api.uzapi.com.br/docs/swagger.json})
- * em 11/09/2026: as rotas usam somente {@code {version}} e {@code {phone_number_id}} — nunca
- * {@code {username}}. {@code GET .../instance} consulta a saude, {@code POST .../messages} envia,
- * {@code POST .../media} (multipart) faz upload previo de midia. Nao existe endpoint de gestao de
+ * em 11/09/2026: as rotas de negocio usam somente {@code {version}} e
+ * {@code {phone_number_id}} — nunca {@code {username}}; o resolvedor de midia usa
+ * {@code GET /{version}/{mediaId}}. {@code GET .../instance} consulta a saude,
+ * {@code POST .../messages} envia, {@code POST .../media} (multipart) faz upload previo de midia.
+ * Nao existe endpoint de gestao de
  * template no Swagger — o valor {@code "template"} aparece apenas no enum solto do campo
  * {@code type}, sem nenhum schema de corpo correspondente nos doze variantes documentados
  * (Text/Image/Audio/Video/Document/Reaction/Location/Contacts/Poll/Sticker/Revoke/Interactive).
  *
  * <p>O recebimento usa o mesmo identificador de midia que chega no webhook: primeiro resolve a URL
- * pelo endpoint {@code GET /{version}/{phone_number_id}/{mediaId}} e depois baixa os bytes nessa URL. O
+ * pelo endpoint oficial {@code GET /{version}/{mediaId}} e depois baixa os bytes nessa URL. O
  * segundo passo fica protegido pelo disjuntor dedicado de midia, assim a fila de entrada pode
  * retentar sem bloquear o caminho sincrono do webhook.
  */
@@ -488,16 +490,16 @@ class UzapiAutoticAdapter implements CanalGateway {
     }
 
     /**
-     * A conta em produção usa o primeiro GET como resolvedor de URL, com o identificador do
-     * número no caminho. A URL devolvida já é autorizada pelo fornecedor; não enviamos o Bearer
-     * novamente para um host externo e evitamos vazar a credencial do canal.
+     * O endpoint oficial "Retrieve Media URL" usa somente a versao e o identificador da midia.
+     * O {@code phone_number_id} fica reservado as rotas de instancia, upload e envio. A URL
+     * devolvida ja e autorizada pelo fornecedor; nao enviamos o Bearer novamente para um host
+     * externo e evitamos vazar a credencial do canal.
      */
     private MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
         String resposta = http.get()
                 .uri(
-                        "/{version}/{phone_number_id}/{mediaId}",
+                        "/{version}/{mediaId}",
                         propriedades.versaoApi(),
-                        propriedades.numeroPrincipal(),
                         midiaIdExterno)
                 .header("Authorization", "Bearer " + propriedades.token())
                 .retrieve()

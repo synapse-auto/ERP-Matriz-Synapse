@@ -48,6 +48,7 @@ class UzapiAutoticAdapterTest {
     private static final String VERSAO = "v1";
     private static final String NUMERO = "numero-de-teste";
     private static final String CAMINHO_BASE = "/" + VERSAO + "/" + NUMERO;
+    private static final String CAMINHO_RESOLVEDOR = "/" + VERSAO;
     private static final String REFERENCIA = "midias/anexo";
 
     private final ObjectMapper json = new ObjectMapper();
@@ -574,12 +575,13 @@ class UzapiAutoticAdapterTest {
 
     @Test
     void baixarMidiaRecebidaResolveUrlEBaixaBytesSemReenviarBearerAoHostDaUrl() {
-        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media-inbound"))
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(requisicao -> {
                     String autorizacao = requisicao.getHeaders().getFirst("Authorization");
                     assertThat(autorizacao).startsWith("Bearer ");
                     assertThat(autorizacao).doesNotContain(USUARIO);
+                    assertThat(requisicao.getURI().getPath()).doesNotContain(NUMERO);
                 })
                 .andRespond(withSuccess(
                         "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.jpg\"}",
@@ -595,10 +597,37 @@ class UzapiAutoticAdapterTest {
         assertThat(recebida.mimetype()).isEqualTo("image/jpeg");
     }
 
+    @ParameterizedTest(name = "tipo={0}")
+    @ValueSource(strings = {"audio", "image", "video", "document"})
+    void baixarMidiaRecebidaUsaResolverOficialParaTodosOsTiposSemNumeroNemUsername(String tipo) {
+        String mediaId = "media-" + tipo;
+        String urlDaMidia = "https://media.example.test/" + tipo;
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/" + mediaId))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(requisicao -> {
+                    String autorizacao = requisicao.getHeaders().getFirst("Authorization");
+                    assertThat(autorizacao).startsWith("Bearer ");
+                    assertThat(autorizacao).doesNotContain(USUARIO);
+                    assertThat(requisicao.getURI().getPath()).doesNotContain(NUMERO);
+                    assertThat(requisicao.getURI().getPath()).doesNotContain(USUARIO);
+                })
+                .andRespond(withSuccess(
+                        "{\"id\":\"" + mediaId + "\",\"url\":\"" + urlDaMidia + "\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(urlDaMidia))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(new byte[] {9, 8, 7}, MediaType.APPLICATION_OCTET_STREAM));
+
+        CanalGateway.MidiaRecebida recebida = adapter.baixarMidiaRecebida(mediaId);
+
+        servidor.verify();
+        assertThat(recebida.conteudo()).containsExactly(9, 8, 7);
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {400, 404, 500, 502})
     void erroHttpAoResolverMidiaEClassificadoComoIndisponibilidadeRetentavel(int status) {
-        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/media-inbound"))
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withStatus(HttpStatus.valueOf(status)));
 
