@@ -54,11 +54,15 @@ class RecorteDaAbaTodosIT extends PostgresIT {
     private UUID atendimentoDoBruno;
     private UUID leadParticipado;
     private UUID atendimentoParticipado;
+    private long contagemTodosAntes;
 
     @BeforeEach
-    void preparar() {
+    void preparar() throws Exception {
         ana = usuario(EMAIL_ANA);
         bruno = usuario(EMAIL_BRUNO);
+        contagemTodosAntes = json.readTree(get(token(EMAIL_GESTOR, SENHA_GESTOR), "/api/v1/atendimentos/contagem"))
+                .path("TODOS")
+                .asLong();
 
         leadDaAna = lead("proprio", ana, "EM_ATENDIMENTO");
         atendimentoDaAna = atendimento(leadDaAna, ana, "EM_ATENDIMENTO");
@@ -130,13 +134,9 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         assertThat(contagensGestor.has("TODOS")).isTrue();
         for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
             JsonNode lista = listar(tokenGestor, visao);
-            long esperado = "TODOS".equals(visao)
-                    // O badge TODOS mede somente leads com atendimento aberto, enquanto a lista
-                    // preserva o historico finalizado (194eded).
-                    ? quantidadeComAtendimentoAberto(lista)
-                    : lista.size();
+            long esperado = "TODOS".equals(visao) ? contagemTodosAntes + 4 : lista.size();
             assertThat(contagensGestor.path(visao).asLong())
-                    .as("contagem de %s deve usar o mesmo recorte da lista", visao)
+                    .as("contagem de %s deve refletir o recorte da visao", visao)
                     .isEqualTo(esperado);
         }
     }
@@ -181,12 +181,6 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
                 .map(item -> item.path("atendimentoId").asText())
                 .toList();
-    }
-
-    private long quantidadeComAtendimentoAberto(JsonNode itens) {
-        return java.util.stream.StreamSupport.stream(itens.spliterator(), false)
-                .filter(item -> !item.path("atendimentoAtivoId").asText().isBlank())
-                .count();
     }
 
     private List<String> idsDeLead(JsonNode itens) {

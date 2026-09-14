@@ -62,6 +62,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     void listaEInboxOrdenamPelaExistenciaDeAtendimentoAbertoEAtravessamAFronteira() throws Exception {
         UUID ana = usuario(EMAIL_ANA);
         UUID canal = canal();
+        String token = tokenGestor();
+        long contagemTodosAntes = json.readTree(get(token, "/api/v1/atendimentos/contagem").getBody())
+                .path("TODOS")
+                .asLong();
 
         UUID leadAberto = lead("aberto", ana, "EM_ATENDIMENTO", null);
         UUID atendimentoAberto = atendimento(
@@ -96,7 +100,6 @@ class FinalizadosEReaberturaIT extends PostgresIT {
         mensagem(finalizado, "ATENDENTE", ana, "finalizado mais recente", Instant.parse("2026-08-30T10:01:00Z"));
 
         // Finalizados continuam acessíveis pela visão TODOS da gestão; atendente já não possui essa aba.
-        String token = tokenGestor();
         JsonNode lista = json.readTree(get(token, "/api/v1/atendimentos?visao=TODOS").getBody());
         List<String> leads = valores(lista, "leadId");
 
@@ -109,13 +112,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 .isEqualTo(ativoDoHistorico.toString());
 
         JsonNode contagem = json.readTree(get(token, "/api/v1/atendimentos/contagem").getBody());
-        // O badge TODOS conta somente leads com atendimento aberto; a lista inclui o historico
-        // finalizado para permitir a navegacao da gestao (194eded).
-        long leadsComAtendimentoAberto = java.util.stream.StreamSupport.stream(
-                        lista.spliterator(), false)
-                .filter(item -> !item.path("atendimentoAtivoId").asText().isBlank())
-                .count();
-        assertThat(contagem.path("TODOS").asLong()).isEqualTo(leadsComAtendimentoAberto);
+        // O badge TODOS e global; a listagem usada acima pode conter apenas uma janela do
+        // conjunto visivel. O teste mede o delta dos dois leads abertos criados aqui, sem
+        // confundir tamanho de pagina com contagem total (194eded).
+        assertThat(contagem.path("TODOS").asLong()).isEqualTo(contagemTodosAntes + 2);
 
         List<String> idsPaginados = percorrerInbox(token);
         assertThat(idsPaginados).doesNotHaveDuplicates();
