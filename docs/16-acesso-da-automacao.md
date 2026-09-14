@@ -96,9 +96,12 @@ Content-Type: application/json
 { "conteudo": "Mensagem da automação" }
 ```
 
-Para entregar a conversa a uma pessoa, informe somente um usuário ativo com
-papel `ATENDENTE` ou `SUBGESTOR`; gestor, administrador, IA e UUID inexistente
-são recusados:
+Quando o cliente pedir explicitamente uma pessoa, informe somente um usuário
+ativo com papel `ATENDENTE` ou `SUBGESTOR`; gestor, administrador, IA e UUID
+inexistente são recusados. Essa transferência pode reatribuir um atendimento
+`EM_IA` ou `EM_ATENDIMENTO` ainda aberto — inclusive trocando o responsável
+humano atual — e move a comissão para o novo dono a partir desse momento. Um
+atendimento `FINALIZADO` continua bloqueado:
 
 ```text
 POST /internal/v1/atendimentos/{atendimentoId}/transferir
@@ -111,7 +114,7 @@ Idempotency-Key: workflow-123-transferencia-1
 ```
 
 Para devolver ao robô, use `PATCH /internal/v1/atendimentos/{id}/modo-ia` com
-corpo `{}`. Para distribuição automática, use
+corpo `{}`. Para distribuição automática (rodízio), use
 `POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` sem corpo: o
 CRM escolhe o primeiro disponível conforme `ia.distribuicao.sequencial` em
 `configuracao_automacao`. Com `false` (padrão), usa menor quantidade de
@@ -123,7 +126,8 @@ quem já recebeu nos dois modos. Ao consultar
 recomendado; não reordene a lista no workflow. Para habilitar o rodízio sequencial
 em uma instância, a gestão altera a chave `ia.distribuicao.sequencial` para `true`
 no CRUD administrativo, sem deploy; a Estrutural permanece em `false` por padrão.
-Ambas as ações registram
+O rodízio permanece estrito a atendimentos `EM_IA`; ele nunca reembaralha uma
+conversa que já está com humano. Ambas as ações registram
 `AUTOMACAO` na timeline e auditoria, sem usuário técnico ou UUID fictício.
 
 Para encerrar um único atendimento, use `POST /internal/v1/atendimentos/{id}/finalizar` sem corpo.

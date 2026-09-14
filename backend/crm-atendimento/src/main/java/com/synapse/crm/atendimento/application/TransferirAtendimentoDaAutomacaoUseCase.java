@@ -54,6 +54,8 @@ public class TransferirAtendimentoDaAutomacaoUseCase {
     public Atendimento executar(UUID atendimentoId, UUID atendenteId) {
         destinos.ativoAtendente(atendenteId)
                 .orElseThrow(() -> new AtendenteDestinoInvalidoException(atendenteId));
-        return transferir.executarPelaAutomacao(atendimentoId, atendenteId);
+        // Destino explícito representa pedido do cliente e pode mover uma conversa humana aberta;
+        // o rodízio (método acima) continua estrito a atendimentos EM_IA.
+        return transferir.reatribuirPelaAutomacao(atendimentoId, atendenteId);
     }
 }

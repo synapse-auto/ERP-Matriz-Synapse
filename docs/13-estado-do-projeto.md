@@ -295,6 +295,17 @@ ordem que a Automação deve consumir. A recência combina `atendimento.iniciado
 transferência automática atualiza a posição do atendente. A Estrutural permanece no padrão
 `false`; a FMNA deve habilitar `true` somente pela configuração da própria instância.
 
+### E179 — reatribuição explícita pela Automação
+
+`POST /internal/v1/atendimentos/{id}/transferir` continua aceitando apenas um destino ativo com
+papel `ATENDENTE` ou `SUBGESTOR`, mas agora pode reatribuir um atendimento aberto em `EM_IA` ou
+`EM_ATENDIMENTO` quando o n8n recebeu um pedido explícito do cliente. O responsável anterior é
+substituído pelo destino e a comissão acompanha o novo dono; a timeline, a auditoria e o evento em
+tempo real identificam a origem como `AUTOMACAO`, sem fabricar usuário. O caminho
+`transferir-proximo-humano` permanece separado e estrito a `EM_IA`, para que o rodízio não
+reembaralhe conversas já assumidas por humanos. Atendimento `FINALIZADO` é estado terminal e
+responde `409` sem alterar responsável, lead ou eventos.
+
 ### Citações — prévia e navegação de mensagens citadas
 
 `CitacaoMensagemVisual` é o componente compartilhado por atendimentos Meta/Uzapi e pelo chat interno.

@@ -72,13 +72,13 @@ class TransferenciaAutomacaoInternalController {
 
     @Operation(
             summary = "Transferir para atendente",
-            description = "Transfere um atendimento da IA para o usuário ativo informado (papel ATENDENTE ou SUBGESTOR). Gestores, administradores e IA não são destinos aceitos.",
+            description = "Reatribui um atendimento aberto (EM_IA ou EM_ATENDIMENTO) ao usuário ativo informado (papel ATENDENTE ou SUBGESTOR), para atender a um pedido explícito do cliente. Gestores, administradores e IA não são destinos aceitos; atendimentos FINALIZADOS permanecem bloqueados.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
                 @ApiResponse(responseCode = "400", description = "Corpo ou Idempotency-Key inválido."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
-                @ApiResponse(responseCode = "409", description = "Atendimento não está sob responsabilidade da IA ou chave reutilizada."),
+                @ApiResponse(responseCode = "409", description = "Atendimento finalizado, chave reutilizada ou operação incompatível com o estado atual."),
                 @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE ou SUBGESTOR.")
             })
     @PostMapping("/{id}/transferir")
