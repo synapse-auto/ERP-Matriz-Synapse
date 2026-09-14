@@ -321,6 +321,11 @@ synapse:
   # no primeiro envio das 9h.
   # -------------------------------------------------------------------------
   atendimento:
+    # E177: o limiar de negócio vem de configuracao_automacao; estas opções só
+    # limitam a cadência e o tamanho de cada rodada do scheduler.
+    finalizar-inativos:
+      lote: ${ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE:50}
+      intervalo-ms: ${ATENDIMENTOS_FINALIZAR_INATIVOS_INTERVALO_MS:300000}
     historico:
       tamanho-pagina: ${HISTORICO_MENSAGENS_TAMANHO_PAGINA:50}
     particao:

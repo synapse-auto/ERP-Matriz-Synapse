@@ -108,4 +108,81 @@ class FinalizarAtendimentoUseCaseTest {
         verify(eventos).publishEvent(new EventoDeAtendimento.AtendimentoFinalizadoPelaAutomacao(
                 leadId, atendimentoId, AGORA));
     }
+
+    @Test
+    void automacaoSeInativo_finalizaQuandoUltimaMensagemEstaAntesDoCorte() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        SolicitacaoDeAvaliacao avaliacao = mock(SolicitacaoDeAvaliacao.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        Atendimento aberto = Atendimento.abrirComIa(
+                        atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(3600))
+                .transferirPara(UUID.randomUUID());
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.ultimaMensagemEm(atendimentoId)).thenReturn(Optional.of(AGORA.minusSeconds(3600)));
+        when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
+
+        Atendimento finalizado = new FinalizarAtendimentoUseCase(
+                        atendimentos, leads, eventos, RELOGIO, avaliacao)
+                .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(1800))
+                .orElseThrow();
+
+        assertThat(finalizado.status()).isEqualTo(StatusAtendimento.FINALIZADO);
+        verify(leads).marcarStatus(leadId, StatusBasicoLead.FINALIZADO);
+    }
+
+    @Test
+    void automacaoSeInativo_ignoraAtendimentoComInteracaoRecente() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        SolicitacaoDeAvaliacao avaliacao = mock(SolicitacaoDeAvaliacao.class);
+        Atendimento aberto = Atendimento.abrirComIa(
+                        atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(3600))
+                .transferirPara(UUID.randomUUID());
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.ultimaMensagemEm(atendimentoId)).thenReturn(Optional.of(AGORA.minusSeconds(10)));
+
+        var resultado = new FinalizarAtendimentoUseCase(
+                        atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO, avaliacao)
+                .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(1800));
+
+        assertThat(resultado).isEmpty();
+        verify(atendimentos, never()).salvar(any());
+        verify(leads, never()).marcarStatus(any(), any());
+    }
+
+    @Test
+    void automacaoSeInativo_naoFinalizaAtendimentoQueJaEstaNaIa() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Atendimento naIa = Atendimento.abrirComIa(
+                atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(7200));
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(naIa));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(naIa));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+
+        var resultado = new FinalizarAtendimentoUseCase(
+                        atendimentos,
+                        leads,
+                        mock(ApplicationEventPublisher.class),
+                        RELOGIO,
+                        mock(SolicitacaoDeAvaliacao.class))
+                .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(3600));
+
+        assertThat(resultado).isEmpty();
+        verify(atendimentos, never()).ultimaMensagemEm(any());
+        verify(atendimentos, never()).salvar(any());
+        verify(leads, never()).marcarStatus(any(), any());
+    }
 }
