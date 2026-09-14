@@ -26,20 +26,20 @@ precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real 
 Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
 operacional do provedor.
 
-### 11/09/2026 — Rotas atuais da Uzapi/Autotic (correção do incidente de mídia)
+### 14/09/2026 — Retrieve Media URL oficial da Uzapi/Autotic
 
-O adaptador usa as rotas publicadas no Swagger oficial: `/{version}/{phone_number_id}/instance`,
-`/{version}/{phone_number_id}/messages`, `/{version}/{phone_number_id}/media` e
-`/{version}/{phone_number_id}/{mediaId}` para resolver mídia recebida na conta funcional da Fêmina.
-O Swagger público diverge nesse último path e lista `/{version}/{mediaId}`; a conta em produção
-responde `Username parameter is missing` sem o identificador do número e alcança o resolvedor com
-`/{version}/{phone_number_id}/{mediaId}`. A versão atual não possui o segmento `{username}`.
-`WHATSAPP_USUARIO_API` é mantida apenas como variável legada e não é lida para montar URLs nem para
-validar credenciais; `WHATSAPP_VERSAO_API` continua fornecendo `{version}`.
+Após a confirmação do suporte Uzapi/Autotic na sexta-feira (11/09/2026), o adaptador usa o
+resolvedor oficial `GET /{version}/{mediaId}` para áudio, imagem, vídeo e documento. As rotas de
+instância, upload e envio continuam `/{version}/{phone_number_id}/...`; o número não é enviado ao
+resolvedor. Nenhuma rota usa o segmento `{username}`. `WHATSAPP_USUARIO_API` é mantida apenas como
+variável legada e não é lida para montar URLs nem para validar credenciais; `WHATSAPP_VERSAO_API`
+continua fornecendo `{version}`.
 
-Falhas HTTP do resolvedor (400, 404 e 5xx) são indisponibilidades retentáveis: o webhook permanece
-durável e recebe backoff em `proxima_tentativa_em`, sem guardar corpo de resposta, token ou URL
-temporária.
+O workaround anterior `GET /{version}/{phone_number_id}/{mediaId}` fica somente como registro do
+incidente de 11/09 e não deve voltar ao código. Falhas 400/404/5xx do resolvedor continuam sendo
+indisponibilidades retentáveis: o webhook permanece durável e recebe backoff em
+`proxima_tentativa_em`, sem guardar corpo de resposta, token ou URL temporária.
+
 
 ### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
 

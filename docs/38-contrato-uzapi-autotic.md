@@ -25,13 +25,14 @@ atual usa somente a versão e o identificador do número nas rotas de negócio:
 {baseUrl}/{version}/{phone_number_id}/...
 ```
 
-O endpoint de resolução de mídia usa também o identificador do número: `/{version}/{phone_number_id}/{mediaId}`.
-Esta é uma divergência confirmada entre o Swagger público e a conta Uzapi/Autotic em produção: o
-Swagger lista `/{version}/{mediaId}`, mas a conta que atende a Fêmina responde `400 Username parameter
-is missing` nessa rota e alcança o resolvedor somente com `/{version}/{phone_number_id}/{mediaId}`.
-`WHATSAPP_USUARIO_API` permanece como variável legada da investigação E152, com default vazio, para
-não quebrar ambientes que ainda a declaram. A versão funcional **não usa username**: esse campo não
-participa da autenticação, da validação de credencial ou da montagem de URL.
+O endpoint oficial de resolução de mídia é `GET /{version}/{mediaId}`. O suporte Uzapi/Autotic
+confirmou na sexta-feira (11/09/2026) a correção do recurso **Retrieve Media URL**; a implementação
+deve usar esse path para áudio, imagem, vídeo e documento, sem `username` nem
+`phone_number_id`. O identificador do número continua obrigatório somente nas demais rotas de
+negócio (`/{version}/{phone_number_id}/...`). `WHATSAPP_USUARIO_API` permanece como variável legada
+da investigação E152, com default vazio, para não quebrar ambientes que ainda a declaram. A versão
+funcional **não usa username**: esse campo não participa da autenticação, da validação de credencial
+ou da montagem de URL.
 
 ## 2. Saúde da instância
 
@@ -184,8 +185,9 @@ interativas e localização, e mantém os identificadores no vocabulário do CRM
 comparado em tempo constante; sem segredo configurado o webhook é recusado.
 
 Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId` em
-`GET /{version}/{phone_number_id}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor
-dedicado. O `phone_number_id` é `WHATSAPP_NUMERO`; nenhuma rota usa `WHATSAPP_USUARIO_API`.
+`GET /{version}/{mediaId}` e baixa os bytes da URL retornada usando o disjuntor dedicado. O
+`phone_number_id` (`WHATSAPP_NUMERO`) não participa desta rota; nenhuma rota usa
+`WHATSAPP_USUARIO_API`.
 Localização não chama o downloader e é persistida em metadados estruturados.
 
 Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
@@ -193,27 +195,29 @@ identificador técnico da mídia e devolve uma indisponibilidade retentável. O 
 payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o
 prazo absoluto; o corpo da resposta do provedor nunca vai para `ultimo_erro`.
 
-### Registro operacional — mídia indisponível na Fêmina (11/09/2026)
+### Registro histórico — mídia indisponível na Fêmina (11/09/2026)
 
-A imagem contendo esta rota foi publicada na Fêmina (`33371ef`). Um teste posterior com **imagem e
-vídeo novos** confirmou que o CRM recebeu os webhooks e que o
+A imagem contendo a rota alternativa com `phone_number_id` foi publicada na Fêmina (`33371ef`). Um
+teste posterior com **imagem e vídeo novos** confirmou que o CRM recebeu os webhooks e que o
 `metadata.phone_number_id` deles era exatamente o mesmo valor de `WHATSAPP_NUMERO`. Mesmo assim, a
-consulta `GET /{version}/{phone_number_id}/{mediaId}` retornou HTTP 404 com a semântica
-`Arquivo {mediaId} não encontrado` para ambos os tipos.
+consulta alternativa retornou HTTP 404 com a semântica `Arquivo {mediaId} não encontrado` para
+ambos os tipos. Essa evidência fica registrada apenas como histórico do incidente; ela não define o
+contrato atual, que voltou ao resolvedor oficial sem o número depois da confirmação do suporte.
 
 Isso separa três falhas que não devem voltar a ser tratadas como uma só:
 
 | Evidência | Diagnóstico | Próxima ação |
 | --- | --- | --- |
-| HTTP 400 `Username parameter is missing` | imagem antiga ou rota de resolução incorreta | confirmar imagem publicada e a rota com `phone_number_id` |
-| HTTP 404 `Arquivo {mediaId} não encontrado`, com `phone_number_id` do webhook igual ao configurado | a Uzapi entregou a referência no webhook, mas não disponibilizou os bytes no resolvedor | manter o retry durável e escalar à Uzapi com IDs técnicos e horário |
+| HTTP 400 `Username parameter is missing` | container ainda usa uma imagem/rota legada | conferir a imagem publicada e o path oficial `/{version}/{mediaId}` |
+| HTTP 404 `Arquivo {mediaId} não encontrado` no path oficial | a Uzapi entregou a referência no webhook, mas não disponibilizou os bytes no resolvedor | manter o retry durável e escalar à Uzapi com IDs técnicos e horário |
 | resposta de resolução válida, seguida de erro S3/MinIO | os bytes chegaram ao CRM; falha é no storage | seguir o runbook de MinIO, separadamente |
 
-O HTTP 404 observado não é falha de token, MinIO, frontend, webhook perdido nem divergência do
+O HTTP 404 histórico não é falha de token, MinIO, frontend, webhook perdido nem divergência do
 `phone_number_id`. Não existe fallback seguro no CRM quando o provedor não fornece URL nem bytes.
-Não fazer rollback para a rota sem o número: ela somente reintroduz o HTTP 400. Também não
-reprocessar eventos esgotados enquanto uma mídia **nova** não for resolvida com sucesso; o backoff
-existente permite a recuperação automática se a Uzapi tornar o arquivo disponível dentro do prazo.
+Não voltar à rota com `phone_number_id`: ela foi um workaround da conta antiga e não é o contrato
+oficial corrigido. Também não reprocessar eventos esgotados enquanto uma mídia **nova** não for
+resolvida com sucesso; o backoff existente permite a recuperação automática se a Uzapi tornar o
+arquivo disponível dentro do prazo.
 
 ### 8.0 Registro do callback
 

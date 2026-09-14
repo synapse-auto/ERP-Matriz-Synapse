@@ -240,13 +240,16 @@ Não execute este procedimento automaticamente: ele traz conversas antigas para 
 
 ### 4.8.1 — Incidente de mídia Uzapi/Autotic: referência recebida, arquivo indisponível
 
-O contrato funcional da Fêmina não usa `username` na resolução de mídia. A imagem `33371ef` foi
-publicada em 11/09/2026 com a rota correta:
+O suporte Uzapi/Autotic confirmou na sexta-feira (11/09/2026) a correção do endpoint oficial
+**Retrieve Media URL**. A rota funcional atual para qualquer mídia recebida é:
 
 ```text
-GET /{version}/{phone_number_id}/{mediaId}
+GET /{version}/{mediaId}
 Authorization: Bearer <token>
 ```
+
+Não inclua `username` nem `phone_number_id` nessa chamada. O `phone_number_id` continua nas rotas
+de instância, upload e envio de mensagens.
 
 Configuração necessária na instância:
 
@@ -281,8 +284,8 @@ WHATSAPP_TOKEN=<token>
 
    | Log | Significado | Ação |
    | --- | --- | --- |
-   | `Username parameter is missing` | container ainda usa rota antiga ou imagem não foi recriada | conferir a imagem e promover `33371ef` ou posterior |
-   | `resolvedor de midia uzapi-autotic respondeu HTTP 404` | a Uzapi aceitou a rota, mas não encontrou bytes para um `mediaId` recebido agora | não alterar MinIO, token ou rota; manter backoff e acionar a Uzapi |
+   | `Username parameter is missing` | container ainda usa rota/cliente legado ou imagem não foi recriada | conferir a imagem e promover a versão que chama `/{version}/{mediaId}` |
+   | `resolvedor de midia uzapi-autotic respondeu HTTP 404` | a Uzapi aceitou o path oficial, mas não encontrou bytes para um `mediaId` recebido agora | não alterar MinIO, token ou rota; manter backoff e acionar a Uzapi |
    | erro S3/MinIO depois de URL/bytes resolvidos | a falha é de storage, fora da Uzapi | usar o runbook específico de MinIO |
    | sem erro e mídia aparece na conversa | fluxo normal | repetir para PDF, áudio e vídeo |
 
@@ -299,7 +302,8 @@ no MinIO um arquivo que a Uzapi não disponibiliza.
   mudança na instância desde 08/09/2026.
 - O backoff durável mantém o evento em `webhook_entrada`; se a Uzapi disponibilizar o arquivo dentro
   do prazo, o CRM o recupera sem ação manual.
-- Não fazer rollback para a rota sem `phone_number_id`: ela falha antes da busca com HTTP 400.
+- Não adicionar `phone_number_id` ou `username` como fallback: o endpoint corrigido é exclusivamente
+  `/{version}/{mediaId}`.
 - Não reprocessar automaticamente linhas esgotadas. Depois da confirmação de uma mídia nova
   resolvida, medir os eventos esgotados e aprovar IDs específicos antes de qualquer reprocessamento.
 
@@ -322,12 +326,10 @@ ORDER BY recebido_em DESC;
 Esse número não foi medido neste checkout: não há acesso à base de produção. A ausência de resultado
 local não significa que os eventos não existam na Fêmina.
 
-O Swagger público da Uzapi lista `GET /{version}/{mediaId}`, mas a conta funcional da Fêmina foi
-testada sem expor o token e só alcançou o resolvedor em `GET /{version}/{phone_number_id}/{mediaId}`.
-Os testes observados foram: sem `phone_number_id`, HTTP 400 `Username parameter is missing`; com o
-identificador do número, HTTP 404 `Arquivo ... não encontrado` para a mídia antiga — evidência de
-que a rota é válida, não de que o arquivo solicitado esteja disponível. A aplicação usa sempre a
-rota com `WHATSAPP_NUMERO` e não usa `WHATSAPP_USUARIO_API`.
+O Swagger público e a confirmação do suporte agora convergem em `GET /{version}/{mediaId}`. Os
+testes históricos da conta que retornavam HTTP 400 `Username parameter is missing` sem o número e
+HTTP 404 `Arquivo ... não encontrado` com o número pertencem ao incidente anterior; não use a rota
+alternativa. A aplicação usa o path oficial e não usa `WHATSAPP_USUARIO_API`.
 
 O processador agora grava `proxima_tentativa_em` e retenta falhas do resolvedor com backoff durável
 (5s, dobrando até 30min por padrão). HTTP 400/404/5xx não é convertido em erro de credencial e o
