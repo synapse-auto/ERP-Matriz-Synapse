@@ -171,7 +171,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_CONTAR_POTENCIAIS = contar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
-    private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
+    /**
+     * O badge de "Todos" conta so leads com atendimento aberto (EM_ATENDIMENTO/EM_IA) — o mesmo
+     * criterio de "finalizado" do balcao de reativacao (E136: {@link #WHERE_SEM_ATENDIMENTO_ABERTO}),
+     * so que invertido. A listagem de TODOS continua sem filtro: ela mostra o historico completo por
+     * lead, so o numero ao lado do nome da aba nao pode incluir quem ja foi encerrado.
+     */
+    private static final String WHERE_TODOS_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento aberto"
+            + " WHERE aberto.lead_id = a.lead_id"
+            + " AND aberto.status IN ('EM_ATENDIMENTO', 'EM_IA'))";
+
+    private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM + WHERE_TODOS_ATIVOS);
 
     private static final String SQL_CONTAR_FINALIZADOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 

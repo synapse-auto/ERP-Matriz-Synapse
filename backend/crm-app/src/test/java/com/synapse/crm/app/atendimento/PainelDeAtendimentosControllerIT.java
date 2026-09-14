@@ -236,7 +236,16 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                         "/api/v1/atendimentos/contagem",
                         String.class)
                 .getBody();
-        assertThat(json.readTree(contagemJson).path("TODOS").asLong()).isEqualTo(lista.size());
+        // O badge de TODOS conta so leads com atendimento aberto — nao o tamanho bruto da
+        // listagem, que mostra todo o historico (leads ja finalizados inclusive, E136/prompt#2).
+        long cartoesComAtendimentoAberto = 0;
+        for (JsonNode cartao : lista) {
+            if (!cartao.path("atendimentoAtivoId").isNull()) {
+                cartoesComAtendimentoAberto++;
+            }
+        }
+        assertThat(json.readTree(contagemJson).path("TODOS").asLong())
+                .isEqualTo(cartoesComAtendimentoAberto);
     }
 
     @Nested
@@ -424,10 +433,35 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                     EMAIL_ANA,
                     SENHA_ATENDENTE,
                     List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "FINALIZADOS"));
+            // TODOS fica de fora daqui: a listagem mostra o historico completo por lead, mas o
+            // badge conta so quem tem atendimento aberto (ver teste dedicado abaixo).
             assertContagemBateComListagem(
                     EMAIL_GESTOR,
                     SENHA_GESTOR,
-                    List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS", "FINALIZADOS"));
+                    List.of("ATIVOS", "PENDENTES", "POTENCIAIS", "FINALIZADOS"));
+        }
+
+        @Test
+        @DisplayName("TODOS: o badge conta so leads com atendimento aberto, nao o historico inteiro")
+        void todos_badgeContaSoAtendimentoAberto() throws Exception {
+            String sufixo = UUID.randomUUID().toString().substring(0, 8);
+            UUID leadSoFinalizado = criarLead("so finalizado " + sufixo, idAna, "FINALIZADO");
+            criarAtendimento(leadSoFinalizado, idAna, "FINALIZADO");
+
+            long contagemTodos = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
+            String listagem = listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS");
+
+            assertThat(listagem).contains(leadSoFinalizado.toString());
+            long cartoesComAtendimentoAberto = 0;
+            for (JsonNode cartao : json.readTree(listagem)) {
+                if (!cartao.path("atendimentoAtivoId").isNull()) {
+                    cartoesComAtendimentoAberto++;
+                }
+            }
+            assertThat(contagemTodos)
+                    .as("badge TODOS nao pode contar o lead so-finalizado que a listagem mostra")
+                    .isEqualTo(cartoesComAtendimentoAberto)
+                    .isLessThan(quantidadeDeCartoes(listagem));
         }
 
         @Test
