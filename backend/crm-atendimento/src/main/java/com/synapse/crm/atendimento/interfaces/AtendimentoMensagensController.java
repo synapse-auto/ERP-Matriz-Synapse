@@ -131,7 +131,7 @@ class AtendimentoMensagensController {
 
     @Operation(
             summary = "Marcar conversa como lida",
-            description = "Avança a leitura somente quando o usuário autenticado é o responsável atual; a consulta de um gestor é um no-op.",
+            description = "Avança a leitura do usuário autenticado para o atendimento visível; o registro é por usuário e não depende do responsável.",
             responses = @ApiResponse(responseCode = "204", description = "Abertura processada sem expor a propriedade do atendimento."))
     @PostMapping("/{id}/leitura")
     @ResponseStatus(HttpStatus.NO_CONTENT)

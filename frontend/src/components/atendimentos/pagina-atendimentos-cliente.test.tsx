@@ -32,6 +32,10 @@ const reenviarMidia = vi.hoisted(() => vi.fn());
 const obterCartao = vi.hoisted(() => vi.fn());
 const backendEstado = vi.hoisted(() => ({ versao: 1 }));
 const revalidacoes = vi.hoisted(() => [] as boolean[]);
+const leitura = vi.hoisted(() => ({
+  pendente: false,
+  resolver: undefined as (() => void) | undefined,
+}));
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -362,7 +366,12 @@ vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
   useEnviarMidia: () => ({ mutateAsync: reenviarMidia, isPending: false }),
 }));
 vi.mock("@/lib/atendimento/api", () => ({
-  marcarAtendimentoComoLido: vi.fn(() => Promise.resolve()),
+  marcarAtendimentoComoLido: vi.fn(() => {
+    if (!leitura.pendente) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      leitura.resolver = resolve;
+    });
+  }),
   iniciarNovoContato: iniciarNovo,
   abrirAtendimentoParaLead: abrirExistente,
   obterEstadoAtendimento: (...args: [string]) =>
@@ -478,6 +487,8 @@ describe("PaginaAtendimentosCliente", () => {
     callbacks.novoContato = undefined;
     stomp.clientes.length = 0;
     stomp.conectarAoAtivar = true;
+    leitura.pendente = false;
+    leitura.resolver = undefined;
     revalidacoes.length = 0;
     backendEstado.versao = 1;
     telaEstreita.atual = false;
@@ -503,6 +514,64 @@ describe("PaginaAtendimentosCliente", () => {
       mensagemId: null,
       leadCriado: false,
     });
+  });
+
+  it("preserva o badge zerado enquanto a leitura está em voo", async () => {
+    const pagina = renderPagina();
+    pagina.queryClient.setQueryData<ItemInbox[]>(["atendimentos"], [
+      { ...cartaoInicial, naoLidas: 4 },
+    ]);
+    const invalidar = vi.spyOn(pagina.queryClient, "invalidateQueries");
+    leitura.pendente = true;
+
+    act(() => callbacks.abrir?.({ ...cartaoInicial, naoLidas: 4 }));
+    expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(0);
+
+    act(() => emitirNotificacao({
+      tipo: "NOVA_MENSAGEM",
+      dados: {
+        atendimentoId: "atendimento-2",
+        leadId: "lead-2",
+        leadNome: "Outro lead",
+        mensagemId: "mensagem-2",
+        remetenteTipo: "LEAD",
+        remetenteId: "lead-2",
+        tipo: "TEXTO",
+        conteudo: "Nova mensagem",
+        midiaMetadados: null,
+        enviadoEm: "2026-09-15T14:00:00Z",
+      },
+    }));
+    // O canal amplo nao inicia um GET enquanto o POST de leitura esta pendente, eliminando a
+    // possibilidade de o retorno stale reintroduzir o contador antigo.
+    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+    expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(0);
+
+    act(() => leitura.resolver?.());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] }));
+  });
+
+  it("continua invalidando a lista para mensagem nova de conversa fechada", () => {
+    const pagina = renderPagina();
+    const invalidar = vi.spyOn(pagina.queryClient, "invalidateQueries");
+
+    act(() => emitirNotificacao({
+      tipo: "NOVA_MENSAGEM",
+      dados: {
+        atendimentoId: "atendimento-2",
+        leadId: "lead-2",
+        leadNome: "Outro lead",
+        mensagemId: "mensagem-2",
+        remetenteTipo: "LEAD",
+        remetenteId: "lead-2",
+        tipo: "TEXTO",
+        conteudo: "Nova mensagem",
+        midiaMetadados: null,
+        enviadoEm: "2026-09-15T14:00:00Z",
+      },
+    }));
+
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
   });
 
   it("mantém o snapshot até o evento canônico e então reconcilia cabeçalho e painel", async () => {
