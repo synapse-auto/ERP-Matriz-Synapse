@@ -134,7 +134,9 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         assertThat(contagensGestor.has("TODOS")).isTrue();
         for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
             JsonNode lista = listar(tokenGestor, visao);
-            long esperado = "TODOS".equals(visao) ? contagemTodosAntes + 4 : lista.size();
+            // TODOS inclui um cartão por lead, inclusive o lead cujo único atendimento já foi
+            // finalizado; as demais visões continuam comparadas diretamente com a lista.
+            long esperado = "TODOS".equals(visao) ? contagemTodosAntes + 5 : lista.size();
             assertThat(contagensGestor.path(visao).asLong())
                     .as("contagem de %s deve refletir o recorte da visao", visao)
                     .isEqualTo(esperado);

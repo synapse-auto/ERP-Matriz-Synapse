@@ -112,10 +112,10 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 .isEqualTo(ativoDoHistorico.toString());
 
         JsonNode contagem = json.readTree(get(token, "/api/v1/atendimentos/contagem").getBody());
-        // O badge TODOS e global; a listagem usada acima pode conter apenas uma janela do
-        // conjunto visivel. O teste mede o delta dos dois leads abertos criados aqui, sem
-        // confundir tamanho de pagina com contagem total (194eded).
-        assertThat(contagem.path("TODOS").asLong()).isEqualTo(contagemTodosAntes + 2);
+        // O badge TODOS e global e acompanha a listagem sem filtro: cada lead criado nesta
+        // fixture, inclusive o que so tem historico finalizado, acrescenta um cartao (PR #156).
+        // Medir o delta evita depender de dados compartilhados por outros testes.
+        assertThat(contagem.path("TODOS").asLong()).isEqualTo(contagemTodosAntes + 3);
 
         List<String> idsPaginados = percorrerInbox(token);
         assertThat(idsPaginados).doesNotHaveDuplicates();
