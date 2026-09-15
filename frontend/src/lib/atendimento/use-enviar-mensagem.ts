@@ -15,7 +15,7 @@ interface VariaveisEnvio {
   atendimentoId: string;
   leadId: string;
   conteudo: string;
-  template?: { nome: string; idioma: string; parametros: string[] };
+  template?: { nome: string; idioma: string; parametros: string[]; corpoRenderizado?: string };
   resposta?: { mensagemId: string; enviadoEm: string };
   citacao?: MensagemResposta["citacao"];
   idempotencyKey?: string;
@@ -76,6 +76,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
               variaveis.template.idioma,
               variaveis.template.parametros,
               variaveis.idempotencyKey,
+              variaveis.template.corpoRenderizado,
             )
           : await enviarMensagem(
               variaveis.atendimentoId,

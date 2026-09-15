@@ -64,8 +64,8 @@ vi.mock("@/lib/atendimento/api", () => ({
         idioma: "pt_BR",
         categoria: "UTILIDADE",
         status: "APROVADO",
-        corpo: "Olá, bem-vindo",
-        quantidadeDeParametros: 0,
+        corpo: "Olá, {{1}}",
+        quantidadeDeParametros: 1,
       },
     ]),
 }));
@@ -416,16 +416,21 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("heading", { name: "Enviar template" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Templates" })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByText("boas_vindas"));
+    fireEvent.change(await screen.findByLabelText("Mensagem — variável 1"), {
+      target: { value: "Maria" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Enviar este template" }));
 
     expect(mutateTexto).toHaveBeenCalledWith(
       expect.objectContaining({
         atendimentoId: "at-1",
         leadId: "lead-1",
+        conteudo: "Olá, Maria",
         template: {
           nome: "boas_vindas",
           idioma: "pt_BR",
-          parametros: [],
+          parametros: ["Maria"],
+          corpoRenderizado: "Olá, Maria",
         },
       }),
     );

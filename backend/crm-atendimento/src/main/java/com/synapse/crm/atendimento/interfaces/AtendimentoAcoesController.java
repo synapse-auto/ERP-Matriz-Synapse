@@ -222,7 +222,7 @@ class AtendimentoAcoesController {
             @Valid @RequestBody EnviarTemplateRequisicao requisicao,
             @RequestHeader(name = "Idempotency-Key", required = false) String chaveIdempotencia) {
         ConteudoDeEnvio.MensagemTemplate conteudo = new ConteudoDeEnvio.MensagemTemplate(
-                requisicao.nome(), requisicao.idioma(), requisicao.parametros());
+                requisicao.nome(), requisicao.idioma(), requisicao.parametros(), requisicao.corpoRenderizado());
         EnviarMensagemUseCase.Resultado resultado = requisicao.atendimentoId() == null
                 ? enviar.executar(requisicao.leadId(), conteudo, chaveIdempotencia)
                 : enviar.executar(
@@ -624,11 +624,11 @@ class AtendimentoAcoesController {
                     template == null
                             ? null
                             : new IniciarNovoContatoUseCase.Pedido.Template(
-                                    template.nome(), template.idioma(), template.parametros()));
+                                    template.nome(), template.idioma(), template.parametros(), template.corpoRenderizado()));
         }
     }
 
-    record TemplateNovoContatoRequisicao(String nome, String idioma, List<String> parametros) {
+    record TemplateNovoContatoRequisicao(String nome, String idioma, List<String> parametros, String corpoRenderizado) {
         TemplateNovoContatoRequisicao {
             parametros = parametros == null ? List.of() : List.copyOf(parametros);
         }
@@ -670,7 +670,8 @@ class AtendimentoAcoesController {
             UUID atendimentoId,
             @NotBlank String nome,
             @NotBlank String idioma,
-            List<String> parametros) {
+            List<String> parametros,
+            String corpoRenderizado) {
         EnviarTemplateRequisicao {
             parametros = parametros == null ? List.of() : List.copyOf(parametros);
         }

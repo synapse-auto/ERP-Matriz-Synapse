@@ -193,11 +193,12 @@ export function enviarTemplate(
   idioma: string,
   parametros: string[] = [],
   idempotencyKey?: string,
+  corpoRenderizado?: string,
 ): Promise<EnvioResposta> {
   return apiFetch<EnvioResposta>("/api/v1/atendimentos/mensagens/template", {
     method: "POST",
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
-    body: JSON.stringify({ atendimentoId, leadId, nome, idioma, parametros }),
+    body: JSON.stringify({ atendimentoId, leadId, nome, idioma, parametros, corpoRenderizado }),
   });
 }
 

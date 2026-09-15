@@ -145,6 +145,31 @@ class TemplateManualOutboxIT extends PostgresIT {
                 .isOne();
     }
 
+    @Test
+    @DisplayName("corpo renderizado do template fica no histórico sem o marcador técnico")
+    void corpoRenderizadoDoTemplate_ePersistidoNoHistorico() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        String nome = PREFIXO + UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO lead (id, nome, status_basico, ultima_interacao_em) VALUES (?, ?, 'IA', now())",
+                leadId,
+                nome);
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, status, iniciado_em) VALUES (?, ?, 'EM_IA', now())",
+                atendimentoId,
+                leadId);
+
+        var resposta = enviarTemplateComCorpoRenderizado(leadId, "Olá Maria, seja bem-vinda!");
+
+        assertThat(resposta.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(jdbc.queryForObject(
+                        "SELECT conteudo FROM mensagem WHERE atendimento_id = ?",
+                        String.class,
+                        atendimentoId))
+                .isEqualTo("Olá Maria, seja bem-vinda!");
+    }
+
     private org.springframework.http.ResponseEntity<String> enviarTemplate(UUID leadId) {
         return enviarTemplate(leadId, null);
     }
@@ -166,6 +191,26 @@ class TemplateManualOutboxIT extends PostgresIT {
                                 "nome", "reativacao",
                                 "idioma", "pt_BR",
                                 "parametros", List.of("Cliente")),
+                        cabecalhos),
+                String.class);
+    }
+
+    private org.springframework.http.ResponseEntity<String> enviarTemplateComCorpoRenderizado(
+            UUID leadId, String corpoRenderizado) {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        return http.exchange(
+                "/api/v1/atendimentos/mensagens/template",
+                HttpMethod.POST,
+                new HttpEntity<>(
+                        Map.of(
+                                "leadId", leadId.toString(),
+                                "nome", "reativacao",
+                                "idioma", "pt_BR",
+                                "parametros", List.of("Maria"),
+                                "corpoRenderizado", corpoRenderizado),
                         cabecalhos),
                 String.class);
     }

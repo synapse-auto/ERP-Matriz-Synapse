@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import type { TemplateWhatsApp } from "@/lib/atendimento/types";
+import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-template";
 import type { PedidoDeNovoContato } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -119,6 +120,10 @@ function FormularioNovoContato({
               nome: templateSelecionado.nome,
               idioma: templateSelecionado.idioma,
               parametros: valoresDoTemplate ?? [],
+              corpoRenderizado: interpolarCorpoDoTemplate(
+                templateSelecionado.corpo,
+                valoresDoTemplate ?? [],
+              ),
             },
           }
         : !exigeTemplate && mensagem

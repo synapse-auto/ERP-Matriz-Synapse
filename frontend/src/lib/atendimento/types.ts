@@ -198,6 +198,7 @@ export interface PedidoDeNovoContato {
     nome: string;
     idioma: string;
     parametros: string[];
+    corpoRenderizado?: string;
   };
 }
 
