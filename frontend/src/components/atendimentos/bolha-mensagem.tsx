@@ -118,10 +118,15 @@ export function BolhaMensagem({
   const midiaUrl = urlSegura(mensagem.midiaUrl);
   const itemDoVisualizador = itemDaBolha(leadId, mensagem, metadados);
   const podeAbrir = Boolean(itemDoVisualizador);
-  const hora = new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", {
+  const data = new Date(mensagem.enviadoEm);
+  const dataHora = `${data.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })} ${data.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
-  });
+  })}`;
 
   return (
     <>
@@ -333,7 +338,7 @@ export function BolhaMensagem({
               : "text-muted-foreground",
           )}
         >
-          <span>{hora}</span>
+          <span>{dataHora}</span>
           {doAtendente && (
             <StatusEntregaIcone
               status={mensagem.statusEntrega}
