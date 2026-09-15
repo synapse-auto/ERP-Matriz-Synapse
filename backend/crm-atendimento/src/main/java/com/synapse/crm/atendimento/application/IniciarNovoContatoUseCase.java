@@ -166,7 +166,7 @@ public class IniciarNovoContatoUseCase {
         }
         if (temTemplate) {
             ConteudoDeEnvio conteudo = new ConteudoDeEnvio.MensagemTemplate(
-                    modelo.nome().trim(), modelo.idioma().trim(), modelo.parametros());
+                    modelo.nome().trim(), modelo.idioma().trim(), modelo.parametros(), modelo.corpoRenderizado());
             EnviarMensagemUseCase.Resultado envio = chaveIdempotencia == null
                     ? enviar.executar(leadId, conteudo)
                     : enviar.executar(leadId, conteudo, chaveIdempotencia);
@@ -275,9 +275,14 @@ public class IniciarNovoContatoUseCase {
     }
 
     public record Pedido(String nome, String telefone, String primeiraMensagem, Template template) {
-        public record Template(String nome, String idioma, List<String> parametros) {
+        public record Template(String nome, String idioma, List<String> parametros, String corpoRenderizado) {
             public Template {
                 parametros = parametros == null ? List.of() : List.copyOf(parametros);
+            }
+
+            /** Compatibilidade para automações e clientes antigos sem corpo renderizado. */
+            public Template(String nome, String idioma, List<String> parametros) {
+                this(nome, idioma, parametros, null);
             }
         }
     }

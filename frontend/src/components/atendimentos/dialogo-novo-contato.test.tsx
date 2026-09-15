@@ -203,7 +203,12 @@ describe("DialogoNovoContato", () => {
     expect(confirmar).toHaveBeenCalledWith({
       nome: "Maria",
       telefone: "(83) 99999-8888",
-      template: { nome: "boas_vindas", idioma: "pt_BR", parametros: [] },
+      template: {
+        nome: "boas_vindas",
+        idioma: "pt_BR",
+        parametros: [],
+        corpoRenderizado: "Olá!",
+      },
     });
   });
 

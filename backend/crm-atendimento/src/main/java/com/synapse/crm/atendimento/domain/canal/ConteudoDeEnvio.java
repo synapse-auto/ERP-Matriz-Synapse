@@ -40,14 +40,23 @@ public sealed interface ConteudoDeEnvio {
      * <p>Nao e string arbitraria: tem nome, idioma e parametros <b>posicionais</b>. Os parametros
      * entram na ordem em que o template os declara — trocar a ordem troca o significado da mensagem
      * que o cliente le, sem erro nenhum em lugar nenhum.
+     *
+     * <p>Quando a interface ja interpolou o corpo, {@code corpoRenderizado} e usado no historico
+     * para que a bolha mostre o texto efetivamente enviado. Integracoes antigas podem omiti-lo e
+     * continuam usando o marcador tecnico como fallback.
      */
-    record MensagemTemplate(String nome, String idioma, List<String> parametros)
+    record MensagemTemplate(String nome, String idioma, List<String> parametros, String corpoRenderizado)
             implements ConteudoDeEnvio {
 
         public MensagemTemplate {
             Objects.requireNonNull(nome, "template exige nome aprovado");
             Objects.requireNonNull(idioma, "template exige idioma");
             parametros = parametros == null ? List.of() : List.copyOf(parametros);
+        }
+
+        /** Compatibilidade com automações e integrações que ainda não enviam o corpo renderizado. */
+        public MensagemTemplate(String nome, String idioma, List<String> parametros) {
+            this(nome, idioma, parametros, null);
         }
 
         public static MensagemTemplate de(String nome, String idioma, String... parametros) {
@@ -82,9 +91,10 @@ public sealed interface ConteudoDeEnvio {
     default String paraHistorico() {
         return switch (this) {
             case MensagemLivre livre -> livre.texto();
-            // O texto renderizado quem tem e a Meta; o CRM guarda o que foi pedido.
             case MensagemTemplate template ->
-                "[template " + template.nome() + "] " + String.join(" | ", template.parametros());
+                template.corpoRenderizado() != null && !template.corpoRenderizado().isBlank()
+                        ? template.corpoRenderizado()
+                        : "[template " + template.nome() + "] " + String.join(" | ", template.parametros());
             case MensagemMidia midia -> {
                 String rotulo = "[" + midia.tipo().name().toLowerCase() + "]";
                 yield midia.legenda() == null || midia.legenda().isBlank()

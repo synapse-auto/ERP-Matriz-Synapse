@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
@@ -206,8 +207,40 @@ class IniciarNovoContatoUseCaseTest {
 
         assertThat(resultado.leadCriado()).isTrue();
         assertThat(resultado.mensagem()).isEqualTo(mensagem);
-        verify(enviar).executar(eq(leadId), any(ConteudoDeEnvio.MensagemTemplate.class));
+        ArgumentCaptor<ConteudoDeEnvio.MensagemTemplate> captor =
+                ArgumentCaptor.forClass(ConteudoDeEnvio.MensagemTemplate.class);
+        verify(enviar).executar(eq(leadId), captor.capture());
+        assertThat(captor.getValue().corpoRenderizado()).isNull();
         verify(canal, never()).aceitaTextoLivre(any(), any());
+    }
+
+    @Test
+    void templateComCorpoRenderizado_repassaTextoAoEnvio() {
+        UUID leadId = UUID.randomUUID();
+        Atendimento aberto = Atendimento.abrirComIa(UUID.randomUUID(), leadId, null, null, AGORA)
+                .transferirPara(quemPediu);
+        Mensagem mensagem = Mensagem.texto(
+                UUID.randomUUID(), aberto.id(), Remetente.atendente(quemPediu), "Olá Maria", AGORA);
+        when(leads.visivelPorTelefone(TELEFONE_CANONICO)).thenReturn(Optional.empty());
+        when(leads.criarParaAtendente(eq("Maria"), eq(TELEFONE_CANONICO), eq(quemPediu), isNull()))
+                .thenReturn(Optional.of(leadId));
+        when(leads.assumirSeSemDono(leadId, quemPediu))
+                .thenReturn(LeadNoCaminhoDeMensagem.Assuncao.assumido(quemPediu));
+        when(enviar.executar(eq(leadId), any(ConteudoDeEnvio.MensagemTemplate.class)))
+                .thenReturn(new EnviarMensagemUseCase.Resultado(aberto, mensagem, true));
+        when(canal.aceitaTextoLivre(any(), any())).thenReturn(false);
+
+        useCase.executar(new IniciarNovoContatoUseCase.Pedido(
+                "Maria",
+                TELEFONE_MASCARA,
+                null,
+                new IniciarNovoContatoUseCase.Pedido.Template(
+                        "hello_world", "pt_BR", List.of("Maria"), "Olá Maria")));
+
+        ArgumentCaptor<ConteudoDeEnvio.MensagemTemplate> captor =
+                ArgumentCaptor.forClass(ConteudoDeEnvio.MensagemTemplate.class);
+        verify(enviar).executar(eq(leadId), captor.capture());
+        assertThat(captor.getValue().corpoRenderizado()).isEqualTo("Olá Maria");
     }
 
     @Test
