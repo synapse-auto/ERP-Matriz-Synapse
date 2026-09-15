@@ -107,6 +107,9 @@ export function PaginaAtendimentosCliente({
   const [notificacao, setNotificacao] = useState<NotificacaoTempoReal | null>(null);
   const [falhasDeMidia, setFalhasDeMidia] = useState<FalhaDeEnvioMidia[]>([]);
   const notificacoesProcessadas = useRef(new Set<string>());
+  // Enquanto o POST de leitura nao confirma, uma invalidacao ampla pode devolver o contador
+  // anterior. O mapa mantem a barreira ate que todas as leituras iniciadas para cada lead terminem.
+  const leiturasEmVoo = useRef(new Map<string, number>());
   const [reconciliador] = useState(() => new ReconciliadorEstadoAtendimento(cache));
   const [sincronizacaoLiberada, setSincronizacaoLiberada] = useState<{
     atendimentoId: string;
@@ -148,6 +151,32 @@ export function PaginaAtendimentosCliente({
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   const sessao = useAuthStore.getState();
+  const marcarLeituraDaConversa = useCallback(
+    (atendimentoId: string, leadId: string) => {
+      const quantidadeAtual = leiturasEmVoo.current.get(leadId) ?? 0;
+      leiturasEmVoo.current.set(leadId, quantidadeAtual + 1);
+      // Cancela um GET amplo que possa ter começado antes do clique; seu retorno também pode ser
+      // anterior à leitura e sobrescrever o zero otimista.
+      void cache.cancelQueries({ queryKey: ["atendimentos"] });
+      zerarNaoLidasDoLead(cache, leadId);
+      void marcarAtendimentoComoLido(atendimentoId)
+        .catch(() => {
+          // Leitura e auxiliar: falhar nao pode impedir que a conversa seja aberta.
+        })
+        .finally(() => {
+          const quantidadeRestante = (leiturasEmVoo.current.get(leadId) ?? 1) - 1;
+          if (quantidadeRestante > 0) {
+            leiturasEmVoo.current.set(leadId, quantidadeRestante);
+          } else {
+            leiturasEmVoo.current.delete(leadId);
+          }
+          if (leiturasEmVoo.current.size === 0) {
+            void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+          }
+        });
+    },
+    [cache],
+  );
 
   const selecionarAtendimento = useCallback(
     (cartao: ItemInbox, origem: "lista" | "rota" = "lista") => {
@@ -166,7 +195,7 @@ export function PaginaAtendimentosCliente({
       setErroDeAbertura(null);
       setAtendimentoSelecionadoId(idParaAbrir);
       setSincronizacaoLiberada(null);
-      zerarNaoLidasDoLead(cache, cartao.leadId);
+      marcarLeituraDaConversa(idParaAbrir, cartao.leadId);
       registrarDiagnosticoDeAbertura({
         origem,
         etapa: "cartao_resolvido",
@@ -177,15 +206,8 @@ export function PaginaAtendimentosCliente({
         visao: visaoAtendimento,
         cartaoSelecionadoId: idParaAbrir,
       });
-      void marcarAtendimentoComoLido(idParaAbrir)
-        .catch(() => {
-          // Leitura e auxiliar: falhar nao pode impedir que o responsavel abra a conversa.
-        })
-        .finally(() => {
-          void cache.invalidateQueries({ queryKey: ["atendimentos"] });
-        });
     },
-    [cache, sessao.papel, sessao.usuarioId, visaoAtendimento],
+    [marcarLeituraDaConversa, sessao.papel, sessao.usuarioId, visaoAtendimento],
   );
 
   /**
@@ -410,7 +432,9 @@ export function PaginaAtendimentosCliente({
           setNotificacao(evento);
         }
       }
-      if (evento.tipo !== "CHAT_INTERNO_REACAO") {
+      // Uma leitura iniciada localmente tem precedencia sobre o GET amplo: aguarde o POST de
+      // leitura terminar para nao reintroduzir no cache um contador anterior ao que o usuario viu.
+      if (evento.tipo !== "CHAT_INTERNO_REACAO" && leiturasEmVoo.current.size === 0) {
         void cache.invalidateQueries({ queryKey: ["atendimentos"] });
       }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
@@ -496,15 +520,8 @@ export function PaginaAtendimentosCliente({
   const atendimentoParaLeitura = conversa?.atendimentoId ?? null;
   const marcarConversaAbertaComoLida = useCallback(() => {
     if (!atendimentoParaLeitura || !conversa) return;
-    zerarNaoLidasDoLead(cache, conversa.leadId);
-    void marcarAtendimentoComoLido(atendimentoParaLeitura)
-      .catch(() => {
-        // Leitura e auxiliar: falhar nao pode interromper o fluxo de mensagens.
-      })
-      .finally(() => {
-        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
-      });
-  }, [atendimentoParaLeitura, cache, conversa]);
+    marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId);
+  }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
     conexao,
