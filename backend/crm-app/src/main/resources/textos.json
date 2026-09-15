@@ -877,7 +877,8 @@
     },
     "papeis": {
       "atendente": "Atendente",
-      "subgestor": "Subgestor"
+      "subgestor": "Subgestor",
+      "gestor": "Gestor"
     },
     "presenca": {
       "online": "Online",
