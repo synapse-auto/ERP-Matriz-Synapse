@@ -9,10 +9,11 @@ import java.util.regex.Pattern;
  * exatamente a mesma regra. O DDI padrao e configuracao da instancia, recebida no construtor: o
  * dominio nao conhece ambiente, Spring nem o cliente que esta usando a Base PAI.
  *
- * <p>A regra do nono digito e a mesma implementada em SQL por {@code app_telefone_canonico}, criada
- * na V50. Duas implementacoes existem porque o caminho critico normaliza em Java, sem ida ao banco,
- * e a migration normaliza antes de a aplicacao subir. O que impede as duas de divergirem e o teste
- * de paridade {@code TelefoneNonoDigitoIT.Paridade}, que roda a mesma tabela de casos nas duas.
+ * <p>A regra do prefixo de discagem e do nono digito e a mesma implementada em SQL por
+ * {@code app_telefone_canonico}. Duas implementacoes existem porque o caminho critico normaliza em
+ * Java, sem ida ao banco, e as migrations normalizam antes de a aplicacao subir. O que impede as
+ * duas de divergirem e o teste de paridade {@code TelefoneNonoDigitoIT.Paridade}, que roda a mesma
+ * tabela de casos nas duas.
  */
 public final class TelefoneCanonico {
 
@@ -41,6 +42,9 @@ public final class TelefoneCanonico {
 
     private static final char ULTIMO_DIGITO_DE_CELULAR = '9';
 
+    /** Prefixos de servicos nao geograficos: nao sao telefones de pacientes. */
+    private static final String[] PREFIXOS_ESPECIAIS = {"0300", "0400", "0500", "0800", "0900"};
+
     private final String ddiPadrao;
 
     public TelefoneCanonico(String ddiPadrao) {
@@ -56,7 +60,45 @@ public final class TelefoneCanonico {
             return null;
         }
         String digitos = NAO_DIGITO_ASCII.matcher(telefone).replaceAll("");
-        return comNonoDigito(comDdi(digitos));
+        if (ehPrefixoEspecial(digitos)) {
+            if (digitos.length() < 10) {
+                throw new TelefoneInvalidoException();
+            }
+            return digitos;
+        }
+        return comNonoDigito(comDdi(removerPrefixoDiscagemBrasileiro(digitos)));
+    }
+
+    /**
+     * Remove o trunk nacional ou o codigo de operadora antes de completar o DDI.
+     *
+     * <p>A escolha e exclusivamente por comprimento: depois do {@code 0} (trunk) ou de
+     * {@code 0XX} (operadora), o restante precisa ter exatamente 10 ou 11 digitos. Assim os casos
+     * de 12, 13 e 14 digitos nao sao ambiguos. Prefixos de servico (0300, 0400, 0500, 0800 e
+     * 0900) ficam intactos; nao ha decisao segura para transforma-los em contato geografico.
+     */
+    private static String removerPrefixoDiscagemBrasileiro(String digitos) {
+        if (digitos.isEmpty() || !digitos.startsWith("0") || ehPrefixoEspecial(digitos)) {
+            return digitos;
+        }
+        int depoisDoTrunk = digitos.length() - 1;
+        if (depoisDoTrunk == 10 || depoisDoTrunk == 11) {
+            return digitos.substring(1);
+        }
+        int depoisDaOperadora = digitos.length() - 3;
+        if (depoisDaOperadora == 10 || depoisDaOperadora == 11) {
+            return digitos.substring(3);
+        }
+        return digitos;
+    }
+
+    private static boolean ehPrefixoEspecial(String digitos) {
+        for (String prefixo : PREFIXOS_ESPECIAIS) {
+            if (digitos.startsWith(prefixo)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String comDdi(String digitos) {

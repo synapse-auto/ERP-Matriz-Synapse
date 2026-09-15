@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
 Documento de continuidade. **Estado reconstruído em 14/09/2026 a partir de
-`origin/main` (`50b2cf4`), das migrations e do código.** Se este arquivo divergir do
+`origin/main` (`40fdc54`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -39,6 +39,25 @@ O workaround anterior `GET /{version}/{phone_number_id}/{mediaId}` fica somente 
 incidente de 11/09 e não deve voltar ao código. Falhas 400/404/5xx do resolvedor continuam sendo
 indisponibilidades retentáveis: o webhook permanece durável e recebe backoff em
 `proxima_tentativa_em`, sem guardar corpo de resposta, token ou URL temporária.
+
+### 14/09/2026 — E180: prefixo de discagem na importação de leads
+
+`TelefoneCanonico` e `app_telefone_canonico` removem o trunk nacional `0` ou a operadora `0XX`
+somente quando, por comprimento, restam exatamente 10 ou 11 dígitos. Prefixos de serviço (`0300`,
+`0400`, `0500`, `0800`, `0900`), números já em E.164 e entradas ambíguas ficam intactos para
+revisão; a regra nunca adivinha um contato.
+
+`PrepararImportacaoLeadsCsv` continua usando o normalizador de domínio, portanto uma reimportação
+do mesmo número casa a chave canônica e não cria lead duplicado. A V73 atualiza as funções SQL e
+limpa os dados existentes: faz `UPDATE` apenas sem gêmeo e funde apenas quando o importado tem
+`telefone_provedor` vazio, zero mensagens e o gêmeo possui conversa. O gêmeo sobrevive; as FKs de
+linhas dependentes são movidas e referências escalares do lead só preenchem campos vazios do
+sobrevivente (campos preenchidos por ele prevalecem). O nome do sobrevivente é preservado, seguindo
+o precedente da V50. Casos ambíguos,
+especiais ou sem evidência de importação são listados por `RAISE NOTICE` e permanecem intactos.
+Antes do deploy, executar e guardar a saída de
+`docker/provisionamento/simular-limpeza-prefixo-discagem.sql`; as contagens reais dependem do banco
+de cada instância e não foram inventadas neste handoff.
 
 
 ### 09/09/2026 — Envio idempotente e reconciliação de falhas de transporte
@@ -183,7 +202,7 @@ Confirmado pela árvore de `origin/main`:
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V47 e V65**, última `V65__acoes_mensagens_chat_interno.sql`.
+- Migrations presentes: **V1 a V73**, última `V73__normalizar_prefixo_discagem_leads.sql`.
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.

@@ -54,11 +54,15 @@ class RecorteDaAbaTodosIT extends PostgresIT {
     private UUID atendimentoDoBruno;
     private UUID leadParticipado;
     private UUID atendimentoParticipado;
+    private long contagemTodosAntes;
 
     @BeforeEach
-    void preparar() {
+    void preparar() throws Exception {
         ana = usuario(EMAIL_ANA);
         bruno = usuario(EMAIL_BRUNO);
+        contagemTodosAntes = json.readTree(get(token(EMAIL_GESTOR, SENHA_GESTOR), "/api/v1/atendimentos/contagem"))
+                .path("TODOS")
+                .asLong();
 
         leadDaAna = lead("proprio", ana, "EM_ATENDIMENTO");
         atendimentoDaAna = atendimento(leadDaAna, ana, "EM_ATENDIMENTO");
@@ -129,9 +133,11 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         JsonNode contagensGestor = json.readTree(get(tokenGestor, "/api/v1/atendimentos/contagem"));
         assertThat(contagensGestor.has("TODOS")).isTrue();
         for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
+            JsonNode lista = listar(tokenGestor, visao);
+            long esperado = "TODOS".equals(visao) ? contagemTodosAntes + 4 : lista.size();
             assertThat(contagensGestor.path(visao).asLong())
-                    .as("contagem de %s deve usar o mesmo recorte da lista", visao)
-                    .isEqualTo(listar(tokenGestor, visao).size());
+                    .as("contagem de %s deve refletir o recorte da visao", visao)
+                    .isEqualTo(esperado);
         }
     }
 
