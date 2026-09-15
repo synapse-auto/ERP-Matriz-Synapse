@@ -57,16 +57,20 @@ http://synapse-n8n-internal:5678/webhook/<caminho-do-webhook>
 
 ## 5. Operação do scheduler do CRM (E177)
 
-Estas variáveis pertencem ao container do backend, não ao workflow do n8n. O limiar de negócio é
-editado no CRM em `configuracao_automacao.atendimento.finalizar_apos_horas` (migration V70, padrão
-24 horas). As variáveis abaixo controlam somente cadência e tamanho de lote:
+Estas variáveis pertencem ao container do backend, não ao workflow do n8n. O job nasce desligado por
+instância: `configuracao_automacao.atendimento.finalizar_inativos.habilitado` (migration V72) tem
+valor `false` em todas as instâncias. Altere essa configuração para `true` no CRUD do CRM somente
+após decisão operacional; a leitura ocorre a cada rodada, então não há redeploy. O limiar de negócio
+é editado em `configuracao_automacao.atendimento.finalizar_apos_horas` (migration V70, padrão 24
+horas). As variáveis abaixo controlam somente cadência e tamanho de lote:
 
 | Variável | Default | Uso |
 |---|---:|---|
 | `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE` | `50` | Máximo de candidatos processados em uma rodada. |
 | `ATENDIMENTOS_FINALIZAR_INATIVOS_INTERVALO_MS` | `300000` | Intervalo entre rodadas (5 minutos). |
 
-Não é necessário configurar nada no n8n para esse job. `EM_IA` não é finalizado automaticamente;
+Não é necessário configurar nada no n8n para esse job. O padrão seguro é `false` tanto na Estrutural
+quanto na FMNA; somente a gestão de cada instância pode optar por ligar. `EM_IA` não é finalizado automaticamente;
 somente conversas humanas sem interação acima do limiar retornam ao estado finalizado, prontas para
 que uma nova mensagem do cliente abra outro atendimento em IA.
 

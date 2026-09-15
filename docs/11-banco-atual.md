@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Estado:** 72 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration:** `V72__normalizar_prefixo_discagem_leads.sql` (aplicada depois da `V71__estrategia_distribuicao_ia.sql`)
+**Estado:** 73 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration:** `V73__normalizar_prefixo_discagem_leads.sql` (aplicada depois da `V72__toggle_finalizacao_automatica.sql`)
 
 ---
 
@@ -82,7 +82,8 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V69__versao_eventos_atendimento` | sequência monotônica `atendimento.versao_evento` e função técnica estreita para eventos canônicos |
 | `V70__finalizacao_automatica_por_inatividade` | parâmetro `atendimento.finalizar_apos_horas` (24 horas por padrão, faixa 1–720) para o scheduler de atendimentos humanos inativos |
 | `V71__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
-| `V72__normalizar_prefixo_discagem_leads` | remove trunk `0`/operadora `0XX` de telefones BR por comprimento, funde importados sem conversa com o gêmeo que tem conversa e reporta ambiguidades |
+| `V72__toggle_finalizacao_automatica` | parâmetro BOOLEAN `atendimento.finalizar_inativos.habilitado`; false por padrão, opt-in por instância para o scheduler de inatividade |
+| `V73__normalizar_prefixo_discagem_leads` | remove trunk `0`/operadora `0XX` de telefones BR por comprimento, funde importados sem conversa com o gêmeo que tem conversa e reporta ambiguidades |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -94,6 +95,13 @@ o valor inicial é 24 horas, com faixa validada de 1 a 720 horas. O job consulta
 rodada e considera a última mensagem de qualquer lado do atendimento, usando `iniciado_em` como
 fallback quando não há mensagem. Apenas `EM_ATENDIMENTO` entra na varredura; `EM_IA` permanece na
 fila de Potenciais.
+
+O parâmetro `configuracao_automacao.atendimento.finalizar_inativos.habilitado` é a trava por
+instância criada na V72. Ele usa o tipo `BOOLEAN` já suportado pelo schema e pelo CRUD e nasce
+`false` em todas as instâncias. O scheduler lê a chave em cada rodada: ausente ou `false` é um
+estado normal, sem seleção de candidatos e sem alerta; somente `true` habilita o uso do limiar
+acima. Assim, ligar ou desligar a finalização exige apenas alterar o valor da configuração, sem
+redeploy. O limiar de 24 horas continua separado e não é o liga/desliga.
 
 ---
 
@@ -152,7 +160,7 @@ fila de Potenciais.
 > `notas`, `resumo_ia` e `dados_customizados` **nunca entram em projeção de listagem**.
 > `codigo` entra no card da lista de Atendimentos (`leadCodigo` na inbox). **Não** entra em `LeadResumo` (Agenda). Sem unique e sem índice de busca — o campo não é critério de filtro.
 > Constraint `lead_codigo_somente_digitos`: `NULL` ou `^[0-9]+$`. A aplicação normaliza string vazia para `NULL` (`CodigoDoLead`).
-> `telefone` é canônico desde a V24/V26 (somente dígitos, com DDI) e, desde a V50, inclui o **nono dígito** de celular brasileiro. Desde a V72, um prefixo de discagem nacional é removido somente quando, após o trunk `0` ou a operadora `0XX`, restam 10 ou 11 dígitos. Prefixos de serviço `0300`, `0400`, `0500`, `0800` e `0900`, entradas ambíguas e números de outros países ficam intactos para revisão. A regra vive em `TelefoneCanonico` (domínio) e em `app_telefone_canonico(entrada, ddi_padrao)` (SQL); `TelefoneNonoDigitoIT` reprova o build se as duas divergirem. `ux_lead_telefone` (único parcial) continua sendo a identidade de contato.
+> `telefone` é canônico desde a V24/V26 (somente dígitos, com DDI) e, desde a V50, inclui o **nono dígito** de celular brasileiro. Desde a V73, um prefixo de discagem nacional é removido somente quando, após o trunk `0` ou a operadora `0XX`, restam 10 ou 11 dígitos. Prefixos de serviço `0300`, `0400`, `0500`, `0800` e `0900`, entradas ambíguas e números de outros países ficam intactos para revisão. A regra vive em `TelefoneCanonico` (domínio) e em `app_telefone_canonico(entrada, ddi_padrao)` (SQL); `TelefoneNonoDigitoIT` reprova o build se as duas divergirem. `ux_lead_telefone` (único parcial) continua sendo a identidade de contato.
 
 **`tag`** · **`lead_tag`** · **`lembrete`** · **`mensagem_programada`** · **`mensagem_rapida`** · **`evento_timeline`** (append-only; `ator_id` identifica quem executou e `dados` JSONB guarda, em `ETAPA_ALTERADA`, etapas anterior/nova e `responsavel_id` comercial) · **`preferencia_usuario`** · **`arquivo_banco`**
 

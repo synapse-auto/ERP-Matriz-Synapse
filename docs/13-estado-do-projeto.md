@@ -1,7 +1,7 @@
 # 13. Estado do Projeto — handoff
 
 Documento de continuidade. **Estado reconstruído em 14/09/2026 a partir de
-`origin/main` (`194eded`), das migrations e do código.** Se este arquivo divergir do
+`origin/main` (`40fdc54`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
@@ -48,7 +48,7 @@ somente quando, por comprimento, restam exatamente 10 ou 11 dígitos. Prefixos d
 revisão; a regra nunca adivinha um contato.
 
 `PrepararImportacaoLeadsCsv` continua usando o normalizador de domínio, portanto uma reimportação
-do mesmo número casa a chave canônica e não cria lead duplicado. A V72 atualiza as funções SQL e
+do mesmo número casa a chave canônica e não cria lead duplicado. A V73 atualiza as funções SQL e
 limpa os dados existentes: faz `UPDATE` apenas sem gêmeo e funde apenas quando o importado tem
 `telefone_provedor` vazio, zero mensagens e o gêmeo possui conversa. O gêmeo sobrevive; as FKs de
 linhas dependentes são movidas e referências escalares do lead só preenchem campos vazios do
@@ -202,7 +202,7 @@ Confirmado pela árvore de `origin/main`:
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V72**, última `V72__normalizar_prefixo_discagem_leads.sql`.
+- Migrations presentes: **V1 a V73**, última `V73__normalizar_prefixo_discagem_leads.sql`.
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.
@@ -339,14 +339,21 @@ metadados sensíveis.
 ### 14/09/2026 — E177: finalização automática por inatividade
 
 Foi criado o parâmetro de produção `atendimento.finalizar_apos_horas` na V70, com valor inicial de
-24 horas e faixa de 1 a 720. O scheduler `AgendadorDeFinalizacaoDeAtendimentosInativos` executa em
-contexto `SERVICO`, a cada intervalo operacional configurável, e processa no máximo o lote definido
-por `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE`. A recência é a última mensagem de qualquer lado no
-atendimento, com `iniciado_em` como fallback. Cada candidato é relido sob lock e passa pela
-`FinalizarAtendimentoUseCase`, então lead, avaliação, timeline e eventos mantêm o mesmo contrato da
-finalização manual/automação. Apenas `EM_ATENDIMENTO` é elegível; `EM_IA` permanece em Potenciais.
+24 horas e faixa de 1 a 720, e a V72 adicionou a trava `atendimento.finalizar_inativos.habilitado`,
+BOOLEAN e `false` por padrão em todas as instâncias. O scheduler
+`AgendadorDeFinalizacaoDeAtendimentosInativos` lê a trava a cada rodada: ausente ou `false` é um
+estado normal (sem seleção, alteração ou alerta); somente `true` habilita a finalização e então lê
+o limiar. A troca do valor no CRUD da instância passa a valer no próximo tick, sem redeploy.
 
-O primeiro ciclo após o deploy pode finalizar um backlog real de conversas humanas paradas. O log
-registra apenas contagens agregadas e o corte (`candidatos`, `finalizados`, `ignorados`, `falhas`),
-sem conteúdo ou dados de contato. O job não reabre conversas: uma nova mensagem do cliente seguirá
-o fluxo existente e abrirá atendimento em IA.
+Quando ligado, o scheduler executa em contexto `SERVICO`, a cada intervalo operacional configurável,
+e processa no máximo o lote definido por `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE`. A recência é a
+última mensagem de qualquer lado no atendimento, com `iniciado_em` como fallback. Cada candidato é
+relido sob lock e passa pela `FinalizarAtendimentoUseCase`, então lead, avaliação, timeline e eventos
+mantêm o mesmo contrato da finalização manual/automação. Apenas `EM_ATENDIMENTO` é elegível;
+`EM_IA` permanece em Potenciais.
+
+O primeiro ciclo após ligar o toggle pode finalizar um backlog real de conversas humanas paradas e,
+quando a configuração de avaliação estiver ativa, preparar as solicitações correspondentes pela
+mesma transição de finalização. O log registra apenas contagens agregadas e o corte (`candidatos`,
+`finalizados`, `ignorados`, `falhas`), sem conteúdo ou dados de contato. O job não reabre conversas:
+uma nova mensagem do cliente seguirá o fluxo existente e abrirá atendimento em IA.

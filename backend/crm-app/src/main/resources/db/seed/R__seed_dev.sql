@@ -147,6 +147,8 @@ INSERT INTO configuracao_automacao
      'Intervalo de mensagens para gerar o resumo por IA.'),
     ('atendimento.finalizar_apos_horas', '24', 'horas', 'INT', 1, 720,
      'Horas de inatividade ate finalizar o atendimento automaticamente.'),
+    ('atendimento.finalizar_inativos.habilitado', 'false', NULL, 'BOOLEAN', NULL, NULL,
+     'Habilita a finalizacao automatica de atendimentos humanos inativos nesta instancia.'),
     ('campanha.intervalo_padrao_dias', '3', 'dias', 'INT', 1, 7,
      'Intervalo padrao entre mensagens de uma campanha.'),
     ('automacao.habilitada', 'true', NULL, 'BOOLEAN', NULL, NULL,

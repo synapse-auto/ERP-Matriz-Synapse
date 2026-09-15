@@ -224,9 +224,9 @@ A saida tambem serve de lista de trabalho para a operacao: o nome nao e fundido
 de proposito, entao os pares da secao 3 com `nome_do_campo = nome` sao os leads
 cujo nome pode precisar de ajuste pela tela depois do deploy.
 
-## Simular a limpeza do prefixo de discagem (E180, antes da V72)
+## Simular a limpeza do prefixo de discagem (E180, antes da V73)
 
-Importacoes brasileiras podem conter o trunk `0` ou uma operadora `0XX` antes do DDD. A V72 remove
+Importacoes brasileiras podem conter o trunk `0` ou uma operadora `0XX` antes do DDD. A V73 remove
 esses prefixos somente quando o restante tem 10 ou 11 digitos. Prefixos de servico (`0300`, `0400`,
 `0500`, `0800`, `0900`), numeros ambiguos e gêmeos sem evidencia segura de importacao ficam intactos.
 
@@ -242,6 +242,6 @@ docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
 O relatorio lista para cada linha o canonico calculado e a decisao (`UPDATE`, `FUSAO` ou `REVISAO
 MANUAL`), os nomes/ids do par e as linhas de cada FK que seriam movidas. A fusao so considera um
 lead malformado sem `telefone_provedor` e sem mensagens, cujo gêmeo tenha conversa; o nome do
-sobrevivente nao e substituido. A V72 executa com contexto `SERVICO`, valida as FKs conhecidas e
+sobrevivente nao e substituido. A V73 executa com contexto `SERVICO`, valida as FKs conhecidas e
 deixa os casos manuais sem alteracao. Nao reexecute nem limpe a fila por SQL: qualquer decisao sobre
 os ids listados para revisao e operacional e deve ser tomada antes de nova importacao.

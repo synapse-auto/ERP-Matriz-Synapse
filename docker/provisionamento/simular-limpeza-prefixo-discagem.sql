@@ -2,7 +2,7 @@
 -- E180 — simulacao da limpeza de prefixo de discagem. SOMENTE LEITURA.
 --
 -- Lista, sem alterar dados, cada telefone fora do formato canonico, o resultado calculado e a
--- decisao que a V72 tomaria: UPDATE, FUSAO ou REVISAO MANUAL. Rode e guarde a saida antes de
+-- decisao que a V73 tomaria: UPDATE, FUSAO ou REVISAO MANUAL. Rode e guarde a saida antes de
 -- autorizar o deploy da migration. A transacao termina em ROLLBACK.
 --
 -- Uso:
