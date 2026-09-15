@@ -53,6 +53,11 @@ const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
+const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
+
+vi.mock("@/lib/auth/auth-store", () => ({
+  useAuthStore: (seletor: (estado: typeof authState) => unknown) => seletor(authState),
+}));
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
@@ -155,6 +160,7 @@ import { PainelDaConversa } from "./painel-da-conversa";
 
 describe("painel da conversa", () => {
   beforeEach(() => {
+    authState.papel = "ADMINISTRADOR";
     salvarFichaState.mutate.mockClear();
     suporteState.mensagens = [];
     suporteState.lembretes = [];
@@ -204,6 +210,22 @@ describe("painel da conversa", () => {
     fireEvent.click(controle);
     expect(onRetrair).toHaveBeenCalledOnce();
   });
+
+  it.each(["ATENDENTE", "SUBGESTOR", "GESTOR"])(
+    "esconde etapa e resumo por IA para %s, mas preserva o restante da ficha",
+    (papel) => {
+      authState.papel = papel;
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      expect(screen.getByText("Informações gerais")).toBeInTheDocument();
+      expect(screen.getByText("(61) 99999-0000")).toBeInTheDocument();
+      expect(screen.getByText("Notas internas")).toBeInTheDocument();
+      expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
+      expect(screen.queryByText("Orçamento")).not.toBeInTheDocument();
+      expect(screen.queryByText("2 de 3")).not.toBeInTheDocument();
+      expect(screen.queryByText("Cliente pediu orçamento de box.")).not.toBeInTheDocument();
+    },
+  );
 
   it("mensagens programadas e lembretes começam fechados e abrem com o estado vazio real", () => {
     renderizarPainel("lead-1", "Jardel Lima");

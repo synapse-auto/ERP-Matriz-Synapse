@@ -57,6 +57,7 @@ import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
+import { SomenteAdministrador } from "../administracao/somente-administrador";
 
 type Props = {
   leadId: string;
@@ -177,55 +178,58 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           </div>
         </div>
 
-        {etapaAtual && (
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                {textosLead.etapa.titulo}
-              </p>
-              <span className="text-xs font-semibold text-muted-foreground">
-                {textosLead.etapa.posicao
-                  .replace("{atual}", String(posicaoEtapa))
-                  .replace("{total}", String(etapasOrdenadas.length))}
+        {/* FASE 2: trava temporária de teste para etapas e controles de preenchimento automático. */}
+        <SomenteAdministrador>
+          {etapaAtual && (
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                  {textosLead.etapa.titulo}
+                </p>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {textosLead.etapa.posicao
+                    .replace("{atual}", String(posicaoEtapa))
+                    .replace("{total}", String(etapasOrdenadas.length))}
+                </span>
+              </div>
+              <div className="mt-2 flex gap-1" aria-hidden>
+                {etapasOrdenadas.map((etapa, indice) => (
+                  <span
+                    key={etapa.id}
+                    className="h-1.5 flex-1 rounded-full bg-muted"
+                    style={
+                      indice < posicaoEtapa
+                        ? {
+                            backgroundColor:
+                              etapaAtual.corVisual ?? "var(--primary)",
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between gap-2 text-[0.65rem] text-muted-foreground">
+                <span>{etapasOrdenadas[0]?.nome ?? textosLead.etapa.semEtapa}</span>
+                {etapasOrdenadas.length > 1 && (
+                  <span>{etapasOrdenadas.at(-1)?.nome}</span>
+                )}
+              </div>
+              <span
+                className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
+                style={
+                  etapaAtual.corVisual
+                    ? {
+                        backgroundColor: `${etapaAtual.corVisual}22`,
+                        color: etapaAtual.corVisual,
+                      }
+                    : undefined
+                }
+              >
+                {etapaAtual.nome}
               </span>
             </div>
-            <div className="mt-2 flex gap-1" aria-hidden>
-              {etapasOrdenadas.map((etapa, indice) => (
-                <span
-                  key={etapa.id}
-                  className="h-1.5 flex-1 rounded-full bg-muted"
-                  style={
-                    indice < posicaoEtapa
-                      ? {
-                          backgroundColor:
-                            etapaAtual.corVisual ?? "var(--primary)",
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between gap-2 text-[0.65rem] text-muted-foreground">
-              <span>{etapasOrdenadas[0]?.nome ?? textosLead.etapa.semEtapa}</span>
-              {etapasOrdenadas.length > 1 && (
-                <span>{etapasOrdenadas.at(-1)?.nome}</span>
-              )}
-            </div>
-            <span
-              className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
-              style={
-                etapaAtual.corVisual
-                  ? {
-                      backgroundColor: `${etapaAtual.corVisual}22`,
-                      color: etapaAtual.corVisual,
-                    }
-                  : undefined
-              }
-            >
-              {etapaAtual.nome}
-            </span>
-          </div>
-        )}
+          )}
+        </SomenteAdministrador>
 
         <div>
           <p className="mb-2 px-0.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
@@ -234,20 +238,26 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           <AtalhoTags leadId={leadId} modo="painel" />
         </div>
 
+        <SomenteAdministrador>
+          {lead.data.resumoIa && (
+            <SecaoColapsavel
+              icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
+              titulo={textos.secoes.resumo}
+              abertaPorPadrao
+            >
+              <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+                <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
+                <p className="text-sm text-foreground">{lead.data.resumoIa}</p>
+              </div>
+            </SecaoColapsavel>
+          )}
+        </SomenteAdministrador>
+
         <SecaoColapsavel
-          icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
-          titulo={textos.secoes.resumo}
+          icone={<StickyNote className="size-(--tamanho-icone-interface) text-cor-atencao" />}
+          titulo={textos.notasInternas}
           abertaPorPadrao
         >
-          {lead.data.resumoIa && (
-            <div className="mb-2 flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-              <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
-              <p className="text-sm text-foreground">{lead.data.resumoIa}</p>
-            </div>
-          )}
-          <p className="mb-1 text-[0.7rem] font-bold tracking-wide text-muted-foreground uppercase">
-            {textos.notasInternas}
-          </p>
           <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
             <StickyNote className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-cor-atencao" />
             <p className="text-sm text-foreground">
