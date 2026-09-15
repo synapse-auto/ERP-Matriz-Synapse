@@ -66,7 +66,6 @@ vi.mock("@/lib/config/textos-provider", () => ({
         pedirEntrada: "Pedir para entrar",
         pedidoPendente: "Pedido pendente",
         entrar: "Entrar no atendimento",
-        entrarDescricao: "Entrar adiciona você como participante; o responsável não muda.",
         pedirEntradaDescricao: "O responsável precisa aprovar; o atendimento não será transferido.",
         sair: "Sair do atendimento",
         recusado: "Pedido recusado",

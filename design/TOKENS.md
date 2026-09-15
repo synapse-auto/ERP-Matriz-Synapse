@@ -51,7 +51,7 @@ O protótipo usa **estilos inline**, não CSS variables. Este documento é a tra
 | Token | Valor | Significado |
 |---|---|---|
 | `--cor-sucesso` | `#17835A` | Finalizado, entregue |
-| `--mensagem-lida-texto` | `#C0FFC8` | Tique de mensagem `LIDO` sobre o balão azul `bg-primary`; verde claro para preservar contraste nos temas claro e escuro |
+| `--mensagem-lida-texto` | `#6EF2A0` | Tique de mensagem `LIDO` sobre o balão azul `bg-primary`; verde claro o bastante para se distinguir do tique branco de `ENTREGUE` sem virar neon |
 | `--cor-atencao` | `#E0A61C` | Pendente, aguardando |
 | `--cor-atencao-escura` | `#B07A15` | Texto sobre fundo de atenção |
 | `--cor-ia` | `#6D4FD6` | Lead em atendimento pela IA |

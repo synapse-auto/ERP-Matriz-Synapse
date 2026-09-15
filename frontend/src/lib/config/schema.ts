@@ -394,7 +394,6 @@ export const TextosSchema = z.object({
       pedirEntrada: z.string(),
       pedidoPendente: z.string(),
       entrar: z.string(),
-      entrarDescricao: z.string(),
       pedirEntradaDescricao: z.string(),
       sair: z.string(),
       recusado: z.string(),
