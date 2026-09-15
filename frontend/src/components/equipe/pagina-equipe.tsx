@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
-import { PillDeStatus } from "@/components/ui/pill-de-status";
+import { PillDeStatus, type TomDePill } from "@/components/ui/pill-de-status";
 import { Seletor } from "@/components/ui/seletor";
 import { Switch } from "@/components/ui/switch";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -31,7 +31,7 @@ import {
   useGerarSenhaProvisoria,
   useAtualizarDisponibilidadeParaIa,
 } from "@/lib/equipe/use-equipe";
-import { recebeAtendimento } from "@/lib/equipe/papel";
+import { recebeAtendimento, visivelNaEquipe } from "@/lib/equipe/papel";
 import type { PapelGerenciavel, StatusPresenca, UsuarioEquipe } from "@/lib/equipe/types";
 
 const PRESENCA_COR: Record<StatusPresenca, string> = {
@@ -54,7 +54,7 @@ export function PaginaEquipe() {
   const [senhaGeradaPara, setSenhaGeradaPara] = useState<UsuarioEquipe | null>(null);
   const [senhaGerada, setSenhaGerada] = useState<string | null>(null);
 
-  const usuarios = (equipe.data ?? []).filter((u) => recebeAtendimento(u.papel));
+  const usuarios = (equipe.data ?? []).filter((u) => visivelNaEquipe(u.papel));
   const ativos = usuarios.filter((u) => u.ativo);
   const online = usuarios.filter((u) => u.statusPresenca === "ONLINE").length;
 
@@ -291,10 +291,22 @@ function MiniDashboard({
 }
 
 /** Papel colorido em azul (SUBGESTOR) ou neutro (ATENDENTE) — TOKENS.md, tons do protótipo. */
-const TOM_DO_PAPEL: Record<PapelGerenciavel, "info" | "neutro"> = {
+const TOM_DO_PAPEL: Record<"ATENDENTE" | "SUBGESTOR" | "GESTOR", "info" | "neutro"> = {
   SUBGESTOR: "info",
   ATENDENTE: "neutro",
+  GESTOR: "info",
 };
+
+function tomDoPapel(papel: string | null | undefined): TomDePill {
+  if (papel === "SUBGESTOR" || papel === "GESTOR") return TOM_DO_PAPEL[papel];
+  return "neutro";
+}
+
+function rotuloDoPapel(textos: TextosEquipe, papel: string | null | undefined): string {
+  if (papel === "GESTOR") return textos.papeis.gestor;
+  if (papel === "SUBGESTOR") return textos.papeis.subgestor;
+  return textos.papeis.atendente;
+}
 
 function TabelaDeUsuarios({
   usuarios,
@@ -351,7 +363,8 @@ function TabelaDeUsuarios({
         </thead>
         <tbody>
           {usuarios.map((usuario) => {
-            const papel = usuario.papel as PapelGerenciavel;
+            const papel = usuario.papel;
+            const podeGerenciar = recebeAtendimento(papel);
             const avaliacao = avaliacaoPorId.get(usuario.id);
             const metricas = desempenhoPorId.get(usuario.id);
             return (
@@ -381,8 +394,8 @@ function TabelaDeUsuarios({
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <PillDeStatus tom={TOM_DO_PAPEL[papel]}>
-                    {textos.papeis[papel === "SUBGESTOR" ? "subgestor" : "atendente"]}
+                  <PillDeStatus tom={tomDoPapel(papel)}>
+                    {rotuloDoPapel(textos, papel)}
                   </PillDeStatus>
                 </td>
                 <td className="px-4 py-3">
@@ -434,34 +447,38 @@ function TabelaDeUsuarios({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-8"
-                      aria-label={`${textos.editar} ${usuario.nome}`}
-                      onClick={() => onEditar(usuario)}
-                    >
-                      <Pencil className="size-(--tamanho-icone-interface)" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-8"
-                      aria-label={`${textos.senhaProvisoria.acao} ${usuario.nome}`}
-                      onClick={() => onGerarSenhaProvisoria(usuario)}
-                    >
-                      <KeyRound className="size-(--tamanho-icone-interface)" />
-                    </Button>
-                    {usuario.ativo && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="size-8 text-destructive hover:text-destructive"
-                        aria-label={`${textos.desativar} ${usuario.nome}`}
-                        onClick={() => onDesativar(usuario)}
-                      >
+                    {podeGerenciar && (
+                      <>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          aria-label={`${textos.editar} ${usuario.nome}`}
+                          onClick={() => onEditar(usuario)}
+                        >
+                          <Pencil className="size-(--tamanho-icone-interface)" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          aria-label={`${textos.senhaProvisoria.acao} ${usuario.nome}`}
+                          onClick={() => onGerarSenhaProvisoria(usuario)}
+                        >
+                          <KeyRound className="size-(--tamanho-icone-interface)" />
+                        </Button>
+                        {usuario.ativo && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 text-destructive hover:text-destructive"
+                            aria-label={`${textos.desativar} ${usuario.nome}`}
+                            onClick={() => onDesativar(usuario)}
+                          >
                         <UserRoundX className="size-(--tamanho-icone-interface)" />
-                      </Button>
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>

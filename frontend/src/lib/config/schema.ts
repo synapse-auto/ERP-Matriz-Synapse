@@ -890,7 +890,7 @@ export const TextosSchema = z.object({
       rankingVendas: z.string(),
     }),
     grade: z.object({ titulo: z.string() }),
-    papeis: z.object({ atendente: z.string(), subgestor: z.string() }),
+    papeis: z.object({ atendente: z.string(), subgestor: z.string(), gestor: z.string() }),
     presenca: z.object({ online: z.string(), ausente: z.string(), offline: z.string() }),
     disponibilidadeIa: z.object({ rotulo: z.string(), disponivel: z.string(), indisponivel: z.string(), naoAplicavel: z.string() }),
     avaliacoes: z.object({ media: z.string(), total: z.string(), semDados: z.string() }),

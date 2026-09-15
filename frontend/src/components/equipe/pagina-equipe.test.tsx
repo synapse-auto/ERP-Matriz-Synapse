@@ -35,6 +35,15 @@ const USUARIOS = [
     ativo: true,
     disponivelParaIa: false,
   },
+  {
+    id: "u4",
+    nome: "Ada Administradora",
+    email: "ada@estruturalvidros.com.br",
+    papel: "ADMINISTRADOR",
+    statusPresenca: "OFFLINE",
+    ativo: true,
+    disponivelParaIa: false,
+  },
 ];
 
 const AVALIACOES = {
@@ -78,7 +87,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         rankingVendas: "Ranking · vendas fechadas",
       },
       grade: { titulo: "USUÁRIOS" },
-      papeis: { atendente: "Atendente", subgestor: "Subgestor" },
+      papeis: { atendente: "Atendente", subgestor: "Subgestor", gestor: "Gestor" },
       presenca: { online: "Online", ausente: "Ausente", offline: "Offline" },
       disponibilidadeIa: { rotulo: "Disponibilidade IA", disponivel: "Disponível", indisponivel: "Fora do rodízio", naoAplicavel: "Não aplicável" },
       avaliacoes: { media: "Média geral", total: "Total de avaliações", semDados: "Sem avaliações" },
@@ -133,11 +142,13 @@ describe("pagina de equipe", () => {
 
     expect(screen.getAllByText("Ana Beatriz").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Bruno Costa").length).toBeGreaterThan(0);
-    expect(screen.getByText("Online")).toBeInTheDocument();
-    expect(screen.getByText("Offline")).toBeInTheDocument();
+    expect(screen.getAllByText("Gil Gestor").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Ada Administradora")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Online")).toHaveLength(2);
+    expect(screen.getAllByText("Offline")).toHaveLength(1);
     expect(screen.getByText("Inativo")).toBeInTheDocument();
     expect(screen.getByText("9.6 (20)")).toBeInTheDocument();
-    expect(screen.getByText("Sem avaliações")).toBeInTheDocument();
+    expect(screen.getAllByText("Sem avaliações")).toHaveLength(2);
     expect(screen.getByRole("columnheader", { name: "ATEND." })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "VENDAS" })).toBeInTheDocument();
     expect(screen.getByText("142")).toBeInTheDocument();
@@ -147,7 +158,7 @@ describe("pagina de equipe", () => {
   it("mostra o mini-dashboard com total, avaliação média e ranking", () => {
     render(<PaginaEquipe />);
 
-    expect(screen.getByText("1 online · 1 ativos")).toBeInTheDocument();
+    expect(screen.getByText("2 online · 2 ativos")).toBeInTheDocument();
     expect(screen.getByText("9.2")).toBeInTheDocument();
     expect(screen.getByText("Ranking · avaliação (0–10)")).toBeInTheDocument();
     expect(screen.getByText("Ranking · vendas fechadas")).toBeInTheDocument();
@@ -192,7 +203,11 @@ describe("pagina de equipe", () => {
     expect(disponibilidadeMutate).toHaveBeenCalledWith({ id: "u2", disponivelParaIa: true });
 
     expect(screen.getByRole("switch", { name: "Disponibilidade IA Ana Beatriz" })).toBeInTheDocument();
-    expect(screen.queryByText("Gil Gestor")).not.toBeInTheDocument();
+    expect(screen.getByText("Gil Gestor")).toBeInTheDocument();
+    expect(screen.getByText("Gestor")).toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: /Gil Gestor/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar Gil Gestor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desativar Gil Gestor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gerar senha provisória Gil Gestor" })).not.toBeInTheDocument();
   });
 });
