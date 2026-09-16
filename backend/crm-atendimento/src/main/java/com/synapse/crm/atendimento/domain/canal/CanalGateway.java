@@ -75,6 +75,17 @@ public interface CanalGateway {
     MidiaRecebida baixarMidiaRecebida(String midiaIdExterno);
 
     /**
+     * Consulta a foto de perfil de um contato, quando o provedor oferece essa capacidade.
+     *
+     * <p>A foto já vem como bytes normalizados do ACL; URL temporária, token e JSON do provedor
+     * nunca atravessam a fronteira de domínio. Provedores que não oferecem a capacidade mantêm o
+     * comportamento padrão (sem foto), sem que a abertura do atendimento dependa da consulta.
+     */
+    default Optional<MidiaRecebida> buscarFotoDePerfil(String telefone) {
+        return Optional.empty();
+    }
+
+    /**
      * Templates cadastrados no provedor desta instancia.
      *
      * <p>Nao entra no caminho sincrono de envio/recebimento: so e chamado quando o usuario abre a

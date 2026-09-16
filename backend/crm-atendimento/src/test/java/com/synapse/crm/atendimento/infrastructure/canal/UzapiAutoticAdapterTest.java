@@ -12,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -646,6 +647,76 @@ class UzapiAutoticAdapterTest {
         assertThatThrownBy(() -> adapter.baixarMidiaRecebida(" "))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("id de midia recebido ausente");
+        servidor.verify();
+    }
+
+    @Test
+    void buscarFotoDePerfilUsaContactsGetPictureEArmazenaSomenteBytes() {
+        JsonNode[] corpo = {null};
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(requisicao -> {
+                    corpo[0] = json.readTree(((MockClientHttpRequest) requisicao).getBodyAsBytes());
+                    assertThat(requisicao.getHeaders().getFirst("Authorization"))
+                            .isEqualTo("Bearer token-de-teste");
+                    assertThat(requisicao.getHeaders().getFirst("Authorization"))
+                            .doesNotContain(USUARIO);
+                })
+                .andRespond(withSuccess(
+                        "{\"pictureUrl\":\"" + URL_BASE + "/profile/photo.jpg?sig=temporaria\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + "/profile/photo.jpg?sig=temporaria"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(requisicao -> assertThat(requisicao.getHeaders().getFirst("Authorization"))
+                        .isNull())
+                .andRespond(withSuccess(new byte[] {9, 8, 7}, MediaType.IMAGE_JPEG));
+
+        Optional<CanalGateway.MidiaRecebida> foto = adapter.buscarFotoDePerfil("+55 (61) 99999-9999");
+
+        servidor.verify();
+        assertThat(corpo[0].path("type").asText()).isEqualTo("contacts");
+        assertThat(corpo[0].path("action").asText()).isEqualTo("getPicture");
+        assertThat(corpo[0].path("contacts").path("to").asText()).isEqualTo("5561999999999");
+        assertThat(foto).isPresent();
+        assertThat(foto.orElseThrow().conteudo()).containsExactly(9, 8, 7);
+        assertThat(foto.orElseThrow().mimetype()).isEqualTo("image/jpeg");
+    }
+
+    @Test
+    void respostaSemFotoOu404UsaFallbackSemErro() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"data\":{}}", MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+        servidor.verify();
+    }
+
+    @Test
+    void erro5xxNaFotoETemporarioParaWorkerSemBloquearMensagem() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
+
+        assertThatThrownBy(() -> adapter.buscarFotoDePerfil("5561999999999"))
+                .isInstanceOf(com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException.class)
+                .hasMessageContaining("HTTP 502")
+                .hasMessageNotContaining("token-de-teste");
+        servidor.verify();
+    }
+
+    @Test
+    void urlDeFotoDeOutroHostNaoEseguidaNemExposta() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"picture\":\"https://outro-host.example/photo.jpg\"}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
         servidor.verify();
     }
 

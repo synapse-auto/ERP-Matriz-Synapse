@@ -317,6 +317,39 @@ O Swagger não documenta desafio `GET` nem um segredo/header de assinatura próp
 tradutor recusa a verificação GET (falha fechada) e usa o segredo de query já adotado pela referência
 de produção, sem chamada à instância real nesta etapa.
 
+## 4.1 Foto de perfil do contato (capacidade opcional)
+
+O Swagger atual também documenta a ação `getPicture` no endpoint de contatos:
+
+```
+POST /{version}/{phone_number_id}/contacts
+Authorization: Bearer <WHATSAPP_TOKEN>
+Content-Type: application/json
+
+{"type":"contacts","action":"getPicture","contacts":{"to":"5561999999999"}}
+```
+
+`to` é o telefone do contato, somente dígitos. A operação é uma capacidade do adaptador, não uma
+regra por cliente: Meta Cloud permanece sem consulta equivalente e devolve ausência de foto. O
+Swagger descreve apenas HTTP 201 para esta ação e não define o schema de resposta; por isso o ACL
+aceita somente uma imagem binária ou campos de URL/base64 explicitamente reconhecidos (`picture`,
+`pictureUrl`, `profilePicture` e aliases). URL temporária é baixada no servidor, sem reenviar o
+Bearer, e nunca atravessa a API do CRM. Hosts diferentes do `WHATSAPP_URL_BASE`, esquemas não HTTPS,
+userinfo e fragmentos são recusados para evitar SSRF.
+
+A captura ocorre depois do commit de uma mensagem recebida, em executor e circuit breaker próprios.
+`CANAL_FOTO_PERFIL_CACHE_TTL` (padrão `6h`) evita chamadas repetidas por lead; concorrência, fila e
+limite de resposta estão em `CANAL_FOTO_PERFIL_CONCORRENCIA`/`CANAL_FOTO_PERFIL_FILA`/
+`CANAL_FOTO_PERFIL_LIMITE_BYTES` (padrão `5242880`). Ausência (404), resposta sem imagem, URL
+expirada, imagem inválida e indisponibilidade preservam as iniciais e nunca impedem a lista ou o
+webhook. O processamento reaproveita `AtualizarFotoDoLeadUseCase`, que valida e reencoda a imagem no
+bucket privado; nenhum token, telefone ou URL temporária é logado.
+
+Este caminho é adicional ao contrato interno publicado em `docs/23-contrato-foto-de-perfil-do-lead.md`:
+o n8n ainda pode enviar uma foto já coletada para `POST /internal/v1/leads/{leadId}/foto`, sem
+alteração de contrato. A solução histórica da Estrutural dependia exclusivamente desse envio
+externo; a consulta `getPicture` é genérica para qualquer filho cujo adaptador ofereça a capacidade.
+
 ## 9. Segredos
 
 Três variáveis já existentes cobrem autenticação (`WHATSAPP_URL_BASE`, `WHATSAPP_NUMERO`,

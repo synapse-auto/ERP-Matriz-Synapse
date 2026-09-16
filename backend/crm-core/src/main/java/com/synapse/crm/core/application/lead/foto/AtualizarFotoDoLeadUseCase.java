@@ -20,8 +20,9 @@ import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
 /**
  * Recebe, reprocessa e guarda a foto de perfil que a integracao externa coletou do contato.
  *
- * <p>O CRM nunca busca foto em lugar nenhum e nao agenda nada (RN-CRM-07): quem varre e quem chama
- * e a integracao. Este caso de uso e todo o lado do CRM.
+ * <p>A captura automática pelo canal é opcional e acontece fora do caminho crítico, em serviço
+ * assíncrono. O contrato publicado para integrações continua aceitando atualização explícita (por
+ * exemplo, pelo n8n); este caso de uso concentra a validação e a persistência em ambos os caminhos.
  *
  * <p>A ordem de {@code AtualizarMinhaFotoUseCase} e copiada de proposito: valida, processa, salva no
  * storage, grava a referencia e <b>so entao</b> remove a antiga; em caso de erro remove a nova. A

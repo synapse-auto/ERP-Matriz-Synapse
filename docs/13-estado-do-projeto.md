@@ -49,6 +49,25 @@ precisa ser calculada pela Uzapi a partir do OGG válido. Não houve envio real 
 Clínica Fêmina nesta etapa; uma confirmação do relógio no WhatsApp continua sendo evidência
 operacional do provedor.
 
+### 16/09/2026 — Captura assíncrona de foto de perfil pela UZAPI/Autotic
+
+O adaptador `uzapi-autotic` agora oferece a capacidade opcional de consultar a foto do contato pela
+ação documentada `POST /{version}/{phone_number_id}/contacts` com `type=contacts`,
+`action=getPicture` e `contacts.to` em dígitos. A consulta dispara somente após o commit de uma
+mensagem recebida, em bulkhead/circuit breaker separado do webhook e do envio. O resultado é
+convertido no ACL para bytes de imagem, validado e reencodado pelo mesmo caso de uso do contrato
+interno do n8n; o navegador recebe apenas a rota autenticada já existente e URL temporária nunca é
+persistida ou exposta.
+
+O Swagger não define o corpo de resposta (somente HTTP 201), então o adaptador aceita imagem binária
+ou campos de foto allowlisted e recusa estruturas desconhecidas. 404, ausência de foto, URL expirada,
+imagem inválida e indisponibilidade mantêm as iniciais. O cache por lead é configurável por
+`CANAL_FOTO_PERFIL_CACHE_TTL` (6h), com executor próprio (`CANAL_FOTO_PERFIL_CONCORRENCIA`/`FILA`);
+desligar `CANAL_FOTO_PERFIL_HABILITADO` não altera o caminho normal de mensagens. A capacidade não
+é ativada por nome de cliente: Meta permanece no fallback padrão. A validação real na Fêmina ainda
+depende de enviar uma mensagem nova e observar a foto; este workspace não possui credenciais de
+produção.
+
 ### 14/09/2026 — Retrieve Media URL oficial da Uzapi/Autotic
 
 Após a confirmação do suporte Uzapi/Autotic na sexta-feira (11/09/2026), o adaptador usa o

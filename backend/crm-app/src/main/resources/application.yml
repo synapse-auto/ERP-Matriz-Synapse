@@ -178,6 +178,15 @@ synapse:
       # URLs nem da validacao de credencial.
       usuario-api: ${WHATSAPP_USUARIO_API:}
       versao-api: ${WHATSAPP_VERSAO_API:}
+    # Captura opcional da foto de perfil oferecida pelo adaptador do canal. A consulta
+    # acontece apenas após o commit de uma mensagem recebida e em executor separado;
+    # desabilitar não altera recebimento nem abertura de atendimento.
+    foto-perfil:
+      habilitado: ${CANAL_FOTO_PERFIL_HABILITADO:true}
+      cache-ttl: ${CANAL_FOTO_PERFIL_CACHE_TTL:6h}
+      concorrencia: ${CANAL_FOTO_PERFIL_CONCORRENCIA:2}
+      fila: ${CANAL_FOTO_PERFIL_FILA:100}
+      limite-bytes: ${CANAL_FOTO_PERFIL_LIMITE_BYTES:5242880}
 
     # Publisher da outbox. O intervalo e o que define a latencia percebida entre
     # o clique do atendente e a mensagem sair.
