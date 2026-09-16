@@ -54,15 +54,10 @@ class RecorteDaAbaTodosIT extends PostgresIT {
     private UUID atendimentoDoBruno;
     private UUID leadParticipado;
     private UUID atendimentoParticipado;
-    private long contagemTodosAntes;
-
     @BeforeEach
     void preparar() throws Exception {
         ana = usuario(EMAIL_ANA);
         bruno = usuario(EMAIL_BRUNO);
-        contagemTodosAntes = json.readTree(get(token(EMAIL_GESTOR, SENHA_GESTOR), "/api/v1/atendimentos/contagem"))
-                .path("TODOS")
-                .asLong();
 
         leadDaAna = lead("proprio", ana, "EM_ATENDIMENTO");
         atendimentoDaAna = atendimento(leadDaAna, ana, "EM_ATENDIMENTO");
@@ -112,10 +107,10 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         assertThat(ids(todos))
                 .contains(
                         atendimentoDaAna.toString(),
-                        atendimentoFinalizadoDaAna.toString(),
                         atendimentoPotencial.toString(),
                         atendimentoDoBruno.toString(),
-                        atendimentoParticipado.toString());
+                        atendimentoParticipado.toString())
+                .doesNotContain(atendimentoFinalizadoDaAna.toString());
     }
 
     @Test
@@ -134,12 +129,9 @@ class RecorteDaAbaTodosIT extends PostgresIT {
         assertThat(contagensGestor.has("TODOS")).isTrue();
         for (String visao : List.of("TODOS", "ATIVOS", "PENDENTES", "POTENCIAIS")) {
             JsonNode lista = listar(tokenGestor, visao);
-            // TODOS inclui um cartão por lead, inclusive o lead cujo único atendimento já foi
-            // finalizado; as demais visões continuam comparadas diretamente com a lista.
-            long esperado = "TODOS".equals(visao) ? contagemTodosAntes + 5 : lista.size();
             assertThat(contagensGestor.path(visao).asLong())
                     .as("contagem de %s deve refletir o recorte da visao", visao)
-                    .isEqualTo(esperado);
+                    .isEqualTo(lista.size());
         }
     }
 

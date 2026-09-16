@@ -133,6 +133,16 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_IA')";
 
     /**
+     * "Todos" mostra e conta so leads com atendimento aberto (EM_ATENDIMENTO/EM_IA) — o inverso exato
+     * de {@link #WHERE_SEM_ATENDIMENTO_ABERTO} (E136). Quem quiser ver o historico com finalizados usa
+     * a aba FINALIZADOS, dedicada. Lista e contagem usam esta mesma constante — nao dessincronizar de
+     * novo (ver 194eded0/5712722b no historico do git).
+     */
+    private static final String WHERE_TODOS_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento aberto"
+            + " WHERE aberto.lead_id = a.lead_id"
+            + " AND aberto.status IN ('EM_ATENDIMENTO', 'EM_IA'))";
+
+    /**
      * Cartao finalizado = lead sem atendimento aberto (E136 / Bloco 0). Nao e
      * {@code a.status = 'FINALIZADO'} — isso duplicaria leads que ja tem outro aberto.
      */
@@ -155,7 +165,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_POTENCIAIS = agrupar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
-    private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM);
+    private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM + WHERE_TODOS_ATIVOS);
 
     private static final String SQL_FINALIZADOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 
@@ -175,7 +185,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_CONTAR_POTENCIAIS = contar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
 
-    private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM);
+    private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM + WHERE_TODOS_ATIVOS);
 
     private static final String SQL_CONTAR_FINALIZADOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
 
@@ -230,7 +240,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case ATIVOS -> WHERE_ATIVOS;
             case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
             case POTENCIAIS -> WHERE_POTENCIAIS;
-            case TODOS -> "";
+            case TODOS -> WHERE_TODOS_ATIVOS;
             case FINALIZADOS -> WHERE_FINALIZADOS;
         };
         String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro

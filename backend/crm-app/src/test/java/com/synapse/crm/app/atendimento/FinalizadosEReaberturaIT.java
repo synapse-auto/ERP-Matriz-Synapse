@@ -99,30 +99,27 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 Instant.parse("2026-08-30T11:00:00Z"));
         mensagem(finalizado, "ATENDENTE", ana, "finalizado mais recente", Instant.parse("2026-08-30T10:01:00Z"));
 
-        // Finalizados continuam acessíveis pela visão TODOS da gestão; atendente já não possui essa aba.
+        // TODOS mostra somente leads com atendimento aberto; um histórico finalizado continua no
+        // cartão quando o mesmo lead também possui atendimento ativo. O balcão de reativação fica em
+        // FINALIZADOS; atendente já não possui a aba TODOS.
         JsonNode lista = json.readTree(get(token, "/api/v1/atendimentos?visao=TODOS").getBody());
         List<String> leads = valores(lista, "leadId");
 
-        assertThat(leads.indexOf(leadAberto.toString())).isLessThan(leads.indexOf(leadSemAberto.toString()));
-        assertThat(leads.indexOf(leadComHistoricoFinal.toString()))
-                .isLessThan(leads.indexOf(leadSemAberto.toString()));
+        assertThat(leads).contains(leadAberto.toString(), leadComHistoricoFinal.toString());
+        assertThat(leads).doesNotContain(leadSemAberto.toString());
         JsonNode cartaoComHistorico = encontrarPorLead(lista, leadComHistoricoFinal);
         assertThat(cartaoComHistorico.path("status").asText()).isEqualTo("FINALIZADO");
         assertThat(cartaoComHistorico.path("atendimentoAtivoId").asText())
                 .isEqualTo(ativoDoHistorico.toString());
 
         JsonNode contagem = json.readTree(get(token, "/api/v1/atendimentos/contagem").getBody());
-        // O badge TODOS e global e acompanha a listagem sem filtro: cada lead criado nesta
-        // fixture, inclusive o que so tem historico finalizado, acrescenta um cartao (PR #156).
-        // Medir o delta evita depender de dados compartilhados por outros testes.
-        assertThat(contagem.path("TODOS").asLong()).isEqualTo(contagemTodosAntes + 3);
+        // Medir o delta evita depender de dados compartilhados por outros testes. Somente os dois
+        // leads com atendimento aberto entram em TODOS; o lead apenas finalizado fica em FINALIZADOS.
+        assertThat(contagem.path("TODOS").asLong()).isEqualTo(contagemTodosAntes + 2);
 
         List<String> idsPaginados = percorrerInbox(token);
         assertThat(idsPaginados).doesNotHaveDuplicates();
-        assertThat(idsPaginados.indexOf(atendimentoAberto.toString()))
-                .isLessThan(idsPaginados.indexOf(finalizado.toString()));
-        assertThat(idsPaginados.indexOf(finalMaisRecente.toString()))
-                .isLessThan(idsPaginados.indexOf(finalizado.toString()));
+        assertThat(idsPaginados).doesNotContain(finalizado.toString());
     }
 
     @Test
