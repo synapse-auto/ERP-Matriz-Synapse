@@ -17,6 +17,12 @@ public interface AtendenteParaTransferenciaRepositorio {
      */
     List<Destino> listarAtivos();
 
+    /**
+     * Mesmo critério de {@link #listarAtivos()}, filtrado por nome (case-insensitive, substring).
+     * Usado pela Automação para resolver o UUID de um atendente citado pelo cliente.
+     */
+    List<Destino> buscarPorNome(String busca);
+
     AtendenteDestinoInvalidoException.Motivo motivoDaRecusa(UUID atendenteId);
 
     default Destino exigirAtendenteAtivo(UUID atendenteId) {

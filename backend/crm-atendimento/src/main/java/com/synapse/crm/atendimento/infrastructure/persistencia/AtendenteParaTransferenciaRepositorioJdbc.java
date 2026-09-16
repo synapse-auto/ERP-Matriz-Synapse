@@ -21,6 +21,8 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " ORDER BY nome, id";
+    private static final String SQL_BUSCAR_POR_NOME =
+            "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " AND nome ILIKE ? ORDER BY nome, id";
     private static final String SQL_MOTIVO = """
             SELECT CASE
                 WHEN NOT EXISTS (SELECT 1 FROM usuario WHERE id = ?) THEN 'INEXISTENTE'
@@ -49,6 +51,17 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
         return chat.query(
                 SQL_LISTAR,
                 (linha, indice) -> new Destino(linha.getObject("id", UUID.class), linha.getString("nome")));
+    }
+
+    @Override
+    public java.util.List<Destino> buscarPorNome(String busca) {
+        return chat.query(
+                        SQL_BUSCAR_POR_NOME,
+                        (linha, indice) -> new Destino(
+                                linha.getObject("id", UUID.class), linha.getString("nome")),
+                        "%" + busca + "%")
+                .stream()
+                .toList();
     }
 
     @Override

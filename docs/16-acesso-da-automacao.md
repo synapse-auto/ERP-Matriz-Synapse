@@ -113,6 +113,20 @@ Idempotency-Key: workflow-123-transferencia-1
 { "atendenteId": "00000000-0000-0000-0000-000000000000" }
 ```
 
+Quando a pessoa for identificada por nome, resolva primeiro os destinos elegíveis no próprio CRM:
+
+```text
+GET /internal/v1/atendimentos/atendentes?nome=Daiane
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+```
+
+A resposta é sempre `200`, mesmo quando não houver candidatos (`[]`). A busca ignora maiúsculas e
+minúsculas e aceita substring; nomes coincidentes retornam todos os candidatos para que o workflow
+decida como desambiguar. Só entram usuários ativos com papel `ATENDENTE` ou `SUBGESTOR`, usando o
+mesmo critério do `/transferir`. A disponibilidade para IA não é considerada: um atendente fora do
+rodízio continua sendo destino válido para pedido explícito. Nome ausente ou em branco responde
+`400`; o token ausente ou inválido responde `401`. O corpo de cada item contém somente `id` e `nome`.
+
 Para devolver ao robô, use `PATCH /internal/v1/atendimentos/{id}/modo-ia` com
 corpo `{}`. Para distribuição automática (rodízio), use
 `POST /internal/v1/atendimentos/{id}/transferir-proximo-humano` sem corpo: o
