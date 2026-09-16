@@ -39,7 +39,8 @@ WORKDIR /application
 COPY --from=layers --chown=synapse:synapse /builder/extracted/dependencies/ ./
 COPY --from=layers --chown=synapse:synapse /builder/extracted/spring-boot-loader/ ./
 COPY --from=layers --chown=synapse:synapse /builder/extracted/snapshot-dependencies/ ./
-COPY --from=layers --chown=synapse:synapse /builder/extracted/application/ ./
+# Mantém o executável no caminho estável usado pelo ENTRYPOINT e pelo runner one-shot.
+COPY --from=layers --chown=synapse:synapse /builder/application.jar ./application.jar
 
 USER 10001:10001
 EXPOSE 8080

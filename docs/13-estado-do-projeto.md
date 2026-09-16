@@ -1,8 +1,31 @@
 # 13. Estado do Projeto — handoff
 
-Documento de continuidade. **Estado reconstruído em 14/09/2026 a partir de
-`origin/main` (`40fdc54`), das migrations e do código.** Se este arquivo divergir do
+Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
+`origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
+
+### 16/09/2026 — V73 imutável e upgrade controlado para Fêmina
+
+Marcondes confirmou `flyway_schema_history` da Estrutural com V73 bem-sucedida. Não editar o SQL,
+não rodar `flyway repair` e não alterar o histórico. A Fêmina teve tentativas de V73 no boot
+abortadas após mais de 30 minutos: healthcheck reiniciava o backend, novas sessões JDBC concorriam
+por locks e a API respondia 503; a versão continuava em 72. `7462937` e `e3324f5` são tags de
+imagens que contêm V73; `78c4e53` é a última imagem publicada antes dela. Esses dados não confirmam
+qual imagem está atualmente implantada em cada serviço, que deve ser obtida do Dokploy/runtime antes
+de agir.
+
+O boot normal valida checksums e, enquanto V73 estiver pendente, nunca a executa: banco vazio/antigo
+pode avançar somente até V72 e schema72 permanece intacto. O bridge one-shot usa contexto mínimo,
+lock de advisory sem espera, timeouts finitos e alvo estrito 73; aceita somente 72→73 com exatamente
+uma migration ou 73 já aplicada. Depois da V73, migrations posteriores voltam ao fluxo normal. Antes da Fêmina, exige backup, simulação
+restrita, janela fora de 08:00–18:30 e homologação com cópia estruturalmente equivalente da
+Estrutural. Nenhum deploy/rollback/SQL de produção foi executado nesta etapa. A Estrutural continua
+protegida: se uma checagem futura achar V73 pendente nela, bloquear o deploy.
+
+SHA de runtime, tags atuais de backend/frontend e última versão aplicada da Fêmina e da Estrutural
+precisam ser levantados por acesso operacional read-only; não há credencial/runtime de produção
+conectado a este workspace. A limpeza histórica dentro da V73 continua não paginada: qualquer
+manutenção futura de dados precisa de desenho separado, dry-run, checkpoint e aprovação explícita.
 
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
 
@@ -55,7 +78,7 @@ linhas dependentes são movidas e referências escalares do lead só preenchem c
 sobrevivente (campos preenchidos por ele prevalecem). O nome do sobrevivente é preservado, seguindo
 o precedente da V50. Casos ambíguos,
 especiais ou sem evidência de importação são listados por `RAISE NOTICE` e permanecem intactos.
-Antes do deploy, executar e guardar a saída de
+Antes da execução explícita e controlada da V73 (nunca no boot normal), executar e guardar a saída de
 `docker/provisionamento/simular-limpeza-prefixo-discagem.sql`; as contagens reais dependem do banco
 de cada instância e não foram inventadas neste handoff.
 

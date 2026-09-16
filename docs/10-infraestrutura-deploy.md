@@ -64,6 +64,20 @@ Verificar **antes** do primeiro deploy de homologação. Todos os três já caus
 
 - [ ] **Limites de mídia conferidos contra a documentação atual da Meta.** Configurados hoje: imagem 5 MB, áudio 16 MB, documento 100 MB — valores históricos usados como seed e teto de fallback. A Meta muda isso sem aviso, e o sintoma é upload rejeitado pelo provedor depois de o atendente já ter esperado o envio. Os valores são editáveis na tela de Configurações, sem tocar em código.
 
+### 2.1 Migrations de dados e rollout `start-first`
+
+O backend valida checksums no startup. Se V73 estiver pendente, a inicialização nunca a executa:
+schema vazio/antigo pode avançar somente até V72 e schema72 fica intacto. Isso impede que duas
+réplicas `start-first` iniciem simultaneamente a limpeza/fusão histórica. A V73 é um passo explícito
+de release pelo runner one-shot, com advisory lock sem espera e timeout finito; o runner só aceita
+schema72 com V73 pendente ou schema73 já aplicado. Após aplicar a V73, migrations futuras (como
+V74) voltam ao fluxo Flyway normal. Consulte o
+[runbook controlado da V73](./41-runbook-upgrade-controlado-v73.md) antes de qualquer execução.
+
+Para releases com V73 pendente, execute a etapa controlada antes de liberar a versão; para schemas
+que já passaram da V73, o ciclo de migrations posteriores permanece automático. Nunca combine tags
+de frontend e backend de SHAs diferentes.
+
 ---
 
 ## 3. Ambiente de homologação

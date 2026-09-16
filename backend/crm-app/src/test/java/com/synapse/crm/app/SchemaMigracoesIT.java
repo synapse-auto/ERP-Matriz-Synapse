@@ -26,8 +26,8 @@ import com.synapse.crm.atendimento.infrastructure.particao.ParticaoMensagemAusen
 /**
  * Prova que as migrations sobem um schema correto a partir de um banco limpo.
  *
- * <p>O container do Testcontainers nasce vazio, entao o contexto subir ja prova que o Flyway rodou
- * V1..V10 do zero. O resto verifica o que uma migration errada quebraria em silencio: um ENUM
+ * <p>O fixture aplica as migrations explicitamente antes dos contextos porque o boot normal agora
+ * valida sem migrar. O resto verifica o que uma migration errada quebraria em silencio: um ENUM
  * faltando, um indice que ninguem percebeu que sumiu, ou a regra de credencial ativa deixando de
  * ser garantida pelo banco.
  */

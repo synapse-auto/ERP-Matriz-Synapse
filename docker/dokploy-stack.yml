@@ -164,6 +164,8 @@ services:
       SYNAPSE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?obrigatoria}
       SYNAPSE_DB_USER: ${POSTGRES_USER:?obrigatoria}
       SYNAPSE_DB_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      SYNAPSE_MIGRATION_LOCK_TIMEOUT: ${SYNAPSE_MIGRATION_LOCK_TIMEOUT:-10s}
+      SYNAPSE_MIGRATION_STATEMENT_TIMEOUT: ${SYNAPSE_MIGRATION_STATEMENT_TIMEOUT:-30m}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       # Alias privado da instancia, nunca o "minio" generico da rede externa

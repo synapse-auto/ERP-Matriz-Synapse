@@ -4,6 +4,10 @@ Tudo que depende do Marcondes, na ordem de execução. Nenhum destes é prompt d
 
 Ordem pensada para: disparar cedo o que depende de terceiros, depois destravar o ambiente, depois provar que funciona.
 
+Para aplicar migrations em produção sem executar migrações de dados no boot normal do CRM, siga o
+[runbook de upgrade controlado V73](./41-runbook-upgrade-controlado-v73.md). Não opere banco ou
+serviço da Estrutural sem a janela/autorização operacional correspondente.
+
 ---
 
 ## Fase 0 — Disparar agora (5 minutos, respostas chegam depois)
