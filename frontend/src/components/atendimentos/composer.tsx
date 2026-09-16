@@ -35,6 +35,7 @@ import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimen
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta, origemDaMensagem } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
+import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-template";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
@@ -559,14 +560,16 @@ export function Composer({
     valores: string[],
   ) {
     if ((!podeEnviar || onRevalidarEnvio) && !await confirmarEnvioPermitido()) return;
+    const corpoRenderizado = interpolarCorpoDoTemplate(template.corpo, valores);
     enviar.mutate({
       atendimentoId: conversa.atendimentoId,
       leadId: conversa.leadId,
-      conteudo: template.corpo,
+      conteudo: corpoRenderizado,
       template: {
         nome: template.nome,
         idioma: template.idioma,
         parametros: valores,
+        corpoRenderizado,
       },
     });
     setPainelTemplateAberto(false);

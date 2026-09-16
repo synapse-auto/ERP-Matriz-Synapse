@@ -97,8 +97,52 @@ describe("useEnviarMensagem", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(api.enviarTemplate).toHaveBeenCalledWith(
-      "at-template", "lead-template", "reativacao", "pt_BR", ["Cliente"], expect.any(String));
+      "at-template",
+      "lead-template",
+      "reativacao",
+      "pt_BR",
+      ["Cliente"],
+      expect.any(String),
+      undefined,
+    );
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+  });
+
+  it("envia o corpo renderizado do template junto dos parametros", async () => {
+    vi.mocked(api.enviarTemplate).mockResolvedValue({
+      atendimentoId: "at-template-renderizado",
+      mensagemId: "msg-template-renderizado",
+      statusEntrega: "PENDENTE",
+      enviadoEm: "2026-09-15T00:00:00Z",
+      transferiuOLead: false,
+    });
+    const { queryClient, Wrapper } = criarWrapper();
+    prepararHistorico(queryClient, "at-template-renderizado");
+    const { result } = renderHook(() => useEnviarMensagem(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        atendimentoId: "at-template-renderizado",
+        leadId: "lead-template-renderizado",
+        conteudo: "Olá Maria",
+        template: {
+          nome: "boas_vindas",
+          idioma: "pt_BR",
+          parametros: ["Maria"],
+          corpoRenderizado: "Olá Maria",
+        },
+      });
+    });
+
+    expect(api.enviarTemplate).toHaveBeenCalledWith(
+      "at-template-renderizado",
+      "lead-template-renderizado",
+      "boas_vindas",
+      "pt_BR",
+      ["Maria"],
+      expect.any(String),
+      "Olá Maria",
+    );
   });
 
   it("remove a bolha otimista quando a resposta é recusada, sem deixar vínculo falso", async () => {
