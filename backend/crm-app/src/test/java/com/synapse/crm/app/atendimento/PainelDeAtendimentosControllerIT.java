@@ -136,38 +136,43 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         assertThat(corpo).contains(atendimentoPendenteDoBruno.toString());
     }
 
-    @Test
-    @DisplayName("PENDENTES: confirmacao automatica nao remove a pendencia do lead")
-    void pendentes_ignoraMensagemDaIaAoClassificar() {
-        long contagemAnaAntes = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES");
-        long contagemGestorAntes = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES");
-        inserirMensagem(
-                atendimentoPendenteDaAna,
-                "IA",
-                null,
-                "Você foi transferido para o atendente Ana.",
-                Instant.now().plusSeconds(1));
+    @Nested
+    @DisplayName("PENDENTES: mensagens automaticas")
+    class Pendentes {
 
-        assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
-                .contains(atendimentoPendenteDaAna.toString());
-        assertThat(contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
-                .isEqualTo(contagemAnaAntes);
-        assertThat(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
-                .contains(atendimentoPendenteDaAna.toString());
-        assertThat(contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
-                .isEqualTo(contagemGestorAntes);
-    }
+        @Test
+        @DisplayName("confirmacao automatica nao remove a pendencia do lead")
+        void ignoraMensagemDaIaAoClassificar() {
+            long contagemAnaAntes = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES");
+            long contagemGestorAntes = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES");
+            inserirMensagem(
+                    atendimentoPendenteDaAna,
+                    "IA",
+                    null,
+                    "Você foi transferido para o atendente Ana.",
+                    Instant.now().plusSeconds(1));
 
-    @Test
-    @DisplayName("PENDENTES: mensagem automatica posterior nao reabre atendimento respondido")
-    void pendentes_naoReabreAposRespostaHumanaMesmoComMensagemAutomatica() {
-        Instant base = Instant.now();
-        inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "pergunta do lead", base);
-        inserirMensagem(atendimentoPendenteDaAna, "ATENDENTE", idAna, "resposta da Ana", base.plusSeconds(1));
-        inserirMensagem(atendimentoPendenteDaAna, "SISTEMA", null, "aviso automatico", base.plusSeconds(2));
+            assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .contains(atendimentoPendenteDaAna.toString());
+            assertThat(contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .isEqualTo(contagemAnaAntes);
+            assertThat(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
+                    .contains(atendimentoPendenteDaAna.toString());
+            assertThat(contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
+                    .isEqualTo(contagemGestorAntes);
+        }
 
-        assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
-                .doesNotContain(atendimentoPendenteDaAna.toString());
+        @Test
+        @DisplayName("mensagem automatica posterior nao reabre atendimento respondido")
+        void naoReabreAposRespostaHumanaMesmoComMensagemAutomatica() {
+            Instant base = Instant.now();
+            inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "pergunta do lead", base);
+            inserirMensagem(atendimentoPendenteDaAna, "ATENDENTE", idAna, "resposta da Ana", base.plusSeconds(1));
+            inserirMensagem(atendimentoPendenteDaAna, "SISTEMA", null, "aviso automatico", base.plusSeconds(2));
+
+            assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .doesNotContain(atendimentoPendenteDaAna.toString());
+        }
     }
 
     @Test
