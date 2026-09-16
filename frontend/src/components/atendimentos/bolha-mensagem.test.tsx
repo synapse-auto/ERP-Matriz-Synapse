@@ -82,6 +82,41 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
 }
 
 describe("BolhaMensagem", () => {
+  it("exibe data e hora completas para mensagens recebidas", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
+          enviadoEm: "2026-08-31T17:17:00",
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("31/08/2026 17:17")).toBeInTheDocument();
+  });
+
+  it("exibe data e hora completas antes do status nas mensagens enviadas", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({ enviadoEm: "2026-08-31T17:17:00", statusEntrega: "LIDO" })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    const dataHora = screen.getByText("31/08/2026 17:17");
+    const rodape = dataHora.parentElement;
+    expect(rodape).not.toBeNull();
+    expect(rodape?.lastElementChild).toHaveAttribute("title", "Lido");
+    expect(dataHora.compareDocumentPosition(rodape!.lastElementChild!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
   it("mostra balão recebido com presença visual e sem autoria inventada", () => {
     render(
       <BolhaMensagem
