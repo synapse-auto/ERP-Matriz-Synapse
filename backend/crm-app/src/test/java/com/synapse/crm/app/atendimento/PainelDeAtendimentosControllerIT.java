@@ -62,6 +62,14 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     private UUID atendimentoPendenteDoBruno;
     private UUID atendimentoPotencial;
 
+    private long contarComo(String email, String senha, String visao) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+        String corpo = ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                .getBody();
+        return Long.parseLong(corpo.replaceAll(".*\"" + visao + "\":(\\d+).*", "$1"));
+    }
+
     @BeforeEach
     void prepararCenario() {
         idAna = idDoUsuario(EMAIL_ANA);
@@ -126,6 +134,45 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
         assertThat(corpo).contains(atendimentoPendenteDaAna.toString());
         assertThat(corpo).contains(atendimentoPendenteDoBruno.toString());
+    }
+
+    @Nested
+    @DisplayName("PENDENTES: mensagens automaticas")
+    class Pendentes {
+
+        @Test
+        @DisplayName("confirmacao automatica nao remove a pendencia do lead")
+        void ignoraMensagemDaIaAoClassificar() {
+            long contagemAnaAntes = contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES");
+            long contagemGestorAntes = contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES");
+            inserirMensagem(
+                    atendimentoPendenteDaAna,
+                    "IA",
+                    null,
+                    "Você foi transferido para o atendente Ana.",
+                    Instant.now().plusSeconds(1));
+
+            assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .contains(atendimentoPendenteDaAna.toString());
+            assertThat(contarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .isEqualTo(contagemAnaAntes);
+            assertThat(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
+                    .contains(atendimentoPendenteDaAna.toString());
+            assertThat(contarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"))
+                    .isEqualTo(contagemGestorAntes);
+        }
+
+        @Test
+        @DisplayName("mensagem automatica posterior nao reabre atendimento respondido")
+        void naoReabreAposRespostaHumanaMesmoComMensagemAutomatica() {
+            Instant base = Instant.now();
+            inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "pergunta do lead", base);
+            inserirMensagem(atendimentoPendenteDaAna, "ATENDENTE", idAna, "resposta da Ana", base.plusSeconds(1));
+            inserirMensagem(atendimentoPendenteDaAna, "SISTEMA", null, "aviso automatico", base.plusSeconds(2));
+
+            assertThat(listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"))
+                    .doesNotContain(atendimentoPendenteDaAna.toString());
+        }
     }
 
     @Test
@@ -420,6 +467,12 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         @Test
         @DisplayName("a contagem de cada visao bate com o tamanho da listagem")
         void contagem_bateComOTamanhoDaListagem() throws Exception {
+            inserirMensagem(
+                    atendimentoPendenteDaAna,
+                    "IA",
+                    null,
+                    "confirmacao automatica",
+                    Instant.now().plusSeconds(1));
             assertContagemBateComListagem(
                     EMAIL_ANA,
                     SENHA_ATENDENTE,
@@ -695,15 +748,25 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
     private void inserirMensagem(
             UUID atendimentoId, String remetenteTipo, UUID remetenteId, String conteudo) {
+        inserirMensagem(atendimentoId, remetenteTipo, remetenteId, conteudo, Instant.now());
+    }
+
+    private void inserirMensagem(
+            UUID atendimentoId,
+            String remetenteTipo,
+            UUID remetenteId,
+            String conteudo,
+            Instant enviadoEm) {
         jdbc.update(
                 "INSERT INTO mensagem (id, atendimento_id, remetente_tipo, remetente_id, tipo,"
                         + " conteudo, status_entrega, enviado_em)"
                         + " VALUES (?, ?, ?::remetente_tipo, ?, 'TEXTO'::tipo_mensagem, ?,"
-                        + " 'ENVIADO'::status_entrega, now())",
+                        + " 'ENVIADO'::status_entrega, ?)",
                 UUID.randomUUID(),
                 atendimentoId,
                 remetenteTipo,
                 remetenteId,
-                conteudo);
+                conteudo,
+                Timestamp.from(enviadoEm));
     }
 }

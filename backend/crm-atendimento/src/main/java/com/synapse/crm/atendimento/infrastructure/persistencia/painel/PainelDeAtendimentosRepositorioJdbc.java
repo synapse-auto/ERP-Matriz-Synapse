@@ -115,13 +115,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String WHERE_PENDENTES_PROPRIOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
-            + " WHERE m_visivel.atendimento_id = visivel.id ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
+            + " WHERE m_visivel.atendimento_id = visivel.id"
+            + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
+            + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
             + " ON true WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
             + " AND visivel.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')";
 
     private static final String WHERE_PENDENTES_TODOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
-            + " WHERE m_visivel.atendimento_id = visivel.id ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
+            + " WHERE m_visivel.atendimento_id = visivel.id"
+            + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
+            + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
             + " ON true WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
             + " AND ultima_visivel.remetente_tipo = 'LEAD')";
 
