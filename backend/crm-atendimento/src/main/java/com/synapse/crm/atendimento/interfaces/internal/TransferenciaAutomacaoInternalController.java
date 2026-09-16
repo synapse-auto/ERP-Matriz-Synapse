@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.interfaces.internal;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -176,6 +177,11 @@ class TransferenciaAutomacaoInternalController {
 
     @ExceptionHandler({IdempotencyKeyInvalidaException.class, MensagemAutomacaoInvalidaException.class})
     ProblemDetail aoReceberRequisicaoInvalida(RuntimeException erro) {
+        return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail aoReceberParametroInvalido(ConstraintViolationException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());
     }
 
