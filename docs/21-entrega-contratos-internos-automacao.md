@@ -216,6 +216,20 @@ Se o workflow não tem um motivo de negócio para apontar a pessoa, use a segund
 decidir. `GET /internal/v1/atendentes/disponiveis` já devolve a lista **na ordem recomendada** — o
 primeiro item é o destino sugerido. Não reordene no workflow.
 
+Quando o cliente cita uma pessoa pelo nome, a Automação pode resolver o UUID sem manter uma tabela
+própria de usuários:
+
+```text
+GET /internal/v1/atendimentos/atendentes?nome=Daiane
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+```
+
+O CRM faz busca case-insensitive por substring e devolve `200` com todos os candidatos, cada um
+contendo apenas `id` e `nome`. O filtro é o mesmo da transferência explícita (`ativo = TRUE` e papel
+`ATENDENTE` ou `SUBGESTOR`), sem filtrar `disponivel_para_ia`; portanto a Automação deve tratar
+ambiguidade e então chamar `/transferir` com o UUID escolhido. Sem correspondência, a lista é `[]`;
+nome ausente ou em branco é `400`, e token ausente ou inválido é `401`.
+
 Para finalizar um único atendimento, use `POST /internal/v1/atendimentos/{id}/finalizar` sem corpo.
 Exija `Idempotency-Key`; a transição marca o atendimento e o lead como `FINALIZADO` e registra
 `AUTOMACAO` na timeline, auditoria e evento pós-commit, sem usuário técnico ou UUID fictício. A

@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.interfaces.internal;
 
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -14,16 +15,21 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException;
+import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
+import com.synapse.crm.atendimento.application.BuscarAtendentePorNomeUseCase;
 import com.synapse.crm.atendimento.application.ChaveIdempotenciaReutilizadaException;
 import com.synapse.crm.atendimento.application.ComandosAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.IdempotencyKeyInvalidaException;
@@ -38,15 +44,35 @@ import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Comandos síncronos do n8n; todos os efeitos permanecem no caso de uso e na outbox. */
 @RestController
+@Validated
 @RequestMapping("/internal/v1/atendimentos")
 @Tag(name = "Atendimento interno", description = "Comandos de atendimento consumidos pela Automação.")
 @SecurityRequirement(name = "synapseToken")
 class TransferenciaAutomacaoInternalController {
 
     private final ComandosAutomacaoUseCase comandos;
+    private final BuscarAtendentePorNomeUseCase busca;
 
-    TransferenciaAutomacaoInternalController(ComandosAutomacaoUseCase comandos) {
+    TransferenciaAutomacaoInternalController(
+            ComandosAutomacaoUseCase comandos, BuscarAtendentePorNomeUseCase busca) {
         this.comandos = comandos;
+        this.busca = busca;
+    }
+
+    @Operation(
+            summary = "Buscar atendente por nome",
+            description = "Resolve o nome informado pelo cliente para os atendentes ativos e elegíveis (ATENDENTE/SUBGESTOR) que casam — busca case-insensitive, substring. A Automação usa isto para descobrir o UUID antes de chamar /transferir. Não filtra disponibilidade para IA: um colega fora do rodízio continua sendo um destino válido para pedido explícito do cliente.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Lista de candidatos; pode vir vazia."),
+                @ApiResponse(responseCode = "400", description = "Parâmetro nome ausente ou em branco."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido.")
+            })
+    @GetMapping("/atendentes")
+    List<AtendenteParaTransferenciaRepositorio.Destino> buscarAtendentePorNome(
+            @Parameter(description = "Nome (ou parte do nome) do atendente citado pelo cliente.", required = true)
+                    @RequestParam @NotBlank String nome) {
+        return ContextoDeServico.buscarComo(
+                "buscar-atendente-automacao", () -> busca.executar(nome));
     }
 
     @Operation(

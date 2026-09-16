@@ -80,6 +80,78 @@ class TransferenciaAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("automacao resolve nome sem diferenciar maiusculas e por substring")
+    void buscaAtendentePorNome() {
+        UUID daiane = criarAtendenteDisponivel("DAIANE-BUSCA");
+        UUID diane = criarAtendenteDisponivel("DIANE-BUSCA");
+
+        ResponseEntity<String> respostaExata = buscarPorNome(TOKEN, "daiane-busca");
+
+        assertThat(respostaExata.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaExata.getBody()).contains(daiane.toString()).contains("DAIANE-BUSCA");
+
+        ResponseEntity<String> respostaParcial = buscarPorNome(TOKEN, "iane-bus");
+
+        assertThat(respostaParcial.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respostaParcial.getBody()).contains(daiane.toString()).contains(diane.toString());
+    }
+
+    @Test
+    @DisplayName("busca por nome sem correspondencia devolve lista vazia")
+    void buscaAtendentePorNomeSemCorrespondencia() {
+        ResponseEntity<String> resposta = buscarPorNome(TOKEN, "NAO-EXISTE-BUSCA");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).isEqualTo("[]");
+    }
+
+    @Test
+    @DisplayName("busca respeita ativo e papel, mas nao disponibilidade para IA")
+    void buscaAtendentePorNomeRespeitaElegibilidade() {
+        UUID inativo = criarAtendenteDisponivel("INATIVO-BUSCA");
+        jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", inativo);
+        UUID gestor = criarUsuarioDisponivel("GESTOR-BUSCA", "GESTOR");
+        UUID administrador = criarUsuarioDisponivel("ADMIN-BUSCA", "ADMINISTRADOR");
+        UUID foraDoRodizio = criarAtendenteDisponivel("FORA-RODIZIO-BUSCA");
+        jdbc.update("UPDATE disponibilidade_atendente_ia SET disponivel_para_ia = FALSE WHERE atendente_id = ?", foraDoRodizio);
+
+        ResponseEntity<String> resposta = buscarPorNome(TOKEN, "BUSCA");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody())
+                .contains(foraDoRodizio.toString())
+                .doesNotContain(inativo.toString())
+                .doesNotContain(gestor.toString())
+                .doesNotContain(administrador.toString());
+    }
+
+    @Test
+    @DisplayName("nome ausente ou em branco retorna 400")
+    void buscaAtendentePorNomeExigeNome() {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.set("X-Synapse-Token", TOKEN);
+        ResponseEntity<String> ausente = http.exchange(
+                "/internal/v1/atendimentos/atendentes", HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
+        ResponseEntity<String> emBranco = buscarPorNome(TOKEN, "");
+
+        assertThat(ausente.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(emBranco.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("busca exige o token interno")
+    void buscaAtendentePorNomeExigeToken() {
+        HttpHeaders semToken = new HttpHeaders();
+
+        ResponseEntity<String> ausente = http.exchange(
+                "/internal/v1/atendimentos/atendentes?nome=daiane", HttpMethod.GET, new HttpEntity<>(semToken), String.class);
+        ResponseEntity<String> invalido = buscarPorNome("token-forjado", "daiane");
+
+        assertThat(ausente.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(invalido.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     @DisplayName("transferencia explicita reatribui atendimento humano e atualiza o lead")
     void transferenciaExplicitaReatribuiAtendimentoHumano() {
         UUID michele = criarAtendenteDisponivel("MICHELE");
@@ -208,6 +280,16 @@ class TransferenciaAutomacaoIT extends PostgresIT {
 
     private ResponseEntity<String> chamarComToken(String token, UUID atendimento, Object corpo) {
         return http.exchange(url(atendimento), HttpMethod.POST, entidadeComToken(token, PREFIXO + atendimento, corpo), String.class);
+    }
+
+    private ResponseEntity<String> buscarPorNome(String token, String nome) {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.set("X-Synapse-Token", token);
+        return http.exchange(
+                "/internal/v1/atendimentos/atendentes?nome=" + nome,
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhos),
+                String.class);
     }
 
     private HttpEntity<Object> entidadeComToken(String token, String chave, Object corpo) {
