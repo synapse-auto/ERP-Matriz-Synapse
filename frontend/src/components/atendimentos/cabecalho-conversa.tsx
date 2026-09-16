@@ -199,12 +199,19 @@ export function CabecalhoConversa({
       </div>
 
       <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
-        {!finalizado && !ehResponsavel && estadoPersistido === "SEM_PEDIDO" && (
+        {/* Entrar direto nao tem descricao: o botao fica sozinho e alinha na linha dos demais.
+            Pedir entrada mantem a coluna, porque o aviso de aprovacao continua no catalogo. */}
+        {!finalizado && !ehResponsavel && estadoPersistido === "SEM_PEDIDO" && podeEntrarDireto && (
+          <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => entrarAtendimento(conversa.atendimentoId), "DENTRO", textos.sucessoEntrou)} disabled={processandoParticipacao}>
+            {textos.entrar}
+          </Button>
+        )}
+        {!finalizado && !ehResponsavel && estadoPersistido === "SEM_PEDIDO" && !podeEntrarDireto && (
           <span className="flex max-w-56 flex-col items-end gap-0.5 text-right">
-            <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => podeEntrarDireto ? entrarAtendimento(conversa.atendimentoId) : pedirEntrada(conversa.atendimentoId), podeEntrarDireto ? "DENTRO" : "PENDENTE", podeEntrarDireto ? textos.sucessoEntrou : textos.sucessoPedido)} disabled={processandoParticipacao}>
-            {podeEntrarDireto ? textos.entrar : textos.pedirEntrada}
+            <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => pedirEntrada(conversa.atendimentoId), "PENDENTE", textos.sucessoPedido)} disabled={processandoParticipacao}>
+            {textos.pedirEntrada}
             </Button>
-            <span className="text-[0.65rem] leading-tight text-muted-foreground">{podeEntrarDireto ? textos.entrarDescricao : textos.pedirEntradaDescricao}</span>
+            <span className="text-[0.65rem] leading-tight text-muted-foreground">{textos.pedirEntradaDescricao}</span>
           </span>
         )}
         {!finalizado && !ehResponsavel && estadoPersistido === "PENDENTE" && (
