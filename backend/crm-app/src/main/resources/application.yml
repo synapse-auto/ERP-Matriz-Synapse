@@ -36,13 +36,18 @@ spring:
       max-request-size: ${MIDIA_UPLOAD_TAMANHO_MAXIMO:110MB}
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    # O boot valida checksums e migrations ausentes, mas a estratégia de boot controla
+    # explicitamente quando migrations pendentes podem executar (especialmente a V73).
+    ignore-migration-patterns:
+      - "*:pending"
+      - "*:future"
     # Nao vem do ambiente de proposito. O seed de desenvolvimento mora em
     # classpath:db/seed e so entra nesta lista no perfil "dev" (documento no
     # fim do arquivo). Se a lista viesse de variavel de ambiente, bastaria uma
     # variavel errada para semear um banco de producao.
     #
-    # O Flyway migra pelo DataSource @Primary, que e o generalDataSource: o
-    # pool do chat e reserva do caminho critico e nao e gasto com migration.
+    # Boot valida pelo DataSource @Primary, que e o generalDataSource; o runner one-shot
+    # tambem usa esse pool. O pool do chat fica reservado ao caminho critico.
     locations: classpath:db/migration
     baseline-on-migrate: true
     placeholders:
@@ -135,6 +140,12 @@ synapse:
   timeline:
     # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global.
     tamanho-pagina: ${TIMELINE_TAMANHO_PAGINA:20}
+
+  # Limites finitos usados somente pelo comando one-shot da V73; migrations posteriores voltam
+  # ao fluxo normal depois que a V73 estiver aplicada.
+  migration-runner:
+    lock-timeout: ${SYNAPSE_MIGRATION_LOCK_TIMEOUT:10s}
+    statement-timeout: ${SYNAPSE_MIGRATION_STATEMENT_TIMEOUT:30m}
 
   tenant:
     codigo: ${SYNAPSE_TENANT_CODIGO:estrutural-vidros}

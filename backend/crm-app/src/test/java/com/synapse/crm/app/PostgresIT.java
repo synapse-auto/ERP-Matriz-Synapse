@@ -1,5 +1,8 @@
 package com.synapse.crm.app;
 
+import java.util.Map;
+
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisCallback;
@@ -30,12 +33,22 @@ public abstract class PostgresIT {
 
     protected static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(IMAGEM_POSTGRES);
-    private static final GenericContainer<?> REDIS =
+    protected static final GenericContainer<?> REDIS =
             new GenericContainer<>(IMAGEM_REDIS).withExposedPorts(6379);
 
     static {
         POSTGRES.start();
         REDIS.start();
+        // O backend de produção agora valida sem migrar. O banco singleton dos ITs é preparado
+        // explicitamente antes dos ApplicationContexts, como o runner operacional one-shot.
+        // O seed continua restrito a este fixture de teste; nenhum contexto de produção o aplica.
+        Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .locations("classpath:db/migration", "classpath:db/seed")
+                .baselineOnMigrate(true)
+                .placeholders(Map.of("telefone_ddi_padrao", "55"))
+                .load()
+                .migrate();
     }
 
     @Autowired
@@ -65,9 +78,9 @@ public abstract class PostgresIT {
         registro.add("spring.data.redis.host", REDIS::getHost);
         registro.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
 
-        // O container e compartilhado por todas as suites, e as que rodam com o perfil
-        // dev aplicam R__seed_dev nele. Para uma suite sem esse perfil, essa migration
-        // repetivel aparece como "aplicada, mas ausente das locations" e o Flyway
+        // O fixture aplica R__seed_dev no banco compartilhado para manter as suites existentes
+        // deterministas. Para uma suite sem esse perfil, essa migration repetível aparece como
+        // "aplicada, mas ausente das locations" e o Flyway
         // reprova a validacao. O sintoma depende da ORDEM em que as suites rodam, que e
         // o pior tipo de teste intermitente. Aqui — e so aqui — ignoramos ausentes.
         registro.add("spring.flyway.ignore-migration-patterns", () -> "*:missing");

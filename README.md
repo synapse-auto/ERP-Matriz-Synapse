@@ -353,6 +353,8 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `POSTGRES_DB` | Nome do banco isolado desta instância. |
 | `POSTGRES_USER` | Usuário dono do schema e usado pelos dois pools da aplicação. |
 | `POSTGRES_PASSWORD` | Senha forte do PostgreSQL; o backend recebe a mesma referência. |
+| `SYNAPSE_MIGRATION_LOCK_TIMEOUT` | Limite finito para waits de locks SQL da migration (default `10s`); lock concorrente do runner usa tentativa sem espera. |
+| `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT` | Limite finito por conexão SQL do runner Flyway (default `30m`); não afeta o boot normal do CRM. |
 | `N8N_DB_NAME` | Banco exclusivo do n8n, criado no primeiro boot do volume do Postgres. |
 | `N8N_DB_USER` | Role exclusiva do n8n; não reutilize o usuário do CRM. |
 | `N8N_DB_PASSWORD` | Senha forte da role exclusiva do n8n. |
@@ -462,6 +464,30 @@ com `@Qualifier("chatDataSource")`. O timeout do chat é curto — falhar rápid
 enfileirar o atendente.
 
 Nesta etapa existem apenas os beans; ligar o caminho de mensagens ao `chatDataSource` é a etapa E09.
+
+### Execução de migrations
+
+O backend valida checksums no startup. Se a V73 estiver pendente, ele para antes dela: em banco novo
+ou anterior à V72, pode preparar o schema somente até V72; em schema72 existente, não executa
+migration. A limpeza/fusão da V73 só roda pelo runner one-shot. Depois que a V73 estiver aplicada,
+migrations posteriores voltam ao fluxo Flyway normal. Pendências da V73 aparecem como
+`[FLYWAY_PENDENTE]`; execute o runner de forma controlada antes de liberar a versão. No container do
+backend, use a mesma imagem e configuração de banco:
+
+```bash
+docker exec <container-backend> java -jar /application/application.jar --synapse.migrations.run-once
+```
+
+O runner não inicia API, JPA, schedulers nem consumidores. Ele adquire `pg_try_advisory_lock` sem
+espera, valida o histórico, aceita somente schema 72 com V73 pendente (ou 73 já aplicado), migra no
+máximo essa única versão, valida novamente e registra versão/quantidade/duração sem conteúdo de
+leads. V74 não é tentada antes: o alvo explícito 73 faz a bridge terminar primeiro. O próprio Flyway mantém seu lock de schema; o runner impõe ainda
+`SYNAPSE_MIGRATION_LOCK_TIMEOUT` e `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, ambos positivos e finitos.
+Se a execução for recusada por lock ou exceder timeout, não repita automaticamente: confira o
+histórico e os logs antes de uma nova tentativa. O runner não espera pelo lock interno do Flyway
+(`lockRetryCount=0`) e recusa qualquer schema fora do estado 72→73.
+
+Veja o [runbook de upgrade controlado](docs/41-runbook-upgrade-controlado-v73.md).
 
 ---
 
