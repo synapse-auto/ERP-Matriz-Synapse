@@ -62,6 +62,14 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     private UUID atendimentoPendenteDoBruno;
     private UUID atendimentoPotencial;
 
+    private long contarComo(String email, String senha, String visao) {
+        String token = ApoioAutenticacao.login(http, email, senha).accessToken();
+        String corpo = ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                .getBody();
+        return Long.parseLong(corpo.replaceAll(".*\"" + visao + "\":(\\d+).*", "$1"));
+    }
+
     @BeforeEach
     void prepararCenario() {
         idAna = idDoUsuario(EMAIL_ANA);
