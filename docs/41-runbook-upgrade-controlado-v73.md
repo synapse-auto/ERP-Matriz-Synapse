@@ -33,7 +33,7 @@ recusado antes de iniciar migrations. Não depende de V74 ou de uma migration po
 
 | Instância | Última evidência de schema fornecida | SHA/tag atualmente implantada |
 |---|---|---|
-| Fêmina | A V73 foi abortada/revertida; última versão observada: 72. | Não confirmada. `7462937` e `e3324f5` contêm V73; `78c4e53` é a última imagem publicada antes dela. |
+| Fêmina | A V73 foi abortada/revertida; última versão observada: 72. | Não confirmada. `7462937`, `78c4e53` e `e3324f5` contêm V73; `4e5f719` é a última imagem publicada conhecida antes dela. |
 | Estrutural | Marcondes confirmou V73 com `success = true`. | Não confirmada. A confirmação de schema não prova qual imagem está no runtime. |
 
 Antes de executar ou liberar versão, consultar o Dokploy/runtime dos dois serviços e registrar SHA
@@ -45,9 +45,9 @@ produção neste workspace; não inventar nem inferir esses valores.
 1. Registrar para Fêmina e Estrutural o SHA/tag de backend e frontend realmente em execução e a
    última versão/checksum bem-sucedida do `flyway_schema_history`. Isso exige consulta de runtime e
    Dokploy; não inferir a implantação atual a partir de tags publicadas. O incidente identificou
-   `7462937` e `e3324f5` como imagens que contêm V73 e `78c4e53` como a última imagem publicada antes
-   dela, mas isso não determina qual tag está em execução agora. Marcondes confirmou V73 aplicada na
-   Estrutural.
+   `7462937`, `78c4e53` e `e3324f5` como imagens que contêm V73 e `4e5f719` como a última imagem
+   publicada conhecida antes dela, mas isso não determina qual tag está em execução agora. Marcondes
+   confirmou V73 aplicada na Estrutural.
 2. Antes de executar V73 em produção, validar esta versão em homologação com uma cópia da Estrutural
    estruturalmente equivalente. A validação também é condição para liberar esta versão à Estrutural;
    esta tarefa não autoriza deploy nela. Se V73 estiver pendente na Estrutural, bloquear o deploy e
@@ -87,7 +87,7 @@ Na Fêmina, as imagens `7462937` e `e3324f5` iniciaram V73 automaticamente no st
 continuava em 72; o healthcheck encerrava o backend como unhealthy depois de mais de 30 minutos, e
 os restarts iniciavam novas sessões JDBC da migration. As sessões se bloqueavam em cadeia por locks
 de transação/tupla, causando HTTP 503. As tentativas abortadas não constavam como V73 bem-sucedida
-no histórico. `78c4e53` é a última imagem publicada antes de V73; é uma referência histórica, não
+no histórico. `4e5f719` é a última imagem publicada conhecida antes de V73; é uma referência histórica, não
 uma instrução de rollback automático.
 
 ## Execução exclusiva
