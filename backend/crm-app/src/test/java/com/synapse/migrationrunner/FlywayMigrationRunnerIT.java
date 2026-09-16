@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
+import org.flywaydb.core.api.pattern.ValidatePattern;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -154,6 +155,8 @@ class FlywayMigrationRunnerIT extends PostgresIT {
         assertThat(configuracao.getInitSql())
                 .contains("client_min_messages", "warning", "10000ms", "1800000ms");
         assertThat(configuracao.getTarget().getVersion()).isEqualTo("73");
+        assertThat(configuracao.getIgnoreMigrationPatterns())
+                .contains(ValidatePattern.fromPattern("*:pending"), ValidatePattern.fromPattern("*:future"));
         assertThat(configuracao.getLockRetryCount()).isZero();
         assertThat(configuracao.getLocations())
                 .containsExactly(new org.flywaydb.core.api.Location("classpath:db/migration"));
@@ -188,6 +191,7 @@ class FlywayMigrationRunnerIT extends PostgresIT {
                 .dataSource(DATA_SOURCE)
                 .locations("classpath:db/migration")
                 .baselineOnMigrate(true)
+                .ignoreMigrationPatterns("*:pending", "*:future")
                 .placeholders(Map.of("telefone_ddi_padrao", "55"))
                 .load();
     }
@@ -209,7 +213,8 @@ class FlywayMigrationRunnerIT extends PostgresIT {
             "--synapse.datasource.general.url=" + url,
             "--synapse.datasource.general.username=" + usuario,
             "--synapse.datasource.general.password=" + senha,
-            "--synapse.datasource.general.hikari.maximum-pool-size=2",
+            // Lock de sessão, conexão de migration e callbacks de validação coexistem no runner.
+            "--synapse.datasource.general.hikari.maximum-pool-size=4",
             "--synapse.datasource.general.hikari.minimum-idle=0",
             "--synapse.datasource.chat.url=" + url,
             "--synapse.datasource.chat.username=" + usuario,

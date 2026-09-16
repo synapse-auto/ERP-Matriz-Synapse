@@ -7,10 +7,15 @@ arquivo `backend/crm-app/src/main/resources/db/migration/V73__normalizar_prefixo
 não pode ser reescrito, renumerado ou substituído; não usar `flyway repair`, alterar
 `flyway_schema_history` manualmente ou executar limpeza/fusão fora da migration.
 
-O backend normal valida checksums. Se V73 estiver pendente, o boot não a executa: um banco vazio ou
-anterior à V72 pode avançar somente até V72, e um schema72 permanece intacto. A pendência é registrada
-como `[FLYWAY_PENDENTE]`. A V73 só é executada pelo modo one-shot `--synapse.migrations.run-once`, num contexto
-mínimo que não carrega API, JPA, schedulers, consumidores ou listeners do CRM. O runner adquire um
+O backend normal valida checksums. A validação ignora apenas estados `pending`/`future` para que o
+Flyway possa iniciar em bancos ainda não atualizados; migrations ausentes, checksum divergente e
+falhas continuam sendo erros. A estratégia consulta a lista pendente e controla a execução: se V73
+estiver pendente, o boot não a executa; banco vazio/anterior à V72 avança somente até V72, e schema72
+permanece intacto. A pendência é registrada como `[FLYWAY_PENDENTE]`. Essa distinção é necessária
+porque o `validate()` padrão do Flyway rejeita migrations pendentes antes que a estratégia possa
+aplicar somente o prefixo seguro até V72. A V73 só é executada pelo modo
+one-shot `--synapse.migrations.run-once`, num contexto mínimo que não carrega API, JPA, schedulers,
+consumidores ou listeners do CRM. O runner adquire um
 `pg_try_advisory_lock` sem espera, e o próprio Flyway mantém seu lock de schema. A segunda execução
 concorrente falha antes de migrar. O processo usa limites finitos (`SYNAPSE_MIGRATION_LOCK_TIMEOUT`,
 default `10s`; `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, default `30m`) e não repete automaticamente.

@@ -28,6 +28,8 @@ public class FlywayMigrationRunnerConfiguration {
         return configuracao -> configuracao
                 .locations("classpath:db/migration")
                 .target(FlywayMigrationRunner.VERSAO_ALVO)
+                // A validação permite pendentes; o runner valida a lista e a versão atual antes do migrate.
+                .ignoreMigrationPatterns("*:pending", "*:future")
                 .lockRetryCount(0)
                 .initSql(montarInitSql(propriedades));
     }

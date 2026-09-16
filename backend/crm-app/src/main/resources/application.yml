@@ -36,6 +36,11 @@ spring:
       max-request-size: ${MIDIA_UPLOAD_TAMANHO_MAXIMO:110MB}
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
+    # O boot valida checksums e migrations ausentes, mas a estratégia de boot controla
+    # explicitamente quando migrations pendentes podem executar (especialmente a V73).
+    ignore-migration-patterns:
+      - "*:pending"
+      - "*:future"
     # Nao vem do ambiente de proposito. O seed de desenvolvimento mora em
     # classpath:db/seed e so entra nesta lista no perfil "dev" (documento no
     # fim do arquivo). Se a lista viesse de variavel de ambiente, bastaria uma
