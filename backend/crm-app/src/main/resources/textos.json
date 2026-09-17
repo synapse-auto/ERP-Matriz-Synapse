@@ -599,7 +599,13 @@
       },
       "resumoIa": {
         "vazio": "Nenhum resumo gerado ainda.",
-        "ultimaGeracao": "Última geração: {data}"
+        "ultimaGeracao": "Última geração: {data}",
+        "gerar": "Gerar",
+        "regerar": "Regerar",
+        "processando": "Gerando resumo...",
+        "pendente": "Resumo aguardando processamento.",
+        "erro": "Não foi possível gerar o resumo. O resumo anterior foi preservado.",
+        "indisponivel": "A geração de resumo não está configurada nesta instância."
       },
       "adicionar": "Adicionar",
       "editar": "Editar",

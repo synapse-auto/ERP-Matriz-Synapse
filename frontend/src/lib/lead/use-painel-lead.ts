@@ -15,6 +15,8 @@ import {
   listarTodasAsTags,
   listarMidiasDoLead,
   obterLead,
+  obterEstadoResumoIa,
+  solicitarResumoIa,
   vincularTagAoLead,
 } from "./api";
 import type { AtualizacaoLead, LeadFicha, TagDoLead } from "./types";
@@ -29,6 +31,25 @@ export function useLead(leadId: string | null) {
 
 export function useEtapas() {
   return useQuery({ queryKey: ["etapas"], queryFn: listarEtapas });
+}
+
+export function useEstadoResumoIa(atendimentoId: string | null) {
+  return useQuery({
+    queryKey: ["resumo-ia", atendimentoId],
+    queryFn: () => obterEstadoResumoIa(atendimentoId!),
+    enabled: Boolean(atendimentoId),
+  });
+}
+
+export function useSolicitarResumoIa(atendimentoId: string) {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: ({ solicitacaoId }: { solicitacaoId: string }) => solicitarResumoIa(atendimentoId, solicitacaoId),
+    onSuccess: (estado) => {
+      cache.setQueryData(["resumo-ia", atendimentoId], estado);
+      void cache.invalidateQueries({ queryKey: ["lead", estado.leadId] });
+    },
+  });
 }
 
 export function useCamposCustomizados() {

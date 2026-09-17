@@ -146,6 +146,7 @@ real (ou chave idempotente) corresponde ao evento.
 | GET | `/internal/v1/ev05/candidatos` | IDs paginados de atendimentos `EM_ATENDIMENTO`, sem conteúdo sensível | Serviço de Automação | `Ev05AutomacaoInternalController` |
 | GET | `/internal/v1/ev05/atendimentos/{id}/contexto` | Contexto limitado para análise, somente atendimento elegível | Serviço de Automação | `Ev05AutomacaoInternalController` |
 | GET/POST | `/internal/v1/ev05/leads/{id}/resumo` | Situação e escrita idempotente do resumo | Serviço de Automação | `Ev05AutomacaoInternalController` |
+| POST | `/internal/v1/ev05/leads/{id}/resumo-status` | Evolução idempotente do ciclo sob demanda (`PROCESSANDO`, `CONCLUIDO`, `FALHOU`) | Serviço de Automação | `Ev05AutomacaoInternalController` · `AtualizarStatusResumoIaUseCase` |
 | GET/POST | `/internal/v1/ev05/leads/{id}/preenchimento` | Situação e preenchimento idempotente de dados vazios | Serviço de Automação | `Ev05AutomacaoInternalController` |
 | GET | `/internal/v1/regras/follow-up` | Snapshot das regras de follow-up | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |
 | GET | `/internal/v1/regras/fidelizacao` | Snapshot das regras de fidelização | Serviço de Automação | `AutomationConfigInternalController` · `ContratoInternalV1IT` |

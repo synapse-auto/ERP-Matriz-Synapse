@@ -75,6 +75,10 @@ public interface Outbox {
      */
     void enfileirarRepasseWebhook(String payloadCru, String assinatura, Instant recebidoEm);
 
+    /** Enfileira o pedido leve que dispara a execução assíncrona de resumo no n8n. */
+    void enfileirarSolicitacaoResumoIa(
+            UUID solicitacaoId, UUID leadId, UUID atendimentoId, Instant solicitadoEm);
+
     /**
      * Reserva de forma persistida os pendentes cuja hora de tentar ja chegou.
      *
@@ -86,6 +90,10 @@ public interface Outbox {
 
     /** Repasses de webhook cuja proxima tentativa ja chegou. */
     List<RepasseWebhookPendente> reservarRepassesWebhookPendentes(int limite, Instant agora);
+
+    /** Solicitações de resumo ainda não entregues ao n8n. */
+    List<SolicitacaoResumoIaPendente> reservarSolicitacoesResumoIaPendentes(
+            int limite, Instant agora, Instant reservaAte);
 
     /** Deu certo: marca publicado e sai da fila para sempre.
      *
@@ -155,4 +163,12 @@ public interface Outbox {
 
     record RepasseWebhookPendente(
             UUID outboxId, String payloadCru, String assinatura, int tentativas) {}
+
+    record SolicitacaoResumoIaPendente(
+            UUID outboxId,
+            UUID solicitacaoId,
+            UUID leadId,
+            UUID atendimentoId,
+            Instant solicitadoEm,
+            int tentativas) {}
 }

@@ -298,6 +298,45 @@ somente de atendimento elegível e então gravar resumo e preenchimento de forma
 usam RFC 7807; diagnósticos devem usar apenas `leadId`, `atendimentoId` e status, sem conteúdo,
 telefone, CPF, token ou prompt.
 
+### 3.6 Resumo sob demanda solicitado pelo CRM
+
+O botão `Gerar/Regerar` nunca chama o n8n no navegador. O CRM cria uma solicitação persistida
+(`PENDENTE`) e a entrega pela outbox em um webhook configurado por `AUTOMACAO_RESUMO_IA_URL`:
+
+```text
+POST {AUTOMACAO_RESUMO_IA_URL}
+X-Synapse-Token: <AUTOMACAO_TOKEN da Credential do webhook>
+Idempotency-Key: <solicitacaoId UUID>
+Content-Type: application/json
+```
+
+```json
+{
+  "evento": "RESUMO_IA_SOLICITADO",
+  "solicitacaoId": "00000000-0000-0000-0000-000000000000",
+  "leadId": "00000000-0000-0000-0000-000000000000",
+  "atendimentoId": "00000000-0000-0000-0000-000000000000",
+  "solicitadoEm": "2026-09-17T18:00:00Z"
+}
+```
+
+O corpo não leva telefone, histórico, conteúdo ou token. `202` significa somente aceito para
+processamento; `200` é replay idempotente. O webhook deve devolver rapidamente e executar o restante
+em fluxo assíncrono. O workflow marca o ciclo por `POST /internal/v1/ev05/leads/{leadId}/resumo-status`,
+com `X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>` e os campos `solicitacaoId`, `atendimentoId`,
+`status`, `erroCodigo` e `erroMensagem`.
+
+Após consultar `GET /internal/v1/ev05/atendimentos/{atendimentoId}/contexto`, o workflow usa o
+`contextoAte` exatamente na escrita `POST /internal/v1/ev05/leads/{leadId}/resumo` e marca
+`CONCLUIDO`. Falha definitiva marca `FALHOU` com código/mensagem sanitizados. O CRM rejeita ciclo
+de atendimento finalizado, transferido ou substituído (`409`) e conserva o resumo anterior.
+Somente erros de rede/5xx entram em retry limitado; 4xx não entram em retry automático.
+
+O template versionado sem credenciais está em `docs/n8n/resumo-ia-sob-demanda.json`. Importe-o no
+n8n, configure Header Auth para o CRM com `SYNAPSE_TOKEN_INTERNO` e valide o webhook recebido com
+`AUTOMACAO_TOKEN`. A chave de idempotência deve ficar numa Data Table persistida no banco interno
+do n8n, nunca em memória do processo ou no banco do CRM.
+
 ## 4. Por que não acessar o banco direto
 
 Três motivos, em ordem de gravidade:

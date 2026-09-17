@@ -13,6 +13,7 @@ import java.util.UUID;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.ChaveIdempotenciaReutilizadaException;
 import com.synapse.crm.atendimento.application.IdempotenciaDeComandoAutomacao;
 import com.synapse.crm.atendimento.application.IdempotencyKeyInvalidaException;
+import com.synapse.crm.atendimento.application.resumo.SolicitacaoResumoIaRepositorio;
+import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
 import com.synapse.crm.core.application.lead.AutomacaoEv05LeadRepositorio;
 import com.synapse.crm.core.application.lead.EscritaEv05ObsoletaException;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -36,6 +39,8 @@ public class Ev05LeadUseCase {
     private final ObjectMapper json;
     private final Clock relogio;
     private final int resumoMaximo;
+    private final SolicitacaoResumoIaRepositorio solicitacoes;
+    private final ApplicationEventPublisher eventos;
 
     public Ev05LeadUseCase(
             AutomacaoEv05LeadRepositorio leads,
@@ -43,13 +48,17 @@ public class Ev05LeadUseCase {
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json,
             Clock relogio,
-            @Value("${synapse.automacao.resumo-ia-tamanho-maximo}") int resumoMaximo) {
+            @Value("${synapse.automacao.resumo-ia-tamanho-maximo}") int resumoMaximo,
+            SolicitacaoResumoIaRepositorio solicitacoes,
+            ApplicationEventPublisher eventos) {
         this.leads = leads;
         this.atendimentos = atendimentos;
         this.idempotencia = idempotencia;
         this.json = json;
         this.relogio = relogio;
         this.resumoMaximo = resumoMaximo;
+        this.solicitacoes = solicitacoes;
+        this.eventos = eventos;
     }
 
     @PreAuthorize("hasRole('SERVICO')")
@@ -96,6 +105,7 @@ public class Ev05LeadUseCase {
         }
         var atendimento = atendimentos.porLeadEmAtendimento(leadId)
                 .orElseThrow(() -> new Ev05LeadSemAtendimentoException(leadId));
+        var ciclo = cicloDaSolicitacao(chave, leadId, atendimento, contextoGeradoEm);
         var reserva = idempotencia.reservar(chave, OPERACAO_RESUMO, atendimento.atendimentoId(), hash);
         if (!reserva.nova()) {
             return resolver(
@@ -105,6 +115,21 @@ public class Ev05LeadUseCase {
         try {
             var escrito = leads.gravarResumo(leadId, normalizado, contextoGeradoEm, agora);
             var resultado = new ResultadoResumo(escrito.leadId(), escrito.atualizadoEm(), true);
+            if (ciclo != null) {
+                boolean atualizado = solicitacoes.atualizarStatus(
+                        ciclo.solicitacaoId(),
+                        leadId,
+                        atendimento.atendimentoId(),
+                        SolicitacaoResumoIaRepositorio.Status.CONCLUIDO,
+                        null,
+                        null,
+                        agora);
+                if (!atualizado) {
+                    throw new EscritaEv05ObsoletaException(leadId);
+                }
+                eventos.publishEvent(new ResumoIaParaTempoReal(
+                        atendimento.atendimentoId(), leadId, ciclo.solicitacaoId(), "CONCLUIDO", null, agora));
+            }
             idempotencia.concluir(chave, serializar(resultado));
             return resultado;
         } catch (EscritaEv05ObsoletaException erro) {
@@ -228,6 +253,32 @@ public class Ev05LeadUseCase {
     private void exigirAtendimentoElegivel(UUID leadId) {
         atendimentos.porLeadEmAtendimento(leadId)
                 .orElseThrow(() -> new Ev05LeadSemAtendimentoException(leadId));
+    }
+
+    private SolicitacaoResumoIaRepositorio.Solicitacao cicloDaSolicitacao(
+            String chave,
+            UUID leadId,
+            AtendimentosEmAndamentoRepositorio.Item atendimento,
+            Instant contextoGeradoEm) {
+        UUID atendimentoId = atendimento.atendimentoId();
+        UUID solicitacaoId;
+        try {
+            solicitacaoId = UUID.fromString(chave);
+        } catch (IllegalArgumentException erro) {
+            return null;
+        }
+        var ciclo = solicitacoes.porId(solicitacaoId).orElse(null);
+        if (ciclo == null) return null;
+        if (!ciclo.leadId().equals(leadId)
+                || !ciclo.atendimentoId().equals(atendimentoId)
+                || contextoGeradoEm == null
+                || (atendimento.ultimaMensagemEm() != null
+                        && !atendimento.ultimaMensagemEm().equals(contextoGeradoEm))
+                || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.FALHOU
+                || ciclo.status() == SolicitacaoResumoIaRepositorio.Status.CONCLUIDO) {
+            throw new EscritaEv05ObsoletaException(leadId);
+        }
+        return ciclo;
     }
 
     private String serializar(Object resposta) {

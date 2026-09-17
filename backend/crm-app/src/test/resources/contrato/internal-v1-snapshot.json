@@ -784,6 +784,46 @@
         }
       }
     },
+    "/internal/v1/ev05/leads/{leadId}/resumo-status" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatusResumoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Solicitacao"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
+        }
+      }
+    },
     "/internal/v1/eventos" : {
       "post" : {
         "requestBody" : {
@@ -1653,6 +1693,41 @@
       },
       "type" : "object"
     },
+    "Solicitacao" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "atualizadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "erroCodigo" : {
+          "type" : "string"
+        },
+        "erroMensagem" : {
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "solicitacaoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "solicitadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "status" : {
+          "enum" : [ "PENDENTE", "PROCESSANDO", "CONCLUIDO", "FALHOU" ],
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "ResumoIaResposta" : {
       "properties" : {
         "ativo" : {
@@ -1685,6 +1760,29 @@
         }
       },
       "required" : [ "resumo" ],
+      "type" : "object"
+    },
+    "StatusResumoRequisicao" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "erroCodigo" : {
+          "type" : "string"
+        },
+        "erroMensagem" : {
+          "type" : "string"
+        },
+        "solicitacaoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "atendimentoId", "solicitacaoId", "status" ],
       "type" : "object"
     },
     "TagAplicadaResposta" : {

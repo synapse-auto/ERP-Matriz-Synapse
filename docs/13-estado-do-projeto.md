@@ -39,12 +39,14 @@ O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser
 visibilidade do lead. A ficha exibe o resumo recolhido por padrão, a última geração quando o marco
 está preenchido e mantém Notas internas editáveis para usuários já autorizados.
 
-Não existe endpoint humano para gerar um resumo sob demanda. O único contrato de escrita de resumo é
-`POST /internal/v1/atendimentos/{id}/resumo`, autenticado por `X-Synapse-Token`, que recebe o texto
-produzido pelo n8n e o sobrescreve de forma controlada. O navegador não chama essa rota nem simula uma
-geração. Portanto, o botão “Gerar/Regerar” do protótipo permanece pendente de um contrato de solicitação
-assíncrona com a Automação; expor um botão sem consumidor seria uma ação fantasma. O n8n continua sendo
-responsável por produzir e gravar o resumo pelo contrato interno existente.
+O botão “Gerar/Regerar” chama `POST /api/v1/atendimentos/{atendimentoId}/resumo-ia` com um
+`Idempotency-Key` UUID estável. O navegador não chama n8n: o CRM grava `PENDENTE` e entrega somente
+IDs e `solicitadoEm` à URL configurada em `AUTOMACAO_RESUMO_IA_URL` pela Transactional Outbox. O n8n
+mantém a chave em Data Table própria, marca `PROCESSANDO`, consulta o contexto limitado e grava o
+texto em `POST /internal/v1/ev05/leads/{leadId}/resumo` usando a mesma chave e `contextoAte`. Em
+seguida marca `CONCLUIDO` ou `FALHOU` em `/resumo-status`; o CRM publica `RESUMO_IA_STATUS` após o
+commit. Atendimento finalizado, transferido ou substituído torna o resultado tardio `409`, sem apagar
+o resumo anterior. O template do workflow sem credenciais está em `docs/n8n/resumo-ia-sob-demanda.json`.
 
 ### 09/09/2026 — Gravações do composer como nota de voz (E179)
 
@@ -155,6 +157,14 @@ entrada e preservam campos já preenchidos; a mesma chave devolve a resposta con
 intervalos independentes de resumo e preenchimento vivem em `configuracao_automacao` (V68), e os
 marcos de última escrita/avaliação ficam no lead. O n8n não recebe acesso ao PostgreSQL, e nenhum
 cron ou chamada de IA foi adicionado ao backend.
+
+### 17/09/2026 — Geração sob demanda do resumo pelo n8n
+
+O CRM passou a persistir os ciclos `PENDENTE`, `PROCESSANDO`, `CONCLUIDO` e `FALHOU` em `V75`,
+publicar a solicitação pela outbox dedicada e expor a rota autenticada de status para o n8n. A
+idempotência é por UUID de solicitação, o contexto é amarrado ao `atendimentoId` e o resultado tardio
+é rejeitado pelo CRM. A UI atualiza a ficha por WebSocket sem chamada direta ao n8n. O fluxo não fica
+ativo quando `AUTOMACAO_RESUMO_IA_URL` está vazio.
 
 ---
 

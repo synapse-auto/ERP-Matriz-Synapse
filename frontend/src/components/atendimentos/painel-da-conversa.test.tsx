@@ -80,6 +80,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         resumoIa: {
           vazio: "Nenhum resumo gerado ainda.",
           ultimaGeracao: "Última geração: {data}",
+          gerar: "Gerar",
+          regerar: "Regerar",
+          processando: "Gerando resumo...",
+          pendente: "Resumo aguardando processamento.",
+          erro: "Não foi possível gerar o resumo.",
+          indisponivel: "Resumo indisponível",
         },
         adicionar: "Adicionar",
         editar: "Editar",
@@ -138,6 +144,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useLead: () => leadState,
   useEtapas: () => etapasState,
+  useEstadoResumoIa: () => ({ data: null, isLoading: false }),
+  useSolicitarResumoIa: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
   useMidiasDoLead: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
   useTagsDoLead: () => ({
     data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
@@ -530,6 +538,7 @@ function renderizarPainel(
     <QueryClientProvider client={cliente}>
       <PainelDaConversa
         leadId={leadId}
+        atendimentoId="atendimento-1"
         responsavelNome={responsavelNome}
         onRetrair={onRetrair}
       />

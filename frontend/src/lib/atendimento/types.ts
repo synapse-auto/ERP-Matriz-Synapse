@@ -351,6 +351,15 @@ export interface ReacaoTempoReal {
   reacoes: { emoji: string; quantidade: number }[];
 }
 
+export interface ResumoIaStatusTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  solicitacaoId: string;
+  status: "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU";
+  erroCodigo: string | null;
+  ocorridoEm: string;
+}
+
 export type TipoEventoEstadoAtendimento =
   | "ATENDIMENTO_INICIADO"
   | "MENSAGEM_RECEBIDA"
@@ -387,6 +396,7 @@ export type EventoTempoReal =
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
   | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal }
   | { tipo: "REACAO"; dados: ReacaoTempoReal }
+  | { tipo: "RESUMO_IA_STATUS"; dados: ResumoIaStatusTempoReal }
   | EventoCanonicoAtendimentoTempoReal;
 
 export type NotificacaoTempoReal = {

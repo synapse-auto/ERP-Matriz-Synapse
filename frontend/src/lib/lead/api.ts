@@ -10,6 +10,7 @@ import type {
   TagDoLead,
   MidiaDoLead,
   UrlAssinadaDaMidia,
+  SolicitacaoResumoIa,
 } from "./types";
 
 export function obterLead(id: string): Promise<LeadFicha> {
@@ -29,6 +30,17 @@ export function atualizarLead(id: string, dados: AtualizacaoLead): Promise<LeadF
     method: "PUT",
     body: JSON.stringify(dados),
   });
+}
+
+export function solicitarResumoIa(atendimentoId: string, solicitacaoId: string): Promise<SolicitacaoResumoIa> {
+  return apiFetch<SolicitacaoResumoIa>(`/api/v1/atendimentos/${atendimentoId}/resumo-ia`, {
+    method: "POST",
+    headers: { "Idempotency-Key": solicitacaoId },
+  });
+}
+
+export function obterEstadoResumoIa(atendimentoId: string): Promise<SolicitacaoResumoIa | null> {
+  return apiFetch<SolicitacaoResumoIa | null>(`/api/v1/atendimentos/${atendimentoId}/resumo-ia`);
 }
 
 export function listarTagsDoLead(id: string): Promise<TagDoLead[]> {
