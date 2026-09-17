@@ -13,8 +13,15 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTextos } from "@/lib/config/textos-provider";
-import { usePreferenciaSomDeNotificacao } from "@/lib/atendimento/preferencias-notificacoes";
+import {
+  usePreferenciaChatInternoDeNotificacao,
+  usePreferenciaDuracaoDeNotificacao,
+  usePreferenciaPosicaoDeNotificacao,
+  usePreferenciaSomDeNotificacao,
+  usePreferenciaVisualDeNotificacao,
+} from "@/lib/atendimento/preferencias-notificacoes";
 import { useAtualizarMeuUsuario, useAtualizarMinhaFoto, useMeuUsuario, useRemoverMinhaFoto } from "@/lib/equipe/use-equipe";
 
 function dataDaSenha(valor: string | null, t: ReturnType<typeof useTextos>["configuracoes"]) {
@@ -27,6 +34,10 @@ export function PaginaConfiguracoes() {
   const t = textos.configuracoes;
   const notificacoes = textos.notificacoes;
   const preferenciaSom = usePreferenciaSomDeNotificacao();
+  const preferenciaVisual = usePreferenciaVisualDeNotificacao();
+  const preferenciaChatInterno = usePreferenciaChatInternoDeNotificacao();
+  const preferenciaDuracao = usePreferenciaDuracaoDeNotificacao();
+  const preferenciaPosicao = usePreferenciaPosicaoDeNotificacao();
   const usuario = useMeuUsuario();
   const atualizar = useAtualizarMeuUsuario();
   const atualizarFoto = useAtualizarMinhaFoto();
@@ -149,15 +160,57 @@ export function PaginaConfiguracoes() {
               <CardDescription>{notificacoes.somDescricao}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm font-medium">
-                  {preferenciaSom.somHabilitado ? notificacoes.somAtivado : notificacoes.somDesativado}
-                </span>
-                <Switch
-                  checked={preferenciaSom.somHabilitado}
-                  onCheckedChange={preferenciaSom.definirSomHabilitado}
-                  aria-label={notificacoes.somTitulo}
-                />
+              <div className="space-y-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{preferenciaSom.somHabilitado ? notificacoes.somAtivado : notificacoes.somDesativado}</p>
+                    <p className="text-xs text-muted-foreground">{notificacoes.somDescricao}</p>
+                  </div>
+                  <Switch checked={preferenciaSom.somHabilitado} onCheckedChange={preferenciaSom.definirSomHabilitado} aria-label={notificacoes.somTitulo} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{preferenciaVisual.visualHabilitado ? notificacoes.visualAtivado : notificacoes.visualDesativado}</p>
+                    <p className="text-xs text-muted-foreground">{notificacoes.visualDescricao}</p>
+                  </div>
+                  <Switch checked={preferenciaVisual.visualHabilitado} onCheckedChange={preferenciaVisual.definirVisualHabilitado} aria-label={notificacoes.visualTitulo} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{preferenciaChatInterno.chatInternoHabilitado ? notificacoes.chatInternoAtivado : notificacoes.chatInternoDesativado}</p>
+                    <p className="text-xs text-muted-foreground">{notificacoes.chatInternoDescricao}</p>
+                  </div>
+                  <Switch checked={preferenciaChatInterno.chatInternoHabilitado} onCheckedChange={preferenciaChatInterno.definirChatInternoHabilitado} aria-label={notificacoes.chatInternoTitulo} />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{notificacoes.duracaoTitulo}</p>
+                    <p className="text-xs text-muted-foreground">{notificacoes.duracaoDescricao}</p>
+                  </div>
+                  <Select value={String(preferenciaDuracao.duracaoSegundos)} onValueChange={(valor) => { if (valor) preferenciaDuracao.definirDuracaoSegundos(Number(valor)); }}>
+                    <SelectTrigger aria-label={notificacoes.duracaoTitulo}>
+                      <SelectValue>{notificacoes.duracaoOpcao.replace("{segundos}", String(preferenciaDuracao.duracaoSegundos))}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 3, 5, 8, 15, 30].map((segundos) => <SelectItem key={segundos} value={String(segundos)}>{notificacoes.duracaoOpcao.replace("{segundos}", String(segundos))}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">{notificacoes.posicaoTitulo}</p>
+                    <p className="text-xs text-muted-foreground">{notificacoes.posicaoDescricao}</p>
+                  </div>
+                  <Select value={preferenciaPosicao.posicao} onValueChange={(valor) => { if (valor === "TOPO" || valor === "BAIXO") preferenciaPosicao.definirPosicao(valor); }}>
+                    <SelectTrigger aria-label={notificacoes.posicaoTitulo}>
+                      <SelectValue>{preferenciaPosicao.posicao === "TOPO" ? notificacoes.posicaoTopo : notificacoes.posicaoBaixo}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="TOPO">{notificacoes.posicaoTopo}</SelectItem>
+                      <SelectItem value="BAIXO">{notificacoes.posicaoBaixo}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
