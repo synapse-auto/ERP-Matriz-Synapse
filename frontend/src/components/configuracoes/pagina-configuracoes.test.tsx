@@ -22,9 +22,26 @@ vi.mock("@/lib/config/textos-provider", () => ({
       somDescricao: "Reproduzir um som discreto ao receber mensagens e atribuições.",
       somAtivado: "Som das notificações ativado",
       somDesativado: "Som das notificações desativado",
+      visualTitulo: "Notificações visuais", visualDescricao: "Avisos na tela", visualAtivado: "Visuais ativadas", visualDesativado: "Visuais desativadas",
+      chatInternoTitulo: "Notificações do chat interno", chatInternoDescricao: "Avisos internos", chatInternoAtivado: "Internas ativadas", chatInternoDesativado: "Internas desativadas",
+      duracaoTitulo: "Duração dos avisos", duracaoDescricao: "Duração", duracaoOpcao: "{segundos} segundos",
+      posicaoTitulo: "Posição dos avisos", posicaoDescricao: "Posição", posicaoTopo: "Em cima", posicaoBaixo: "Embaixo",
       previewContinua: "…",
     },
   }),
+}));
+
+const definirVisualHabilitado = vi.fn();
+const definirChatInternoHabilitado = vi.fn();
+const definirDuracaoSegundos = vi.fn();
+const definirPosicao = vi.fn();
+
+vi.mock("@/lib/atendimento/preferencias-notificacoes", () => ({
+  usePreferenciaSomDeNotificacao: () => ({ somHabilitado: true, definirSomHabilitado: vi.fn() }),
+  usePreferenciaVisualDeNotificacao: () => ({ visualHabilitado: true, definirVisualHabilitado }),
+  usePreferenciaChatInternoDeNotificacao: () => ({ chatInternoHabilitado: true, definirChatInternoHabilitado }),
+  usePreferenciaDuracaoDeNotificacao: () => ({ duracaoSegundos: 3, definirDuracaoSegundos }),
+  usePreferenciaPosicaoDeNotificacao: () => ({ posicao: "TOPO", definirPosicao }),
 }));
 
 vi.mock("@/lib/equipe/use-equipe", () => ({
@@ -54,5 +71,19 @@ describe("pagina de configurações", () => {
       { nome: "Ana Atualizada", email: "ana@example.invalid", telefone: null, cargo: "Consultora", senhaAtual: null },
       expect.any(Object),
     );
+  });
+
+  it("exibe e grava as quatro novas preferências", () => {
+    render(<PaginaConfiguracoes />);
+
+    expect(screen.getByRole("switch", { name: "Notificações visuais" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Notificações do chat interno" })).toBeChecked();
+    expect(screen.getByRole("combobox", { name: "Duração dos avisos" })).toHaveTextContent("3 segundos");
+    expect(screen.getByRole("combobox", { name: "Posição dos avisos" })).toHaveTextContent("Em cima");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Notificações visuais" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Notificações do chat interno" }));
+    expect(definirVisualHabilitado.mock.calls[0]?.[0]).toBe(false);
+    expect(definirChatInternoHabilitado.mock.calls[0]?.[0]).toBe(false);
   });
 });

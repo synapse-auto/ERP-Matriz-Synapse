@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, Camera, ChevronDown, Database, Link2, MessageSquareText, Mic,
   MoreVertical, Paperclip, Phone, Plus, Smile, Sparkles, Trash2, UserRoundCheck, UsersRound,
+  Cake, CalendarDays, Gift,
 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Input } from "@/components/ui/input";
+import { SeletorData } from "@/components/ui/seletor-data";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,11 +23,14 @@ import {
   useAlternarRegraFidelizacao, useAlternarRegraFollowUp, useAtualizarParametroAutomacao,
   useAtualizarResumoIa, useConfiguracaoAutomacao, useExcluirRegraFidelizacao,
   useExcluirRegraFollowUp, useMutacaoRegraFidelizacao, useMutacaoRegraFollowUp,
-  useRecursosIa, useRegrasFidelizacao, useRegrasFollowUp, useTelemetriaAutomacao,
+  useConfiguracaoFidelizacao, useAtualizarConfiguracaoFidelizacao, useRecursosIa,
+  useDatasFestivas, useMutacaoDataFestiva, useAlternarDataFestiva, useExcluirDataFestiva,
+  useRegrasFidelizacao, useRegrasFollowUp, useTelemetriaAutomacao,
 } from "@/lib/automacao/use-automacao";
 import type {
   FidelizacaoPayload, FollowUpPayload, ParametroAutomacao, RegraFidelizacao,
-  RegraFollowUp, StatusAutomacaoTelemetria,
+  RegraFollowUp, StatusAutomacaoTelemetria, ConfiguracaoFidelizacaoParametro,
+  MensagemFestiva,
 } from "@/lib/automacao/types";
 import { useTextos } from "@/lib/config/textos-provider";
 import type { Textos } from "@/lib/config/schema";
@@ -246,6 +251,10 @@ function PainelFollowUp({ textos }: { textos: Textos }) {
 
 function PainelFidelizacao({ textos }: { textos: Textos }) {
   const t = textos.automacao;
+  const papel = useAuthStore((estado) => estado.papel);
+  const podeEditarConfiguracao = papel === "GESTOR" || papel === "ADMINISTRADOR";
+  const configuracao = useConfiguracaoFidelizacao(podeEditarConfiguracao);
+  const atualizarConfiguracao = useAtualizarConfiguracaoFidelizacao();
   const query = useRegrasFidelizacao();
   const mutacao = useMutacaoRegraFidelizacao();
   const alternar = useAlternarRegraFidelizacao();
@@ -262,6 +271,15 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
 
   return (
     <>
+      <ConfiguracaoFidelizacao
+        textos={textos}
+        permitido={podeEditarConfiguracao}
+        dados={configuracao.data ?? []}
+        carregando={configuracao.isLoading}
+        comErro={configuracao.isError}
+        mutacao={atualizarConfiguracao}
+        onTentarNovamente={() => configuracao.refetch()}
+      />
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,45rem)_23.75rem]">
         <section className="min-w-0 space-y-4">
           <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.mensagemContagemSingular : t.regras.mensagensContagem, { quantidade: String(dados.length) })} botao={t.regras.novaMensagem} pendente={mutacao.isPending} onNovo={() => mutacao.mutate(
@@ -280,6 +298,157 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
       <ConfirmarExclusao aberto={remover != null} t={t} onFechar={() => setRemover(null)} onConfirmar={() => { if (remover) excluir.mutate(remover.id, { onSuccess: () => setRemover(null) }); }} />
     </>
   );
+}
+
+type MutacaoConfiguracao = ReturnType<typeof useAtualizarConfiguracaoFidelizacao>;
+
+function ConfiguracaoFidelizacao({
+  textos,
+  permitido,
+  dados,
+  carregando,
+  comErro,
+  mutacao,
+  onTentarNovamente,
+}: {
+  textos: Textos;
+  permitido: boolean;
+  dados: ConfiguracaoFidelizacaoParametro[];
+  carregando: boolean;
+  comErro: boolean;
+  mutacao: MutacaoConfiguracao;
+  onTentarNovamente: () => void | Promise<unknown>;
+}) {
+  const t = textos.automacao.fidelizacao;
+  const datas = useDatasFestivas(permitido);
+  const criarData = useMutacaoDataFestiva();
+  const atualizarData = useMutacaoDataFestiva();
+  const alternarData = useAlternarDataFestiva();
+  const excluirData = useExcluirDataFestiva();
+  if (!permitido) {
+    return <p className="rounded-xl border border-dashed bg-card p-5 text-sm text-muted-foreground">{t.semPermissao}</p>;
+  }
+  if (carregando) return <p>{t.carregando}</p>;
+  if (comErro) return <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={onTentarNovamente} />;
+
+  const porChave = new Map(dados.map((parametro) => [parametro.chave, parametro]));
+  const aniversario = porChave.get("fidelizacao.aniversario.habilitado");
+  const aniversarioMensagem = porChave.get("fidelizacao.aniversario.mensagem");
+  const listaDatas = datas.data ?? [];
+
+  return (
+    <section className="mb-7 space-y-5" aria-labelledby="configuracao-fidelizacao">
+      <h2 className="text-xs font-bold tracking-widest text-muted-foreground" id="configuracao-fidelizacao">{t.titulo}</h2>
+      {aniversario && aniversarioMensagem && (
+        <article className="rounded-xl border bg-card p-6">
+          <div className="flex items-center gap-2.5">
+            <Cake className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />
+            <h2 className="text-base font-bold">{t.aniversario.titulo}</h2>
+            <div className="ml-auto"><Switch checked={aniversario.valor === "true"} aria-label={t.aniversario.alternar} onCheckedChange={(valor) => mutacao.mutate({ chave: aniversario.chave, valor: String(valor) })} /></div>
+          </div>
+          <CampoConfiguracao key={`${aniversarioMensagem.chave}-${aniversarioMensagem.valor}`} parametro={aniversarioMensagem} descricao={t.aniversario.mensagem} mutacao={mutacao} />
+          <p className="mt-2 text-xs text-muted-foreground">{t.aniversario.ajuda}</p>
+          <FeedbackConfiguracao t={t} mutacao={mutacao} />
+        </article>
+      )}
+      <article className="rounded-xl border bg-card p-6">
+        <div className="flex items-center gap-2.5">
+          <Gift className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />
+          <h2 className="text-base font-bold">{t.festivas.titulo}</h2>
+        </div>
+        <div className="mt-4 space-y-2">
+          {listaDatas.length === 0 && <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">{t.festivas.vazio}</p>}
+          {listaDatas.map((data) => (
+            <CardDataFestiva key={data.id} data={data} t={t} mutacao={atualizarData} alternar={alternarData} onExcluir={() => excluirData.mutate(data.id)} />
+          ))}
+        </div>
+        <NovaDataFestiva t={t} mutacao={criarData} />
+        {(atualizarData.isError || criarData.isError || alternarData.isError || excluirData.isError) && <p className="mt-3 text-xs text-destructive" role="alert">{t.erroSalvar}</p>}
+        {datas.isError && <p className="mt-3 text-xs text-destructive" role="alert">{t.erro}</p>}
+      </article>
+    </section>
+  );
+}
+
+type MutacaoDataFestiva = ReturnType<typeof useMutacaoDataFestiva>;
+
+function CardDataFestiva({ data, t, mutacao, alternar, onExcluir }: {
+  data: MensagemFestiva;
+  t: Textos["automacao"]["fidelizacao"];
+  mutacao: MutacaoDataFestiva;
+  alternar: ReturnType<typeof useAlternarDataFestiva>;
+  onExcluir: () => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [titulo, setTitulo] = useState(data.titulo);
+  const [icone, setIcone] = useState(data.icone);
+  const [dataDaMensagem, setDataDaMensagem] = useState(data.data);
+  const [mensagem, setMensagem] = useState(data.mensagem);
+  function salvar(proximo: Partial<Pick<MensagemFestiva, "titulo" | "icone" | "data" | "mensagem">>) {
+    const dados = { titulo: proximo.titulo ?? titulo, icone: proximo.icone ?? icone, data: proximo.data ?? dataDaMensagem, mensagem: proximo.mensagem ?? mensagem, ativo: data.ativo };
+    if (dados.titulo === data.titulo && dados.icone === data.icone && dados.data === data.data && dados.mensagem === data.mensagem) return;
+    mutacao.mutate({ id: data.id, dados });
+  }
+  return (
+    <div className="rounded-lg border">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <span className="flex size-6 items-center justify-center text-lg" aria-hidden>{data.icone || <CalendarDays className="size-(--tamanho-icone-interface) text-primary" />}</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold">{data.titulo}</span>
+        <Switch checked={data.ativo} aria-label={`${t.festivas.alternar}: ${data.titulo}`} onCheckedChange={(valor) => alternar.mutate({ id: data.id, ativo: valor })} />
+        <button type="button" className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label={aberto ? t.festivas.fechar : t.festivas.abrir} onClick={() => setAberto((valor) => !valor)}>
+          <ChevronDown className={cn("size-(--tamanho-icone-interface) transition-transform", aberto && "rotate-180")} />
+        </button>
+      </div>
+      {aberto && <div className="space-y-3 border-t px-4 pb-4 pt-3">
+        <label className="block text-xs font-bold tracking-wider text-muted-foreground">{t.festivas.tituloCampo}<Input value={titulo} onChange={(evento) => setTitulo(evento.target.value)} onBlur={() => salvar({ titulo })} className="mt-2" /></label>
+        <label className="block text-xs font-bold tracking-wider text-muted-foreground">{t.festivas.icone}<Input value={icone} onChange={(evento) => setIcone(evento.target.value)} onBlur={() => salvar({ icone })} className="mt-2" /></label>
+        <label className="block text-xs font-bold tracking-wider text-muted-foreground">{t.festivas.data}<SeletorData valor={dataDaMensagem} onChange={(valor) => { setDataDaMensagem(valor); salvar({ data: valor }); }} placeholder={t.festivas.data} className="mt-2 max-w-48" /></label>
+        <label className="block text-xs font-bold tracking-wider text-muted-foreground">{t.festivas.mensagem}<Textarea value={mensagem} rows={3} onChange={(evento) => setMensagem(evento.target.value)} onBlur={() => salvar({ mensagem })} className="mt-2 resize-y leading-relaxed" /></label>
+        <Button type="button" variant="ghost" size="sm" onClick={onExcluir}><Trash2 className="size-(--tamanho-icone-interface)" />{t.festivas.excluir}</Button>
+      </div>}
+    </div>
+  );
+}
+
+function NovaDataFestiva({ t, mutacao }: { t: Textos["automacao"]["fidelizacao"]; mutacao: MutacaoDataFestiva }) {
+  const [aberto, setAberto] = useState(false);
+  const [titulo, setTitulo] = useState("");
+  const [icone, setIcone] = useState("");
+  const [data, setData] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  if (!aberto) return <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => setAberto(true)}><Plus className="size-(--tamanho-icone-interface)" />{t.festivas.nova}</Button>;
+  function salvar() {
+    mutacao.mutate({ dados: { titulo, icone, data, mensagem, ativo: false } }, { onSuccess: () => { setTitulo(""); setIcone(""); setData(""); setMensagem(""); setAberto(false); } });
+  }
+  return <div className="mt-4 space-y-3 rounded-lg border border-dashed p-4">
+    <Input aria-label={t.festivas.tituloCampo} placeholder={t.festivas.tituloCampo} value={titulo} onChange={(evento) => setTitulo(evento.target.value)} />
+    <Input aria-label={t.festivas.icone} placeholder={t.festivas.icone} value={icone} onChange={(evento) => setIcone(evento.target.value)} />
+    <SeletorData valor={data} onChange={setData} placeholder={t.festivas.data} />
+    <Textarea aria-label={t.festivas.mensagem} placeholder={t.festivas.mensagem} value={mensagem} onChange={(evento) => setMensagem(evento.target.value)} />
+    <div className="flex gap-2"><Button type="button" size="sm" disabled={mutacao.isPending || !titulo || !icone || !data || !mensagem} onClick={salvar}>{t.festivas.salvar}</Button><Button type="button" variant="ghost" size="sm" onClick={() => setAberto(false)}>{t.festivas.fechar}</Button></div>
+  </div>;
+}
+
+function CampoConfiguracao({ parametro, descricao, mutacao }: {
+  parametro: ConfiguracaoFidelizacaoParametro;
+  descricao: string;
+  mutacao: MutacaoConfiguracao;
+}) {
+  const [valor, setValor] = useState(parametro.valor);
+  const salvar = () => {
+    if (valor !== parametro.valor && valor.trim()) mutacao.mutate({ chave: parametro.chave, valor });
+  };
+  return <div className="mt-5">
+    <label htmlFor={`fidelizacao-${parametro.chave}`} className="text-xs font-bold tracking-wider text-muted-foreground">{descricao}</label>
+    <Textarea id={`fidelizacao-${parametro.chave}`} value={valor} rows={3} onChange={(evento) => setValor(evento.target.value)} onBlur={salvar} className="mt-2 resize-y leading-relaxed" />
+  </div>;
+}
+
+function FeedbackConfiguracao({ t, mutacao }: { t: Textos["automacao"]["fidelizacao"]; mutacao: MutacaoConfiguracao }) {
+  if (mutacao.isPending) return <p className="mt-3 text-xs text-muted-foreground" role="status">{t.salvando}</p>;
+  if (mutacao.isError) return <p className="mt-3 text-xs text-destructive" role="alert">{t.erroSalvar}</p>;
+  if (mutacao.isSuccess) return <p className="mt-3 text-xs text-cor-sucesso" role="status">{t.salvo}</p>;
+  return null;
 }
 
 function CabecalhoLista({ contagem, botao, pendente, onNovo }: { contagem: string; botao: string; pendente: boolean; onNovo: () => void }) {

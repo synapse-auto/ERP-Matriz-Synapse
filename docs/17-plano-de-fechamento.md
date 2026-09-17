@@ -29,13 +29,13 @@ Nada disto é prompt. É tempo do Marcondes, e nenhum anda enquanto ele faz outr
 | 2 | **Mensagens rápidas compartilhadas** (`atendente_id` nulo = da equipe) | pequeno | resposta pronta compartilhada é das coisas mais úteis numa operação com vários atendentes, e o protótipo mostra o grupo |
 | 3 | **Modal de tag com a paleta do protótipo** | pequeno | confirmar o conjunto com o cliente antes |
 | 4 | **Horários de trabalho** | 1,5 a 2 dias | módulo inteiro. Hoje a disponibilidade do atendente é manual — ninguém entra em expediente sozinho |
-| 5 | **Regras de automação** | grande | ver a pergunta abaixo |
+| 5 | **Executor de regras de automação** | grande | configuração administrativa de aniversário e datas festivas dinâmicas entregue; falta decidir canal, fuso, seleção de leads e job idempotente |
 
 Do 1 ao 4 cabe com folga. O 5 é o que precisa de decisão.
 
 ## 3. A pergunta que decide as regras de automação
 
-As tabelas de `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva` e `configuracao_resumo_ia` existem, sem nenhum caso de uso. Ninguém consegue configurar nada disso pelo CRM.
+As tabelas de `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva` e `configuracao_resumo_ia` existem. O CRM já permite configurar regras e, nesta etapa, aniversário e datas festivas dinâmicas; o executor de mensagens ainda não foi ativado.
 
 **A pergunta é para o Dylan:** os workflows dele vão **ler essas regras do CRM**, ou vão codificá-las dentro do n8n por enquanto?
 

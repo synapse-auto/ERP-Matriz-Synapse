@@ -27,3 +27,22 @@ export interface RegraFollowUp { id: string; nome: string; tempoMinutos: number;
 export interface RegraFidelizacao { id: string; diasSemContato: number; mensagem: string; ativo: boolean }
 export type FollowUpPayload = Omit<RegraFollowUp, "id" | "nome">;
 export type FidelizacaoPayload = Omit<RegraFidelizacao, "id">;
+
+/** Parametro da secao Automacao > Fidelizacao, restrito a Gestor/Administrador. */
+export interface ConfiguracaoFidelizacaoParametro {
+  chave: string;
+  valor: string;
+  unidade: string | null;
+  tipo: TipoConfiguracaoAutomacao;
+  descricao: string | null;
+}
+
+/** Data festiva cadastrada pela gestao; nao e um catalogo fixo no frontend. */
+export interface MensagemFestiva {
+  id: string;
+  titulo: string;
+  icone: string;
+  data: string;
+  mensagem: string;
+  ativo: boolean;
+}

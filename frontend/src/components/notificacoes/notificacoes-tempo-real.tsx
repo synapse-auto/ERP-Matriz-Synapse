@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, MessageCircle, UserRound, X } from "lucide-react";
@@ -11,13 +11,18 @@ import {
   obterConversaAtiva,
   ServicoDeNotificacoesTempoReal,
 } from "@/lib/atendimento/servico-notificacoes-tempo-real";
-import { usePreferenciaSomDeNotificacao } from "@/lib/atendimento/preferencias-notificacoes";
+import {
+  usePreferenciaChatInternoDeNotificacao,
+  usePreferenciaDuracaoDeNotificacao,
+  usePreferenciaPosicaoDeNotificacao,
+  usePreferenciaSomDeNotificacao,
+  usePreferenciaVisualDeNotificacao,
+} from "@/lib/atendimento/preferencias-notificacoes";
 import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendimento/som-de-notificacao";
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
-const DURACAO_DO_AVISO_MS = 8000;
 const MAXIMO_DE_AVISOS_VISUAIS = 3;
 
 export function NotificacoesTempoReal() {
@@ -30,6 +35,10 @@ export function NotificacoesTempoReal() {
   const usuarioId = useAuthStoreId();
   const accessToken = useAuthStore((estado) => estado.accessToken);
   const { somHabilitado } = usePreferenciaSomDeNotificacao();
+  const { visualHabilitado } = usePreferenciaVisualDeNotificacao();
+  const { chatInternoHabilitado } = usePreferenciaChatInternoDeNotificacao();
+  const { duracaoSegundos } = usePreferenciaDuracaoDeNotificacao();
+  const { posicao } = usePreferenciaPosicaoDeNotificacao();
   const [avisos, setAvisos] = useState<NotificacaoTempoReal[]>([]);
   const servico = useRef(new ServicoDeNotificacoesTempoReal());
 
@@ -38,6 +47,8 @@ export function NotificacoesTempoReal() {
       usuarioId,
       conversaAtiva: obterConversaAtiva(),
       somHabilitado,
+      visualHabilitado,
+      chatInternoHabilitado,
     });
     if (!decisao) return;
     if (decisao.atualizarAtendimentos) {
@@ -55,16 +66,16 @@ export function NotificacoesTempoReal() {
         ...atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== decisao.chave),
       ].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
     }
-  }, [cache, pathname, somHabilitado, usuarioId]);
+  }, [cache, chatInternoHabilitado, pathname, somHabilitado, usuarioId, visualHabilitado]);
 
   useConexaoTempoReal(() => accessToken, undefined, aoReceber);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
   useEffect(() => {
     if (avisos.length === 0) return;
-    const timer = window.setTimeout(() => setAvisos([]), DURACAO_DO_AVISO_MS);
+    const timer = window.setTimeout(() => setAvisos([]), duracaoSegundos * 1000);
     return () => window.clearTimeout(timer);
-  }, [avisos]);
+  }, [avisos, duracaoSegundos]);
 
   function abrirAviso(notificacao: NotificacaoTempoReal) {
     if (notificacao.tipo === "NOVA_MENSAGEM") {
@@ -81,44 +92,51 @@ export function NotificacoesTempoReal() {
   }
 
   return avisos.length > 0 ? (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
+    <div className={`pointer-events-none fixed right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 ${posicao === "BAIXO" ? "bottom-4" : "top-4"}`}>
       {avisos.map((aviso) => (
         <div
           key={chaveTecnicaDaNotificacao(aviso)}
-          className="pointer-events-auto relative overflow-hidden rounded-xl border border-border bg-background p-4 shadow-lg"
+          className="pointer-events-auto relative cursor-pointer overflow-hidden rounded-xl border border-border bg-background p-2.5 shadow-lg"
           role="status"
           aria-live="polite"
+          onClick={() => abrirAviso(aviso)}
         >
           <button
             type="button"
             className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={textos.fechar}
             title={textos.fechar}
-            onClick={() => setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(aviso)))}
+            onClick={(evento) => {
+              evento.stopPropagation();
+              setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(aviso)));
+            }}
           >
             <X className="size-(--tamanho-icone-interface)" aria-hidden />
           </button>
-          <div className="flex items-start gap-3 pr-5">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden>
-              {aviso.tipo === "TRANSFERENCIA_RECEBIDA" ? <UserRound className="size-(--tamanho-icone-interface)" /> : aviso.tipo === "CHAT_INTERNO_MENSAGEM" ? <MessageCircle className="size-(--tamanho-icone-interface)" /> : <Bell className="size-(--tamanho-icone-interface)" />}
-            </span>
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">{tituloDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{descricaoDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
-              {(aviso.tipo === "NOVA_MENSAGEM" || aviso.tipo === "CHAT_INTERNO_MENSAGEM") && (
-                <p className="mt-2 line-clamp-2 text-sm text-foreground">{previaDoAviso(aviso, textos, textosAtendimentos.media)}</p>
-              )}
-              {(aviso.tipo === "NOVA_MENSAGEM" || aviso.tipo === "CHAT_INTERNO_MENSAGEM" || aviso.tipo === "TRANSFERENCIA_RECEBIDA" || aviso.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") && (
-                <button
-                  type="button"
-                  className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => abrirAviso(aviso)}
-                >
-                  {textos.abrir}
-                </button>
-              )}
+          <div
+            className="flex cursor-pointer items-start gap-3 pr-5 transition-colors hover:text-foreground"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(evento: KeyboardEvent<HTMLDivElement>) => {
+              if (evento.key === "Enter" || evento.key === " ") {
+                evento.preventDefault();
+                abrirAviso(aviso);
+              }
+            }}
+          >
+              <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden>
+                {aviso.tipo === "TRANSFERENCIA_RECEBIDA" ? <UserRound className="size-(--tamanho-icone-interface)" /> : aviso.tipo === "CHAT_INTERNO_MENSAGEM" ? <MessageCircle className="size-(--tamanho-icone-interface)" /> : <Bell className="size-(--tamanho-icone-interface)" />}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{tituloDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
+                {descricaoDoAviso(aviso, textos, textosAtendimentos.tempoReal) && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{descricaoDoAviso(aviso, textos, textosAtendimentos.tempoReal)}</p>
+                )}
+                {(aviso.tipo === "NOVA_MENSAGEM" || aviso.tipo === "CHAT_INTERNO_MENSAGEM") && (
+                  <p className="mt-1 line-clamp-2 text-xs text-foreground">{previaDoAviso(aviso, textos, textosAtendimentos.media)}</p>
+                )}
+              </div>
             </div>
-          </div>
         </div>
       ))}
     </div>
@@ -151,7 +169,7 @@ function descricaoDoAviso(
 ): string {
   if (aviso.tipo === "TRANSFERENCIA_RECEBIDA") return tempoReal.transferenciaRecebidaDescricao.replace("{nome}", aviso.dados.leadNome);
   if (aviso.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") return tempoReal.atendimentoDevolvidoParaIaDescricao.replace("{nome}", aviso.dados.leadNome);
-  return aviso.tipo === "NOVA_MENSAGEM" ? textos.origemExterna : textos.origemInterna;
+  return aviso.tipo === "NOVA_MENSAGEM" ? textos.origemExterna : "";
 }
 
 function previaDoAviso(

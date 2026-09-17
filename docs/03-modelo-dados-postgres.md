@@ -388,6 +388,8 @@ CREATE TABLE regra_fidelizacao (
 
 CREATE TABLE mensagem_festiva (
     id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    titulo  VARCHAR(100) NOT NULL,
+    icone   VARCHAR(80) NOT NULL,
     data    DATE NOT NULL,
     texto   TEXT NOT NULL,
     ativo   BOOLEAN NOT NULL DEFAULT TRUE

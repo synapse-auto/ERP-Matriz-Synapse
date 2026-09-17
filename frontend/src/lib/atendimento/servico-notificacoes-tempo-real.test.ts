@@ -7,6 +7,8 @@ const contexto = {
   usuarioId: "usuario-atual",
   conversaAtiva: null,
   somHabilitado: true,
+  visualHabilitado: true,
+  chatInternoHabilitado: true,
 };
 
 function mensagemExterna(overrides: Partial<Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }>> = {}): Extract<NotificacaoTempoReal, { tipo: "NOVA_MENSAGEM" }> {
@@ -144,6 +146,19 @@ describe("ServicoDeNotificacoesTempoReal", () => {
 
     expect(servico.decidir(reacao, contexto)).toMatchObject({ exibir: false, tocar: false, atualizarChatInterno: true });
     expect(servico.decidir(removida, contexto)).toMatchObject({ exibir: false, tocar: false, atualizarChatInterno: true });
+  });
+
+  it("respeita notificações visuais desligadas", () => {
+    expect(new ServicoDeNotificacoesTempoReal().decidir(mensagemExterna(), {
+      ...contexto,
+      visualHabilitado: false,
+    })).toMatchObject({ exibir: false, tocar: true });
+  });
+
+  it("desliga visual e som do chat interno sem afetar atendimento", () => {
+    const servico = new ServicoDeNotificacoesTempoReal();
+    expect(servico.decidir(mensagemInterna(), { ...contexto, chatInternoHabilitado: false })).toMatchObject({ exibir: false, tocar: false });
+    expect(new ServicoDeNotificacoesTempoReal().decidir(mensagemExterna(), { ...contexto, chatInternoHabilitado: false })).toMatchObject({ exibir: true, tocar: true });
   });
 
   it("atualiza o cache sem criar alerta para evento sistêmico do grupo", () => {

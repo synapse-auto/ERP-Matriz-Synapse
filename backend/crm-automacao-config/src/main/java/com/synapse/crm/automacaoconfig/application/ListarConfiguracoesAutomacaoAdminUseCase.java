@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
  * Lista todos os parametros para o painel administrativo — o que {@code GET /api/v1/automacao/config}
@@ -23,14 +25,21 @@ import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
 public class ListarConfiguracoesAutomacaoAdminUseCase {
 
     private final ConfiguracaoAutomacaoRepositorio configuracoes;
+    private final UsuarioContext usuarioContext;
 
-    public ListarConfiguracoesAutomacaoAdminUseCase(ConfiguracaoAutomacaoRepositorio configuracoes) {
+    public ListarConfiguracoesAutomacaoAdminUseCase(
+            ConfiguracaoAutomacaoRepositorio configuracoes, UsuarioContext usuarioContext) {
         this.configuracoes = configuracoes;
+        this.usuarioContext = usuarioContext;
     }
 
     @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional(readOnly = true)
     public List<ConfiguracaoAutomacao> executar() {
-        return configuracoes.listarTodas();
+        boolean subgestor = usuarioContext.atual().papel() == PapelUsuario.SUBGESTOR;
+        return configuracoes.listarTodas().stream()
+                .filter(configuracao -> !subgestor
+                        || !ConfiguracaoFidelizacaoUseCase.eChaveDeFidelizacao(configuracao.chave()))
+                .toList();
     }
 }

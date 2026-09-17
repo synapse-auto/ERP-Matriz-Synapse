@@ -5,6 +5,8 @@ const atualizarParametro = vi.fn();
 const atualizarDisponibilidade = vi.fn();
 const atualizarFollowUp = vi.fn();
 const atualizarFidelizacao = vi.fn();
+const atualizarDataFestiva = vi.fn();
+const alternarDataFestiva = vi.fn();
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn((href: string) => window.history.replaceState(null, "", href)) }));
 
@@ -21,6 +23,7 @@ const EQUIPE = [
   { id: "sub", nome: "Sara Subgestora", email: "sara@teste.local", papel: "SUBGESTOR", statusPresenca: "AUSENTE", ativo: true, disponivelParaIa: false, cargo: null, fotoUrl: null },
 ];
 const FOLLOW_UPS = [{ id: "fu-1", nome: "Após 2 horas", tempoMinutos: 120, texto: "Olá, {nome}!", ativo: true }];
+const DATAS_FESTIVAS = [{ id: "data-1", titulo: "Data customizada", icone: "★", data: "2026-12-25", mensagem: "Mensagem da data, [nome]!", ativo: true }];
 
 const TEXTOS = {
   app: { nome: "Synapse CRM", marca: "Instância Teste" },
@@ -38,6 +41,11 @@ const TEXTOS = {
     avancado: { titulo: "Parâmetros avançados", descricao: "Valores operacionais lidos diretamente pela Automação.", abrir: "Abrir parâmetros avançados", fechar: "Fechar parâmetros avançados" },
     regras: {
       novo: "Nova regra", novoFollowUp: "Novo follow-up", novaMensagem: "Nova mensagem", followUpContagemSingular: "{quantidade} follow-up", followUpsContagem: "{quantidade} follow-ups", mensagemContagemSingular: "{quantidade} mensagem", mensagensContagem: "{quantidade} mensagens", editar: "Editar", ativar: "Ativar regra", desativar: "Desativar regra", excluir: "Excluir", confirmarExclusao: "Excluir esta regra?", cancelar: "Cancelar", ativo: "Ativo", inativo: "Inativo", vazio: "Vazio", vazioFollowUp: "Nenhum follow-up cadastrado.", vazioFidelizacao: "Nenhuma mensagem cadastrada.", erro: "Erro regras", erroSalvar: "Não foi possível salvar. O valor anterior foi restaurado.", unidadeHora: "hora", unidadeHoras: "Horas", unidadeDia: "dia", unidadeDias: "Dias", tempo: "TEMPO SEM RESPOSTA PARA ENVIAR", dias: "DIAS SEM ENTRAR EM CONTATO", diasSemContato: "dias sem contato", mensagem: "MENSAGEM", preview: "Prévia", previewNome: "Marcos", placeholderAjuda: "Use {nome}", mensagemNovaFollowUp: "Olá, {nome}!", mensagemNovaFidelizacao: "Olá novamente, {nome}!", visualizacaoWhatsapp: "VISUALIZAÇÃO NO WHATSAPP", online: "online", hoje: "HOJE", horario: "09:14", composer: "Mensagem", previewVazio: "Sua mensagem aparecerá aqui…", badgeFollowUp: "{tempo} sem resposta", badgeFidelizacao: "{dias} sem contato", gatilhoFollowUp: "Enviado após {tempo} sem resposta", gatilhoFidelizacao: "Enviado após {dias} sem contato",
+    },
+    fidelizacao: {
+      titulo: "Outras seções", semPermissao: "Apenas gestores e administradores.", carregando: "Carregando...", erro: "Erro fidelização", erroSalvar: "Erro ao salvar", salvando: "Salvando...", salvo: "Salvo",
+      aniversario: { titulo: "Aniversário do cliente", mensagem: "Mensagem", ajuda: "Use [nome]", alternar: "Ativar aniversário" },
+      festivas: { titulo: "Datas festivas", nova: "Adicionar data", vazio: "Nenhuma data", tituloCampo: "Título", icone: "Emoji ou ícone", data: "Data", mensagem: "Mensagem", salvar: "Salvar data", excluir: "Excluir data", alternar: "Ativar data", abrir: "Abrir", fechar: "Fechar" },
     },
     telemetria: { mensagensEnviadas: "Mensagens Enviadas", clientesTransferidos: "Clientes Transferidos", conexaoAutomacao: "Conexão Automação", statusDoCrm: "Status do CRM", conectado: "Conectado", desconectado: "Desconectado", online: "Online", offline: "Offline", erro: "Erro telemetria" },
   },
@@ -63,6 +71,12 @@ vi.mock("@/lib/automacao/use-automacao", () => ({
   useAlternarRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
   useExcluirRegraFollowUp: () => ({ mutate: vi.fn(), isPending: false }),
   useExcluirRegraFidelizacao: () => ({ mutate: vi.fn(), isPending: false }),
+  useConfiguracaoFidelizacao: () => ({ data: [{ chave: "fidelizacao.aniversario.habilitado", valor: "false", unidade: null, tipo: "BOOLEAN", descricao: "" }, { chave: "fidelizacao.aniversario.mensagem", valor: "Feliz aniversário, [nome]!", unidade: null, tipo: "TEXT", descricao: "" }], isLoading: false, isError: false, refetch: vi.fn() }),
+  useAtualizarConfiguracaoFidelizacao: () => ({ mutate: vi.fn(), isPending: false, isError: false, isSuccess: false }),
+  useDatasFestivas: () => ({ data: DATAS_FESTIVAS, isLoading: false, isError: false, refetch: vi.fn() }),
+  useMutacaoDataFestiva: () => ({ mutate: atualizarDataFestiva, isPending: false, isError: false, isSuccess: false }),
+  useAlternarDataFestiva: () => ({ mutate: alternarDataFestiva, isPending: false }),
+  useExcluirDataFestiva: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation, useSearchParams: () => new URLSearchParams(window.location.search) }));
 
@@ -158,6 +172,19 @@ describe("pagina de automacao", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Fidelização" }));
     expect(navigation.replace).toHaveBeenCalledWith("/automacao?aba=fidelizacao", { scroll: false });
     expect(screen.getByText("Mensagens automáticas para reativar clientes sem contato recente.")).toBeInTheDocument();
+  });
+
+  it("lista data festiva dinamica e persiste o toggle", () => {
+    window.history.replaceState(null, "", "/automacao?aba=fidelizacao");
+    render(<PaginaAutomacao />);
+    expect(screen.getByText("Data customizada")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "Ativar data: Data customizada" }));
+    expect(alternarDataFestiva).toHaveBeenCalledWith({ id: "data-1", ativo: false });
+    fireEvent.click(screen.getByRole("button", { name: "Abrir" }));
+    const titulo = screen.getByDisplayValue("Data customizada");
+    fireEvent.change(titulo, { target: { value: "Data da equipe" } });
+    fireEvent.blur(titulo);
+    expect(atualizarDataFestiva).toHaveBeenCalledWith({ id: "data-1", dados: expect.objectContaining({ titulo: "Data da equipe" }) });
   });
 
   it("mantem a faixa numerica vinda do backend", () => {

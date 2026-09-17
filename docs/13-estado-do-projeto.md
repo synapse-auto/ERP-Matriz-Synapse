@@ -275,7 +275,7 @@ Ainda exigem confirmação ou implementação:
 | Item | Estado verificável |
 |---|---|
 | E32 — payload da Meta com várias mensagens agrupadas | não há merge de E32 identificado; deve continuar pendente até prova de teste/código |
-| Regras de follow-up, fidelização, festiva e executor de automação | configuração/contratos existem; executor continua sendo responsabilidade do n8n |
+| Regras de follow-up, fidelização e datas festivas | CRUD administrativo, configuração de aniversário e datas festivas dinâmicas entregues; executor e envio continuam sendo responsabilidade do n8n |
 | Horários de trabalho e disponibilidade da IA independente da presença | não confirmados como entregues |
 | Kanban, CSV e troca de credencial de canal | não confirmados como entregues |
 | Impersonação, participação em atendimento e módulos de fase 2 | fora do escopo ou aguardando decisão de produto/segurança |
