@@ -27,6 +27,15 @@ precisam ser levantados por acesso operacional read-only; não há credencial/ru
 conectado a este workspace. A limpeza histórica dentro da V73 continua não paginada: qualquer
 manutenção futura de dados precisa de desenho separado, dry-run, checkpoint e aprovação explícita.
 
+### 17/09/2026 — Ficha da Agenda em contexto colaborativo
+
+A listagem da Agenda pode exibir contatos fora da carteira individual do atendente, conforme a
+autorização colaborativa da própria Agenda. A ficha aberta a partir dela usa
+`GET /api/v1/leads/{id}/agenda`, que aplica `ContextoDeAgenda` somente durante a leitura e mantém a
+rota comum `GET /api/v1/leads/{id}` sob a `VisibilidadeLeadSpecification` normal. O botão de abertura
+continua chamando `POST /api/v1/atendimentos/leads/{leadId}/novo`; a resposta desse comando é a fonte
+canônica de `atendimentoId` usada na navegação, inclusive quando o item sai do filtro após um refetch.
+
 ### 30/08/2026 — Nome do cliente na sidebar (PR #30)
 
 O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.

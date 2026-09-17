@@ -72,6 +72,30 @@ class IsolamentoDeAgendaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("pela Agenda: atendente autorizado abre a ficha do lead do colega")
+    void porIdNaAgenda_leadDeOutroAtendente_devolveFicha() {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET, "/api/v1/leads/" + leadDoBruno + "/agenda", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(leadDoBruno.toString()).contains("Cliente do Bruno");
+    }
+
+    @Test
+    @DisplayName("pela Agenda: o mesmo atendente abre a conversa do lead do colega")
+    void abrirAtendimentoNaAgenda_leadDeOutroAtendente_devolveAtendimentoCanonico() {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.POST, "/api/v1/atendimentos/leads/" + leadDoBruno + "/novo", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(leadDoBruno.toString()).contains("atendimentoId");
+    }
+
+    @Test
     @DisplayName("por id direto: atendente alcanca o proprio lead")
     void porId_leadProprio_devolve200() {
         String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();

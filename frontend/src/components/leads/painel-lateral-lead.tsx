@@ -52,6 +52,7 @@ import type {
 
 interface Props {
   leadId: string | null;
+  contexto?: "padrao" | "agenda";
   onFechar: () => void;
   onAbrirAtendimento?: () => void;
   abrindoAtendimento?: boolean;
@@ -106,6 +107,7 @@ function paraPayload(campos: CampoCustomizado[], valores: Record<string, unknown
 
 export function PainelLateralLead({
   leadId,
+  contexto = "padrao",
   onFechar,
   onAbrirAtendimento,
   abrindoAtendimento = false,
@@ -113,7 +115,7 @@ export function PainelLateralLead({
 }: Props) {
   const textosGerais = useTextos();
   const textos = textosGerais.painelLead;
-  const lead = useLead(leadId);
+  const lead = useLead(leadId, contexto);
   const etapas = useEtapas();
   const campos = useCamposCustomizados();
   const canais = useCanais();
