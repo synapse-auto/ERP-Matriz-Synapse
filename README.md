@@ -407,6 +407,10 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
+| `CANAL_FOTO_PERFIL_HABILITADO` | `true` | Habilita a captura assíncrona de foto quando o adaptador do canal oferece essa capacidade; desligar não afeta mensagens. |
+| `CANAL_FOTO_PERFIL_CACHE_TTL` | `6h` | Janela de cache por lead para evitar consultas repetidas ao provedor. |
+| `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |
+| `CANAL_FOTO_PERFIL_LIMITE_BYTES` | `5242880` | Limite de bytes aceito na resposta da foto; o processador de imagens mantém suas validações. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
 | `WEBHOOK_BACKOFF_INICIAL` | `5s` | Espera da primeira retentativa de webhook; dobra a cada falha até o teto. |

@@ -1,7 +1,15 @@
 package com.synapse.crm.atendimento.infrastructure.canal;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.Iterator;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,6 +20,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -67,6 +77,13 @@ class UzapiAutoticAdapter implements CanalGateway {
     private static final String NOME_DO_BREAKER_MIDIA = "canal-uzapi-autotic-midia";
     private static final String NOME_DO_BREAKER_SAUDE = "canal-uzapi-autotic-saude";
 
+    private static final int LIMITE_PADRAO_FOTO = 5 * 1024 * 1024;
+    private static final int PROFUNDIDADE_MAXIMA_FOTO = 6;
+    private static final int NOS_MAXIMOS_FOTO = 200;
+    private static final Set<String> CAMPOS_FOTO = Set.of(
+            "url", "picture", "pictureurl", "profilepicture", "profilepictureurl", "photourl",
+            "profilepic", "avatar", "photo", "image", "link");
+
     private static final Logger log = LoggerFactory.getLogger(UzapiAutoticAdapter.class);
 
     private final RestClient http;
@@ -77,14 +94,18 @@ class UzapiAutoticAdapter implements CanalGateway {
     private final CircuitBreaker breakerSaude;
     private final ArmazenamentoDeMidia armazenamento;
     private final ConversorDeAudio conversorDeAudio;
+    private final int limiteRespostaFoto;
 
+    /** Construtor usado pelo Spring; o limite acompanha a configuração da captura de fotos. */
+    @Autowired
     UzapiAutoticAdapter(
             RestClient.Builder builder,
             CanalProperties propriedades,
             ObjectMapper json,
             CircuitBreakerRegistry breakers,
             ArmazenamentoDeMidia armazenamento,
-            ConversorDeAudio conversorDeAudio) {
+            ConversorDeAudio conversorDeAudio,
+            @Value("${synapse.canal.foto-perfil.limite-bytes:5242880}") int limiteRespostaFoto) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
@@ -93,6 +114,21 @@ class UzapiAutoticAdapter implements CanalGateway {
         this.breakerSaude = breakers.circuitBreaker(NOME_DO_BREAKER_SAUDE);
         this.armazenamento = armazenamento;
         this.conversorDeAudio = conversorDeAudio;
+        if (limiteRespostaFoto < 1) {
+            throw new IllegalArgumentException("limite de resposta da foto precisa ser positivo");
+        }
+        this.limiteRespostaFoto = limiteRespostaFoto;
+    }
+
+    /** Compatibilidade dos testes do módulo de atendimento, que não carregam o app. */
+    UzapiAutoticAdapter(
+            RestClient.Builder builder,
+            CanalProperties propriedades,
+            ObjectMapper json,
+            CircuitBreakerRegistry breakers,
+            ArmazenamentoDeMidia armazenamento,
+            ConversorDeAudio conversorDeAudio) {
+        this(builder, propriedades, json, breakers, armazenamento, conversorDeAudio, LIMITE_PADRAO_FOTO);
     }
 
     @Override
@@ -487,6 +523,242 @@ class UzapiAutoticAdapter implements CanalGateway {
                     "resolvedor de midia " + PROVEDOR + " respondeu HTTP "
                             + respostaDoProvedor.getStatusCode().value() + "; midiaId=" + midiaIdExterno);
         }
+    }
+
+    /**
+     * Consulta a foto de um contato usando o contrato de {@code contacts/getPicture} da UZAPI.
+     *
+     * <p>A operação fica no adapter porque a resposta do fornecedor não tem schema de resposta no
+     * Swagger (HTTP 201 sem corpo descrito). O domínio recebe somente bytes e mimetype. Erros 4xx
+     * significam que não há foto disponível para este contato; indisponibilidade de rede e 5xx
+     * sobem como temporárias para o worker assíncrono, sem afetar o webhook de mensagens.
+     */
+    @Override
+    public Optional<MidiaRecebida> buscarFotoDePerfil(String telefone) {
+        if (credencialIncompleta() || vazio(telefone)) {
+            return Optional.empty();
+        }
+        try {
+            return breakerMidia.executeSupplier(() -> {
+                try {
+                    return consultarFotoDePerfil(somenteDigitos(telefone));
+                } catch (RestClientResponseException resposta) {
+                    // 4xx do getPicture representam ausência/indisponibilidade do perfil, não uma
+                    // falha do canal inteiro. Não deixe respostas esperadas abrirem o breaker.
+                    int status = resposta.getStatusCode().value();
+                    if (status != 429 && status < 500) {
+                        log.debug(
+                                "UZAPI não disponibilizou foto de perfil; statusHttp={}",
+                                status);
+                        return Optional.empty();
+                    }
+                    throw resposta;
+                }
+            });
+        } catch (CallNotPermittedException breakerAberto) {
+            throw new ProvedorTemporariamenteIndisponivelException(
+                    "circuit breaker aberto para " + PROVEDOR + " ao consultar foto de perfil",
+                    breakerAberto);
+        } catch (RestClientResponseException resposta) {
+            int status = resposta.getStatusCode().value();
+            if (status >= 500) {
+                throw new ProvedorTemporariamenteIndisponivelException(
+                        "provedor " + PROVEDOR + " indisponivel ao consultar foto de perfil; HTTP " + status,
+                        resposta);
+            }
+            return Optional.empty();
+        } catch (org.springframework.web.client.RestClientException temporaria) {
+            throw new ProvedorTemporariamenteIndisponivelException(
+                    "provedor " + PROVEDOR + " indisponivel ao consultar foto de perfil",
+                    temporaria);
+        }
+    }
+
+    private Optional<MidiaRecebida> consultarFotoDePerfil(String telefone) {
+        ObjectNode corpo = json.createObjectNode();
+        corpo.put("type", "contacts");
+        corpo.put("action", "getPicture");
+        corpo.putObject("contacts").put("to", telefone);
+
+        ResponseEntity<byte[]> resposta = http.post()
+                .uri(
+                        "/{version}/{phone_number_id}/contacts",
+                        propriedades.versaoApi(),
+                        propriedades.numeroPrincipal())
+                .header("Authorization", "Bearer " + propriedades.token())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(corpo)
+                .exchange((request, response) -> {
+                    byte[] bytes;
+                    try {
+                        bytes = response.getBody() == null
+                                ? new byte[0]
+                                : response.getBody().readNBytes(limiteRespostaFoto + 1);
+                    } catch (IOException erro) {
+                        throw new org.springframework.web.client.RestClientException(
+                                "falha ao ler resposta da foto de perfil", erro);
+                    }
+                    MediaType contentType = response.getHeaders().getContentType();
+                    return ResponseEntity.status(response.getStatusCode())
+                            .contentType(contentType == null ? MediaType.APPLICATION_OCTET_STREAM : contentType)
+                            .body(bytes);
+                });
+        if (!resposta.getStatusCode().is2xxSuccessful()) {
+            throw new RestClientResponseException(
+                    "UZAPI respondeu HTTP " + resposta.getStatusCode().value(),
+                    resposta.getStatusCode().value(),
+                    resposta.getStatusCode().toString(),
+                    resposta.getHeaders(),
+                    resposta.getBody(),
+                    StandardCharsets.UTF_8);
+        }
+        byte[] body = resposta.getBody() == null ? new byte[0] : resposta.getBody();
+        if (body.length == 0 || body.length > limiteRespostaFoto) {
+            return Optional.empty();
+        }
+        String contentType = resposta.getHeaders().getContentType() == null
+                ? ""
+                : resposta.getHeaders().getContentType().toString();
+        if (contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            return Optional.of(new MidiaRecebida(body, contentType));
+        }
+        return interpretarRespostaDaFoto(body);
+    }
+
+    private Optional<MidiaRecebida> interpretarRespostaDaFoto(byte[] body) {
+        JsonNode raiz;
+        try {
+            raiz = json.readTree(body);
+        } catch (IOException | RuntimeException invalido) {
+            return Optional.empty();
+        }
+        String candidato = procurarCampoDeFoto(raiz, 0, new int[] {NOS_MAXIMOS_FOTO});
+        if (candidato == null || candidato.isBlank()) {
+            return Optional.empty();
+        }
+        if (candidato.regionMatches(true, 0, "data:", 0, 5)) {
+            return decodificarDataUri(candidato);
+        }
+        if (pareceBase64(candidato)) {
+            try {
+                byte[] bytes = Base64.getMimeDecoder().decode(candidato);
+                return bytes.length == 0 || bytes.length > limiteRespostaFoto
+                        ? Optional.empty()
+                        : Optional.of(new MidiaRecebida(bytes, "image/jpeg"));
+            } catch (IllegalArgumentException ignorado) {
+                return Optional.empty();
+            }
+        }
+        return baixarFotoTemporaria(candidato);
+    }
+
+    private Optional<MidiaRecebida> decodificarDataUri(String valor) {
+        int separador = valor.indexOf(",");
+        if (separador <= 5 || !valor.regionMatches(true, separador - 7, ";base64", 0, 7)) {
+            return Optional.empty();
+        }
+        String mime = valor.substring(5, separador).split(";", 2)[0].trim();
+        if (!mime.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            return Optional.empty();
+        }
+        try {
+            byte[] bytes = Base64.getDecoder().decode(valor.substring(separador + 1));
+            return bytes.length == 0 || bytes.length > limiteRespostaFoto
+                    ? Optional.empty()
+                    : Optional.of(new MidiaRecebida(bytes, mime));
+        } catch (IllegalArgumentException ignorado) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<MidiaRecebida> baixarFotoTemporaria(String valor) {
+        URI uri;
+        try {
+            uri = new URI(valor.trim()).normalize();
+        } catch (URISyntaxException | RuntimeException invalida) {
+            return Optional.empty();
+        }
+        URI base;
+        try {
+            base = new URI(propriedades.urlBase());
+        } catch (URISyntaxException | RuntimeException invalida) {
+            return Optional.empty();
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getHost() == null
+                || uri.getUserInfo() != null
+                || uri.getFragment() != null
+                || base.getHost() == null
+                || !uri.getHost().equalsIgnoreCase(base.getHost())) {
+            return Optional.empty();
+        }
+        ResponseEntity<byte[]> resposta = http.get()
+                .uri(uri)
+                .header("Accept", "image/jpeg,image/png,image/webp")
+                .exchange((request, response) -> {
+                    byte[] bytes;
+                    try {
+                        bytes = response.getBody() == null
+                                ? new byte[0]
+                                : response.getBody().readNBytes(limiteRespostaFoto + 1);
+                    } catch (IOException erro) {
+                        throw new org.springframework.web.client.RestClientException(
+                                "falha ao ler resposta da foto de perfil", erro);
+                    }
+                    MediaType contentType = response.getHeaders().getContentType();
+                    return ResponseEntity.status(response.getStatusCode())
+                            .contentType(contentType == null ? MediaType.APPLICATION_OCTET_STREAM : contentType)
+                            .body(bytes);
+                });
+        if (resposta.getStatusCode().value() == 429 || resposta.getStatusCode().value() >= 500) {
+            throw new ProvedorTemporariamenteIndisponivelException(
+                    "provedor " + PROVEDOR + " indisponivel ao baixar foto de perfil; HTTP "
+                            + resposta.getStatusCode().value());
+        }
+        if (!resposta.getStatusCode().is2xxSuccessful()
+                || resposta.getBody() == null
+                || resposta.getBody().length == 0
+                || resposta.getBody().length > limiteRespostaFoto
+                || resposta.getHeaders().getContentType() == null
+                || !resposta.getHeaders().getContentType().toString().toLowerCase(Locale.ROOT).startsWith("image/")) {
+            return Optional.empty();
+        }
+        return Optional.of(new MidiaRecebida(
+                resposta.getBody(), resposta.getHeaders().getContentType().toString()));
+    }
+
+    private String procurarCampoDeFoto(JsonNode no, int profundidade, int[] orcamento) {
+        if (no == null || profundidade > PROFUNDIDADE_MAXIMA_FOTO || orcamento[0]-- <= 0) {
+            return null;
+        }
+        if (no.isObject()) {
+            Iterator<java.util.Map.Entry<String, JsonNode>> campos = no.fields();
+            while (campos.hasNext()) {
+                var campo = campos.next();
+                String chave = campo.getKey().toLowerCase(Locale.ROOT).replace("-", "").replace("_", "");
+                JsonNode valor = campo.getValue();
+                if (valor.isTextual() && CAMPOS_FOTO.contains(chave)) {
+                    return valor.asText();
+                }
+                String encontrado = procurarCampoDeFoto(valor, profundidade + 1, orcamento);
+                if (encontrado != null) {
+                    return encontrado;
+                }
+            }
+        } else if (no.isArray()) {
+            for (JsonNode item : no) {
+                String encontrado = procurarCampoDeFoto(item, profundidade + 1, orcamento);
+                if (encontrado != null) {
+                    return encontrado;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean pareceBase64(String valor) {
+        String compacto = valor.replaceAll("\\s", "");
+        return compacto.length() >= 200 && compacto.matches("[A-Za-z0-9+/]+={0,2}");
     }
 
     /**

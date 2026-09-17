@@ -629,6 +629,45 @@ docker service inspect <stack>_backend  --format '{{.Spec.TaskTemplate.Container
 
 ---
 
+## Captura de foto de perfil pela UZAPI/Autotic (opcional)
+
+O CRM consulta a capacidade `contacts/getPicture` somente depois do commit de uma mensagem recebida,
+em executor separado do caminho de atendimento. A resposta é convertida em bytes, validada e gravada
+no storage próprio; o frontend continua usando a rota autenticada da foto e as iniciais como fallback.
+Meta Cloud e provedores sem essa capacidade não fazem chamada externa.
+
+### Homologação e Fêmina
+
+1. Confirme `WHATSAPP_PROVEDOR=uzapi-autotic`, `WHATSAPP_URL_BASE=https://api.uzapi.com.br`,
+   `WHATSAPP_NUMERO` e `WHATSAPP_TOKEN` no serviço. `WHATSAPP_USUARIO_API` é legado e não participa da
+   chamada.
+2. Mantenha `CANAL_FOTO_PERFIL_HABILITADO=true` (default), `CANAL_FOTO_PERFIL_CACHE_TTL=6h`,
+   `CANAL_FOTO_PERFIL_CONCORRENCIA=2`, `CANAL_FOTO_PERFIL_FILA=100` e
+   `CANAL_FOTO_PERFIL_LIMITE_BYTES=5242880`, ajustando apenas por capacidade operacional.
+3. Envie uma mensagem nova de um contato com foto e aguarde a conclusão do worker. Verifique no log
+   apenas `leadId`, tamanho, hash e tipo de erro; nunca copie token, telefone ou URL temporária.
+4. Abra a lista de Atendimentos, o cabeçalho e os detalhes do lead. A foto deve vir da rota autenticada;
+   ausência, 404, URL expirada ou indisponibilidade devem mostrar iniciais sem bloquear a conversa.
+5. Repita com um contato sem foto e durante uma indisponibilidade controlada para confirmar fallback e
+   que o pool do chat continua disponível.
+
+### Diagnóstico seguro
+
+- `401/403/400/404` do `getPicture`: ausência ou indisponibilidade do recurso; o worker não insiste até
+  o TTL negativo expirar.
+- `5xx`, timeout ou circuit breaker: falha temporária; não grava cache negativo e uma mensagem futura
+  pode tentar novamente.
+- Imagem inválida ou acima do limite: descarte seguro e iniciais; não persista bytes não validados.
+- Para correlacionar uma ocorrência, use `leadId`, hash/tamanho do resumo seguro e o tipo da exceção.
+  Não registre o payload, a URL assinada, o token nem o telefone completo.
+
+O endpoint n8n de `docs/23-contrato-foto-de-perfil-do-lead.md` continua disponível para captura externa
+e atualização explícita. Não há reprocessamento automático de mensagens históricas nesta etapa; se a
+operação decidir recuperar leads antigos, faça-o individualmente pelo contrato interno após validar
+uma mensagem nova em homologação.
+
+---
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

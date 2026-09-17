@@ -11,12 +11,15 @@ A Meta não entrega a foto de perfil do contato. A integração externa (n8n + U
 a envia para o CRM. Este documento é o contrato dessa entrega: as duas rotas, o que mandar, o que
 esperar de volta e o que fazer quando der erro.
 
-**A integração é quem varre e quem chama.** O CRM só recebe. Ele não busca foto, não agenda nada e
-não dispara webhook para a integração — é regra de arquitetura do produto, não preguiça. O ritmo do
-polling é decisão de vocês.
+**A integração continua sendo quem varre e quem chama.** O CRM só recebe neste contrato e não agenda
+nada nem dispara webhook para a integração — é regra de arquitetura do produto, não preguiça. Quando o
+canal ativo expõe uma capacidade nativa de foto (atualmente UZAPI/Autotic), o próprio CRM pode fazer
+uma consulta assíncrona e best-effort após uma mensagem recebida; esse caminho opcional não altera nem
+substitui o contrato n8n abaixo. O ritmo de qualquer polling externo continua sendo decisão de vocês.
 
-> **Estado:** as rotas abaixo estão em implementação (etapa E97) e ainda **não** existem em
-> produção. Este documento é o alvo contra o qual programar. Testar primeiro em homologação.
+> **Estado:** as rotas abaixo são o contrato compatível do n8n. A captura opcional pelo canal está
+> documentada em `docs/38-contrato-uzapi-autotic.md`; ela não remove a possibilidade de o n8n enviar
+> uma foto explicitamente e não expõe URL ou token do provedor.
 
 ---
 
