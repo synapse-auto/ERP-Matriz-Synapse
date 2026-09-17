@@ -51,7 +51,7 @@ class OpenApiIT extends PostgresIT {
 
         List<String> falhas = falhasDeCobertura(openApi);
         assertThat(falhas).isEmpty();
-        assertThat(contarOperacoes(openApi)).isEqualTo(182);
+        assertThat(contarOperacoes(openApi)).isEqualTo(189);
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1{atendimentoId}~1cartao/get/security/0/bearerAuth")
                         .isArray())
@@ -116,6 +116,10 @@ class OpenApiIT extends PostgresIT {
         assertThat(openApi.at("/paths/~1api~1v1~1atendimentos~1{id}~1mensagens~1{mensagemId}~1encaminhamentos/post/security/0/bearerAuth").isArray())
                 .isTrue();
         assertThat(openApi.at("/paths/~1api~1v1~1chat-interno~1conversas~1{id}~1mensagens~1{mensagemId}~1reacao/put/security/0/bearerAuth").isArray())
+                .isTrue();
+        assertThat(openApi.at("/paths/~1api~1v1~1automacao~1fidelizacao~1configuracao/get/security/0/bearerAuth").isArray())
+                .isTrue();
+        assertThat(openApi.at("/paths/~1api~1v1~1automacao~1fidelizacao~1datas-festivas/get/security/0/bearerAuth").isArray())
                 .isTrue();
     }
 

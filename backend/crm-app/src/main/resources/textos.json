@@ -1313,6 +1313,35 @@
       "gatilhoFollowUp": "Enviado após {tempo} sem resposta",
       "gatilhoFidelizacao": "Enviado após {dias} sem contato"
     },
+    "fidelizacao": {
+      "titulo": "Outras seções",
+      "semPermissao": "Esta configuração está disponível apenas para gestores e administradores.",
+      "carregando": "Carregando configuração…",
+      "erro": "Não foi possível carregar a configuração de fidelização.",
+      "erroSalvar": "Não foi possível salvar. O valor anterior foi mantido.",
+      "salvando": "Salvando…",
+      "salvo": "Configuração salva.",
+      "aniversario": {
+        "titulo": "Aniversário do cliente",
+        "mensagem": "Mensagem",
+        "ajuda": "Enviada automaticamente na data de aniversário. Use [nome] para o nome do cliente.",
+        "alternar": "Ativar aniversário do cliente"
+      },
+      "festivas": {
+        "titulo": "Datas festivas",
+        "nova": "Adicionar data",
+        "vazio": "Nenhuma data festiva cadastrada.",
+        "tituloCampo": "Título",
+        "icone": "Emoji ou ícone",
+        "alternar": "Ativar data festiva",
+        "abrir": "Abrir configuração da data festiva",
+        "fechar": "Fechar configuração da data festiva",
+        "data": "Data",
+        "mensagem": "Mensagem",
+        "salvar": "Salvar data",
+        "excluir": "Excluir data"
+      }
+    },
     "telemetria": {
       "mensagensEnviadas": "Mensagens Enviadas",
       "clientesTransferidos": "Clientes Transferidos",

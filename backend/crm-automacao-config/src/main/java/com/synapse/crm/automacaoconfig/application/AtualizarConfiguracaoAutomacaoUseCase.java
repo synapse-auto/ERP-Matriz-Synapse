@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,10 @@ public class AtualizarConfiguracaoAutomacaoUseCase {
     @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
     @Transactional
     public ConfiguracaoAutomacao executar(String chave, String novoValor) {
+        if (ConfiguracaoFidelizacaoUseCase.eChaveDeFidelizacao(chave)
+                && usuarioContext.atual().papel() == com.synapse.crm.sharedkernel.identidade.PapelUsuario.SUBGESTOR) {
+            throw new AccessDeniedException("SUBGESTOR nao pode editar a configuracao de fidelizacao");
+        }
         ConfiguracaoAutomacao atual = configuracoes
                 .porChave(chave)
                 .orElseThrow(() -> new ConfiguracaoAutomacaoNaoEncontradaException(chave));

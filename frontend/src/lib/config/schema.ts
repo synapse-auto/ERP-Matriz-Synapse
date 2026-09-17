@@ -1099,6 +1099,11 @@ export const TextosSchema = z.object({
       avancado: z.object({ titulo: z.string(), descricao: z.string(), abrir: z.string(), fechar: z.string() }),
       abas: z.object({ geral: z.string(), followUp: z.string(), fidelizacao: z.string() }),
       regras: z.object({ novo: z.string(), novoFollowUp: z.string(), novaMensagem: z.string(), followUpContagemSingular: z.string(), followUpsContagem: z.string(), mensagemContagemSingular: z.string(), mensagensContagem: z.string(), editar: z.string(), ativar: z.string(), desativar: z.string(), excluir: z.string(), confirmarExclusao: z.string(), cancelar: z.string(), ativo: z.string(), inativo: z.string(), vazio: z.string(), vazioFollowUp: z.string(), vazioFidelizacao: z.string(), erro: z.string(), erroSalvar: z.string(), unidadeHora: z.string(), unidadeHoras: z.string(), unidadeDia: z.string(), unidadeDias: z.string(), tempo: z.string(), dias: z.string(), diasSemContato: z.string(), mensagem: z.string(), preview: z.string(), previewNome: z.string(), placeholderAjuda: z.string(), mensagemNovaFollowUp: z.string(), mensagemNovaFidelizacao: z.string(), visualizacaoWhatsapp: z.string(), online: z.string(), hoje: z.string(), horario: z.string(), composer: z.string(), previewVazio: z.string(), badgeFollowUp: z.string(), badgeFidelizacao: z.string(), gatilhoFollowUp: z.string(), gatilhoFidelizacao: z.string() }),
+      fidelizacao: z.object({
+        titulo: z.string(), semPermissao: z.string(), carregando: z.string(), erro: z.string(), erroSalvar: z.string(), salvando: z.string(), salvo: z.string(),
+        aniversario: z.object({ titulo: z.string(), mensagem: z.string(), ajuda: z.string(), alternar: z.string() }),
+        festivas: z.object({ titulo: z.string(), nova: z.string(), vazio: z.string(), tituloCampo: z.string(), icone: z.string(), data: z.string(), mensagem: z.string(), salvar: z.string(), excluir: z.string(), alternar: z.string(), abrir: z.string(), fechar: z.string() }),
+      }),
     telemetria: z.object({
       mensagensEnviadas: z.string(),
       clientesTransferidos: z.string(),

@@ -244,6 +244,32 @@ class SchemaMigracoesIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("V74 cria configuracao de aniversario e campos dinamicos das datas festivas")
+        void configuracaoFidelizacao_migrationCriaAniversarioEExtensoesFestivas() {
+            var aniversario = jdbc.queryForMap(
+                    "SELECT valor, tipo FROM configuracao_automacao "
+                            + "WHERE chave = 'fidelizacao.aniversario.mensagem'");
+            assertThat(aniversario)
+                    .containsEntry("valor", "Feliz aniversário, [nome]! A equipe deseja um ótimo dia.")
+                    .containsEntry("tipo", "TEXT");
+            assertThat(jdbc.queryForObject(
+                            "SELECT valor FROM configuracao_automacao "
+                                    + "WHERE chave = 'fidelizacao.aniversario.habilitado'",
+                            String.class))
+                    .isEqualTo("false");
+
+            assertThat(colunaExiste("mensagem_festiva", "titulo")).isTrue();
+            assertThat(colunaExiste("mensagem_festiva", "icone")).isTrue();
+        }
+
+        private boolean colunaExiste(String tabela, String coluna) {
+            return Boolean.TRUE.equals(jdbc.queryForObject(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = ? AND column_name = ?)",
+                    Boolean.class, tabela, coluna));
+        }
+
+        @Test
         @DisplayName("lead tem endereco opcional de envio do provedor")
         void lead_temEnderecoDeEnvioDoProvedor() {
             assertThat(jdbc.queryForObject(

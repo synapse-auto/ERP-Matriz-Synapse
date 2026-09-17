@@ -212,17 +212,34 @@ PUT|DELETE     /api/v1/automacao/fidelizacao/{id}
 PATCH          /api/v1/automacao/fidelizacao/{id}/ativo
 ```
 
+Na aba `Automação → Fidelização`, o aniversário é configurado por
+`GET/PUT /api/v1/automacao/fidelizacao/configuracao` e
+`/configuracao/{chave}`. Essas duas chaves são visíveis e editáveis somente por
+`GESTOR` e `ADMINISTRADOR`; `SUBGESTOR` e `ATENDENTE` recebem `403` e não têm
+acesso aos textos. O valor inicial da mensagem é cadastrado pela migration e
+aceita `[nome]` como marcador para o executor futuro.
+
+Datas festivas não são um catálogo fixo. A gestão cadastra registros dinâmicos
+com `GET/POST /api/v1/automacao/fidelizacao/datas-festivas`, edita com
+`PUT /api/v1/automacao/fidelizacao/datas-festivas/{id}`, alterna com `PATCH
+/{id}/ativo` e remove com `DELETE /{id}`. O corpo de criação/edição é
+`{titulo, icone, data, mensagem, ativo}`, com data ISO `yyyy-MM-dd`. As rotas
+seguem RFC 7807 (`403` sem papel de gestão, `404` para id inexistente e `422`
+para payload inválido) e não publicam outbox nem enviam mensagens nesta fase.
+
 As rotas internas já existentes para o n8n continuam sendo somente de leitura
 e somente de regras ativas: `GET /internal/v1/regras/follow-up` e
 `GET /internal/v1/regras/fidelizacao`. O armazenamento usa minutos para
 follow-up; a interface converte para horas quando o valor não é múltiplo de
 1440 e para dias quando é. Fidelização usa dias sem contato.
 
-Mensagens aceitam somente o placeholder `{nome}`. Placeholder desconhecido ou
-mensagem vazia é recusado no cadastro com `422` (RFC 7807), antes de chegar ao
-banco. O CRM apenas configura e expõe as regras; não há executor ou scheduler
-no backend. A execução continua sendo responsabilidade do n8n, conforme
-`RN-CRM-07`.
+Mensagens das regras legadas aceitam somente o placeholder `{nome}`. A
+mensagem de aniversário usa `[nome]`, conforme o contrato da tela; datas
+festivas preservam o texto informado pela gestão para o executor futuro. Nome,
+ícone, data e mensagem vazios ou acima dos limites são recusados com `422`
+(RFC 7807), antes de chegar ao banco. O CRM apenas configura e expõe as
+regras; não há executor ou scheduler no backend. A execução continua sendo
+responsabilidade do n8n, conforme `RN-CRM-07`.
 
 ### 3.4 Recursos do assistente de IA
 
