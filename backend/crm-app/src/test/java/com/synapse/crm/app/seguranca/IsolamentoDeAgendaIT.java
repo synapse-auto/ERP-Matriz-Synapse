@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,17 @@ class IsolamentoDeAgendaIT extends PostgresIT {
         leadDaAna = criarLead("Cliente da Ana " + marcador, idAna, "EM_ATENDIMENTO");
         leadDoBruno = criarLead("Cliente do Bruno " + marcador, idBruno, "EM_ATENDIMENTO");
         leadEmIa = criarLead("Potencial " + marcador, null, "IA");
+    }
+
+    @AfterEach
+    void limparAgendasCriadas() {
+        // O Postgres dos ITs e singleton entre classes. A abertura pela Agenda cria um atendimento
+        // persistente; sem esta limpeza ele entra no lote de finalizacao de outra suite e altera sua
+        // contagem de visibilidade.
+        jdbc.update(
+                "DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
+                "%" + marcador);
+        jdbc.update("DELETE FROM lead WHERE nome LIKE ?", "%" + marcador);
     }
 
     @Test
