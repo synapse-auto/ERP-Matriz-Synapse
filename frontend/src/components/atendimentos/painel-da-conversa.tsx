@@ -33,9 +33,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useEtapas, useLead, useMidiasDoLead, useSalvarFicha } from "@/lib/lead/use-painel-lead";
+import type { LeadFicha } from "@/lib/lead/types";
 import {
   cancelarMensagemProgramada,
   removerLembrete,
@@ -238,32 +240,11 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           <AtalhoTags leadId={leadId} modo="painel" />
         </div>
 
-        <SomenteAdministrador>
-          {lead.data.resumoIa && (
-            <SecaoColapsavel
-              icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
-              titulo={textos.secoes.resumo}
-              abertaPorPadrao
-            >
-              <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-                <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
-                <p className="text-sm text-foreground">{lead.data.resumoIa}</p>
-              </div>
-            </SecaoColapsavel>
-          )}
-        </SomenteAdministrador>
-
         <SecaoColapsavel
-          icone={<StickyNote className="size-(--tamanho-icone-interface) text-cor-atencao" />}
-          titulo={textos.notasInternas}
-          abertaPorPadrao
+          icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
+          titulo={textos.secoes.resumo}
         >
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <StickyNote className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-cor-atencao" />
-            <p className="text-sm text-foreground">
-              {lead.data.notas || textosLead.resumoIa.vazio}
-            </p>
-          </div>
+          <ResumoPersistidoDoLead lead={lead.data} />
         </SecaoColapsavel>
 
         <SecaoDeProgramadas
@@ -278,9 +259,106 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           titulo={textos.secoes.lembretes}
           vazio={textos.vazioLembretes}
         />
+        <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
         <SecaoDeMidias leadId={leadId} />
       </div>
     </aside>
+  );
+}
+
+function ResumoPersistidoDoLead({ lead }: { lead: LeadFicha }) {
+  const textos = useTextos();
+  const resumo = lead.resumoIa?.trim() || textos.atendimentos.painel.resumoIa.vazio;
+  const atualizadoEm = lead.resumoIaAtualizadoEm
+    ? new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+        .format(new Date(lead.resumoIaAtualizadoEm))
+        .replace(",", "")
+    : null;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+        <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
+        <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
+      </div>
+      {atualizadoEm && (
+        <p className="text-xs text-muted-foreground">
+          {textos.atendimentos.painel.resumoIa.ultimaGeracao.replace("{data}", atualizadoEm)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
+  const textos = useTextos().atendimentos.painel;
+  const salvar = useSalvarFicha(lead.id);
+  const [valor, setValor] = useState(lead.notas ?? "");
+  const [confirmado, setConfirmado] = useState(lead.notas ?? "");
+  const [feedback, setFeedback] = useState<"salvo" | "erro" | null>(null);
+
+  function salvarNota() {
+    if (valor === confirmado || salvar.isPending) return;
+    salvar.mutate(
+      { notas: valor },
+      {
+        onSuccess: (atualizado) => {
+          const novaNota = atualizado.notas ?? "";
+          setConfirmado(novaNota);
+          setValor(novaNota);
+          setFeedback("salvo");
+        },
+        onError: () => {
+          setValor(confirmado);
+          setFeedback("erro");
+        },
+      },
+    );
+  }
+
+  return (
+    <SecaoColapsavel
+      icone={<StickyNote className="size-(--tamanho-icone-interface) text-cor-atencao" />}
+      titulo={textos.notasInternas}
+    >
+      <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+        <label htmlFor={`notas-internas-${lead.id}`} className="sr-only">
+          {textos.notasInternas}
+        </label>
+        <Textarea
+          id={`notas-internas-${lead.id}`}
+          className="min-h-24 w-full resize-y rounded-md border border-input bg-background p-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder={textos.notas.placeholder}
+          value={valor}
+          disabled={salvar.isPending}
+          onChange={(evento) => {
+            setFeedback(null);
+            setValor(evento.target.value);
+          }}
+        />
+        <div className="flex items-center justify-between gap-2">
+          <p
+            role={feedback ? "status" : undefined}
+            className={feedback === "erro" ? "text-xs text-destructive" : "text-xs text-cor-sucesso"}
+          >
+            {feedback === "salvo" ? textos.notas.salvo : feedback === "erro" ? textos.notas.erro : ""}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={salvarNota}
+            disabled={salvar.isPending || valor === confirmado}
+          >
+            {salvar.isPending ? textos.notas.salvando : textos.notas.salvar}
+          </Button>
+        </div>
+      </div>
+    </SecaoColapsavel>
   );
 }
 

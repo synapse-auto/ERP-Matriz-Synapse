@@ -95,6 +95,9 @@ class LeadEntity {
     @Column(name = "resumo_ia")
     private String resumoIa;
 
+    @Column(name = "resumo_ia_atualizado_em")
+    private Instant resumoIaAtualizadoEm;
+
     @Column(name = "num_atendimentos", nullable = false)
     private int numAtendimentos;
 
@@ -134,7 +137,7 @@ class LeadEntity {
         return new Lead(
                 id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,
                 canalOrigemId, statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
-                numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
+                resumoIaAtualizadoEm, numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
     }
 
     /**
@@ -159,6 +162,7 @@ class LeadEntity {
         this.atendenteResponsavelId = lead.atendenteResponsavelId();
         this.notas = lead.notas();
         this.resumoIa = lead.resumoIa();
+        this.resumoIaAtualizadoEm = lead.resumoIaAtualizadoEm();
         this.dadosCustomizados = new LinkedHashMap<>(lead.dadosCustomizados());
     }
 

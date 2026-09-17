@@ -31,6 +31,21 @@ manutenção futura de dados precisa de desenho separado, dry-run, checkpoint e 
 
 O título da ficha (4ª coluna de Atendimentos e overlay da Agenda) passou a ser um editor inline: blur ou Enter grava via o mesmo `PUT /api/v1/leads/{id}`. Nome vazio não chama a API no frontend e o backend devolve 400 (`Nome invalido`) se o campo vier em branco — o schema é `NOT NULL` e card/cabeçalho/busca dependem dele. Depois de salvar, o cache da inbox recebe `leadNome` e a Agenda é invalidada.
 
+### Ficha lateral de Atendimento — resumo persistido e notas internas
+
+`GET /api/v1/leads/{id}` é a fonte autorizada da ficha completa. Além dos campos gerais, ele devolve
+`notas`, `resumoIa` e `resumoIaAtualizadoEm`; a listagem de leads continua sem esses campos longos.
+`PUT /api/v1/leads/{id}` aceita a atualização parcial de `notas`, preservando RLS e a regra de
+visibilidade do lead. A ficha exibe o resumo recolhido por padrão, a última geração quando o marco
+está preenchido e mantém Notas internas editáveis para usuários já autorizados.
+
+Não existe endpoint humano para gerar um resumo sob demanda. O único contrato de escrita de resumo é
+`POST /internal/v1/atendimentos/{id}/resumo`, autenticado por `X-Synapse-Token`, que recebe o texto
+produzido pelo n8n e o sobrescreve de forma controlada. O navegador não chama essa rota nem simula uma
+geração. Portanto, o botão “Gerar/Regerar” do protótipo permanece pendente de um contrato de solicitação
+assíncrona com a Automação; expor um botão sem consumidor seria uma ação fantasma. O n8n continua sendo
+responsável por produzir e gravar o resumo pelo contrato interno existente.
+
 ### 09/09/2026 — Gravações do composer como nota de voz (E179)
 
 Gravações novas são convertidas para OGG/Opus mono a 48 kHz, com timestamps contínuos e duração

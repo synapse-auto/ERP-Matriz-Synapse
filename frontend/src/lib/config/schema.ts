@@ -673,6 +673,17 @@ export const TextosSchema = z.object({
       reabrir: z.string(),
       informacoesGerais: z.string(),
       notasInternas: z.string(),
+      notas: z.object({
+        placeholder: z.string(),
+        salvar: z.string(),
+        salvando: z.string(),
+        salvo: z.string(),
+        erro: z.string(),
+      }),
+      resumoIa: z.object({
+        vazio: z.string(),
+        ultimaGeracao: z.string(),
+      }),
       adicionar: z.string(),
       editar: z.string(),
       remover: z.string(),

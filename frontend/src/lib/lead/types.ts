@@ -16,6 +16,7 @@ export interface LeadFicha {
   atendenteResponsavelId: string | null;
   notas: string | null;
   resumoIa: string | null;
+  resumoIaAtualizadoEm: string | null;
   numAtendimentos: number;
   numMensagens: number;
   criadoEm: string;

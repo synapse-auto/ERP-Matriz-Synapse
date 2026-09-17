@@ -75,6 +75,18 @@ class LeadFichaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("a ficha devolve quando o resumo da IA foi atualizado")
+    void ficha_porId_trazDataDaUltimaGeracaoDoResumo() {
+        jdbc.update(
+                "UPDATE lead SET resumo_ia_atualizado_em = TIMESTAMPTZ '2026-09-17 15:30:00+00' WHERE id = ?",
+                leadDaAna);
+
+        String corpo = comoAna(HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getBody();
+
+        assertThat(corpo).contains("\"resumoIaAtualizadoEm\":\"2026-09-17T15:30:00Z\"");
+    }
+
+    @Test
     @DisplayName("atendente edita o proprio lead, preservando o que nao mandou")
     void editar_leadProprio_funciona() {
         var resposta = comoAna(
@@ -84,6 +96,22 @@ class LeadFichaIT extends PostgresIT {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).contains("Cliente da Ana editado").contains("Vidros ABC");
+    }
+
+    @Test
+    @DisplayName("atendente atualiza notas internas sem apagar o resumo")
+    void editar_notasPreservaResumo() {
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("notas", "Retornar com medidas"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("Retornar com medidas").contains(RESUMO_SECRETO);
+        assertThat(jdbc.queryForObject("SELECT notas FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo("Retornar com medidas");
+        assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo(RESUMO_SECRETO);
     }
 
     @Test

@@ -43,6 +43,7 @@ const ficha: LeadFicha = {
   atendenteResponsavelId: "usuario-1",
   notas: "anterior",
   resumoIa: "resumo",
+  resumoIaAtualizadoEm: "2026-08-03T00:00:00Z",
   numAtendimentos: 2,
   numMensagens: 3,
   criadoEm: "2026-08-03T00:00:00Z",
