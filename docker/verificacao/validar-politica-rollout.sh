@@ -13,12 +13,12 @@ import sys
 
 
 def segundos(valor: str) -> int:
-    match = re.fullmatch(r"(\d+)(ms|s|m|h)", str(valor))
-    if not match:
+    texto = str(valor)
+    partes = re.findall(r"(\d+)(ms|s|m|h)", texto)
+    if not partes or "".join(f"{quantidade}{unidade}" for quantidade, unidade in partes) != texto:
         raise AssertionError(f"duracao invalida: {valor!r}")
-    quantidade, unidade = match.groups()
-    multiplicador = {"ms": 0.001, "s": 1, "m": 60, "h": 3600}[unidade]
-    resultado = int(int(quantidade) * multiplicador)
+    multiplicadores = {"ms": 0.001, "s": 1, "m": 60, "h": 3600}
+    resultado = int(sum(int(quantidade) * multiplicadores[unidade] for quantidade, unidade in partes))
     if resultado < 1:
         raise AssertionError(f"duracao precisa ser positiva: {valor!r}")
     return resultado
