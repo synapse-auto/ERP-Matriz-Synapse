@@ -22,6 +22,14 @@ Decisão de hospedagem e checklist de pré-requisitos do ambiente. Este document
 
 **Registry: GitHub Container Registry (`ghcr.io`).** Gratuito para repositório privado da organização; o CI publica, o Dokploy puxa. O modo Docker Stack exige imagem pré-compilada em registry para aplicar `start-first` — sem isso, não há deploy sem downtime.
 
+**Rollout do stack:** backend e frontend usam `start-first` com `failure_action: rollback`, uma réplica
+por padrão e monitoramento maior que o `start_period` (180s/90s). O Traefik consulta o endpoint de
+readiness real; os healthchecks do container continuam liveness para não confundir inicialização com
+tráfego. A política é verificada no CI por `docker/verificacao/validar-politica-rollout.sh`. Antes de
+promover uma imagem, o operador deve executar o gate de schema e, se necessário, o runner one-shot da
+V73 descrito em `docs/18-runbook-pendencias-operacionais.md` e `docs/41-runbook-upgrade-controlado-v73.md`;
+o boot normal não deve executar essa migration pesada.
+
 ### 1.2 Recomendação
 
 **VPS em São Paulo + Dokploy** como camada de deploy.
