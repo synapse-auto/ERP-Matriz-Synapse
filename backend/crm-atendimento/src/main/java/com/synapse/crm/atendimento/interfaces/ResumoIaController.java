@@ -51,6 +51,7 @@ class ResumoIaController {
 
     @Operation(
             summary = "Consultar ciclo atual do resumo por IA",
+            description = "Consulta o estado persistido da solicitação do atendimento, sem acionar a Automação.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Estado persistido; 200 com null quando ainda não houve solicitação."),
                 @ApiResponse(responseCode = "403", description = "Atendimento não autorizado."),

@@ -1779,6 +1779,7 @@
           "type" : "string"
         },
         "status" : {
+          "minLength" : 1,
           "type" : "string"
         }
       },
