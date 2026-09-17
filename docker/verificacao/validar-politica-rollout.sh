@@ -65,7 +65,10 @@ for nome, monitor_minimo in {"backend": 180, "frontend": 90}.items():
     )
 
     labels = deploy.get("labels", service.get("labels", []))
-    labels_text = " ".join(str(label) for label in labels)
+    if isinstance(labels, dict):
+        labels_text = " ".join(f"{chave}={valor}" for chave, valor in labels.items())
+    else:
+        labels_text = " ".join(str(label) for label in labels)
     assert "/health/readiness" in labels_text, f"Traefik nao usa readiness: {nome}"
 
 # Protege contra a regressao exata do incidente: monitorar menos tempo que a inicializacao
