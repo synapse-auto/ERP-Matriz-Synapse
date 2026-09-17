@@ -132,6 +132,10 @@ real (ou chave idempotente) corresponde ao evento.
 | POST | `/api/v1/lembretes` | Cria lembrete | Atendente | `LembreteController` · `LembretesIT` |
 | POST | `/api/v1/mensagens-programadas` | Agenda mensagem | Atendente | `MensagemProgramadaController` · `MensagensProgramadasIT` |
 
+| GET/PUT | `/api/v1/automacao/fidelizacao/configuracao[/{chave}]` | Lê/atualiza configuração de aniversário | Gestor/Admin | `RegrasAutomacaoController` · `RegrasAutomacaoIT` |
+| GET/POST | `/api/v1/automacao/fidelizacao/datas-festivas` | Lista/cadastra datas festivas dinâmicas | Gestor/Admin | `RegrasAutomacaoController` · `RegrasAutomacaoIT` |
+| PUT/PATCH/DELETE | `/api/v1/automacao/fidelizacao/datas-festivas/{id}[/{ativo}]` | Edita, ativa/desativa ou remove data festiva | Gestor/Admin | `RegrasAutomacaoController` · `RegrasAutomacaoIT` |
+
 ### Automação — Configuração (consumida pelo serviço de Automação)
 
 | Método | Rota | Descrição | Consumidor | Evidência |

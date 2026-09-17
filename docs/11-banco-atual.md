@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Código:** 73 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration disponível:** `V73__normalizar_prefixo_discagem_leads.sql` (o estado aplicado é específico de cada instância; V73 foi confirmada na Estrutural e esteve pendente na Fêmina durante o incidente)
+**Código:** 74 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration disponível:** `V74__configuracao_fidelizacao_aniversario.sql` (o estado aplicado é específico de cada instância)
 
 ---
 
@@ -84,6 +84,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V71__estrategia_distribuicao_ia` | parâmetro BOOLEAN `ia.distribuicao.sequencial`; false preserva menor carga, true habilita rodízio por recência |
 | `V72__toggle_finalizacao_automatica` | parâmetro BOOLEAN `atendimento.finalizar_inativos.habilitado`; false por padrão, opt-in por instância para o scheduler de inatividade |
 | `V73__normalizar_prefixo_discagem_leads` | remove trunk `0`/operadora `0XX` de telefones BR por comprimento, funde importados sem conversa com o gêmeo que tem conversa e reporta ambiguidades; é imutável e só executada pelo runner controlado, nunca no boot normal |
+| `V74__configuracao_fidelizacao_aniversario` | adiciona título e ícone às datas festivas e cria a configuração de aniversário; os registros festivos continuam sendo cadastrados dinamicamente |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 
@@ -182,7 +183,7 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 
 ### 3.6 Automação — configuração
 
-`configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva`, `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton). A chave `ia.distribuicao.sequencial` é BOOLEAN e controla a ordem do rodízio da IA sem redeploy.
+`configuracao_automacao` (chave-valor tipado com faixa min/max), `regra_follow_up`, `regra_fidelizacao`, `mensagem_festiva` (com título e ícone dinâmicos desde V74), `configuracao_resumo_ia` (singleton), `status_automacao_telemetria` (singleton). A chave `ia.distribuicao.sequencial` é BOOLEAN e controla a ordem do rodízio da IA sem redeploy.
 
 ### 3.7 Chat interno *(E44/E80/E86 — texto, mídia e entrada pela equipe)*
 

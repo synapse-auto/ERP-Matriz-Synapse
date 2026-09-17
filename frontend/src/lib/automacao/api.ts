@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api/http-client";
 
-import type { ConfiguracaoResumoIa, ParametroAutomacao, RegraFidelizacao, RegraFollowUp, RecursosIa, StatusAutomacaoTelemetria } from "./types";
+import type { ConfiguracaoFidelizacaoParametro, ConfiguracaoResumoIa, MensagemFestiva, ParametroAutomacao, RegraFidelizacao, RegraFollowUp, RecursosIa, StatusAutomacaoTelemetria } from "./types";
 
 export function listarConfiguracaoAutomacao(): Promise<ParametroAutomacao[]> {
   return apiFetch<ParametroAutomacao[]>("/api/v1/automacao/config");
@@ -33,3 +33,19 @@ export function criarRegraFidelizacao(body: Omit<RegraFidelizacao, "id">): Promi
 export function atualizarRegraFidelizacao(id: string, body: Omit<RegraFidelizacao, "id">): Promise<RegraFidelizacao> { return apiFetch(`/api/v1/automacao/fidelizacao/${id}`, { method: "PUT", body: JSON.stringify(body) }); }
 export function alternarRegraFidelizacao(id: string, ativo: boolean): Promise<RegraFidelizacao> { return apiFetch(`/api/v1/automacao/fidelizacao/${id}/ativo`, { method: "PATCH", body: JSON.stringify({ ativo }) }); }
 export function excluirRegraFidelizacao(id: string): Promise<void> { return apiFetch(`/api/v1/automacao/fidelizacao/${id}`, { method: "DELETE" }); }
+
+export function listarConfiguracaoFidelizacao(): Promise<ConfiguracaoFidelizacaoParametro[]> {
+  return apiFetch("/api/v1/automacao/fidelizacao/configuracao");
+}
+
+export function atualizarConfiguracaoFidelizacao(chave: string, valor: string): Promise<ConfiguracaoFidelizacaoParametro> {
+  return apiFetch(`/api/v1/automacao/fidelizacao/configuracao/${encodeURIComponent(chave)}`, {
+    method: "PUT",
+    body: JSON.stringify({ valor }),
+  });
+}
+export function listarDatasFestivas(): Promise<MensagemFestiva[]> { return apiFetch("/api/v1/automacao/fidelizacao/datas-festivas"); }
+export function criarDataFestiva(body: Omit<MensagemFestiva, "id">): Promise<MensagemFestiva> { return apiFetch("/api/v1/automacao/fidelizacao/datas-festivas", { method: "POST", body: JSON.stringify(body) }); }
+export function atualizarDataFestiva(id: string, body: Omit<MensagemFestiva, "id">): Promise<MensagemFestiva> { return apiFetch(`/api/v1/automacao/fidelizacao/datas-festivas/${id}`, { method: "PUT", body: JSON.stringify(body) }); }
+export function alternarDataFestiva(id: string, ativo: boolean): Promise<MensagemFestiva> { return apiFetch(`/api/v1/automacao/fidelizacao/datas-festivas/${id}/ativo`, { method: "PATCH", body: JSON.stringify({ ativo }) }); }
+export function excluirDataFestiva(id: string): Promise<void> { return apiFetch(`/api/v1/automacao/fidelizacao/datas-festivas/${id}`, { method: "DELETE" }); }

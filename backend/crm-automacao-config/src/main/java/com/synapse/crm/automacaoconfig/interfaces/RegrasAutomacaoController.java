@@ -1,5 +1,6 @@
 package com.synapse.crm.automacaoconfig.interfaces;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,7 +27,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.synapse.crm.automacaoconfig.application.ConfiguracaoFidelizacaoUseCase;
+import com.synapse.crm.automacaoconfig.application.festivas.GerenciarMensagensFestivasUseCase;
 import com.synapse.crm.automacaoconfig.application.regras.*;
+import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
+import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacaoInvalidaException;
+import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacaoNaoEncontradaException;
+import com.synapse.crm.automacaoconfig.domain.festivas.MensagemFestiva;
+import com.synapse.crm.automacaoconfig.domain.festivas.MensagemFestivaInvalidaException;
+import com.synapse.crm.automacaoconfig.domain.festivas.MensagemFestivaNaoEncontradaException;
 import com.synapse.crm.automacaoconfig.domain.regras.*;
 
 @RestController
@@ -40,12 +49,17 @@ class RegrasAutomacaoController {
     private final ListarRegrasFidelizacaoAdminUseCase listarFidelizacao;
     private final SalvarRegraFidelizacaoUseCase salvarFidelizacao;
     private final AlternarRegraFidelizacaoUseCase alternarFidelizacao;
+    private final ConfiguracaoFidelizacaoUseCase configuracaoFidelizacao;
+    private final GerenciarMensagensFestivasUseCase mensagensFestivas;
 
     RegrasAutomacaoController(ListarRegrasFollowUpAdminUseCase listarFollowUp, SalvarRegraFollowUpUseCase salvarFollowUp,
             AlternarRegraFollowUpUseCase alternarFollowUp, ListarRegrasFidelizacaoAdminUseCase listarFidelizacao,
-            SalvarRegraFidelizacaoUseCase salvarFidelizacao, AlternarRegraFidelizacaoUseCase alternarFidelizacao) {
+            SalvarRegraFidelizacaoUseCase salvarFidelizacao, AlternarRegraFidelizacaoUseCase alternarFidelizacao,
+            ConfiguracaoFidelizacaoUseCase configuracaoFidelizacao, GerenciarMensagensFestivasUseCase mensagensFestivas) {
         this.listarFollowUp = listarFollowUp; this.salvarFollowUp = salvarFollowUp; this.alternarFollowUp = alternarFollowUp;
         this.listarFidelizacao = listarFidelizacao; this.salvarFidelizacao = salvarFidelizacao; this.alternarFidelizacao = alternarFidelizacao;
+        this.configuracaoFidelizacao = configuracaoFidelizacao;
+        this.mensagensFestivas = mensagensFestivas;
     }
 
     @GetMapping("/follow-ups")
@@ -92,14 +106,101 @@ class RegrasAutomacaoController {
     @Operation(summary = "Excluir regra de fidelização", description = "Remove uma regra de fidelização cadastrada.")
     void excluirFidelizacao(@Parameter @PathVariable UUID id) { salvarFidelizacao.excluir(id); }
 
+    @GetMapping("/fidelizacao/configuracao")
+    @Operation(
+            summary = "Listar configuracao de aniversario e datas festivas",
+            description = "Retorna somente os parametros da secao Fidelizacao. Apenas GESTOR e ADMINISTRADOR podem ler os textos.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Configuracao atual."),
+                @ApiResponse(responseCode = "403", description = "Papel sem permissao para a configuracao.")
+            })
+    List<ConfiguracaoFidelizacaoResposta> configuracaoFidelizacao() {
+        return configuracaoFidelizacao.listar().stream().map(ConfiguracaoFidelizacaoResposta::de).toList();
+    }
+
+    @PutMapping("/fidelizacao/configuracao/{chave}")
+    @Operation(
+            summary = "Atualizar parametro de fidelizacao",
+            description = "Atualiza uma chave previamente cadastrada de aniversario ou data festiva. Nao dispara mensagens.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Parametro atualizado."),
+                @ApiResponse(responseCode = "403", description = "Papel sem permissao para a configuracao."),
+                @ApiResponse(responseCode = "404", description = "Chave desconhecida."),
+                @ApiResponse(responseCode = "422", description = "Valor invalido.")
+            })
+    ConfiguracaoFidelizacaoResposta atualizarConfiguracaoFidelizacao(
+            @Parameter(description = "Chave estavel do parametro.", required = true) @PathVariable String chave,
+            @Valid @RequestBody ConfiguracaoFidelizacaoRequisicao requisicao) {
+        return ConfiguracaoFidelizacaoResposta.de(configuracaoFidelizacao.atualizar(chave, requisicao.valor()));
+    }
+
+    @GetMapping("/fidelizacao/datas-festivas")
+    @Operation(summary = "Listar datas festivas", description = "Lista as datas festivas cadastradas pela gestao. Nao dispara mensagens.")
+    List<MensagemFestivaResposta> datasFestivas() {
+        return mensagensFestivas.listar().stream().map(MensagemFestivaResposta::de).toList();
+    }
+
+    @PostMapping("/fidelizacao/datas-festivas")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Cadastrar data festiva", description = "Cadastra titulo, icone, data e mensagem para uso futuro pela Automacao.")
+    MensagemFestivaResposta criarDataFestiva(@Valid @RequestBody MensagemFestivaRequisicao requisicao) {
+        return MensagemFestivaResposta.de(mensagensFestivas.criar(
+                requisicao.titulo(), requisicao.icone(), requisicao.data(), requisicao.mensagem(), requisicao.ativo()));
+    }
+
+    @PutMapping("/fidelizacao/datas-festivas/{id}")
+    @Operation(summary = "Atualizar data festiva", description = "Atualiza um registro de data festiva cadastrado.")
+    MensagemFestivaResposta atualizarDataFestiva(@PathVariable UUID id, @Valid @RequestBody MensagemFestivaRequisicao requisicao) {
+        return MensagemFestivaResposta.de(mensagensFestivas.atualizar(
+                id, requisicao.titulo(), requisicao.icone(), requisicao.data(), requisicao.mensagem(), requisicao.ativo()));
+    }
+
+    @PatchMapping("/fidelizacao/datas-festivas/{id}/ativo")
+    @Operation(summary = "Ativar ou desativar data festiva", description = "Altera somente o estado de ativacao.")
+    MensagemFestivaResposta alternarDataFestiva(@PathVariable UUID id, @Valid @RequestBody AtivoRequisicao requisicao) {
+        return MensagemFestivaResposta.de(mensagensFestivas.alternar(id, requisicao.ativo()));
+    }
+
+    @DeleteMapping("/fidelizacao/datas-festivas/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Excluir data festiva", description = "Exclui uma data festiva cadastrada.")
+    void excluirDataFestiva(@PathVariable UUID id) {
+        mensagensFestivas.excluir(id);
+    }
+
     @ExceptionHandler(RegraAutomacaoInvalidaException.class)
     ProblemDetail regraInvalida(RegraAutomacaoInvalidaException e) { ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage()); p.setTitle("Regra de automacao invalida"); return p; }
     @ExceptionHandler(RegraAutomacaoNaoEncontradaException.class)
     ProblemDetail regraNaoEncontrada(RegraAutomacaoNaoEncontradaException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
+    @ExceptionHandler(ConfiguracaoAutomacaoNaoEncontradaException.class)
+    ProblemDetail configuracaoNaoEncontrada(ConfiguracaoAutomacaoNaoEncontradaException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
+    @ExceptionHandler(ConfiguracaoAutomacaoInvalidaException.class)
+    ProblemDetail configuracaoInvalida(ConfiguracaoAutomacaoInvalidaException e) { ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage()); p.setTitle("Configuracao de fidelizacao invalida"); return p; }
+    @ExceptionHandler(MensagemFestivaNaoEncontradaException.class)
+    ProblemDetail dataFestivaNaoEncontrada(MensagemFestivaNaoEncontradaException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage()); }
+    @ExceptionHandler(MensagemFestivaInvalidaException.class)
+    ProblemDetail dataFestivaInvalida(MensagemFestivaInvalidaException e) { return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage()); }
 
     record FollowUpRequisicao(@Schema(description = "Tempo em minutos, convertido pela interface para horas ou dias.", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull Integer tempoMinutos, String texto, boolean ativo) {}
     record FidelizacaoRequisicao(@NotNull Integer diasSemContato, String mensagem, boolean ativo) {}
     record AtivoRequisicao(boolean ativo) {}
+    record ConfiguracaoFidelizacaoRequisicao(@NotNull String valor) {}
+    record MensagemFestivaRequisicao(@NotNull String titulo, @NotNull String icone, @NotNull LocalDate data, @NotNull String mensagem, boolean ativo) {}
     record FollowUpResposta(UUID id, String nome, int tempoMinutos, String texto, boolean ativo) { static FollowUpResposta de(RegraFollowUp r) { return new FollowUpResposta(r.id(), r.nome(), r.tempoMinutos(), r.texto(), r.ativo()); } }
     record FidelizacaoResposta(UUID id, int diasSemContato, String mensagem, boolean ativo) { static FidelizacaoResposta de(RegraFidelizacao r) { return new FidelizacaoResposta(r.id(), r.diasSemContato(), r.mensagem(), r.ativo()); } }
+    record ConfiguracaoFidelizacaoResposta(String chave, String valor, String unidade, String tipo, String descricao) {
+        static ConfiguracaoFidelizacaoResposta de(ConfiguracaoAutomacao configuracao) {
+            return new ConfiguracaoFidelizacaoResposta(
+                    configuracao.chave(),
+                    configuracao.valor(),
+                    configuracao.unidade(),
+                    configuracao.tipo().name(),
+                    configuracao.descricao());
+        }
+    }
+    record MensagemFestivaResposta(UUID id, String titulo, String icone, LocalDate data, String mensagem, boolean ativo) {
+        static MensagemFestivaResposta de(MensagemFestiva mensagem) {
+            return new MensagemFestivaResposta(mensagem.id(), mensagem.titulo(), mensagem.icone(), mensagem.data(), mensagem.mensagem(), mensagem.ativo());
+        }
+    }
 }

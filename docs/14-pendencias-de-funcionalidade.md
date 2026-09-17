@@ -48,7 +48,7 @@ fluxo existente de troca de senha. Os itens abaixo continuam pendentes e não s�
 
 | Item | Tamanho | Nota |
 |---|---|---|
-| **Regras de automação** — follow-up, fidelização, mensagem festiva, resumo por IA | grande | tabelas existem, zero caso de uso. Hoje ninguém consegue configurar nada disso. O produto se chama "CRM integrado com IA"; é a lacuna mais visível quando alguém for olhar essa parte |
+| **Executor de aniversário e datas festivas** | grande | a gestão já cadastra aniversário e datas festivas dinâmicas; falta confirmar canal, fuso, regra de seleção de leads e job idempotente antes de o n8n enviar |
 | **Horários de trabalho** | 1,5 a 2 dias | módulo inteiro: `horario_trabalho` e `rotina_disponibilidade` só existem no schema. Consequência atual: **disponibilidade do atendente é manual** — ninguém entra em expediente sozinho |
 | **Kanban na Agenda** | médio | precisa de endpoint de agrupamento por etapa com contagem; sem ele vira N+1 |
 | **Importar/exportar CSV de leads** | médio | não existe motor CSV em nenhum dos dois lados |

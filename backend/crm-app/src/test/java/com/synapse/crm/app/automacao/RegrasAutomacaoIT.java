@@ -1,7 +1,9 @@
 package com.synapse.crm.app.automacao;
 
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ADMINISTRADOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +54,10 @@ class RegrasAutomacaoIT extends PostgresIT {
     void limparDadosDeTeste() {
         jdbc.update("DELETE FROM regra_follow_up WHERE texto LIKE ?", PREFIXO + "%");
         jdbc.update("DELETE FROM regra_fidelizacao WHERE mensagem LIKE ?", PREFIXO + "%");
+        jdbc.update("DELETE FROM mensagem_festiva WHERE titulo LIKE ?", PREFIXO + "%");
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'false' WHERE chave = 'fidelizacao.aniversario.habilitado'");
+        jdbc.update("UPDATE configuracao_automacao SET valor = 'Feliz aniversário, [nome]! A equipe deseja um ótimo dia.' "
+                + "WHERE chave = 'fidelizacao.aniversario.mensagem'");
     }
 
     @Test
@@ -126,6 +132,59 @@ class RegrasAutomacaoIT extends PostgresIT {
         assertThat(fidelizacao.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(contarFollowUps(texto)).isEqualTo(antesFollow);
         assertThat(contarFidelizacoes(texto)).isEqualTo(antesFidelizacao);
+    }
+
+    @Test
+    void datasFestivas_saoDinamicasEEditaveisPelaGestao() {
+        String titulo = PREFIXO + "data-customizada-" + UUID.randomUUID();
+        ResponseEntity<String> criado = comoGestor(HttpMethod.POST, "/api/v1/automacao/fidelizacao/datas-festivas",
+                Map.of("titulo", titulo, "icone", "★", "data", "2026-12-25", "mensagem", "Mensagem da data, [nome]!", "ativo", true));
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID id = UUID.fromString(json(criado).get("id").asText());
+        assertThat(json(criado).get("titulo").asText()).isEqualTo(titulo);
+        assertThat(json(criado).get("data").asText()).isEqualTo("2026-12-25");
+
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao/datas-festivas", null).getBody()).contains(titulo);
+        ResponseEntity<String> atualizado = comoGestor(HttpMethod.PUT, "/api/v1/automacao/fidelizacao/datas-festivas/" + id,
+                Map.of("titulo", titulo + "-editada", "icone", "✨", "data", "2026-12-31", "mensagem", "Ate breve, [nome]!", "ativo", true));
+        assertThat(atualizado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json(atualizado).get("data").asText()).isEqualTo("2026-12-31");
+        assertThat(comoGestor(HttpMethod.PATCH, "/api/v1/automacao/fidelizacao/datas-festivas/" + id + "/ativo", Map.of("ativo", false)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(comoGestor(HttpMethod.DELETE, "/api/v1/automacao/fidelizacao/datas-festivas/" + id, null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensagem_festiva WHERE id = ?", Long.class, id)).isZero();
+    }
+
+    @Test
+    void datasFestivas_somenteGestorEAdministradorEAtendenteRecebe403() {
+        ResponseEntity<String> gestor = comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao/datas-festivas", null);
+        ResponseEntity<String> administrador = comoAdministrador(HttpMethod.GET, "/api/v1/automacao/fidelizacao/datas-festivas", null);
+        ResponseEntity<String> atendente = comoAtendente(HttpMethod.GET, "/api/v1/automacao/fidelizacao/datas-festivas", null);
+        assertThat(gestor.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(administrador.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(atendente.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void aniversario_eConfiguravelPorGestorEAdministradorMasNaoPorAtendente() {
+        ResponseEntity<String> inicial = comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao/configuracao", null);
+        assertThat(inicial.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(inicial.getBody()).contains("fidelizacao.aniversario.habilitado")
+                .contains("Feliz aniversário, [nome]! A equipe deseja um ótimo dia.");
+
+        String mensagem = PREFIXO + "aniversario-" + UUID.randomUUID();
+        ResponseEntity<String> habilitado = comoGestor(HttpMethod.PUT,
+                "/api/v1/automacao/fidelizacao/configuracao/fidelizacao.aniversario.habilitado",
+                Map.of("valor", "true"));
+        ResponseEntity<String> atualizado = comoAdministrador(HttpMethod.PUT,
+                "/api/v1/automacao/fidelizacao/configuracao/fidelizacao.aniversario.mensagem",
+                Map.of("valor", mensagem + " [nome]"));
+
+        assertThat(habilitado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(atualizado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(comoGestor(HttpMethod.GET, "/api/v1/automacao/fidelizacao/configuracao", null).getBody())
+                .contains("true").contains(mensagem + " [nome]");
+        assertThat(comoAtendente(HttpMethod.GET, "/api/v1/automacao/fidelizacao/configuracao", null).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -269,6 +328,10 @@ class RegrasAutomacaoIT extends PostgresIT {
 
     private ResponseEntity<String> comoAtendente(HttpMethod metodo, String rota, Map<String, ?> corpo) {
         return chamar(metodo, rota, corpo, ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken());
+    }
+
+    private ResponseEntity<String> comoAdministrador(HttpMethod metodo, String rota, Map<String, ?> corpo) {
+        return chamar(metodo, rota, corpo, ApoioAutenticacao.login(http, EMAIL_ADMINISTRADOR, SENHA_ADMINISTRADOR).accessToken());
     }
 
     private ResponseEntity<String> chamar(HttpMethod metodo, String rota, Map<String, ?> corpo, String token) {
