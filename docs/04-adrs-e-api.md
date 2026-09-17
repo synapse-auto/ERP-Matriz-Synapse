@@ -126,6 +126,7 @@ real (ou chave idempotente) corresponde ao evento.
 |---|---|---|---|---|
 | GET | `/api/v1/leads` | Lista leads sob a `VisibilidadeLeadSpecification` (sem `codigo`, notas, resumo ou JSONB) | Atendente | `LeadController` · `PainelDoLeadIT` |
 | GET | `/api/v1/leads/{id}` | Ficha completa, inclusive `codigo` | Atendente (visível) | `LeadController` · `LeadFichaIT` |
+| GET | `/api/v1/leads/{id}/agenda` | Ficha completa a partir de um lead retornado pela Agenda; aplica o contexto colaborativo da Agenda sem alterar a visibilidade da rota comum | Atendente autenticado (Agenda) | `LeadController` · `IsolamentoDeAgendaIT` |
 | PUT | `/api/v1/leads/{id}` | Atualização parcial da ficha. `codigo` ausente preserva; `""` limpa; letra ou >20 dígitos vira 400 (`Codigo invalido`). `nome` ausente preserva; vazio ou só espaços vira 400 (`Nome invalido`) — o nome não se apaga | Atendente (visível) | `LeadController` · `LeadFichaIT` |
 | POST | `/api/v1/leads/filtrar` | Executa a árvore de critérios AND/OR | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |
 | POST | `/api/v1/leads/filtrar/contagem` | Conta o resultado da mesma árvore de critérios | Atendente | `FiltroDeLeadsController` · `FiltroModularIT` |

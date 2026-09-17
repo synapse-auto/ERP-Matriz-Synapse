@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,17 @@ class IsolamentoDeAgendaIT extends PostgresIT {
         leadEmIa = criarLead("Potencial " + marcador, null, "IA");
     }
 
+    @AfterEach
+    void limparAgendasCriadas() {
+        // O Postgres dos ITs e singleton entre classes. A abertura pela Agenda cria um atendimento
+        // persistente; sem esta limpeza ele entra no lote de finalizacao de outra suite e altera sua
+        // contagem de visibilidade.
+        jdbc.update(
+                "DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
+                "%" + marcador);
+        jdbc.update("DELETE FROM lead WHERE nome LIKE ?", "%" + marcador);
+    }
+
     @Test
     @DisplayName("por id direto: atendente NAO alcanca o lead do colega")
     void porId_leadDeOutroAtendente_devolve404() {
@@ -69,6 +81,30 @@ class IsolamentoDeAgendaIT extends PostgresIT {
         // sobre a carteira do colega.
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(resposta.getBody()).doesNotContain("Cliente do Bruno");
+    }
+
+    @Test
+    @DisplayName("pela Agenda: atendente autorizado abre a ficha do lead do colega")
+    void porIdNaAgenda_leadDeOutroAtendente_devolveFicha() {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET, "/api/v1/leads/" + leadDoBruno + "/agenda", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(leadDoBruno.toString()).contains("Cliente do Bruno");
+    }
+
+    @Test
+    @DisplayName("pela Agenda: o mesmo atendente abre a conversa do lead do colega")
+    void abrirAtendimentoNaAgenda_leadDeOutroAtendente_devolveAtendimentoCanonico() {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.POST, "/api/v1/atendimentos/leads/" + leadDoBruno + "/novo", String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains(leadDoBruno.toString()).contains("atendimentoId");
     }
 
     @Test
