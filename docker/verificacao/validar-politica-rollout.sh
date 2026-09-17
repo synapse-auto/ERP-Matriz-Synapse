@@ -64,7 +64,7 @@ for nome, monitor_minimo in {"backend": 180, "frontend": 90}.items():
         f"rollback monitor nao cobre start_period: {nome}"
     )
 
-    labels = service.get("labels", [])
+    labels = deploy.get("labels", service.get("labels", []))
     labels_text = " ".join(str(label) for label in labels)
     assert "/health/readiness" in labels_text, f"Traefik nao usa readiness: {nome}"
 
