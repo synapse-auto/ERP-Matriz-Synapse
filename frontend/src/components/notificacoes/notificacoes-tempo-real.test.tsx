@@ -19,11 +19,15 @@ vi.mock("@/lib/atendimento/tempo-real", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     notificacoes: {
-      mensagemExterna: "Nova mensagem de {nome}", mensagemInterna: "Mensagem interna de {nome}",
+      mensagemExterna: "Nova mensagem de {nome}", mensagemInterna: "Mensagem de {nome}",
       origemExterna: "Mensagem recebida no atendimento", origemInterna: "Mensagem recebida no chat interno",
       equipe: "Equipe", midia: "Nova mídia recebida", previewContinua: "…", abrir: "Abrir conversa",
       fechar: "Fechar aviso", somTitulo: "Som das notificações", somDescricao: "Som discreto",
       somAtivado: "Som ativado", somDesativado: "Som desativado",
+      visualTitulo: "Notificações visuais", visualDescricao: "Avisos na tela", visualAtivado: "Visuais ativadas", visualDesativado: "Visuais desativadas",
+      chatInternoTitulo: "Notificações do chat interno", chatInternoDescricao: "Avisos internos", chatInternoAtivado: "Internas ativadas", chatInternoDesativado: "Internas desativadas",
+      duracaoTitulo: "Duração", duracaoDescricao: "Duração dos avisos", duracaoOpcao: "{segundos} segundos",
+      posicaoTitulo: "Posição", posicaoDescricao: "Posição dos avisos", posicaoTopo: "Em cima", posicaoBaixo: "Embaixo",
     },
     atendimentos: {
       tempoReal: { transferenciaRecebida: "Transferência recebida", transferenciaRecebidaDescricao: "Transferido por {nome}", atendimentoDevolvidoParaIa: "Devolvido para IA", atendimentoDevolvidoParaIaDescricao: "IA retomou {nome}" },
@@ -34,6 +38,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 vi.mock("@/lib/atendimento/preferencias-notificacoes", () => ({
   usePreferenciaSomDeNotificacao: () => ({ somHabilitado: false, definirSomHabilitado: vi.fn() }),
+  usePreferenciaVisualDeNotificacao: () => ({ visualHabilitado: true, definirVisualHabilitado: vi.fn() }),
+  usePreferenciaChatInternoDeNotificacao: () => ({ chatInternoHabilitado: true, definirChatInternoHabilitado: vi.fn() }),
+  usePreferenciaDuracaoDeNotificacao: () => ({ duracaoSegundos: 3, definirDuracaoSegundos: vi.fn() }),
+  usePreferenciaPosicaoDeNotificacao: () => ({ posicao: "TOPO", definirPosicao: vi.fn() }),
 }));
 
 vi.mock("@/lib/atendimento/som-de-notificacao", () => ({
@@ -84,7 +92,7 @@ describe("NotificacoesTempoReal", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Nova mensagem de Maria");
     expect(screen.getByRole("button", { name: "Fechar aviso" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa" }));
+    fireEvent.click(screen.getByRole("button", { name: /Nova mensagem de Maria/ }));
     expect(mocks.push).toHaveBeenCalledWith("/atendimentos?leadId=lead-1&atendimentoId=atendimento-1&visao=ATIVOS");
   });
 
@@ -128,15 +136,32 @@ describe("NotificacoesTempoReal", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("mantém as ações do aviso focáveis para navegação por teclado", () => {
+  it("mantém o card e o fechamento focáveis para navegação por teclado", () => {
     renderizar();
     act(() => mocks.callback?.(mensagem()));
 
     const fechar = screen.getByRole("button", { name: "Fechar aviso" });
-    const abrir = screen.getByRole("button", { name: "Abrir conversa" });
+    const abrir = screen.getByRole("button", { name: /Nova mensagem de Maria/ });
     fechar.focus();
     expect(fechar).toHaveFocus();
     abrir.focus();
     expect(abrir).toHaveFocus();
+  });
+
+  it("não anuncia a origem do chat interno e navega ao clicar no card", () => {
+    renderizar();
+    act(() => mocks.callback?.({
+      tipo: "CHAT_INTERNO_MENSAGEM",
+      eventoId: "evento-interno",
+      dados: {
+        conversaId: "conversa-1", mensagemId: "mensagem-interna", remetenteId: "outro", remetenteNome: "João",
+        tipo: "TEXTO", conteudo: "Olá equipe", midiaMetadados: null, enviadoEm: "2026-09-10T12:00:00Z",
+      },
+    }));
+    expect(screen.getByRole("status")).toHaveTextContent("Mensagem de João");
+    expect(screen.getByRole("status")).toHaveTextContent("Olá equipe");
+    expect(screen.getByRole("status")).not.toHaveTextContent("Mensagem recebida no chat interno");
+    fireEvent.click(screen.getByRole("button", { name: /Mensagem de João/ }));
+    expect(mocks.push).toHaveBeenCalledWith("/chat-interno?conversaId=conversa-1");
   });
 });

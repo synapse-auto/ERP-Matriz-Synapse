@@ -48,7 +48,7 @@
   },
   "notificacoes": {
     "mensagemExterna": "Nova mensagem de {nome}",
-    "mensagemInterna": "Mensagem interna de {nome}",
+    "mensagemInterna": "Mensagem de {nome}",
     "origemExterna": "Mensagem recebida no atendimento",
     "origemInterna": "Mensagem recebida no chat interno",
     "equipe": "Equipe",
@@ -59,7 +59,22 @@
     "somTitulo": "Som das notificações",
     "somDescricao": "Reproduzir um som discreto ao receber mensagens e atribuições.",
     "somAtivado": "Som das notificações ativado",
-    "somDesativado": "Som das notificações desativado"
+    "somDesativado": "Som das notificações desativado",
+    "visualTitulo": "Notificações visuais",
+    "visualDescricao": "Mostrar avisos na tela ao receber mensagens e atribuições.",
+    "visualAtivado": "Notificações visuais ativadas",
+    "visualDesativado": "Notificações visuais desativadas",
+    "chatInternoTitulo": "Notificações do chat interno",
+    "chatInternoDescricao": "Receber avisos e sons para novas mensagens internas.",
+    "chatInternoAtivado": "Notificações do chat interno ativadas",
+    "chatInternoDesativado": "Notificações do chat interno desativadas",
+    "duracaoTitulo": "Duração dos avisos",
+    "duracaoDescricao": "Escolha por quanto tempo cada aviso fica na tela.",
+    "duracaoOpcao": "{segundos} segundos",
+    "posicaoTitulo": "Posição dos avisos",
+    "posicaoDescricao": "Escolha onde os avisos aparecem, sempre à direita.",
+    "posicaoTopo": "Em cima",
+    "posicaoBaixo": "Embaixo"
   },
   "configuracoes": {
     "titulo": "Configurações",

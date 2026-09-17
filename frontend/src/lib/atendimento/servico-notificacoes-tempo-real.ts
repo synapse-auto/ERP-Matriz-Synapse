@@ -27,6 +27,8 @@ export interface ContextoDaNotificacao {
   usuarioId: string | null;
   conversaAtiva: ConversaAtiva;
   somHabilitado: boolean;
+  visualHabilitado: boolean;
+  chatInternoHabilitado: boolean;
   agora?: number;
 }
 
@@ -79,14 +81,16 @@ export class ServicoDeNotificacoesTempoReal {
     const conversaEstaAberta = conversaDaNotificacao != null
       && contexto.conversaAtiva?.origem === conversaDaNotificacao.origem
       && contexto.conversaAtiva.id === conversaDaNotificacao.id;
+    const chatInternoPermitido = origem !== "CHAT_INTERNO" || contexto.chatInternoHabilitado;
     const tocar = ehEventoVisual
       && !conversaEstaAberta
       && contexto.somHabilitado
+      && chatInternoPermitido
       && this.podeTocar(contexto.agora ?? Date.now());
 
     return {
       chave,
-      exibir: ehEventoVisual && !conversaEstaAberta,
+      exibir: ehEventoVisual && !conversaEstaAberta && contexto.visualHabilitado && chatInternoPermitido,
       tocar,
       atualizarAtendimentos,
       atualizarChatInterno,
