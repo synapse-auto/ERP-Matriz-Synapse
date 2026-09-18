@@ -15,14 +15,15 @@ import {
   listarTodasAsTags,
   listarMidiasDoLead,
   obterLead,
+  obterLeadNaAgenda,
   vincularTagAoLead,
 } from "./api";
 import type { AtualizacaoLead, LeadFicha, TagDoLead } from "./types";
 
-export function useLead(leadId: string | null) {
+export function useLead(leadId: string | null, contexto: "padrao" | "agenda" = "padrao") {
   return useQuery({
-    queryKey: ["lead", leadId],
-    queryFn: () => obterLead(leadId!),
+    queryKey: contexto === "agenda" ? ["lead", "agenda", leadId] : ["lead", leadId],
+    queryFn: () => (contexto === "agenda" ? obterLeadNaAgenda(leadId!) : obterLead(leadId!)),
     enabled: Boolean(leadId),
   });
 }

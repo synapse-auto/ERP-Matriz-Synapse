@@ -15,11 +15,12 @@ vi.mock("./api", () => ({
   listarTimeline: vi.fn(),
   listarTodasAsTags: vi.fn(),
   obterLead: vi.fn(),
+  obterLeadNaAgenda: vi.fn(),
   vincularTagAoLead: vi.fn(),
 }));
 
 import * as api from "./api";
-import { useSalvarFicha, useVincularTag } from "./use-painel-lead";
+import { useLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -142,5 +143,19 @@ describe("mutações otimistas da ficha", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
 
     expect(cache.getQueryData<TagDoLead[]>(["lead", "lead-1", "tags"])).toEqual(anterior);
+  });
+});
+
+describe("ficha aberta pela Agenda", () => {
+  it("consulta o endpoint colaborativo sem contaminar a chave da ficha normal", async () => {
+    vi.mocked(api.obterLeadNaAgenda).mockResolvedValue(ficha);
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const { result } = renderHook(() => useLead("lead-1", "agenda"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(result.current.data).toEqual(ficha));
+    expect(api.obterLeadNaAgenda).toHaveBeenCalledWith("lead-1");
+    expect(cache.getQueryData(["lead", "agenda", "lead-1"])).toEqual(ficha);
+    expect(cache.getQueryData(["lead", "lead-1"])).toBeUndefined();
   });
 });

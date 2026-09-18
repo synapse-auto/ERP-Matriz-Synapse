@@ -194,11 +194,12 @@ import { PaginaAgenda } from "./pagina-agenda";
 
 function renderAgenda() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <PaginaAgenda />
     </QueryClientProvider>,
   );
+  return { ...view, client };
 }
 
 describe("pagina da agenda", () => {
@@ -315,6 +316,27 @@ describe("pagina da agenda", () => {
 
     expect(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Próxima" })).toBeDisabled();
+  });
+
+  it("mantém o lead selecionado e a abertura ancorada nele após refetch que o remove da página", async () => {
+    const view = renderAgenda();
+    fireEvent.click(screen.getByText("Marcos Vinícius"));
+
+    useLeadsDaAgenda.mockReturnValue({
+      data: { leads: [], pagina: 0, temMais: false },
+      isLoading: false,
+      isError: false,
+    });
+    view.rerender(
+      <QueryClientProvider client={view.client}>
+        <PaginaAgenda />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByTestId("painel-lateral")).toHaveTextContent("lead-1");
+    fireEvent.click(screen.getByRole("button", { name: "Abrir atendimento" }));
+
+    await waitFor(() => expect(abrirAtendimentoApi).toHaveBeenCalledWith("lead-1"));
   });
 
   it("botão Abrir atendimento usa o atendimento confirmado pela API na navegação", async () => {

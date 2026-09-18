@@ -120,6 +120,7 @@ jobs:
       - name: Validar sintaxe da stack e do init do Postgres
         run: |
           docker compose -f docker/dokploy-stack.yml config --quiet
+          bash docker/verificacao/validar-politica-rollout.sh
           sh -n docker/postgres-init/10-create-n8n-database.sh
 
       - name: Provar que internal v1 nao tem rota publica
