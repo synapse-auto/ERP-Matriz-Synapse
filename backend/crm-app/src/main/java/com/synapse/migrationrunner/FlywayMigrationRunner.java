@@ -17,11 +17,7 @@ import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
-import org.flywaydb.core.api.ResourceProvider;
 import org.flywaydb.core.api.output.MigrateResult;
-import org.flywaydb.core.internal.scanner.LocationScannerCache;
-import org.flywaydb.core.internal.scanner.ResourceNameCache;
-import org.flywaydb.core.internal.scanner.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,12 +89,6 @@ public class FlywayMigrationRunner {
     private Resultado executarComTimeout(ConnectionTrackingDataSource conexoes, long inicioNanos) {
         Flyway flywayControlado = Flyway.configure()
                 .configuration(flyway.getConfiguration())
-                .resourceProvider(resourceProviderSemV73(flyway))
-                .javaMigrations(new V73__NormalizarPrefixoDiscagemLeads(
-                        flyway.getConfiguration().getPlaceholders().getOrDefault("telefone_ddi_padrao", "55"),
-                        propriedades.batchSize(),
-                        propriedades.maxBatchAttempts(),
-                        propriedades.batchLease()))
                 .dataSource(conexoes)
                 .load();
         try (Connection conexaoLock = conexoes.getConnection()) {
@@ -109,7 +99,7 @@ public class FlywayMigrationRunner {
             }
             log.info("[FLYWAY_CONTROLADO] advisory lock adquirido");
             try {
-                return executarComLock(flywayControlado, inicioNanos);
+                return executarComLock(flywayControlado, conexoes, inicioNanos);
             } finally {
                 liberarLockSeguro(conexaoLock);
             }
@@ -129,20 +119,8 @@ public class FlywayMigrationRunner {
         }
     }
 
-    private static ResourceProvider resourceProviderSemV73(Flyway flyway) {
-        ResourceProvider original = flyway.getConfiguration().getResourceProvider();
-        if (original == null) {
-            original = new Scanner<>(
-                    org.flywaydb.core.api.migration.JavaMigration.class,
-                    false,
-                    new ResourceNameCache(),
-                    new LocationScannerCache(),
-                    flyway.getConfiguration());
-        }
-        return new V73ResourceProvider(original);
-    }
-
-    private Resultado executarComLock(Flyway flywayControlado, long inicioNanos) {
+    private Resultado executarComLock(
+            Flyway flywayControlado, ConnectionTrackingDataSource conexoes, long inicioNanos) {
         log.info("[FLYWAY_CONTROLADO] validando histórico e checksums");
         validarHistorico(flywayControlado);
         MigrationInfo atual = flywayControlado.info().current();
@@ -186,7 +164,15 @@ public class FlywayMigrationRunner {
                 versoesPendentes.isBlank() ? "repetiveis" : versoesPendentes);
 
         try {
-            MigrateResult resultado = flywayControlado.migrate();
+            executarV73EmLotes(flywayControlado, conexoes);
+            // A V73 SQL permanece a fonte imutável do histórico. Depois que a operação em lotes
+            // terminou, o Flyway registra a mesma migration sem executar novamente o SQL pesado.
+            Flyway registrarHistorico = Flyway.configure()
+                    .configuration(flywayControlado.getConfiguration())
+                    .dataSource(conexoes)
+                    .skipExecutingMigrations(true)
+                    .load();
+            MigrateResult resultado = registrarHistorico.migrate();
             validarHistorico(flywayControlado);
             int restantes = flywayControlado.info().pending().length;
             if (restantes != 0) {
@@ -206,6 +192,32 @@ public class FlywayMigrationRunner {
         } catch (RuntimeException erro) {
             // Não propaga exceções SQL detalhadas: a V73 pode incluí-las em erros de dados.
             throw new IllegalStateException("Migration controlada falhou; consultar estado e logs seguros");
+        }
+    }
+
+    private void executarV73EmLotes(Flyway flywayControlado, ConnectionTrackingDataSource conexoes) {
+        String ddiPadrao = flywayControlado.getConfiguration().getPlaceholders().getOrDefault("telefone_ddi_padrao", "55");
+        V73__NormalizarPrefixoDiscagemLeads migration = new V73__NormalizarPrefixoDiscagemLeads(
+                ddiPadrao, propriedades.batchSize(), propriedades.maxBatchAttempts(), propriedades.batchLease());
+        try (Connection conexao = conexoes.getConnection()) {
+            conexao.setAutoCommit(true);
+            migration.migrate(new ContextoMigration(flywayControlado.getConfiguration(), conexao));
+        } catch (Exception erro) {
+            throw new IllegalStateException("Migration controlada falhou; consultar estado e logs seguros", erro);
+        }
+    }
+
+    private record ContextoMigration(
+            org.flywaydb.core.api.configuration.Configuration configuration, Connection connection)
+            implements org.flywaydb.core.api.migration.Context {
+        @Override
+        public org.flywaydb.core.api.configuration.Configuration getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public Connection getConnection() {
+            return connection;
         }
     }
 

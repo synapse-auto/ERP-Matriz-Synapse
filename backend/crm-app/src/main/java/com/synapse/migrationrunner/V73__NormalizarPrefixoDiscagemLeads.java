@@ -112,8 +112,10 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
     public void migrate(Context contexto) throws Exception {
         Connection conexao = contexto.getConnection();
         boolean autoCommitOriginal = conexao.getAutoCommit();
+        String papelAnterior = lerPapelAtual(conexao);
         try {
             conexao.setAutoCommit(true);
+            definirPapelServico(conexao);
             prepararEstrutura(conexao);
             aplicarFuncoes(conexao);
             validarContextoServico(conexao);
@@ -122,8 +124,36 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
             processarNormalizacoes(conexao);
             registrarConclusao(conexao);
         } finally {
+            restaurarPapel(conexao, papelAnterior);
             if (conexao.getAutoCommit() != autoCommitOriginal) {
                 conexao.setAutoCommit(autoCommitOriginal);
+            }
+        }
+    }
+
+    private static String lerPapelAtual(Connection conexao) throws SQLException {
+        try (Statement comando = conexao.createStatement();
+                ResultSet resultado = comando.executeQuery("SELECT current_setting('app.papel', true)")) {
+            return resultado.next() ? resultado.getString(1) : null;
+        }
+    }
+
+    private static void definirPapelServico(Connection conexao) throws SQLException {
+        try (Statement comando = conexao.createStatement()) {
+            comando.execute("SELECT set_config('app.papel', 'SERVICO', false)");
+        }
+    }
+
+    private static void restaurarPapel(Connection conexao, String papelAnterior) throws SQLException {
+        try (Statement comando = conexao.createStatement()) {
+            if (papelAnterior == null || papelAnterior.isBlank()) {
+                comando.execute("RESET app.papel");
+            } else {
+                try (PreparedStatement configuracao = conexao.prepareStatement(
+                        "SELECT set_config('app.papel', ?, false)")) {
+                    configuracao.setString(1, papelAnterior);
+                    configuracao.execute();
+                }
             }
         }
     }
