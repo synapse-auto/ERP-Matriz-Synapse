@@ -354,7 +354,6 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
         try (PreparedStatement consulta = conexao.prepareStatement(sql)) {
             consulta.setString(1, ddiPadrao);
             consulta.setString(2, ddiPadrao);
-            consulta.setString(3, ddiPadrao);
             try (ResultSet resultado = consulta.executeQuery()) {
                 resultado.next();
                 return resultado.getInt(1);
