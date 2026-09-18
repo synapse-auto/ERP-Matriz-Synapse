@@ -98,8 +98,8 @@ public class FlywayMigrationRunner {
                 throw new MigracaoJaEmExecucaoException();
             }
             log.info("[FLYWAY_CONTROLADO] advisory lock adquirido");
-        try {
-            return executarComLock(flywayControlado, inicioNanos);
+            try {
+                return executarComLock(flywayControlado, conexoes, inicioNanos);
             } finally {
                 liberarLockSeguro(conexaoLock);
             }
@@ -119,7 +119,8 @@ public class FlywayMigrationRunner {
         }
     }
 
-    private Resultado executarComLock(Flyway flywayControlado, long inicioNanos) {
+    private Resultado executarComLock(
+            Flyway flywayControlado, ConnectionTrackingDataSource conexoes, long inicioNanos) {
         log.info("[FLYWAY_CONTROLADO] validando histórico e checksums");
         validarHistorico(flywayControlado);
         MigrationInfo atual = flywayControlado.info().current();
@@ -163,7 +164,15 @@ public class FlywayMigrationRunner {
                 versoesPendentes.isBlank() ? "repetiveis" : versoesPendentes);
 
         try {
-            MigrateResult resultado = flywayControlado.migrate();
+            executarV73EmLotes(flywayControlado, conexoes);
+            // A V73 SQL permanece a fonte imutável do histórico. Depois que a operação em lotes
+            // terminou, o Flyway registra a mesma migration sem executar novamente o SQL pesado.
+            Flyway registrarHistorico = Flyway.configure()
+                    .configuration(flywayControlado.getConfiguration())
+                    .dataSource(conexoes)
+                    .skipExecutingMigrations(true)
+                    .load();
+            MigrateResult resultado = registrarHistorico.migrate();
             validarHistorico(flywayControlado);
             int restantes = flywayControlado.info().pending().length;
             if (restantes != 0) {
@@ -183,6 +192,32 @@ public class FlywayMigrationRunner {
         } catch (RuntimeException erro) {
             // Não propaga exceções SQL detalhadas: a V73 pode incluí-las em erros de dados.
             throw new IllegalStateException("Migration controlada falhou; consultar estado e logs seguros");
+        }
+    }
+
+    private void executarV73EmLotes(Flyway flywayControlado, ConnectionTrackingDataSource conexoes) {
+        String ddiPadrao = flywayControlado.getConfiguration().getPlaceholders().getOrDefault("telefone_ddi_padrao", "55");
+        V73__NormalizarPrefixoDiscagemLeads migration = new V73__NormalizarPrefixoDiscagemLeads(
+                ddiPadrao, propriedades.batchSize(), propriedades.maxBatchAttempts(), propriedades.batchLease());
+        try (Connection conexao = conexoes.getConnection()) {
+            conexao.setAutoCommit(true);
+            migration.migrate(new ContextoMigration(flywayControlado.getConfiguration(), conexao));
+        } catch (Exception erro) {
+            throw new IllegalStateException("Migration controlada falhou; consultar estado e logs seguros", erro);
+        }
+    }
+
+    private record ContextoMigration(
+            org.flywaydb.core.api.configuration.Configuration configuration, Connection connection)
+            implements org.flywaydb.core.api.migration.Context {
+        @Override
+        public org.flywaydb.core.api.configuration.Configuration getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public Connection getConnection() {
+            return connection;
         }
     }
 
