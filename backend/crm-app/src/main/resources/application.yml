@@ -54,6 +54,18 @@ spring:
       # A migration de dados usa o mesmo valor que o normalizador em runtime.
       telefone_ddi_padrao: ${TELEFONE_DDI_PADRAO:55}
 
+# O documento publicado precisa acompanhar a aplicacao composta inteira, nao apenas o pacote
+# crm-app. Os quatro prefixos sao os unicos controllers HTTP do CRM: publico, contrato interno,
+# probes operacionais e webhook do canal. Isto documenta rotas; a cadeia de SecurityConfig continua
+# decidindo quem pode chama-las.
+springdoc:
+  packages-to-scan: com.synapse.crm
+  paths-to-match:
+    - /api/v1/**
+    - /internal/v1/**
+    - /health/**
+    - /webhook/**
+
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
