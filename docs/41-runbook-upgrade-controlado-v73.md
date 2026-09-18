@@ -17,7 +17,10 @@ aplicar somente o prefixo seguro até V72. A V73 só é executada pelo modo
 one-shot `--synapse.migrations.run-once`, num contexto mínimo que não carrega API, JPA, schedulers,
 consumidores ou listeners do CRM. Nesse modo, o runner substitui somente a execução física da V73
 por uma migration Java de lotes curtos; o SQL versionado continua sendo a fonte do checksum e não é
-alterado. O runner adquire um
+alterado. Somente depois de todos os lotes concluírem, ele invoca o Flyway em modo de registro sem
+executar o SQL (`skipExecutingMigrations`), para gravar a V73 original com o tipo e o checksum do
+arquivo imutável; se qualquer lote falhar, essa etapa não ocorre e o histórico permanece em 72. O
+runner adquire um
 `pg_try_advisory_lock` sem espera, e o próprio Flyway mantém seu lock de schema. A segunda execução
 concorrente falha antes de migrar. O processo usa limites finitos (`SYNAPSE_MIGRATION_LOCK_TIMEOUT`,
 default `10s`; `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, default `30m`; `SYNAPSE_MIGRATION_TOTAL_TIMEOUT`,
