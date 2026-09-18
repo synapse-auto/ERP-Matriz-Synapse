@@ -61,6 +61,10 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
     }
 
     static int checksumOriginal() {
+        return checksumOriginal("55");
+    }
+
+    static int checksumOriginal(String ddiPadrao) {
         try (InputStream fluxo = V73__NormalizarPrefixoDiscagemLeads.class.getResourceAsStream(SCRIPT_RESOURCE)) {
             if (fluxo == null) {
                 throw new IllegalStateException("Script imutável da V73 não encontrado");
@@ -75,6 +79,9 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
                 }
                 conteudo = texto.toString();
             }
+            // O Flyway calcula o checksum após a substituição de placeholders. A implementação
+            // Java precisa produzir exatamente o mesmo valor para validar V73 já aplicada.
+            conteudo = conteudo.replace("${telefone_ddi_padrao}", ddiPadrao);
             return ChecksumCalculator.calculate(new StringResource(conteudo));
         } catch (IOException erro) {
             throw new IllegalStateException("Não foi possível ler o checksum imutável da V73", erro);
@@ -93,7 +100,7 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
 
     @Override
     public Integer getChecksum() {
-        return checksumOriginal();
+        return checksumOriginal(ddiPadrao);
     }
 
     @Override

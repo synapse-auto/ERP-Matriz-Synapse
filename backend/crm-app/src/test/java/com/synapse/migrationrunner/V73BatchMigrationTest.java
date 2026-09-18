@@ -17,7 +17,7 @@ class V73BatchMigrationTest {
     void checksumDaImplementacaoPaginadaECalculadoDoSqlImutavel() {
         assertThat(V73__NormalizarPrefixoDiscagemLeads.checksumOriginal()).isNotNull();
         assertThat(new V73__NormalizarPrefixoDiscagemLeads("55", 25, 3, Duration.ofMinutes(15)).getChecksum())
-                .isEqualTo(V73__NormalizarPrefixoDiscagemLeads.checksumOriginal());
+                .isEqualTo(V73__NormalizarPrefixoDiscagemLeads.checksumOriginal("55"));
     }
 
     @Test
