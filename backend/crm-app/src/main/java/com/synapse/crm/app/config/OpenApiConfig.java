@@ -84,6 +84,10 @@ public class OpenApiConfig {
                 operacao.setSecurity(List.of(new SecurityRequirement().addList("bearerAuth")));
             }
 
+            if (ehResumoPorIa(caminho)) {
+                adicionarTag(operacao, "Resumo por IA");
+            }
+
             Optional.ofNullable(operacao.getParameters()).orElseGet(List::of).stream()
                     .filter(parametro -> "Idempotency-Key".equalsIgnoreCase(parametro.getName()))
                     .forEach(parametro -> parametro.setDescription(
@@ -139,5 +143,9 @@ public class OpenApiConfig {
         return !caminho.startsWith("/api/v1/auth/")
                 && !caminho.equals("/api/v1/config/tema")
                 && !caminho.equals("/api/v1/config/textos");
+    }
+
+    private static boolean ehResumoPorIa(String caminho) {
+        return caminho.contains("/resumo-ia") || caminho.endsWith("/recursos-ia");
     }
 }
