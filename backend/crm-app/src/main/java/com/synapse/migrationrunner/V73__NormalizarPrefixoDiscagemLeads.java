@@ -337,7 +337,7 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
                          WHERE l.telefone IS NOT NULL
                            AND l.telefone !~ '^55[1-9][0-9]{9,10}$'
                            AND app_telefone_canonico(l.telefone, ?) ~ '^55[1-9][0-9]{9,10}$'
-                         GROUP BY app_telefone_canonico(l.telefone, ?)
+                         GROUP BY 1
                         HAVING count(*) > 2
                        ) grupos
                 """;
