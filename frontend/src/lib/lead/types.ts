@@ -32,6 +32,19 @@ export interface AtualizacaoLead {
   nome?: string;
 }
 
+export type StatusResumoIa = "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU";
+
+export interface SolicitacaoResumoIa {
+  solicitacaoId: string;
+  leadId: string;
+  atendimentoId: string;
+  status: StatusResumoIa;
+  solicitadoEm: string;
+  atualizadoEm: string;
+  erroCodigo: string | null;
+  erroMensagem: string | null;
+}
+
 export interface TagDoLead {
   id: string;
   nome: string;

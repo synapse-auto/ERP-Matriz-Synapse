@@ -17,6 +17,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal;
+import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -201,6 +202,18 @@ class RelayDeTempoRealListener {
         }
         dados.set("reacoes", resumoPublico(evento.reacoes()));
         publicar(evento.atendimentoId(), "REACAO", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoAtualizarResumoIa(ResumoIaParaTempoReal evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("leadId", evento.leadId().toString());
+        dados.put("solicitacaoId", evento.solicitacaoId().toString());
+        dados.put("status", evento.status());
+        dados.put("erroCodigo", evento.erroCodigo());
+        dados.put("ocorridoEm", evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "RESUMO_IA_STATUS", dados);
     }
 
     private ArrayNode resumoPublico(List<ResumoDeReacao> reacoes) {

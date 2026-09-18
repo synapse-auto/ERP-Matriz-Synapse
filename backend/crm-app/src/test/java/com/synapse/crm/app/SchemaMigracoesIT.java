@@ -111,6 +111,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "status_automacao_telemetria",
                     "tag",
                     "usuario",
+                    "solicitacao_resumo_ia",
                     // Fila duravel de entrada (E05): o payload cru do provedor, com a
                     // chave de idempotencia que impede reentrega virar mensagem duplicada.
                     "webhook_entrada");

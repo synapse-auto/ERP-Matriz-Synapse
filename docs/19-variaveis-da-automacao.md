@@ -14,6 +14,7 @@ Quatro variáveis. Três já estão disponíveis dentro do container do n8n.
 | `SYNAPSE_API_URL` | já no container | Base das chamadas ao CRM |
 | `SYNAPSE_TOKEN_INTERNO` | já no container | Credential do tipo **Header Auth** |
 | `AUTOMACAO_TOKEN` | já no container | Valida o que o CRM envia ao workflow |
+| `AUTOMACAO_RESUMO_IA_URL` | informar o valor | Webhook interno que recebe `RESUMO_IA_SOLICITADO`; vazio mantém o recurso desligado |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | informar o valor | Destino do repasse. Cadastro no ambiente |
 
 ## 2. Os dois tokens têm direções opostas

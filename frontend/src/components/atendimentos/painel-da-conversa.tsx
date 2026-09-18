@@ -36,7 +36,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
-import { useEtapas, useLead, useMidiasDoLead, useSalvarFicha } from "@/lib/lead/use-painel-lead";
+import {
+  useEtapas,
+  useEstadoResumoIa,
+  useLead,
+  useMidiasDoLead,
+  useSalvarFicha,
+  useSolicitarResumoIa,
+} from "@/lib/lead/use-painel-lead";
 import type { LeadFicha } from "@/lib/lead/types";
 import {
   cancelarMensagemProgramada,
@@ -63,6 +70,7 @@ import { SomenteAdministrador } from "../administracao/somente-administrador";
 
 type Props = {
   leadId: string;
+  atendimentoId: string;
   responsavelNome: string | null;
   onRetrair: () => void;
 };
@@ -78,7 +86,7 @@ type Props = {
  * <p>{@code min-h-0 overflow-hidden} no aside: sem isso, abrir Lembretes/Programadas infla a
  * linha do grid da página e o composer some abaixo da viewport.
  */
-export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) {
+export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRetrair }: Props) {
   const textos = useTextos().atendimentos.painel;
   const textosLead = useTextos().painelLead;
   const lead = useLead(leadId);
@@ -244,7 +252,7 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
           icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
           titulo={textos.secoes.resumo}
         >
-          <ResumoPersistidoDoLead lead={lead.data} />
+          <ResumoPersistidoDoLead lead={lead.data} atendimentoId={atendimentoId} />
         </SecaoColapsavel>
 
         <SecaoDeProgramadas
@@ -266,8 +274,11 @@ export function PainelDaConversa({ leadId, responsavelNome, onRetrair }: Props) 
   );
 }
 
-function ResumoPersistidoDoLead({ lead }: { lead: LeadFicha }) {
+function ResumoPersistidoDoLead({ lead, atendimentoId }: { lead: LeadFicha; atendimentoId: string }) {
   const textos = useTextos();
+  const estado = useEstadoResumoIa(atendimentoId);
+  const solicitar = useSolicitarResumoIa(atendimentoId);
+  const [erroLocal, setErroLocal] = useState(false);
   const resumo = lead.resumoIa?.trim() || textos.atendimentos.painel.resumoIa.vazio;
   const atualizadoEm = lead.resumoIaAtualizadoEm
     ? new Intl.DateTimeFormat("pt-BR", {
@@ -280,16 +291,55 @@ function ResumoPersistidoDoLead({ lead }: { lead: LeadFicha }) {
         .format(new Date(lead.resumoIaAtualizadoEm))
         .replace(",", "")
     : null;
+  const processando = solicitar.isPending
+    || estado.data?.status === "PENDENTE"
+    || estado.data?.status === "PROCESSANDO";
+  const temResumo = Boolean(lead.resumoIa?.trim());
+  const erro = erroLocal || estado.data?.status === "FALHOU";
+
+  function gerar() {
+    if (processando) return;
+    setErroLocal(false);
+    solicitar.mutate({ solicitacaoId: crypto.randomUUID() }, { onError: () => setErroLocal(true) });
+  }
+
   return (
     <div className="space-y-2">
-      <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-        <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
-        <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
-      </div>
-      {atualizadoEm && (
-        <p className="text-xs text-muted-foreground">
-          {textos.atendimentos.painel.resumoIa.ultimaGeracao.replace("{data}", atualizadoEm)}
+      <div className="flex items-center justify-between gap-2">
+        <p role={erro ? "alert" : "status"} className="text-xs text-muted-foreground">
+          {processando
+            ? estado.data?.status === "PENDENTE"
+              ? textos.atendimentos.painel.resumoIa.pendente
+              : textos.atendimentos.painel.resumoIa.processando
+            : erro
+              ? textos.atendimentos.painel.resumoIa.erro
+              : ""}
         </p>
+        <Button type="button" size="sm" onClick={gerar} disabled={processando}>
+          {temResumo ? textos.atendimentos.painel.resumoIa.regerar : textos.atendimentos.painel.resumoIa.gerar}
+        </Button>
+      </div>
+      {processando ? (
+        <div
+          className="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
+          aria-label={textos.atendimentos.painel.resumoIa.processando}
+        >
+          <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-8/12 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-9/12 animate-pulse rounded bg-muted" />
+        </div>
+      ) : (
+        <>
+          <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+            <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
+            <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
+          </div>
+          {atualizadoEm && (
+            <p className="text-xs text-muted-foreground">
+              {textos.atendimentos.painel.resumoIa.ultimaGeracao.replace("{data}", atualizadoEm)}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

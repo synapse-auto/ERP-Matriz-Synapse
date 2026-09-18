@@ -23,15 +23,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.IdempotenciaDeComandoAutomacao;
+import com.synapse.crm.atendimento.application.resumo.SolicitacaoResumoIaRepositorio;
 import com.synapse.crm.core.application.lead.AutomacaoEv05LeadRepositorio;
+import com.synapse.crm.core.application.lead.EscritaEv05ObsoletaException;
 
 @ExtendWith(MockitoExtension.class)
 class Ev05LeadUseCaseTest {
     private static final UUID LEAD = UUID.randomUUID();
     private static final UUID ATENDIMENTO = UUID.randomUUID();
+    private static final UUID SOLICITACAO = UUID.randomUUID();
     private static final Instant AGORA = Instant.parse("2026-09-12T10:00:00Z");
+    private static final Instant ULTIMA_MENSAGEM = AGORA.plusSeconds(30);
 
     @Mock
     private AutomacaoEv05LeadRepositorio leads;
@@ -41,6 +46,12 @@ class Ev05LeadUseCaseTest {
 
     @Mock
     private IdempotenciaDeComandoAutomacao idempotencia;
+
+    @Mock
+    private SolicitacaoResumoIaRepositorio solicitacoes;
+
+    @Mock
+    private ApplicationEventPublisher eventos;
 
     private Ev05LeadUseCase caso;
 
@@ -52,7 +63,9 @@ class Ev05LeadUseCaseTest {
                 idempotencia,
                 new ObjectMapper().registerModule(new JavaTimeModule()),
                 Clock.fixed(AGORA, ZoneOffset.UTC),
-                8000);
+                8000,
+                solicitacoes,
+                eventos);
     }
 
     @Test
@@ -113,5 +126,32 @@ class Ev05LeadUseCaseTest {
         verify(leads).aplicarPreenchimento(
                 eq(LEAD), eq("email-invalido"), eq("11111111111"), isNull(), isNull(), eq(AGORA),
                 eq(Set.of("email", "cpf")));
+    }
+
+    @Test
+    void rejeitaResumoComContextoAnteriorAoUltimoEventoDoAtendimento() {
+        String chave = SOLICITACAO.toString();
+        when(idempotencia.buscar(chave)).thenReturn(Optional.empty());
+        when(atendimentos.porLeadEmAtendimento(LEAD))
+                .thenReturn(Optional.of(new AtendimentosEmAndamentoRepositorio.Item(
+                        ATENDIMENTO,
+                        LEAD,
+                        com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.EM_ATENDIMENTO,
+                        null,
+                        ULTIMA_MENSAGEM)));
+        when(solicitacoes.porId(SOLICITACAO))
+                .thenReturn(Optional.of(new SolicitacaoResumoIaRepositorio.Solicitacao(
+                        SOLICITACAO,
+                        LEAD,
+                        ATENDIMENTO,
+                        SolicitacaoResumoIaRepositorio.Status.PROCESSANDO,
+                        AGORA,
+                        AGORA,
+                        null,
+                        null)));
+
+        assertThatThrownBy(() -> caso.gravarResumo(LEAD, "resumo antigo", AGORA, chave))
+                .isInstanceOf(EscritaEv05ObsoletaException.class);
+        verify(leads, never()).gravarResumo(any(), any(), any(), any());
     }
 }

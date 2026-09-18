@@ -541,6 +541,11 @@ export function PaginaAtendimentosCliente({
         cartaoSelecionadoId: atendimentoSelecionadoId,
         evento: evento.tipo,
       });
+      if (evento.tipo === "RESUMO_IA_STATUS") {
+        void cache.invalidateQueries({ queryKey: ["lead", evento.dados.leadId] });
+        void cache.invalidateQueries({ queryKey: ["resumo-ia", evento.dados.atendimentoId] });
+        return;
+      }
     },
     incrementaisLiberados,
   );
@@ -902,6 +907,7 @@ export function PaginaAtendimentosCliente({
         <div className={cn("h-full min-h-0 overflow-hidden", telaEstreita && "absolute inset-0 z-20 bg-background")}>
           <PainelDaConversa
             leadId={conversa.leadId}
+            atendimentoId={conversa.atendimentoId}
             responsavelNome={conversa.atendenteNome}
             onRetrair={() => setPainelDetalhesAberto(false)}
           />

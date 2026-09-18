@@ -51,9 +51,7 @@ class OpenApiIT extends PostgresIT {
 
         List<String> falhas = falhasDeCobertura(openApi);
         assertThat(falhas).isEmpty();
-        // Origin/main currently exposes 189 operations; the Agenda-specific lead
-        // endpoint added by this branch increases the contract by one.
-        assertThat(contarOperacoes(openApi)).isEqualTo(190);
+        assertThat(contarOperacoes(openApi)).isEqualTo(193);
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1{atendimentoId}~1cartao/get/security/0/bearerAuth")
                         .isArray())

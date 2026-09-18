@@ -683,6 +683,12 @@ export const TextosSchema = z.object({
       resumoIa: z.object({
         vazio: z.string(),
         ultimaGeracao: z.string(),
+        gerar: z.string(),
+        regerar: z.string(),
+        processando: z.string(),
+        pendente: z.string(),
+        erro: z.string(),
+        indisponivel: z.string(),
       }),
       adicionar: z.string(),
       editar: z.string(),

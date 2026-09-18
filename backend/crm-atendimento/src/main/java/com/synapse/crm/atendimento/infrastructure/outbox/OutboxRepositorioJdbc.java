@@ -42,6 +42,7 @@ class OutboxRepositorioJdbc implements Outbox {
     /** Tipo do evento na tabela. Fixo e greppavel — o publisher filtra por ele. */
     static final String TIPO_ENVIO = "canal.mensagem.enviar";
     static final String TIPO_REPASSE_WEBHOOK = "automacao.webhook.repassar";
+    static final String TIPO_RESUMO_IA = "automacao.resumo_ia.solicitar";
 
     private static final int LIMITE_DO_ERRO = 500;
 
@@ -88,6 +89,26 @@ class OutboxRepositorioJdbc implements Outbox {
              ORDER BY proxima_tentativa_em
              LIMIT ?
                FOR UPDATE SKIP LOCKED
+            """;
+
+    private static final String SQL_RESERVAR_RESUMO_IA =
+            """
+            WITH candidatos AS (
+                SELECT id
+                  FROM outbox_evento
+                 WHERE tipo = ?
+                   AND publicado_em IS NULL
+                   AND esgotado_em IS NULL
+                   AND proxima_tentativa_em <= ?
+                 ORDER BY proxima_tentativa_em, id
+                 LIMIT ?
+                   FOR UPDATE SKIP LOCKED
+            )
+            UPDATE outbox_evento o
+               SET proxima_tentativa_em = ?
+              FROM candidatos c
+             WHERE o.id = c.id
+            RETURNING o.id, o.payload, o.tentativas
             """;
 
     private static final String SQL_PUBLICADO =
@@ -206,6 +227,24 @@ class OutboxRepositorioJdbc implements Outbox {
     }
 
     @Override
+    public void enfileirarSolicitacaoResumoIa(
+            UUID solicitacaoId, UUID leadId, UUID atendimentoId, Instant solicitadoEm) {
+        TransacaoObrigatoria.exigir("enfileirar solicitacao de resumo por IA");
+        ObjectNode payload = json.createObjectNode();
+        payload.put("solicitacaoId", solicitacaoId.toString());
+        payload.put("leadId", leadId.toString());
+        payload.put("atendimentoId", atendimentoId.toString());
+        payload.put("solicitadoEm", solicitadoEm.toString());
+        chat.update(
+                SQL_ENFILEIRAR_IDEMPOTENTE,
+                solicitacaoId,
+                TIPO_RESUMO_IA,
+                payload.toString(),
+                Timestamp.from(solicitadoEm),
+                Timestamp.from(solicitadoEm));
+    }
+
+    @Override
     public List<EnvioPendente> reservarPendentes(int limite, Instant agora, Instant reservaAte) {
         TransacaoObrigatoria.exigir("reservarPendentes");
         return chat.query(
@@ -227,6 +266,19 @@ class OutboxRepositorioJdbc implements Outbox {
                 TIPO_REPASSE_WEBHOOK,
                 Timestamp.from(agora),
                 limite);
+    }
+
+    @Override
+    public List<SolicitacaoResumoIaPendente> reservarSolicitacoesResumoIaPendentes(
+            int limite, Instant agora, Instant reservaAte) {
+        TransacaoObrigatoria.exigir("reservar solicitacoes de resumo por IA");
+        return chat.query(
+                SQL_RESERVAR_RESUMO_IA,
+                this::desserializarSolicitacaoResumoIa,
+                TIPO_RESUMO_IA,
+                Timestamp.from(agora),
+                limite,
+                Timestamp.from(reservaAte));
     }
 
     @Override
@@ -348,6 +400,18 @@ class OutboxRepositorioJdbc implements Outbox {
                 linha.getObject("id", UUID.class),
                 payload.get("payloadCru").asText(),
                 payload.get("assinatura").asText(),
+                linha.getInt("tentativas"));
+    }
+
+    private SolicitacaoResumoIaPendente desserializarSolicitacaoResumoIa(ResultSet linha, int indice)
+            throws SQLException {
+        JsonNode payload = ler(linha.getString("payload"));
+        return new SolicitacaoResumoIaPendente(
+                linha.getObject("id", UUID.class),
+                UUID.fromString(payload.get("solicitacaoId").asText()),
+                UUID.fromString(payload.get("leadId").asText()),
+                UUID.fromString(payload.get("atendimentoId").asText()),
+                Instant.parse(payload.get("solicitadoEm").asText()),
                 linha.getInt("tentativas"));
     }
 

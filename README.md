@@ -366,6 +366,11 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `SYNAPSE_JWT_SEGREDO` | Segredo HMAC dos tokens de usuário, com no mínimo 32 caracteres. |
 | `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
 | `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
+| `AUTOMACAO_RESUMO_IA_URL` | URL interna do webhook n8n que recebe solicitações de geração sob demanda; vazio mantém o recurso desligado. |
+| `AUTOMACAO_RESUMO_IA_TIMEOUT` / `AUTOMACAO_RESUMO_IA_RESERVA_EXPIRACAO` | Timeout HTTP `5s` / lease da outbox `30s`. |
+| `AUTOMACAO_RESUMO_IA_LOTE` / `AUTOMACAO_RESUMO_IA_MAXIMO_TENTATIVAS` | Lote `10` / máximo `5`; falhas de rede/5xx usam backoff limitado. |
+| `AUTOMACAO_RESUMO_IA_BACKOFF_INICIAL` / `AUTOMACAO_RESUMO_IA_BACKOFF_MAXIMO` | Backoff exponencial `5s` / teto `10m`. |
+| `AUTOMACAO_RESUMO_IA_INTERVALO_MS` | Frequência do publisher assíncrono; padrão `1000ms`. |
 | `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
 | `AUTOMACAO_CONFIG_CACHE_TTL` | TTL do cache Redis de `configuracao_automacao` (default `5m`). Rede de segurança; invalidação por evento continua. |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |

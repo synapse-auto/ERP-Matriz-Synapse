@@ -19,3 +19,25 @@ de IA e não concede acesso PostgreSQL ao workflow.
 
 Repetir uma escrita com a mesma chave devolve a resposta já concluída. Uma chave incompatível
 responde `409`. Não faça SQL, não limpe marcos e não tente processar atendimento `FINALIZADO`.
+
+## Resumo sob demanda
+
+O workflow é acionado pelo webhook `AUTOMACAO_RESUMO_IA_URL` e deve responder `202` para uma nova
+chave ou `200` para replay. Valide `evento`, os três UUIDs e `solicitadoEm` antes de criar a linha
+de idempotência na Data Table do n8n. A operação deve ser exclusiva por `solicitacaoId`; se a mesma
+chave vier com outro `leadId` ou `atendimentoId`, responda `409` sem executar IA.
+
+Sequência operacional:
+
+1. Grave/recupere a chave com estado `PENDENTE`; altere para `PROCESSANDO` antes da primeira chamada.
+2. Consulte o contexto pelo `atendimentoId` e preserve `contextoAte` sem arredondar ou substituir.
+3. Grave o texto pelo endpoint EV-05 com `Idempotency-Key: solicitacaoId`.
+4. Ao concluir, chame `/resumo-status` com `CONCLUIDO`; em falha definitiva, chame `FALHOU` com
+   `erroCodigo` allowlisted e mensagem sem token, telefone, URL, payload ou conteúdo.
+5. Retry somente rede/HTTP 5xx, com limite e backoff do workflow. Não repita 400, 401, 403, 404,
+   409 ou 422 automaticamente.
+
+Se o atendimento deixar de estar `EM_ATENDIMENTO` antes da gravação, o CRM responderá `409`: marque
+o item como obsoleto no Data Table e não tente outro atendimento do mesmo lead. O resumo antigo não
+deve ser apagado. Para incidentes, registre somente IDs técnicos, status HTTP e o estado da chave;
+não registre corpo de mensagens, histórico, token ou resposta bruta do provedor.

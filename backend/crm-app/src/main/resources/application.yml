@@ -253,6 +253,17 @@ synapse:
     token-permanente: ${AUTOMACAO_TOKEN:}
     # Protege a ficha do lead e o contrato com o n8n de respostas sem limite operacional.
     resumo-ia-tamanho-maximo: ${AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO:8000}
+    resumo-ia:
+      # Vazio desliga somente a geração sob demanda; a ficha continua disponível.
+      url: ${AUTOMACAO_RESUMO_IA_URL:}
+      token: ${AUTOMACAO_TOKEN:}
+      timeout: ${AUTOMACAO_RESUMO_IA_TIMEOUT:5s}
+      lote: ${AUTOMACAO_RESUMO_IA_LOTE:10}
+      maximo-de-tentativas: ${AUTOMACAO_RESUMO_IA_MAXIMO_TENTATIVAS:5}
+      backoff-inicial: ${AUTOMACAO_RESUMO_IA_BACKOFF_INICIAL:5s}
+      backoff-maximo: ${AUTOMACAO_RESUMO_IA_BACKOFF_MAXIMO:10m}
+      reserva-expiracao: ${AUTOMACAO_RESUMO_IA_RESERVA_EXPIRACAO:30s}
+      intervalo-ms: ${AUTOMACAO_RESUMO_IA_INTERVALO_MS:1000}
     repasse-webhook:
       url: ${AUTOMACAO_WEBHOOK_EVENTOS_URL:}
       timeout: ${AUTOMACAO_WEBHOOK_TIMEOUT:5s}

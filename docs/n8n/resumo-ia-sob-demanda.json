@@ -1,0 +1,237 @@
+{
+  "name": "CRM - Resumo IA sob demanda",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resumo-ia-solicitado",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d001",
+      "name": "Webhook CRM",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? {};\nconst headers = $json.headers ?? {};\nconst token = headers['x-synapse-token'] ?? headers['X-Synapse-Token'];\nconst idempotencyKey = headers['idempotency-key'] ?? headers['Idempotency-Key'];\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst dataValida = typeof body.solicitadoEm === 'string' && Number.isFinite(Date.parse(body.solicitadoEm));\nif (token !== $env.AUTOMACAO_TOKEN) return [{ json: { httpStatus: 401, erro: 'UNAUTHORIZED' } }];\nif (body.evento !== 'RESUMO_IA_SOLICITADO' || !uuid.test(body.solicitacaoId) || !uuid.test(body.leadId) || !uuid.test(body.atendimentoId) || !dataValida || idempotencyKey !== body.solicitacaoId) return [{ json: { httpStatus: 400, erro: 'PAYLOAD_INVALIDO' } }];\nreturn [{ json: { httpStatus: 202, evento: body.evento, solicitacaoId: body.solicitacaoId, leadId: body.leadId, atendimentoId: body.atendimentoId, solicitadoEm: body.solicitadoEm } }];"
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d002",
+      "name": "Validar contrato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" }, "conditions": [{ "id": "2f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04f010", "leftValue": "={{$json.httpStatus}}", "rightValue": 202, "operator": { "type": "number", "operation": "equals" } }], "combinator": "and" }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04a010",
+      "name": "Contrato aceito?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [440, 180]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "id", "value": "CONFIGURE_DATA_TABLE_ID" },
+        "matchType": "all",
+        "filters": { "conditions": [{ "keyName": "solicitacaoId", "condition": "eq", "keyValue": "={{$json.solicitacaoId}}" }] },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d003",
+      "name": "Localizar chave idempotente",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "alwaysOutputData": true,
+      "position": [660, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $('Validar contrato').item.json;\nconst existente = $json ?? {};\nif (!existente.solicitacaoId) return [{ json: { ...entrada, httpStatus: 202, idempotencia: 'NOVA' } }];\nconst mesmaIdentidade = existente.leadId === entrada.leadId && existente.atendimentoId === entrada.atendimentoId;\nif (!mesmaIdentidade) return [{ json: { ...entrada, httpStatus: 409, idempotencia: 'CONFLITO', erro: 'IDEMPOTENCY_CONFLICT' } }];\nreturn [{ json: { ...entrada, httpStatus: 200, idempotencia: 'REPLAY', status: existente.status } }];"
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d004",
+      "name": "Classificar chave idempotente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 180]
+    },
+    {
+      "parameters": {
+        "conditions": { "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" }, "conditions": [{ "id": "2f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04a012", "leftValue": "={{$json.idempotencia}}", "rightValue": "NOVA", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04a012",
+      "name": "Chave nova?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1100, 380]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": { "__rl": true, "mode": "id", "value": "CONFIGURE_DATA_TABLE_ID" },
+        "columns": { "mappingMode": "defineBelow", "value": { "solicitacaoId": "={{$json.solicitacaoId}}", "leadId": "={{$json.leadId}}", "atendimentoId": "={{$json.atendimentoId}}", "status": "PENDENTE", "solicitadoEm": "={{$json.solicitadoEm}}" } }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d013",
+      "name": "Reservar chave na Data Table",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1320, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { aceito: true, solicitacaoId: $json.solicitacaoId } }}",
+        "options": { "responseCode": 202 }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d014",
+      "name": "Responder nova solicitação",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { aceito: $json.idempotencia === 'REPLAY', solicitacaoId: $json.solicitacaoId, erro: $json.erro ?? null } }}",
+        "options": { "responseCode": "={{$json.httpStatus}}" }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d015",
+      "name": "Responder replay ou conflito",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1320, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { aceito: false, erro: $json.erro } }}",
+        "options": { "responseCode": "={{$json.httpStatus}}" }
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d016",
+      "name": "Responder inválido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [660, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SYNAPSE_API_URL + '/ev05/leads/' + $json.leadId + '/resumo-status'}}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Synapse-Token", "value": "={{$env.SYNAPSE_TOKEN_INTERNO}}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { solicitacaoId: $json.solicitacaoId, atendimentoId: $json.atendimentoId, status: 'PROCESSANDO' } }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 10000 },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d005",
+      "name": "CRM - PROCESSANDO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.SYNAPSE_API_URL + '/ev05/atendimentos/' + $json.atendimentoId + '/contexto'}}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Synapse-Token", "value": "={{$env.SYNAPSE_TOKEN_INTERNO}}" }] },
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 10000 },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d006",
+      "name": "CRM - Contexto limitado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.RESUMO_IA_PROVEDOR_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { atendimentoId: $('Validar contrato').item.json.atendimentoId, contexto: $json.mensagens } }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 30000 },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 5000
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d007",
+      "name": "Provedor de IA configurado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SYNAPSE_API_URL + '/ev05/leads/' + $('Validar contrato').item.json.leadId + '/resumo'}}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Synapse-Token", "value": "={{$env.SYNAPSE_TOKEN_INTERNO}}" }, { "name": "Idempotency-Key", "value": "={{$('Validar contrato').item.json.solicitacaoId}}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { leadId: $('Validar contrato').item.json.leadId, resumo: $json.resumo, contextoGeradoEm: $('CRM - Contexto limitado').item.json.contextoAte } }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 10000 },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d008",
+      "name": "CRM - Gravar resumo idempotente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SYNAPSE_API_URL + '/ev05/leads/' + $('Validar contrato').item.json.leadId + '/resumo-status'}}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Synapse-Token", "value": "={{$env.SYNAPSE_TOKEN_INTERNO}}" }] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { solicitacaoId: $('Validar contrato').item.json.solicitacaoId, atendimentoId: $('Validar contrato').item.json.atendimentoId, status: 'CONCLUIDO' } }}",
+        "options": { "response": { "response": { "neverError": true } }, "timeout": 10000 },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d009",
+      "name": "CRM - CONCLUIDO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1980, 180]
+    }
+  ],
+  "connections": {
+    "Webhook CRM": { "main": [[{ "node": "Validar contrato", "type": "main", "index": 0 }]] },
+    "Validar contrato": { "main": [[{ "node": "Contrato aceito?", "type": "main", "index": 0 }]] },
+    "Contrato aceito?": { "main": [[{ "node": "Localizar chave idempotente", "type": "main", "index": 0 }], [{ "node": "Responder inválido", "type": "main", "index": 0 }]] },
+    "Localizar chave idempotente": { "main": [[{ "node": "Classificar chave idempotente", "type": "main", "index": 0 }]] },
+    "Classificar chave idempotente": { "main": [[{ "node": "Chave nova?", "type": "main", "index": 0 }]] },
+    "Chave nova?": { "main": [[{ "node": "Reservar chave na Data Table", "type": "main", "index": 0 }], [{ "node": "Responder replay ou conflito", "type": "main", "index": 0 }]] },
+    "Reservar chave na Data Table": { "main": [[{ "node": "Responder nova solicitação", "type": "main", "index": 0 }]] },
+    "Responder nova solicitação": { "main": [[{ "node": "CRM - PROCESSANDO", "type": "main", "index": 0 }]] },
+    "CRM - PROCESSANDO": { "main": [[{ "node": "CRM - Contexto limitado", "type": "main", "index": 0 }]] },
+    "CRM - Contexto limitado": { "main": [[{ "node": "Provedor de IA configurado", "type": "main", "index": 0 }]] },
+    "Provedor de IA configurado": { "main": [[{ "node": "CRM - Gravar resumo idempotente", "type": "main", "index": 0 }]] },
+    "CRM - Gravar resumo idempotente": { "main": [[{ "node": "CRM - CONCLUIDO", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d000",
+  "meta": { "templateCredsSetupCompleted": false }
+}

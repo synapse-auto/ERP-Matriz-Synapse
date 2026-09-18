@@ -284,6 +284,53 @@ e-mail/CPF, nunca limpa nem sobrescreve campo manual e informa por campo `APLICA
 aplicação. Replay da mesma chave devolve a mesma resposta; chave incompatível responde `409`,
 chave ausente `400`, recurso inelegível `404` e dados inválidos `422` (RFC 7807).
 
+### 5.1 Resumo sob demanda iniciado pelo CRM
+
+O navegador chama apenas `POST /api/v1/atendimentos/{atendimentoId}/resumo-ia` com uma chave UUID
+estável no header `Idempotency-Key`. O CRM grava o ciclo `PENDENTE` e publica o pedido leve na
+Transactional Outbox; a resposta `202` não significa que a IA terminou. Se a mesma chave for
+repetida para o mesmo atendimento, o CRM devolve o mesmo ciclo; outra combinação de atendimento/lead
+responde `409`.
+
+O publisher assíncrono do CRM chama o webhook configurado em `AUTOMACAO_RESUMO_IA_URL`:
+
+```text
+POST {AUTOMACAO_RESUMO_IA_URL}
+X-Synapse-Token: <AUTOMACAO_TOKEN>
+Idempotency-Key: <solicitacaoId>
+```
+
+```json
+{
+  "evento": "RESUMO_IA_SOLICITADO",
+  "solicitacaoId": "uuid",
+  "leadId": "uuid",
+  "atendimentoId": "uuid",
+  "solicitadoEm": "2026-09-17T18:00:00Z"
+}
+```
+
+O workflow n8n mantém a chave e o estado em Data Table persistida no banco próprio do n8n. Ele
+responde imediatamente `202` (nova) ou `200` (replay), atualiza `PROCESSANDO`, consulta o contexto
+limitado, gera o texto no provedor de IA e grava pela rota EV-05 abaixo:
+
+```text
+GET  /internal/v1/ev05/atendimentos/{atendimentoId}/contexto
+POST /internal/v1/ev05/leads/{leadId}/resumo
+POST /internal/v1/ev05/leads/{leadId}/resumo-status
+```
+
+Na escrita, `Idempotency-Key` é exatamente `solicitacaoId` e `contextoGeradoEm` é exatamente o
+`contextoAte` retornado. O status recebe `PROCESSANDO`, `CONCLUIDO` ou `FALHOU`; falhas de rede/5xx
+são retentadas com backoff limitado, enquanto 4xx (inclusive `409` de ciclo obsoleto) não entram em
+retry automático. O CRM publica `RESUMO_IA_STATUS` depois do commit e nunca apaga o resumo anterior
+quando uma nova geração falha. O endpoint de status recusa atendimento finalizado, transferido ou
+substituído e não aceita mensagem de erro com token, telefone, URL ou payload.
+
+O arquivo `docs/n8n/resumo-ia-sob-demanda.json` é o template versionado sem credenciais. Após importar,
+configure a Header Auth `SYNAPSE_TOKEN_INTERNO` para o CRM e a validação do webhook com
+`AUTOMACAO_TOKEN`; não coloque segredos no JSON exportado.
+
 ## 6. O que ficou de fora, e por quê
 
 - **FAQ institucional** — é etapa própria: precisa de tela para o cliente editar o conteúdo. Não

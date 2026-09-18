@@ -7,6 +7,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,6 +38,8 @@ import com.synapse.crm.atendimento.application.internal.Ev05LeadSemAtendimentoEx
 import com.synapse.crm.atendimento.application.internal.Ev05LeadUseCase;
 import com.synapse.crm.atendimento.application.internal.Ev05ResumoInvalidoException;
 import com.synapse.crm.atendimento.application.internal.ListarCandidatosEv05UseCase;
+import com.synapse.crm.atendimento.application.resumo.AtualizarStatusResumoIaUseCase;
+import com.synapse.crm.atendimento.application.resumo.SolicitacaoResumoIaRepositorio;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Contrato /internal/v1 do ciclo EV-05 consumido pelo cron do n8n. */
@@ -49,16 +52,19 @@ class Ev05AutomacaoInternalController {
     private final ListarCandidatosEv05UseCase candidatos;
     private final ContextoEv05UseCase contexto;
     private final Ev05LeadUseCase leads;
+    private final AtualizarStatusResumoIaUseCase statusResumo;
     private final int tamanhoMaximo;
 
     Ev05AutomacaoInternalController(
             ListarCandidatosEv05UseCase candidatos,
             ContextoEv05UseCase contexto,
             Ev05LeadUseCase leads,
+            AtualizarStatusResumoIaUseCase statusResumo,
             @Value("${synapse.suporte.tamanho-pagina}") int tamanhoMaximo) {
         this.candidatos = candidatos;
         this.contexto = contexto;
         this.leads = leads;
+        this.statusResumo = statusResumo;
         this.tamanhoMaximo = tamanhoMaximo;
     }
 
@@ -134,6 +140,32 @@ class Ev05AutomacaoInternalController {
     }
 
     @Operation(
+            summary = "Atualizar estado da solicitação de resumo",
+            description = "Recebe somente o estado do ciclo idempotente. O texto do resumo é gravado na rota /resumo.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Estado aplicado ou repetição idempotente."),
+                @ApiResponse(responseCode = "400", description = "Payload inválido."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
+                @ApiResponse(responseCode = "404", description = "Solicitação inexistente."),
+                @ApiResponse(responseCode = "409", description = "Ciclo antigo, atendimento trocado ou transição inválida."),
+                @ApiResponse(responseCode = "422", description = "Erro não sanitizado ou estado incompatível.")
+            })
+    @PostMapping("/leads/{leadId}/resumo-status")
+    SolicitacaoResumoIaRepositorio.Solicitacao atualizarStatusResumo(
+            @PathVariable UUID leadId,
+            @Valid @RequestBody StatusResumoRequisicao requisicao) {
+        return ContextoDeServico.buscarComo(
+                "atualizar-status-resumo-ev05",
+                () -> statusResumo.executar(
+                        leadId,
+                        requisicao.solicitacaoId(),
+                        requisicao.atendimentoId(),
+                        parseStatus(requisicao.status()),
+                        requisicao.erroCodigo(),
+                        requisicao.erroMensagem()));
+    }
+
+    @Operation(
             summary = "Consultar situação do preenchimento automático",
             description = "Retorna a situação dos campos avaliados pelo preenchimento automático.",
             responses = {
@@ -200,6 +232,16 @@ class Ev05AutomacaoInternalController {
         return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Dados EV-05 recusados", erro.getMessage());
     }
 
+    @ExceptionHandler(AtualizarStatusResumoIaUseCase.ResumoIaSolicitacaoNaoEncontradaException.class)
+    ProblemDetail solicitacaoNaoEncontrada(RuntimeException erro) {
+        return problema(HttpStatus.NOT_FOUND, "Solicitacao de resumo nao encontrada", erro.getMessage());
+    }
+
+    @ExceptionHandler(AtualizarStatusResumoIaUseCase.ResumoIaCicloObsoletoException.class)
+    ProblemDetail cicloObsoleto(RuntimeException erro) {
+        return problema(HttpStatus.CONFLICT, "Ciclo de resumo obsoleto", erro.getMessage());
+    }
+
     private static ProblemDetail problema(HttpStatus status, String titulo, String detalhe) {
         ProblemDetail resultado = ProblemDetail.forStatusAndDetail(status, detalhe);
         resultado.setTitle(titulo);
@@ -210,6 +252,21 @@ class Ev05AutomacaoInternalController {
             @Schema(description = "Identificador do lead; opcional quando já está no caminho.") UUID leadId,
             @Schema(description = "Resumo conciso.", requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank String resumo,
             @Schema(description = "Marco retornado por /contexto, para proteção contra ciclo tardio.") Instant contextoGeradoEm) {}
+
+    record StatusResumoRequisicao(
+            @NotNull UUID solicitacaoId,
+            @NotNull UUID atendimentoId,
+            @NotBlank String status,
+            String erroCodigo,
+            String erroMensagem) {}
+
+    private static SolicitacaoResumoIaRepositorio.Status parseStatus(String bruto) {
+        try {
+            return SolicitacaoResumoIaRepositorio.Status.valueOf(bruto.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (RuntimeException erro) {
+            throw new IllegalArgumentException("status de resumo inválido");
+        }
+    }
 
     record PreenchimentoRequisicao(
             UUID leadId, String email, String cpf, String empresa, String localizacao) {}
