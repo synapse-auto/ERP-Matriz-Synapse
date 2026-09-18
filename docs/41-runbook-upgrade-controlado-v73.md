@@ -106,9 +106,22 @@ Usar a imagem já validada e as mesmas variáveis de conexão do serviço. O pro
 `docker exec` herda o ambiente do container; o modo solicitado sobe somente a composição mínima de
 Flyway e datasource:
 
+O processo deve ser destacado do terminal SSH. Não execute o comando em primeiro plano: se a
+sessão cair, o shell pode enviar `SIGHUP` e interromper o upgrade. O `docker exec -d` deixa o
+runner como processo one-shot dentro do container; a conexão SSH pode ser encerrada sem cancelar
+os lotes. Capture o identificador do container e acompanhe os logs sanitizados por uma nova sessão:
+
 ```bash
-docker exec <container-backend> java -jar /application/application.jar --synapse.migrations.run-once
+docker exec -d <container-backend> sh -c \
+  'exec java -jar /application/application.jar --synapse.migrations.run-once \
+   >>/tmp/synapse-v73-runner.log 2>&1'
+docker exec <container-backend> sh -c 'tail -f /tmp/synapse-v73-runner.log'
 ```
+
+O segundo comando é somente acompanhamento e pode ser interrompido sem afetar o runner. Se a
+imagem operacional não possuir `sh`, use o executor detached equivalente do Dokploy/Swarm e
+registre onde os mesmos logs sanitizados podem ser consultados; não substitua por um loop de shell
+ou por restart automático.
 
 Executar uma vez. Não configurar restart automático, loop, retry de shell ou dois operadores em
 paralelo. O runner recusa qualquer banco diferente de 72 com apenas V73 pendente antes de migrar;
