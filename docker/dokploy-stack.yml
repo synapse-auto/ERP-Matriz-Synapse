@@ -246,7 +246,9 @@ services:
       dokploy-network:
     expose:
       - "8080"
-    stop_grace_period: 30s
+    # O Swarm envia SIGTERM durante start-first; dê tempo para o backend fechar conexões
+    # sem transformar a substituição normal em indisponibilidade para o proxy.
+    stop_grace_period: 60s
     healthcheck:
       test:
         [
@@ -264,12 +266,13 @@ services:
         delay: 10s
         order: start-first
         failure_action: rollback
-        monitor: 60s
+        # O monitor precisa cobrir o start_period e a inicialização do contexto Spring/Flyway.
+        monitor: 180s
       rollback_config:
         parallelism: 1
         delay: 5s
         order: start-first
-        monitor: 60s
+        monitor: 180s
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -384,7 +387,8 @@ services:
       - dokploy-network
     expose:
       - "3000"
-    stop_grace_period: 15s
+    # Permite drenar requisições antes de o task antigo ser encerrado pelo Swarm.
+    stop_grace_period: 30s
     healthcheck:
       test:
         [
@@ -402,12 +406,12 @@ services:
         delay: 5s
         order: start-first
         failure_action: rollback
-        monitor: 30s
+        monitor: 90s
       rollback_config:
         parallelism: 1
         delay: 5s
         order: start-first
-        monitor: 30s
+        monitor: 90s
       restart_policy:
         condition: on-failure
         delay: 3s

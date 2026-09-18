@@ -17,6 +17,11 @@ export function obterLead(id: string): Promise<LeadFicha> {
   return apiFetch<LeadFicha>(`/api/v1/leads/${id}`);
 }
 
+/** Ficha aberta a partir da Agenda colaborativa, sob o contexto de autorização da Agenda. */
+export function obterLeadNaAgenda(id: string): Promise<LeadFicha> {
+  return apiFetch<LeadFicha>(`/api/v1/leads/${id}/agenda`);
+}
+
 export function listarMidiasDoLead(id: string, pagina = 0, tamanho = 20): Promise<MidiaDoLead[]> {
   return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
 }

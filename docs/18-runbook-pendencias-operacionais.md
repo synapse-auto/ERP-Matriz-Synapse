@@ -629,6 +629,71 @@ docker service inspect <stack>_backend  --format '{{.Spec.TaskTemplate.Container
 
 ---
 
+## Rollout seguro no Swarm — Fêmina e demais instâncias
+
+O incidente de 09/09/2026 mostrou que `start-first` sozinho não é um healthcheck de prontidão: o
+Swarm pode encerrar o task antigo enquanto o novo ainda está subindo Spring, Flyway e o contexto de
+segurança. A política atual fica no `docker/dokploy-stack.yml` e é validada por
+`docker/verificacao/validar-politica-rollout.sh` (também no job de infraestrutura do CI):
+
+| serviço | `stop_grace_period` | `start_period` (liveness) | monitor update/rollback | readiness do Traefik |
+| --- | ---: | ---: | ---: | --- |
+| backend | 60s | 90s | 180s | `/health/readiness` |
+| frontend | 30s | 15s | 90s | `/health/readiness` |
+
+`replicas` continua em 1 por padrão, `order` continua `start-first` e `failure_action` continua
+`rollback`. O healthcheck do container permanece liveness para permitir que o processo inicialize; o
+Traefik só encaminha tráfego quando o readiness real responde. Não aumente o número de réplicas nem
+troque readiness por liveness para mascarar uma inicialização lenta.
+
+### Gate obrigatório antes de promover uma imagem
+
+Publicar uma imagem no GHCR não prova que o banco da instância é compatível. Antes de alterar
+`SYNAPSE_IMAGE_TAG` na Fêmina:
+
+1. Registre o SHA/tag atualmente servido nos dois serviços e o estado do banco:
+   ```bash
+   docker service inspect <stack>_backend --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+   docker service inspect <stack>_frontend --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'
+   psql "$DATABASE_URL" -c "select installed_rank, version, description, success from flyway_schema_history order by installed_rank desc limit 5"
+   ```
+2. Se o banco estiver no schema 72 com a V73 pendente, execute **uma vez**, em janela controlada,
+   o runner de bridge com a imagem já validada:
+   ```bash
+   docker exec <container-backend> java -jar /application/application.jar \
+     --synapse.migrations.run-once
+   ```
+   O runner usa lock advisory sem espera infinita e timeouts finitos; ele aceita somente 72→73
+   pendente (ou 73 já aplicada) e não deve ser disparado em paralelo. O boot normal pausa quando a
+   V73 está pendente, portanto não há limpeza histórica nem execução pesada escondida na subida do
+   CRM. O procedimento completo, incluindo rollback, está em `docs/41-runbook-upgrade-controlado-v73.md`.
+3. Confirme `version=73` e `success=true`; só então promova o novo SHA. Se o runner falhar, mantenha
+   a tag anterior e não force o deploy. Nunca edite V73, use `flyway repair` ou altere
+   `flyway_schema_history` manualmente.
+
+### Monitoramento e rollback
+
+Durante a janela, acompanhe `docker service ps <stack>_backend` e `_frontend`, os eventos de
+rollback do Swarm e os endpoints `/health/liveness` e `/health/readiness` dentro da rede. O código
+143 (SIGTERM) em um task antigo é encerramento normal do `start-first`, não prova de OOM; investigue
+memória somente com evidência de `OOMKilled=true`. Se o novo task não ficar pronto dentro do monitor,
+o Swarm deve voltar automaticamente ao digest anterior. Não faça `docker stack rm` na Estrutural para
+corrigir esse incidente.
+
+Após o deploy, registre:
+
+- digest efetivamente servido pelo backend e frontend;
+- readiness 200 externamente e liveness 200 internamente;
+- versão Flyway (`73` ou superior) e `success=true`;
+- uma mensagem de texto e uma mídia pequena recebidas/enviadas em homologação;
+- ausência de 503 nos logs do Traefik durante a troca.
+
+Se for necessário rollback, restaure o SHA anterior na variável do Dokploy e reaplique o stack; não
+altere o banco para trás. Um rollback de aplicação não desfaz migration aplicada, por isso o gate de
+schema vem antes da promoção.
+
+---
+
 ## Captura de foto de perfil pela UZAPI/Autotic (opcional)
 
 O CRM consulta a capacidade `contacts/getPicture` somente depois do commit de uma mensagem recebida,

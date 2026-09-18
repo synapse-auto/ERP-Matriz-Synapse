@@ -89,6 +89,8 @@ class OpenApiIT extends PostgresIT {
 
         assertThat(openApi.at("/paths/~1api~1v1~1leads/get/security/0/bearerAuth").isArray())
                 .isTrue();
+        assertThat(openApi.at("/paths/~1api~1v1~1leads~1{id}~1agenda/get/security/0/bearerAuth").isArray())
+                .isTrue();
         assertThat(openApi.at("/paths/~1internal~1v1~1automation-config/get/security/0/synapseToken").isArray())
                 .isTrue();
         assertThat(openApi.at("/paths/~1internal~1v1~1atendimentos~1em-andamento/get/security/0/synapseToken").isArray())

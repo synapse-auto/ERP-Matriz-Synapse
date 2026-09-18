@@ -40,6 +40,7 @@ import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.NomeInvalidoException;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
 
 /**
  * Leitura e edicao de leads.
@@ -98,6 +99,22 @@ class LeadController {
     FichaDoLead porId(
             @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID id) {
         return obter.executar(id).map(FichaDoLead::de).orElseThrow(LeadController::naoEncontrado);
+    }
+
+    @Operation(
+            summary = "Obter ficha de lead pela Agenda",
+            description = "Retorna a ficha completa de um lead que a Agenda colaborativa já autorizou. "
+                    + "O contexto de Agenda fica restrito a esta consulta e não altera a regra de leitura fora dela.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Ficha completa do lead."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não acessível pela Agenda.")
+            })
+    @GetMapping("/{id}/agenda")
+    FichaDoLead porIdNaAgenda(
+            @Parameter(description = "Identificador do lead retornado pela Agenda.", required = true)
+                    @PathVariable UUID id) {
+        return ContextoDeAgenda.buscarComo(
+                () -> obter.executar(id).map(FichaDoLead::de).orElseThrow(LeadController::naoEncontrado));
     }
 
     @Operation(

@@ -114,13 +114,14 @@ public class CapturarFotoDePerfilDoLeadService {
 
     private boolean podeConsultar(UUID leadId, Instant agora) {
         Instant proxima = cacheDeConsulta.get(leadId);
-        if (proxima != null && proxima.isAfter(agora)) {
+        Instant novaConsulta = agora.plus(propriedades.cacheTtl());
+        if (proxima == null) {
+            return cacheDeConsulta.putIfAbsent(leadId, novaConsulta) == null;
+        }
+        if (proxima.isAfter(agora)) {
             return false;
         }
-        return cacheDeConsulta.replace(leadId, proxima, agora.plus(propriedades.cacheTtl()))
-                || (proxima == null && cacheDeConsulta.putIfAbsent(
-                                leadId, agora.plus(propriedades.cacheTtl()))
-                        == null);
+        return cacheDeConsulta.replace(leadId, proxima, novaConsulta);
     }
 
     private void marcarConsultado(UUID leadId, Instant agora) {

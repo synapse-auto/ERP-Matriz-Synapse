@@ -70,7 +70,7 @@ export function PaginaAgenda() {
     ...FILTROS_RAPIDOS_VAZIOS,
   });
   const [pagina, setPagina] = useState(0);
-  const [leadNoPainel, setLeadNoPainel] = useState<string | null>(null);
+  const [leadNoPainel, setLeadNoPainel] = useState<LeadDaAgenda | null>(null);
   const [buscaEntrada, setBuscaEntrada] = useState("");
   const [filtrosMobileAbertos, setFiltrosMobileAbertos] = useState(false);
   const [importacaoAberta, setImportacaoAberta] = useState(false);
@@ -174,7 +174,9 @@ export function PaginaAgenda() {
 
   function abrirFicha(lead: LeadDaAgenda) {
     abrirAtendimento.reset();
-    setLeadNoPainel(lead.id);
+    // Guarda o snapshot retornado pela Agenda. O item pode sair da página após um refetch,
+    // mas o painel e a abertura continuam ancorados no mesmo lead autorizado.
+    setLeadNoPainel(lead);
   }
 
   function solicitarAbrirAtendimento(lead: LeadDaAgenda) {
@@ -359,15 +361,15 @@ export function PaginaAgenda() {
 
       {leadNoPainel && (
         <PainelLateralLead
-          leadId={leadNoPainel}
+          leadId={leadNoPainel.id}
+          contexto="agenda"
           onFechar={() => {
             if (abrirAtendimento.isPending) return;
             setLeadNoPainel(null);
             abrirAtendimento.reset();
           }}
           onAbrirAtendimento={() => {
-            const lead = leads.find((item) => item.id === leadNoPainel);
-            if (lead) solicitarAbrirAtendimento(lead);
+            solicitarAbrirAtendimento(leadNoPainel);
           }}
           abrindoAtendimento={abrirAtendimento.isPending}
           erroAbrirAtendimento={erroAbrir}
