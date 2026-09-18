@@ -197,6 +197,7 @@ class LeadController {
             UUID atendenteResponsavelId,
             String notas,
             String resumoIa,
+            Instant resumoIaAtualizadoEm,
             int numAtendimentos,
             int numMensagens,
             Instant criadoEm,
@@ -207,7 +208,7 @@ class LeadController {
                     lead.id(), lead.nome(), fotoExibida(lead), lead.telefone(), lead.email(), lead.cpf(),
                     lead.empresa(), lead.codigo(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
                     lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.notas(),
-                    lead.resumoIa(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
+                    lead.resumoIa(), lead.resumoIaAtualizadoEm(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
                     lead.dadosCustomizados());
         }
 

@@ -18,6 +18,7 @@ type LeadTeste = {
   numAtendimentos: number;
   numMensagens: number;
   resumoIa: string | null;
+  resumoIaAtualizadoEm: string | null;
   notas: string | null;
 };
 
@@ -35,6 +36,7 @@ const leadState = vi.hoisted(() => ({
     numAtendimentos: 3,
     numMensagens: 20,
     resumoIa: "Cliente pediu orçamento de box.",
+    resumoIaAtualizadoEm: "2030-01-02T12:00:00Z",
     notas: "",
   } as LeadTeste,
 }));
@@ -68,6 +70,17 @@ vi.mock("@/lib/config/textos-provider", () => ({
         reabrir: "Reabrir detalhes do lead",
         informacoesGerais: "Informações gerais",
         notasInternas: "Notas internas",
+        notas: {
+          placeholder: "Observações compartilhadas",
+          salvar: "Salvar nota",
+          salvando: "Salvando nota...",
+          salvo: "Nota salva.",
+          erro: "Erro ao salvar nota",
+        },
+        resumoIa: {
+          vazio: "Nenhum resumo gerado ainda.",
+          ultimaGeracao: "Última geração: {data}",
+        },
         adicionar: "Adicionar",
         editar: "Editar",
         remover: "Remover",
@@ -75,7 +88,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         cancelarRemocao: "Cancelar",
         erroOperacao: "Erro",
         secoes: {
-          resumo: "Resumo por IA e notas",
+          resumo: "Resumo por IA",
           programadas: "Mensagens programadas",
           lembretes: "Lembretes",
           midias: "Mídias e documentos",
@@ -177,6 +190,7 @@ describe("painel da conversa", () => {
       numAtendimentos: 3,
       numMensagens: 20,
       resumoIa: "Cliente pediu orçamento de box.",
+      resumoIaAtualizadoEm: "2030-01-02T12:00:00Z",
       notas: "",
     };
     etapasState.data = [
@@ -185,7 +199,7 @@ describe("painel da conversa", () => {
       { id: "etapa-2", nome: "Negociação", ordem: 3, corVisual: "var(--accent)" },
     ];
   });
-  it("mostra contadores, etapa e resumo por IA aberto por padrão — sem seção de arquivos", () => {
+  it("mostra contadores, etapa e resumo por IA recolhido — sem seção de arquivos", () => {
     const onRetrair = vi.fn();
     renderizarPainel("lead-1", "Jardel Lima", onRetrair);
 
@@ -196,9 +210,11 @@ describe("painel da conversa", () => {
     expect(screen.getByText("2 de 3")).toBeInTheDocument();
     expect(screen.getByText("Prioridade")).toBeInTheDocument();
     expect(screen.getByText("Tag")).toBeInTheDocument();
-    expect(
-      screen.getByText("Cliente pediu orçamento de box."),
-    ).toBeInTheDocument();
+    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    expect(resumo).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(resumo);
+    expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+    expect(screen.getByText(/Última geração:/)).toBeInTheDocument();
     expect(screen.queryByText(/arquivos/i)).not.toBeInTheDocument();
     const controle = screen.getByRole("button", { name: "Retrair detalhes do lead" });
     expect(controle).toHaveAttribute("aria-expanded", "true");
@@ -212,7 +228,7 @@ describe("painel da conversa", () => {
   });
 
   it.each(["ATENDENTE", "SUBGESTOR", "GESTOR"])(
-    "esconde etapa e resumo por IA para %s, mas preserva o restante da ficha",
+    "esconde etapa para %s, mas preserva resumo e o restante da ficha",
     (papel) => {
       authState.papel = papel;
       renderizarPainel("lead-1", "Jardel Lima");
@@ -223,7 +239,9 @@ describe("painel da conversa", () => {
       expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
       expect(screen.queryByText("Orçamento")).not.toBeInTheDocument();
       expect(screen.queryByText("2 de 3")).not.toBeInTheDocument();
-      expect(screen.queryByText("Cliente pediu orçamento de box.")).not.toBeInTheDocument();
+      const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+      fireEvent.click(resumo);
+      expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
     },
   );
 
@@ -257,6 +275,7 @@ describe("painel da conversa", () => {
       localizacao: null,
       etapaAtendimentoId: null,
       resumoIa: null,
+      resumoIaAtualizadoEm: null,
       notas: null,
     };
     etapasState.data = [];
@@ -411,6 +430,39 @@ describe("painel da conversa", () => {
       { codigo: "00421" },
       expect.any(Object),
     );
+  });
+
+  it("edita e salva notas internas pela atualização parcial da ficha", () => {
+    salvarFichaState.mutate.mockImplementation((dados: { notas: string }, opcoes: { onSuccess: (ficha: unknown) => void }) => {
+      opcoes.onSuccess({ ...leadState.data, notas: dados.notas });
+    });
+    renderizarPainel("lead-1", "Jardel Lima");
+    fireEvent.click(screen.getByRole("button", { name: /Notas internas/ }));
+    const campo = screen.getByLabelText("Notas internas");
+    fireEvent.change(campo, { target: { value: "Retornar com medidas" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar nota" }));
+
+    expect(salvarFichaState.mutate).toHaveBeenCalledWith(
+      { notas: "Retornar com medidas" },
+      expect.any(Object),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Nota salva.");
+    expect(campo).toHaveValue("Retornar com medidas");
+  });
+
+  it("restaura a nota confirmada quando o salvamento falha", () => {
+    salvarFichaState.mutate.mockImplementation((_dados: unknown, opcoes: { onError: () => void }) => {
+      opcoes.onError();
+    });
+    leadState.data = { ...leadState.data, notas: "Nota confirmada" };
+    renderizarPainel("lead-1", "Jardel Lima");
+    fireEvent.click(screen.getByRole("button", { name: /Notas internas/ }));
+    const campo = screen.getByLabelText("Notas internas");
+    fireEvent.change(campo, { target: { value: "Alteração recusada" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar nota" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Erro ao salvar nota");
+    expect(campo).toHaveValue("Nota confirmada");
   });
 
   it("oferece criar, editar e remover itens nas duas seções", () => {

@@ -71,6 +71,7 @@ public record DadosDeAtualizacaoLead(
                 atual.atendenteResponsavelId(),
                 ouAtual(notas, atual.notas()),
                 atual.resumoIa(),
+                atual.resumoIaAtualizadoEm(),
                 atual.numAtendimentos(),
                 atual.numMensagens(),
                 atual.criadoEm(),

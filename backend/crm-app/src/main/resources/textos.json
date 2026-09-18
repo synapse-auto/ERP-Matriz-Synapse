@@ -590,6 +590,17 @@
       "reabrir": "Reabrir detalhes do lead",
       "informacoesGerais": "Informações gerais",
       "notasInternas": "Notas internas",
+      "notas": {
+        "placeholder": "Registre aqui as observações compartilhadas sobre o lead.",
+        "salvar": "Salvar nota",
+        "salvando": "Salvando nota...",
+        "salvo": "Nota salva.",
+        "erro": "Não foi possível salvar a nota. O texto confirmado anteriormente foi restaurado."
+      },
+      "resumoIa": {
+        "vazio": "Nenhum resumo gerado ainda.",
+        "ultimaGeracao": "Última geração: {data}"
+      },
       "adicionar": "Adicionar",
       "editar": "Editar",
       "remover": "Remover",
@@ -597,7 +608,7 @@
       "cancelarRemocao": "Cancelar",
       "erroOperacao": "Não foi possível concluir a operação.",
       "secoes": {
-        "resumo": "Resumo por IA e notas",
+        "resumo": "Resumo por IA",
         "programadas": "Mensagens programadas",
         "lembretes": "Lembretes",
         "midias": "Mídias e documentos"

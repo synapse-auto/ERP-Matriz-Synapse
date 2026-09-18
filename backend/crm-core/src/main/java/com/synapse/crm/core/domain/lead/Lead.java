@@ -36,6 +36,7 @@ public record Lead(
         UUID atendenteResponsavelId,
         String notas,
         String resumoIa,
+        Instant resumoIaAtualizadoEm,
         int numAtendimentos,
         int numMensagens,
         Instant criadoEm,
@@ -53,7 +54,7 @@ public record Lead(
         return new Lead(
                 id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,
                 canalOrigemId, statusBasico, etapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
-                numAtendimentos, numMensagens, criadoEm, novosDadosCustomizados);
+                resumoIaAtualizadoEm, numAtendimentos, numMensagens, criadoEm, novosDadosCustomizados);
     }
 
     /** RN-CRM-02: lead atribuido a um atendente pertence a ele. */
@@ -79,6 +80,6 @@ public record Lead(
             UUID id, String nome, StatusBasicoLead status, UUID atendenteResponsavelId) {
         return new Lead(
                 id, nome, null, null, null, null, null, null, null, null, null, status, null,
-                atendenteResponsavelId, null, null, 0, 0, null, null);
+                atendenteResponsavelId, null, null, null, 0, 0, null, null);
     }
 }
