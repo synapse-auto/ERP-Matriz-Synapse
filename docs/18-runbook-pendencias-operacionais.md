@@ -664,9 +664,10 @@ Publicar uma imagem no GHCR não prova que o banco da instância é compatível.
      --synapse.migrations.run-once
    ```
    O runner usa lock advisory sem espera infinita e timeouts finitos; ele aceita somente 72→73
-   pendente (ou 73 já aplicada) e não deve ser disparado em paralelo. O boot normal pausa quando a
-   V73 está pendente, portanto não há limpeza histórica nem execução pesada escondida na subida do
-   CRM. O procedimento completo, incluindo rollback, está em `docs/41-runbook-upgrade-controlado-v73.md`.
+   pendente (ou 73 já aplicada), processa itens em lotes curtos com checkpoint e não deve ser
+   disparado em paralelo. O boot normal pausa quando a V73 está pendente, portanto não há limpeza
+   histórica nem execução pesada escondida na subida do CRM. O procedimento completo, incluindo
+   retomada e rollback, está em `docs/41-runbook-upgrade-controlado-v73.md`.
 3. Confirme `version=73` e `success=true`; só então promova o novo SHA. Se o runner falhar, mantenha
    a tag anterior e não force o deploy. Nunca edite V73, use `flyway repair` ou altere
    `flyway_schema_history` manualmente.

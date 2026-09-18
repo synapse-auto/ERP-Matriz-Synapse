@@ -100,6 +100,25 @@ class FlywayMigrationRunnerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("runner retoma itens reservados e não refaz itens já concluídos")
+    void runnerRetomaCheckpointSemRepetirItemConcluido() throws Exception {
+        novoFlyway("72").migrate();
+        inserirLeadsParaRetomada();
+        criarCheckpointDeRetomada("00000000-0000-4000-8000-000000000081", "CONCLUIDO", 1);
+        criarCheckpointDeRetomada("00000000-0000-4000-8000-000000000082", "FALHOU", 1);
+
+        FlywayMigrationRunner.Resultado resultado = runner(novoFlyway(null)).executar();
+
+        assertThat(resultado.executou()).isTrue();
+        assertThat(telefoneDoLead("00000000-0000-4000-8000-000000000081"))
+                .isEqualTo("061999999999");
+        assertThat(telefoneDoLead("00000000-0000-4000-8000-000000000082"))
+                .isEqualTo("5561999999998");
+        assertThat(contarCheckpoint("NORMALIZACAO", "00000000-0000-4000-8000-000000000082", "CONCLUIDO"))
+                .isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("execução concorrente falha sem esperar nem iniciar a migration")
     void runnerOutroProcessoJaTemLock_recusaEPermiteTentativaControladaDepois() throws Exception {
         novoFlyway("72").migrate();
@@ -182,6 +201,7 @@ class FlywayMigrationRunnerIT extends PostgresIT {
                 .hasMessageContaining("Estado do schema não suportado");
         assertThat(versaoAtual(schemaPosterior)).isEqualTo("74");
         assertThat(contarV73()).isEqualTo(1);
+        assertThat(tabelaCheckpointExiste()).isFalse();
         assertAdvisoryLockDisponivel();
 
         resetarSchemaIsolado();
@@ -306,6 +326,61 @@ class FlywayMigrationRunnerIT extends PostgresIT {
         }
     }
 
+    private static void inserirLeadsParaRetomada() throws Exception {
+        try (Connection conexao = DATA_SOURCE.getConnection(); Statement comando = conexao.createStatement()) {
+            comando.executeUpdate(
+                    "INSERT INTO lead (id, nome, telefone) VALUES "
+                            + "('00000000-0000-4000-8000-000000000081', 'retomada concluida', '061999999999'), "
+                            + "('00000000-0000-4000-8000-000000000082', 'retomada falha', '061999999998')");
+            comando.execute("""
+                    CREATE TABLE synapse_v73_runner_checkpoint (
+                        fase VARCHAR(32) NOT NULL,
+                        item_chave VARCHAR(160) NOT NULL,
+                        estado VARCHAR(16) NOT NULL,
+                        tentativas INTEGER NOT NULL DEFAULT 0,
+                        lease_ate TIMESTAMPTZ,
+                        ultimo_erro VARCHAR(512),
+                        atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        CONSTRAINT pk_synapse_v73_checkpoint PRIMARY KEY (fase, item_chave)
+                    )
+                    """);
+        }
+    }
+
+    private static void criarCheckpointDeRetomada(String chave, String estado, int tentativas)
+            throws Exception {
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var comando = conexao.prepareStatement("""
+                        INSERT INTO synapse_v73_runner_checkpoint
+                            (fase, item_chave, estado, tentativas, lease_ate)
+                        VALUES ('NORMALIZACAO', ?, ?, ?, now() - interval '1 minute')
+                        """)) {
+            comando.setString(1, chave);
+            comando.setString(2, estado);
+            comando.setInt(3, tentativas);
+            comando.executeUpdate();
+        }
+    }
+
+    private static int contarCheckpoint(String fase, String chave, String estado) {
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var consulta = conexao.prepareStatement("""
+                        SELECT count(*)
+                          FROM synapse_v73_runner_checkpoint
+                         WHERE fase = ? AND item_chave = ? AND estado = ?
+                        """)) {
+            consulta.setString(1, fase);
+            consulta.setString(2, chave);
+            consulta.setString(3, estado);
+            try (var resultado = consulta.executeQuery()) {
+                resultado.next();
+                return resultado.getInt(1);
+            }
+        } catch (Exception erro) {
+            throw new IllegalStateException("Falha ao consultar checkpoint de teste", erro);
+        }
+    }
+
     private static String versaoAtual(Flyway flyway) {
         var atual = flyway.info().current();
         return atual == null || atual.getVersion() == null ? "vazio" : atual.getVersion().getVersion();
@@ -339,6 +414,20 @@ class FlywayMigrationRunnerIT extends PostgresIT {
             }
         } catch (Exception erro) {
             throw new IllegalStateException("Falha ao contar versão no histórico de teste", erro);
+        }
+    }
+
+    private static boolean tabelaCheckpointExiste() {
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var consulta = conexao.prepareStatement("""
+                        SELECT to_regclass('public.synapse_v73_runner_checkpoint') IS NOT NULL
+                        """)) {
+            try (var resultado = consulta.executeQuery()) {
+                resultado.next();
+                return resultado.getBoolean(1);
+            }
+        } catch (Exception erro) {
+            throw new IllegalStateException("Falha ao consultar a tabela de checkpoint", erro);
         }
     }
 

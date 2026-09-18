@@ -17,7 +17,11 @@ import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
+import org.flywaydb.core.api.ResourceProvider;
 import org.flywaydb.core.api.output.MigrateResult;
+import org.flywaydb.core.internal.scanner.LocationScannerCache;
+import org.flywaydb.core.internal.scanner.ResourceNameCache;
+import org.flywaydb.core.internal.scanner.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +93,12 @@ public class FlywayMigrationRunner {
     private Resultado executarComTimeout(ConnectionTrackingDataSource conexoes, long inicioNanos) {
         Flyway flywayControlado = Flyway.configure()
                 .configuration(flyway.getConfiguration())
+                .resourceProvider(resourceProviderSemV73(flyway))
+                .javaMigrations(new V73__NormalizarPrefixoDiscagemLeads(
+                        flyway.getConfiguration().getPlaceholders().getOrDefault("telefone_ddi_padrao", "55"),
+                        propriedades.batchSize(),
+                        propriedades.maxBatchAttempts(),
+                        propriedades.batchLease()))
                 .dataSource(conexoes)
                 .load();
         try (Connection conexaoLock = conexoes.getConnection()) {
@@ -98,8 +108,8 @@ public class FlywayMigrationRunner {
                 throw new MigracaoJaEmExecucaoException();
             }
             log.info("[FLYWAY_CONTROLADO] advisory lock adquirido");
-        try {
-            return executarComLock(flywayControlado, inicioNanos);
+            try {
+                return executarComLock(flywayControlado, inicioNanos);
             } finally {
                 liberarLockSeguro(conexaoLock);
             }
@@ -117,6 +127,19 @@ public class FlywayMigrationRunner {
             }
             throw erro;
         }
+    }
+
+    private static ResourceProvider resourceProviderSemV73(Flyway flyway) {
+        ResourceProvider original = flyway.getConfiguration().getResourceProvider();
+        if (original == null) {
+            original = new Scanner<>(
+                    org.flywaydb.core.api.migration.JavaMigration.class,
+                    false,
+                    new ResourceNameCache(),
+                    new LocationScannerCache(),
+                    flyway.getConfiguration());
+        }
+        return new V73ResourceProvider(original);
     }
 
     private Resultado executarComLock(Flyway flywayControlado, long inicioNanos) {

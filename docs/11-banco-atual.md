@@ -2,8 +2,8 @@
 
 Documentação do schema **como está implementado**, extraída das migrations Flyway. Diferente do `03-modelo-dados-postgres.md`, que é o documento de *projeto* — onde os dois divergirem, este vence.
 
-**Código:** 74 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
-**Última migration disponível:** `V74__configuracao_fidelizacao_aniversario.sql` (o estado aplicado é específico de cada instância)
+**Código:** 77 migrations · 45 tabelas (incluindo a partição default) · 18 tipos enumerados · índices de regra e otimização · políticas RLS por domínio
+**Última migration disponível:** `V77__remover_checkpoint_runner_v73.sql` (o estado aplicado é específico de cada instância)
 
 ---
 
@@ -87,6 +87,7 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V74__configuracao_fidelizacao_aniversario` | adiciona título e ícone às datas festivas e cria a configuração de aniversário; os registros festivos continuam sendo cadastrados dinamicamente |
 | `V75__solicitacoes_resumo_ia` | ciclo idempotente das solicitações assíncronas de resumo por IA |
 | `V76__idempotencia_midia_chat_interno` | reserva idempotente por participante/conversa/payload para upload de mídia sem duplicar arquivo, mensagem ou evento |
+| `V77__remover_checkpoint_runner_v73` | remove a tabela operacional temporária após a execução controlada da V73 |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 

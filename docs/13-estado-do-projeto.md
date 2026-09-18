@@ -17,15 +17,18 @@ de agir.
 O boot normal valida checksums e, enquanto V73 estiver pendente, nunca a executa: banco vazio/antigo
 pode avançar somente até V72 e schema72 permanece intacto. O bridge one-shot usa contexto mínimo,
 lock de advisory sem espera, timeouts finitos e alvo estrito 73; aceita somente 72→73 com exatamente
-uma migration ou 73 já aplicada. Depois da V73, migrations posteriores voltam ao fluxo normal. Antes da Fêmina, exige backup, simulação
+uma migration ou 73 já aplicada. No caminho 72→73, a implementação Java processa fusões e
+normalizações em lotes curtos, com checkpoint, lease e limite de tentativas; o SQL V73 permanece
+imutável e fornece o checksum. Depois da V73, migrations posteriores voltam ao fluxo normal. Antes da Fêmina, exige backup, simulação
 restrita, janela fora de 08:00–18:30 e homologação com cópia estruturalmente equivalente da
 Estrutural. Nenhum deploy/rollback/SQL de produção foi executado nesta etapa. A Estrutural continua
 protegida: se uma checagem futura achar V73 pendente nela, bloquear o deploy.
 
 SHA de runtime, tags atuais de backend/frontend e última versão aplicada da Fêmina e da Estrutural
 precisam ser levantados por acesso operacional read-only; não há credencial/runtime de produção
-conectado a este workspace. A limpeza histórica dentro da V73 continua não paginada: qualquer
-manutenção futura de dados precisa de desenho separado, dry-run, checkpoint e aprovação explícita.
+conectado a este workspace. A execução controlada agora é paginada e retomável, mas qualquer
+operação histórica diferente da V73 continua exigindo desenho separado, dry-run, checkpoint e
+aprovação explícita.
 
 ### 17/09/2026 — Ficha da Agenda em contexto colaborativo
 
@@ -280,7 +283,8 @@ Confirmado pela árvore de `origin/main`:
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V76**, última `V76__idempotencia_midia_chat_interno.sql`.
+- Migrations presentes: **V1 a V77**, última `V77__remover_checkpoint_runner_v73.sql` (limpeza da
+  tabela operacional criada pela execução controlada da V73).
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.
