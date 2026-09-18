@@ -355,6 +355,7 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `POSTGRES_PASSWORD` | Senha forte do PostgreSQL; o backend recebe a mesma referência. |
 | `SYNAPSE_MIGRATION_LOCK_TIMEOUT` | Limite finito para waits de locks SQL da migration (default `10s`); lock concorrente do runner usa tentativa sem espera. |
 | `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT` | Limite finito por conexão SQL do runner Flyway (default `30m`); não afeta o boot normal do CRM. |
+| `SYNAPSE_MIGRATION_TOTAL_TIMEOUT` | Prazo total do processo one-shot, incluindo conexão, validação, descoberta e V73 (default `45m`); ao exceder, cancela conexões e encerra com erro. |
 | `N8N_DB_NAME` | Banco exclusivo do n8n, criado no primeiro boot do volume do Postgres. |
 | `N8N_DB_USER` | Role exclusiva do n8n; não reutilize o usuário do CRM. |
 | `N8N_DB_PASSWORD` | Senha forte da role exclusiva do n8n. |
@@ -491,10 +492,14 @@ O runner não inicia API, JPA, schedulers nem consumidores. Ele adquire `pg_try_
 espera, valida o histórico, aceita somente schema 72 com V73 pendente (ou 73 já aplicado), migra no
 máximo essa única versão, valida novamente e registra versão/quantidade/duração sem conteúdo de
 leads. V74 não é tentada antes: o alvo explícito 73 faz a bridge terminar primeiro. O próprio Flyway mantém seu lock de schema; o runner impõe ainda
-`SYNAPSE_MIGRATION_LOCK_TIMEOUT` e `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, ambos positivos e finitos.
-Se a execução for recusada por lock ou exceder timeout, não repita automaticamente: confira o
-histórico e os logs antes de uma nova tentativa. O runner não espera pelo lock interno do Flyway
-(`lockRetryCount=0`) e recusa qualquer schema fora do estado 72→73.
+`SYNAPSE_MIGRATION_LOCK_TIMEOUT`, `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT` e
+`SYNAPSE_MIGRATION_TOTAL_TIMEOUT`, todos positivos e finitos. O último cobre também espera por
+conexão, validação e descoberta de migrations. Ao excedê-lo, o worker é interrompido, consultas
+são canceladas, as conexões do lock/Flyway são fechadas e o pool é encerrado; o processo sai com
+erro e o PostgreSQL desfaz a transação. Se a execução for recusada por lock ou exceder timeout,
+não repita automaticamente: confira o histórico e os logs antes de uma nova tentativa. O runner
+não espera pelo lock interno do Flyway (`lockRetryCount=0`) e recusa qualquer schema fora do estado
+72→73.
 
 Veja o [runbook de upgrade controlado](docs/41-runbook-upgrade-controlado-v73.md).
 

@@ -18,7 +18,10 @@ one-shot `--synapse.migrations.run-once`, num contexto mínimo que não carrega 
 consumidores ou listeners do CRM. O runner adquire um
 `pg_try_advisory_lock` sem espera, e o próprio Flyway mantém seu lock de schema. A segunda execução
 concorrente falha antes de migrar. O processo usa limites finitos (`SYNAPSE_MIGRATION_LOCK_TIMEOUT`,
-default `10s`; `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, default `30m`) e não repete automaticamente.
+default `10s`; `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, default `30m`; `SYNAPSE_MIGRATION_TOTAL_TIMEOUT`,
+default `45m`) e não repete automaticamente. O timeout total cobre inclusive espera por conexão,
+validação e descoberta de migrations; ao expirar, cancela consultas, fecha as conexões do advisory
+lock e do Flyway, encerra o pool e retorna erro sem manter sessão `idle in transaction`.
 O retry do lock interno do Flyway é zero: se ainda houver uma sessão Flyway antiga, a execução falha
 sem aguardar e precisa ser reavaliada. Depois que V73 estiver aplicada, migrations posteriores (por
 exemplo V74) voltam ao fluxo normal do Flyway; com V73 pendente, nenhum alvo posterior executa antes
@@ -107,13 +110,47 @@ quantidade de migrations e duração; em falhas técnicas, omite detalhes potenc
 que a operação consulte o estado do banco de forma restrita. Não registra conteúdo da mensagem nem
 dados dos leads. `NOTICE`
 do PostgreSQL é suprimido no processo de migration porque a V73 antiga emite notices com dados de
-lead. O processo termina com código diferente de zero em falha, timeout ou lock ocupado.
+lead. O processo termina com código diferente de zero em falha, timeout ou lock ocupado. O timeout
+total também cobre travamento na descoberta/validação antes da V73, cancela o worker e fecha as
+conexões rastreadas; se o encerramento do worker não for observado em até cinco segundos, não tente
+novamente: preserve os logs e confirme os locks no banco antes de qualquer decisão.
 
 Se aparecer “outra execução exclusiva”, identificar o processo que mantém o lock e aguardar/liberar
 somente pelo encerramento normal dele. Não matar uma sessão PostgreSQL sem primeiro avaliar o estado
 transacional. Se houver timeout, a V73 roda na transação padrão do Flyway: confirmar no banco que a
 versão segue em 72 e que `success` não foi gravado, investigar a causa e obter nova aprovação antes
 de tentar de novo.
+
+### Diagnóstico de timeout e sessões antigas
+
+O comando abaixo lista apenas sessões do banco do CRM; filtre pelo PID do processo one-shot e não
+encerre conexões em massa:
+
+```sql
+SELECT pid, state, wait_event_type, wait_event, query_start, query
+  FROM pg_stat_activity
+ WHERE datname = current_database()
+   AND usename = current_user
+ ORDER BY query_start NULLS LAST;
+```
+
+Depois de um timeout, confirme que não existe sessão do runner em `idle in transaction` e que uma
+nova conexão consegue adquirir o advisory lock de forma não bloqueante:
+
+```sql
+SELECT pg_try_advisory_lock(5462350, 73);
+SELECT pg_advisory_unlock(5462350, 73);
+```
+
+Se ainda houver um PID comprovadamente pertencente ao runner, encerre somente esse PID, após
+registrar o estado e com aprovação operacional:
+
+```sql
+SELECT pg_terminate_backend(<pid_do_runner>);
+```
+
+Não use `pg_terminate_backend` em lote, não mate conexões do CRM normal e não altere
+`flyway_schema_history`. Se houver qualquer dúvida sobre o PID, pare a operação e peça análise.
 
 ## Validações pós-upgrade
 

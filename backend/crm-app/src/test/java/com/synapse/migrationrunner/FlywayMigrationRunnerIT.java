@@ -8,6 +8,8 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
+import org.springframework.jdbc.datasource.DelegatingDataSource;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.SynapseCrmApplication;
@@ -90,6 +93,7 @@ class FlywayMigrationRunnerIT extends PostgresIT {
         assertThat(resultado.versaoFinal()).isEqualTo("73");
         assertThat(repeticao.executou()).isFalse();
         assertThat(contarV73()).isEqualTo(1);
+        assertThat(contarVersao("74")).isZero();
         assertThat(leadExiste("00000000-0000-4000-8000-000000000071")).isFalse();
         assertThat(telefoneDoLead("00000000-0000-4000-8000-000000000072"))
                 .isEqualTo("5561999999999");
@@ -121,6 +125,39 @@ class FlywayMigrationRunnerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("timeout total interrompe validação presa, desfaz transação e libera advisory lock")
+    void runnerValidacaoSemProgresso_expiraSemDeixarLockOuIdleInTransaction() {
+        novoFlyway("72").migrate();
+        Flyway flywayAtual = novoFlyway(null);
+        var dataSourceBloqueado = new BloqueiaSegundaConexao(DATA_SOURCE);
+        var propriedades = new MigrationRunnerProperties(
+                Duration.ofSeconds(10), Duration.ofMinutes(30), Duration.ofMillis(100));
+
+        assertThatThrownBy(() -> new FlywayMigrationRunner(flywayAtual, dataSourceBloqueado, propriedades).executar())
+                .isInstanceOf(FlywayMigrationRunner.MigrationRunnerTimeoutException.class);
+        assertThat(versaoAtual(flywayAtual)).isEqualTo("72");
+        assertThat(contarV73()).isZero();
+        assertNoIdleInTransaction();
+
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var consulta = conexao.prepareStatement("SELECT pg_try_advisory_lock(?, ?)")) {
+            consulta.setInt(1, FlywayMigrationRunner.LOCK_NAMESPACE);
+            consulta.setInt(2, FlywayMigrationRunner.LOCK_RESOURCE);
+            try (var resultado = consulta.executeQuery()) {
+                assertThat(resultado.next()).isTrue();
+                assertThat(resultado.getBoolean(1)).isTrue();
+            }
+            try (var desbloqueio = conexao.prepareStatement("SELECT pg_advisory_unlock(?, ?)")) {
+                desbloqueio.setInt(1, FlywayMigrationRunner.LOCK_NAMESPACE);
+                desbloqueio.setInt(2, FlywayMigrationRunner.LOCK_RESOURCE);
+                desbloqueio.executeQuery();
+            }
+        } catch (Exception erro) {
+            throw new IllegalStateException("Falha ao confirmar liberação do advisory lock", erro);
+        }
+    }
+
+    @Test
     @DisplayName("runner recusa schema diferente de 72 sem executar versões anteriores pendentes")
     void schemaAnteriorAo72_runnerNaoAplicaNenhumaMigration() {
         Flyway ateV71 = novoFlyway("71");
@@ -131,6 +168,35 @@ class FlywayMigrationRunnerIT extends PostgresIT {
                 .hasMessageContaining("Estado do schema não suportado");
         assertThat(versaoAtual(novoFlyway(null))).isEqualTo("71");
         assertThat(contarV73()).isZero();
+        assertAdvisoryLockDisponivel();
+    }
+
+    @Test
+    @DisplayName("schema posterior a V73 ou checksum divergente é recusado antes de alterar o banco")
+    void schemaPosteriorOuChecksumDivergente_runnerRecusaSemAlterarHistorico() throws Exception {
+        novoFlyway("74").migrate();
+        Flyway schemaPosterior = novoFlyway(null);
+
+        assertThatThrownBy(() -> runner(schemaPosterior).executar())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Estado do schema não suportado");
+        assertThat(versaoAtual(schemaPosterior)).isEqualTo("74");
+        assertThat(contarV73()).isEqualTo(1);
+        assertAdvisoryLockDisponivel();
+
+        resetarSchemaIsolado();
+        Flyway schema73 = novoFlyway(null);
+        schema73.migrate();
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var comando = conexao.prepareStatement(
+                        "UPDATE flyway_schema_history SET checksum = checksum + 1 WHERE version = '73'")) {
+            comando.executeUpdate();
+        }
+
+        assertThatThrownBy(() -> runner(novoFlyway(null)).executar())
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(contarV73()).isEqualTo(1);
+        assertAdvisoryLockDisponivel();
     }
 
     @Test
@@ -163,6 +229,9 @@ class FlywayMigrationRunnerIT extends PostgresIT {
         assertThatThrownBy(() -> new MigrationRunnerProperties(Duration.ZERO, Duration.ofMinutes(30)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new MigrationRunnerProperties(Duration.ofSeconds(10), Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new MigrationRunnerProperties(
+                        Duration.ofSeconds(10), Duration.ofMinutes(30), Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -256,13 +325,56 @@ class FlywayMigrationRunnerIT extends PostgresIT {
     }
 
     private static int contarV73() {
+        return contarVersao("73");
+    }
+
+    private static int contarVersao(String versao) {
         try (Connection conexao = DATA_SOURCE.getConnection();
-                var consulta = conexao.prepareStatement("SELECT count(*) FROM flyway_schema_history WHERE version = '73'");
-                var resultado = consulta.executeQuery()) {
-            resultado.next();
-            return resultado.getInt(1);
+                var consulta = conexao.prepareStatement(
+                        "SELECT count(*) FROM flyway_schema_history WHERE version = ?")) {
+            consulta.setString(1, versao);
+            try (var resultado = consulta.executeQuery()) {
+                resultado.next();
+                return resultado.getInt(1);
+            }
         } catch (Exception erro) {
-            throw new IllegalStateException("Falha ao contar V73 no histórico de teste", erro);
+            throw new IllegalStateException("Falha ao contar versão no histórico de teste", erro);
+        }
+    }
+
+    private static void assertAdvisoryLockDisponivel() {
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var consulta = conexao.prepareStatement("SELECT pg_try_advisory_lock(?, ?)")) {
+            consulta.setInt(1, FlywayMigrationRunner.LOCK_NAMESPACE);
+            consulta.setInt(2, FlywayMigrationRunner.LOCK_RESOURCE);
+            try (var resultado = consulta.executeQuery()) {
+                assertThat(resultado.next()).isTrue();
+                assertThat(resultado.getBoolean(1)).isTrue();
+            }
+            try (var desbloqueio = conexao.prepareStatement("SELECT pg_advisory_unlock(?, ?)")) {
+                desbloqueio.setInt(1, FlywayMigrationRunner.LOCK_NAMESPACE);
+                desbloqueio.setInt(2, FlywayMigrationRunner.LOCK_RESOURCE);
+                desbloqueio.executeQuery();
+            }
+        } catch (Exception erro) {
+            throw new IllegalStateException("Advisory lock da migration ficou preso", erro);
+        }
+    }
+
+    private static void assertNoIdleInTransaction() {
+        try (Connection conexao = DATA_SOURCE.getConnection();
+                var consulta = conexao.prepareStatement(
+                        "SELECT count(*) FROM pg_stat_activity "
+                                + "WHERE datname = current_database() "
+                                + "AND usename = current_user "
+                                + "AND pid <> pg_backend_pid() "
+                                + "AND state = 'idle in transaction'")) {
+            try (var resultado = consulta.executeQuery()) {
+                assertThat(resultado.next()).isTrue();
+                assertThat(resultado.getInt(1)).isZero();
+            }
+        } catch (Exception erro) {
+            throw new IllegalStateException("Runner deixou sessão idle in transaction", erro);
         }
     }
 
@@ -291,6 +403,37 @@ class FlywayMigrationRunnerIT extends PostgresIT {
             }
         } catch (Exception erro) {
             throw new IllegalStateException("Falha ao consultar telefone sintético", erro);
+        }
+    }
+
+    private static final class BloqueiaSegundaConexao extends DelegatingDataSource {
+
+        private final AtomicInteger chamadas = new AtomicInteger();
+
+        private BloqueiaSegundaConexao(PGSimpleDataSource delegate) {
+            super(delegate);
+        }
+
+        @Override
+        public Connection getConnection() throws java.sql.SQLException {
+            bloquearSeNecessario();
+            return super.getConnection();
+        }
+
+        @Override
+        public Connection getConnection(String username, String password) throws java.sql.SQLException {
+            bloquearSeNecessario();
+            return super.getConnection(username, password);
+        }
+
+        private void bloquearSeNecessario() throws java.sql.SQLException {
+            if (chamadas.incrementAndGet() != 2) {
+                return;
+            }
+            while (!Thread.currentThread().isInterrupted()) {
+                LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
+            }
+            throw new java.sql.SQLException("conexao de teste interrompida");
         }
     }
 }
