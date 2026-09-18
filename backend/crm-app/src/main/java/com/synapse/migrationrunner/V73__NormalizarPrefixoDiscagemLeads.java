@@ -113,16 +113,31 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
         Connection conexao = contexto.getConnection();
         boolean autoCommitOriginal = conexao.getAutoCommit();
         String papelAnterior = lerPapelAtual(conexao);
+        String etapa = "PAPEL";
         try {
             conexao.setAutoCommit(true);
             definirPapelServico(conexao);
+            etapa = "ESTRUTURA";
             prepararEstrutura(conexao);
+            etapa = "FUNCOES";
             aplicarFuncoes(conexao);
+            etapa = "CONTEXTO";
             validarContextoServico(conexao);
+            etapa = "FK";
             validarFks(conexao);
+            etapa = "FUSAO";
             processarFusoes(conexao);
+            etapa = "NORMALIZACAO";
             processarNormalizacoes(conexao);
+            etapa = "CONCLUSAO";
             registrarConclusao(conexao);
+        } catch (Exception erro) {
+            log.error(
+                    "[FLYWAY_CONTROLADO] falha na fase={} tipo={} sqlState={}",
+                    etapa,
+                    erro.getClass().getSimpleName(),
+                    erro instanceof SQLException sql ? sql.getSQLState() : "nao-sql");
+            throw erro;
         } finally {
             restaurarPapel(conexao, papelAnterior);
             if (conexao.getAutoCommit() != autoCommitOriginal) {
