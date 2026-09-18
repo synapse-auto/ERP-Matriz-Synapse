@@ -742,3 +742,11 @@ e curta, não uma cópia de payload; o trigger `app_marcar_citacoes_chat_removid
 estado “mensagem removida” quando a origem é apagada. O índice parcial por origem apoia a atualização
 sem alterar o modelo de participação/RLS. As leituras de mídia filtram tombstones, revogando o acesso
 por URL assinada.
+
+## 11. V76 — idempotência de mídia no chat interno
+
+`chat_interno_midia_idempotencia` reserva o `Idempotency-Key` junto do participante, conversa e
+impressão SHA-256 do arquivo/nome/legenda. A reserva é concluída com o ID da mensagem depois que o
+objeto foi salvo e a linha foi persistida; uma repetição compatível retorna a mesma mensagem. Falhas
+antes da conclusão removem somente a reserva pendente e o objeto recém-criado, sem deixar arquivo órfão.
+O conteúdo da legenda continua na mensagem e em `midia_metadados`, sem base64 ou credenciais.

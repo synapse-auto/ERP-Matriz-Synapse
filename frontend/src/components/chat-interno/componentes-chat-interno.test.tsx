@@ -74,7 +74,7 @@ const mockTextosCompletos = {
       audioErroCaptura: "A",
       audioExcedeuLimite: "A",
     },
-    media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "A" },
+    media: { audio: "Áudio", reproduzir: "Reproduzir áudio", pausar: "Pausar áudio", posicao: "Posição do áudio", baixar: "A", documento: "A", imagem: "Imagem" },
     mensagem: {
       hoje: "Hoje",
       ontem: "Ontem",
@@ -302,6 +302,26 @@ describe("componentes de apresentação do chat interno", () => {
     );
   });
 
+  it("renderiza a legenda de imagem no histórico, inclusive para mídia antiga", () => {
+    const imagem: ChatMensagem = {
+      id: "m-imagem-legenda",
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "IMAGEM",
+      conteudo: "Legenda persistida",
+      midiaUrl: "https://media.example.test/foto.jpg",
+      enviadoEm: "2026-08-27T12:04:00Z",
+    };
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno mensagens={[imagem]} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
+      </TextosProvider>,
+    );
+    expect(screen.getByText("Legenda persistida")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Legenda persistida" })).toHaveAttribute("src", imagem.midiaUrl);
+  });
+
   it("renderiza áudio enviado com o player da bolha, sem o controle nativo", () => {
     const comAudio: ChatMensagem[] = [{
       id: "m-audio",
@@ -423,6 +443,52 @@ describe("componentes de apresentação do chat interno", () => {
     expect(enviarMidia.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ name: "a.png" }));
     expect(enviarMidia.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ name: "b.pdf" }));
     expect(enviar).not.toHaveBeenCalled();
+  });
+
+  it("envia a imagem e a legenda na mesma chamada e mostra a prévia", async () => {
+    const enviarMidia = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={vi.fn()} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const imagem = new File(["bytes"], "foto.png", { type: "image/png" });
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [imagem] } });
+    const campo = screen.getByPlaceholderText(mockTextosCompletos.atendimentos.composer.anexoLegendaPlaceholder);
+    fireEvent.change(campo, { target: { value: "Legenda\ncom acento" } });
+
+    expect(await screen.findByRole("img", { name: "Imagem" })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledTimes(1));
+    expect(enviarMidia).toHaveBeenCalledWith(expect.objectContaining({ name: "foto.png" }), "Legenda\ncom acento", expect.any(String));
+    expect(campo).toHaveValue("");
+  });
+
+  it("preserva imagem e legenda quando o envio falha", async () => {
+    const enviarMidia = vi.fn()
+      .mockRejectedValueOnce(new Error("falha"))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={vi.fn()} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const imagem = new File(["bytes"], "foto.png", { type: "image/png" });
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [imagem] } });
+    const campo = screen.getByPlaceholderText(mockTextosCompletos.atendimentos.composer.anexoLegendaPlaceholder);
+    fireEvent.change(campo, { target: { value: "Tentar novamente" } });
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledTimes(1));
+    expect(campo).toHaveValue("Tentar novamente");
+    expect(screen.getByText("foto.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledTimes(2));
+    expect(enviarMidia.mock.calls[1]?.[2]).toBe(enviarMidia.mock.calls[0]?.[2]);
+    expect(campo).toHaveValue("");
   });
 
   it("cola imagem no mesmo fluxo de anexos e preserva colagem de texto", () => {

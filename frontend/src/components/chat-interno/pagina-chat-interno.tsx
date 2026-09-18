@@ -94,7 +94,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
     onSuccess: (r) => { setConversaId(r.id); setPainelGrupoAberto(true); setDialogoGrupo(false); atualizar(); },
   });
   const enviar = useMutation({ mutationFn: ({ id, conteudo }: { id: string; conteudo: string }) => enviarMensagemChat(id, conteudo), onSuccess: atualizar });
-  const enviarMidia = useMutation({ mutationFn: ({ id, arquivo, legenda }: { id: string; arquivo: File; legenda?: string }) => enviarMidiaChat(id, arquivo, legenda), onSuccess: atualizar });
+  const enviarMidia = useMutation({ mutationFn: ({ id, arquivo, legenda, idempotencyKey }: { id: string; arquivo: File; legenda?: string; idempotencyKey: string }) => enviarMidiaChat(id, arquivo, legenda, idempotencyKey), onSuccess: atualizar });
   const responder = useMutation({
     mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => responderMensagemChat(conversaId!, mensagemId, conteudo),
     onSuccess: () => { setRespostaAlvo(null); atualizar(); },
@@ -263,7 +263,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                     enviando={enviar.isPending || enviarMidia.isPending || responder.isPending}
                     erro={enviar.isError || enviarMidia.isError || responder.isError}
                     onEnviar={enviarConteudo}
-                    onEnviarMidia={(arquivo, legenda) => enviarMidia.mutateAsync({ id: conversaId, arquivo, legenda })}
+                    onEnviarMidia={(arquivo, legenda, idempotencyKey) => enviarMidia.mutateAsync({ id: conversaId, arquivo, legenda, idempotencyKey })}
                   />
                 </ZonaSoltarArquivos>
               )}

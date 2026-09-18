@@ -52,7 +52,7 @@ class ChatInternoMidiaIT extends PostgresIT {
 
     @Test
     @DisplayName("Deve permitir upload de midia valida no chat interno e gerar a url assinada")
-    void devePermitirUploadMidia() {
+    void devePermitirUploadMidia() throws Exception {
         var authAna = login(rest, EMAIL_ANA, SENHA_ATENDENTE);
         var authBruno = login(rest, EMAIL_BRUNO, SENHA_ATENDENTE);
 
@@ -80,6 +80,7 @@ class ChatInternoMidiaIT extends PostgresIT {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(authAna.accessToken());
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", "chat-midia-legenda-1");
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("arquivo", new ByteArrayResource(imagemValida) {
@@ -103,13 +104,26 @@ class ChatInternoMidiaIT extends PostgresIT {
         Map<?, ?> mensagem = response.getBody();
         assertThat(mensagem.get("tipo")).isEqualTo("IMAGEM");
         assertThat(mensagem.get("conteudo")).isEqualTo("Minha foto"); // legenda mapeada pra conteudo
+        assertThat(mapper.readTree(mensagem.get("midiaMetadados").toString()).get("legenda").asText())
+                .isEqualTo("Minha foto");
         assertThat(mensagem.get("midiaUrl")).asString().contains("token="); // deve ser assinada no fake storage
+
+        // 3b. A repetição com a mesma chave devolve a mensagem original sem novo upload ou evento.
+        ResponseEntity<Map> repeticao = rest.exchange(
+                "/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia",
+                HttpMethod.POST,
+                requestEntity,
+                Map.class);
+        assertThat(repeticao.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(repeticao.getBody().get("id")).isEqualTo(mensagem.get("id"));
+        assertThat(contarMensagens(conversaId)).isEqualTo(mensagensAntes + 1);
 
         // 4. Gestor tenta enviar midia pra essa conversa, mas nao participa -> 403
         var authGestor = login(rest, EMAIL_GESTOR, SENHA_GESTOR);
         HttpHeaders headersGestor = new HttpHeaders();
         headersGestor.setBearerAuth(authGestor.accessToken());
         headersGestor.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headersGestor.set("Idempotency-Key", "chat-midia-gestor-1");
         HttpEntity<MultiValueMap<String, Object>> reqGestor = new HttpEntity<>(body, headersGestor);
         ResponseEntity<Map> respGestor = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia", HttpMethod.POST, reqGestor, Map.class);
         assertThat(respGestor.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -123,6 +137,7 @@ class ChatInternoMidiaIT extends PostgresIT {
                 return "virus.png";
             }
         });
+        headers.set("Idempotency-Key", "chat-midia-invalida-1");
         HttpEntity<MultiValueMap<String, Object>> reqFalso = new HttpEntity<>(bodyFalso, headers);
         ResponseEntity<Map> respFalso = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia", HttpMethod.POST, reqFalso, Map.class);
         assertThat(respFalso.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -145,6 +160,7 @@ class ChatInternoMidiaIT extends PostgresIT {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(authAna.accessToken());
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", "chat-midia-audio-1");
 
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("arquivo", new ByteArrayResource(AUDIO_ONLY_QUICKTIME) {

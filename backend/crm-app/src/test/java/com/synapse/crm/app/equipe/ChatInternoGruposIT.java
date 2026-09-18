@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -28,6 +29,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
@@ -196,6 +199,49 @@ class ChatInternoGruposIT extends PostgresIT {
         ResponseEntity<Map> semAcesso = chamar(administrador, HttpMethod.GET,
                 "/api/v1/chat-interno/conversas/" + grupoId + "/midias", null, Map.class);
         assertThat(semAcesso.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("grupo: imagem e legenda chegam em uma unica mensagem para os participantes")
+    void imagemComLegendaNoGrupo() {
+        Tokens ana = ApoioAutenticacao.login(rest, EMAIL_ANA, SENHA_ATENDENTE);
+        UUID idAna = idDo(EMAIL_ANA);
+        UUID idBruno = idDo(EMAIL_BRUNO);
+        String criar = """
+                {"nome":"Legenda em grupo","participantes":["%s","%s"]}
+                """.formatted(idAna, idBruno);
+        ResponseEntity<Map> criado = chamar(ana, HttpMethod.POST, "/api/v1/chat-interno/conversas/grupo",
+                criar, Map.class);
+        assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String grupoId = criado.getBody().get("id").toString();
+
+        byte[] imagem = new byte[] {
+                (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52
+        };
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(ana.accessToken());
+        cabecalhos.setContentType(MediaType.MULTIPART_FORM_DATA);
+        cabecalhos.set("Idempotency-Key", "chat-grupo-legenda-1");
+        MultiValueMap<String, Object> corpo = new LinkedMultiValueMap<>();
+        corpo.add("arquivo", new ByteArrayResource(imagem) {
+            @Override
+            public String getFilename() {
+                return "grupo.png";
+            }
+        });
+        corpo.add("legenda", "Legenda do grupo");
+
+        ResponseEntity<Map> envio = rest.exchange(
+                "/api/v1/chat-interno/conversas/" + grupoId + "/mensagens/midia",
+                HttpMethod.POST, new HttpEntity<>(corpo, cabecalhos), Map.class);
+        assertThat(envio.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(envio.getBody()).containsEntry("tipo", "IMAGEM").containsEntry("conteudo", "Legenda do grupo");
+
+        List<Map<String, Object>> historico = mensagens(ApoioAutenticacao.login(rest, EMAIL_BRUNO, SENHA_ATENDENTE), grupoId);
+        assertThat(historico).anySatisfy(mensagem -> assertThat(mensagem)
+                .containsEntry("tipo", "IMAGEM")
+                .containsEntry("conteudo", "Legenda do grupo"));
     }
 
     private UUID idDo(String email) {
