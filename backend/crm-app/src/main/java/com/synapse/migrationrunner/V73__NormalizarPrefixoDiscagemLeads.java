@@ -288,6 +288,7 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
     private void processarFusoes(Connection conexao) throws SQLException {
         int processados = 0;
         int fundidos = 0;
+        String operacao = "CONTAGEM_GRUPOS";
         int gruposParaRevisao = contarGruposComMaisDeDoisCandidatos(conexao);
         if (gruposParaRevisao > 0) {
             log.info(
@@ -295,18 +296,22 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
                     gruposParaRevisao);
         }
         while (true) {
+            operacao = "BUSCA_PARES";
             List<Par> candidatos = buscarPares(conexao);
             if (candidatos.isEmpty()) {
                 break;
             }
             boolean reservado = false;
             for (Par par : candidatos) {
+                operacao = "RESERVA";
                 if (!reservar(conexao, FASE_FUSAO, par.chave())) {
                     continue;
                 }
                 reservado = true;
                 try {
+                    operacao = "FUSAO_PAR";
                     boolean fundiu = fundirPar(conexao, par);
+                    operacao = "CONCLUSAO_CHECKPOINT";
                     concluir(conexao, FASE_FUSAO, par.chave(), fundiu ? "CONCLUIDO" : "IGNORADO", null);
                     fundidos += fundiu ? 1 : 0;
                     processados++;
@@ -317,6 +322,11 @@ final class V73__NormalizarPrefixoDiscagemLeads extends BaseJavaMigration {
                             fundidos,
                             Math.max(0, candidatos.size() - processados));
                 } catch (RuntimeException | SQLException erro) {
+                    log.error(
+                            "[FLYWAY_CONTROLADO] falha na fase=FUSAO operacao={} tipo={} sqlState={}",
+                            operacao,
+                            erro.getClass().getSimpleName(),
+                            erro instanceof SQLException sql ? sql.getSQLState() : "nao-sql");
                     registrarFalha(conexao, FASE_FUSAO, par.chave(), erro);
                     throw erro;
                 }
