@@ -104,7 +104,8 @@ class ChatInternoMidiaIT extends PostgresIT {
         Map<?, ?> mensagem = response.getBody();
         assertThat(mensagem.get("tipo")).isEqualTo("IMAGEM");
         assertThat(mensagem.get("conteudo")).isEqualTo("Minha foto"); // legenda mapeada pra conteudo
-        assertThat(mensagem.get("midiaMetadados").toString()).contains("\"legenda\":\"Minha foto\"");
+        assertThat(mapper.readTree(mensagem.get("midiaMetadados").toString()).get("legenda").asText())
+                .isEqualTo("Minha foto");
         assertThat(mensagem.get("midiaUrl")).asString().contains("token="); // deve ser assinada no fake storage
 
         // 3b. A repetição com a mesma chave devolve a mensagem original sem novo upload ou evento.
