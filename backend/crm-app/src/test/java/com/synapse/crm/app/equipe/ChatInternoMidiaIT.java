@@ -52,7 +52,7 @@ class ChatInternoMidiaIT extends PostgresIT {
 
     @Test
     @DisplayName("Deve permitir upload de midia valida no chat interno e gerar a url assinada")
-    void devePermitirUploadMidia() {
+    void devePermitirUploadMidia() throws Exception {
         var authAna = login(rest, EMAIL_ANA, SENHA_ATENDENTE);
         var authBruno = login(rest, EMAIL_BRUNO, SENHA_ATENDENTE);
 
