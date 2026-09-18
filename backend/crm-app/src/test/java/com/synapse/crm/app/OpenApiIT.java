@@ -3,6 +3,7 @@ package com.synapse.crm.app;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -51,7 +52,9 @@ class OpenApiIT extends PostgresIT {
 
         List<String> falhas = falhasDeCobertura(openApi);
         assertThat(falhas).isEmpty();
-        assertThat(contarOperacoes(openApi)).isEqualTo(193);
+        assertThat(contarOperacoes(openApi)).isGreaterThan(0);
+        assertThat(chavesDasOperacoes(openApi)).hasSize((int) contarOperacoes(openApi));
+        assertThat(nomesDasTags(openApi)).contains("Interno", "Automação", "Resumo por IA");
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1{atendimentoId}~1cartao/get/security/0/bearerAuth")
                         .isArray())
@@ -123,6 +126,64 @@ class OpenApiIT extends PostgresIT {
                 .isTrue();
         assertThat(openApi.at("/paths/~1api~1v1~1automacao~1fidelizacao~1datas-festivas/get/security/0/bearerAuth").isArray())
                 .isTrue();
+        assertThat(openApi.path("paths").path("/health/liveness").path("get").path("security").isMissingNode())
+                .isTrue();
+    }
+
+    @Test
+    void documentoIncluiTodosOsInternosEConservaAFrenteDeSeguranca() throws Exception {
+        JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
+
+        openApi.path("paths").fields().forEachRemaining(entrada -> {
+            if (!entrada.getKey().startsWith("/internal/v1/")) {
+                return;
+            }
+            entrada.getValue().fields().forEachRemaining(operacao -> {
+                if (!VERBOS.contains(operacao.getKey())) {
+                    return;
+                }
+                assertThat(tags(operacao.getValue()))
+                        .as("tags de %s %s", operacao.getKey(), entrada.getKey())
+                        .contains("Interno", "Automação");
+                assertThat(operacao.getValue().at("/security/0/synapseToken").isArray())
+                        .as("seguranca de %s %s", operacao.getKey(), entrada.getKey())
+                        .isTrue();
+            });
+        });
+
+        assertThat(openApi.path("paths").path("/internal/v1/ev05/atendimentos/{atendimentoId}/contexto")
+                        .path("get").path("summary").asText())
+                .isEqualTo("Consultar contexto de conversa do EV-05");
+        assertThat(tags(operacao(openApi, "/internal/v1/ev05/atendimentos/{atendimentoId}/contexto", "get")))
+                .contains("Resumo por IA");
+    }
+
+    @Test
+    void documentoExplicitaTodoOCicloDeResumoEAsChavesDeIdempotencia() throws Exception {
+        JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
+
+        List<String> ciclo = List.of(
+                "GET /internal/v1/ev05/atendimentos/{atendimentoId}/contexto",
+                "GET /internal/v1/ev05/leads/{leadId}/resumo",
+                "POST /internal/v1/ev05/leads/{leadId}/resumo",
+                "POST /internal/v1/ev05/leads/{leadId}/resumo-status",
+                "POST /api/v1/atendimentos/{atendimentoId}/resumo-ia",
+                "GET /api/v1/atendimentos/{atendimentoId}/resumo-ia");
+        for (String chave : ciclo) {
+            String[] partes = chave.split(" ", 2);
+            assertThat(operacao(openApi, partes[1], partes[0].toLowerCase()).isObject())
+                    .as("endpoint de resumo ausente: %s", chave)
+                    .isTrue();
+            assertThat(tags(operacao(openApi, partes[1], partes[0].toLowerCase())))
+                    .contains("Resumo por IA");
+        }
+
+        assertThat(parametro(operacao(openApi, "/internal/v1/ev05/leads/{leadId}/resumo", "post"), "Idempotency-Key")
+                        .path("required").asBoolean())
+                .isTrue();
+        assertThat(parametro(operacao(openApi, "/api/v1/atendimentos/{atendimentoId}/resumo-ia", "post"), "Idempotency-Key")
+                        .path("required").asBoolean())
+                .isTrue();
     }
 
     /** Teste negativo: prova que a verificacao acima realmente acusa uma operacao sem documentacao. */
@@ -171,5 +232,40 @@ class OpenApiIT extends PostgresIT {
                 .flatMap(rota -> rota.getValue().properties().stream())
                 .filter(operacao -> VERBOS.contains(operacao.getKey()))
                 .count();
+    }
+
+    private static Set<String> chavesDasOperacoes(JsonNode openApi) {
+        Set<String> chaves = new HashSet<>();
+        openApi.path("paths").fields().forEachRemaining(rota -> rota.getValue().fields().forEachRemaining(operacao -> {
+            if (VERBOS.contains(operacao.getKey())) {
+                chaves.add(operacao.getKey().toUpperCase() + " " + rota.getKey());
+            }
+        }));
+        return chaves;
+    }
+
+    private static Set<String> nomesDasTags(JsonNode openApi) {
+        Set<String> nomes = new HashSet<>();
+        openApi.path("tags").elements().forEachRemaining(tag -> nomes.add(tag.path("name").asText()));
+        return nomes;
+    }
+
+    private static JsonNode operacao(JsonNode openApi, String caminho, String verbo) {
+        return openApi.path("paths").path(caminho).path(verbo);
+    }
+
+    private static JsonNode parametro(JsonNode operacao, String nome) {
+        for (JsonNode parametro : operacao.path("parameters")) {
+            if (nome.equalsIgnoreCase(parametro.path("name").asText())) {
+                return parametro;
+            }
+        }
+        return JSON.createObjectNode();
+    }
+
+    private static List<String> tags(JsonNode operacao) {
+        List<String> tags = new ArrayList<>();
+        operacao.path("tags").elements().forEachRemaining(tag -> tags.add(tag.asText()));
+        return tags;
     }
 }

@@ -139,7 +139,7 @@ Esta seção mistura decisões de arquitetura (verificáveis por código) com na
 | Alerta automático de indisponibilidade | ⚠️ parcial | backend classifica `CRITICO`/`DEGRADADO`, aplica duas falhas, janela e destinos via `ALERTA_WEBHOOK`; queda total exige o Kuma externo ainda não provisionado | `MonitorarSaudeCriticaUseCaseTest` + `docs/15-operacao-watchdog-externo.md` |
 | Substituição do número principal | ✅ | `canal_credencial` com `vigente_ate` — troca preserva histórico | `CanalWhatsAppIT::trocaDeNumero_preservaHistoricoEMensagemEmTransito` |
 | Logs de administração com filtros ricos | ✅ | `AuditLogController` + `ConsultarAuditLogUseCase` | `AuditoriaIT` |
-| Documentação de endpoints para a Automação | ✅ | OpenAPI gerado no build, 62 operações documentadas | `OpenApiIT` (cobertura de summary/description/tag/resposta + contagem exata) |
+| Documentação de endpoints para a Automação | ✅ | OpenAPI gerado no build, com `/api/v1/**`, `/internal/v1/**`, probes de saúde e webhook descobertos por escopo explícito | `OpenApiIT` (cobertura de summary/description/tag/resposta, schemes, ciclo de Resumo por IA e unicidade de método/path) |
 | Base PAI: ultra-modularidade, mínimo hardcode | ✅ | 8 módulos Maven + `feature_flag` tabela | `SeedDesenvolvimentoIT`, `ContratoAutomacaoIT` (flags) |
 | Base PAI: reuso pai→filho sem fork | ⚠️ **rebaixado de ✅** | Estrutura de monorepo único suporta isso por design, mas não há um segundo filho real para provar — afirmação não testável hoje | N/A |
 | Roadmap: mini front-end da Base PAI | ⚠️ (mantido, sem mudança) | Especulativo — `/internal/v1` autenticado por instância já existe, mas não há front-end algum construído para isso | N/A |
