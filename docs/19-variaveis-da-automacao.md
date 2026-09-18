@@ -7,27 +7,31 @@ contrato de acesso ao CRM.
 
 ## 1. O que é seu
 
-Quatro variáveis. Três já estão disponíveis dentro do container do n8n.
+As variáveis abaixo são separadas por direção. As credenciais devem ser cadastradas no ambiente do
+Dokploy e nunca no repositório.
 
 | Variável | Origem | Uso |
 |---|---|---|
 | `SYNAPSE_API_URL` | já no container | Base das chamadas ao CRM |
 | `SYNAPSE_TOKEN_INTERNO` | já no container | Credential do tipo **Header Auth** |
-| `AUTOMACAO_TOKEN` | já no container | Valida o que o CRM envia ao workflow |
-| `AUTOMACAO_RESUMO_IA_URL` | informar o valor | Webhook interno que recebe `RESUMO_IA_SOLICITADO`; vazio mantém o recurso desligado |
+| `AUTOMACAO_TOKEN` | já no container | Valida o repasse geral de eventos do CRM; não é usado pelo webhook de resumo |
+| `AUTOMACAO_RESUMO_IA_URL` | informar o valor | Webhook que recebe a solicitação assíncrona de resumo; vazio mantém o recurso desligado |
+| `AUTOMACAO_RESUMO_IA_TOKEN` | informar o valor no CRM e no n8n | Segredo do webhook de resumo; nunca registrar ou versionar o valor |
+| `AUTOMACAO_RESUMO_IA_AUTH_HEADER` | `CRM-Synapse-RES` | Nome do header do webhook de resumo; deve ser igual nos dois serviços |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | informar o valor | Destino do repasse. Cadastro no ambiente |
 
 ## 2. Os dois tokens têm direções opostas
 
 ```
 n8n  ──  X-Synapse-Token: SYNAPSE_TOKEN_INTERNO  ──▶  CRM
-CRM  ──  AUTOMACAO_TOKEN                         ──▶  n8n
+CRM  ──  AUTOMACAO_RESUMO_IA_TOKEN (CRM-Synapse-RES) ──▶  n8n (resumo)
 ```
 
 | Token | Função |
 |---|---|
 | `SYNAPSE_TOKEN_INTERNO` | Autentica o n8n no CRM. Header `X-Synapse-Token`. O backend recusa a chamada sem ele. |
-| `AUTOMACAO_TOKEN` | Prova que o CRM é o remetente do repasse. **Valide este header nos webhooks** — sem isso, qualquer requisição à URL dispara o fluxo. |
+| `AUTOMACAO_TOKEN` | Prova que o CRM é o remetente do repasse geral. **Valide este header no webhook correspondente**. |
+| `AUTOMACAO_RESUMO_IA_TOKEN` | Prova que o CRM é o remetente do webhook de resumo; valide no header `CRM-Synapse-RES` (ou no nome configurado). |
 
 Mesmo valor nos dois serviços, um por direção. Trocar um pelo outro resulta em 401.
 

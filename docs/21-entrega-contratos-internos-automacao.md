@@ -296,21 +296,18 @@ O publisher assíncrono do CRM chama o webhook configurado em `AUTOMACAO_RESUMO_
 
 ```text
 POST {AUTOMACAO_RESUMO_IA_URL}
-X-Synapse-Token: <AUTOMACAO_TOKEN>
+CRM-Synapse-RES: <AUTOMACAO_RESUMO_IA_TOKEN>
 Idempotency-Key: <solicitacaoId>
 ```
 
 ```json
 {
-  "evento": "RESUMO_IA_SOLICITADO",
-  "solicitacaoId": "uuid",
-  "leadId": "uuid",
   "atendimentoId": "uuid",
-  "solicitadoEm": "2026-09-17T18:00:00Z"
+  "leadId": "uuid"
 }
 ```
 
-O workflow n8n mantém a chave e o estado em Data Table persistida no banco próprio do n8n. Ele
+O workflow n8n usa o valor de `Idempotency-Key` como solicitação e mantém a chave e o estado em Data Table persistida no banco próprio do n8n. Ele
 responde imediatamente `202` (nova) ou `200` (replay), atualiza `PROCESSANDO`, consulta o contexto
 limitado, gera o texto no provedor de IA e grava pela rota EV-05 abaixo:
 
@@ -329,7 +326,7 @@ substituído e não aceita mensagem de erro com token, telefone, URL ou payload.
 
 O arquivo `docs/n8n/resumo-ia-sob-demanda.json` é o template versionado sem credenciais. Após importar,
 configure a Header Auth `SYNAPSE_TOKEN_INTERNO` para o CRM e a validação do webhook com
-`AUTOMACAO_TOKEN`; não coloque segredos no JSON exportado.
+`AUTOMACAO_RESUMO_IA_TOKEN`; não coloque segredos no JSON exportado.
 
 ## 6. O que ficou de fora, e por quê
 

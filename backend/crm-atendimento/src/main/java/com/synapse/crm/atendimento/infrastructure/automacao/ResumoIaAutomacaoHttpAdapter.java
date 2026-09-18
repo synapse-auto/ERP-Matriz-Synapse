@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.application.ResumoIaAutomacaoGateway;
@@ -51,9 +52,9 @@ class ResumoIaAutomacaoHttpAdapter implements ResumoIaAutomacaoGateway {
             breaker.executeRunnable(() -> http.post()
                     .uri(propriedades.url())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .header("X-Synapse-Token", propriedades.token())
+                    .header(propriedades.authHeader(), propriedades.token())
                     .header("Idempotency-Key", solicitacaoId.toString())
-                    .body(new Pedido("RESUMO_IA_SOLICITADO", solicitacaoId, leadId, atendimentoId, solicitadoEm.toString()))
+                    .body(new Pedido(atendimentoId, leadId))
                     .retrieve()
                     .toBodilessEntity());
             return Resultado.ACEITO;
@@ -62,13 +63,16 @@ class ResumoIaAutomacaoHttpAdapter implements ResumoIaAutomacaoGateway {
             return Resultado.TENTAR_NOVAMENTE;
         } catch (HttpClientErrorException erro) {
             log.warn("Webhook de resumo por IA recusou a solicitação com HTTP {}.", erro.getStatusCode().value());
-            return erro.getStatusCode().is4xxClientError() ? Resultado.RECUSADO : Resultado.TENTAR_NOVAMENTE;
+            return Resultado.RECUSADO;
+        } catch (HttpServerErrorException erro) {
+            log.warn("Webhook de resumo por IA indisponível com HTTP {}; a outbox tentará novamente.",
+                    erro.getStatusCode().value());
+            return Resultado.TENTAR_NOVAMENTE;
         } catch (RuntimeException erro) {
             log.warn("Webhook de resumo por IA indisponível; a outbox tentará novamente: {}", erro.toString());
             return Resultado.TENTAR_NOVAMENTE;
         }
     }
 
-    private record Pedido(
-            String evento, UUID solicitacaoId, UUID leadId, UUID atendimentoId, String solicitadoEm) {}
+    private record Pedido(UUID atendimentoId, UUID leadId) {}
 }

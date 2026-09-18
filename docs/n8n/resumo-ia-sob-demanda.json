@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "resumo-ia-solicitado",
+        "path": "estrutural-vidros/ev05/gerar-resumo",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body ?? {};\nconst headers = $json.headers ?? {};\nconst token = headers['x-synapse-token'] ?? headers['X-Synapse-Token'];\nconst idempotencyKey = headers['idempotency-key'] ?? headers['Idempotency-Key'];\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst dataValida = typeof body.solicitadoEm === 'string' && Number.isFinite(Date.parse(body.solicitadoEm));\nif (token !== $env.AUTOMACAO_TOKEN) return [{ json: { httpStatus: 401, erro: 'UNAUTHORIZED' } }];\nif (body.evento !== 'RESUMO_IA_SOLICITADO' || !uuid.test(body.solicitacaoId) || !uuid.test(body.leadId) || !uuid.test(body.atendimentoId) || !dataValida || idempotencyKey !== body.solicitacaoId) return [{ json: { httpStatus: 400, erro: 'PAYLOAD_INVALIDO' } }];\nreturn [{ json: { httpStatus: 202, evento: body.evento, solicitacaoId: body.solicitacaoId, leadId: body.leadId, atendimentoId: body.atendimentoId, solicitadoEm: body.solicitadoEm } }];"
+        "jsCode": "const body = $json.body ?? {};\nconst headers = $json.headers ?? {};\nconst authHeader = String($env.AUTOMACAO_RESUMO_IA_AUTH_HEADER || 'CRM-Synapse-RES').toLowerCase();\nconst token = headers[authHeader] ?? headers[authHeader.split('-').map((parte) => parte.charAt(0).toUpperCase() + parte.slice(1)).join('-')];\nconst idempotencyKey = headers['idempotency-key'] ?? headers['Idempotency-Key'];\nconst uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;\nconst campos = Object.keys(body).sort();\nconst corpoValido = campos.length === 2 && campos[0] === 'atendimentoId' && campos[1] === 'leadId';\nif (token !== $env.AUTOMACAO_RESUMO_IA_TOKEN) return [{ json: { httpStatus: 401, erro: 'UNAUTHORIZED' } }];\nif (!corpoValido || !uuid.test(body.leadId) || !uuid.test(body.atendimentoId) || !uuid.test(idempotencyKey ?? '')) return [{ json: { httpStatus: 400, erro: 'PAYLOAD_INVALIDO' } }];\nreturn [{ json: { httpStatus: 202, solicitacaoId: idempotencyKey, leadId: body.leadId, atendimentoId: body.atendimentoId, solicitadoEm: new Date().toISOString() } }];"
       },
       "id": "1f9f3a1d-1f0d-4c0f-b2e6-6c4d6d04d002",
       "name": "Validar contrato",

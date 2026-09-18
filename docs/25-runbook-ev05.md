@@ -23,7 +23,10 @@ responde `409`. Não faça SQL, não limpe marcos e não tente processar atendim
 ## Resumo sob demanda
 
 O workflow é acionado pelo webhook `AUTOMACAO_RESUMO_IA_URL` e deve responder `202` para uma nova
-chave ou `200` para replay. Valide `evento`, os três UUIDs e `solicitadoEm` antes de criar a linha
+chave ou `200` para replay. A autenticação chega no header configurado em
+`AUTOMACAO_RESUMO_IA_AUTH_HEADER` (padrão `CRM-Synapse-RES`) e o segredo fica em
+`AUTOMACAO_RESUMO_IA_TOKEN`. O corpo contém exatamente `atendimentoId` e `leadId`; a chave
+`solicitacaoId` é o valor de `Idempotency-Key`. Valide os dois UUIDs e a chave antes de criar a linha
 de idempotência na Data Table do n8n. A operação deve ser exclusiva por `solicitacaoId`; se a mesma
 chave vier com outro `leadId` ou `atendimentoId`, responda `409` sem executar IA.
 

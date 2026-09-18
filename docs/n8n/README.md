@@ -3,6 +3,9 @@
 `resumo-ia-sob-demanda.json` é um template de importação do fluxo iniciado pelo CRM.
 Ele não contém credenciais, IDs de Data Table, token ou URL de provedor.
 
+O webhook de homologação do template fica em `/webhook/estrutural-vidros/ev05/gerar-resumo`;
+o CRM recebe a URL completa por `AUTOMACAO_RESUMO_IA_URL`, que deve ser ajustada por ambiente.
+
 Antes de ativar:
 
 1. Crie uma Data Table persistida no banco interno do n8n com chave `solicitacaoId` e as colunas
@@ -11,11 +14,13 @@ Antes de ativar:
    inseri-la: uma chave existente para o mesmo par lead/atendimento responde `200` e não executa IA;
    a mesma chave com outro par responde `409`. Mantenha a tabela persistida e a execução do webhook
    em modo de fila para que a reserva seja serializada pelo n8n.
-3. Garanta no ambiente do n8n `SYNAPSE_API_URL`, `SYNAPSE_TOKEN_INTERNO`, `AUTOMACAO_TOKEN` e
-   `RESUMO_IA_PROVEDOR_URL`. O último é o endpoint do provedor escolhido pela operação e não é
+3. Garanta no ambiente do n8n `SYNAPSE_API_URL`, `SYNAPSE_TOKEN_INTERNO`,
+   `AUTOMACAO_RESUMO_IA_TOKEN`, `AUTOMACAO_RESUMO_IA_AUTH_HEADER` e `RESUMO_IA_PROVEDOR_URL`.
+   O último é o endpoint do provedor escolhido pela operação e não é
    enviado ao CRM.
-4. O template já valida o token, UUIDs e evento e contém as ramificações `202` (nova), `200`
-   (replay) e `409` (mesma chave com dados incompatíveis). Não remova a consulta/classificação antes
+4. O template já valida o token, os dois UUIDs e o corpo exato (somente `atendimentoId` e `leadId`),
+   e contém as ramificações `202` (nova), `200` (replay) e `409` (mesma chave com dados incompatíveis).
+   Não remova a consulta/classificação antes
    da inserção: é ela que impede gerar outro resumo para uma reentrega.
 5. Configure retry somente em rede/5xx, com backoff limitado. Não habilite retry automático para
    400, 401, 403, 404, 409 ou 422.
