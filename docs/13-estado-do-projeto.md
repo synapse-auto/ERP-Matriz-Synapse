@@ -50,7 +50,8 @@ está preenchido e mantém Notas internas editáveis para usuários já autoriza
 
 O botão “Gerar/Regerar” chama `POST /api/v1/atendimentos/{atendimentoId}/resumo-ia` com um
 `Idempotency-Key` UUID estável. O navegador não chama n8n: o CRM grava `PENDENTE` e entrega somente
-IDs e `solicitadoEm` à URL configurada em `AUTOMACAO_RESUMO_IA_URL` pela Transactional Outbox. O n8n
+somente `atendimentoId` e `leadId` à URL configurada em `AUTOMACAO_RESUMO_IA_URL` pela Transactional Outbox,
+com `CRM-Synapse-RES: AUTOMACAO_RESUMO_IA_TOKEN` e a chave no header `Idempotency-Key`. O n8n
 mantém a chave em Data Table própria, marca `PROCESSANDO`, consulta o contexto limitado e grava o
 texto em `POST /internal/v1/ev05/leads/{leadId}/resumo` usando a mesma chave e `contextoAte`. Em
 seguida marca `CONCLUIDO` ou `FALHOU` em `/resumo-status`; o CRM publica `RESUMO_IA_STATUS` após o

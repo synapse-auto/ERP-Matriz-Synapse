@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record ResumoIaAutomacaoProperties(
         String url,
         String token,
+        String authHeader,
         Duration timeout,
         int lote,
         int maximoDeTentativas,
@@ -20,6 +21,7 @@ public record ResumoIaAutomacaoProperties(
     public ResumoIaAutomacaoProperties {
         url = url == null ? "" : url.trim();
         token = token == null ? "" : token.trim();
+        authHeader = authHeader == null || authHeader.isBlank() ? "CRM-Synapse-RES" : authHeader.trim();
         timeout = timeout == null ? Duration.ofSeconds(5) : timeout;
         lote = lote <= 0 ? 10 : lote;
         maximoDeTentativas = maximoDeTentativas <= 0 ? 5 : maximoDeTentativas;
@@ -30,7 +32,7 @@ public record ResumoIaAutomacaoProperties(
     }
 
     public boolean configurado() {
-        return !url.isBlank() && !token.isBlank();
+        return !url.isBlank() && !token.isBlank() && !authHeader.isBlank();
     }
 
     public Duration esperaApos(int tentativas) {

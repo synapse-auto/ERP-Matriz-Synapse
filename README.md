@@ -368,6 +368,8 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `SYNAPSE_TOKEN_INTERNO` | Segredo de `X-Synapse-Token` usado pelo n8n no contrato privado `/internal/v1`. |
 | `AUTOMACAO_RESUMO_IA_TAMANHO_MAXIMO` | Limite de caracteres aceito ao sobrescrever o resumo da IA; padrão `8000`. |
 | `AUTOMACAO_RESUMO_IA_URL` | URL interna do webhook n8n que recebe solicitações de geração sob demanda; vazio mantém o recurso desligado. |
+| `AUTOMACAO_RESUMO_IA_TOKEN` | Segredo do webhook de resumo por IA, enviado somente no header configurado; vazio mantém o recurso desligado. Nunca versionar o valor. |
+| `AUTOMACAO_RESUMO_IA_AUTH_HEADER` | Nome do header do webhook de resumo; padrão `CRM-Synapse-RES`. Deve coincidir com o workflow n8n. |
 | `AUTOMACAO_RESUMO_IA_TIMEOUT` / `AUTOMACAO_RESUMO_IA_RESERVA_EXPIRACAO` | Timeout HTTP `5s` / lease da outbox `30s`. |
 | `AUTOMACAO_RESUMO_IA_LOTE` / `AUTOMACAO_RESUMO_IA_MAXIMO_TENTATIVAS` | Lote `10` / máximo `5`; falhas de rede/5xx usam backoff limitado. |
 | `AUTOMACAO_RESUMO_IA_BACKOFF_INICIAL` / `AUTOMACAO_RESUMO_IA_BACKOFF_MAXIMO` | Backoff exponencial `5s` / teto `10m`. |

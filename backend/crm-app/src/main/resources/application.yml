@@ -269,7 +269,8 @@ synapse:
     resumo-ia:
       # Vazio desliga somente a geração sob demanda; a ficha continua disponível.
       url: ${AUTOMACAO_RESUMO_IA_URL:}
-      token: ${AUTOMACAO_TOKEN:}
+      token: ${AUTOMACAO_RESUMO_IA_TOKEN:}
+      auth-header: ${AUTOMACAO_RESUMO_IA_AUTH_HEADER:CRM-Synapse-RES}
       timeout: ${AUTOMACAO_RESUMO_IA_TIMEOUT:5s}
       lote: ${AUTOMACAO_RESUMO_IA_LOTE:10}
       maximo-de-tentativas: ${AUTOMACAO_RESUMO_IA_MAXIMO_TENTATIVAS:5}
