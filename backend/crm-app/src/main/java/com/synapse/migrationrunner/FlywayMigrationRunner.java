@@ -6,6 +6,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.sql.DataSource;
 
@@ -24,27 +30,78 @@ public class FlywayMigrationRunner {
     static final String VERSAO_ALVO = "73";
 
     private static final Logger log = LoggerFactory.getLogger(FlywayMigrationRunner.class);
+    private static final Duration ENCERRAMENTO_WORKER = Duration.ofSeconds(5);
 
     private final Flyway flyway;
     private final DataSource dataSource;
+    private final MigrationRunnerProperties propriedades;
 
     public FlywayMigrationRunner(Flyway flyway, DataSource dataSource) {
+        this(flyway, dataSource, new MigrationRunnerProperties(Duration.ofSeconds(10), Duration.ofMinutes(30)));
+    }
+
+    public FlywayMigrationRunner(
+            Flyway flyway, DataSource dataSource, MigrationRunnerProperties propriedades) {
         this.flyway = flyway;
         this.dataSource = dataSource;
+        this.propriedades = propriedades;
     }
 
     public Resultado executar() {
         long inicioNanos = System.nanoTime();
-        try (Connection conexaoLock = dataSource.getConnection()) {
+        var conexoes = new ConnectionTrackingDataSource(dataSource);
+        ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "synapse-v73-migration-runner");
+            thread.setDaemon(true);
+            return thread;
+        });
+        Future<Resultado> futuro = executor.submit(() -> executarComTimeout(conexoes, inicioNanos));
+        log.info("[FLYWAY_CONTROLADO] runner iniciado: timeoutTotalMs={}", propriedades.totalTimeout().toMillis());
+        try {
+            return futuro.get(propriedades.totalTimeout().toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException erro) {
+            log.error(
+                    "[FLYWAY_CONTROLADO] timeout total após {} ms; conexoesAtivas={}; execução abortada",
+                    elapsedMs(inicioNanos),
+                    conexoes.conexoesAtivas());
+            futuro.cancel(true);
+            conexoes.fecharConexoesAtivas();
+            throw new MigrationRunnerTimeoutException();
+        } catch (InterruptedException erro) {
+            Thread.currentThread().interrupt();
+            futuro.cancel(true);
+            conexoes.fecharConexoesAtivas();
+            throw new MigrationRunnerInterruptedException();
+        } catch (ExecutionException erro) {
+            Throwable causa = erro.getCause();
+            if (causa instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Runner de migration falhou", causa);
+        } finally {
+            conexoes.fecharConexoesAtivas();
+            executor.shutdownNow();
+            aguardarEncerramento(executor);
+            fecharPoolDoRunner();
+        }
+    }
+
+    private Resultado executarComTimeout(ConnectionTrackingDataSource conexoes, long inicioNanos) {
+        Flyway flywayControlado = Flyway.configure()
+                .configuration(flyway.getConfiguration())
+                .dataSource(conexoes)
+                .load();
+        try (Connection conexaoLock = conexoes.getConnection()) {
             conexaoLock.setAutoCommit(true);
             if (!tentarAdquirirLock(conexaoLock)) {
                 log.warn("[FLYWAY_CONTROLADO] execução recusada: já existe outra execução exclusiva");
                 throw new MigracaoJaEmExecucaoException();
             }
-            try {
-                return executarComLock(inicioNanos);
+            log.info("[FLYWAY_CONTROLADO] advisory lock adquirido");
+        try {
+            return executarComLock(flywayControlado, inicioNanos);
             } finally {
-                liberarLock(conexaoLock);
+                liberarLockSeguro(conexaoLock);
             }
         } catch (SQLException erro) {
             log.error(
@@ -62,14 +119,19 @@ public class FlywayMigrationRunner {
         }
     }
 
-    private Resultado executarComLock(long inicioNanos) {
-        flyway.validate();
-        MigrationInfo atual = flyway.info().current();
-        MigrationInfo[] pendentes = flyway.info().pending();
+    private Resultado executarComLock(Flyway flywayControlado, long inicioNanos) {
+        log.info("[FLYWAY_CONTROLADO] validando histórico e checksums");
+        validarHistorico(flywayControlado);
+        MigrationInfo atual = flywayControlado.info().current();
+        MigrationInfo[] pendentes = flywayControlado.info().pending();
         String versaoAtual = atual == null || atual.getVersion() == null
                 ? "vazio"
                 : atual.getVersion().getVersion();
 
+        log.info(
+                "[FLYWAY_CONTROLADO] migrations descobertas: schemaAtual={} pendentes={}",
+                versaoAtual,
+                pendentes.length);
         if (pendentes.length == 0 && VERSAO_ALVO.equals(versaoAtual)) {
             log.info(
                     "[FLYWAY_CONTROLADO] sem trabalho: schemaAtual={} pendentes=0 duracaoMs={}",
@@ -95,19 +157,19 @@ public class FlywayMigrationRunner {
                 .sorted()
                 .collect(java.util.stream.Collectors.joining(","));
         log.info(
-                "[FLYWAY_CONTROLADO] inicio: schemaAtual={} migrationsPendentes={} versoes={}",
+                "[FLYWAY_CONTROLADO] início da migration: schemaAtual={} migrationsPendentes={} versoes={}",
                 versaoAtual,
                 pendentes.length,
                 versoesPendentes.isBlank() ? "repetiveis" : versoesPendentes);
 
         try {
-            MigrateResult resultado = flyway.migrate();
-            flyway.validate();
-            int restantes = flyway.info().pending().length;
+            MigrateResult resultado = flywayControlado.migrate();
+            validarHistorico(flywayControlado);
+            int restantes = flywayControlado.info().pending().length;
             if (restantes != 0) {
                 throw new IllegalStateException("Flyway encerrou com migrations ainda pendentes");
             }
-            MigrationInfo finalizada = flyway.info().current();
+            MigrationInfo finalizada = flywayControlado.info().current();
             String versaoFinal = finalizada == null || finalizada.getVersion() == null
                     ? "vazio"
                     : finalizada.getVersion().getVersion();
@@ -124,6 +186,15 @@ public class FlywayMigrationRunner {
         }
     }
 
+    private static void validarHistorico(Flyway flywayControlado) {
+        try {
+            flywayControlado.validate();
+        } catch (RuntimeException erro) {
+            // O detalhe da validação pode carregar nomes de scripts e dados do ambiente.
+            throw new IllegalStateException("Falha ao validar histórico/checksum; consultar estado operacional");
+        }
+    }
+
     private static boolean tentarAdquirirLock(Connection conexao) throws SQLException {
         try (PreparedStatement consulta = conexao.prepareStatement("SELECT pg_try_advisory_lock(?, ?)")) {
             consulta.setInt(1, LOCK_NAMESPACE);
@@ -134,7 +205,7 @@ public class FlywayMigrationRunner {
         }
     }
 
-    private static void liberarLock(Connection conexao) throws SQLException {
+    private static void liberarLockSeguro(Connection conexao) {
         try (PreparedStatement consulta = conexao.prepareStatement("SELECT pg_advisory_unlock(?, ?)")) {
             consulta.setInt(1, LOCK_NAMESPACE);
             consulta.setInt(2, LOCK_RESOURCE);
@@ -142,6 +213,44 @@ public class FlywayMigrationRunner {
                 if (!resultado.next() || !resultado.getBoolean(1)) {
                     throw new IllegalStateException("Advisory lock da migration não foi liberado");
                 }
+                log.info("[FLYWAY_CONTROLADO] advisory lock liberado");
+            }
+        } catch (SQLException erro) {
+            if (conexaoFoiEncerrada(conexao)) {
+                log.warn("[FLYWAY_CONTROLADO] conexão encerrada durante cancelamento; lock liberado pelo PostgreSQL");
+                return;
+            }
+            throw new IllegalStateException("Falha ao liberar advisory lock; consultar estado operacional", erro);
+        }
+    }
+
+    private static boolean conexaoFoiEncerrada(Connection conexao) {
+        try {
+            return conexao.isClosed();
+        } catch (SQLException ignorado) {
+            return true;
+        }
+    }
+
+    private void aguardarEncerramento(ExecutorService executor) {
+        try {
+            if (!executor.awaitTermination(ENCERRAMENTO_WORKER.toMillis(), TimeUnit.MILLISECONDS)) {
+                log.error("[FLYWAY_CONTROLADO] worker não encerrou no prazo; processo one-shot será finalizado");
+            }
+        } catch (InterruptedException erro) {
+            Thread.currentThread().interrupt();
+            log.warn("[FLYWAY_CONTROLADO] interrupção ao aguardar encerramento do worker");
+        }
+    }
+
+    private void fecharPoolDoRunner() {
+        if (dataSource instanceof AutoCloseable recurso) {
+            try {
+                recurso.close();
+            } catch (Exception erro) {
+                log.warn(
+                        "[FLYWAY_CONTROLADO] pool do runner não pôde ser fechado; tipo={}",
+                        dataSource.getClass().getSimpleName());
             }
         }
     }
@@ -157,6 +266,22 @@ public class FlywayMigrationRunner {
 
         public MigracaoJaEmExecucaoException() {
             super("Já existe outra execução exclusiva de migrations neste banco");
+        }
+    }
+
+    public static final class MigrationRunnerTimeoutException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        public MigrationRunnerTimeoutException() {
+            super("Runner de migration excedeu o timeout total; estado do banco deve ser verificado");
+        }
+    }
+
+    public static final class MigrationRunnerInterruptedException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        public MigrationRunnerInterruptedException() {
+            super("Runner de migration foi interrompido; estado do banco deve ser verificado");
         }
     }
 }

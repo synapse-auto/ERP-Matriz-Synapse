@@ -36,8 +36,10 @@ public class FlywayMigrationRunnerConfiguration {
 
     @Bean
     FlywayMigrationRunner flywayMigrationRunner(
-            Flyway flyway, @Qualifier(DataSourceConfig.GENERAL_DATA_SOURCE) DataSource dataSource) {
-        return new FlywayMigrationRunner(flyway, dataSource);
+            Flyway flyway,
+            @Qualifier(DataSourceConfig.GENERAL_DATA_SOURCE) DataSource dataSource,
+            MigrationRunnerProperties propriedades) {
+        return new FlywayMigrationRunner(flyway, dataSource, propriedades);
     }
 
     @Bean

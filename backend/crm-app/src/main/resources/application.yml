@@ -146,6 +146,7 @@ synapse:
   migration-runner:
     lock-timeout: ${SYNAPSE_MIGRATION_LOCK_TIMEOUT:10s}
     statement-timeout: ${SYNAPSE_MIGRATION_STATEMENT_TIMEOUT:30m}
+    total-timeout: ${SYNAPSE_MIGRATION_TOTAL_TIMEOUT:45m}
 
   tenant:
     codigo: ${SYNAPSE_TENANT_CODIGO:estrutural-vidros}
