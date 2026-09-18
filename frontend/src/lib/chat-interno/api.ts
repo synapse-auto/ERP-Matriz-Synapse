@@ -36,12 +36,13 @@ export const emitirUrlAssinadaDaMidiaChat = (conversaId: string, mensagemId: str
   apiFetch<{ url: string }>(`/api/v1/chat-interno/conversas/${conversaId}/midias/${mensagemId}/url`);
 export const enviarMensagemChat = (id: string, conteudo: string) =>
   apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${id}/mensagens`, { method: "POST", body: JSON.stringify({ conteudo }) });
-export const enviarMidiaChat = (id: string, arquivo: File, legenda?: string) => {
+export const enviarMidiaChat = (id: string, arquivo: File, legenda: string | undefined, idempotencyKey: string) => {
   const formData = new FormData();
   formData.append("arquivo", arquivo);
-  if (legenda) formData.append("legenda", legenda);
+  if (legenda !== undefined) formData.append("legenda", legenda);
   return apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${id}/mensagens/midia`, {
     method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
     body: formData
   });
 };

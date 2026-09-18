@@ -274,11 +274,13 @@ Confirmado pela árvore de `origin/main`:
   card sem colocar dados extensos em listagem (PR #28).
 - **Nome do cliente na sidebar:** o título da ficha é editor inline; vazio é recusado (PR #30).
 - **Chat interno:** conversa iniciada pela lista de atendimentos e suporte a mídia/reação,
-  além do chat direto já existente.
+  além do chat direto já existente. O envio de imagem aceita legenda na mesma mensagem, mostra
+  preview antes do envio e usa `Idempotency-Key` para reconciliar retries sem duplicar arquivo,
+  mensagem ou evento (V76).
 
 ## 3. Estado técnico e banco
 
-- Migrations presentes: **V1 a V73**, última `V73__normalizar_prefixo_discagem_leads.sql`.
+- Migrations presentes: **V1 a V76**, última `V76__idempotencia_midia_chat_interno.sql`.
 - V41 adiciona leitura de atendimento por usuário; V42 feedbacks; V43 unicidade/índice de
   avaliação; V44 reserva da avaliação na outbox; V45 reações; V46 `wamid` e referência de
   mensagem; V47 código numérico do lead.

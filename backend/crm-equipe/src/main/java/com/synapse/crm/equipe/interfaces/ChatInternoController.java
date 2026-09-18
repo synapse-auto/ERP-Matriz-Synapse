@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -36,6 +37,7 @@ import com.synapse.crm.equipe.application.chat.AbrirConversaDiretaUseCase;
 import com.synapse.crm.equipe.application.chat.AdicionarParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
+import com.synapse.crm.equipe.application.chat.ChaveIdempotenciaMidiaChatInvalidaException;
 import com.synapse.crm.equipe.application.chat.CriarGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EditarMensagemChatUseCase;
@@ -247,18 +249,24 @@ public class ChatInternoController {
         return MensagemResposta.de(enviar.executar(id, requisicao.conteudo()), armazenamento);
     }
 
-    @Operation(summary = "Enviar mídia", description = "Faz o upload de uma mídia (imagem, áudio, vídeo, documento) e a envia como mensagem no chat interno.", responses = {
+    @Operation(summary = "Enviar mídia", description = "Faz o upload de uma mídia (imagem, áudio, vídeo, documento) e a envia como uma única mensagem no chat interno. A parte opcional legenda é persistida junto da mídia; Idempotency-Key estável permite repetir a chamada sem duplicar o arquivo ou a mensagem.", responses = {
             @ApiResponse(responseCode = "201", description = "Mensagem com mídia persistida."),
             @ApiResponse(responseCode = "400", description = "Arquivo inválido ou muito grande."),
-            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa.")})
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa."),
+            @ApiResponse(responseCode = "409", description = "Idempotency-Key já representa outro upload.")})
     @PostMapping(value = "/conversas/{id}/mensagens/midia", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public MensagemResposta enviarMidia(
             @PathVariable UUID id,
             @RequestParam("arquivo") org.springframework.web.multipart.MultipartFile arquivo,
-            @RequestParam(value = "legenda", required = false) String legenda) throws java.io.IOException {
+            @RequestParam(value = "legenda", required = false) String legenda,
+            @RequestHeader(name = "Idempotency-Key") String chaveIdempotencia)
+            throws java.io.IOException {
+        if (chaveIdempotencia.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key obrigatória");
+        }
         return MensagemResposta.de(
-                enviarMidia.executar(id, arquivo.getOriginalFilename(), legenda, arquivo.getBytes()),
+                enviarMidia.executar(id, arquivo.getOriginalFilename(), legenda, arquivo.getBytes(), chaveIdempotencia),
                 armazenamento
         );
     }
@@ -332,6 +340,11 @@ public class ChatInternoController {
     @ExceptionHandler(ChatSemAcessoException.class)
     ProblemDetail semAcesso(ChatSemAcessoException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler(ChaveIdempotenciaMidiaChatInvalidaException.class)
+    ProblemDetail chaveIdempotenciaInvalida(ChaveIdempotenciaMidiaChatInvalidaException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(MidiaChatInternoNaoEncontradaException.class)

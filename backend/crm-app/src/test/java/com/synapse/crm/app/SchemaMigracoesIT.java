@@ -72,6 +72,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "chat_interno_conversa",
                     "chat_interno_mensagem",
                     "chat_interno_mensagem_reacao",
+                    "chat_interno_midia_idempotencia",
                     "chat_interno_participante",
                     "atendimento_participante",
                     "pedido_entrada_atendimento",

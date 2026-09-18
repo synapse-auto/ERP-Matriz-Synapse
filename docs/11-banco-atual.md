@@ -85,6 +85,8 @@ Documentação do schema **como está implementado**, extraída das migrations F
 | `V72__toggle_finalizacao_automatica` | parâmetro BOOLEAN `atendimento.finalizar_inativos.habilitado`; false por padrão, opt-in por instância para o scheduler de inatividade |
 | `V73__normalizar_prefixo_discagem_leads` | remove trunk `0`/operadora `0XX` de telefones BR por comprimento, funde importados sem conversa com o gêmeo que tem conversa e reporta ambiguidades; é imutável e só executada pelo runner controlado, nunca no boot normal |
 | `V74__configuracao_fidelizacao_aniversario` | adiciona título e ícone às datas festivas e cria a configuração de aniversário; os registros festivos continuam sendo cadastrados dinamicamente |
+| `V75__solicitacoes_resumo_ia` | ciclo idempotente das solicitações assíncronas de resumo por IA |
+| `V76__idempotencia_midia_chat_interno` | reserva idempotente por participante/conversa/payload para upload de mídia sem duplicar arquivo, mensagem ou evento |
 
 > `pgcrypto` foi removida na E01b — Postgres 13+ tem `gen_random_uuid()` nativo. **A única extensão exigida é `pg_trgm`.**
 

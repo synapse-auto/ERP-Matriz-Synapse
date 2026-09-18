@@ -270,6 +270,22 @@ mensagem de WhatsApp.
 | DELETE | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor marca tombstone; conteúdo e mídia deixam de ser lidos | `CHAT_INTERNO_MENSAGEM_REMOVIDA` após commit |
 | PATCH | `/api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}` | Autor atualiza somente mensagem `TEXTO`; mantém ID, data, reações e referências | `CHAT_INTERNO_MENSAGEM_EDITADA` após commit |
 
+#### Mídia com legenda
+
+`POST /api/v1/chat-interno/conversas/{id}/mensagens/midia` recebe `multipart/form-data` com a parte
+obrigatória `arquivo`, a parte opcional `legenda` (texto livre, inclusive vazia) e o header obrigatório
+`Idempotency-Key`. A imagem e a legenda são persistidas na **mesma** `chat_interno_mensagem`: a legenda
+é o `conteudo` da mensagem e também fica em `midia_metadados.legenda`, permitindo exibição no histórico,
+na lista de mídias e em eventos WebSocket sem criar uma segunda mensagem. Os limites e MIME aceitos
+continuam vindo da configuração de anexos; não há limite ou texto fixado no frontend.
+
+O retorno `201` contém a mensagem completa com URL de mídia assinada. Repetir a mesma chave para o
+mesmo participante, conversa e bytes/legenda devolve `201` com a mesma mensagem, sem novo arquivo,
+linha ou evento. Reutilizar a chave com outra conversa, usuário ou payload devolve `409`; arquivo
+inválido, excedente ou sem participante devolve `400`/`403` em RFC 7807. O frontend só limpa preview
+e legenda após o `201`; falha de upload preserva ambos para nova tentativa. O evento
+`CHAT_INTERNO_MENSAGEM` é publicado uma única vez após a persistência.
+
 `GET .../mensagens` retorna `removida=true` sem conteúdo, mídia ou prévia. Mensagens editadas incluem
 `editadoEm`; o texto original não é exposto no contrato. Referências mantêm apenas
 autor, tipo de conteúdo e resumo sanitizado; quando a origem é removida, recebem o marcador seguro

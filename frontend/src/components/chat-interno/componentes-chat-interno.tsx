@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useLayoutEffect, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
 import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
@@ -35,6 +35,21 @@ export function tamanhoLegivel(bytes: number): string {
 export function duracaoLegivel(segundos: number): string {
   const minutos = Math.floor(segundos / 60);
   return `${String(minutos).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
+}
+
+function chaveDoArquivo(arquivo: File, indice: number): string {
+  return `${indice}:${arquivo.name}:${arquivo.size}:${arquivo.lastModified}`;
+}
+
+function identificadorDoArquivo(arquivo: File): string {
+  return `${arquivo.name}:${arquivo.size}:${arquivo.lastModified}:${arquivo.type}`;
+}
+
+function novaChaveIdempotencia(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `chat-interno-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function metadadosDaOrigemInterna(valor: unknown): string | Record<string, unknown> | null {
@@ -291,6 +306,9 @@ export function ListaMensagensChatInterno({
         }
         const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
         const metadados = (typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados as string); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {})) as { legenda?: string; nome?: string; tamanho?: number };
+        const legenda = typeof metadados.legenda === "string" && metadados.legenda.trim()
+          ? metadados.legenda
+          : mensagem.conteudo ?? undefined;
         const textoCopiavel = mensagem.conteudo?.trim()
           ? mensagem.conteudo
           : typeof metadados.legenda === "string" && metadados.legenda.trim()
@@ -344,9 +362,9 @@ export function ListaMensagensChatInterno({
                 <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
                   {midiaUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={midiaUrl} alt={metadados.legenda ?? textosAtendimentos.imagem} className="max-h-64 w-full rounded-md object-cover" />
+                    <img src={midiaUrl} alt={legenda ?? textosAtendimentos.imagem} className="max-h-64 w-full rounded-md object-cover" />
                   )}
-                  {metadados.legenda && <p>{metadados.legenda}</p>}
+                  {legenda && <p className="whitespace-pre-wrap break-words">{legenda}</p>}
                 </div>
               )}
 
@@ -376,7 +394,7 @@ export function ListaMensagensChatInterno({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{metadados.nome ?? textosAtendimentos.documento}</span>
                     {metadados.tamanho !== undefined && <span className="block text-xs opacity-75">{tamanhoLegivel(metadados.tamanho)}</span>}
-                    {metadados.legenda && <span className="mt-0.5 block text-xs opacity-85">{metadados.legenda}</span>}
+                    {legenda && <span className="mt-0.5 block whitespace-pre-wrap text-xs opacity-85">{legenda}</span>}
                   </span>
                   <Download className="size-4 shrink-0" />
                 </a>
@@ -423,7 +441,7 @@ export function ComposerChatInterno({
   edicao?: ChatMensagem | null;
   onSalvarEdicao?: (conteudo: string) => Promise<unknown>;
   onCancelarEdicao?: () => void;
-  onEnviarMidia?: (arquivo: File, legenda?: string) => Promise<unknown>;
+  onEnviarMidia?: (arquivo: File, legenda: string | undefined, idempotencyKey: string) => Promise<unknown>;
   enviando?: boolean;
   erro?: boolean;
   ref?: Ref<ComposerChatHandle>;
@@ -437,6 +455,8 @@ export function ComposerChatInterno({
   const inputArquivoRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
+  const chavesIdempotenciaRef = useRef(new Map<string, string>());
+  const chaveGravacaoRef = useRef<{ arquivo: File; chave: string } | null>(null);
   const manterFocoAposEnvioRef = useRef(false);
   const pendente = enviando || enviandoLocal;
 
@@ -444,6 +464,24 @@ export function ComposerChatInterno({
   const tComp = textosAtendimentos.composer;
   const configuracaoComposer = useConfiguracaoComposer();
   const gravador = useGravadorAudio(configuracaoComposer.data);
+
+  const previews = useMemo(() => {
+    const urls: Record<string, string> = {};
+    if (typeof URL.createObjectURL === "function") {
+      arquivos.forEach((arquivo, indice) => {
+        if (arquivo.type.startsWith("image/")) {
+          urls[chaveDoArquivo(arquivo, indice)] = URL.createObjectURL(arquivo);
+        }
+      });
+    }
+    return urls;
+  }, [arquivos]);
+
+  useEffect(() => () => {
+    if (typeof URL.revokeObjectURL === "function") {
+      Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+    }
+  }, [previews]);
 
   useEffect(() => {
     if (!edicao) return;
@@ -502,15 +540,22 @@ export function ComposerChatInterno({
     if (arquivos.length > 0) {
       if (!onEnviarMidia) return;
       const fila = arquivos;
-      const legenda = texto.trim() || undefined;
+      const legenda = texto || undefined;
       setEnviandoLocal(true);
       let indice = 0;
       try {
         for (; indice < fila.length; indice++) {
           setIndiceEnvio(indice);
-          await onEnviarMidia(fila[indice], indice === 0 ? legenda : undefined);
-          if (indice === 0) setTexto("");
+          const legendaDoArquivo = indice === 0 ? legenda : undefined;
+          // O índice não entra na chave: depois de uma falha, a fila é fatiada e
+          // o mesmo arquivo precisa reutilizar a chave original no retry.
+          const chaveArquivo = `${identificadorDoArquivo(fila[indice])}:${JSON.stringify(legendaDoArquivo ?? null)}`;
+          const chave = chavesIdempotenciaRef.current.get(chaveArquivo) ?? novaChaveIdempotencia();
+          chavesIdempotenciaRef.current.set(chaveArquivo, chave);
+          await onEnviarMidia(fila[indice], legendaDoArquivo, chave);
+          chavesIdempotenciaRef.current.delete(chaveArquivo);
         }
+        setTexto("");
         setArquivos([]);
         setAvisoTipo(false);
         setIndiceEnvio(null);
@@ -542,11 +587,17 @@ export function ComposerChatInterno({
   }
 
   async function enviarGravacao() {
-    if (!gravador.arquivo || gravador.erro || !onEnviarMidia) return;
+    const arquivo = gravador.arquivo;
+    if (!arquivo || gravador.erro || !onEnviarMidia) return;
+    const chave = chaveGravacaoRef.current?.arquivo === arquivo
+      ? chaveGravacaoRef.current.chave
+      : novaChaveIdempotencia();
+    chaveGravacaoRef.current = { arquivo, chave };
     setEnviandoLocal(true);
     try {
-      await onEnviarMidia(gravador.arquivo, undefined);
+      await onEnviarMidia(arquivo, undefined, chave);
       gravador.descartar();
+      chaveGravacaoRef.current = null;
     } catch {
     } finally {
       setEnviandoLocal(false);
@@ -653,8 +704,13 @@ export function ComposerChatInterno({
             )}
             {arquivos.map((item, indice) => (
               <div key={`${item.name}-${item.size}-${indice}`} className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1 text-sm">
-                <Paperclip className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
-                <span className="flex-1 truncate">{item.name}</span>
+                {previews[chaveDoArquivo(item, indice)] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previews[chaveDoArquivo(item, indice)]} alt={textosAtendimentos.media.imagem} className="size-12 shrink-0 rounded object-cover" />
+                ) : (
+                  <Paperclip className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
+                )}
+                <span className="min-w-0 flex-1 truncate">{item.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">{tamanhoLegivel(item.size)}</span>
                 <button type="button" className="shrink-0 rounded p-0.5 hover:bg-destructive/10 hover:text-destructive" aria-label={tComp.anexoRemover} disabled={pendente} onClick={() => setArquivos((atual) => atual.filter((_, itemIndice) => itemIndice !== indice))}>
                   <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
