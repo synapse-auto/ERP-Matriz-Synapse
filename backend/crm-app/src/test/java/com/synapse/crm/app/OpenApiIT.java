@@ -168,7 +168,10 @@ class OpenApiIT extends PostgresIT {
                 "POST /internal/v1/ev05/leads/{leadId}/resumo",
                 "POST /internal/v1/ev05/leads/{leadId}/resumo-status",
                 "POST /api/v1/atendimentos/{atendimentoId}/resumo-ia",
-                "GET /api/v1/atendimentos/{atendimentoId}/resumo-ia");
+                "GET /api/v1/atendimentos/{atendimentoId}/resumo-ia",
+                "GET /api/v1/automacao/config/resumo-ia",
+                "PUT /api/v1/automacao/config/resumo-ia",
+                "GET /api/v1/automacao/config/recursos-ia");
         for (String chave : ciclo) {
             String[] partes = chave.split(" ", 2);
             assertThat(operacao(openApi, partes[1], partes[0].toLowerCase()).isObject())
