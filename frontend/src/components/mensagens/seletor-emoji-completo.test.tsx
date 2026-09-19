@@ -106,7 +106,7 @@ describe("SeletorEmojiCompleto", () => {
     expect(document.querySelector("em-emoji-picker")?.getAttribute("data-emoji-theme")).toBe("light");
   });
 
-  it("força display:block e width:100% no <em-emoji-picker> — o :host do shadow root usa display:flex e width:min-content, que encolhe para o próprio conteúdo em vez de preencher o popover", async () => {
+  it("mantém o host flexível, preenche a largura e limita a altura ao viewport", async () => {
     render(<SeletorEmojiCompleto i18n={i18n} onEscolher={vi.fn()} />);
 
     const picker = await waitFor(() => {
@@ -114,7 +114,9 @@ describe("SeletorEmojiCompleto", () => {
       expect(elemento).not.toBeNull();
       return elemento!;
     });
-    expect(picker.style.display).toBe("block");
+    expect(picker.style.display).toBe("flex");
     expect(picker.style.width).toBe("100%");
+    expect(picker.style.height).toBe("min(435px, var(--available-height, 100vh))");
+    expect(picker.style.minHeight).toBe("0px");
   });
 });

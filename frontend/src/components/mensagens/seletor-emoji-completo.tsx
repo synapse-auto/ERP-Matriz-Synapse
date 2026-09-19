@@ -51,14 +51,17 @@ export function SeletorEmojiCompleto({ i18n, onEscolher }: Props) {
       },
     });
     // O <em-emoji-picker> (custom element) define no próprio :host, dentro do shadow DOM,
-    // `display: flex; width: min-content` — encolhe para o conteúdo que ELE MESMO gerou, em vez
-    // de preencher o popover. dynamicWidth usa exatamente essa largura (getBoundingClientRect do
-    // elemento) para calcular quantos emojis cabem por linha: o resultado é um equilíbrio que
-    // convergiu errado (grade de 5 colunas em vez de 9 nos 352px do popover), não uma medição
-    // única no lugar errado. Sobrescrever o :host por fora força o elemento a preencher o host —
-    // style inline tem precedência sobre a regra :host do shadow root.
-    picker.style.display = "block";
+    // `display: flex; width: min-content`. Mantemos o flex para que o `#root` e a região `.scroll`
+    // recebam uma altura real; trocar por block faz o flex-grow perder a restrição e desabilita a
+    // rolagem da lista (além de deixar os controles de categoria fora da área clicável).
+    // A largura explícita preenche o popover e mantém as categorias acessíveis em telas estreitas.
+    picker.style.display = "flex";
     picker.style.width = "100%";
+    // O Positioner do Popover fornece --available-height para evitar que a janela seja cortada
+    // pelo viewport. O fallback mantém o picker utilizável fora de um Popover (por exemplo, em
+    // testes ou em uma composição futura).
+    picker.style.height = "min(435px, var(--available-height, 100vh))";
+    picker.style.minHeight = "0";
     raiz.replaceChildren(picker);
 
     return () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Textos } from "@/lib/config/schema";
@@ -53,5 +53,9 @@ describe("PainelEmojiComposer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "👍🏽" }));
     expect(onEscolher).toHaveBeenCalledWith("👍🏽");
+    await waitFor(() => {
+      expect(screen.queryByLabelText("Buscar emoji")).not.toBeInTheDocument();
+    });
   });
+
 });
