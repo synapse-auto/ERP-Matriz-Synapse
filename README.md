@@ -356,6 +356,9 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `SYNAPSE_MIGRATION_LOCK_TIMEOUT` | Limite finito para waits de locks SQL da migration (default `10s`); lock concorrente do runner usa tentativa sem espera. |
 | `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT` | Limite finito por conexão SQL do runner Flyway (default `30m`); não afeta o boot normal do CRM. |
 | `SYNAPSE_MIGRATION_TOTAL_TIMEOUT` | Prazo total do processo one-shot, incluindo conexão, validação, descoberta e V73 (default `45m`); ao exceder, cancela conexões e encerra com erro. |
+| `SYNAPSE_MIGRATION_BATCH_SIZE` | Quantidade máxima de pares/telefones processados por janela de descoberta (default `25`). Cada item confirma em transação curta. |
+| `SYNAPSE_MIGRATION_MAX_BATCH_ATTEMPTS` | Máximo de reservas por item após queda/erro antes de exigir análise operacional (default `3`). |
+| `SYNAPSE_MIGRATION_BATCH_LEASE` | Lease finito de um item reservado, recuperável após perda do processo (default `15m`). |
 | `N8N_DB_NAME` | Banco exclusivo do n8n, criado no primeiro boot do volume do Postgres. |
 | `N8N_DB_USER` | Role exclusiva do n8n; não reutilize o usuário do CRM. |
 | `N8N_DB_PASSWORD` | Senha forte da role exclusiva do n8n. |

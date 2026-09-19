@@ -15,7 +15,12 @@ permanece intacto. A pendência é registrada como `[FLYWAY_PENDENTE]`. Essa dis
 porque o `validate()` padrão do Flyway rejeita migrations pendentes antes que a estratégia possa
 aplicar somente o prefixo seguro até V72. A V73 só é executada pelo modo
 one-shot `--synapse.migrations.run-once`, num contexto mínimo que não carrega API, JPA, schedulers,
-consumidores ou listeners do CRM. O runner adquire um
+consumidores ou listeners do CRM. Nesse modo, o runner substitui somente a execução física da V73
+por uma migration Java de lotes curtos; o SQL versionado continua sendo a fonte do checksum e não é
+alterado. Somente depois de todos os lotes concluírem, ele invoca o Flyway em modo de registro sem
+executar o SQL (`skipExecutingMigrations`), para gravar a V73 original com o tipo e o checksum do
+arquivo imutável; se qualquer lote falhar, essa etapa não ocorre e o histórico permanece em 72. O
+runner adquire um
 `pg_try_advisory_lock` sem espera, e o próprio Flyway mantém seu lock de schema. A segunda execução
 concorrente falha antes de migrar. O processo usa limites finitos (`SYNAPSE_MIGRATION_LOCK_TIMEOUT`,
 default `10s`; `SYNAPSE_MIGRATION_STATEMENT_TIMEOUT`, default `30m`; `SYNAPSE_MIGRATION_TOTAL_TIMEOUT`,
@@ -23,7 +28,9 @@ default `45m`) e não repete automaticamente. O timeout total cobre inclusive es
 validação e descoberta de migrations; ao expirar, cancela consultas, fecha as conexões do advisory
 lock e do Flyway, encerra o pool e retorna erro sem manter sessão `idle in transaction`.
 O retry do lock interno do Flyway é zero: se ainda houver uma sessão Flyway antiga, a execução falha
-sem aguardar e precisa ser reavaliada. Depois que V73 estiver aplicada, migrations posteriores (por
+sem aguardar e precisa ser reavaliada. Cada fusão/normalização é confirmada em uma transação curta,
+com reserva idempotente em `synapse_v73_runner_checkpoint`; uma interrupção deixa o histórico em 72
+e pode ser retomada pelo mesmo runner, respeitando lease e limite de tentativas. Depois que V73 estiver aplicada, migrations posteriores (por
 exemplo V74) voltam ao fluxo normal do Flyway; com V73 pendente, nenhum alvo posterior executa antes
 dela.
 
@@ -99,9 +106,22 @@ Usar a imagem já validada e as mesmas variáveis de conexão do serviço. O pro
 `docker exec` herda o ambiente do container; o modo solicitado sobe somente a composição mínima de
 Flyway e datasource:
 
+O processo deve ser destacado do terminal SSH. Não execute o comando em primeiro plano: se a
+sessão cair, o shell pode enviar `SIGHUP` e interromper o upgrade. O `docker exec -d` deixa o
+runner como processo one-shot dentro do container; a conexão SSH pode ser encerrada sem cancelar
+os lotes. Capture o identificador do container e acompanhe os logs sanitizados por uma nova sessão:
+
 ```bash
-docker exec <container-backend> java -jar /application/application.jar --synapse.migrations.run-once
+docker exec -d <container-backend> sh -c \
+  'exec java -jar /application/application.jar --synapse.migrations.run-once \
+   >>/tmp/synapse-v73-runner.log 2>&1'
+docker exec <container-backend> sh -c 'tail -f /tmp/synapse-v73-runner.log'
 ```
+
+O segundo comando é somente acompanhamento e pode ser interrompido sem afetar o runner. Se a
+imagem operacional não possuir `sh`, use o executor detached equivalente do Dokploy/Swarm e
+registre onde os mesmos logs sanitizados podem ser consultados; não substitua por um loop de shell
+ou por restart automático.
 
 Executar uma vez. Não configurar restart automático, loop, retry de shell ou dois operadores em
 paralelo. O runner recusa qualquer banco diferente de 72 com apenas V73 pendente antes de migrar;
@@ -117,9 +137,10 @@ novamente: preserve os logs e confirme os locks no banco antes de qualquer decis
 
 Se aparecer “outra execução exclusiva”, identificar o processo que mantém o lock e aguardar/liberar
 somente pelo encerramento normal dele. Não matar uma sessão PostgreSQL sem primeiro avaliar o estado
-transacional. Se houver timeout, a V73 roda na transação padrão do Flyway: confirmar no banco que a
-versão segue em 72 e que `success` não foi gravado, investigar a causa e obter nova aprovação antes
-de tentar de novo.
+transacional. Se houver timeout, confirmar no banco que a versão segue em 72 e que `success` não foi
+gravado. As transações de lote são revertidas individualmente; o checkpoint permite retomar somente
+itens que não chegaram a `CONCLUIDO`/`IGNORADO`. Investigar a causa e obter nova aprovação antes de
+tentar de novo. Não apagar o checkpoint para “forçar” uma repetição.
 
 ### Diagnóstico de timeout e sessões antigas
 
@@ -183,13 +204,29 @@ Não use `pg_terminate_backend` em lote, não mate conexões do CRM normal e nã
   janela e avaliação explícita de perda de gravações posteriores ao backup.
 - Não remover/editar função, dados ou linha de histórico manualmente para simular uma reversão.
 
-## Correção histórica futura
+## Checkpoint e retomada
 
-A V73 imutável ainda contém a normalização/fusão histórica. O runner torna essa execução exclusiva
-e fora do boot, mas não transforma a limpeza em manutenção paginada e interrompível. Uma futura
-correção ou retomada dos dados precisa ser uma operação separada, com dry-run, lotes, checkpoint
-observável, critérios de fusão comprovados e aprovação explícita. Não iniciar uma segunda limpeza
-nem reprocessar dados como parte deste upgrade.
+O runner usa `synapse_v73_runner_checkpoint` apenas durante a execução controlada. Cada item é
+reservado com lease, contador de tentativas e estado (`PROCESSANDO`, `CONCLUIDO`, `IGNORADO` ou
+`FALHOU`). O lote padrão é 25 itens, configurável por `SYNAPSE_MIGRATION_BATCH_SIZE`; leases e
+tentativas também são finitos (`SYNAPSE_MIGRATION_BATCH_LEASE` e
+`SYNAPSE_MIGRATION_MAX_BATCH_ATTEMPTS`). O processo não faz retry automático no shell: depois de
+uma falha, validar locks, estado e causa antes de iniciar novamente. Uma nova execução retoma itens
+com lease expirado e tentativas disponíveis, sem repetir itens concluídos. A migration V77 remove a
+tabela auxiliar depois que a V73 foi registrada com sucesso; não a remova manualmente.
+
+Para acompanhar progresso, filtre os logs por `[FLYWAY_CONTROLADO]` e, se necessário, consulte
+somente contagens da tabela auxiliar:
+
+```sql
+SELECT fase, estado, count(*)
+  FROM synapse_v73_runner_checkpoint
+ GROUP BY fase, estado
+ ORDER BY fase, estado;
+```
+
+Essa consulta não retorna telefone, nome ou conteúdo de lead. O runner não registra os valores dos
+itens, e o SQL legado não é executado no caminho controlado (seus `NOTICE` ficam suprimidos).
 
 ## Proteção da Estrutural
 

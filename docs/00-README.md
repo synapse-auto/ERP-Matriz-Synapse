@@ -27,7 +27,7 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 9. [`09-escopo-primeira-entrega.md`](./09-escopo-primeira-entrega.md) — **recorte oficial da primeira entrega.** Tem precedência sobre a lista de features dos requisitos para o que entra até 25/08.
 
 ### Schema vigente (vence o `03` quando divergirem)
-- [`11-banco-atual.md`](./11-banco-atual.md) — colunas e constraints como estão nas migrations Flyway (última disponível: V73; estado aplicado varia por instância).
+- [`11-banco-atual.md`](./11-banco-atual.md) — colunas e constraints como estão nas migrations Flyway (última disponível: V77; estado aplicado varia por instância).
 - [`12-diagramas-banco.md`](./12-diagramas-banco.md) — ERD Mermaid extraído do schema atual.
 
 ### Continuidade
