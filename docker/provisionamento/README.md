@@ -245,3 +245,23 @@ lead malformado sem `telefone_provedor` e sem mensagens, cujo gêmeo tenha conve
 sobrevivente nao e substituido. A V73 executa com contexto `SERVICO`, valida as FKs conhecidas e
 deixa os casos manuais sem alteracao. Nao reexecute nem limpe a fila por SQL: qualquer decisao sobre
 os ids listados para revisao e operacional e deve ser tomada antes de nova importacao.
+
+## Medir volume e plano antes da V73 (E192)
+
+A simulacao acima mostra *o que* a V73 mudaria. O diagnostico abaixo mostra *quanto trabalho* ela
+teria e *como* o Postgres executaria as duas consultas centrais do runner em lotes — as mesmas de
+`buscarPares` e `buscarNormalizacoes` em `V73__NormalizarPrefixoDiscagemLeads.java`.
+
+Rode nos dois bancos, primeiro na Estrutural (onde a V73 ja concluiu) e depois na Femina:
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  -v ddi="${TELEFONE_DDI_PADRAO:-55}" \
+  -v lote="${SYNAPSE_MIGRATION_BATCH_SIZE:-25}" \
+  < docker/provisionamento/diagnostico-volume-e-plano-v73.sql \
+  | tee /caminho/seguro/relatorios/e192-diagnostico-$(date +%Y%m%d-%H%M%S).txt
+```
+
+Comparar as duas saidas e o criterio para liberar uma nova tentativa na Femina: contagens na mesma
+ordem de grandeza e os mesmos tipos de no no plano. O script e somente leitura, termina em
+`ROLLBACK` e a saida pode conter nomes e telefones — guarde em local restrito.

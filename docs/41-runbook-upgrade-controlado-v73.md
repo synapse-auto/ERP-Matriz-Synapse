@@ -43,8 +43,17 @@ recusado antes de iniciar migrations. Não depende de V74 ou de uma migration po
 
 | Instância | Última evidência de schema fornecida | SHA/tag atualmente implantada |
 |---|---|---|
-| Fêmina | A V73 foi abortada/revertida; última versão observada: 72. | Não confirmada. `7462937` e `e3324f5` contêm V73; `78c4e53` é a última imagem publicada antes dela. |
+| Fêmina | A V73 foi abortada/revertida; última versão observada: 72. | Não confirmada. `7462937` e `e3324f5` contêm V73; `4e5f719` é uma imagem publicada antes dela (`78c4e53` já contém a V73; ver nota abaixo). |
 | Estrutural | Marcondes confirmou V73 com `success = true`. | Não confirmada. A confirmação de schema não prova qual imagem está no runtime. |
+
+Sobre os SHAs acima: `78c4e53` (PR #155) **contém** a V73 — foi o merge que a introduziu —
+e por isso não serve como referência anterior a ela. Verificado com
+`git cat-file -e <sha>:backend/crm-app/src/main/resources/db/migration/V73__normalizar_prefixo_discagem_leads.sql`.
+`4e5f719` (PR #153) é anterior à V73 e serve como referência histórica. Os merges `194eded` e
+`40fdc54` (PR #154) também são anteriores à V73 e mais recentes que `4e5f719`; como cada push na
+`main` publica imagem com a tag do SHA curto, a última imagem estritamente anterior à V73 é a de
+`40fdc54`. Nada disso substitui a consulta ao runtime/Dokploy real: estes SHAs são referência
+histórica, não instrução de rollback automático.
 
 Antes de executar ou liberar versão, consultar o Dokploy/runtime dos dois serviços e registrar SHA
 de backend e frontend, além da última linha bem-sucedida do histórico Flyway. Não há credencial de
@@ -55,14 +64,29 @@ produção neste workspace; não inventar nem inferir esses valores.
 1. Registrar para Fêmina e Estrutural o SHA/tag de backend e frontend realmente em execução e a
    última versão/checksum bem-sucedida do `flyway_schema_history`. Isso exige consulta de runtime e
    Dokploy; não inferir a implantação atual a partir de tags publicadas. O incidente identificou
-   `7462937` e `e3324f5` como imagens que contêm V73 e `78c4e53` como a última imagem publicada antes
+   `7462937` e `e3324f5` como imagens que contêm V73 e `4e5f719` como imagem publicada antes
    dela, mas isso não determina qual tag está em execução agora. Marcondes confirmou V73 aplicada na
    Estrutural.
 2. Antes de executar V73 em produção, validar esta versão em homologação com uma cópia da Estrutural
    estruturalmente equivalente. A validação também é condição para liberar esta versão à Estrutural;
    esta tarefa não autoriza deploy nela. Se V73 estiver pendente na Estrutural, bloquear o deploy e
    tratar como risco de indisponibilidade.
-3. Confirmar versão/checksum atuais com consulta somente leitura:
+3. Medir volume e plano de execução antes de decidir, primeiro na Estrutural (onde a V73 já
+   concluiu) e depois na Fêmina, guardando as duas saídas em local operacional restrito (elas
+   podem conter nomes e telefones):
+
+   ```bash
+   psql "$SYNAPSE_DB_URL" -v ddi="${TELEFONE_DDI_PADRAO:-55}" \
+     -v lote="${SYNAPSE_MIGRATION_BATCH_SIZE:-25}" \
+     -f docker/provisionamento/diagnostico-volume-e-plano-v73.sql
+   ```
+
+   Comparar as duas saídas é o critério objetivo para decidir se o volume da Fêmina é compatível
+   com o que já rodou com sucesso na Estrutural: contagens na mesma ordem de grandeza e os mesmos
+   tipos de nó no plano liberam a tentativa. Uma ordem de grandeza a mais de leads ou de
+   candidatos, ou `Seq Scan` repetido onde a Estrutural usa índice, é parada para análise antes
+   de executar. O script é somente leitura e termina em `ROLLBACK`.
+4. Confirmar versão/checksum atuais com consulta somente leitura:
 
    ```sql
    SELECT installed_rank, version, description, success, installed_on, checksum
@@ -71,11 +95,11 @@ produção neste workspace; não inventar nem inferir esses valores.
     LIMIT 5;
    ```
 
-4. Se a versão corrente for `73` e `success = true`, não há upgrade a executar; o runner deve sair
+5. Se a versão corrente for `73` e `success = true`, não há upgrade a executar; o runner deve sair
    sem migrações. Se estiver em `72` com V73 pendente, continuar. Qualquer outro estado, falha de
    migration ou checksum divergente é parada obrigatória para diagnóstico — não reparar o histórico.
-5. Fazer backup consistente do banco e validar que existe procedimento de restauração testado.
-6. Rodar a simulação somente leitura e guardar a saída em local operacional restrito (ela pode
+6. Fazer backup consistente do banco e validar que existe procedimento de restauração testado.
+7. Rodar a simulação somente leitura e guardar a saída em local operacional restrito (ela pode
    conter nomes e telefones; não copiar para logs públicos/tickets sem proteção):
 
    ```bash
@@ -85,7 +109,7 @@ produção neste workspace; não inventar nem inferir esses valores.
 
    Comparar UPDATE/FUSAO/REVISAO MANUAL com a aprovação operacional. A simulação não substitui
    backup nem executa a migration.
-7. Confirmar que os tasks antigos que iniciavam Flyway no boot foram drenados e que a versão atual
+8. Confirmar que os tasks antigos que iniciavam Flyway no boot foram drenados e que a versão atual
    pausa antes da V73. Usar SHA explícito, com versões de frontend/backend coerentes; nunca misturar
    imagens de SHAs diferentes. Executar em janela aprovada fora de `08:00–18:30`. A V73 varre e pode fundir
    leads, mover referências e finalizar atendimentos vazios; locks e espera por transações são um
@@ -97,8 +121,8 @@ Na Fêmina, as imagens `7462937` e `e3324f5` iniciaram V73 automaticamente no st
 continuava em 72; o healthcheck encerrava o backend como unhealthy depois de mais de 30 minutos, e
 os restarts iniciavam novas sessões JDBC da migration. As sessões se bloqueavam em cadeia por locks
 de transação/tupla, causando HTTP 503. As tentativas abortadas não constavam como V73 bem-sucedida
-no histórico. `78c4e53` é a última imagem publicada antes de V73; é uma referência histórica, não
-uma instrução de rollback automático.
+no histórico. `4e5f719` é uma imagem publicada antes da V73 (`78c4e53`, citado acima, já a contém);
+é referência histórica, não instrução de rollback automático.
 
 ## Execução exclusiva
 
