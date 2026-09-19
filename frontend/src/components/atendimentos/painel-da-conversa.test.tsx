@@ -55,6 +55,10 @@ const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
+const solicitarResumoState = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
 const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
@@ -145,7 +149,7 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useLead: () => leadState,
   useEtapas: () => etapasState,
   useEstadoResumoIa: () => ({ data: null, isLoading: false }),
-  useSolicitarResumoIa: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+  useSolicitarResumoIa: () => solicitarResumoState,
   useMidiasDoLead: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
   useTagsDoLead: () => ({
     data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
@@ -183,6 +187,8 @@ describe("painel da conversa", () => {
   beforeEach(() => {
     authState.papel = "ADMINISTRADOR";
     salvarFichaState.mutate.mockClear();
+    solicitarResumoState.mutate.mockClear();
+    solicitarResumoState.isPending = false;
     suporteState.mensagens = [];
     suporteState.lembretes = [];
     leadState.data = {
@@ -219,7 +225,13 @@ describe("painel da conversa", () => {
     expect(screen.getByText("Prioridade")).toBeInTheDocument();
     expect(screen.getByText("Tag")).toBeInTheDocument();
     const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const acaoResumo = screen.getByRole("button", { name: "Regerar" });
+    expect(resumo.parentElement).toContainElement(acaoResumo);
+    expect(resumo).not.toContainElement(acaoResumo);
     expect(resumo).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(acaoResumo);
+    expect(resumo).toHaveAttribute("aria-expanded", "false");
+    expect(solicitarResumoState.mutate).toHaveBeenCalledOnce();
     fireEvent.click(resumo);
     expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
     expect(screen.getByText(/Última geração:/)).toBeInTheDocument();
@@ -233,6 +245,17 @@ describe("painel da conversa", () => {
     );
     fireEvent.click(controle);
     expect(onRetrair).toHaveBeenCalledOnce();
+  });
+
+  it("mantém a ação no cabeçalho e desabilita enquanto o resumo é gerado", () => {
+    solicitarResumoState.isPending = true;
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const acaoResumo = screen.getByRole("button", { name: "Gerando resumo..." });
+    expect(acaoResumo).toBeDisabled();
+    expect(resumo.parentElement).toContainElement(acaoResumo);
+    expect(resumo).toHaveAttribute("aria-expanded", "false");
   });
 
   it.each(["ATENDENTE", "SUBGESTOR", "GESTOR"])(
