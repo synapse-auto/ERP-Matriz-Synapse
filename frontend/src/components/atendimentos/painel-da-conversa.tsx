@@ -248,12 +248,11 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           <AtalhoTags leadId={leadId} modo="painel" />
         </div>
 
-        <SecaoColapsavel
-          icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
+        <ResumoPersistidoDoLead
+          lead={lead.data}
+          atendimentoId={atendimentoId}
           titulo={textos.secoes.resumo}
-        >
-          <ResumoPersistidoDoLead lead={lead.data} atendimentoId={atendimentoId} />
-        </SecaoColapsavel>
+        />
 
         <SecaoDeProgramadas
           leadId={leadId}
@@ -274,7 +273,15 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
   );
 }
 
-function ResumoPersistidoDoLead({ lead, atendimentoId }: { lead: LeadFicha; atendimentoId: string }) {
+function ResumoPersistidoDoLead({
+  lead,
+  atendimentoId,
+  titulo,
+}: {
+  lead: LeadFicha;
+  atendimentoId: string;
+  titulo: string;
+}) {
   const textos = useTextos();
   const estado = useEstadoResumoIa(atendimentoId);
   const solicitar = useSolicitarResumoIa(atendimentoId);
@@ -304,8 +311,20 @@ function ResumoPersistidoDoLead({ lead, atendimentoId }: { lead: LeadFicha; aten
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+    <SecaoColapsavel
+      icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
+      titulo={titulo}
+      acao={
+        <Button type="button" size="sm" onClick={gerar} disabled={processando}>
+          {processando
+            ? textos.atendimentos.painel.resumoIa.processando
+            : temResumo
+              ? textos.atendimentos.painel.resumoIa.regerar
+              : textos.atendimentos.painel.resumoIa.gerar}
+        </Button>
+      }
+    >
+      <div className="space-y-2">
         <p role={erro ? "alert" : "status"} className="text-xs text-muted-foreground">
           {processando
             ? estado.data?.status === "PENDENTE"
@@ -315,33 +334,30 @@ function ResumoPersistidoDoLead({ lead, atendimentoId }: { lead: LeadFicha; aten
               ? textos.atendimentos.painel.resumoIa.erro
               : ""}
         </p>
-        <Button type="button" size="sm" onClick={gerar} disabled={processando}>
-          {temResumo ? textos.atendimentos.painel.resumoIa.regerar : textos.atendimentos.painel.resumoIa.gerar}
-        </Button>
-      </div>
-      {processando ? (
-        <div
-          className="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
-          aria-label={textos.atendimentos.painel.resumoIa.processando}
-        >
-          <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-8/12 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-9/12 animate-pulse rounded bg-muted" />
-        </div>
-      ) : (
-        <>
-          <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
-            <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
-            <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
+        {processando ? (
+          <div
+            className="space-y-2 rounded-lg border border-border bg-muted/40 p-3"
+            aria-label={textos.atendimentos.painel.resumoIa.processando}
+          >
+            <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-8/12 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-9/12 animate-pulse rounded bg-muted" />
           </div>
-          {atualizadoEm && (
-            <p className="text-xs text-muted-foreground">
-              {textos.atendimentos.painel.resumoIa.ultimaGeracao.replace("{data}", atualizadoEm)}
-            </p>
-          )}
-        </>
-      )}
-    </div>
+        ) : (
+          <>
+            <div className="flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 p-3">
+              <Sparkles className="mt-0.5 size-(--tamanho-icone-interface) shrink-0 text-primary" />
+              <p className="whitespace-pre-wrap text-sm text-foreground">{resumo}</p>
+            </div>
+            {atualizadoEm && (
+              <p className="text-xs text-muted-foreground">
+                {textos.atendimentos.painel.resumoIa.ultimaGeracao.replace("{data}", atualizadoEm)}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </SecaoColapsavel>
   );
 }
 
@@ -519,40 +535,45 @@ function SecaoColapsavel({
   titulo,
   contagem,
   abertaPorPadrao,
+  acao,
   children,
 }: {
   icone: React.ReactNode;
   titulo: string;
   contagem?: number;
   abertaPorPadrao?: boolean;
+  acao?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [aberta, setAberta] = useState(Boolean(abertaPorPadrao));
   const idPainel = useId();
   return (
     <div>
-      <button
-        type="button"
-        aria-expanded={aberta}
-        aria-controls={idPainel}
-        onClick={() => setAberta((atual) => !atual)}
-        className="flex w-full items-center gap-2.5 rounded-lg border border-border p-2.5 text-left hover:bg-muted"
-      >
-        {icone}
-        <span className="flex-1 text-sm font-semibold text-foreground">
-          {titulo}
-        </span>
-        {contagem !== undefined && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
-            {contagem}
+      <div className="flex w-full items-center gap-2.5 rounded-lg border border-border p-2.5 hover:bg-muted">
+        <button
+          type="button"
+          aria-expanded={aberta}
+          aria-controls={idPainel}
+          onClick={() => setAberta((atual) => !atual)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[inherit] text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          {icone}
+          <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+            {titulo}
           </span>
-        )}
-        {aberta ? (
-          <ChevronUp className="size-(--tamanho-icone-interface) text-muted-foreground" />
-        ) : (
-          <ChevronDown className="size-(--tamanho-icone-interface) text-muted-foreground" />
-        )}
-      </button>
+          {contagem !== undefined && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
+              {contagem}
+            </span>
+          )}
+          {aberta ? (
+            <ChevronUp className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
+          )}
+        </button>
+        {acao}
+      </div>
       {aberta && (
         <div id={idPainel} className="mt-2">
           {children}
