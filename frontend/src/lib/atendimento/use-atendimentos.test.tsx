@@ -74,6 +74,20 @@ describe("useAtendimentos — paginação da inbox", () => {
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 
+  it("inclui o filtro de atendente na chave e na consulta de finalizados", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [cliente("fim-filtrado", "2026-08-26T12:00:00Z")],
+      proximoCursor: null,
+    });
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useAtendimentos("FINALIZADOS", "atendente-1"), {
+      wrapper: wrapper(cache),
+    });
+
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null, 50, "atendente-1");
+  });
+
   it("usa a inbox unificada para ATIVOS, onde o chat interno também participa", async () => {
     vi.mocked(api.listarInboxUnificada).mockResolvedValue({
       itens: [cliente("ativo", "2026-08-26T12:00:00Z")],

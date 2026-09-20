@@ -44,6 +44,21 @@ public interface PainelDeAtendimentosRepositorio {
             Instant depoisDe, UUID depoisDoId, int limite);
 
     /**
+     * Leitura paginada com filtro opcional de responsável. O filtro só é aplicado à visão
+     * {@link VisaoAtendimento#FINALIZADOS}; a autorização do papel é decidida no caso de uso antes
+     * de chegar ao adaptador.
+     */
+    default List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
+            boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
+            Instant depoisDe, UUID depoisDoId, int limite, UUID filtroAtendenteId) {
+        if (filtroAtendenteId == null) {
+            return listarPaginado(visao, usuarioId, restritoAoProprioAtendente,
+                    depoisSemAtendimentoAberto, depoisDe, depoisDoId, limite);
+        }
+        throw new UnsupportedOperationException("filtro de atendente não implementado");
+    }
+
+    /**
      * Quantos cartoes {@link #listar} devolveria para a mesma visao — os badges das abas (E17b §Bloco
      * 6). Mesma assinatura, mesma decisao de "meu" vs. "de todos" por visao; o adaptador reaproveita
      * as mesmas condicoes de {@code WHERE}, so trocando a projecao por {@code COUNT(*)}.

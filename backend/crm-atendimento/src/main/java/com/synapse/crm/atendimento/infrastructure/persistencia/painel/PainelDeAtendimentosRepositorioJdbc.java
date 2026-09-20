@@ -239,6 +239,14 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     public List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
             boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
             Instant depoisDe, UUID depoisDoId, int limite) {
+        return listarPaginado(visao, usuarioId, restritoAoProprioAtendente, depoisSemAtendimentoAberto,
+                depoisDe, depoisDoId, limite, null);
+    }
+
+    @Override
+    public List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
+            boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
+            Instant depoisDe, UUID depoisDoId, int limite, UUID filtroAtendenteId) {
         TransacaoObrigatoria.exigir("listarPaginado");
         String filtro = switch (visao) {
             case ATIVOS -> WHERE_ATIVOS;
@@ -247,6 +255,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             case TODOS -> WHERE_TODOS_ATIVOS;
             case FINALIZADOS -> WHERE_FINALIZADOS;
         };
+        if (filtroAtendenteId != null && visao == VisaoAtendimento.FINALIZADOS) {
+            filtro += " AND a.atendente_id = ?";
+        }
         String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
                 + ") cartoes WHERE linha_do_lead = 1";
         List<Object> parametros = new java.util.ArrayList<>();
@@ -256,6 +267,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         } else if (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente) {
             parametros.add(usuarioId);
             parametros.add(usuarioId);
+        }
+        if (filtroAtendenteId != null && visao == VisaoAtendimento.FINALIZADOS) {
+            parametros.add(filtroAtendenteId);
         }
         if (depoisDoId != null) {
             int grupoDoCursor = depoisSemAtendimentoAberto ? 1 : 0;

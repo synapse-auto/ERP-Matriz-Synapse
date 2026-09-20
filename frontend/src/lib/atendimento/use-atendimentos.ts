@@ -6,15 +6,19 @@ import { useMemo } from "react";
 import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
-export function useAtendimentos(visao: VisaoAtendimento) {
+export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | null) {
   const usaInboxPaginada = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
   const inbox = useInfiniteQuery({
     // Query infinita e query comum não podem compartilhar a mesma chave: os formatos de cache
     // (`pages/pageParams` e array) são incompatíveis e se corrompem no refetch por WebSocket.
-    queryKey: ["atendimentos", "inbox", visao],
+    queryKey: atendenteId
+      ? ["atendimentos", "inbox", visao, atendenteId]
+      : ["atendimentos", "inbox", visao],
     enabled: usaInboxPaginada,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam),
+    queryFn: ({ pageParam }) => atendenteId
+      ? listarInboxUnificada(visao, pageParam, 50, atendenteId)
+      : listarInboxUnificada(visao, pageParam),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
   });
   const paginas = inbox.data?.pages;

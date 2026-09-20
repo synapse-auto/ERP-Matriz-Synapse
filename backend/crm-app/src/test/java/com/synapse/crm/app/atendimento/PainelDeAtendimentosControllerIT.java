@@ -580,6 +580,41 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("gestor filtra finalizados por atendente no endpoint da inbox")
+        void gestor_filtraPorAtendente() throws Exception {
+            String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+            String url = "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50&atendenteId=" + idAna;
+            JsonNode corpo = json.readTree(ApoioAutenticacao.comToken(
+                            http, token, HttpMethod.GET, url, String.class)
+                    .getBody());
+
+            assertThat(corpo.toString()).contains(atendimentoFinalizadoDaAna.toString());
+            assertThat(corpo.toString()).doesNotContain(atendimentoFinalizadoDoBruno.toString());
+        }
+
+        @Test
+        @DisplayName("atendente pode filtrar os próprios finalizados")
+        void atendente_filtraOsProprios() {
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            String url = "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50&atendenteId=" + idAna;
+            String corpo = ApoioAutenticacao.comToken(http, token, HttpMethod.GET, url, String.class).getBody();
+
+            assertThat(corpo).contains(atendimentoFinalizadoDaAna.toString());
+            assertThat(corpo).doesNotContain(atendimentoFinalizadoDoBruno.toString());
+        }
+
+        @Test
+        @DisplayName("atendente não pode consultar finalizados de outro atendente pelo parâmetro")
+        void atendente_naoFiltraColega() {
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            String url = "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=50&atendenteId=" + idBruno;
+            ResponseEntity<String> resposta = ApoioAutenticacao.comToken(
+                    http, token, HttpMethod.GET, url, String.class);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+
+        @Test
         @DisplayName("lead com finalizado e outro aberto nao entra em FINALIZADOS e permanece em ATIVOS")
         void leadComAberto_naoApareceEmFinalizadosEPermaneceEmAtivos() {
             String finalizados = listarComo(EMAIL_ANA, SENHA_ATENDENTE, "FINALIZADOS");

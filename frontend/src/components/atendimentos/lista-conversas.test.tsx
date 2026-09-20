@@ -11,7 +11,7 @@ const quantidadeFinalizavel = vi.hoisted(() => ({
     { atendenteId: "u-bruno", nome: "Bruno", quantidade: 1 },
   ],
 }));
-const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null }));
+const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null, usuarioId: "usuario-1" as string | null }));
 const atendimentosMock = vi.hoisted(() => ({
   visao: "TODOS" as string,
   data: [] as ItemInbox[],
@@ -196,6 +196,7 @@ import { ListaConversas } from "./lista-conversas";
 describe("ListaConversas", () => {
   beforeEach(() => {
     authMock.papel = "GESTOR";
+    authMock.usuarioId = "usuario-1";
     atendimentosMock.visao = "TODOS";
     atendimentosMock.data = cartoes;
     quantidadeFinalizavel.valor = 2;
@@ -304,6 +305,39 @@ describe("ListaConversas", () => {
       }
       unmount();
     }
+  });
+
+  it("oferece Todos no filtro de atendente para gestor em Finalizados", async () => {
+    atendimentosMock.data = [
+      ...(cartoes as CartaoAtendimento[]),
+      { ...(cartoes[4] as CartaoAtendimento), atendimentoId: "protocolo-bruno", leadId: "lead-bruno", atendenteId: "usuario-2", atendenteNome: "Bruno Almeida" },
+    ];
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizados" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filtros da lista" }));
+
+    const seletor = screen.getByRole("combobox", { name: "Atendente" });
+    expect(seletor).toHaveTextContent("Todos");
+    fireEvent.click(seletor);
+    expect(await screen.findByRole("option", { name: "Todos" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Bruno Almeida" })).toBeInTheDocument();
+  });
+
+  it("aplica o próprio atendente como filtro padrão e não oferece colegas", () => {
+    authMock.papel = "ATENDENTE";
+    authMock.usuarioId = "usuario-1";
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizados" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filtros da lista" }));
+
+    expect(screen.getByRole("combobox", { name: "Atendente" })).toHaveTextContent("Jardel Lima");
+    fireEvent.click(screen.getByRole("combobox", { name: "Atendente" }));
+    expect(screen.getByRole("option", { name: "Jardel Lima" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Bruno Almeida" })).not.toBeInTheDocument();
   });
 
   it("acionar Finalizados consulta a visão e desmarca as abas; clicar numa aba volta", () => {

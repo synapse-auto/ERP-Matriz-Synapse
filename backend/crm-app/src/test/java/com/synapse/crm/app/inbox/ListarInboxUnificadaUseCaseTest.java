@@ -52,6 +52,31 @@ class ListarInboxUnificadaUseCaseTest {
     }
 
     @Test
+    void gestorPodeFiltrarFinalizadosPorResponsavelNoServidor() {
+        UUID responsavel = UUID.randomUUID();
+        when(clientes.executarPaginado(Mockito.eq(VisaoAtendimento.FINALIZADOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(responsavel)))
+                .thenReturn(List.of());
+
+        caso.executar(VisaoAtendimento.FINALIZADOS, 50, null, responsavel);
+
+        verify(clientes).executarPaginado(Mockito.eq(VisaoAtendimento.FINALIZADOS), Mockito.anyInt(),
+                Mockito.anyBoolean(), Mockito.isNull(), Mockito.isNull(), Mockito.eq(responsavel));
+    }
+
+    @Test
+    void atendenteNaoPodeFiltrarFinalizadosDeOutroResponsavel() {
+        UUID atendente = UUID.randomUUID();
+        UUID outro = UUID.randomUUID();
+        when(usuarioContext.atual()).thenReturn(
+                new UsuarioAutenticado(atendente, PapelUsuario.ATENDENTE, false));
+        assertThatThrownBy(() -> caso.executar(VisaoAtendimento.FINALIZADOS, 50, null, outro))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(clientes, never()).executarPaginado(Mockito.any(), Mockito.anyInt(), Mockito.anyBoolean(),
+                Mockito.any(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
     void ordenaGlobalmentePorUltimaMensagemEPaginaComCursor() {
         UUID lead = UUID.randomUUID();
         UUID conversa = UUID.randomUUID();
