@@ -67,6 +67,7 @@ import { FormularioMensagemProgramada } from "../mensagens-programadas/formulari
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
 import { SomenteAdministrador } from "../administracao/somente-administrador";
+import { cn } from "@/lib/utils";
 
 type Props = {
   leadId: string;
@@ -315,7 +316,13 @@ function ResumoPersistidoDoLead({
       icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
       titulo={titulo}
       acao={
-        <Button type="button" size="sm" onClick={gerar} disabled={processando}>
+        <Button
+          type="button"
+          size="sm"
+          variant={temResumo ? "outline" : "default"}
+          onClick={gerar}
+          disabled={processando}
+        >
           {processando
             ? textos.atendimentos.painel.resumoIa.processando
             : temResumo
@@ -548,14 +555,26 @@ function SecaoColapsavel({
   const [aberta, setAberta] = useState(Boolean(abertaPorPadrao));
   const idPainel = useId();
   return (
-    <div>
-      <div className="flex w-full items-center gap-2.5 rounded-lg border border-border p-2.5 hover:bg-muted">
+    <div
+      className={cn(
+        "w-full overflow-hidden rounded-lg border bg-background",
+        aberta ? "border-primary/40" : "border-border",
+      )}
+      data-slot="secao-colapsavel"
+    >
+      <div
+        className={cn(
+          "flex w-full items-center gap-2.5 p-2.5 hover:bg-muted",
+          aberta && "border-b border-border",
+        )}
+        data-slot="secao-colapsavel-cabecalho"
+      >
         <button
           type="button"
           aria-expanded={aberta}
           aria-controls={idPainel}
           onClick={() => setAberta((atual) => !atual)}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[inherit] text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
           {icone}
           <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
@@ -566,16 +585,23 @@ function SecaoColapsavel({
               {contagem}
             </span>
           )}
-          {aberta ? (
-            <ChevronUp className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" />
-          )}
         </button>
         {acao}
+        <span
+          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-slot="secao-colapsavel-chevron"
+          aria-hidden="true"
+          onClick={() => setAberta((atual) => !atual)}
+        >
+          {aberta ? (
+            <ChevronUp className="size-(--tamanho-icone-interface)" />
+          ) : (
+            <ChevronDown className="size-(--tamanho-icone-interface)" />
+          )}
+        </span>
       </div>
       {aberta && (
-        <div id={idPainel} className="mt-2">
+        <div id={idPainel} className="p-2.5">
           {children}
         </div>
       )}

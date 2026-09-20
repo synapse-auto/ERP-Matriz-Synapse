@@ -256,6 +256,30 @@ describe("painel da conversa", () => {
     expect(acaoResumo).toBeDisabled();
     expect(resumo.parentElement).toContainElement(acaoResumo);
     expect(resumo).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(resumo);
+    expect(screen.getByLabelText("Gerando resumo...")).toBeInTheDocument();
+  });
+
+  it("mantém um card único, com a ação antes do chevron e sem botões aninhados", () => {
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const acaoResumo = screen.getByRole("button", { name: "Regerar" });
+    const card = resumo.closest('[data-slot="secao-colapsavel"]');
+    const cabecalho = card?.querySelector('[data-slot="secao-colapsavel-cabecalho"]');
+    const chevron = card?.querySelector('[data-slot="secao-colapsavel-chevron"]');
+
+    expect(card).toHaveClass("rounded-lg", "border-border", "bg-background");
+    expect(resumo.querySelector("button")).not.toBeInTheDocument();
+    expect(cabecalho).toBeInTheDocument();
+    expect(chevron).toBeInTheDocument();
+    expect(Array.from(cabecalho?.children ?? []).indexOf(acaoResumo)).toBeLessThan(
+      Array.from(cabecalho?.children ?? []).indexOf(chevron as Element),
+    );
+
+    fireEvent.click(chevron as Element);
+    expect(resumo).toHaveAttribute("aria-expanded", "true");
+    expect(card).toHaveClass("border-primary/40");
   });
 
   it.each(["ATENDENTE", "SUBGESTOR", "GESTOR"])(
