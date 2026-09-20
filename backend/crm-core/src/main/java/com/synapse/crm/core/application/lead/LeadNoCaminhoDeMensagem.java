@@ -86,6 +86,29 @@ public interface LeadNoCaminhoDeMensagem {
     void marcarStatus(UUID leadId, StatusBasicoLead status);
 
     /**
+     * E195: zera etapa e resumo de IA para repetir teste manual no mesmo lead.
+     *
+     * <p>Mora nesta porta, e nao em {@code LeadRepositorio}, pela mesma restricao que trouxe as
+     * demais: o comando chega junto de uma mensagem e precisa entrar na transacao do chat que acabou
+     * de grava-la. Zerar por fora significaria uma segunda conexao — a mensagem podendo gravar e a
+     * ficha nao, ou o contrario.
+     *
+     * <p>Escopo minimo e deliberado: notas, tags, dados customizados e contadores permanecem. O
+     * retorno traz o que havia antes porque a auditoria precisa disso; vazio significa lead
+     * inexistente ou fora do alcance do contexto atual, e nao "nada a zerar".
+     */
+    Optional<FichaAnterior> limparFichaParaResetGeral(UUID leadId);
+
+    /**
+     * O que a ficha tinha antes do {@code #resetgeral}.
+     *
+     * @param etapaId etapa do funil antes de zerar; vazio quando o lead ja estava sem etapa
+     * @param tinhaResumo se havia resumo de IA — o texto em si nao sai daqui: a timeline registra o
+     *     fato, nao o conteudo do resumo
+     */
+    record FichaAnterior(Optional<UUID> etapaId, boolean tinhaResumo) {}
+
+    /**
      * Destinatários ativos que podem receber um aviso quando uma mensagem abre (ou mantém) um
      * atendimento sem responsável. Nesse estado o lead está em IA e a RN-CRM-01 o torna visível
      * para toda a equipe; a consulta acontece na mesma conexão do caminho crítico para que o
