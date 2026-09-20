@@ -57,6 +57,14 @@ public record Lead(
                 resumoIaAtualizadoEm, numAtendimentos, numMensagens, criadoEm, novosDadosCustomizados);
     }
 
+    /** Copia com a etapa do funil substituida — ja validada contra {@code EtapaRepositorio}. */
+    public Lead comEtapaAtendimento(UUID novaEtapaAtendimentoId) {
+        return new Lead(
+                id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,
+                canalOrigemId, statusBasico, novaEtapaAtendimentoId, atendenteResponsavelId, notas, resumoIa,
+                resumoIaAtualizadoEm, numAtendimentos, numMensagens, criadoEm, dadosCustomizados);
+    }
+
     /** RN-CRM-02: lead atribuido a um atendente pertence a ele. */
     public boolean pertenceA(UUID atendenteId) {
         return atendenteResponsavelId != null && atendenteResponsavelId.equals(atendenteId);

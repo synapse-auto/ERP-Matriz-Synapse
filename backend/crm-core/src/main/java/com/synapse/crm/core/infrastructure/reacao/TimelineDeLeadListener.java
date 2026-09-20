@@ -28,7 +28,7 @@ class TimelineDeLeadListener {
             """
             INSERT INTO evento_timeline
                 (lead_id, tipo, descricao, origem, ator_id, dados, criado_em)
-            VALUES (?, 'ETAPA_ALTERADA', ?, 'USUARIO', ?, ?::jsonb, ?)
+            VALUES (?, 'ETAPA_ALTERADA', ?, ?::origem_evento, ?, ?::jsonb, ?)
             """;
 
     private final JdbcTemplate jdbc;
@@ -43,20 +43,31 @@ class TimelineDeLeadListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void aoAlterarEtapa(EtapaDoLeadAlterada evento) {
-        String ator = jdbc.query(
+        jdbc.update(
+                SQL,
+                evento.leadId(),
+                descricao(rotuloDoAtor(evento), evento.etapaAnterior(), evento.etapaNova()),
+                evento.atorTipo().name(),
+                evento.atorId(),
+                serializar(dados(evento)),
+                Timestamp.from(evento.ocorridoEm()));
+    }
+
+    private String rotuloDoAtor(EtapaDoLeadAlterada evento) {
+        if (evento.atorId() == null) {
+            return switch (evento.atorTipo()) {
+                case SISTEMA -> "Sistema";
+                case AUTOMACAO -> "Automacao";
+                case USUARIO -> "Usuario";
+            };
+        }
+        return jdbc.query(
                         "SELECT nome FROM usuario WHERE id = ?",
                         (linha, indice) -> linha.getString("nome"),
                         evento.atorId())
                 .stream()
                 .findFirst()
                 .orElse(evento.atorId().toString());
-        jdbc.update(
-                SQL,
-                evento.leadId(),
-                descricao(ator, evento.etapaAnterior(), evento.etapaNova()),
-                evento.atorId(),
-                serializar(dados(evento)),
-                Timestamp.from(evento.ocorridoEm()));
     }
 
     private static Map<String, Object> dados(EtapaDoLeadAlterada evento) {

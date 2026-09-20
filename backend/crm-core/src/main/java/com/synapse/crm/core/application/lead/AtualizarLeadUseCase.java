@@ -20,6 +20,7 @@ import com.synapse.crm.core.domain.etapa.EtapaAtendimento;
 import com.synapse.crm.core.domain.evento.EtapaDoLeadAlterada;
 import com.synapse.crm.core.domain.lead.Lead;
 import com.synapse.crm.core.domain.lead.TelefoneCanonico;
+import com.synapse.crm.core.domain.timeline.OrigemEvento;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
@@ -82,6 +83,7 @@ public class AtualizarLeadUseCase {
                         etapaNova,
                         lead.atendenteResponsavelId(),
                         usuarioContext.atual().id(),
+                        OrigemEvento.USUARIO,
                         Instant.now(relogio))));
             }
             return salvo;
