@@ -17,6 +17,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     publish, particao breve) deixaria o dono anterior recebendo mensagens indefinidamente sem
  *     isto. 60s e o ponto de partida — nao e lei da natureza, e uma decisao de risco explicita que
  *     alguem pode e deve revisar depois, trocando so este numero.
+ * @param heartbeatSaidaMs de quanto em quanto tempo o servidor escreve um pulso para o navegador.
+ *     Sem pulso nenhum (o padrao do {@code SimpleBroker} e {@code 0,0}), uma conexao que morre em
+ *     silencio — proxy derrubando conexao ociosa, troca de rede, laptop suspenso — so e percebida
+ *     quando a pilha TCP do navegador desiste sozinha, o que nao tem prazo previsivel. Como a tela
+ *     de Atendimentos nao tem polling por decisao de projeto (docs/40), esse prazo indefinido e
+ *     exatamente o tempo que o atendente fica sem ver a mensagem que ja chegou. 10s e o ponto de
+ *     partida: o cliente espera o dobro do intervalo antes de declarar a conexao perdida, entao a
+ *     morte e detectada em ~20s e o reconector com backoff entra em seguida
+ * @param heartbeatEntradaMs de quanto em quanto tempo o servidor espera um pulso do navegador.
+ *     Mesma escolha de 10s do lado de saida; e o que permite ao servidor derrubar sessao morta em
+ *     vez de manter recurso preso ate o TCP expirar
  */
 @ConfigurationProperties("synapse.tempo-real")
 public record TempoRealProperties(
@@ -25,7 +36,9 @@ public record TempoRealProperties(
         int threadsRedis,
         int filaMaxima,
         String origensPermitidas,
-        int ttlAssinaturaSegundos) {
+        int ttlAssinaturaSegundos,
+        long heartbeatSaidaMs,
+        long heartbeatEntradaMs) {
 
     public TempoRealProperties {
         threadsEntrada = threadsEntrada <= 0 ? 4 : threadsEntrada;
@@ -36,5 +49,7 @@ public record TempoRealProperties(
                 ? "*"
                 : origensPermitidas;
         ttlAssinaturaSegundos = ttlAssinaturaSegundos <= 0 ? 60 : ttlAssinaturaSegundos;
+        heartbeatSaidaMs = heartbeatSaidaMs <= 0 ? 10_000L : heartbeatSaidaMs;
+        heartbeatEntradaMs = heartbeatEntradaMs <= 0 ? 10_000L : heartbeatEntradaMs;
     }
 }

@@ -1,9 +1,11 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -21,7 +23,22 @@ import com.synapse.crm.equipe.infrastructure.seguranca.SecurityContextPropagatio
  */
 @Configuration
 @EnableWebSocketMessageBroker
-class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+class WebSocketConfig implements WebSocketMessageBrokerConfigurer, DisposableBean {
+
+    /**
+     * Duas threads: o pulso e uma tarefa curta e periodica, nao trabalho de aplicacao. Fica fora do
+     * agendador de {@code @Scheduled} (AgendamentoConfig) pelo mesmo motivo dos executores acima —
+     * um job de manutencao longo nao pode atrasar o pulso que sustenta a deteccao de conexao morta.
+     */
+    private static final int THREADS_HEARTBEAT = 2;
+
+    /**
+     * Agendador so do pulso, iniciado no construtor. Nao e {@code @Bean} de proposito: um
+     * {@code TaskScheduler} publicado no contexto faria o Spring Boot desistir do seu proprio e
+     * viraria candidato para qualquer injecao de {@code TaskScheduler} da aplicacao — o oposto do
+     * bulkhead que este pool existe para manter.
+     */
+    private final ThreadPoolTaskScheduler agendadorDeHeartbeat = new ThreadPoolTaskScheduler();
 
     private final JwtHandshakeInterceptor autenticacaoHandshake;
     private final AutenticacaoHandshakeHandler manipuladorDeHandshake;
@@ -40,6 +57,9 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         this.propagacaoDeContexto = propagacaoDeContexto;
         this.autorizacaoDeAssinatura = autorizacaoDeAssinatura;
         this.propriedades = propriedades;
+        agendadorDeHeartbeat.setPoolSize(THREADS_HEARTBEAT);
+        agendadorDeHeartbeat.setThreadNamePrefix("ws-heartbeat-");
+        agendadorDeHeartbeat.initialize();
     }
 
     @Override
@@ -55,10 +75,20 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      *
      * <p>{@code /queue} e o que sustenta o destino-por-usuario ({@code /user/queue/...}): o broker
      * entrega numa fila resolvida por sessao, nunca em broadcast para todo assinante do nome bruto.
+     *
+     * <p>O heartbeat existe porque a tela de Atendimentos nao tem polling (docs/40): ela so
+     * atualiza reagindo a um frame. Sem pulso, o {@code SimpleBroker} negocia {@code 0,0} e uma
+     * conexao morta em silencio fica de pe para os dois lados ate o TCP desistir — foi o que fez a
+     * mensagem recebida demorar cerca de um minuto (ou um F5) para aparecer. Com pulso, o
+     * fechamento chega em segundos e o reconector com backoff que ja existe assume.
      */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registro) {
-        registro.enableSimpleBroker("/topic", "/queue");
+        registro.enableSimpleBroker("/topic", "/queue")
+                .setTaskScheduler(agendadorDeHeartbeat)
+                .setHeartbeatValue(new long[] {
+                    propriedades.heartbeatSaidaMs(), propriedades.heartbeatEntradaMs()
+                });
         registro.setApplicationDestinationPrefixes("/app");
         registro.setUserDestinationPrefix("/user");
     }
@@ -76,6 +106,11 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientOutboundChannel(ChannelRegistration registro) {
         registro.taskExecutor(executor(propriedades.threadsSaida(), "ws-saida-"));
+    }
+
+    @Override
+    public void destroy() {
+        agendadorDeHeartbeat.shutdown();
     }
 
     private ThreadPoolTaskExecutor executor(int threads, String prefixo) {
