@@ -140,6 +140,11 @@ class TimelineDeAtendimentoListener {
                     "PEDIDO_ENTRADA_ATENDIMENTO", pedido.solicitanteNome() + " pediu para entrar no atendimento.",
                     "USUARIO", pedido.solicitanteId(), Map.of("status", "PENDENTE"));
 
+            case EventoDeAtendimento.ConviteParaAtendimentoCriado convite -> new Anotacao(
+                    "CONVITE_ATENDIMENTO_CRIADO", "Atendente foi convidado para participar do atendimento.",
+                    "USUARIO", convite.convidadorId(), Map.of(
+                            "convidadoId", convite.convidadoId().toString(), "status", "PENDENTE"));
+
             case EventoDeAtendimento.PedidoEntradaRespondido resposta -> new Anotacao(
                     resposta.aprovado() ? "ENTRADA_ATENDIMENTO_APROVADA" : "ENTRADA_ATENDIMENTO_RECUSADA",
                     resposta.aprovado() ? "Pedido de entrada aprovado." : "Pedido de entrada recusado.",

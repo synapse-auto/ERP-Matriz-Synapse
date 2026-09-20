@@ -5,14 +5,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.EventosCanonicosDeAtendimento;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio.ConviteResultado;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.equipe.application.autenticacao.UsuarioRepositorio;
@@ -27,8 +31,15 @@ public class GerenciarParticipacaoAtendimentoUseCase {
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
     private final UsuarioRepositorio usuariosRepositorio;
+    private final AtendenteParaTransferenciaRepositorio destinos;
+    @Autowired
     public GerenciarParticipacaoAtendimentoUseCase(ParticipacaoAtendimentoRepositorio p, AtendimentoRepositorio a,
-            UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur) { participacoes=p; atendimentos=a; usuarios=u; eventos=e; relogio=c; usuariosRepositorio=ur; }
+            UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur,
+            AtendenteParaTransferenciaRepositorio destinos) { participacoes=p; atendimentos=a; usuarios=u; eventos=e; relogio=c; usuariosRepositorio=ur; this.destinos=destinos; }
+    public GerenciarParticipacaoAtendimentoUseCase(ParticipacaoAtendimentoRepositorio p, AtendimentoRepositorio a,
+            UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur) {
+        this(p, a, u, e, c, ur, null);
+    }
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public UUID solicitar(UUID atendimentoId) {
@@ -68,6 +79,41 @@ public class GerenciarParticipacaoAtendimentoUseCase {
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public void sair(UUID atendimentoId) { UUID u=usuarios.atual().id(); if(!participacoes.eParticipanteAtivo(atendimentoId,u)) throw new RecursoDeAtendimentoIndisponivelException("participação",atendimentoId); Instant agora=agora(); participacoes.sair(atendimentoId,u,agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteSaiu(lead,atendimentoId,u,agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_SAIU,atendimentoId,lead,agora); }
+
+    @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
+    public ConviteResultado convidar(UUID atendimentoId, UUID convidadoId) {
+        UUID convidador = usuarios.atual().id();
+        if (atendimentos.porId(atendimentoId).isEmpty()) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId);
+        }
+        boolean podeConvidar = usuarios.atual().enxergaTodosOsLeads()
+                || participacoes.eDono(atendimentoId, convidador)
+                || participacoes.eParticipanteAtivo(atendimentoId, convidador);
+        if (!podeConvidar) {
+            throw new AccessDeniedException("sem permissao para convidar neste atendimento");
+        }
+        if (convidadoId.equals(convidador)) {
+            throw new ConviteAtendimentoInvalidoException("o usuario atual nao pode ser convidado");
+        }
+        destinos.exigirAtendenteAtivo(convidadoId);
+        if (participacoes.eParticipanteAtivo(atendimentoId, convidadoId)) {
+            throw new ConviteAtendimentoInvalidoException("o usuario ja participa deste atendimento");
+        }
+        Instant agora = agora();
+        ConviteResultado resultado = participacoes.convidar(atendimentoId, convidadoId, agora);
+        if (resultado.pedidoId() == null) {
+            throw new ConviteAtendimentoInvalidoException("o atendimento nao esta aberto para convites");
+        }
+        UUID lead = participacoes.leadId(atendimentoId).orElseThrow();
+        if (resultado.criado()) {
+            eventos.publishEvent(new EventoDeAtendimento.ConviteParaAtendimentoCriado(
+                    lead, atendimentoId, convidador, convidadoId, agora));
+            EventosCanonicosDeAtendimento.publicar(atendimentos, eventos,
+                    EventoCanonicoDeAtendimento.Tipo.CONVITE_ATENDIMENTO_CRIADO,
+                    atendimentoId, lead, agora);
+        }
+        return resultado;
+    }
 
     @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER, readOnly=true)
     public List<ParticipanteAtendimento> participantes(UUID atendimentoId) {

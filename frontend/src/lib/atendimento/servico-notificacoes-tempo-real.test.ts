@@ -74,6 +74,27 @@ describe("ServicoDeNotificacoesTempoReal", () => {
     });
   });
 
+  it("exibe e toca para convite fora da conversa ativa e deduplica o evento", () => {
+    const convite: NotificacaoTempoReal = {
+      tipo: "CONVITE_ATENDIMENTO",
+      eventoId: "atendimento-1:2026-09-10T12:00:00Z",
+      dados: {
+        atendimentoId: "atendimento-1",
+        leadId: "lead-1",
+        convidadorId: "outro-usuario",
+        ocorridoEm: "2026-09-10T12:00:00Z",
+      },
+    };
+    const servico = new ServicoDeNotificacoesTempoReal();
+
+    expect(servico.decidir(convite, contexto)).toMatchObject({
+      exibir: true,
+      tocar: true,
+      atualizarAtendimentos: true,
+    });
+    expect(servico.decidir(convite, contexto)).toBeNull();
+  });
+
   it("deduplica pelo id técnico do evento", () => {
     const servico = new ServicoDeNotificacoesTempoReal();
 

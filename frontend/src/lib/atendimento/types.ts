@@ -244,12 +244,14 @@ export interface EstadoAtendimentoSelecionado {
 }
 
 export type StatusPedidoEntrada = "PENDENTE" | "APROVADO" | "RECUSADO" | "EXPIRADO";
+export type TipoPedidoEntrada = "SOLICITACAO" | "CONVITE";
 export interface PedidoEntradaAtendimento {
   id: string;
   atendimentoId: string;
   solicitanteId: string;
   solicitanteNome: string;
   status: StatusPedidoEntrada;
+  tipo: TipoPedidoEntrada;
   solicitadoEm: string;
 }
 
@@ -335,6 +337,13 @@ export interface AtendimentoDevolvidoParaIaTempoReal {
   ocorridoEm: string;
 }
 
+export interface ConviteAtendimentoTempoReal {
+  atendimentoId: string;
+  leadId: string;
+  convidadorId: string;
+  ocorridoEm: string;
+}
+
 export interface FinalizacaoTempoReal {
   atendimentoId: string;
   leadId: string;
@@ -369,6 +378,7 @@ export type TipoEventoEstadoAtendimento =
   | "ATENDIMENTO_DEVOLVIDO_IA"
   | "ATENDIMENTO_FINALIZADO"
   | "PEDIDO_ENTRADA_SOLICITADO"
+  | "CONVITE_ATENDIMENTO_CRIADO"
   | "PEDIDO_ENTRADA_APROVADO"
   | "PEDIDO_ENTRADA_RECUSADO"
   | "PARTICIPANTE_ENTROU"
@@ -411,6 +421,10 @@ export type NotificacaoTempoReal = {
   tipo: "ATENDIMENTO_DEVOLVIDO_PARA_IA";
   eventoId?: string;
   dados: AtendimentoDevolvidoParaIaTempoReal;
+} | {
+  tipo: "CONVITE_ATENDIMENTO";
+  eventoId?: string;
+  dados: ConviteAtendimentoTempoReal;
 } | {
   tipo: "CHAT_INTERNO_MENSAGEM";
   eventoId?: string;

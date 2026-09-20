@@ -726,12 +726,16 @@ export function PaginaAtendimentosCliente({
             <X className="size-(--tamanho-icone-interface)" aria-hidden />
           </button>
           <p className="font-semibold text-foreground">
-            {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+            {notificacao.tipo === "CONVITE_ATENDIMENTO"
+              ? textos.tempoReal.conviteRecebido
+              : notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
               ? textos.tempoReal.atendimentoDevolvidoParaIa
               : textos.tempoReal.transferenciaRecebida}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+            {notificacao.tipo === "CONVITE_ATENDIMENTO"
+              ? textos.tempoReal.conviteRecebidoDescricao
+              : notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
               ? textos.tempoReal.atendimentoDevolvidoParaIaDescricao.replace(
                   "{nome}",
                   notificacao.dados.leadNome,
@@ -743,17 +747,23 @@ export function PaginaAtendimentosCliente({
                   )
                 : null}
           </p>
-          {notificacao.tipo === "TRANSFERENCIA_RECEBIDA" && (
+          {(notificacao.tipo === "TRANSFERENCIA_RECEBIDA" || notificacao.tipo === "CONVITE_ATENDIMENTO") && (
             <button
               type="button"
               className="mt-3 text-sm font-medium text-primary underline-offset-4 hover:underline"
               onClick={() => {
-                setLeadParaAbrir(notificacao.dados.leadId);
-                setLeadParaAbrirGatilho((atual) => atual + 1);
+                if (notificacao.tipo === "CONVITE_ATENDIMENTO") {
+                  setAtendimentoParaAbrirId(notificacao.dados.atendimentoId);
+                } else {
+                  setLeadParaAbrir(notificacao.dados.leadId);
+                  setLeadParaAbrirGatilho((atual) => atual + 1);
+                }
                 setNotificacao(null);
               }}
             >
-              {textos.tempoReal.abrirTransferencia}
+              {notificacao.tipo === "CONVITE_ATENDIMENTO"
+                ? textos.tempoReal.abrirConvite
+                : textos.tempoReal.abrirTransferencia}
             </button>
           )}
             </div>

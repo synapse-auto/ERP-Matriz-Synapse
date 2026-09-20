@@ -745,6 +745,50 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
                 .isEqualTo("FINALIZADO");
     }
 
+    @Test
+    @DisplayName("convidar: cria convite idempotente e rejeita o destinatario sem alçada")
+    void convidarAtendente_preservaResponsavelEPermiteRepeticao() {
+        UUID lead = criarLead("lead convite " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        ResponseEntity<String> primeiro = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/convidar",
+                Map.of("atendenteId", idBruno.toString()));
+        ResponseEntity<String> segundo = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/convidar",
+                Map.of("atendenteId", idBruno.toString()));
+
+        assertThat(primeiro.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(segundo.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(segundo.getBody()).contains("\"jaExistia\":true");
+        assertThat(segundo.getBody()).contains(extrairUuid(primeiro.getBody(), "pedidoId").toString());
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id=?", UUID.class, atendimentoId))
+                .isEqualTo(idAna);
+
+        ResponseEntity<String> pendentesDoBruno = chamar(
+                EMAIL_BRUNO,
+                SENHA_ATENDENTE,
+                HttpMethod.GET,
+                "/api/v1/atendimentos?visao=PENDENTES",
+                null);
+        assertThat(pendentesDoBruno.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(pendentesDoBruno.getBody()).contains(atendimentoId.toString());
+
+        ResponseEntity<String> semAlcada = chamar(
+                EMAIL_BRUNO,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/convidar",
+                Map.of("atendenteId", idAna.toString()));
+        assertThat(semAlcada.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     // --- apoio ------------------------------------------------------------
 
     private UUID criarAtendimentoViaEnvio(UUID leadId) {

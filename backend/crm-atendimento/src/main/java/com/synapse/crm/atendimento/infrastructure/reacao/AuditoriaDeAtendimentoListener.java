@@ -91,6 +91,9 @@ class AuditoriaDeAtendimentoListener {
             case EventoDeAtendimento.PedidoEntradaSolicitado pedido ->
                 new Registro(pedido.solicitanteId(), "USUARIO", "PEDIDO_ENTRADA_ATENDIMENTO");
 
+            case EventoDeAtendimento.ConviteParaAtendimentoCriado convite ->
+                new Registro(convite.convidadorId(), "USUARIO", "CONVITE_ATENDIMENTO_CRIADO");
+
             case EventoDeAtendimento.PedidoEntradaRespondido resposta ->
                 new Registro(resposta.donoId(), "USUARIO", resposta.aprovado()
                         ? "ENTRADA_ATENDIMENTO_APROVADA" : "ENTRADA_ATENDIMENTO_RECUSADA");

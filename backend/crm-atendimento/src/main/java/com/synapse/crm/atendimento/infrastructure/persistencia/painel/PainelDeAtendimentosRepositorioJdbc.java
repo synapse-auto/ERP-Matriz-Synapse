@@ -119,7 +119,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
             + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel"
             + " ON true WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
-            + " AND visivel.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')";
+            + " AND ((visivel.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')"
+            + " OR EXISTS (SELECT 1 FROM pedido_entrada_atendimento convite"
+            + " WHERE convite.atendimento_id = visivel.id"
+            + " AND convite.solicitante_id = ? AND convite.tipo = 'CONVITE'"
+            + " AND convite.status = 'PENDENTE')) )";
 
     private static final String WHERE_PENDENTES_TODOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
@@ -215,7 +219,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         return switch (visao) {
             case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId, usuarioId);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId)
+                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId, usuarioId)
                     : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
             case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
             case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
@@ -247,8 +251,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 + ") cartoes WHERE linha_do_lead = 1";
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
-        if (visao == VisaoAtendimento.ATIVOS
-                || (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente)) {
+        if (visao == VisaoAtendimento.ATIVOS) {
+            parametros.add(usuarioId);
+        } else if (visao == VisaoAtendimento.PENDENTES && restritoAoProprioAtendente) {
+            parametros.add(usuarioId);
             parametros.add(usuarioId);
         }
         if (depoisDoId != null) {
@@ -280,7 +286,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         return switch (visao) {
             case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId, usuarioId);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId)
+                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId, usuarioId)
                     : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
             case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
             case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);

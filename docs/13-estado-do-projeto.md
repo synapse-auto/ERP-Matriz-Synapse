@@ -4,6 +4,23 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 20/09/2026 — Convite para atendimento
+
+O header da conversa agora pode convidar um atendente ativo elegível por
+`POST /api/v1/atendimentos/{id}/convidar`, com `{ "atendenteId": "uuid" }`. A operação exige
+JWT e que o solicitante seja o responsável, participante ativo ou usuário com alçada ampla;
+o destino precisa estar ativo e ter papel ATENDENTE ou SUBGESTOR. A restrição única de pedido
+pendente torna cliques repetidos idempotentes (`jaExistia=true`) e impede convite para quem já
+participa ou para atendimento encerrado.
+
+O convite é persistido como `tipo=CONVITE` em `pedido_entrada_atendimento` (migration V78),
+sem alterar o responsável comercial. A RLS concede ao destinatário apenas o alcance necessário
+enquanto o convite está pendente, permitindo que o cartão apareça em PENDENTES. O destinatário
+aceita ou recusa pelos endpoints existentes de pedidos; a aprovação cria a participação ativa.
+Timeline, auditoria e a notificação pessoal `CONVITE_ATENDIMENTO` são publicados somente após
+commit. A interface usa a mesma lista estreita de destinos da transferência e abre o atendimento
+pela rota canônica quando a notificação é clicada.
+
 ### 16/09/2026 — V73 imutável e upgrade controlado para Fêmina
 
 Marcondes confirmou `flyway_schema_history` da Estrutural com V73 bem-sucedida. Não editar o SQL,

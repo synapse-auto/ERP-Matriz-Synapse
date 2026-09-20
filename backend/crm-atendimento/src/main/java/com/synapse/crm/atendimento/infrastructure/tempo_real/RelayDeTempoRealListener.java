@@ -174,6 +174,17 @@ class RelayDeTempoRealListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoCriarConvite(EventoDeAtendimento.ConviteParaAtendimentoCriado evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("leadId", evento.leadId().toString());
+        dados.put("convidadorId", evento.convidadorId().toString());
+        dados.put("convidadoId", evento.convidadoId().toString());
+        dados.put("ocorridoEm", evento.ocorridoEm().toString());
+        publicar(evento.atendimentoId(), "CONVITE_ATENDIMENTO", dados);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     void aoResponderPedido(EventoDeAtendimento.PedidoEntradaRespondido evento) {
         ObjectNode dados=json.createObjectNode(); dados.put("atendimentoId",evento.atendimentoId().toString());
         dados.put("leadId",evento.leadId().toString()); dados.put("solicitanteId",evento.solicitanteId().toString());

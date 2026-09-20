@@ -4,4 +4,4 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record PedidoEntradaAtendimento(UUID id, UUID atendimentoId, UUID solicitanteId,
-        String solicitanteNome, StatusPedidoEntrada status, Instant solicitadoEm) {}
+        String solicitanteNome, StatusPedidoEntrada status, TipoPedidoEntrada tipo, Instant solicitadoEm) {}

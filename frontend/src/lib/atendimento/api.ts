@@ -375,6 +375,28 @@ export function sairAtendimento(atendimentoId: string) { return apiFetch(`/api/v
 export function aprovarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/aprovar`, { method: "POST" }); }
 export function recusarPedido(pedidoId: string) { return apiFetch(`/api/v1/atendimentos/pedidos-entrada/${pedidoId}/recusar`, { method: "POST" }); }
 
+export interface ConviteAtendimentoResposta {
+  atendimentoId: string;
+  atendenteId: string;
+  pedidoId: string;
+  jaExistia: boolean;
+}
+
+export function convidarParaAtendimento(
+  atendimentoId: string,
+  atendenteId: string,
+  idempotencyKey?: string,
+): Promise<ConviteAtendimentoResposta> {
+  return apiFetch<ConviteAtendimentoResposta>(
+    `/api/v1/atendimentos/${encodeURIComponent(atendimentoId)}/convidar`,
+    {
+      method: "POST",
+      headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+      body: JSON.stringify({ atendenteId }),
+    },
+  );
+}
+
 export function listarDestinosDeTransferencia(): Promise<DestinoDeTransferencia[]> {
   return apiFetch<DestinoDeTransferencia[]>("/api/v1/atendimentos/destinos-de-transferencia");
 }
