@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { DialogoTransferir } from "./dialogo-transferir";
 import { DialogoConvidar } from "./dialogo-convidar";
 import { AtalhoTags } from "./atalho-tags";
+import { AcoesCabecalhoOverflow, type AcaoDoCabecalho } from "./acoes-cabecalho-overflow";
 
 type Props = {
   conversa: CartaoAtendimento;
@@ -100,14 +101,80 @@ export function CabecalhoConversa({
         ? "RECUSADO"
         : estadoLocal;
   const podeEntrarDireto = papel !== "ATENDENTE" && !estaDentro && !ehResponsavel;
-  const acoesDoCabecalho = [
-    {
-      id: "convidar",
-      texto: textos.convidar,
-      visivel: !finalizado && (ehResponsavel || estaDentro || papel !== "ATENDENTE"),
-      abrir: () => setConvidarAberto(true),
-    },
-  ];
+  // Prioridades: finalizar/novo atendimento (100), transferir (90), convidar (80), buscar (20).
+  // Ações de utilidade (tags, telefone e painel) permanecem fora do registro porque têm
+  // popover/link próprios; elas continuam acessíveis e não participam da disputa de espaço.
+  const acoesDoCabecalho = useMemo<AcaoDoCabecalho[]>(
+    () => [
+      {
+        id: "finalizar",
+        texto: textos.finalizar,
+        icone: CheckCheck,
+        prioridade: 100,
+        visivel: !finalizado,
+        requisitosAutorizacao: ["acesso-ao-atendimento"],
+        desabilitada: finalizar.isPending,
+        onClick: () => finalizar.mutate(conversa.atendimentoId),
+        className: "border-cor-sucesso/25 bg-cor-sucesso/10 text-cor-sucesso hover:bg-cor-sucesso/15 hover:text-cor-sucesso",
+      },
+      {
+        id: "transferir",
+        texto: textos.transferir,
+        icone: ArrowLeftRight,
+        prioridade: 90,
+        visivel: !finalizado,
+        requisitosAutorizacao: ["acesso-ao-atendimento"],
+        onClick: () => setTransferirAberto(true),
+      },
+      {
+        id: "convidar",
+        texto: textos.convidar,
+        icone: UserPlus,
+        prioridade: 80,
+        visivel: !finalizado && (ehResponsavel || estaDentro || papel !== "ATENDENTE"),
+        requisitosAutorizacao: ["responsavel-ou-participante-ou-gestao"],
+        onClick: () => setConvidarAberto(true),
+      },
+      {
+        id: "buscar",
+        texto: textos.buscar,
+        icone: Search,
+        prioridade: 20,
+        visivel: true,
+        requisitosAutorizacao: ["acesso-ao-atendimento"],
+        onClick: onAlternarBusca,
+        desabilitada: false,
+        ariaPressed: buscaAberta,
+      },
+      {
+        id: "novo-atendimento",
+        texto: textos.novoAtendimento,
+        icone: MessageCirclePlus,
+        prioridade: 100,
+        visivel: finalizado && Boolean(onAbrirNovoAtendimento),
+        requisitosAutorizacao: ["acesso-ao-atendimento-finalizado"],
+        desabilitada: abrindoNovoAtendimento,
+        onClick: () => onAbrirNovoAtendimento?.(),
+      },
+    ],
+    [
+      conversa.atendimentoId,
+      buscaAberta,
+      ehResponsavel,
+      estaDentro,
+      finalizar,
+      finalizado,
+      abrindoNovoAtendimento,
+      onAbrirNovoAtendimento,
+      onAlternarBusca,
+      papel,
+      textos.convidar,
+      textos.finalizar,
+      textos.novoAtendimento,
+      textos.transferir,
+      textos.buscar,
+    ],
+  );
 
   async function executarParticipacao(
     acao: () => Promise<unknown>,
@@ -209,7 +276,7 @@ export function CabecalhoConversa({
         </div>
       </div>
 
-      <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
+      <div className="flex max-w-full min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
         {/* Entrar direto nao tem descricao: o botao fica sozinho e alinha na linha dos demais.
             Pedir entrada mantem a coluna, porque o aviso de aprovacao continua no catalogo. */}
         {!finalizado && !ehResponsavel && estadoPersistido === "SEM_PEDIDO" && podeEntrarDireto && (
@@ -263,59 +330,12 @@ export function CabecalhoConversa({
             {feedbackParticipacao.texto}
           </p>
         )}
-        {!finalizado && (
-          <>
-            {acoesDoCabecalho.filter((acao) => acao.visivel).map((acao) => (
-              <Button key={acao.id} type="button" variant="outline" size="sm" onClick={acao.abrir}>
-                <UserPlus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-                {acao.texto}
-              </Button>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setTransferirAberto(true)}
-            >
-              <ArrowLeftRight className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-              {textos.transferir}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-cor-sucesso/25 bg-cor-sucesso/10 text-cor-sucesso hover:bg-cor-sucesso/15 hover:text-cor-sucesso"
-              onClick={() => finalizar.mutate(conversa.atendimentoId)}
-              disabled={finalizar.isPending}
-            >
-              <CheckCheck className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-              {textos.finalizar}
-            </Button>
-          </>
-        )}
-        {finalizado && onAbrirNovoAtendimento && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAbrirNovoAtendimento}
-            disabled={abrindoNovoAtendimento}
-          >
-            <MessageCirclePlus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-            {textos.novoAtendimento}
-          </Button>
-        )}
+        <AcoesCabecalhoOverflow
+          acoes={acoesDoCabecalho}
+          rotuloMenu={catalogo.atendimentos.finalizar.todosMenu}
+          className="min-w-0 flex-1 justify-end"
+        />
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={textos.buscar}
-          aria-pressed={buscaAberta}
-          onClick={onAlternarBusca}
-        >
-          <Search className="size-(--tamanho-icone-interface)" aria-hidden />
-        </Button>
         <AtalhoTags leadId={conversa.leadId} />
         {telefone && (
           <a
