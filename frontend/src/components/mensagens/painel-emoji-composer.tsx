@@ -26,6 +26,10 @@ type Props = {
  */
 export function PainelEmojiComposer({ rotulo, i18n, disabled, onEscolher }: Props) {
   const [aberto, setAberto] = useState(false);
+  const escolherEmoji = (emoji: string) => {
+    onEscolher(emoji);
+    setAberto(false);
+  };
 
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
@@ -41,7 +45,7 @@ export function PainelEmojiComposer({ rotulo, i18n, disabled, onEscolher }: Prop
         align="start"
         className="w-[min(22rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0"
       >
-        {aberto && <SeletorEmojiCompleto i18n={i18n} onEscolher={onEscolher} />}
+        {aberto && <SeletorEmojiCompleto i18n={i18n} onEscolher={escolherEmoji} />}
       </PopoverContent>
     </Popover>
   );
