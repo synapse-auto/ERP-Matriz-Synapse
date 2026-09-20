@@ -94,6 +94,7 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         }
         if ("MENSAGEM".equals(tipo)) avisarNovaMensagem(dados);
         if ("PEDIDO_ENTRADA".equals(tipo)) avisarPedidoAoDono(dados);
+        if ("CONVITE_ATENDIMENTO".equals(tipo)) avisarConvidado(dados);
         if ("RESPOSTA_PEDIDO_ENTRADA".equals(tipo)) avisarRespostaAoSolicitante(dados);
         if ("PARTICIPANTE_SAIU".equals(tipo)) {
             JsonNode p=dados.path("participanteId");
@@ -272,6 +273,25 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         JsonNode solicitante=dados.path("solicitanteId"); if(solicitante.isMissingNode()||solicitante.isNull()) return;
         ObjectNode e=json.createObjectNode(); e.put("tipo","PEDIDO_ENTRADA_RESPONDIDO"); ObjectNode d=json.createObjectNode(); d.set("atendimentoId",dados.path("atendimentoId")); d.set("aprovado",dados.path("aprovado")); e.set("dados",d);
         enviarParaUsuario(UUID.fromString(solicitante.asText()), DESTINO_NOTIFICACOES, e.toString());
+    }
+
+    private void avisarConvidado(JsonNode dados) {
+        JsonNode convidado = dados.path("convidadoId");
+        if (convidado.isMissingNode() || convidado.isNull() || convidado.asText().isBlank()) return;
+        ObjectNode envelope = json.createObjectNode();
+        envelope.put("tipo", "CONVITE_ATENDIMENTO");
+        envelope.put("eventoId", dados.path("atendimentoId").asText() + ":" + dados.path("ocorridoEm").asText());
+        ObjectNode aviso = json.createObjectNode();
+        aviso.set("atendimentoId", dados.path("atendimentoId"));
+        aviso.set("leadId", dados.path("leadId"));
+        aviso.set("convidadorId", dados.path("convidadorId"));
+        aviso.set("ocorridoEm", dados.path("ocorridoEm"));
+        envelope.set("dados", aviso);
+        try {
+            enviarParaUsuario(UUID.fromString(convidado.asText()), DESTINO_NOTIFICACOES, envelope.toString());
+        } catch (IllegalArgumentException erro) {
+            log.warn("Convite com destinatario invalido no evento de tempo real.", erro);
+        }
     }
 
     /**

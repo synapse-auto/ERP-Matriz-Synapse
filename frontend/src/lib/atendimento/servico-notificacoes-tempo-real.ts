@@ -64,6 +64,7 @@ export class ServicoDeNotificacoesTempoReal {
     const ehEventoVisual = ehMensagemExternaRecebida
       || notificacao.tipo === "TRANSFERENCIA_RECEBIDA"
       || notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
+      || notificacao.tipo === "CONVITE_ATENDIMENTO"
       || ehMensagemInternaDeUsuario;
 
     if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM"
@@ -141,7 +142,7 @@ function origemDaNotificacao(notificacao: NotificacaoTempoReal): "ATENDIMENTO" |
 }
 
 function conversaDaNotificacaoRecebida(notificacao: NotificacaoTempoReal): ConversaAtiva {
-  if (notificacao.tipo === "NOVA_MENSAGEM") {
+  if (notificacao.tipo === "NOVA_MENSAGEM" || notificacao.tipo === "CONVITE_ATENDIMENTO") {
     return { origem: "ATENDIMENTO", id: notificacao.dados.atendimentoId };
   }
   if (notificacao.tipo === "CHAT_INTERNO_MENSAGEM" || notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") {

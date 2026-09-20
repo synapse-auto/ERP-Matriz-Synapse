@@ -13,6 +13,7 @@ public interface ParticipacaoAtendimentoRepositorio {
     java.time.Duration validadeConfigurada();
     Optional<PedidoEntradaAtendimento> pedido(UUID pedidoId);
     Optional<PedidoEntradaAtendimento> pedidoDoSolicitante(UUID atendimentoId, UUID solicitanteId, Instant limite);
+    ConviteResultado convidar(UUID atendimentoId, UUID convidadoId, Instant agora);
     List<PedidoEntradaAtendimento> pendentes(UUID atendimentoId, Instant limite);
     boolean eDono(UUID atendimentoId, UUID usuarioId);
     boolean eParticipanteAtivo(UUID atendimentoId, UUID usuarioId);
@@ -21,4 +22,6 @@ public interface ParticipacaoAtendimentoRepositorio {
     void entrar(UUID atendimentoId, UUID usuarioId, Instant agora);
     void sair(UUID atendimentoId, UUID usuarioId, Instant agora);
     List<ParticipanteAtendimento> ativos(UUID atendimentoId);
+
+    record ConviteResultado(UUID pedidoId, boolean criado) {}
 }

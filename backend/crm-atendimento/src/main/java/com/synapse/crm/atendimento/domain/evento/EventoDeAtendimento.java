@@ -103,6 +103,10 @@ public sealed interface EventoDeAtendimento {
     record PedidoEntradaSolicitado(UUID leadId, UUID atendimentoId, UUID solicitanteId,
             String solicitanteNome, UUID donoId, Instant ocorridoEm) implements EventoDeAtendimento {}
 
+    /** Convite criado por um participante/responsavel para um atendente elegivel. */
+    record ConviteParaAtendimentoCriado(UUID leadId, UUID atendimentoId, UUID convidadorId,
+            UUID convidadoId, Instant ocorridoEm) implements EventoDeAtendimento {}
+
     record PedidoEntradaRespondido(UUID leadId, UUID atendimentoId, UUID solicitanteId,
             UUID donoId, boolean aprovado, Instant ocorridoEm) implements EventoDeAtendimento {}
 

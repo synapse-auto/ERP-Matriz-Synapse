@@ -10,6 +10,7 @@ import {
   PanelRightOpen,
   Phone,
   Search,
+  UserPlus,
 } from "lucide-react";
 
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
@@ -37,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { DialogoTransferir } from "./dialogo-transferir";
+import { DialogoConvidar } from "./dialogo-convidar";
 import { AtalhoTags } from "./atalho-tags";
 
 type Props = {
@@ -70,6 +72,7 @@ export function CabecalhoConversa({
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.cabecalho;
   const [transferirAberto, setTransferirAberto] = useState(false);
+  const [convidarAberto, setConvidarAberto] = useState(false);
   const finalizar = useFinalizarAtendimento(onAtendimentoFinalizado);
   const papel = useAuthStore((estado) => estado.papel);
   const lead = useLead(conversa.leadId);
@@ -97,6 +100,14 @@ export function CabecalhoConversa({
         ? "RECUSADO"
         : estadoLocal;
   const podeEntrarDireto = papel !== "ATENDENTE" && !estaDentro && !ehResponsavel;
+  const acoesDoCabecalho = [
+    {
+      id: "convidar",
+      texto: textos.convidar,
+      visivel: !finalizado && (ehResponsavel || estaDentro || papel !== "ATENDENTE"),
+      abrir: () => setConvidarAberto(true),
+    },
+  ];
 
   async function executarParticipacao(
     acao: () => Promise<unknown>,
@@ -215,12 +226,23 @@ export function CabecalhoConversa({
           </span>
         )}
         {!finalizado && !ehResponsavel && estadoPersistido === "PENDENTE" && (
-          <span className="flex max-w-64 flex-col items-end gap-0.5 text-right text-[0.65rem] text-muted-foreground">
-            <Button type="button" variant="outline" size="sm" disabled>{textos.pedidoPendente}</Button>
-            <span className="truncate">{textos.pedidoEnviado.replace("{nome}", conversa.atendenteNome ?? textos.semAtendente)}</span>
-            {meuPedido?.solicitadoEm && <span>{textos.pedidoSolicitadoEm.replace("{horario}", formatarHorario(meuPedido.solicitadoEm))}</span>}
-            <span>{textos.pedidoValidadeConfigurada}</span>
-          </span>
+          meuPedido?.tipo === "CONVITE" ? (
+            <span className="flex max-w-64 flex-col items-end gap-1 text-right text-[0.65rem] text-muted-foreground">
+              <span className="truncate">{textos.convitePendente}</span>
+              <span>{textos.conviteRecebidoDescricao}</span>
+              <span className="flex gap-1">
+                <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => aprovarPedido(meuPedido.id), "DENTRO", textos.sucessoConviteAceito)} disabled={processandoParticipacao}>{textos.aceitarConvite}</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => executarParticipacao(() => recusarPedido(meuPedido.id), "SEM_PEDIDO", textos.sucessoConviteRecusado)} disabled={processandoParticipacao}>{textos.recusarConvite}</Button>
+              </span>
+            </span>
+          ) : (
+            <span className="flex max-w-64 flex-col items-end gap-0.5 text-right text-[0.65rem] text-muted-foreground">
+              <Button type="button" variant="outline" size="sm" disabled>{textos.pedidoPendente}</Button>
+              <span className="truncate">{textos.pedidoEnviado.replace("{nome}", conversa.atendenteNome ?? textos.semAtendente)}</span>
+              {meuPedido?.solicitadoEm && <span>{textos.pedidoSolicitadoEm.replace("{horario}", formatarHorario(meuPedido.solicitadoEm))}</span>}
+              <span>{textos.pedidoValidadeConfigurada}</span>
+            </span>
+          )
         )}
         {!finalizado && !ehResponsavel && estadoPersistido === "RECUSADO" && (
           <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => pedirEntrada(conversa.atendimentoId), "PENDENTE", textos.sucessoPedido)} disabled={processandoParticipacao}>{textos.recusado}</Button>
@@ -243,6 +265,12 @@ export function CabecalhoConversa({
         )}
         {!finalizado && (
           <>
+            {acoesDoCabecalho.filter((acao) => acao.visivel).map((acao) => (
+              <Button key={acao.id} type="button" variant="outline" size="sm" onClick={acao.abrir}>
+                <UserPlus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                {acao.texto}
+              </Button>
+            ))}
             <Button
               type="button"
               variant="outline"
@@ -318,6 +346,13 @@ export function CabecalhoConversa({
         atendimentoId={conversa.atendimentoId}
         aberto={transferirAberto}
         onFechar={() => setTransferirAberto(false)}
+      />
+      <DialogoConvidar
+        atendimentoId={conversa.atendimentoId}
+        participantes={participantes}
+        aberto={convidarAberto}
+        onFechar={() => setConvidarAberto(false)}
+        onSucesso={() => setFeedbackParticipacao({ tipo: "sucesso", texto: textos.convidarSucesso })}
       />
     </div>
   );

@@ -88,6 +88,7 @@
 | POST | `/api/v1/atendimentos/mensagens` | Envia texto; o `atendimentoId` do clique ancora o ciclo e o envio humano transfere a responsabilidade elegível | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| POST | `/api/v1/atendimentos/{id}/convidar` | Cria convite idempotente para atendente ativo; preserva o responsável e entrega o cartão em Pendentes ao destinatário | Responsável, participante ativo ou gestor | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/avaliacao` | Lê a nota 1–5 da conversa visível | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |

@@ -52,7 +52,9 @@ import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioExce
 import com.synapse.crm.atendimento.application.midia.ObterConfiguracaoComposerUseCase;
 import com.synapse.crm.atendimento.application.midia.ResolverLeadDoAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.TipoDeMidiaNaoPermitidoException;
+import com.synapse.crm.atendimento.application.participacao.ConviteAtendimentoInvalidoException;
 import com.synapse.crm.atendimento.application.participacao.GerenciarParticipacaoAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio.ConviteResultado;
 import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento;
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
@@ -430,6 +432,22 @@ class AtendimentoAcoesController {
     @PostMapping("/{id}/sair")
     void sair(@PathVariable UUID id) { participacao.sair(id); }
 
+    @Operation(summary = "Convidar atendente para o atendimento",
+            description = "Cria um convite pendente para um atendente ativo elegível. O convite preserva o responsável comercial, aparece em Pendentes para o destinatário e gera notificação pessoal após o commit.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Convite criado ou já existente; a operação é idempotente."),
+                @ApiResponse(responseCode = "403", description = "Usuário não é responsável, participante ativo ou gestor."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "Atendente já participa do atendimento."),
+                @ApiResponse(responseCode = "422", description = "Destino inativo ou com papel não elegível.")})
+    @PostMapping("/{id}/convidar")
+    ConviteResposta convidar(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody ConviteRequisicao requisicao) {
+        ConviteResultado resultado = participacao.convidar(id, requisicao.atendenteId());
+        return new ConviteResposta(id, requisicao.atendenteId(), resultado.pedidoId(), !resultado.criado());
+    }
+
     @Operation(summary = "Aprovar pedido de entrada", description = "O responsável aprova o pedido e adiciona o solicitante como participante, sem transferir a propriedade do atendimento.", responses = {
             @ApiResponse(responseCode = "204", description = "Pedido aprovado."),
             @ApiResponse(responseCode = "403", description = "Somente o responsável pode aprovar."),
@@ -476,6 +494,10 @@ class AtendimentoAcoesController {
 
     record PedidoEntradaResposta(UUID pedidoId) {}
 
+    record ConviteRequisicao(@NotNull UUID atendenteId) {}
+
+    record ConviteResposta(UUID atendimentoId, UUID atendenteId, UUID pedidoId, boolean jaExistia) {}
+
     @ExceptionHandler(RecursoDeAtendimentoIndisponivelException.class)
     ProblemDetail aoNaoEncontrar(RecursoDeAtendimentoIndisponivelException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
@@ -487,6 +509,13 @@ class AtendimentoAcoesController {
     ProblemDetail aoRecusarChaveReutilizada(ChaveIdempotenciaReutilizadaException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
         problema.setTitle("Idempotency-Key reutilizada");
+        return problema;
+    }
+
+    @ExceptionHandler(ConviteAtendimentoInvalidoException.class)
+    ProblemDetail aoRecusarConvite(ConviteAtendimentoInvalidoException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problema.setTitle("Convite invalido");
         return problema;
     }
 

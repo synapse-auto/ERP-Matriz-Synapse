@@ -99,6 +99,10 @@ vi.mock("./dialogo-transferir", () => ({
   DialogoTransferir: () => null,
 }));
 
+vi.mock("./dialogo-convidar", () => ({
+  DialogoConvidar: () => null,
+}));
+
 import { CabecalhoConversa } from "./cabecalho-conversa";
 import { ListaConversas } from "./lista-conversas";
 

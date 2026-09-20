@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
+import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.equipe.application.autenticacao.UsuarioRepositorio;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
@@ -29,6 +30,7 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
     private final UsuarioContext contexto = mock(UsuarioContext.class);
     private final ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
     private final UsuarioRepositorio usuarios = mock(UsuarioRepositorio.class);
+    private final AtendenteParaTransferenciaRepositorio destinos = mock(AtendenteParaTransferenciaRepositorio.class);
     private final Clock agora = Clock.fixed(Instant.parse("2026-08-24T12:00:00Z"), ZoneOffset.UTC);
 
     @Test
@@ -36,9 +38,11 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(dono, PapelUsuario.GESTOR, false));
         when(participacoes.pedido(any())).thenReturn(Optional.of(new PedidoEntradaAtendimento(
                 UUID.randomUUID(), atendimento, convidado, "Convidado", StatusPedidoEntrada.PENDENTE,
+                TipoPedidoEntrada.SOLICITACAO,
                 Instant.parse("2026-08-24T11:55:00Z"))));
         when(participacoes.validadeConfigurada()).thenReturn(Duration.ofMinutes(30));
         when(participacoes.leadId(atendimento)).thenReturn(Optional.of(lead));
+        when(atendimentos.avancarVersaoDoEvento(atendimento)).thenReturn(1L);
         when(participacoes.donoId(atendimento)).thenReturn(Optional.of(dono));
         when(participacoes.eParticipanteAtivo(atendimento, dono)).thenReturn(true);
         when(atendimentos.avancarVersaoDoEvento(atendimento)).thenReturn(1L, 2L, 3L, 4L);
@@ -58,6 +62,7 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(dono, PapelUsuario.GESTOR, false));
         when(participacoes.pedido(any())).thenReturn(Optional.of(new PedidoEntradaAtendimento(
                 UUID.randomUUID(), atendimento, convidado, "Convidado", StatusPedidoEntrada.PENDENTE,
+                TipoPedidoEntrada.SOLICITACAO,
                 Instant.parse("2026-08-24T11:00:00Z"))));
         when(participacoes.validadeConfigurada()).thenReturn(Duration.ofMinutes(30));
 
@@ -83,5 +88,26 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
 
         verify(participacoes).pedidoDoSolicitante(
                 atendimento, convidado, Instant.parse("2026-08-24T11:30:00Z"));
+    }
+
+    @Test
+    void convidar_publica_evento_somente_quando_o_pedido_e_novo() {
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(dono, PapelUsuario.ATENDENTE, false));
+        when(atendimentos.porId(atendimento)).thenReturn(Optional.of(mock(com.synapse.crm.atendimento.domain.atendimento.Atendimento.class)));
+        when(participacoes.eDono(atendimento, dono)).thenReturn(true);
+        when(participacoes.eParticipanteAtivo(atendimento, convidado)).thenReturn(false);
+        when(destinos.exigirAtendenteAtivo(convidado)).thenReturn(new AtendenteParaTransferenciaRepositorio.Destino(convidado, "Convidado"));
+        when(participacoes.leadId(atendimento)).thenReturn(Optional.of(lead));
+        when(atendimentos.avancarVersaoDoEvento(atendimento)).thenReturn(1L);
+        when(participacoes.convidar(eq(atendimento), eq(convidado), any()))
+                .thenReturn(new ParticipacaoAtendimentoRepositorio.ConviteResultado(UUID.randomUUID(), true));
+
+        var useCase = new GerenciarParticipacaoAtendimentoUseCase(
+                participacoes, atendimentos, contexto, eventos, agora, usuarios, destinos);
+
+        useCase.convidar(atendimento, convidado);
+
+        verify(eventos).publishEvent(any(com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento.ConviteParaAtendimentoCriado.class));
+        verify(eventos).publishEvent(any(com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento.class));
     }
 }
