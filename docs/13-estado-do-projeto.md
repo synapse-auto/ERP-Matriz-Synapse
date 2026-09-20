@@ -10,7 +10,8 @@ Marcondes confirmou `flyway_schema_history` da Estrutural com V73 bem-sucedida. 
 não rodar `flyway repair` e não alterar o histórico. A Fêmina teve tentativas de V73 no boot
 abortadas após mais de 30 minutos: healthcheck reiniciava o backend, novas sessões JDBC concorriam
 por locks e a API respondia 503; a versão continuava em 72. `7462937` e `e3324f5` são tags de
-imagens que contêm V73; `78c4e53` é a última imagem publicada antes dela. Esses dados não confirmam
+imagens que contêm V73; `78c4e53` também já contém a V73 (foi o merge que a introduziu, PR #155) — a
+última imagem anterior a ela é a de `40fdc54` (PR #154). Esses dados não confirmam
 qual imagem está atualmente implantada em cada serviço, que deve ser obtida do Dokploy/runtime antes
 de agir.
 
