@@ -843,6 +843,23 @@
         }
       }
     },
+    "/internal/v1/fidelizacao/aniversariantes-hoje" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AniversariantesResposta"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/leads/{id}/foto" : {
       "delete" : {
         "parameters" : [ {
@@ -952,6 +969,26 @@
         }
       }
     },
+    "/internal/v1/mensagens-festivas/hoje" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MensagemFestivaResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/regras/fidelizacao" : {
       "get" : {
         "responses" : {
@@ -1014,6 +1051,23 @@
     }
   },
   "schemas" : {
+    "AniversariantesResposta" : {
+      "properties" : {
+        "habilitado" : {
+          "type" : "boolean"
+        },
+        "leads" : {
+          "items" : {
+            "$ref" : "#/components/schemas/LeadAniversarianteResposta"
+          },
+          "type" : "array"
+        },
+        "mensagem" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "AplicacaoRequisicao" : {
       "properties" : {
         "tagId" : {
@@ -1058,18 +1112,6 @@
         },
         "ultimaMensagemEm" : {
           "format" : "date-time",
-          "type" : "string"
-        }
-      },
-      "type" : "object"
-    },
-    "Destino" : {
-      "properties" : {
-        "id" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "nome" : {
           "type" : "string"
         }
       },
@@ -1140,6 +1182,17 @@
       },
       "type" : "object"
     },
+    "Campo" : {
+      "properties" : {
+        "origem" : {
+          "type" : "string"
+        },
+        "preenchido" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
     "CandidatosResposta" : {
       "properties" : {
         "itens" : {
@@ -1162,13 +1215,43 @@
       },
       "type" : "object"
     },
-    "Campo" : {
+    "ContextoResposta" : {
       "properties" : {
-        "origem" : {
+        "atendimentoId" : {
+          "format" : "uuid",
           "type" : "string"
         },
-        "preenchido" : {
+        "conteudoSuficiente" : {
           "type" : "boolean"
+        },
+        "contextoAte" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "mensagens" : {
+          "items" : {
+            "$ref" : "#/components/schemas/MensagemContextoResposta"
+          },
+          "type" : "array"
+        },
+        "temMais" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "Destino" : {
+      "properties" : {
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
         }
       },
       "type" : "object"
@@ -1298,35 +1381,6 @@
       },
       "type" : "object"
     },
-    "ContextoResposta" : {
-      "properties" : {
-        "atendimentoId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "contextoAte" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "conteudoSuficiente" : {
-          "type" : "boolean"
-        },
-        "leadId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "mensagens" : {
-          "items" : {
-            "$ref" : "#/components/schemas/MensagemContextoResposta"
-          },
-          "type" : "array"
-        },
-        "temMais" : {
-          "type" : "boolean"
-        }
-      },
-      "type" : "object"
-    },
     "ItemResposta" : {
       "properties" : {
         "atendimentoId" : {
@@ -1347,23 +1401,16 @@
       },
       "type" : "object"
     },
-    "MensagemContextoResposta" : {
+    "LeadAniversarianteResposta" : {
       "properties" : {
-        "conteudo" : {
-          "type" : "string"
-        },
-        "enviadoEm" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "mensagemId" : {
+        "id" : {
           "format" : "uuid",
           "type" : "string"
         },
-        "remetente" : {
+        "nome" : {
           "type" : "string"
         },
-        "tipo" : {
+        "telefone" : {
           "type" : "string"
         }
       },
@@ -1419,6 +1466,28 @@
       },
       "type" : "object"
     },
+    "MensagemContextoResposta" : {
+      "properties" : {
+        "conteudo" : {
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "remetente" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "MensagemEnviadaRequisicao" : {
       "properties" : {
         "conteudo" : {
@@ -1468,6 +1537,31 @@
       },
       "type" : "object"
     },
+    "MensagemFestivaResposta" : {
+      "properties" : {
+        "ativo" : {
+          "type" : "boolean"
+        },
+        "data" : {
+          "format" : "date",
+          "type" : "string"
+        },
+        "icone" : {
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "mensagem" : {
+          "type" : "string"
+        },
+        "titulo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "ModoIaRequisicao" : { },
     "PaginaResposta" : {
       "properties" : {
@@ -1487,27 +1581,6 @@
         },
         "temMais" : {
           "type" : "boolean"
-        }
-      },
-      "type" : "object"
-    },
-    "PreenchimentoRequisicao" : {
-      "properties" : {
-        "cpf" : {
-          "type" : "string"
-        },
-        "email" : {
-          "type" : "string"
-        },
-        "empresa" : {
-          "type" : "string"
-        },
-        "leadId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "localizacao" : {
-          "type" : "string"
         }
       },
       "type" : "object"
@@ -1539,6 +1612,27 @@
         },
         "valorMin" : {
           "type" : "number"
+        }
+      },
+      "type" : "object"
+    },
+    "PreenchimentoRequisicao" : {
+      "properties" : {
+        "cpf" : {
+          "type" : "string"
+        },
+        "email" : {
+          "type" : "string"
+        },
+        "empresa" : {
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "localizacao" : {
+          "type" : "string"
         }
       },
       "type" : "object"
@@ -1693,6 +1787,40 @@
       },
       "type" : "object"
     },
+    "ResumoIaResposta" : {
+      "properties" : {
+        "ativo" : {
+          "type" : "boolean"
+        },
+        "gatilho" : {
+          "enum" : [ "A_CADA_X_MENSAGENS", "AO_FINALIZAR", "AMBOS" ],
+          "type" : "string"
+        },
+        "quantidadeMensagens" : {
+          "format" : "int32",
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "ResumoRequisicao" : {
+      "properties" : {
+        "contextoGeradoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "resumo" : {
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "resumo" ],
+      "type" : "object"
+    },
     "Solicitacao" : {
       "properties" : {
         "atendimentoId" : {
@@ -1726,40 +1854,6 @@
           "type" : "string"
         }
       },
-      "type" : "object"
-    },
-    "ResumoIaResposta" : {
-      "properties" : {
-        "ativo" : {
-          "type" : "boolean"
-        },
-        "gatilho" : {
-          "enum" : [ "A_CADA_X_MENSAGENS", "AO_FINALIZAR", "AMBOS" ],
-          "type" : "string"
-        },
-        "quantidadeMensagens" : {
-          "format" : "int32",
-          "type" : "integer"
-        }
-      },
-      "type" : "object"
-    },
-    "ResumoRequisicao" : {
-      "properties" : {
-        "contextoGeradoEm" : {
-          "format" : "date-time",
-          "type" : "string"
-        },
-        "leadId" : {
-          "format" : "uuid",
-          "type" : "string"
-        },
-        "resumo" : {
-          "minLength" : 1,
-          "type" : "string"
-        }
-      },
-      "required" : [ "resumo" ],
       "type" : "object"
     },
     "StatusResumoRequisicao" : {

@@ -2,6 +2,7 @@ package com.synapse.crm.automacaoconfig.interfaces.internal;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,14 +29,19 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.automacaoconfig.application.ConfiguracaoResumoIaRepositorio;
 import com.synapse.crm.automacaoconfig.application.ListarConfiguracoesAutomacaoUseCase;
 import com.synapse.crm.automacaoconfig.application.ObterConfiguracaoAutomacaoUseCase;
+import com.synapse.crm.automacaoconfig.application.festivas.MensagensFestivasDoDiaUseCase;
+import com.synapse.crm.automacaoconfig.application.fidelizacao.AniversariantesDoDiaUseCase;
 import com.synapse.crm.automacaoconfig.application.regras.ListarRegrasFidelizacaoUseCase;
 import com.synapse.crm.automacaoconfig.application.regras.ListarRegrasFollowUpUseCase;
 import com.synapse.crm.automacaoconfig.application.telemetria.RegistrarEventoDeAutomacaoUseCase;
 import com.synapse.crm.automacaoconfig.domain.ConfiguracaoAutomacao;
 import com.synapse.crm.automacaoconfig.domain.TipoConfiguracaoAutomacao;
+import com.synapse.crm.automacaoconfig.domain.festivas.MensagemFestiva;
+import com.synapse.crm.automacaoconfig.domain.fidelizacao.LeadAniversariante;
 import com.synapse.crm.automacaoconfig.domain.regras.RegraFidelizacao;
 import com.synapse.crm.automacaoconfig.domain.regras.RegraFollowUp;
 import com.synapse.crm.automacaoconfig.domain.telemetria.TipoEventoAutomacao;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /**
  * O contrato {@code /internal/v1} (E07): o que a Automacao de todo filho consome.
@@ -58,6 +64,8 @@ class AutomationConfigInternalController {
     private final RegistrarEventoDeAutomacaoUseCase registrarEvento;
     private final CanalGateway canal;
     private final ConfiguracaoResumoIaRepositorio resumoIa;
+    private final MensagensFestivasDoDiaUseCase festivasDeHoje;
+    private final AniversariantesDoDiaUseCase aniversariantesDeHoje;
 
     AutomationConfigInternalController(
             ListarConfiguracoesAutomacaoUseCase listarConfiguracoes,
@@ -66,7 +74,9 @@ class AutomationConfigInternalController {
             ListarRegrasFidelizacaoUseCase listarFidelizacao,
             RegistrarEventoDeAutomacaoUseCase registrarEvento,
             CanalGateway canal,
-            ConfiguracaoResumoIaRepositorio resumoIa) {
+            ConfiguracaoResumoIaRepositorio resumoIa,
+            MensagensFestivasDoDiaUseCase festivasDeHoje,
+            AniversariantesDoDiaUseCase aniversariantesDeHoje) {
         this.listarConfiguracoes = listarConfiguracoes;
         this.obterConfiguracao = obterConfiguracao;
         this.listarFollowUp = listarFollowUp;
@@ -74,6 +84,8 @@ class AutomationConfigInternalController {
         this.registrarEvento = registrarEvento;
         this.canal = canal;
         this.resumoIa = resumoIa;
+        this.festivasDeHoje = festivasDeHoje;
+        this.aniversariantesDeHoje = aniversariantesDeHoje;
     }
 
     @Operation(
@@ -164,7 +176,63 @@ class AutomationConfigInternalController {
                 new ResumoIaResposta(resumo.ativo(), resumo.gatilho(), resumo.quantidadeMensagens()), preenchimento);
     }
 
+    @Operation(
+            summary = "Listar mensagens festivas de hoje",
+            description = "Retorna as datas festivas ativas cujo dia e mês são os de hoje, em qualquer ano. "
+                    + "Dia sem data festiva devolve lista vazia, não 404. Cadastro duplicado no mesmo dia "
+                    + "devolve todos: a escolha é de quem cadastrou, não do CRM.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mensagens festivas de hoje (pode ser vazia)."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido.")
+            })
+    @GetMapping("/mensagens-festivas/hoje")
+    List<MensagemFestivaResposta> mensagensFestivasDeHoje() {
+        return festivasDeHoje.executar().stream().map(MensagemFestivaResposta::de).toList();
+    }
+
+    @Operation(
+            summary = "Listar aniversariantes de hoje",
+            description = "Retorna a configuração da mensagem de aniversário e os leads que fazem aniversário "
+                    + "hoje, para a automação agir em uma única consulta. Com a configuração desabilitada a "
+                    + "lista sai vazia pelo servidor. A data de nascimento vem do campo customizado reservado "
+                    + "'data_nascimento' (tipo DATA); instância sem esse campo devolve lista vazia.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Configuração e aniversariantes de hoje."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido.")
+            })
+    @GetMapping("/fidelizacao/aniversariantes-hoje")
+    AniversariantesResposta aniversariantesDeHoje() {
+        // A RLS de lead so libera leitura ampla sob papel de servico; o token interno nao e usuario.
+        return ContextoDeServico.buscarComo(
+                "listar-aniversariantes-do-dia", () -> AniversariantesResposta.de(aniversariantesDeHoje.executar()));
+    }
+
     // --- DTOs -------------------------------------------------------------
+
+    record MensagemFestivaResposta(UUID id, String titulo, String icone, LocalDate data, String mensagem) {
+
+        static MensagemFestivaResposta de(MensagemFestiva mensagem) {
+            return new MensagemFestivaResposta(
+                    mensagem.id(), mensagem.titulo(), mensagem.icone(), mensagem.data(), mensagem.mensagem());
+        }
+    }
+
+    record AniversariantesResposta(boolean habilitado, String mensagem, List<LeadAniversarianteResposta> leads) {
+
+        static AniversariantesResposta de(AniversariantesDoDiaUseCase.Resultado resultado) {
+            return new AniversariantesResposta(
+                    resultado.habilitado(),
+                    resultado.mensagem(),
+                    resultado.leads().stream().map(LeadAniversarianteResposta::de).toList());
+        }
+    }
+
+    record LeadAniversarianteResposta(UUID id, String nome, String telefone) {
+
+        static LeadAniversarianteResposta de(LeadAniversariante lead) {
+            return new LeadAniversarianteResposta(lead.id(), lead.nome(), lead.telefone());
+        }
+    }
 
     record AutomationConfigResposta(
             List<ParametroResposta> parametros,
