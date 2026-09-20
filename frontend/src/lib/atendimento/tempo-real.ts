@@ -41,7 +41,18 @@ const DESTINO_REVOGACOES = "/user/queue/revogacoes";
 export const DESTINO_NOTIFICACOES = "/user/queue/notificacoes";
 const destinoAtendimento = (id: string) => `/user/queue/atendimento.${id}`;
 
-function clienteStompPadrao(opcoes: {
+/**
+ * Pulso STOMP, o mesmo valor configurado no backend (`synapse.tempo-real.heartbeat-*`, 10s).
+ *
+ * Sem heartbeat os dois lados negociam `0,0` e uma conexão que morre em silêncio (proxy derrubando
+ * conexão ociosa, troca de rede, laptop suspenso) só é percebida quando o TCP do navegador desiste,
+ * sem prazo previsível. Como esta tela não tem polling por decisão de projeto (docs/40), esse prazo
+ * é o tempo que o atendente fica sem ver a mensagem que já chegou. Com o pulso, o stompjs fecha a
+ * conexão em cerca de dois intervalos e o reconector com backoff assume.
+ */
+export const HEARTBEAT_MS = 10_000;
+
+export function clienteStompPadrao(opcoes: {
   brokerUrl: string;
   accessToken: string | null;
 }): ClienteStompLike {
@@ -51,6 +62,8 @@ function clienteStompPadrao(opcoes: {
     brokerURL: `${opcoes.brokerUrl}?access_token=${encodeURIComponent(opcoes.accessToken ?? "")}`,
     // Backoff é nosso, não o do stompjs (que é delay fixo) — ver calcularBackoffMs.
     reconnectDelay: 0,
+    heartbeatIncoming: HEARTBEAT_MS,
+    heartbeatOutgoing: HEARTBEAT_MS,
   }) as unknown as ClienteStompLike;
 }
 

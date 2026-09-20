@@ -40,7 +40,7 @@ class RedisSubscriberDeAtendimentoTest {
             mock(ListarDestinatariosTempoRealUseCase.class);
     private final RegistroDeAssinaturas registro = new RegistroDeAssinaturas(
             Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneOffset.UTC),
-            new TempoRealProperties(1, 1, 1, 1, "*", 60));
+            new TempoRealProperties(1, 1, 1, 1, "*", 60, 10_000L, 10_000L));
     private final RedisSubscriberDeAtendimento subscriber = new RedisSubscriberDeAtendimento(
             registro, template, new ObjectMapper(), revalidar, listarDestinatarios);
 

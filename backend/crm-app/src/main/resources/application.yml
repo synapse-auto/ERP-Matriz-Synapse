@@ -243,6 +243,10 @@ synapse:
     # E07 §0: janela maxima do vazamento se uma revogacao se perder no Redis
     # pub/sub (at-most-once). Decisao de risco explicita — ver TempoRealProperties.
     ttl-assinatura-segundos: ${WS_TTL_ASSINATURA_SEGUNDOS:60}
+    # E193: pulso STOMP nos dois sentidos. Sem ele o broker negocia 0,0 e conexao
+    # morta so e percebida quando o TCP desiste — ver TempoRealProperties.
+    heartbeat-saida-ms: ${WS_HEARTBEAT_SAIDA_MS:10000}
+    heartbeat-entrada-ms: ${WS_HEARTBEAT_ENTRADA_MS:10000}
 
   automacao:
     # E104: teto do cache de configuracao_automacao. Invalidacao por evento
