@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -49,17 +50,25 @@ public class ListarInboxUnificadaUseCase {
 
     @PreAuthorize("isAuthenticated()")
     public InboxUnificada executar(VisaoAtendimento visao, int limite, String cursor) {
+        return executar(visao, limite, cursor, null);
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    public InboxUnificada executar(VisaoAtendimento visao, int limite, String cursor,
+            UUID filtroAtendenteId) {
         // A decisao de acesso precisa ocorrer fora do bloco de degradacao: AccessDeniedException
         // e autorizacao, nao uma falha auxiliar que possa ser convertida em inbox vazia.
-        visao.exigirAcesso(usuarioContext.atual());
+        var atual = usuarioContext.atual();
+        visao.exigirAcesso(atual);
+        if (filtroAtendenteId != null && visao == VisaoAtendimento.FINALIZADOS
+                && !atual.enxergaTodosOsLeads() && !atual.id().equals(filtroAtendenteId)) {
+            throw new AccessDeniedException("atendente só pode filtrar os próprios atendimentos finalizados");
+        }
         int tamanho = Math.max(1, Math.min(limite, 100));
         List<InboxUnificada.Item> itens = new ArrayList<>();
         Cursor apos = decodificar(cursor);
         try {
-            clientes.executarPaginado(visao, tamanho + 1,
-                    apos != null && apos.grupo() == 1,
-                    apos == null ? null : apos.data(),
-                    apos == null ? null : apos.id()).stream()
+            carregarClientes(visao, tamanho + 1, apos, filtroAtendenteId).stream()
                     .map(InboxUnificada.Item::cliente)
                     .forEach(itens::add);
         } catch (RuntimeException erro) {
@@ -87,6 +96,20 @@ public class ListarInboxUnificadaUseCase {
         List<InboxUnificada.Item> pagina = List.copyOf(itens.subList(0, Math.min(tamanho, itens.size())));
         String proximo = temMais ? codificar(pagina.get(pagina.size() - 1)) : null;
         return new InboxUnificada(pagina, proximo);
+    }
+
+    private List<com.synapse.crm.atendimento.application.painel.CartaoAtendimento> carregarClientes(
+            VisaoAtendimento visao, int limite, Cursor apos, UUID filtroAtendenteId) {
+        if (filtroAtendenteId == null) {
+            return clientes.executarPaginado(visao, limite,
+                    apos != null && apos.grupo() == 1,
+                    apos == null ? null : apos.data(),
+                    apos == null ? null : apos.id());
+        }
+        return clientes.executarPaginado(visao, limite,
+                apos != null && apos.grupo() == 1,
+                apos == null ? null : apos.data(),
+                apos == null ? null : apos.id(), filtroAtendenteId);
     }
 
     private boolean chatHabilitado() {

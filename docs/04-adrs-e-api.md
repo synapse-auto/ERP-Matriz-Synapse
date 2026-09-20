@@ -94,6 +94,13 @@
 | POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
 
+Na visão `FINALIZADOS`, a inbox aceita o parâmetro opcional `atendenteId`. Gestores, subgestores e
+administradores podem omiti-lo (todos) ou informar um responsável específico. Para atendentes, a
+tela sempre envia o próprio UUID; uma tentativa explícita de informar outro responsável é recusada
+com `403` antes da consulta. A aplicação do filtro ocorre no read model paginado (`a.atendente_id`),
+depois da autorização da `ListarAtendimentosVisiveisUseCase`; não há filtragem de finalizados no
+frontend. Chamadas legadas sem o parâmetro preservam a regra existente de balcão de reativação.
+
 #### Envio resiliente no navegador
 
 Os endpoints de novo contato, texto, template, mídia e encaminhamento aceitam o header opcional

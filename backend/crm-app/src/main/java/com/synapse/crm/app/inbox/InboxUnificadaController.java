@@ -1,5 +1,7 @@
 package com.synapse.crm.app.inbox;
 
+import java.util.UUID;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,7 +30,9 @@ class InboxUnificadaController {
             @Parameter(description = "Quantidade por página, entre 1 e 100.")
                     @RequestParam(defaultValue = "50") int limite,
             @Parameter(description = "Cursor opaco devolvido pela página anterior.")
-                    @RequestParam(required = false) String cursor) {
-        return listar.executar(visao, limite, cursor);
+                    @RequestParam(required = false) String cursor,
+            @Parameter(description = "Responsável dos atendimentos finalizados. Atendentes só podem informar o próprio ID; gestores podem omitir para ver todos.")
+                    @RequestParam(required = false) UUID atendenteId) {
+        return listar.executar(visao, limite, cursor, atendenteId);
     }
 }

@@ -110,6 +110,7 @@ export function ListaConversas({
   const catalogo = useTextos();
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
+  const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const papelAmplo = papel != null && papel !== "ATENDENTE";
   const abas = useMemo<VisaoDeAba[]>(
     () => (papelAmplo ? ABAS_GESTAO : ABAS_ATENDENTE) as VisaoDeAba[],
@@ -134,7 +135,18 @@ export function ListaConversas({
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
 
-  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(visao);
+  const filtroAtendenteDaConsulta =
+    visao === "FINALIZADOS"
+      ? papelAmplo
+        ? filtroAtendente === SELECAO_TODOS
+          ? null
+          : filtroAtendente
+        : usuarioId
+      : null;
+  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(
+    visao,
+    filtroAtendenteDaConsulta,
+  );
   const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
@@ -220,6 +232,20 @@ export function ListaConversas({
     return Array.from(mapa.entries());
   }, [cartoes]);
 
+  const opcoesDeAtendente = useMemo(() => {
+    if (visao !== "FINALIZADOS") return atendentes;
+    if (papelAmplo) return atendentes;
+    const proprio = atendentes.find(([id]) => id === usuarioId);
+    return proprio ? [proprio] : usuarioId ? [[usuarioId, textos.filtros.atendente]] : [];
+  }, [atendentes, papelAmplo, textos.filtros.atendente, usuarioId, visao]);
+
+  const filtroAtendenteVisivel =
+    visao === "FINALIZADOS" && papelAmplo
+      ? filtroAtendente ?? SELECAO_TODOS
+      : filtroAtendenteDaConsulta ?? "";
+  const temFiltroDeAtendente =
+    visao === "FINALIZADOS" ? papelAmplo || opcoesDeAtendente.length > 0 : atendentes.length > 1;
+
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     return cartoes.filter((cartao) => {
@@ -233,10 +259,12 @@ export function ListaConversas({
       return (
         correspondeABusca &&
         (cartao.tipo === "EQUIPE_INTERNA" || !filtroEtapa || cartao.etapaId === filtroEtapa) &&
-        (cartao.tipo === "EQUIPE_INTERNA" || !filtroAtendente || cartao.atendenteId === filtroAtendente)
+        (cartao.tipo === "EQUIPE_INTERNA"
+          || !filtroAtendenteDaConsulta
+          || cartao.atendenteId === filtroAtendenteDaConsulta)
       );
     });
-  }, [busca, cartoes, filtroAtendente, filtroEtapa]);
+  }, [busca, cartoes, filtroAtendenteDaConsulta, filtroEtapa]);
   const indicePrimeiroFinalizado = visao === "TODOS"
     ? filtrados.findIndex(
         (cartao) =>
@@ -319,7 +347,7 @@ export function ListaConversas({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && atendentes.length <= 1} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
+            <Button type="button" variant="outline" size="icon-sm" className="min-h-10 min-w-10" aria-label={textos.lista.filtros} aria-pressed={filtrosAbertos} disabled={etapas.length === 0 && !temFiltroDeAtendente} onClick={() => setFiltrosAbertos((abertos) => !abertos)}>
               <SlidersHorizontal className="size-(--tamanho-icone-interface)" aria-hidden />
             </Button>
           </div>
@@ -368,23 +396,27 @@ export function ListaConversas({
         </TabsList>
       </Tabs>
 
-      {filtrosAbertos && (etapas.length > 0 || atendentes.length > 1) && (
+      {filtrosAbertos && (etapas.length > 0 || temFiltroDeAtendente) && (
         <div className="flex gap-2 border-b border-border p-2 text-xs">
           {etapas.length > 0 && (
             <Seletor
               className="min-w-28"
               valor={filtroEtapa ?? ""}
               placeholder={textos.filtros.etapa}
+              ariaLabel={textos.filtros.etapa}
               opcoes={etapas.map(([id, nome]) => ({ valor: id, rotulo: nome }))}
               onChange={(valor) => setFiltroEtapa(valor || null)}
             />
           )}
-          {atendentes.length > 1 && (
+          {temFiltroDeAtendente && (
             <Seletor
               className="min-w-28"
-              valor={filtroAtendente ?? ""}
+              valor={filtroAtendenteVisivel}
               placeholder={textos.filtros.atendente}
-              opcoes={atendentes.map(([id, nome]) => ({
+              ariaLabel={textos.filtros.atendente}
+              opcoes={(papelAmplo && visao === "FINALIZADOS"
+                ? [[SELECAO_TODOS, textos.visoes.todos] as [string, string], ...opcoesDeAtendente]
+                : opcoesDeAtendente).map(([id, nome]) => ({
                 valor: id,
                 rotulo: nome,
               }))}
