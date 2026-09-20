@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetGeralRepositorio;
 import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetRepositorio;
 import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
@@ -36,6 +37,7 @@ import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.mensagem.ReferenciaDeMensagem;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -72,7 +74,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final OrigemDeMensagemRepositorio origens;
     private final AtendimentoRepositorio atendimentos;
     private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset;
+    private final ConfiguracaoDoComandoResetGeralRepositorio configuracaoDoResetGeral;
     private final TransferirAtendimentoUseCase transferirAtendimento;
+    private final ResetarFichaDoLeadUseCase resetarFichaDoLead;
     private final LeadNoCaminhoDeMensagem leads;
     private final CanalGateway canal;
     private final ArmazenamentoDeMidia armazenamento;
@@ -95,7 +99,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             OrigemDeMensagemRepositorio origens,
             AtendimentoRepositorio atendimentos,
             ConfiguracaoDoComandoResetRepositorio configuracaoDoReset,
+            ConfiguracaoDoComandoResetGeralRepositorio configuracaoDoResetGeral,
             TransferirAtendimentoUseCase transferirAtendimento,
+            ResetarFichaDoLeadUseCase resetarFichaDoLead,
             LeadNoCaminhoDeMensagem leads,
             CanalGateway canal,
             ArmazenamentoDeMidia armazenamento,
@@ -116,7 +122,9 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.origens = origens;
         this.atendimentos = atendimentos;
         this.configuracaoDoReset = configuracaoDoReset;
+        this.configuracaoDoResetGeral = configuracaoDoResetGeral;
         this.transferirAtendimento = transferirAtendimento;
+        this.resetarFichaDoLead = resetarFichaDoLead;
         this.leads = leads;
         this.canal = canal;
         this.armazenamento = armazenamento;
@@ -159,6 +167,11 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         if (comandoReset.isBlank()) {
             log.warn(
                     "Comando de reset da Automacao indisponivel; mensagens de reset nao serao reconhecidas.");
+        }
+        String comandoResetGeral = configuracaoDoResetGeral.valor().orElse("");
+        if (comandoResetGeral.isBlank()) {
+            log.warn(
+                    "Comando de reset geral indisponivel; mensagens de reset geral nao serao reconhecidas.");
         }
 
         for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
@@ -224,7 +237,18 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             // A mensagem fica gravada e seus eventos de mensagem seguem normalmente. So depois
             // disso o CRM aplica a metade que lhe cabe do #reset: devolver um atendimento humano
             // para a IA. A Automacao limpa o proprio contexto ao observar o mesmo literal.
-            if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto(), comandoReset)) {
+            // O #resetgeral (E195) faz o mesmo do #reset e ainda zera a ficha do lead. Os dois sao
+            // testados em cadeia, com o geral primeiro: um filho pode, por engano, configurar o
+            // mesmo literal nas duas chaves, e o else-if garante que nesse caso roda o efeito maior
+            // uma vez so, em vez de os dois ramos disputarem a mesma mensagem.
+            if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto(), comandoResetGeral)) {
+                if (resultado.atendimento().status().estaAberto()) {
+                    transferirAtendimento.devolverParaIaPeloSistema(resultado.atendimento().id());
+                }
+                // A ficha zera mesmo com o atendimento ja finalizado: o objetivo e o proximo teste
+                // comecar do zero, e isso nao depende de haver conversa aberta agora.
+                resetarFichaDoLead.executar(leadId);
+            } else if (!mensagem.ehMidia() && ehComandoReset(mensagem.texto(), comandoReset)) {
                 if (resultado.atendimento().status().estaAberto()) {
                     transferirAtendimento.devolverParaIaPeloSistema(resultado.atendimento().id());
                 }

@@ -1085,4 +1085,198 @@ class CanalWhatsAppIT extends PostgresIT {
     }
 
     private record Cenario(UUID leadId, UUID atendimentoId, UUID mensagemId, Instant enviadoEm) {}
+
+    /**
+     * E195: o {@code #resetgeral} devolve o atendimento para a IA, como o {@code #reset}, e ainda
+     * zera a ficha — etapa e resumo de IA — para a proxima rodada de teste manual comecar do zero no
+     * mesmo lead.
+     */
+    @Nested
+    @DisplayName("comando #resetgeral")
+    class ResetGeral {
+
+        @Test
+        @DisplayName("zera etapa e resumo, devolve para a IA e registra a limpeza na timeline")
+        void resetGeral_zeraFichaEDevolveParaIa() {
+            abrirAtendimentoComAna("preciso de orcamento");
+            preencherFicha();
+
+            postarWebhook(payload("ext-resetgeral-exato", " #RESETGERAL "), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> {
+                assertThat(fichaZerada()).isTrue();
+                assertThat(statusDoAtendimento()).isEqualTo("EM_IA");
+                assertThat(eventosDeFichaResetada()).isEqualTo(1);
+            });
+        }
+
+        @Test
+        @DisplayName("a limpeza fica com origem SISTEMA e sem ator, como o resto do caminho sem usuario")
+        void resetGeral_registraAtorSistema() {
+            abrirAtendimentoComAna("bom dia");
+            preencherFicha();
+
+            postarWebhook(payload("ext-resetgeral-ator", "#resetgeral"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> assertThat(eventosDeFichaResetada()).isEqualTo(1));
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT origem::text FROM evento_timeline
+                             WHERE lead_id = ? AND tipo = 'FICHA_RESETADA'
+                            """,
+                            String.class,
+                            leadDaAna))
+                    .isEqualTo("SISTEMA");
+            assertThat(jdbc.queryForObject(
+                            """
+                            SELECT ator_id FROM evento_timeline
+                             WHERE lead_id = ? AND tipo = 'FICHA_RESETADA'
+                            """,
+                            UUID.class,
+                            leadDaAna))
+                    .isNull();
+        }
+
+        @Test
+        @DisplayName("texto parecido nao dispara: a comparacao e com o literal inteiro")
+        void textoParecido_naoZeraFicha() {
+            abrirAtendimentoComAna("oi");
+            preencherFicha();
+
+            postarWebhook(payload("ext-resetgeral-parecido-1", "#reset geral"), CanalFake.ASSINATURA_VALIDA);
+            postarWebhook(payload("ext-resetgeral-parecido-2", "#RESETGERAL2"), CanalFake.ASSINATURA_VALIDA);
+            postarWebhook(
+                    payload("ext-resetgeral-parecido-3", "quero #resetgeral agora"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            // 2 da abertura (cliente + atendente) e as 3 parecidas: todas gravam, nenhuma comanda.
+            esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(5));
+            assertThat(fichaZerada()).isFalse();
+            assertThat(statusDoAtendimento()).isEqualTo("EM_ATENDIMENTO");
+            assertThat(eventosDeFichaResetada()).isZero();
+        }
+
+        /** O #reset e o outro comando: continua devolvendo para a IA sem encostar na ficha. */
+        @Test
+        @DisplayName("#reset nao zera a ficha")
+        void reset_naoTocaNaFicha() {
+            abrirAtendimentoComAna("tudo bem?");
+            preencherFicha();
+
+            postarWebhook(payload("ext-reset-preserva-ficha", "#reset"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> assertThat(statusDoAtendimento()).isEqualTo("EM_IA"));
+            assertThat(fichaZerada()).isFalse();
+            assertThat(eventosDeFichaResetada()).isZero();
+        }
+
+        @Test
+        @DisplayName("com o atendimento ja finalizado a ficha zera do mesmo jeito")
+        void atendimentoFinalizado_aindaZeraFicha() {
+            abrirAtendimentoComAna("obrigado");
+            preencherFicha();
+            jdbc.update(
+                    "UPDATE atendimento SET status = 'FINALIZADO', finalizado_em = now() WHERE lead_id = ?",
+                    leadDaAna);
+
+            postarWebhook(payload("ext-resetgeral-finalizado", "#resetgeral"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> assertThat(fichaZerada()).isTrue());
+        }
+
+        @Test
+        @DisplayName("lead sem etapa nem resumo: o comando e idempotente e nao falha")
+        void fichaVazia_naoFalha() {
+            abrirAtendimentoComAna("teste");
+
+            postarWebhook(payload("ext-resetgeral-vazio-1", "#resetgeral"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(eventosDeFichaResetada()).isEqualTo(1));
+
+            postarWebhook(payload("ext-resetgeral-vazio-2", "#resetgeral"), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+
+            esperar().untilAsserted(() -> assertThat(eventosDeFichaResetada()).isEqualTo(2));
+            assertThat(fichaZerada()).isTrue();
+        }
+
+        @Test
+        @DisplayName("chave vazia: o comando deixa de ser reconhecido e o webhook segue gravando")
+        void chaveVazia_naoReconheceEContinuaProcessando() {
+            abrirAtendimentoComAna("ola");
+            preencherFicha();
+            jdbc.update("UPDATE configuracao_automacao SET valor = '' WHERE chave = 'automacao.comando_reset_geral'");
+            try {
+                postarWebhook(payload("ext-resetgeral-sem-chave", "#resetgeral"), CanalFake.ASSINATURA_VALIDA);
+                rodarProcessador();
+
+                // 2 da abertura mais a propria mensagem do comando: ela grava normalmente, so nao
+                // e reconhecida como comando enquanto a chave estiver vazia.
+                esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(3));
+                assertThat(fichaZerada()).isFalse();
+                assertThat(eventosDeFichaResetada()).isZero();
+            } finally {
+                jdbc.update(
+                        """
+                        UPDATE configuracao_automacao SET valor = '#resetgeral'
+                         WHERE chave = 'automacao.comando_reset_geral'
+                        """);
+            }
+        }
+
+        private void abrirAtendimentoComAna(String textoDoCliente) {
+            postarWebhook(payload("ext-" + UUID.randomUUID(), textoDoCliente), CanalFake.ASSINATURA_VALIDA);
+            rodarProcessador();
+            esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "ja verifico");
+            ApoioRls.sair();
+        }
+
+        /** Ficha com etapa e resumo, que e o estado que o comando precisa limpar. */
+        private void preencherFicha() {
+            UUID etapa =
+                    jdbc.queryForObject("SELECT id FROM etapa_atendimento ORDER BY ordem LIMIT 1", UUID.class);
+            jdbc.update(
+                    """
+                    UPDATE lead
+                       SET etapa_atendimento_id = ?,
+                           resumo_ia = 'Resumo de teste da E195',
+                           resumo_ia_atualizado_em = now()
+                     WHERE id = ?
+                    """,
+                    etapa,
+                    leadDaAna);
+        }
+
+        private boolean fichaZerada() {
+            return Boolean.TRUE.equals(jdbc.queryForObject(
+                    """
+                    SELECT etapa_atendimento_id IS NULL
+                           AND resumo_ia IS NULL
+                           AND resumo_ia_atualizado_em IS NULL
+                      FROM lead WHERE id = ?
+                    """,
+                    Boolean.class,
+                    leadDaAna));
+        }
+
+        private String statusDoAtendimento() {
+            return jdbc.queryForObject(
+                    "SELECT status::text FROM atendimento WHERE lead_id = ? ORDER BY iniciado_em DESC LIMIT 1",
+                    String.class,
+                    leadDaAna);
+        }
+
+        private int eventosDeFichaResetada() {
+            return jdbc.queryForObject(
+                    "SELECT count(*) FROM evento_timeline WHERE lead_id = ? AND tipo = 'FICHA_RESETADA'",
+                    Integer.class,
+                    leadDaAna);
+        }
+    }
 }

@@ -193,6 +193,43 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
         chat.update(SQL_STATUS, status.name(), leadId);
     }
 
+    /**
+     * O CTE le e trava a linha antes do {@code UPDATE} porque a auditoria precisa do estado
+     * anterior: {@code RETURNING} sozinho devolveria os valores ja zerados. Zero linhas significa
+     * lead inexistente ou escondido pela RLS — nos dois casos nao ha o que auditar.
+     */
+    private static final String SQL_RESET_GERAL =
+            """
+            WITH anterior AS (
+                SELECT id, etapa_atendimento_id, resumo_ia
+                  FROM lead
+                 WHERE id = ?
+                   FOR UPDATE
+            )
+            UPDATE lead atual
+               SET etapa_atendimento_id    = NULL,
+                   resumo_ia               = NULL,
+                   resumo_ia_atualizado_em = NULL
+              FROM anterior
+             WHERE atual.id = anterior.id
+            RETURNING anterior.etapa_atendimento_id AS etapa_anterior,
+                      (anterior.resumo_ia IS NOT NULL) AS tinha_resumo
+            """;
+
+    @Override
+    public Optional<FichaAnterior> limparFichaParaResetGeral(UUID leadId) {
+        TransacaoObrigatoria.exigir("limparFichaParaResetGeral");
+        return chat
+                .query(
+                        SQL_RESET_GERAL,
+                        (linha, indice) -> new FichaAnterior(
+                                Optional.ofNullable(linha.getObject("etapa_anterior", UUID.class)),
+                                linha.getBoolean("tinha_resumo")),
+                        leadId)
+                .stream()
+                .findFirst();
+    }
+
     @Override
     public List<UUID> destinatariosDaFilaDeIa() {
         TransacaoObrigatoria.exigir("destinatariosDaFilaDeIa");

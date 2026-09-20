@@ -3,6 +3,7 @@ package com.synapse.crm.core.infrastructure.reacao;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -18,6 +19,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.synapse.crm.core.domain.etapa.EtapaAtendimento;
 import com.synapse.crm.core.domain.evento.EtapaDoLeadAlterada;
+import com.synapse.crm.core.domain.evento.FichaDoLeadResetada;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Persiste a mudanca de etapa somente depois que a alteracao do lead foi commitada. */
@@ -29,6 +31,13 @@ class TimelineDeLeadListener {
             INSERT INTO evento_timeline
                 (lead_id, tipo, descricao, origem, ator_id, dados, criado_em)
             VALUES (?, 'ETAPA_ALTERADA', ?, 'USUARIO', ?, ?::jsonb, ?)
+            """;
+
+    private static final String SQL_RESET_GERAL =
+            """
+            INSERT INTO evento_timeline
+                (lead_id, tipo, descricao, origem, ator_id, dados, criado_em)
+            VALUES (?, 'FICHA_RESETADA', ?, 'SISTEMA', NULL, ?::jsonb, ?)
             """;
 
     private final JdbcTemplate jdbc;
@@ -57,6 +66,47 @@ class TimelineDeLeadListener {
                 evento.atorId(),
                 serializar(dados(evento)),
                 Timestamp.from(evento.ocorridoEm()));
+    }
+
+    /**
+     * E195: o {@code #resetgeral} nao tem usuario — quem zerou a ficha foi o sistema reagindo a uma
+     * mensagem. Por isso {@code origem = 'SISTEMA'} e {@code ator_id} nulo, a mesma convencao de
+     * {@code devolverParaIaPeloSistema}, em vez de inventar um usuario tecnico so para preencher a
+     * coluna. O nome da etapa anterior e resolvido aqui, depois do commit, no pool geral.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void aoResetarFicha(FichaDoLeadResetada evento) {
+        String etapaAnterior = evento.etapaAnteriorId()
+                .flatMap(id -> jdbc
+                        .query(
+                                "SELECT nome FROM etapa_atendimento WHERE id = ?",
+                                (linha, indice) -> linha.getString("nome"),
+                                id)
+                        .stream()
+                        .findFirst())
+                .orElse(null);
+        Map<String, Object> dados = new LinkedHashMap<>();
+        dados.put("etapa_anterior_id", evento.etapaAnteriorId().map(UUID::toString).orElse(null));
+        dados.put("etapa_anterior_nome", etapaAnterior);
+        dados.put("tinha_resumo_ia", evento.tinhaResumo());
+        jdbc.update(
+                SQL_RESET_GERAL,
+                evento.leadId(),
+                descricaoDoReset(etapaAnterior, evento.tinhaResumo()),
+                serializar(dados),
+                Timestamp.from(evento.ocorridoEm()));
+    }
+
+    private static String descricaoDoReset(String etapaAnterior, boolean tinhaResumo) {
+        StringBuilder descricao = new StringBuilder("O sistema zerou a ficha do lead pelo comando de teste");
+        if (etapaAnterior != null) {
+            descricao.append("; etapa anterior: ").append(etapaAnterior);
+        }
+        if (tinhaResumo) {
+            descricao.append("; resumo de IA removido");
+        }
+        return descricao.append('.').toString();
     }
 
     private static Map<String, Object> dados(EtapaDoLeadAlterada evento) {

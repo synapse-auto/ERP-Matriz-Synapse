@@ -30,6 +30,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetGeralRepositorio;
 import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetRepositorio;
 import com.synapse.crm.atendimento.application.IdempotenciaDeMensagemRecebidaRepositorio;
 import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
@@ -43,6 +44,7 @@ import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
+import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
 class ProcessadorDeWebhookEntradaOperacoesTest {
@@ -60,10 +62,13 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     private final LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
     private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset =
             mock(ConfiguracaoDoComandoResetRepositorio.class);
+    private final ConfiguracaoDoComandoResetGeralRepositorio configuracaoDoResetGeral =
+            mock(ConfiguracaoDoComandoResetGeralRepositorio.class);
 
     @BeforeEach
     void stubsComuns() {
         when(configuracaoDoReset.valor()).thenReturn(Optional.of("#reset"));
+        when(configuracaoDoResetGeral.valor()).thenReturn(Optional.of("#resetgeral"));
         when(idempotencia.reservarSeNova(anyString())).thenReturn(true);
         when(leads.resolverPorTelefone(anyString(), any())).thenReturn(UUID.randomUUID());
         when(canaisAtivos.porIdentificadorExterno(anyString()))
@@ -167,7 +172,9 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 mock(OrigemDeMensagemRepositorio.class),
                 mock(AtendimentoRepositorio.class),
                 configuracaoDoReset,
+                configuracaoDoResetGeral,
                 mock(TransferirAtendimentoUseCase.class),
+                mock(ResetarFichaDoLeadUseCase.class),
                 leads,
                 canal,
                 mock(ArmazenamentoDeMidia.class),
