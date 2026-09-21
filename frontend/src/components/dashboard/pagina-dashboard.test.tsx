@@ -28,7 +28,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       secoes: { ranking: "Top atendentes · avaliação", equipe: "Equipe · desempenho", equipeApoio: "Atendimentos, vendas e nota média no período", equipeOrdenadoPor: "ordenado por vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
       equipe: { vazio: "Sem atendimentos no período", colunaAtendente: "Atendente", colunaAtendimentos: "Atend.", colunaVendas: "Vendas", colunaNota: "Nota", semNota: "—" },
-      funil: { vazio: "Sem etapas", semPassagem: "—", perdido: "Perdido" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
+      funil: { vazio: "Sem etapas", semPassagem: "—", perdido: "Perdido", colunaEtapa: "Etapa", colunaPassa: "Passa" }, horario: { vazio: "Sem mensagens", hora: "{hora}h", apoio: "Mensagens trocadas em cada hora do dia", picoUnico: "pico às {hora}", picos: "picos às {manha} e {tarde}", picosEValeUnico: "picos às {manha} e {tarde} · vale às {vale}", picosEVale: "picos às {manha} e {tarde} · vale entre {inicio} e {fim}" },
       tempo: { minutos: "{minutos} min", horasMinutos: "{horas}h {minutos}min" },
     },
   }),
@@ -87,6 +87,18 @@ const PAYLOAD_ZERADO = {
   equipeDesempenho: [],
 };
 
+/**
+ * O selo mostra só a variação ("+14,0%"), como no mockup; o "vs. período anterior" continua no
+ * texto acessível do mesmo elemento. Procura pelo selo e confere as duas partes juntas.
+ */
+function seloComTexto(variacao: string): HTMLElement {
+  const selo = screen
+    .getAllByTestId("selo-tendencia")
+    .find((elemento) => elemento.textContent?.startsWith(variacao));
+  if (!selo) throw new Error(`selo de tendencia ${variacao} nao encontrado`);
+  return selo;
+}
+
 describe("PaginaDashboard", () => {
   it("renderiza dados reais do payload, abas futuras desabilitadas e gráficos em CSS", () => {
     useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
@@ -106,7 +118,7 @@ describe("PaginaDashboard", () => {
     expect(screen.getAllByText("Vendas fechadas").length).toBeGreaterThan(0);
     expect(screen.getByText("Equipe · desempenho")).toBeInTheDocument();
     expect(screen.getAllByText("Ana Silva").length).toBeGreaterThan(0);
-    expect(screen.getByText("+25,0pp vs. período anterior")).toBeInTheDocument();
+    expect(seloComTexto("+25,0pp")).toHaveTextContent("+25,0pp vs. período anterior");
     expect(screen.getAllByTestId("barra-funil")).toHaveLength(1);
     expect(screen.getAllByTestId("barra-horario")).toHaveLength(24);
     expect(screen.getByRole("button", { name: /Operacional/ })).toBeDisabled();
@@ -140,7 +152,7 @@ describe("PaginaDashboard", () => {
 
     expect(screen.getByText("Novos leads")).toBeInTheDocument();
     expect(screen.getByText("30")).toBeInTheDocument();
-    expect(screen.getByText("+14,0% vs. período anterior")).toBeInTheDocument();
+    expect(seloComTexto("+14,0%")).toHaveTextContent("+14,0% vs. período anterior");
   });
 
   it("funil mostra a linha Perdido como agregado à parte, sem entrar na sequência ordenada", () => {

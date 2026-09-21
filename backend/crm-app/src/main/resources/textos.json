@@ -1028,7 +1028,7 @@
   },
   "dashboard": {
     "titulo": "Dashboard",
-    "descricao": "Visão consolidada dos resultados comerciais e do atendimento.",
+    "descricao": "Panorama executivo do atendimento, comercial e automação.",
     "carregando": "Carregando indicadores...",
     "erro": "Não foi possível carregar os indicadores.",
     "semDado": "Sem dados",
@@ -1049,7 +1049,7 @@
     },
     "somenteComputador": "Filtros avançados no computador",
     "avisoComputador": "Relatórios completos, IA e Automação, período personalizado e exportação ficam disponíveis no CRM no computador.",
-    "funilApoio": "Etapas do pipeline · período atual",
+    "funilApoio": "Leads por etapa · taxa de passagem",
     "filtros": {
       "rotulo": "Filtros do dashboard",
       "ano": "Ano",
@@ -1081,13 +1081,13 @@
       "rotulo": "Indicadores principais",
       "atendimentos": "Atendimentos",
       "atendimentosApoio": "{total} acumulados",
-      "conversao": "Taxa de conversão",
+      "conversao": "Conversão",
       "conversaoApoio": "{vendas} vendas / {leads} leads recebidos",
-      "tempoMedio": "Tempo médio",
+      "tempoMedio": "Duração média",
       "tempoMedioApoio": "Entre início e finalização",
       "vendas": "Vendas fechadas",
       "vendasApoio": "{total} acumuladas",
-      "csat": "Avaliação",
+      "csat": "Avaliação média",
       "csatApoio": "{total} avaliações",
       "resolucaoIa": "Resolução por IA",
       "resolucaoIaApoio": "Sem transferência humana",
@@ -1107,7 +1107,7 @@
     },
     "secoes": {
       "ranking": "Top atendentes · avaliação",
-      "equipe": "Equipe · desempenho",
+      "equipe": "Equipe · desempenho no período",
       "equipeApoio": "Atendimentos, vendas e nota média no período",
       "equipeOrdenadoPor": "ordenado por vendas fechadas",
       "funil": "Funil de conversão",
@@ -1132,11 +1132,18 @@
     "funil": {
       "vazio": "Nenhuma etapa com lead no recorte.",
       "semPassagem": "—",
-      "perdido": "Perdido"
+      "perdido": "Perdido",
+      "colunaEtapa": "Etapa",
+      "colunaPassa": "Passa"
     },
     "horario": {
       "vazio": "Nenhuma mensagem enviada no período.",
-      "hora": "{hora}h"
+      "hora": "{hora}h",
+      "apoio": "Mensagens trocadas em cada hora do dia",
+      "picoUnico": "pico às {hora}",
+      "picos": "picos às {manha} e {tarde}",
+      "picosEValeUnico": "picos às {manha} e {tarde} · vale às {vale}",
+      "picosEVale": "picos às {manha} e {tarde} · vale entre {inicio} e {fim}"
     },
     "tempo": {
       "minutos": "{minutos} min",
