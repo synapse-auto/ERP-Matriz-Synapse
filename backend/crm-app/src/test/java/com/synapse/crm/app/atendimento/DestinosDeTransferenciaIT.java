@@ -8,9 +8,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.synapse.crm.app.PostgresIT;
@@ -34,6 +37,26 @@ class DestinosDeTransferenciaIT extends PostgresIT {
 
     @Autowired
     private TestRestTemplate http;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @BeforeEach
+    void normalizarElegibilidade() {
+        jdbc.update(
+                "UPDATE usuario SET ativo=TRUE, status_presenca='OFFLINE' WHERE email IN (?, ?, ?, ?, ?)",
+                EMAIL_ANA,
+                ApoioAutenticacao.EMAIL_BRUNO,
+                ApoioAutenticacao.EMAIL_SUBGESTOR,
+                EMAIL_GESTOR,
+                ApoioAutenticacao.EMAIL_ADMINISTRADOR);
+        jdbc.update(
+                "INSERT INTO disponibilidade_atendente_ia (atendente_id, disponivel_para_ia) "
+                        + "SELECT id, FALSE FROM usuario WHERE email IN (?, ?) "
+                        + "ON CONFLICT (atendente_id) DO UPDATE SET disponivel_para_ia=EXCLUDED.disponivel_para_ia",
+                EMAIL_ANA,
+                ApoioAutenticacao.EMAIL_SUBGESTOR);
+    }
 
     @Test
     @DisplayName("atendente recebe so id e nome, sem e-mail nem papel")
@@ -52,9 +75,41 @@ class DestinosDeTransferenciaIT extends PostgresIT {
             assertThat(campos).containsExactlyInAnyOrder("id", "nome");
             nomes.add(item.get("nome").asText());
         }
-        assertThat(nomes).contains("Ana Atendente", "Bruno Atendente", "Subgestora");
+        assertThat(nomes).contains("Ana Atendente", "Bruno Atendente");
         assertThat(nomes).doesNotContain("Gestora", "Administrador");
         assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
+    }
+
+    @Test
+    @DisplayName("atendente ativo continua aparecendo fora da disponibilidade da IA")
+    void atendenteAtivoForaDoRodizioContinuaNaLista() throws Exception {
+        String corpo = respostaPara(EMAIL_ANA, SENHA_ATENDENTE);
+
+        assertThat(corpo).contains("Ana Atendente");
+    }
+
+    @Test
+    @DisplayName("subgestor online e disponivel para IA aparece na lista")
+    void subgestorOnlineDisponivelAparece() {
+        prepararSubgestor(true, true);
+
+        assertThat(respostaPara(EMAIL_ANA, SENHA_ATENDENTE)).contains("Subgestora");
+    }
+
+    @Test
+    @DisplayName("subgestor online mas fora da IA nao aparece")
+    void subgestorIndisponivelNaoAparece() {
+        prepararSubgestor(true, false);
+
+        assertThat(respostaPara(EMAIL_ANA, SENHA_ATENDENTE)).doesNotContain("Subgestora");
+    }
+
+    @Test
+    @DisplayName("subgestor inativo nao aparece mesmo com disponibilidade")
+    void subgestorInativoNaoAparece() {
+        prepararSubgestor(false, true);
+
+        assertThat(respostaPara(EMAIL_ANA, SENHA_ATENDENTE)).doesNotContain("Subgestora");
     }
 
     @Test
@@ -74,8 +129,36 @@ class DestinosDeTransferenciaIT extends PostgresIT {
         assertThat(resposta.getBody())
                 .contains("Ana Atendente")
                 .contains("Bruno Atendente")
-                .contains("Subgestora");
+                .doesNotContain("Gestora")
+                .doesNotContain("Administrador");
         assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
+    }
+
+    @Test
+    @DisplayName("gestor tambem ve subgestor quando ele esta elegivel")
+    void gestorVeSubgestorElegivel() {
+        prepararSubgestor(true, true);
+
+        assertThat(respostaPara(EMAIL_GESTOR, SENHA_GESTOR)).contains("Subgestora");
+    }
+
+    private void prepararSubgestor(boolean ativo, boolean disponivel) {
+        UUID id = jdbc.queryForObject(
+                "SELECT id FROM usuario WHERE email=?", UUID.class, ApoioAutenticacao.EMAIL_SUBGESTOR);
+        jdbc.update(
+                "UPDATE usuario SET ativo=?, status_presenca=CAST(? AS status_presenca) WHERE id=?",
+                ativo,
+                ativo ? "ONLINE" : "OFFLINE",
+                id);
+        jdbc.update(
+                "INSERT INTO disponibilidade_atendente_ia (atendente_id, disponivel_para_ia) VALUES (?, ?) "
+                        + "ON CONFLICT (atendente_id) DO UPDATE SET disponivel_para_ia=EXCLUDED.disponivel_para_ia",
+                id,
+                disponivel);
+    }
+
+    private String respostaPara(String email, String senha) {
+        return chamar(email, senha, "/api/v1/atendimentos/destinos-de-transferencia").getBody();
     }
 
     private ResponseEntity<String> chamar(String email, String senha, String url) {

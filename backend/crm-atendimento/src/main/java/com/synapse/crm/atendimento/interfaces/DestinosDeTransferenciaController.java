@@ -32,7 +32,7 @@ class DestinosDeTransferenciaController {
 
     @Operation(
             summary = "Listar destinos de transferência",
-            description = "Retorna identificador e nome dos atendentes ativos. Sem e-mail, papel, presença ou métricas.",
+            description = "Retorna identificador e nome dos atendentes ativos e dos subgestores online disponíveis para a IA. Sem e-mail, papel, presença ou métricas.",
             responses = @ApiResponse(responseCode = "200", description = "Atendentes que podem receber a conversa."))
     @GetMapping("/destinos-de-transferencia")
     List<DestinoResposta> listar() {

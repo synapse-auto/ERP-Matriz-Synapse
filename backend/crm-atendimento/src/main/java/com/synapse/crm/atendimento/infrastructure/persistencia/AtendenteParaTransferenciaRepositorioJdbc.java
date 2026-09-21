@@ -18,9 +18,29 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
 
     /** Espelha {@link com.synapse.crm.sharedkernel.identidade.PapelUsuario#recebeAtendimento()}. */
     private static final String ELEGIVEL = "ativo = TRUE AND papel IN ('ATENDENTE','SUBGESTOR')";
+    /**
+     * Critério específico da lista de destinos exibida no diálogo de transferência.
+     *
+     * <p>Atendentes ativos continuam disponíveis para transferência explícita mesmo fora do
+     * rodízio da IA. Subgestores só aparecem quando estão efetivamente disponíveis para o rodízio,
+     * porque a presença e o toggle são os sinais operacionais usados para oferecê-los na lista.
+     * O critério de {@link #ativoAtendente(UUID)} permanece separado para não alterar a regra de
+     * autorização da transferência nem o contrato da Automação.
+     */
+    private static final String ELEGIVEL_NA_LISTA = """
+            (ativo = TRUE AND papel = 'ATENDENTE')
+            OR (ativo = TRUE AND papel = 'SUBGESTOR'
+                AND status_presenca = 'ONLINE'
+                AND EXISTS (
+                    SELECT 1
+                      FROM disponibilidade_atendente_ia d
+                     WHERE d.atendente_id = usuario.id
+                       AND d.disponivel_para_ia = TRUE
+                ))
+            """;
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
-            "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " ORDER BY nome, id";
+            "SELECT id, nome FROM usuario WHERE " + ELEGIVEL_NA_LISTA + " ORDER BY nome, id";
     private static final String SQL_BUSCAR_POR_NOME =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " AND nome ILIKE ? ORDER BY nome, id";
     private static final String SQL_MOTIVO = """
