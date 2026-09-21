@@ -8,11 +8,10 @@ import {
   CircleDollarSign,
   Clock3,
   Handshake,
+  ListFilter,
   Lock,
   Monitor,
   Star,
-  TrendingDown,
-  TrendingUp,
   UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -31,6 +30,11 @@ import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Seletor } from "@/components/ui/seletor";
 import { useTextos } from "@/lib/config/textos-provider";
+import {
+  faixaDaHora,
+  resumoDoHorario,
+  type ResumoDoHorario,
+} from "@/lib/dashboard/horario-de-pico";
 import { useVisaoGeralDashboard } from "@/lib/dashboard/use-dashboard";
 import type { Comparativo, VisaoGeralDashboard } from "@/lib/dashboard/types";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
@@ -60,6 +64,14 @@ const TOM_VENDAS = "var(--cor-destaque-3)";
  * já no tema.json. Trocar por tokens dedicados é mudança de tema, não de componente.
  */
 const MEDALHAS = ["var(--cor-atencao)", "var(--texto-fraco)", "var(--cor-atencao-escura)"];
+/** Avatar com cor cheia, como no mockup; só tokens do tema, alternados pela posição. */
+const CORES_DE_AVATAR = [
+  "var(--primary)",
+  "var(--cor-info)",
+  "var(--cor-ia)",
+  "var(--cor-destaque-2)",
+  "var(--cor-destaque-3)",
+];
 
 /** Abaixo disto o número não cabe legível dentro da barra e vai para fora dela. */
 const PERCENTUAL_MINIMO_PARA_NUMERO_DENTRO = 14;
@@ -580,21 +592,16 @@ interface KpiProps {
 function Kpi({ titulo, valor, apoio, comparativo, Icone, tom, quedaPositiva = false }: KpiProps) {
   const textos = useTextos().dashboard;
 
+  // Card compacto do mockup: ícone e título na mesma linha, selo no canto direito, número e
+  // linha de apoio embaixo. A sparkline do mockup fica de fora: o DTO não traz série por mês, e
+  // barras desenhadas sem série seriam dado inventado.
   return (
-    <Card className="gap-3" style={{ "--tom": tom } as React.CSSProperties}>
-      <CardHeader className="grid grid-cols-[auto_1fr] items-center gap-2.5">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-[color-mix(in_oklab,var(--tom)_14%,transparent)] text-[var(--tom)]">
-          <Icone className="size-(--tamanho-icone-interface)" />
-        </span>
-        <CardTitle className="truncate text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+    <Card className="gap-1.5 py-4" style={{ "--tom": tom } as React.CSSProperties}>
+      <CardHeader className="flex items-center gap-1.5 px-4">
+        <Icone className="size-(--tamanho-icone-interface) shrink-0 text-[var(--tom)]" />
+        <CardTitle className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
           {titulo}
         </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
-          {valor}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{apoio}</p>
         {/*
           Sem comparativo, sem selo. A API só devolve variação quando existe período anterior
           comparável; calcular no cliente daria selo inventado em painel executivo.
@@ -606,6 +613,12 @@ function Kpi({ titulo, valor, apoio, comparativo, Icone, tom, quedaPositiva = fa
             sufixo={textos.kpis.periodoAnterior}
           />
         )}
+      </CardHeader>
+      <CardContent className="px-4">
+        <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+          {valor}
+        </p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{apoio}</p>
       </CardContent>
     </Card>
   );
@@ -622,20 +635,24 @@ function SeloDeTendencia({
 }) {
   const subiu = comparativo.valor >= 0;
   const positivo = quedaPositiva ? !subiu : subiu;
-  const IconeTendencia = subiu ? TrendingUp : TrendingDown;
+  const texto = formatarComparativo(comparativo);
 
+  // Selo curto como no mockup ("+14%"); o "vs. período anterior" continua para leitor de tela e
+  // na dica ao passar o mouse, em vez de ocupar o canto do card.
   return (
-    <p
+    <span
       className={cn(
-        "mt-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+        "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
         positivo
           ? "bg-[color-mix(in_oklab,var(--cor-sucesso)_12%,transparent)] text-[var(--cor-sucesso)]"
           : "bg-destructive/10 text-destructive",
       )}
+      title={`${texto} ${sufixo}`}
+      data-testid="selo-tendencia"
     >
-      <IconeTendencia className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-      {formatarComparativo(comparativo)} {sufixo}
-    </p>
+      {texto}
+      <span className="sr-only"> {sufixo}</span>
+    </span>
   );
 }
 
@@ -665,30 +682,34 @@ function FaixaAoVivo({
         ? preencher(textos.agora.atualizadoSegundos, { segundos })
         : preencher(textos.agora.atualizadoMinutos, { minutos: Math.round(segundos / 60) });
 
+  // Mesmo desenho do mockup: rótulo pequeno em cima, número grande embaixo, itens distribuídos
+  // em colunas iguais pela largura. São quatro colunas, não sete, pelo motivo do Javadoc acima.
   return (
     <section
       aria-label={textos.agora.rotulo}
-      className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-sidebar px-4 py-3 text-sidebar-foreground"
+      className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-2xl bg-sidebar px-5 py-4 text-sidebar-foreground"
     >
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
+      <span className="inline-flex shrink-0 items-center gap-2 border-sidebar-foreground/15 pr-5 text-xs font-bold tracking-wider uppercase sm:border-r">
         <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
         {textos.agora.rotulo}
       </span>
-      <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
-      <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
-      <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
-      <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
-      <span className="ml-auto text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
+      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+        <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
+        <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
+        <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
+        <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
+      </div>
+      <span className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
     </section>
   );
 }
 
 function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number }) {
   return (
-    <span className="inline-flex items-baseline gap-1.5 text-xs whitespace-nowrap">
-      <span className="text-sidebar-foreground/70">{rotulo}</span>
-      <span className="text-sm font-bold tabular-nums">{numero(valor)}</span>
-    </span>
+    <div className="min-w-0">
+      <p className="truncate text-[11px] font-medium text-sidebar-foreground/75">{rotulo}</p>
+      <p className="text-lg leading-tight font-bold tabular-nums">{numero(valor)}</p>
+    </div>
   );
 }
 
@@ -705,10 +726,13 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
       <CardHeader>
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <div>
-            <CardTitle>{textos.secoes.equipe}</CardTitle>
+            <CardTitle className="flex items-center gap-2 font-semibold">
+              <UsersRound className="size-(--tamanho-icone-interface) text-primary" aria-hidden />
+              {textos.secoes.equipe}
+            </CardTitle>
             <p className="text-xs font-normal text-muted-foreground">{textos.secoes.equipeApoio}</p>
           </div>
-          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+          <span className="text-[11px] font-medium text-muted-foreground">
             {textos.secoes.equipeOrdenadoPor}
           </span>
         </div>
@@ -734,33 +758,35 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
                   const medalha = MEDALHAS[indice];
                   return (
                     <tr key={atendente.id} className="border-b last:border-0">
-                      <td className="py-2 pr-3">
+                      <td className="py-3 pr-3">
                         <div className="flex items-center gap-2.5">
+                          {/* Pódio do mockup: 1º a 3º em cor cheia; do 4º em diante, neutro. */}
                           <span
                             className={cn(
-                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-                              medalha
-                                ? "bg-[color-mix(in_oklab,var(--medalha)_20%,transparent)] text-[var(--medalha)]"
-                                : "bg-muted text-muted-foreground",
+                              "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[11px] font-bold",
+                              medalha ? "bg-[var(--medalha)] text-white" : "bg-muted text-muted-foreground",
                             )}
                             style={medalha ? ({ "--medalha": medalha } as React.CSSProperties) : undefined}
                             data-testid={`posicao-${indice + 1}`}
                           >
                             {indice + 1}
                           </span>
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                          <span
+                            className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-[var(--avatar)] text-[11px] font-bold text-white"
+                            style={{ "--avatar": CORES_DE_AVATAR[indice % CORES_DE_AVATAR.length] } as React.CSSProperties}
+                          >
                             {iniciaisDoNome(atendente.nome)}
                           </span>
-                          <span className="min-w-0 truncate font-medium">{atendente.nome}</span>
+                          <span className="min-w-0 truncate font-semibold">{atendente.nome}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="px-3 py-3 text-right tabular-nums">
                         {numero(atendente.atendimentos)}
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                      <td className="px-3 py-3 text-right font-bold tabular-nums">
                         {numero(atendente.vendas)}
                       </td>
-                      <td className="py-2 pl-3 text-right tabular-nums">
+                      <td className="py-3 pl-3 text-right font-semibold text-[var(--cor-atencao-escura)] tabular-nums">
                         {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
                       </td>
                     </tr>
@@ -788,50 +814,61 @@ function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
 function Funil({ dados }: { dados: VisaoGeralDashboard }) {
   const textos = useTextos().dashboard;
   const maximo = Math.max(...dados.funil.map((etapa) => etapa.quantidade), 0);
+  // Desenho do mockup: etapa à esquerda, barra no meio, "Passa" à direita. A coluna "Parado"
+  // (tempo médio parado na etapa) fica de fora: o DTO não traz tempo por etapa.
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{textos.secoes.funil}</CardTitle>
+        <CardTitle className="flex items-center gap-2 font-semibold">
+          <ListFilter className="size-(--tamanho-icone-interface) text-primary" aria-hidden />
+          {textos.secoes.funil}
+        </CardTitle>
         <p className="text-xs font-normal text-muted-foreground">{textos.funilApoio}</p>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent>
         {dados.funil.length === 0 && (
           <p className="text-sm text-muted-foreground">{textos.funil.vazio}</p>
         )}
+        <div className="grid grid-cols-[minmax(7rem,11rem)_1fr_4rem] items-center gap-x-4 border-b pb-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <span>{textos.funil.colunaEtapa}</span>
+          <span aria-hidden />
+          <span className="text-right">{textos.funil.colunaPassa}</span>
+        </div>
         {dados.funil.map((etapa) => {
           const largura = fracaoPercentual(etapa.quantidade, maximo);
           const numeroDentro = largura >= PERCENTUAL_MINIMO_PARA_NUMERO_DENTRO;
           return (
-            <div key={etapa.id}>
-              <p className="mb-1 truncate text-sm font-medium">{etapa.nome}</p>
-              <div className="flex items-center gap-3">
-                {/*
-                  O trilho é o elemento visível — com o funil inteiro zerado (o estado real desta
-                  instância) a barra preenchida some, mas a linha continua ali, com o número ao
-                  lado. Barra invisível seria indistinguível de etapa que não carregou.
-                */}
-                <div className="relative h-7 min-w-0 flex-1 overflow-hidden rounded-md bg-muted">
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-md bg-primary"
-                    style={{ width: `${largura}%` }}
-                    data-testid="barra-funil"
-                  />
-                  <span
-                    className={cn(
-                      "absolute inset-y-0 flex items-center px-2.5 text-xs font-bold tabular-nums",
-                      numeroDentro ? "left-0 text-primary-foreground" : "text-foreground",
-                    )}
-                    style={numeroDentro ? undefined : { left: `${largura}%` }}
-                  >
-                    {etapa.quantidade}
-                  </span>
-                </div>
-                <span className="w-14 shrink-0 text-right text-xs font-semibold text-muted-foreground tabular-nums">
-                  {etapa.percentualDePassagem === null
-                    ? textos.funil.semPassagem
-                    : `${percentual(etapa.percentualDePassagem)}%`}
+            <div
+              key={etapa.id}
+              className="grid grid-cols-[minmax(7rem,11rem)_1fr_4rem] items-center gap-x-4 py-2"
+            >
+              <p className="truncate text-sm font-medium">{etapa.nome}</p>
+              {/*
+                O trilho é o elemento visível — com o funil inteiro zerado (o estado real desta
+                instância) a barra preenchida some, mas a linha continua ali, com o número ao
+                lado. Barra invisível seria indistinguível de etapa que não carregou.
+              */}
+              <div className="relative h-7 min-w-0 overflow-hidden rounded-md bg-muted">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-md bg-gradient-to-r from-primary to-[color-mix(in_oklab,var(--primary)_55%,white)]"
+                  style={{ width: `${largura}%` }}
+                  data-testid="barra-funil"
+                />
+                <span
+                  className={cn(
+                    "absolute inset-y-0 flex items-center px-2.5 text-xs font-bold tabular-nums",
+                    numeroDentro ? "left-0 text-primary-foreground" : "text-foreground",
+                  )}
+                  style={numeroDentro ? undefined : { left: `${largura}%` }}
+                >
+                  {numero(etapa.quantidade)}
                 </span>
               </div>
+              <span className="text-right text-xs font-semibold text-primary tabular-nums">
+                {etapa.percentualDePassagem === null
+                  ? textos.funil.semPassagem
+                  : `${percentual(etapa.percentualDePassagem)}%`}
+              </span>
             </div>
           );
         })}
@@ -841,21 +878,19 @@ function Funil({ dados }: { dados: VisaoGeralDashboard }) {
           seguinte (ver relatório da E197). Fica como agregado à parte, sem barra nem passagem —
           mesmo tratamento do mockup.
         */}
-        <div>
-          <p className="mb-1 truncate text-sm font-medium">{textos.funil.perdido}</p>
-          <div className="flex items-center gap-3">
-            <div className="flex h-7 min-w-0 flex-1 items-center rounded-md bg-destructive/10 px-2.5">
-              <span
-                className="text-xs font-bold tabular-nums text-destructive"
-                data-testid="quantidade-perdidos"
-              >
-                {numero(dados.leadsPerdidos)}
-              </span>
-            </div>
-            <span className="w-14 shrink-0 text-right text-xs font-semibold text-muted-foreground tabular-nums">
-              {textos.funil.semPassagem}
+        <div className="grid grid-cols-[minmax(7rem,11rem)_1fr_4rem] items-center gap-x-4 border-t pt-2">
+          <p className="truncate text-sm font-medium">{textos.funil.perdido}</p>
+          <div className="flex h-7 min-w-0 items-center rounded-md bg-destructive/10 px-2.5">
+            <span
+              className="text-xs font-bold tabular-nums text-destructive"
+              data-testid="quantidade-perdidos"
+            >
+              {numero(dados.leadsPerdidos)}
             </span>
           </div>
+          <span className="text-right text-xs font-semibold text-muted-foreground tabular-nums">
+            {textos.funil.semPassagem}
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -866,31 +901,61 @@ function HorarioDePico({ dados }: { dados: VisaoGeralDashboard }) {
   const textos = useTextos().dashboard;
   const porHora = new Map(dados.horarioDePico.map((item) => [item.hora, item.quantidade]));
   const maximo = Math.max(...dados.horarioDePico.map((item) => item.quantidade), 0);
+  const resumo = textoDoResumo(resumoDoHorario(porHora), textos.horario);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{textos.secoes.horarioPico}</CardTitle>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <div>
+            <CardTitle className="flex items-center gap-2 font-semibold">
+              <Clock3 className="size-(--tamanho-icone-interface) text-primary" aria-hidden />
+              {textos.secoes.horarioPico}
+            </CardTitle>
+            <p className="text-xs font-normal text-muted-foreground">{textos.horario.apoio}</p>
+          </div>
+          {resumo && (
+            <span className="text-[11px] font-medium text-muted-foreground" data-testid="resumo-horario">
+              {resumo}
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {dados.horarioDePico.length === 0 ? (
           <p className="text-sm text-muted-foreground">{textos.horario.vazio}</p>
         ) : (
           <div className="overflow-x-auto pb-1">
-            <div className="flex h-52 min-w-[760px] items-end gap-2 border-b px-1">
+            <div className="flex h-56 min-w-[760px] items-end gap-2 px-1">
               {HORAS_DO_DIA.map((hora) => {
                 const quantidade = porHora.get(hora) ?? 0;
+                const faixa = faixaDaHora(quantidade, maximo);
                 return (
                   <div
                     key={hora}
                     className="flex h-full flex-1 flex-col justify-end gap-1 text-center"
                   >
-                    <span className="text-[10px] text-muted-foreground">{quantidade || ""}</span>
+                    <span
+                      className={cn(
+                        "text-[10px] tabular-nums",
+                        faixa === "pico" ? "font-semibold text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {quantidade ? numero(quantidade) : ""}
+                    </span>
+                    {/* Mesma leitura do mockup: pico em azul cheio, o resto em tons claros. */}
                     <div
-                      className="min-h-px w-full rounded-t bg-primary/80"
+                      className={cn(
+                        "min-h-1 w-full rounded-t-md",
+                        faixa === "pico" &&
+                          "bg-gradient-to-b from-primary to-[color-mix(in_oklab,var(--primary)_60%,white)]",
+                        faixa === "intermediaria" && "bg-[color-mix(in_oklab,var(--primary)_28%,white)]",
+                        faixa === "baixa" && "bg-[color-mix(in_oklab,var(--primary)_16%,white)]",
+                      )}
                       style={{ height: `${fracaoPercentual(quantidade, maximo) * 0.82}%` }}
                       data-testid="barra-horario"
+                      data-faixa={faixa}
                     />
-                    <span className="pb-1 text-[10px] text-muted-foreground">
+                    <span className="pt-1 text-[10px] text-muted-foreground">
                       {preencher(textos.horario.hora, { hora })}
                     </span>
                   </div>
@@ -902,6 +967,31 @@ function HorarioDePico({ dados }: { dados: VisaoGeralDashboard }) {
       </CardContent>
     </Card>
   );
+}
+
+function textoDoResumo(
+  resumo: ResumoDoHorario | null,
+  textos: {
+    hora: string;
+    picoUnico: string;
+    picos: string;
+    picosEValeUnico: string;
+    picosEVale: string;
+  },
+): string | null {
+  if (!resumo) return null;
+  const hora = (valor: number) => preencher(textos.hora, { hora: valor });
+  if (resumo.tipo === "picoUnico") return preencher(textos.picoUnico, { hora: hora(resumo.hora) });
+  const picos = { manha: hora(resumo.manha), tarde: hora(resumo.tarde) };
+  if (resumo.tipo === "picos") return preencher(textos.picos, picos);
+  if (resumo.inicio === resumo.fim) {
+    return preencher(textos.picosEValeUnico, { ...picos, vale: hora(resumo.inicio) });
+  }
+  return preencher(textos.picosEVale, {
+    ...picos,
+    inicio: hora(resumo.inicio),
+    fim: hora(resumo.fim),
+  });
 }
 
 function formatarComparativo(comparativo: Comparativo): string {

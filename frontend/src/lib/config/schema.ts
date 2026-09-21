@@ -1002,8 +1002,23 @@ export const TextosSchema = z.object({
       colunaNota: z.string(),
       semNota: z.string(),
     }),
-    funil: z.object({ vazio: z.string(), semPassagem: z.string(), perdido: z.string() }),
-    horario: z.object({ vazio: z.string(), hora: z.string() }),
+    funil: z.object({
+      vazio: z.string(),
+      semPassagem: z.string(),
+      perdido: z.string(),
+      // Default: textos gravados por instancia antes da E198 nao trazem estas chaves.
+      colunaEtapa: z.string().default("Etapa"),
+      colunaPassa: z.string().default("Passa"),
+    }),
+    horario: z.object({
+      vazio: z.string(),
+      hora: z.string(),
+      apoio: z.string().default("Mensagens trocadas em cada hora do dia"),
+      picoUnico: z.string().default("pico às {hora}"),
+      picos: z.string().default("picos às {manha} e {tarde}"),
+      picosEValeUnico: z.string().default("picos às {manha} e {tarde} · vale às {vale}"),
+      picosEVale: z.string().default("picos às {manha} e {tarde} · vale entre {inicio} e {fim}"),
+    }),
     tempo: z.object({ minutos: z.string(), horasMinutos: z.string() }),
   }),
   agenda: z.object({
