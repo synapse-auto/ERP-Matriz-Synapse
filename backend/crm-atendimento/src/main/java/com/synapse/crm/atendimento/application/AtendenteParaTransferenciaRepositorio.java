@@ -10,10 +10,11 @@ public interface AtendenteParaTransferenciaRepositorio {
     Optional<Destino> ativoAtendente(UUID atendenteId);
 
     /**
-     * Atendentes ativos — o mesmo critério de {@link #exigirAtendenteAtivo(UUID)}, em lista.
+     * Destinos exibidos no diálogo de transferência.
      *
-     * <p>Não filtra disponibilidade para a IA: um colega fora do rodízio continua podendo receber
-     * uma conversa de outro atendente.
+     * <p>Inclui todos os atendentes ativos. Subgestores só entram quando estão online e disponíveis
+     * para a IA. Isso é deliberadamente mais restrito que {@link #exigirAtendenteAtivo(UUID)}, que
+     * continua validando transferências explícitas e não altera o contrato da Automação.
      */
     List<Destino> listarAtivos();
 
