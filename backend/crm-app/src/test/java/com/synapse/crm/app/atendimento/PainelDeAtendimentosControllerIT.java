@@ -465,7 +465,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("a contagem de cada visao bate com o tamanho da listagem")
+        @DisplayName("a contagem otimizada bate com as seis visoes, inclusive convite pendente")
         void contagem_bateComOTamanhoDaListagem() throws Exception {
             inserirMensagem(
                     atendimentoPendenteDaAna,
@@ -473,6 +473,18 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                     null,
                     "confirmacao automatica",
                     Instant.now().plusSeconds(1));
+            jdbc.update(
+                    "INSERT INTO pedido_entrada_atendimento"
+                            + " (atendimento_id, solicitante_id, status, tipo)"
+                            + " VALUES (?, ?, 'PENDENTE', 'CONVITE')",
+                    atendimentoPendenteDoBruno,
+                    idAna);
+            UUID leadFinalizado = criarLead(
+                    "Finalizado para equivalencia " + UUID.randomUUID().toString().substring(0, 8),
+                    idAna,
+                    "FINALIZADO");
+            criarAtendimento(leadFinalizado, idAna, "FINALIZADO");
+
             assertContagemBateComListagem(
                     EMAIL_ANA,
                     SENHA_ATENDENTE,
