@@ -183,6 +183,20 @@ vi.mock("../mensagens-programadas/formulario-mensagem-programada", () => ({
 
 import { PainelDaConversa } from "./painel-da-conversa";
 
+function obterControleDaSecao(titulo: string) {
+  const texto = screen.getByText(titulo, { exact: true });
+  const card = texto.closest('[data-slot="secao-colapsavel"]');
+  const controle = card?.querySelector<HTMLButtonElement>(
+    '[data-slot="secao-colapsavel-controle"]',
+  );
+
+  if (!controle) {
+    throw new Error(`Controle da seção não encontrado: ${titulo}`);
+  }
+
+  return controle;
+}
+
 describe("painel da conversa", () => {
   beforeEach(() => {
     authState.papel = "ADMINISTRADOR";
@@ -224,7 +238,7 @@ describe("painel da conversa", () => {
     expect(screen.getByText("2 de 3")).toBeInTheDocument();
     expect(screen.getByText("Prioridade")).toBeInTheDocument();
     expect(screen.getByText("Tag")).toBeInTheDocument();
-    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const resumo = obterControleDaSecao("Resumo por IA");
     const acaoResumo = screen.getByRole("button", { name: "Regerar" });
     expect(resumo.parentElement).toContainElement(acaoResumo);
     expect(resumo).not.toContainElement(acaoResumo);
@@ -251,7 +265,7 @@ describe("painel da conversa", () => {
     solicitarResumoState.isPending = true;
     renderizarPainel("lead-1", "Jardel Lima");
 
-    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const resumo = obterControleDaSecao("Resumo por IA");
     const acaoResumo = screen.getByRole("button", { name: "Gerando resumo..." });
     expect(acaoResumo).toBeDisabled();
     expect(resumo.parentElement).toContainElement(acaoResumo);
@@ -263,22 +277,40 @@ describe("painel da conversa", () => {
   it("mantém um card único, com a ação antes do chevron e sem botões aninhados", () => {
     renderizarPainel("lead-1", "Jardel Lima");
 
-    const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+    const resumo = obterControleDaSecao("Resumo por IA");
     const acaoResumo = screen.getByRole("button", { name: "Regerar" });
     const card = resumo.closest('[data-slot="secao-colapsavel"]');
     const cabecalho = card?.querySelector('[data-slot="secao-colapsavel-cabecalho"]');
-    const chevron = card?.querySelector('[data-slot="secao-colapsavel-chevron"]');
+    const chevron = card?.querySelector<HTMLButtonElement>(
+      '[data-slot="secao-colapsavel-chevron"]',
+    );
 
     expect(card).toHaveClass("rounded-lg", "border-border", "bg-background");
     expect(resumo.querySelector("button")).not.toBeInTheDocument();
     expect(cabecalho).toBeInTheDocument();
     expect(chevron).toBeInTheDocument();
+    expect(cabecalho).toHaveClass("w-full", "items-center");
+    expect(resumo).toHaveClass("min-w-0", "flex-1");
+    expect(acaoResumo).toHaveClass("shrink-0");
+    expect(chevron).toHaveClass("size-8", "shrink-0");
+    expect(chevron).toHaveAttribute("aria-label", "Resumo por IA");
+    expect(chevron).toHaveAttribute("title", "Resumo por IA");
+    expect(chevron).toHaveAttribute("aria-expanded", "false");
+    expect(chevron).toHaveAttribute("type", "button");
+    expect(chevron?.tagName).toBe("BUTTON");
+    expect(chevron).not.toHaveClass("rounded-md", "bg-muted");
+    expect(chevron?.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(card?.querySelector("select")).not.toBeInTheDocument();
+    expect(card?.querySelector('[role="combobox"]')).not.toBeInTheDocument();
     expect(Array.from(cabecalho?.children ?? []).indexOf(acaoResumo)).toBeLessThan(
       Array.from(cabecalho?.children ?? []).indexOf(chevron as Element),
     );
 
-    fireEvent.click(chevron as Element);
+    chevron?.focus();
+    expect(document.activeElement).toBe(chevron);
+    fireEvent.click(chevron as HTMLButtonElement);
     expect(resumo).toHaveAttribute("aria-expanded", "true");
+    expect(chevron).toHaveAttribute("aria-expanded", "true");
     expect(card).toHaveClass("border-primary/40");
   });
 
@@ -294,7 +326,7 @@ describe("painel da conversa", () => {
       expect(screen.queryByText("Etapa")).not.toBeInTheDocument();
       expect(screen.queryByText("Orçamento")).not.toBeInTheDocument();
       expect(screen.queryByText("2 de 3")).not.toBeInTheDocument();
-      const resumo = screen.getByRole("button", { name: /Resumo por IA/ });
+      const resumo = obterControleDaSecao("Resumo por IA");
       fireEvent.click(resumo);
       expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
     },
@@ -306,8 +338,8 @@ describe("painel da conversa", () => {
     expect(
       screen.queryByText("Nenhuma mensagem programada"),
     ).not.toBeInTheDocument();
-    const programadas = screen.getByRole("button", { name: /Mensagens programadas/ });
-    const lembretes = screen.getByRole("button", { name: /Lembretes/ });
+    const programadas = obterControleDaSecao("Mensagens programadas");
+    const lembretes = obterControleDaSecao("Lembretes");
     expect(programadas).toHaveAttribute("aria-expanded", "false");
     expect(lembretes).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(programadas);
@@ -371,7 +403,7 @@ describe("painel da conversa", () => {
     ];
 
     renderizarPainel("lead-1", "Jardel Lima");
-    fireEvent.click(screen.getByRole("button", { name: /Lembretes/ }));
+    fireEvent.click(obterControleDaSecao("Lembretes"));
 
     const pendente = screen.getByText("Ligar").closest('[data-slot="lembrete"]');
     const concluido = screen.getByText("Enviar contrato").closest('[data-slot="lembrete"]');
@@ -426,7 +458,7 @@ describe("painel da conversa", () => {
     ];
 
     renderizarPainel("lead-1", "Jardel Lima");
-    const secao = screen.getByRole("button", { name: /Mensagens programadas/ });
+    const secao = obterControleDaSecao("Mensagens programadas");
     fireEvent.click(secao);
 
     expect(secao).toHaveTextContent("3");
@@ -492,8 +524,8 @@ describe("painel da conversa", () => {
       opcoes.onSuccess({ ...leadState.data, notas: dados.notas });
     });
     renderizarPainel("lead-1", "Jardel Lima");
-    fireEvent.click(screen.getByRole("button", { name: /Notas internas/ }));
-    const campo = screen.getByLabelText("Notas internas");
+    fireEvent.click(obterControleDaSecao("Notas internas"));
+    const campo = screen.getByPlaceholderText("Observações compartilhadas");
     fireEvent.change(campo, { target: { value: "Retornar com medidas" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar nota" }));
 
@@ -511,8 +543,8 @@ describe("painel da conversa", () => {
     });
     leadState.data = { ...leadState.data, notas: "Nota confirmada" };
     renderizarPainel("lead-1", "Jardel Lima");
-    fireEvent.click(screen.getByRole("button", { name: /Notas internas/ }));
-    const campo = screen.getByLabelText("Notas internas");
+    fireEvent.click(obterControleDaSecao("Notas internas"));
+    const campo = screen.getByPlaceholderText("Observações compartilhadas");
     fireEvent.change(campo, { target: { value: "Alteração recusada" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar nota" }));
 

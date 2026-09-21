@@ -575,6 +575,7 @@ function SecaoColapsavel({
           aria-controls={idPainel}
           onClick={() => setAberta((atual) => !atual)}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+          data-slot="secao-colapsavel-controle"
         >
           {icone}
           <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
@@ -587,18 +588,28 @@ function SecaoColapsavel({
           )}
         </button>
         {acao}
-        <span
-          className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <button
+          type="button"
+          aria-label={titulo}
+          title={titulo}
+          aria-expanded={aberta}
+          aria-controls={idPainel}
+          className="flex size-8 shrink-0 items-center justify-center p-0 text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none"
           data-slot="secao-colapsavel-chevron"
-          aria-hidden="true"
           onClick={() => setAberta((atual) => !atual)}
         >
           {aberta ? (
-            <ChevronUp className="size-(--tamanho-icone-interface)" />
+            <ChevronUp
+              aria-hidden="true"
+              className="size-(--tamanho-icone-interface)"
+            />
           ) : (
-            <ChevronDown className="size-(--tamanho-icone-interface)" />
+            <ChevronDown
+              aria-hidden="true"
+              className="size-(--tamanho-icone-interface)"
+            />
           )}
-        </span>
+        </button>
       </div>
       {aberta && (
         <div id={idPainel} className="p-2.5">
