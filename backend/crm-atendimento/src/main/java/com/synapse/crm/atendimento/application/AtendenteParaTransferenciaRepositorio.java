@@ -19,8 +19,8 @@ public interface AtendenteParaTransferenciaRepositorio {
     List<Destino> listarAtivos();
 
     /**
-     * Mesmo critério de {@link #listarAtivos()}, filtrado por nome (case-insensitive, substring).
-     * Usado pela Automação para resolver o UUID de um atendente citado pelo cliente.
+     * Usuários elegíveis para o contrato da Automação, filtrados por nome (case-insensitive,
+     * substring). O critério desse contrato permanece independente do recorte visual do diálogo.
      */
     List<Destino> buscarPorNome(String busca);
 
