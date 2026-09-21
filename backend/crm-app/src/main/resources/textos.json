@@ -1091,10 +1091,25 @@
       "csatApoio": "{total} avaliações",
       "resolucaoIa": "Resolução por IA",
       "resolucaoIaApoio": "Sem transferência humana",
+      "novosLeads": "Novos leads",
+      "novosLeadsApoio": "Criados no período",
       "periodoAnterior": "vs. período anterior"
+    },
+    "agora": {
+      "rotulo": "Agora",
+      "emIa": "Em IA",
+      "emAtendimento": "Em atendimento humano",
+      "leadsNovosHoje": "Leads novos hoje",
+      "vendasHoje": "Vendas hoje",
+      "atualizadoAgora": "atualizado agora",
+      "atualizadoSegundos": "atualizado há {segundos}s",
+      "atualizadoMinutos": "atualizado há {minutos}min"
     },
     "secoes": {
       "ranking": "Top atendentes · avaliação",
+      "equipe": "Equipe · desempenho",
+      "equipeApoio": "Atendimentos, vendas e nota média no período",
+      "equipeOrdenadoPor": "ordenado por vendas fechadas",
       "funil": "Funil de conversão",
       "horarioPico": "Horário de pico · mensagens por hora"
     },
@@ -1106,9 +1121,18 @@
       "semResponsavelSingular": "{total} venda sem responsável atribuído",
       "semResponsavelPlural": "{total} vendas sem responsável atribuído"
     },
+    "equipe": {
+      "vazio": "Nenhum atendimento no período.",
+      "colunaAtendente": "Atendente",
+      "colunaAtendimentos": "Atend.",
+      "colunaVendas": "Vendas",
+      "colunaNota": "Nota",
+      "semNota": "—"
+    },
     "funil": {
       "vazio": "Nenhuma etapa com lead no recorte.",
-      "semPassagem": "—"
+      "semPassagem": "—",
+      "perdido": "Perdido"
     },
     "horario": {
       "vazio": "Nenhuma mensagem enviada no período.",
