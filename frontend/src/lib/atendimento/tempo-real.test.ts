@@ -225,6 +225,39 @@ describe("ConexaoTempoReal", () => {
     expect(onNotificacao).toHaveBeenCalledOnce();
   });
 
+  it("encaminha convites para atendimento pela fila pessoal", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onNotificacao,
+      criarCliente: () => cliente,
+    });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte);
+    conexao.conectar();
+
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    callback?.({
+      body: JSON.stringify({
+        tipo: "CONVITE_ATENDIMENTO",
+        eventoId: "convite-1",
+        dados: {
+          atendimentoId: "atendimento-1",
+          leadId: "lead-1",
+          convidadorId: "atendente-1",
+          ocorridoEm: "2026-09-20T12:00:00Z",
+        },
+      }),
+    });
+
+    expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "CONVITE_ATENDIMENTO" }));
+    expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "CONVITE_ATENDIMENTO" }));
+  });
+
   it("encaminha nova mensagem para todos os ouvintes da fila pessoal", () => {
     const { cliente } = clienteStompFalso();
     const ouvinte = vi.fn();
