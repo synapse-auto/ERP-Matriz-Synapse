@@ -197,6 +197,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_POR_ATENDIMENTO = agrupar(CAMPOS + ORIGEM + " WHERE a.id = ?");
 
+    private static final String SQL_POR_LEAD = agrupar(CAMPOS + ORIGEM + " WHERE a.lead_id = ?");
+
     private static final String COLUNAS_CARTAO =
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
                     + "etapa_atendimento_id, etapa_nome, etapa_cor, status, atendente_id, atendente_nome, "
@@ -255,6 +257,12 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     public Optional<CartaoAtendimento> porAtendimentoId(UUID atendimentoId, UUID usuarioId) {
         TransacaoObrigatoria.exigir("porAtendimentoId");
         return primeiro(chat.query(SQL_POR_ATENDIMENTO, MAPEADOR, usuarioId, atendimentoId));
+    }
+
+    @Override
+    public Optional<CartaoAtendimento> porLeadId(UUID leadId, UUID usuarioId) {
+        TransacaoObrigatoria.exigir("porLeadId");
+        return primeiro(chat.query(SQL_POR_LEAD, MAPEADOR, usuarioId, leadId));
     }
 
     @Override

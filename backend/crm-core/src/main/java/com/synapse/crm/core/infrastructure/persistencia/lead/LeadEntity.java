@@ -133,6 +133,10 @@ class LeadEntity {
         // exigido pelo JPA
     }
 
+    UUID id() {
+        return id;
+    }
+
     Lead paraDominio() {
         return new Lead(
                 id, nome, fotoUrl, fotoReferencia, telefone, email, cpf, empresa, codigo, localizacao,

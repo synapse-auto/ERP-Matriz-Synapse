@@ -57,6 +57,8 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     private UUID idAna;
     private UUID idBruno;
 
+    private UUID leadAtivoDaAna;
+    private UUID leadPendenteDoBruno;
     private UUID atendimentoAtivoDaAna;
     private UUID atendimentoPendenteDaAna;
     private UUID atendimentoPendenteDoBruno;
@@ -76,7 +78,8 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         idBruno = idDoUsuario(EMAIL_BRUNO);
         String sufixo = UUID.randomUUID().toString().substring(0, 8);
 
-        UUID leadAtivoDaAna = criarLead("Ativo Ana " + sufixo, idAna, "EM_ATENDIMENTO");
+        leadAtivoDaAna = criarLead("Ativo Ana " + sufixo, idAna, "EM_ATENDIMENTO");
+        definirTelefone(leadAtivoDaAna, "5561981536371");
         atendimentoAtivoDaAna = criarAtendimento(leadAtivoDaAna, idAna, "EM_ATENDIMENTO");
         inserirMensagem(atendimentoAtivoDaAna, "ATENDENTE", idAna, "resposta da Ana");
 
@@ -84,7 +87,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         atendimentoPendenteDaAna = criarAtendimento(leadPendenteDaAna, idAna, "EM_ATENDIMENTO");
         inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "pergunta do lead");
 
-        UUID leadPendenteDoBruno = criarLead("Pendente Bruno " + sufixo, idBruno, "EM_ATENDIMENTO");
+        leadPendenteDoBruno = criarLead("Pendente Bruno " + sufixo, idBruno, "EM_ATENDIMENTO");
         atendimentoPendenteDoBruno = criarAtendimento(leadPendenteDoBruno, idBruno, "EM_ATENDIMENTO");
         inserirMensagem(atendimentoPendenteDoBruno, "LEAD", null, "pergunta para o Bruno");
 
@@ -198,6 +201,86 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         assertThat(corpo)
                 .contains(atendimentoAtivoDaAna.toString())
                 .contains("\"canalTipo\":\"WHATSAPP\"");
+    }
+
+    @Nested
+    @DisplayName("GET /api/v1/atendimentos/busca")
+    class BuscaPontual {
+
+        @Test
+        @DisplayName("leadId visível devolve o cartão representativo")
+        void leadIdVisivel_devolveCartao() throws Exception {
+            ResponseEntity<String> resposta = respostaComo(
+                    EMAIL_ANA,
+                    SENHA_ATENDENTE,
+                    "/api/v1/atendimentos/busca?leadId=" + leadAtivoDaAna);
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(json.readTree(resposta.getBody()).path("leadId").asText())
+                    .isEqualTo(leadAtivoDaAna.toString());
+            assertThat(json.readTree(resposta.getBody()).path("atendimentoId").asText())
+                    .isEqualTo(atendimentoAtivoDaAna.toString());
+        }
+
+        @Test
+        @DisplayName("leadId de colega e lead inexistente respondem 404 sem vazar RLS")
+        void leadIdForaDoAlcanceOuInexistente_devolve404() {
+            assertThat(respostaComo(
+                            EMAIL_ANA,
+                            SENHA_ATENDENTE,
+                            "/api/v1/atendimentos/busca?leadId=" + leadPendenteDoBruno)
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(respostaComo(
+                            EMAIL_ANA,
+                            SENHA_ATENDENTE,
+                            "/api/v1/atendimentos/busca?leadId=" + UUID.randomUUID())
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("telefone com e sem nono dígito resolve o mesmo cartão")
+        void telefoneNormalizado_resolveMesmoCartao() throws Exception {
+            String comNono = "/api/v1/atendimentos/busca?telefone=5561981536371";
+            String semNono = "/api/v1/atendimentos/busca?telefone=6181536371";
+
+            ResponseEntity<String> respostaComNono = respostaComo(EMAIL_ANA, SENHA_ATENDENTE, comNono);
+            ResponseEntity<String> respostaSemNono = respostaComo(EMAIL_ANA, SENHA_ATENDENTE, semNono);
+
+            assertThat(respostaComNono.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(respostaSemNono.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(json.readTree(respostaComNono.getBody()).path("atendimentoId").asText())
+                    .isEqualTo(atendimentoAtivoDaAna.toString());
+            assertThat(json.readTree(respostaSemNono.getBody()).path("atendimentoId").asText())
+                    .isEqualTo(atendimentoAtivoDaAna.toString());
+        }
+
+        @Test
+        @DisplayName("telefone sem lead correspondente responde 404")
+        void telefoneSemCorrespondencia_devolve404() {
+            assertThat(respostaComo(
+                            EMAIL_ANA,
+                            SENHA_ATENDENTE,
+                            "/api/v1/atendimentos/busca?telefone=61%208154-6371")
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("zero ou dois parâmetros respondem 400")
+        void parametrosInvalidos_devolve400() {
+            assertThat(respostaComo(EMAIL_ANA, SENHA_ATENDENTE, "/api/v1/atendimentos/busca")
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(respostaComo(
+                            EMAIL_ANA,
+                            SENHA_ATENDENTE,
+                            "/api/v1/atendimentos/busca?leadId=" + leadAtivoDaAna
+                                    + "&telefone=61%2098153-6371")
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @Test
@@ -768,6 +851,10 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                 dono,
                 status);
         return id;
+    }
+
+    private void definirTelefone(UUID leadId, String telefone) {
+        jdbc.update("UPDATE lead SET telefone = ? WHERE id = ?", telefone, leadId);
     }
 
     private UUID criarAtendimento(UUID leadId, UUID atendenteId, String status) {
