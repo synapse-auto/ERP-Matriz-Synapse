@@ -87,6 +87,8 @@ export function NotificacoesTempoReal() {
       router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=ATIVOS`);
     } else if (notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") {
       router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=ATIVOS`);
+    } else if (notificacao.tipo === "CONVITE_ATENDIMENTO") {
+      router.push(`/atendimentos?leadId=${encodeURIComponent(notificacao.dados.leadId)}&atendimentoId=${encodeURIComponent(notificacao.dados.atendimentoId)}&visao=PENDENTES`);
     }
     setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(notificacao)));
   }
@@ -137,6 +139,18 @@ export function NotificacoesTempoReal() {
                 )}
               </div>
             </div>
+            {aviso.tipo === "CONVITE_ATENDIMENTO" && (
+              <button
+                type="button"
+                className="mt-2 ml-10 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={(evento) => {
+                  evento.stopPropagation();
+                  abrirAviso(aviso);
+                }}
+              >
+                {textosAtendimentos.tempoReal.abrirConvite}
+              </button>
+            )}
         </div>
       ))}
     </div>
@@ -155,6 +169,7 @@ function tituloDoAviso(
 ): string {
   if (aviso.tipo === "TRANSFERENCIA_RECEBIDA") return tempoReal.transferenciaRecebida;
   if (aviso.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") return tempoReal.atendimentoDevolvidoParaIa;
+  if (aviso.tipo === "CONVITE_ATENDIMENTO") return tempoReal.conviteRecebido;
   if (aviso.tipo === "NOVA_MENSAGEM") return textos.mensagemExterna.replace("{nome}", aviso.dados.leadNome);
   if (aviso.tipo === "CHAT_INTERNO_MENSAGEM") {
     return textos.mensagemInterna.replace("{nome}", aviso.dados.remetenteNome || textos.equipe);
@@ -169,6 +184,7 @@ function descricaoDoAviso(
 ): string {
   if (aviso.tipo === "TRANSFERENCIA_RECEBIDA") return tempoReal.transferenciaRecebidaDescricao.replace("{nome}", aviso.dados.leadNome);
   if (aviso.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA") return tempoReal.atendimentoDevolvidoParaIaDescricao.replace("{nome}", aviso.dados.leadNome);
+  if (aviso.tipo === "CONVITE_ATENDIMENTO") return tempoReal.conviteRecebidoDescricao;
   return aviso.tipo === "NOVA_MENSAGEM" ? textos.origemExterna : "";
 }
 
