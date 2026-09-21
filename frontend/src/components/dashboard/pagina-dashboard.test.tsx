@@ -23,10 +23,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
       funilApoio: "Etapas do pipeline",
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", anoInteiro: "Ano inteiro", originacao: "Originação", intervalo: "{inicio} até {fim}", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
-      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", periodoAnterior: "vs. período anterior" },
-      secoes: { ranking: "Top atendentes · avaliação", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
+      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", periodoAnterior: "vs. período anterior" },
+      agora: { rotulo: "Agora", emIa: "Em IA", emAtendimento: "Em atendimento humano", leadsNovosHoje: "Leads novos hoje", vendasHoje: "Vendas hoje", atualizadoAgora: "atualizado agora", atualizadoSegundos: "atualizado há {segundos}s", atualizadoMinutos: "atualizado há {minutos}min" },
+      secoes: { ranking: "Top atendentes · avaliação", equipe: "Equipe · desempenho", equipeApoio: "Atendimentos, vendas e nota média no período", equipeOrdenadoPor: "ordenado por vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
-      funil: { vazio: "Sem etapas", semPassagem: "—" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
+      equipe: { vazio: "Sem atendimentos no período", colunaAtendente: "Atendente", colunaAtendimentos: "Atend.", colunaVendas: "Vendas", colunaNota: "Nota", semNota: "—" },
+      funil: { vazio: "Sem etapas", semPassagem: "—", perdido: "Perdido" }, horario: { vazio: "Sem mensagens", hora: "{hora}h" },
       tempo: { minutos: "{minutos} min", horasMinutos: "{horas}h {minutos}min" },
     },
   }),
@@ -37,12 +39,15 @@ import { PaginaDashboard } from "./pagina-dashboard";
 const PAYLOAD_COM_DADOS = {
   periodo: { ano: 2040, meses: [8] },
   atendimentos: { noPeriodo: 12, acumulado: 40, comparativo: { valor: 20, unidade: "PERCENTUAL" } },
+  novosLeads: { noPeriodo: 30, comparativo: { valor: 14, unidade: "PERCENTUAL" } },
   tempoMedioAtendimento: { segundos: 5400, comparativo: { valor: -10, unidade: "PERCENTUAL" } },
   avaliacaoMedia: { media: 4.5, escalaMaxima: 10, quantidade: 8, comparativo: null },
   resolucaoPorIa: { percentual: 75, resolvidosSemTransferencia: 9, atendimentosFinalizados: 12, comparativo: { valor: 5, unidade: "PONTOS_PERCENTUAIS" } },
   vendasFechadas: { noPeriodo: 3, acumulado: 9, comparativo: null },
   taxaConversao: { percentual: 50, vendas: 3, leadsRecebidos: 6, comparativo: { valor: 25, unidade: "PONTOS_PERCENTUAIS" } },
+  statusAoVivo: { emIa: 6, emAtendimento: 4, leadsNovosHoje: 2, vendasHoje: 1 },
   funil: [{ id: "e1", nome: "Negociação", ordem: 1, corVisual: null, quantidade: 6, percentualDePassagem: 50 }],
+  leadsPerdidos: 5,
   horarioDePico: [{ hora: 10, quantidade: 7 }],
   rankingDeVendas: { atendentes: [{ id: "u1", nome: "Ana Silva", vendas: 2 }], semResponsavel: 1 },
   rankingDeAvaliacoes: {
@@ -53,24 +58,33 @@ const PAYLOAD_COM_DADOS = {
       { id: "u4", nome: "Diego Elias", media: 3.9, quantidade: 2 },
     ],
   },
+  equipeDesempenho: [
+    { id: "u1", nome: "Ana Silva", atendimentos: 18, vendas: 2, nota: 4.5, avaliacoes: 8 },
+    { id: "u2", nome: "Bruno Costa", atendimentos: 9, vendas: 1, nota: 4.2, avaliacoes: 5 },
+    { id: "u3", nome: "Carla Dias", atendimentos: 7, vendas: 0, nota: null, avaliacoes: 0 },
+  ],
 };
 
 /** Estado real desta instância hoje: quase tudo zerado. Uma tela desenhada só para o mock quebra aqui. */
 const PAYLOAD_ZERADO = {
   periodo: { ano: 2040, meses: [8] },
   atendimentos: { noPeriodo: 0, acumulado: 0, comparativo: null },
+  novosLeads: { noPeriodo: 0, comparativo: null },
   tempoMedioAtendimento: { segundos: null, comparativo: null },
   avaliacaoMedia: { media: null, escalaMaxima: 10, quantidade: 0, comparativo: null },
   resolucaoPorIa: { percentual: null, resolvidosSemTransferencia: 0, atendimentosFinalizados: 0, comparativo: null },
   vendasFechadas: { noPeriodo: 0, acumulado: 0, comparativo: null },
   taxaConversao: { percentual: 0, vendas: 0, leadsRecebidos: 0, comparativo: null },
+  statusAoVivo: { emIa: 0, emAtendimento: 0, leadsNovosHoje: 0, vendasHoje: 0 },
   funil: [
     { id: "e1", nome: "Novo contato", ordem: 1, corVisual: null, quantidade: 0, percentualDePassagem: null },
     { id: "e2", nome: "Qualificação", ordem: 2, corVisual: null, quantidade: 0, percentualDePassagem: null },
   ],
+  leadsPerdidos: 0,
   horarioDePico: [{ hora: 10, quantidade: 0 }],
   rankingDeVendas: { atendentes: [], semResponsavel: 0 },
   rankingDeAvaliacoes: { atendentes: [] },
+  equipeDesempenho: [],
 };
 
 describe("PaginaDashboard", () => {
@@ -89,10 +103,9 @@ describe("PaginaDashboard", () => {
     expect(screen.getByText("4,5/10")).toBeInTheDocument();
     // 50,0% aparece duas vezes: taxa de conversão (KPI) e passagem da etapa (funil).
     expect(screen.getAllByText("50,0%")).toHaveLength(2);
-    expect(screen.queryByText("Vendas fechadas")).not.toBeInTheDocument();
-    expect(screen.getByText("Top atendentes · avaliação")).toBeInTheDocument();
-    expect(screen.getByText("Ana Silva")).toBeInTheDocument();
-    expect(screen.getAllByText("8 avaliações").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Vendas fechadas").length).toBeGreaterThan(0);
+    expect(screen.getByText("Equipe · desempenho")).toBeInTheDocument();
+    expect(screen.getAllByText("Ana Silva").length).toBeGreaterThan(0);
     expect(screen.getByText("+25,0pp vs. período anterior")).toBeInTheDocument();
     expect(screen.getAllByTestId("barra-funil")).toHaveLength(1);
     expect(screen.getAllByTestId("barra-horario")).toHaveLength(24);
@@ -105,6 +118,53 @@ describe("PaginaDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Jan" }));
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }));
+  });
+
+  it("faixa AGORA mostra os contadores ao vivo e o KPI de novos leads, sem inventar os itens sem critério definido", () => {
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    const faixa = screen.getByLabelText("Agora");
+    expect(within(faixa).getByText("Em IA")).toBeInTheDocument();
+    expect(within(faixa).getByText("6")).toBeInTheDocument();
+    expect(within(faixa).getByText("Em atendimento humano")).toBeInTheDocument();
+    expect(within(faixa).getByText("4")).toBeInTheDocument();
+    expect(within(faixa).getByText("Leads novos hoje")).toBeInTheDocument();
+    expect(within(faixa).getByText("Vendas hoje")).toBeInTheDocument();
+    expect(within(faixa).getByText("atualizado agora")).toBeInTheDocument();
+    // Itens do mockup sem critério definido (aguardando 1ª resposta, esquecidos, atendentes online):
+    // a API não os devolve, então não podem aparecer inventados na faixa.
+    expect(within(faixa).queryByText(/Aguardando/)).not.toBeInTheDocument();
+    expect(within(faixa).queryByText(/Esquecid/)).not.toBeInTheDocument();
+    expect(within(faixa).queryByText(/online/i)).not.toBeInTheDocument();
+
+    expect(screen.getByText("Novos leads")).toBeInTheDocument();
+    expect(screen.getByText("30")).toBeInTheDocument();
+    expect(screen.getByText("+14,0% vs. período anterior")).toBeInTheDocument();
+  });
+
+  it("funil mostra a linha Perdido como agregado à parte, sem entrar na sequência ordenada", () => {
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    expect(screen.getByText("Perdido")).toBeInTheDocument();
+    expect(screen.getByTestId("quantidade-perdidos")).toHaveTextContent("5");
+  });
+
+  it("tabela Equipe · desempenho junta atendimentos, vendas e nota; sem nota mostra o marcador do catálogo", () => {
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    const tabela = screen.getByText("Equipe · desempenho").closest('[data-slot="card"]') as HTMLElement;
+    expect(within(tabela).getByText("Atend.")).toBeInTheDocument();
+    expect(within(tabela).getByText("Vendas")).toBeInTheDocument();
+    expect(within(tabela).getByText("Nota")).toBeInTheDocument();
+    expect(within(tabela).getByText("ordenado por vendas fechadas")).toBeInTheDocument();
+    expect(within(tabela).getByText("Carla Dias")).toBeInTheDocument();
+    // Carla não recebeu avaliação no período: nota vem null, não zero inventado.
+    const linhaCarla = within(tabela).getByText("Carla Dias").closest("tr") as HTMLElement;
+    expect(within(linhaCarla).getByText("—")).toBeInTheDocument();
+    expect(within(tabela).getByText("1 venda sem responsável atribuído")).toBeInTheDocument();
   });
 
   it("abas usam sublinhado, e a futura continua com o sufixo 'Em breve' e inativa", () => {
@@ -160,8 +220,15 @@ describe("PaginaDashboard", () => {
     expect(screen.queryByRole("button", { name: "Até" })).not.toBeInTheDocument();
   });
 
-  it("podio colore 1o, 2o e 3o e deixa o 4o neutro", () => {
-    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+  it("podio da Equipe colore 1o, 2o e 3o e deixa o 4o neutro", () => {
+    const comQuartaLinha = {
+      ...PAYLOAD_COM_DADOS,
+      equipeDesempenho: [
+        ...PAYLOAD_COM_DADOS.equipeDesempenho,
+        { id: "u4", nome: "Diego Elias", atendimentos: 3, vendas: 0, nota: 3.9, avaliacoes: 2 },
+      ],
+    };
+    useDashboardMock.mockReturnValue({ data: comQuartaLinha, isLoading: false, isError: false });
     render(<PaginaDashboard />);
 
     expect(screen.getByTestId("posicao-1").getAttribute("style")).toContain("--medalha: var(--cor-atencao)");
@@ -188,6 +255,8 @@ describe("PaginaDashboard", () => {
     expect(screen.queryByText(/período anterior/)).toBeNull();
     expect(screen.getByText("0,0%")).toBeInTheDocument();
     expect(screen.getAllByText("Sem dados").length).toBeGreaterThan(0);
+    expect(screen.getByText("Sem atendimentos no período")).toBeInTheDocument();
+    expect(screen.getByTestId("quantidade-perdidos")).toHaveTextContent("0");
 
     const barras = screen.getAllByTestId("barra-funil");
     expect(barras).toHaveLength(2);
@@ -197,7 +266,7 @@ describe("PaginaDashboard", () => {
       expect(barra.parentElement).toHaveClass("bg-muted", "h-7");
     }
     // Etapa sem taxa de passagem mostra o marcador do catálogo, não espaço em branco.
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
 
     for (const barra of screen.getAllByTestId("barra-horario")) {
       expect(barra).toHaveStyle({ height: "0%" });

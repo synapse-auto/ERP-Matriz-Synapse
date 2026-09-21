@@ -95,6 +95,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_id_externo",
                     "mensagem_recebida_idempotencia",
                     "comando_automacao_idempotencia",
+                    // E196 (V80): mesma reserva de Idempotency-Key, escopada por lead.
+                    "comando_automacao_lead_idempotencia",
                     // Rede de seguranca: recebe o que chegar fora da janela de particoes.
                     "mensagem_default",
                     "mensagem_festiva",

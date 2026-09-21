@@ -159,6 +159,95 @@ class DashboardVisaoGeralIT extends PostgresIT {
         JsonNode etapaGanhaNoFunil = encontrarPorId(resposta.path("funil"), etapaGanha);
         assertThat(etapaGanhaNoFunil.path("quantidade").asLong()).isEqualTo(2);
         assertThat(resposta.path("horarioDePico").get(14).path("quantidade").asLong()).isEqualTo(3);
+
+        // Mesma base de leads dos KPIs de atendimento: 4 leads criados em agosto (atual),
+        // 4 em julho (anterior) — sem variação.
+        assertThat(resposta.at("/novosLeads/noPeriodo").asLong()).isEqualTo(4);
+        assertThat(resposta.at("/novosLeads/comparativo/valor").decimalValue())
+                .isEqualByComparingTo("0.00");
+        assertThat(resposta.at("/novosLeads/comparativo/unidade").asText()).isEqualTo("PERCENTUAL");
+
+        // Equipe · desempenho junta os três read models já testados acima para o mesmo atendente.
+        JsonNode anaNaEquipe = encontrarPorId(resposta.path("equipeDesempenho"), ana);
+        assertThat(anaNaEquipe.path("atendimentos").asLong()).isEqualTo(4);
+        assertThat(anaNaEquipe.path("vendas").asLong()).isEqualTo(1);
+        assertThat(anaNaEquipe.path("nota").decimalValue()).isEqualByComparingTo("4.50");
+        assertThat(anaNaEquipe.path("avaliacoes").asLong()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("funil separa leads em etapa Perdido do restante da sequência ordenada")
+    void funil_separaLeadsPerdidosDaSequenciaOrdenada() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID etapaEmAndamento = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        UUID etapaPerdido = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='PERDIDO'", UUID.class);
+        Instant agosto = Instant.parse("2040-08-10T13:00:00Z");
+
+        UUID[] leads = criarLeads(3, "funil", agosto, etapaEmAndamento, ana);
+        jdbc.update(
+                "UPDATE lead SET etapa_atendimento_id=? WHERE id IN (?,?)",
+                etapaPerdido, leads[0], leads[1]);
+
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+
+        assertThat(resposta.at("/leadsPerdidos").asLong()).isEqualTo(2);
+        for (JsonNode etapa : resposta.path("funil")) {
+            assertThat(etapa.path("id").asText()).isNotEqualTo(etapaPerdido.toString());
+        }
+    }
+
+    @Test
+    @DisplayName("status ao vivo conta atendimentos EM_IA e EM_ATENDIMENTO no instante da consulta, sem recorte de período")
+    void statusAoVivo_contaAtendimentosNoInstante() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        Instant agora = Instant.now();
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        UUID[] leads = criarLeads(2, "aovivo", agora, etapa, ana);
+
+        long emIaAntes = contarStatusAtendimento("EM_IA");
+        long emAtendimentoAntes = contarStatusAtendimento("EM_ATENDIMENTO");
+        criarAtendimentoComStatus(leads[0], ana, agora, "EM_IA");
+        criarAtendimentoComStatus(leads[1], ana, agora, "EM_ATENDIMENTO");
+
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+
+        assertThat(resposta.at("/statusAoVivo/emIa").asLong()).isEqualTo(emIaAntes + 1);
+        assertThat(resposta.at("/statusAoVivo/emAtendimento").asLong()).isEqualTo(emAtendimentoAntes + 1);
+    }
+
+    @Test
+    @DisplayName("status ao vivo usa o dia corrente para leads novos e vendas, independente do período filtrado na URL")
+    void statusAoVivo_leadsEVendasUsamHojeIndependenteDoFiltro() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID gestor = idDoUsuario(EMAIL_GESTOR);
+        Instant agora = Instant.now();
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+
+        long leadsHojeAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM lead WHERE criado_em >= date_trunc('day', now())", Long.class);
+        long vendasHojeAntes = jdbc.queryForObject(
+                """
+                SELECT count(DISTINCT e.lead_id) FROM evento_timeline e
+                 WHERE e.tipo='ETAPA_ALTERADA' AND e.dados ->> 'resultado_novo' = 'GANHO'
+                   AND e.criado_em >= date_trunc('day', now())
+                """,
+                Long.class);
+
+        UUID[] leads = criarLeads(1, "hoje", agora, etapa, ana);
+        registrarGanho(leads[0], ana, gestor, agora);
+
+        // A URL filtra 2040-08 — a faixa "hoje" não deve depender desse recorte.
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+
+        assertThat(resposta.at("/statusAoVivo/leadsNovosHoje").asLong()).isEqualTo(leadsHojeAntes + 1);
+        assertThat(resposta.at("/statusAoVivo/vendasHoje").asLong()).isEqualTo(vendasHojeAntes + 1);
     }
 
     @Test
@@ -287,6 +376,26 @@ class DashboardVisaoGeralIT extends PostgresIT {
                     timestamp(criadoEm));
         }
         return ids;
+    }
+
+    private long contarStatusAtendimento(String status) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM atendimento WHERE status = CAST(? AS status_atendimento)",
+                Long.class,
+                status);
+    }
+
+    private void criarAtendimentoComStatus(UUID leadId, UUID atendenteId, Instant inicio, String status) {
+        jdbc.update(
+                """
+                INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em)
+                VALUES (?, ?, ?, CAST(? AS status_atendimento), ?)
+                """,
+                UUID.randomUUID(),
+                leadId,
+                atendenteId,
+                status,
+                timestamp(inicio));
     }
 
     private UUID criarAtendimento(UUID leadId, UUID atendenteId, Instant inicio, long minutos) {

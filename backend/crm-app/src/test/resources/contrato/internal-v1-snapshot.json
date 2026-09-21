@@ -567,6 +567,26 @@
         }
       }
     },
+    "/internal/v1/etapas" : {
+      "get" : {
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EtapaCatalogoResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/ev05/atendimentos/{atendimentoId}/contexto" : {
       "get" : {
         "parameters" : [ {
@@ -969,6 +989,100 @@
         }
       }
     },
+    "/internal/v1/leads/{leadId}/data-nascimento" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DataNascimentoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResultadoDataNascimentoLead"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
+        }
+      }
+    },
+    "/internal/v1/leads/{leadId}/etapa" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EtapaDoLeadRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResultadoEtapaLead"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { },
+          "422" : { }
+        }
+      }
+    },
     "/internal/v1/mensagens-festivas/hoje" : {
       "get" : {
         "responses" : {
@@ -1244,6 +1358,17 @@
       },
       "type" : "object"
     },
+    "DataNascimentoRequisicao" : {
+      "properties" : {
+        "dataNascimento" : {
+          "example" : "1990-05-21",
+          "minLength" : 1,
+          "type" : "string"
+        }
+      },
+      "required" : [ "dataNascimento" ],
+      "type" : "object"
+    },
     "Destino" : {
       "properties" : {
         "id" : {
@@ -1298,6 +1423,39 @@
           "type" : "string"
         }
       },
+      "type" : "object"
+    },
+    "EtapaCatalogoResposta" : {
+      "properties" : {
+        "corVisual" : {
+          "type" : "string"
+        },
+        "id" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "nome" : {
+          "type" : "string"
+        },
+        "ordem" : {
+          "format" : "int32",
+          "type" : "integer"
+        },
+        "resultado" : {
+          "enum" : [ "EM_ANDAMENTO", "GANHO", "PERDIDO" ],
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "EtapaDoLeadRequisicao" : {
+      "properties" : {
+        "etapaId" : {
+          "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "required" : [ "etapaId" ],
       "type" : "object"
     },
     "Ev05ConfiguracaoResposta" : {
@@ -1737,6 +1895,38 @@
           "type" : "string"
         },
         "resumo" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResultadoDataNascimentoLead" : {
+      "properties" : {
+        "dataNascimento" : {
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "situacao" : {
+          "enum" : [ "APLICADO", "IGNORADO_JA_PREENCHIDO" ],
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ResultadoEtapaLead" : {
+      "properties" : {
+        "alterado" : {
+          "type" : "boolean"
+        },
+        "etapaId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
           "type" : "string"
         }
       },

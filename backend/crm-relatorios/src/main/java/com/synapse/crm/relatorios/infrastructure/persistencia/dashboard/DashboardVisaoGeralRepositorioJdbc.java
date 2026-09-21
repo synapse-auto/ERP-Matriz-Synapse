@@ -3,7 +3,10 @@ package com.synapse.crm.relatorios.infrastructure.persistencia.dashboard;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +67,13 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         BigDecimal taxaAtual = percentual(vendasAtual.total(), leadsAtuais);
         BigDecimal taxaAnterior = percentual(vendasAnterior.total(), leadsAnteriores);
 
+        long novosLeadsAtual = contarLeads(filtro.periodoAtual());
+        long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
+
+        List<VisaoGeralDashboard.AtendenteNaAvaliacao> avaliacoesDoPeriodo =
+                rankingAvaliacoes(filtro.periodoAtual());
+        FunilResultado funil = funil(filtro);
+
         return new VisaoGeralDashboard(
                 new VisaoGeralDashboard.Periodo(
                         filtro.ano(), filtro.meses(), filtro.recorteInicio(), filtro.recorteFim()),
@@ -71,6 +81,9 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         atual.quantidade(),
                         atendimentosAcumulados,
                         Comparativo.percentual(decimal(atual.quantidade()), decimal(anterior.quantidade()))),
+                new VisaoGeralDashboard.NovosLeads(
+                        novosLeadsAtual,
+                        Comparativo.percentual(decimal(novosLeadsAtual), decimal(novosLeadsAnterior))),
                 new VisaoGeralDashboard.TempoMedioAtendimento(
                         segundos(atual.mediaSegundos()),
                         Comparativo.percentual(atual.mediaSegundos(), anterior.mediaSegundos())),
@@ -95,7 +108,9 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         vendasAtual.total(),
                         leadsAtuais,
                         Comparativo.pontosPercentuais(taxaAtual, taxaAnterior)),
-                funil(filtro),
+                statusAoVivo(filtro),
+                funil.etapas(),
+                funil.perdidos(),
                 mensagensPorHora(filtro),
                 new VisaoGeralDashboard.RankingDeVendas(
                         vendasAtual.porAtendente().stream()
@@ -103,7 +118,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                                         item.atendenteId(), item.atendenteNome(), item.vendas()))
                                 .toList(),
                         vendasAtual.semResponsavel()),
-                new VisaoGeralDashboard.RankingDeAvaliacoes(rankingAvaliacoes(filtro.periodoAtual())));
+                new VisaoGeralDashboard.RankingDeAvaliacoes(avaliacoesDoPeriodo),
+                equipeDesempenho(filtro, vendasAtual, avaliacoesDoPeriodo));
     }
 
     private AgregadoAtendimento atendimentos(List<IntervaloTemporal> periodos) {
@@ -211,16 +227,23 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         return total == null ? 0 : total;
     }
 
-    private List<VisaoGeralDashboard.EtapaDoFunil> funil(FiltroTemporalDashboard filtro) {
+    /**
+     * "Perdido" fica fora da sequência ordenada do funil (etapas com {@code resultado = PERDIDO})
+     * e vira um agregado à parte: uma perda pode vir de qualquer etapa em andamento, então misturá-
+     * la na ordem por {@code ordem} distorceria o percentual de passagem da etapa seguinte (bug
+     * latente do comportamento anterior — ver relatório da E197).
+     */
+    private FunilResultado funil(FiltroTemporalDashboard filtro) {
         FiltroSql coorte = filtro.periodoDeOriginacao() == null
                 ? periodos("l.criado_em", filtro.periodoAtual())
                 : intervalo("l.criado_em", filtro.periodoDeOriginacao());
         List<EtapaBruta> etapas = jdbc.query(
                 """
-                SELECT e.id, e.nome, e.ordem, e.cor_visual, count(l.id) AS quantidade
+                SELECT e.id, e.nome, e.ordem, e.cor_visual, e.resultado::text AS resultado,
+                       count(l.id) AS quantidade
                   FROM etapa_atendimento e
                   LEFT JOIN lead l ON l.etapa_atendimento_id = e.id AND %s
-                 GROUP BY e.id, e.nome, e.ordem, e.cor_visual
+                 GROUP BY e.id, e.nome, e.ordem, e.cor_visual, e.resultado
                  ORDER BY e.ordem, e.nome
                 """.formatted(coorte.clausula()),
                 (linha, indice) -> new EtapaBruta(
@@ -228,13 +251,19 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         linha.getString("nome"),
                         linha.getInt("ordem"),
                         linha.getString("cor_visual"),
+                        linha.getString("resultado"),
                         linha.getLong("quantidade")),
                 coorte.parametros().toArray());
         List<VisaoGeralDashboard.EtapaDoFunil> resposta = new ArrayList<>();
+        long perdidos = 0;
         long anterior = 0;
-        for (int indice = 0; indice < etapas.size(); indice++) {
-            EtapaBruta etapa = etapas.get(indice);
-            BigDecimal passagem = indice == 0 || anterior == 0
+        int posicao = 0;
+        for (EtapaBruta etapa : etapas) {
+            if ("PERDIDO".equals(etapa.resultado())) {
+                perdidos += etapa.quantidade();
+                continue;
+            }
+            BigDecimal passagem = posicao == 0 || anterior == 0
                     ? null
                     : percentual(etapa.quantidade(), anterior);
             resposta.add(new VisaoGeralDashboard.EtapaDoFunil(
@@ -245,8 +274,85 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                     etapa.quantidade(),
                     passagem));
             anterior = etapa.quantidade();
+            posicao++;
         }
-        return resposta;
+        return new FunilResultado(resposta, perdidos);
+    }
+
+    private VisaoGeralDashboard.StatusAoVivo statusAoVivo(FiltroTemporalDashboard filtro) {
+        long emIa = contarPorStatusAtendimento("EM_IA");
+        long emAtendimento = contarPorStatusAtendimento("EM_ATENDIMENTO");
+        ZoneId fuso = filtro.fusoHorario();
+        LocalDate hoje = LocalDate.now(fuso);
+        IntervaloTemporal intervaloHoje = new IntervaloTemporal(
+                hoje.atStartOfDay(fuso).toInstant(), hoje.plusDays(1).atStartOfDay(fuso).toInstant());
+        long leadsNovosHoje = contarLeads(List.of(intervaloHoje));
+        long vendasHoje = vendas.agregar(List.of(intervaloHoje), null).total();
+        return new VisaoGeralDashboard.StatusAoVivo(emIa, emAtendimento, leadsNovosHoje, vendasHoje);
+    }
+
+    private long contarPorStatusAtendimento(String status) {
+        Long total = jdbc.queryForObject(
+                "SELECT count(*) FROM atendimento WHERE status = CAST(? AS status_atendimento)",
+                Long.class,
+                status);
+        return total == null ? 0 : total;
+    }
+
+    /**
+     * Junta os três read models de desempenho por atendente já existentes (atendimentos, vendas,
+     * avaliações) num único conjunto ordenado por vendas — a tabela "Equipe · desempenho" do
+     * mockup, exceto as colunas de conversão e 1ª resposta (ver Javadoc de AtendenteDesempenho).
+     */
+    private List<VisaoGeralDashboard.AtendenteDesempenho> equipeDesempenho(
+            FiltroTemporalDashboard filtro,
+            AgregacaoDeVendas vendasAtual,
+            List<VisaoGeralDashboard.AtendenteNaAvaliacao> avaliacoesDoPeriodo) {
+        FiltroSql filtroAtendimentos = semAdministradores(periodos("a.iniciado_em", filtro.periodoAtual()), "u");
+        List<LinhaDeAtendimentoPorAtendente> atendimentosPorAtendente = jdbc.query(
+                """
+                SELECT a.atendente_id AS id, u.nome, count(*) AS quantidade
+                  FROM atendimento a
+                  JOIN usuario u ON u.id = a.atendente_id
+                 WHERE a.atendente_id IS NOT NULL AND %s
+                 GROUP BY a.atendente_id, u.nome
+                """.formatted(filtroAtendimentos.clausula()),
+                (linha, indice) -> new LinhaDeAtendimentoPorAtendente(
+                        linha.getObject("id", UUID.class), linha.getString("nome"), linha.getLong("quantidade")),
+                filtroAtendimentos.parametros().toArray());
+
+        Map<UUID, String> nomes = new LinkedHashMap<>();
+        Map<UUID, Long> atendimentosPorId = new LinkedHashMap<>();
+        for (LinhaDeAtendimentoPorAtendente linha : atendimentosPorAtendente) {
+            nomes.put(linha.id(), linha.nome());
+            atendimentosPorId.put(linha.id(), linha.quantidade());
+        }
+        Map<UUID, Long> vendasPorId = new LinkedHashMap<>();
+        for (var item : vendasAtual.porAtendente()) {
+            nomes.put(item.atendenteId(), item.atendenteNome());
+            vendasPorId.put(item.atendenteId(), item.vendas());
+        }
+        Map<UUID, BigDecimal> notaPorId = new LinkedHashMap<>();
+        Map<UUID, Long> avaliacoesPorId = new LinkedHashMap<>();
+        for (VisaoGeralDashboard.AtendenteNaAvaliacao item : avaliacoesDoPeriodo) {
+            nomes.put(item.id(), item.nome());
+            notaPorId.put(item.id(), item.media());
+            avaliacoesPorId.put(item.id(), item.quantidade());
+        }
+
+        return nomes.keySet().stream()
+                .map(id -> new VisaoGeralDashboard.AtendenteDesempenho(
+                        id,
+                        nomes.get(id),
+                        atendimentosPorId.getOrDefault(id, 0L),
+                        vendasPorId.getOrDefault(id, 0L),
+                        notaPorId.get(id),
+                        avaliacoesPorId.getOrDefault(id, 0L)))
+                .sorted(Comparator
+                        .comparingLong(VisaoGeralDashboard.AtendenteDesempenho::vendas)
+                        .reversed()
+                        .thenComparing(VisaoGeralDashboard.AtendenteDesempenho::nome))
+                .toList();
     }
 
     private List<VisaoGeralDashboard.MensagensPorHora> mensagensPorHora(
@@ -337,5 +443,10 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     private record AgregadoResolucaoIa(long finalizados, long semTransferencia) {}
 
-    private record EtapaBruta(UUID id, String nome, int ordem, String corVisual, long quantidade) {}
+    private record EtapaBruta(
+            UUID id, String nome, int ordem, String corVisual, String resultado, long quantidade) {}
+
+    private record FunilResultado(List<VisaoGeralDashboard.EtapaDoFunil> etapas, long perdidos) {}
+
+    private record LinhaDeAtendimentoPorAtendente(UUID id, String nome, long quantidade) {}
 }

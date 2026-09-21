@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ptBR } from "date-fns/locale";
 import {
   Bot,
   CalendarDays,
+  CircleDollarSign,
   Clock3,
   Handshake,
   Lock,
@@ -12,6 +13,7 @@ import {
   Star,
   TrendingDown,
   TrendingUp,
+  UserPlus,
   UsersRound,
 } from "lucide-react";
 
@@ -49,6 +51,8 @@ const TOM_CONVERSAO = "var(--cor-sucesso)";
 const TOM_TEMPO = "var(--cor-info)";
 const TOM_AVALIACAO = "var(--cor-atencao)";
 const TOM_IA = "var(--cor-ia)";
+const TOM_NOVOS_LEADS = "var(--cor-destaque-2)";
+const TOM_VENDAS = "var(--cor-destaque-3)";
 
 /*
  * Ouro / prata / bronze do pódio. Não existe token de "prata" nem de "bronze" no tema; o mais
@@ -337,7 +341,13 @@ export function PaginaDashboard() {
       {consulta.isError && (
         <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => consulta.refetch()} />
       )}
-      {consulta.data && <ConteudoDashboard dados={consulta.data} telaEstreita={telaEstreita} />}
+      {consulta.data && (
+        <ConteudoDashboard
+          dados={consulta.data}
+          telaEstreita={telaEstreita}
+          atualizadoEm={consulta.dataUpdatedAt ?? 0}
+        />
+      )}
       <Dialog open={avisoComputadorAberto} onOpenChange={setAvisoComputadorAberto}>
         <DialogContent>
           <DialogHeader>
@@ -442,9 +452,11 @@ function SeletorDeOriginacao({
 function ConteudoDashboard({
   dados,
   telaEstreita,
+  atualizadoEm,
 }: {
   dados: VisaoGeralDashboard;
   telaEstreita: boolean;
+  atualizadoEm: number;
 }) {
   const textos = useTextos().dashboard;
   const duracao = dados.tempoMedioAtendimento.segundos;
@@ -452,80 +464,98 @@ function ConteudoDashboard({
 
   return (
     <>
+      <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} />
+
       {/*
-        Grade do modelo: indicadores em 3×2 à esquerda, "Top atendentes" numa coluna própria à
-        direita. São cinco indicadores porque cinco é o que a tela tem hoje — a sexta célula fica
-        vazia de propósito, em vez de inventar métrica para preencher a grade.
+        Sete indicadores em grade — os que têm dado real hoje. NPS, 1ª resposta humana,
+        Transferência IA→Humano e Leads parados aparecem no mockup mas não têm critério definido
+        (ver relatório da E197): a caixa não existe em vez de existir com número inventado.
       */}
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,1.15fr)]">
-        <div
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
-          role="group"
-          aria-label={textos.kpis.rotulo}
-        >
-          <Kpi
-            titulo={textos.kpis.atendimentos}
-            valor={numero(dados.atendimentos.noPeriodo)}
-            apoio={preencher(textos.kpis.atendimentosApoio, {
-              total: numero(dados.atendimentos.acumulado),
-            })}
-            comparativo={dados.atendimentos.comparativo}
-            Icone={UsersRound}
-            tom={TOM_ATENDIMENTOS}
-          />
-          <Kpi
-            titulo={textos.kpis.conversao}
-            valor={
-              dados.taxaConversao.percentual === null
-                ? textos.semDado
-                : `${percentual(dados.taxaConversao.percentual)}%`
-            }
-            apoio={preencher(textos.kpis.conversaoApoio, {
-              vendas: dados.taxaConversao.vendas,
-              leads: dados.taxaConversao.leadsRecebidos,
-            })}
-            comparativo={dados.taxaConversao.comparativo}
-            Icone={Handshake}
-            tom={TOM_CONVERSAO}
-          />
-          <Kpi
-            titulo={textos.kpis.tempoMedio}
-            valor={valorDuracao}
-            apoio={textos.kpis.tempoMedioApoio}
-            comparativo={dados.tempoMedioAtendimento.comparativo}
-            Icone={Clock3}
-            tom={TOM_TEMPO}
-            quedaPositiva
-          />
-          <Kpi
-            titulo={textos.kpis.csat}
-            valor={
-              dados.avaliacaoMedia.media === null
-                ? textos.semDado
-                : `${percentual(dados.avaliacaoMedia.media)}/${dados.avaliacaoMedia.escalaMaxima}`
-            }
-            apoio={preencher(textos.kpis.csatApoio, { total: dados.avaliacaoMedia.quantidade })}
-            comparativo={dados.avaliacaoMedia.comparativo}
-            Icone={Star}
-            tom={TOM_AVALIACAO}
-          />
-          <Kpi
-            titulo={textos.kpis.resolucaoIa}
-            valor={
-              dados.resolucaoPorIa.percentual === null
-                ? textos.semDado
-                : `${percentual(dados.resolucaoPorIa.percentual)}%`
-            }
-            apoio={textos.kpis.resolucaoIaApoio}
-            comparativo={dados.resolucaoPorIa.comparativo}
-            Icone={Bot}
-            tom={TOM_IA}
-          />
-        </div>
-        <Ranking dados={dados} />
+      <section
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+        role="group"
+        aria-label={textos.kpis.rotulo}
+      >
+        <Kpi
+          titulo={textos.kpis.atendimentos}
+          valor={numero(dados.atendimentos.noPeriodo)}
+          apoio={preencher(textos.kpis.atendimentosApoio, {
+            total: numero(dados.atendimentos.acumulado),
+          })}
+          comparativo={dados.atendimentos.comparativo}
+          Icone={UsersRound}
+          tom={TOM_ATENDIMENTOS}
+        />
+        <Kpi
+          titulo={textos.kpis.novosLeads}
+          valor={numero(dados.novosLeads.noPeriodo)}
+          apoio={textos.kpis.novosLeadsApoio}
+          comparativo={dados.novosLeads.comparativo}
+          Icone={UserPlus}
+          tom={TOM_NOVOS_LEADS}
+        />
+        <Kpi
+          titulo={textos.kpis.tempoMedio}
+          valor={valorDuracao}
+          apoio={textos.kpis.tempoMedioApoio}
+          comparativo={dados.tempoMedioAtendimento.comparativo}
+          Icone={Clock3}
+          tom={TOM_TEMPO}
+          quedaPositiva
+        />
+        <Kpi
+          titulo={textos.kpis.vendas}
+          valor={numero(dados.vendasFechadas.noPeriodo)}
+          apoio={preencher(textos.kpis.vendasApoio, {
+            total: numero(dados.vendasFechadas.acumulado),
+          })}
+          comparativo={dados.vendasFechadas.comparativo}
+          Icone={CircleDollarSign}
+          tom={TOM_VENDAS}
+        />
+        <Kpi
+          titulo={textos.kpis.conversao}
+          valor={
+            dados.taxaConversao.percentual === null
+              ? textos.semDado
+              : `${percentual(dados.taxaConversao.percentual)}%`
+          }
+          apoio={preencher(textos.kpis.conversaoApoio, {
+            vendas: dados.taxaConversao.vendas,
+            leads: dados.taxaConversao.leadsRecebidos,
+          })}
+          comparativo={dados.taxaConversao.comparativo}
+          Icone={Handshake}
+          tom={TOM_CONVERSAO}
+        />
+        <Kpi
+          titulo={textos.kpis.csat}
+          valor={
+            dados.avaliacaoMedia.media === null
+              ? textos.semDado
+              : `${percentual(dados.avaliacaoMedia.media)}/${dados.avaliacaoMedia.escalaMaxima}`
+          }
+          apoio={preencher(textos.kpis.csatApoio, { total: dados.avaliacaoMedia.quantidade })}
+          comparativo={dados.avaliacaoMedia.comparativo}
+          Icone={Star}
+          tom={TOM_AVALIACAO}
+        />
+        <Kpi
+          titulo={textos.kpis.resolucaoIa}
+          valor={
+            dados.resolucaoPorIa.percentual === null
+              ? textos.semDado
+              : `${percentual(dados.resolucaoPorIa.percentual)}%`
+          }
+          apoio={textos.kpis.resolucaoIaApoio}
+          comparativo={dados.resolucaoPorIa.comparativo}
+          Icone={Bot}
+          tom={TOM_IA}
+        />
       </section>
 
       <Funil dados={dados} />
+      <Equipe dados={dados} />
       <HorarioDePico dados={dados} />
       {telaEstreita && (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-3 text-xs text-muted-foreground">
@@ -609,56 +639,147 @@ function SeloDeTendencia({
   );
 }
 
-function Ranking({ dados }: { dados: VisaoGeralDashboard }) {
+/**
+ * Faixa "AGORA": só os quatro itens do mockup com critério real hoje (ver Javadoc de
+ * StatusAoVivo). "Atualizado há Ns" ticka a cada segundo via efeito — `Date.now()` só é chamado
+ * dentro do `setInterval`, nunca durante o render, que precisa ficar puro.
+ */
+function FaixaAoVivo({
+  status,
+  atualizadoEm,
+}: {
+  status: VisaoGeralDashboard["statusAoVivo"];
+  atualizadoEm: number;
+}) {
   const textos = useTextos().dashboard;
+  const [agora, setAgora] = useState(atualizadoEm);
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const segundos = Math.max(0, Math.round((agora - atualizadoEm) / 1000));
+  const rotuloAtualizado =
+    segundos < 5
+      ? textos.agora.atualizadoAgora
+      : segundos < 60
+        ? preencher(textos.agora.atualizadoSegundos, { segundos })
+        : preencher(textos.agora.atualizadoMinutos, { minutos: Math.round(segundos / 60) });
+
+  return (
+    <section
+      aria-label={textos.agora.rotulo}
+      className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-sidebar px-4 py-3 text-sidebar-foreground"
+    >
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide uppercase">
+        <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
+        {textos.agora.rotulo}
+      </span>
+      <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
+      <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
+      <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
+      <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
+      <span className="ml-auto text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
+    </section>
+  );
+}
+
+function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 text-xs whitespace-nowrap">
+      <span className="text-sidebar-foreground/70">{rotulo}</span>
+      <span className="text-sm font-bold tabular-nums">{numero(valor)}</span>
+    </span>
+  );
+}
+
+/**
+ * Tabela "Equipe · desempenho": junta atendimentos, vendas e nota já lidos pelo backend
+ * (`equipeDesempenho`), ordenados por vendas conforme o mockup. Conversão e 1ª resposta por
+ * atendente ficam fora — ver relatório da E197.
+ */
+function Equipe({ dados }: { dados: VisaoGeralDashboard }) {
+  const textos = useTextos().dashboard;
+  const linhas = dados.equipeDesempenho;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{textos.secoes.ranking}</CardTitle>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <div>
+            <CardTitle>{textos.secoes.equipe}</CardTitle>
+            <p className="text-xs font-normal text-muted-foreground">{textos.secoes.equipeApoio}</p>
+          </div>
+          <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+            {textos.secoes.equipeOrdenadoPor}
+          </span>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {dados.rankingDeAvaliacoes.atendentes.length === 0 && (
-          <p className="text-sm text-muted-foreground">{textos.ranking.vazio}</p>
+      <CardContent>
+        {linhas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{textos.equipe.vazio}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  <th className="py-2 pr-3 font-semibold">{textos.equipe.colunaAtendente}</th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    {textos.equipe.colunaAtendimentos}
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">{textos.equipe.colunaVendas}</th>
+                  <th className="py-2 pl-3 text-right font-semibold">{textos.equipe.colunaNota}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.map((atendente, indice) => {
+                  const medalha = MEDALHAS[indice];
+                  return (
+                    <tr key={atendente.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={cn(
+                              "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                              medalha
+                                ? "bg-[color-mix(in_oklab,var(--medalha)_20%,transparent)] text-[var(--medalha)]"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                            style={medalha ? ({ "--medalha": medalha } as React.CSSProperties) : undefined}
+                            data-testid={`posicao-${indice + 1}`}
+                          >
+                            {indice + 1}
+                          </span>
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                            {iniciaisDoNome(atendente.nome)}
+                          </span>
+                          <span className="min-w-0 truncate font-medium">{atendente.nome}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {numero(atendente.atendimentos)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                        {numero(atendente.vendas)}
+                      </td>
+                      <td className="py-2 pl-3 text-right tabular-nums">
+                        {atendente.nota === null ? textos.equipe.semNota : percentual(atendente.nota)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-        {dados.rankingDeAvaliacoes.atendentes.map((atendente, indice) => {
-          const medalha = MEDALHAS[indice];
-          return (
-            <div
-              key={atendente.id}
-              className="flex items-center gap-2.5 rounded-lg bg-muted/45 px-2.5 py-2"
-            >
-              <span
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-                  medalha
-                    ? "bg-[color-mix(in_oklab,var(--medalha)_20%,transparent)] text-[var(--medalha)]"
-                    : "bg-muted text-muted-foreground",
-                )}
-                style={medalha ? ({ "--medalha": medalha } as React.CSSProperties) : undefined}
-                data-testid={`posicao-${indice + 1}`}
-              >
-                {indice + 1}
-              </span>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                {iniciaisDoNome(atendente.nome)}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{atendente.nome}</span>
-              <span className="shrink-0 text-right">
-                <span className="text-sm font-bold">
-                  {preencher(textos.ranking.media, { media: percentual(atendente.media) })}
-                </span>
-                <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                  {preencher(
-                    atendente.quantidade === 1
-                      ? textos.ranking.quantidadeSingular
-                      : textos.ranking.quantidadePlural,
-                    { total: atendente.quantidade },
-                  )}
-                </span>
-              </span>
-            </div>
-          );
-        })}
+        {dados.rankingDeVendas.semResponsavel > 0 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {preencher(
+              dados.rankingDeVendas.semResponsavel === 1
+                ? textos.ranking.semResponsavelSingular
+                : textos.ranking.semResponsavelPlural,
+              { total: dados.rankingDeVendas.semResponsavel },
+            )}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -714,6 +835,28 @@ function Funil({ dados }: { dados: VisaoGeralDashboard }) {
             </div>
           );
         })}
+        {/*
+          "Perdido" não entra na sequência ordenada acima: uma perda pode vir de qualquer etapa em
+          andamento, então misturá-la na ordem por `ordem` distorceria o % de passagem da etapa
+          seguinte (ver relatório da E197). Fica como agregado à parte, sem barra nem passagem —
+          mesmo tratamento do mockup.
+        */}
+        <div>
+          <p className="mb-1 truncate text-sm font-medium">{textos.funil.perdido}</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 min-w-0 flex-1 items-center rounded-md bg-destructive/10 px-2.5">
+              <span
+                className="text-xs font-bold tabular-nums text-destructive"
+                data-testid="quantidade-perdidos"
+              >
+                {numero(dados.leadsPerdidos)}
+              </span>
+            </div>
+            <span className="w-14 shrink-0 text-right text-xs font-semibold text-muted-foreground tabular-nums">
+              {textos.funil.semPassagem}
+            </span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
