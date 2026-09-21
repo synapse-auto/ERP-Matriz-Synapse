@@ -312,6 +312,7 @@ export class ConexaoTempoReal {
           notificacao.tipo === "ATENDIMENTO_ESTADO" ||
           notificacao.tipo === "TRANSFERENCIA_RECEBIDA" ||
           notificacao.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA" ||
+          notificacao.tipo === "CONVITE_ATENDIMENTO" ||
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM" ||
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" ||
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA" ||

@@ -30,7 +30,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
       posicaoTitulo: "Posição", posicaoDescricao: "Posição dos avisos", posicaoTopo: "Em cima", posicaoBaixo: "Embaixo",
     },
     atendimentos: {
-      tempoReal: { transferenciaRecebida: "Transferência recebida", transferenciaRecebidaDescricao: "Transferido por {nome}", atendimentoDevolvidoParaIa: "Devolvido para IA", atendimentoDevolvidoParaIaDescricao: "IA retomou {nome}" },
+      tempoReal: {
+        transferenciaRecebida: "Transferência recebida", transferenciaRecebidaDescricao: "Transferido por {nome}",
+        atendimentoDevolvidoParaIa: "Devolvido para IA", atendimentoDevolvidoParaIaDescricao: "IA retomou {nome}",
+        conviteRecebido: "Convite para atendimento", conviteRecebidoDescricao: "Você foi convidado para participar de um atendimento.",
+        abrirTransferencia: "Abrir atendimento", abrirConvite: "Abrir convite", fechar: "Fechar aviso",
+      },
       media: { imagem: "Imagem", audio: "Áudio", documento: "Documento", localizacao: "Localização", visualizador: { video: "Vídeo" } },
     },
   }),
@@ -163,5 +168,46 @@ describe("NotificacoesTempoReal", () => {
     expect(screen.getByRole("status")).not.toHaveTextContent("Mensagem recebida no chat interno");
     fireEvent.click(screen.getByRole("button", { name: /Mensagem de João/ }));
     expect(mocks.push).toHaveBeenCalledWith("/chat-interno?conversaId=conversa-1");
+  });
+
+  it("exibe convite, oferece abrir convite e navega para o atendimento pendente", () => {
+    renderizar();
+    act(() => mocks.callback?.({
+      tipo: "CONVITE_ATENDIMENTO",
+      eventoId: "convite-1",
+      dados: {
+        atendimentoId: "atendimento-convite",
+        leadId: "lead-convite",
+        convidadorId: "atendente-1",
+        ocorridoEm: "2026-09-20T12:00:00Z",
+      },
+    }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Convite para atendimento");
+    expect(screen.getByRole("status")).toHaveTextContent("Você foi convidado para participar de um atendimento.");
+    fireEvent.click(screen.getByRole("button", { name: "Abrir convite" }));
+
+    expect(mocks.push).toHaveBeenCalledWith("/atendimentos?leadId=lead-convite&atendimentoId=atendimento-convite&visao=PENDENTES");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("não duplica o aviso quando o mesmo convite chega novamente", () => {
+    renderizar();
+    const convite: NotificacaoTempoReal = {
+      tipo: "CONVITE_ATENDIMENTO",
+      eventoId: "convite-duplicado",
+      dados: {
+        atendimentoId: "atendimento-convite",
+        leadId: "lead-convite",
+        convidadorId: "atendente-1",
+        ocorridoEm: "2026-09-20T12:00:00Z",
+      },
+    };
+    act(() => {
+      mocks.callback?.(convite);
+      mocks.callback?.(convite);
+    });
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 });
