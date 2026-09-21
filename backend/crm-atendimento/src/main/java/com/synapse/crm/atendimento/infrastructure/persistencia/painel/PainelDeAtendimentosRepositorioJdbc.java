@@ -98,6 +98,28 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ) ultima ON true
             """;
 
+    /**
+     * Projecao minima da contagem: preserva o mesmo {@code ROW_NUMBER} da listagem sem calcular
+     * campos que o {@code COUNT(*)} descarta (atendimento ativo, nao lidas e dados do cartao).
+     */
+    private static final String CAMPOS_CONTAGEM =
+            """
+            a.lead_id,
+            ROW_NUMBER() OVER (
+                PARTITION BY a.lead_id
+                ORDER BY COALESCE(ultima.enviado_em, a.iniciado_em) DESC, a.iniciado_em DESC, a.id DESC
+            ) AS linha_do_lead
+            """;
+
+    private static final String ORIGEM_CONTAGEM =
+            """
+            FROM atendimento a
+            LEFT JOIN LATERAL (
+                SELECT enviado_em FROM mensagem m
+                 WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
+            ) ultima ON true
+            """;
+
     private static final String GRUPO_FINALIZADO =
             "CASE WHEN atendimento_ativo_id IS NULL THEN 1 ELSE 0 END";
 
@@ -181,25 +203,25 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     + "iniciado_em, atendimento_ativo_id, ultima_mensagem_preview, ultima_mensagem_remetente_tipo, "
                     + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, linha_do_lead";
 
-    private static final String SQL_CONTAR_ATIVOS = contar(CAMPOS + ORIGEM + WHERE_ATIVOS);
+    private static final String SQL_CONTAR_ATIVOS = contar(WHERE_ATIVOS);
 
-    private static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS);
+    private static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(WHERE_PENDENTES_PROPRIOS);
 
-    private static final String SQL_CONTAR_PENDENTES_TODOS = contar(CAMPOS + ORIGEM + WHERE_PENDENTES_TODOS);
+    private static final String SQL_CONTAR_PENDENTES_TODOS = contar(WHERE_PENDENTES_TODOS);
 
-    private static final String SQL_CONTAR_POTENCIAIS = contar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
+    private static final String SQL_CONTAR_POTENCIAIS = contar(WHERE_POTENCIAIS);
 
-    private static final String SQL_CONTAR_TODOS = contar(CAMPOS + ORIGEM + WHERE_TODOS_ATIVOS);
+    private static final String SQL_CONTAR_TODOS = contar(WHERE_TODOS_ATIVOS);
 
-    private static final String SQL_CONTAR_FINALIZADOS = contar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
+    private static final String SQL_CONTAR_FINALIZADOS = contar(WHERE_FINALIZADOS);
 
     private static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
                 + " WHERE linha_do_lead = 1" + ORDEM;
     }
 
-    private static String contar(String consultaInterna) {
-        return "SELECT COUNT(*) FROM (SELECT " + consultaInterna + ") cartoes"
+    private static String contar(String whereClause) {
+        return "SELECT COUNT(*) FROM (SELECT " + CAMPOS_CONTAGEM + ORIGEM_CONTAGEM + whereClause + ") cartoes"
                 + " WHERE linha_do_lead = 1";
     }
 
@@ -298,13 +320,13 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     public long contar(VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
         TransacaoObrigatoria.exigir("contar");
         return switch (visao) {
-            case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId, usuarioId);
+            case ATIVOS -> queryForCount(SQL_CONTAR_ATIVOS, usuarioId);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId, usuarioId)
-                    : queryForCount(SQL_CONTAR_PENDENTES_TODOS, usuarioId);
-            case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS, usuarioId);
-            case TODOS -> queryForCount(SQL_CONTAR_TODOS, usuarioId);
-            case FINALIZADOS -> queryForCount(SQL_CONTAR_FINALIZADOS, usuarioId);
+                    ? queryForCount(SQL_CONTAR_PENDENTES_PROPRIOS, usuarioId, usuarioId)
+                    : queryForCount(SQL_CONTAR_PENDENTES_TODOS);
+            case POTENCIAIS -> queryForCount(SQL_CONTAR_POTENCIAIS);
+            case TODOS -> queryForCount(SQL_CONTAR_TODOS);
+            case FINALIZADOS -> queryForCount(SQL_CONTAR_FINALIZADOS);
         };
     }
 
