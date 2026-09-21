@@ -1361,6 +1361,7 @@
     "DataNascimentoRequisicao" : {
       "properties" : {
         "dataNascimento" : {
+          "example" : "1990-05-21",
           "minLength" : 1,
           "type" : "string"
         }
