@@ -39,6 +39,7 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 - [`24-notificacoes-tempo-real.md`](./24-notificacoes-tempo-real.md) — contrato de transporte, audiência, deduplicação e apresentação das notificações em tempo real.
 - [`40-consistencia-tempo-real-atendimentos.md`](./40-consistencia-tempo-real-atendimentos.md) — evento canônico, snapshot, ordem transacional, RLS e runbook de divergências no atendimento.
 - [`41-runbook-upgrade-controlado-v73.md`](./41-runbook-upgrade-controlado-v73.md) — bridge one-shot para schema72, lock exclusivo, validações e rollback seguro da V73.
+- [`42-auditoria-performance-pos-incidente-21-09.md`](./42-auditoria-performance-pos-incidente-21-09.md) — inventário E201 de consultas caras reaproveitadas por chamadores estreitos, prioridades e plano de medição.
 
 ### Execução com Claude Code
 - [`CLAUDE.md`](./CLAUDE.md) — **vai na raiz do repositório**, não em `/docs`. Lido automaticamente pelo Claude Code em todo comando: stack, regras de arquitetura, padrões obrigatórios, proibições e regras de negócio sensíveis.
