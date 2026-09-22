@@ -247,6 +247,12 @@ synapse:
     # morta so e percebida quando o TCP desiste — ver TempoRealProperties.
     heartbeat-saida-ms: ${WS_HEARTBEAT_SAIDA_MS:10000}
     heartbeat-entrada-ms: ${WS_HEARTBEAT_ENTRADA_MS:10000}
+    # Observabilidade barata por instancia: sessoes STOMP ativas e usuarios autenticados unicos.
+    intervalo-metricas: ${WS_METRICAS_INTERVALO:1m}
+    # Perfil anunciado no CONNECTED. O navegador aplica jitter de 50–100% sobre este atraso.
+    reconexao-atraso-inicial-ms: ${WS_RECONEXAO_ATRASO_INICIAL_MS:1000}
+    reconexao-fator: ${WS_RECONEXAO_FATOR:2}
+    reconexao-atraso-maximo-ms: ${WS_RECONEXAO_ATRASO_MAXIMO_MS:30000}
 
   automacao:
     # E104: teto do cache de configuracao_automacao. Invalidacao por evento

@@ -161,6 +161,13 @@ Nada de configurável é constante no código. A configuração da instância vi
 `backend/crm-app/src/main/resources/application.yml`, e todo valor vem de variável de ambiente com
 um default de desenvolvimento.
 
+Para o WebSocket, `WS_METRICAS_INTERVALO` define a periodicidade do log operacional local de
+sessões STOMP e usuários autenticados únicos (padrão `1m`). O heartbeat permanece configurado por
+`WS_HEARTBEAT_SAIDA_MS` e `WS_HEARTBEAT_ENTRADA_MS` (ambos `10000` por padrão). As opções públicas
+de backoff do navegador são fornecidas pelo frame STOMP `CONNECTED`, a partir de
+`WS_RECONEXAO_ATRASO_INICIAL_MS`, `WS_RECONEXAO_FATOR` e
+`WS_RECONEXAO_ATRASO_MAXIMO_MS`; não exigem reconstruir a imagem genérica do frontend.
+
 ### Migrations e seed
 
 As migrations Flyway vivem em `backend/crm-app/src/main/resources/db/migration`, quebradas por

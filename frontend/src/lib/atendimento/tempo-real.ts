@@ -18,7 +18,7 @@ export interface ClienteStompLike {
   activate(): void;
   deactivate(): unknown;
   subscribe(destino: string, callback: (mensagem: IMessage) => void): StompSubscription;
-  onConnect?: () => void;
+  onConnect?: (frame?: { headers?: Record<string, string> }) => void;
   onWebSocketClose?: () => void;
   onStompError?: () => void;
   connected: boolean;
@@ -52,6 +52,59 @@ const destinoAtendimento = (id: string) => `/user/queue/atendimento.${id}`;
  */
 export const HEARTBEAT_MS = 10_000;
 
+export const CABECALHOS_DE_BACKOFF_DE_RECONEXAO = {
+  atrasoInicialMs: "x-synapse-reconexao-atraso-inicial-ms",
+  fator: "x-synapse-reconexao-fator",
+  atrasoMaximoMs: "x-synapse-reconexao-atraso-maximo-ms",
+} as const;
+
+export interface ConfiguracaoDeBackoffDeReconexao {
+  atrasoInicialMs: number;
+  fator: number;
+  atrasoMaximoMs: number;
+}
+
+export const CONFIGURACAO_DE_BACKOFF_PADRAO: ConfiguracaoDeBackoffDeReconexao = {
+  atrasoInicialMs: 1_000,
+  fator: 2,
+  atrasoMaximoMs: 30_000,
+};
+
+function numeroPositivoConfigurado(valor: string | undefined, padrao: number, minimo: number): number {
+  const numero = Number(valor);
+  return Number.isFinite(numero) && numero >= minimo ? numero : padrao;
+}
+
+/**
+ * O primeiro CONNECT usa defaults seguros. Depois, o backend anuncia a configuração efetiva no
+ * frame CONNECTED; assim a imagem genérica do frontend não precisa ser reconstruída por filho.
+ */
+export function configuracaoDeBackoffDoServidor(
+  cabecalhos: Record<string, string> | undefined,
+): ConfiguracaoDeBackoffDeReconexao {
+  const atrasoInicialMs = numeroPositivoConfigurado(
+    cabecalhos?.[CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoInicialMs],
+    CONFIGURACAO_DE_BACKOFF_PADRAO.atrasoInicialMs,
+    1,
+  );
+  const fator = numeroPositivoConfigurado(
+    cabecalhos?.[CABECALHOS_DE_BACKOFF_DE_RECONEXAO.fator],
+    CONFIGURACAO_DE_BACKOFF_PADRAO.fator,
+    1.01,
+  );
+  const atrasoMaximoMs = Math.max(
+    atrasoInicialMs,
+    numeroPositivoConfigurado(
+      cabecalhos?.[CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoMaximoMs],
+      CONFIGURACAO_DE_BACKOFF_PADRAO.atrasoMaximoMs,
+      1,
+    ),
+  );
+  return { atrasoInicialMs, fator, atrasoMaximoMs };
+}
+
+const CONFIGURACAO_DE_BACKOFF_DE_RECONEXAO = configuracaoDeBackoffDoServidor(undefined);
+
 export function clienteStompPadrao(opcoes: {
   brokerUrl: string;
   accessToken: string | null;
@@ -80,15 +133,20 @@ function resolverBrokerUrl(configurada: string): string {
 }
 
 /**
- * Backoff exponencial com teto: base 1s, fator 2, teto 30s. `comJitter: false` existe só para o
- * teste determinístico da progressão base/teto — em produção o jitter evita que várias abas
- * reconectem no mesmo instante exato (thundering herd contra o servidor).
+ * Backoff exponencial com teto e jitter. `comJitter: false` existe só para o teste determinístico
+ * da progressão base/teto — em produção o jitter evita que várias abas reconectem no mesmo instante
+ * exato (thundering herd contra o servidor).
  */
-export function calcularBackoffMs(tentativa: number, comJitter = true): number {
-  const BASE_MS = 1000;
-  const FATOR = 2;
-  const TETO_MS = 30000;
-  const bruto = Math.min(BASE_MS * FATOR ** tentativa, TETO_MS);
+export function calcularBackoffMs(
+  tentativa: number,
+  comJitter = true,
+  configuracao = CONFIGURACAO_DE_BACKOFF_DE_RECONEXAO,
+): number {
+  const tentativaSegura = Math.max(0, Math.floor(tentativa));
+  const bruto = Math.min(
+    configuracao.atrasoInicialMs * configuracao.fator ** tentativaSegura,
+    configuracao.atrasoMaximoMs,
+  );
   if (!comJitter) {
     return bruto;
   }
@@ -184,6 +242,7 @@ export class ConexaoTempoReal {
   private atendimentoAberto: string | null = null;
   private onEventoAtual: ((evento: EventoTempoReal) => void) | null = null;
   private tentativas = 0;
+  private configuracaoDeBackoff = CONFIGURACAO_DE_BACKOFF_DE_RECONEXAO;
   private timerReconexao: ReturnType<typeof setTimeout> | null = null;
   private desativadoManualmente = false;
   private leitorDeAccessToken: () => string | null;
@@ -293,7 +352,8 @@ export class ConexaoTempoReal {
     });
     this.cliente = cliente;
 
-    cliente.onConnect = () => {
+    cliente.onConnect = (frame) => {
+      this.configuracaoDeBackoff = configuracaoDeBackoffDoServidor(frame?.headers);
       this.tentativas = 0;
       cliente.subscribe(DESTINO_REVOGACOES, (mensagem) => {
         const revogacao = JSON.parse(mensagem.body) as RevogacaoTempoReal;
@@ -336,7 +396,7 @@ export class ConexaoTempoReal {
         return;
       }
       this.emitirEstado("reconectando");
-      const atraso = calcularBackoffMs(this.tentativas);
+      const atraso = calcularBackoffMs(this.tentativas, true, this.configuracaoDeBackoff);
       this.tentativas += 1;
       this.timerReconexao = setTimeout(() => this.abrirClienteEConectar(), atraso);
     };

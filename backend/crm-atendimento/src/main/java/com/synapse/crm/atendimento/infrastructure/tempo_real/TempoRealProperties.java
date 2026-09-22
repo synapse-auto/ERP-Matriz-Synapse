@@ -1,5 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -28,6 +30,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param heartbeatEntradaMs de quanto em quanto tempo o servidor espera um pulso do navegador.
  *     Mesma escolha de 10s do lado de saida; e o que permite ao servidor derrubar sessao morta em
  *     vez de manter recurso preso ate o TCP expirar
+ * @param intervaloMetricas de quanto em quanto tempo o resumo local de sessoes e usuarios STOMP
+ *     autenticados vai ao log operacional
+ * @param reconexaoAtrasoInicialMs atraso inicial que o navegador aplica depois de uma desconexao
+ * @param reconexaoFator multiplicador exponencial do atraso de reconexao
+ * @param reconexaoAtrasoMaximoMs teto do atraso de reconexao anunciado ao navegador
  */
 @ConfigurationProperties("synapse.tempo-real")
 public record TempoRealProperties(
@@ -38,7 +45,11 @@ public record TempoRealProperties(
         String origensPermitidas,
         int ttlAssinaturaSegundos,
         long heartbeatSaidaMs,
-        long heartbeatEntradaMs) {
+        long heartbeatEntradaMs,
+        Duration intervaloMetricas,
+        long reconexaoAtrasoInicialMs,
+        double reconexaoFator,
+        long reconexaoAtrasoMaximoMs) {
 
     public TempoRealProperties {
         threadsEntrada = threadsEntrada <= 0 ? 4 : threadsEntrada;
@@ -51,5 +62,13 @@ public record TempoRealProperties(
         ttlAssinaturaSegundos = ttlAssinaturaSegundos <= 0 ? 60 : ttlAssinaturaSegundos;
         heartbeatSaidaMs = heartbeatSaidaMs <= 0 ? 10_000L : heartbeatSaidaMs;
         heartbeatEntradaMs = heartbeatEntradaMs <= 0 ? 10_000L : heartbeatEntradaMs;
+        intervaloMetricas = intervaloMetricas == null || intervaloMetricas.isNegative() || intervaloMetricas.isZero()
+                ? Duration.ofMinutes(1)
+                : intervaloMetricas;
+        reconexaoAtrasoInicialMs = reconexaoAtrasoInicialMs <= 0 ? 1_000L : reconexaoAtrasoInicialMs;
+        reconexaoFator = reconexaoFator <= 1 ? 2 : reconexaoFator;
+        reconexaoAtrasoMaximoMs = reconexaoAtrasoMaximoMs < reconexaoAtrasoInicialMs
+                ? 30_000L
+                : reconexaoAtrasoMaximoMs;
     }
 }

@@ -195,6 +195,18 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>${maven-failsafe-plugin.version}</version>
+        <configuration>
+          <systemPropertyVariables>
+            <!--
+              Os ITs compartilham um Postgres singleton do Testcontainers, mas cada
+              ApplicationContext mantém dois pools Hikari. O cache padrão do Spring
+              (32 contextos) pode reter mais conexões que o limite do Postgres antes
+              da última suite. Limitar o cache fecha contextos LRU e seus pools sem
+              trocar Postgres real por mock nem reduzir a cobertura de integração.
+            -->
+            <spring.test.context.cache.maxSize>16</spring.test.context.cache.maxSize>
+          </systemPropertyVariables>
+        </configuration>
         <executions>
           <execution>
             <goals>

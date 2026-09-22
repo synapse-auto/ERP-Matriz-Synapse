@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { calcularBackoffMs, ConexaoTempoReal, mesclarMensagens, type ClienteStompLike } from "./tempo-real";
+import {
+  CABECALHOS_DE_BACKOFF_DE_RECONEXAO,
+  calcularBackoffMs,
+  configuracaoDeBackoffDoServidor,
+  ConexaoTempoReal,
+  mesclarMensagens,
+  type ClienteStompLike,
+} from "./tempo-real";
 import type { MensagemResposta } from "./types";
 
 describe("calcularBackoffMs", () => {
@@ -23,6 +30,32 @@ describe("calcularBackoffMs", () => {
       expect(atraso).toBeGreaterThanOrEqual(0);
       expect(atraso).toBeLessThanOrEqual(30000);
     }
+  });
+
+  it("varia o atraso entre clientes sem perder o teto configurado", () => {
+    const configuracao = { atrasoInicialMs: 1_000, fator: 2, atrasoMaximoMs: 30_000 };
+    vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+
+    const menor = calcularBackoffMs(0, true, configuracao);
+    const maior = calcularBackoffMs(0, true, configuracao);
+
+    expect(menor).toBe(500);
+    expect(maior).toBe(995);
+    expect(maior).toBeLessThanOrEqual(configuracao.atrasoMaximoMs);
+  });
+
+  it("aceita o perfil anunciado pelo backend e rejeita valores inválidos", () => {
+    expect(configuracaoDeBackoffDoServidor({
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoInicialMs]: "1500",
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.fator]: "2.5",
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoMaximoMs]: "20000",
+    })).toEqual({ atrasoInicialMs: 1500, fator: 2.5, atrasoMaximoMs: 20000 });
+
+    expect(configuracaoDeBackoffDoServidor({
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoInicialMs]: "0",
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.fator]: "1",
+      [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoMaximoMs]: "-1",
+    })).toEqual({ atrasoInicialMs: 1000, fator: 2, atrasoMaximoMs: 30000 });
   });
 });
 
@@ -131,6 +164,55 @@ function clienteStompFalso() {
 }
 
 describe("ConexaoTempoReal", () => {
+  it("reinicia o backoff após uma reconexão bem-sucedida", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const primeiro = clienteStompFalso().cliente;
+    const segundo = clienteStompFalso().cliente;
+    const criarCliente = vi.fn().mockReturnValueOnce(primeiro).mockReturnValueOnce(segundo);
+    const agendamentos = vi.spyOn(globalThis, "setTimeout");
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente,
+    });
+
+    conexao.conectar();
+    primeiro.onWebSocketClose?.();
+    expect(agendamentos).toHaveBeenLastCalledWith(expect.any(Function), 500);
+
+    vi.advanceTimersByTime(500);
+    segundo.onWebSocketClose?.();
+    expect(agendamentos).toHaveBeenLastCalledWith(expect.any(Function), 500);
+
+    vi.useRealTimers();
+  });
+
+  it("usa o perfil anunciado no CONNECTED para a próxima reconexão", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const cliente = clienteStompFalso().cliente;
+    const agendamentos = vi.spyOn(globalThis, "setTimeout");
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => cliente,
+    });
+
+    conexao.conectar();
+    cliente.onConnect?.({
+      headers: {
+        [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoInicialMs]: "2000",
+        [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.fator]: "2",
+        [CABECALHOS_DE_BACKOFF_DE_RECONEXAO.atrasoMaximoMs]: "10000",
+      },
+    });
+    cliente.onWebSocketClose?.();
+
+    expect(agendamentos).toHaveBeenLastCalledWith(expect.any(Function), 1000);
+    vi.useRealTimers();
+  });
+
   it("nao cria nem ativa cliente STOMP sem access token", () => {
     const { cliente } = clienteStompFalso();
     const criarCliente = vi.fn(() => cliente);
