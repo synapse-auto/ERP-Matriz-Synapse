@@ -13,5 +13,11 @@ public interface AgregacaoDeVendasRepositorio {
     AgregacaoDeVendas agregar(
             List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao);
 
+    /**
+     * Mesma definicao canonica de venda de {@link #agregar(List, IntervaloTemporal)}, sem a
+     * quebra por responsavel quando o chamador precisa apenas do total.
+     */
+    long totalDeVendas(List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao);
+
     long contarAte(Instant fimExclusivo, IntervaloTemporal periodoDeOriginacao);
 }

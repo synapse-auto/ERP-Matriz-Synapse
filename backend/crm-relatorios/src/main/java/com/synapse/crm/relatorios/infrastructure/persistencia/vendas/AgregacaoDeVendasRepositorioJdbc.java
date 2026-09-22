@@ -27,14 +27,7 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
     @Override
     public AgregacaoDeVendas agregar(
             List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao) {
-        FiltroSql eventos = periodos.isEmpty()
-                ? FiltroSql.semRestricao()
-                : periodos("e.criado_em", periodos);
-        FiltroSql origem = periodoDeOriginacao == null
-                ? FiltroSql.semRestricao()
-                : intervalo("l.criado_em", periodoDeOriginacao);
-        List<Object> parametros = new ArrayList<>(eventos.parametros());
-        parametros.addAll(origem.parametros());
+        FiltrosDeVendas filtros = filtros(periodos, periodoDeOriginacao);
 
         List<LinhaDeVendas> linhas = jdbc.query(
                 """
@@ -55,7 +48,7 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                   LEFT JOIN usuario u ON u.id = v.responsavel_id
                  GROUP BY v.responsavel_id, u.nome, u.papel
                  ORDER BY vendas DESC, u.nome NULLS LAST
-                """.formatted(eventos.clausula(), origem.clausula()),
+                """.formatted(filtros.eventos().clausula(), filtros.origem().clausula()),
                 (linha, indice) -> new LinhaDeVendas(
                         linha.getObject("responsavel_id", java.util.UUID.class),
                         linha.getString("nome"),
@@ -63,7 +56,7 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                                 ? null
                                 : PapelUsuario.valueOf(linha.getString("papel")),
                         linha.getLong("vendas")),
-                parametros.toArray());
+                filtros.parametros().toArray());
 
         long semResponsavel = linhas.stream()
                 .filter(linha -> linha.atendenteId() == null)
@@ -77,6 +70,28 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                 .toList();
         long total = linhas.stream().mapToLong(LinhaDeVendas::vendas).sum();
         return new AgregacaoDeVendas(total, semResponsavel, porAtendente);
+    }
+
+    @Override
+    public long totalDeVendas(List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao) {
+        FiltrosDeVendas filtros = filtros(periodos, periodoDeOriginacao);
+        Long total = jdbc.queryForObject(
+                """
+                WITH vendas AS (
+                    SELECT DISTINCT ON (e.lead_id) e.lead_id
+                      FROM evento_timeline e
+                      JOIN lead l ON l.id = e.lead_id
+                     WHERE e.tipo = 'ETAPA_ALTERADA'
+                       AND e.dados ->> 'resultado_novo' = 'GANHO'
+                       AND %s
+                       AND %s
+                     ORDER BY e.lead_id, e.criado_em, e.id
+                )
+                SELECT count(*) FROM vendas
+                """.formatted(filtros.eventos().clausula(), filtros.origem().clausula()),
+                Long.class,
+                filtros.parametros().toArray());
+        return total == null ? 0 : total;
     }
 
     @Override
@@ -121,11 +136,26 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                         Timestamp.from(intervalo.fimExclusivo())));
     }
 
+    private static FiltrosDeVendas filtros(
+            List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao) {
+        FiltroSql eventos = periodos.isEmpty()
+                ? FiltroSql.semRestricao()
+                : periodos("e.criado_em", periodos);
+        FiltroSql origem = periodoDeOriginacao == null
+                ? FiltroSql.semRestricao()
+                : intervalo("l.criado_em", periodoDeOriginacao);
+        List<Object> parametros = new ArrayList<>(eventos.parametros());
+        parametros.addAll(origem.parametros());
+        return new FiltrosDeVendas(eventos, origem, parametros);
+    }
+
     private record FiltroSql(String clausula, List<Object> parametros) {
         static FiltroSql semRestricao() {
             return new FiltroSql("TRUE", List.of());
         }
     }
+
+    private record FiltrosDeVendas(FiltroSql eventos, FiltroSql origem, List<Object> parametros) {}
 
     private record LinhaDeVendas(
             java.util.UUID atendenteId,

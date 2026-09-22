@@ -13,6 +13,21 @@ feita medição nas instâncias `matriz_hml` ou `fmnaprod`. Portanto, “frequê
 ponto de entrada e a multiplicidade inferidos do código; não representa chamadas por minuto nem
 tempo real de execução. Nenhuma consulta foi alterada nesta etapa.
 
+## Atualização de remediação P1 — 22/09
+
+As duas projeções P1 foram separadas sem alterar a definição de venda, os filtros de visibilidade ou
+as migrations:
+
+- o dashboard passou a usar `totalDeVendas(...)` para o período anterior e para `vendasHoje`; a
+  agregação completa continua exclusiva de `vendasAtual`, que alimenta ranking e sem responsável;
+- a elegibilidade de leitura EV-05 passou a usar `EXISTS` em `atendimento`, sem carregar
+  responsável nem última mensagem. Os demais caminhos que precisam de `atendimentoId` e do marco
+  da última mensagem continuam em `porLeadEmAtendimento(...)`.
+
+Não houve acesso a `matriz_hml` para confirmar em `pg_stat_statements` se essas duas consultas são
+responsáveis pelo pico atual. A remediação reduz trabalho comprovadamente descartado, mas não prova
+causalidade nem substitui a investigação do endpoint de listagem externa do E200.
+
 ## Resultado priorizado
 
 | Prioridade | Módulo | Consulta reaproveitada | Resultado descartado | Frequência conhecida | Custo aparente e próximo passo |

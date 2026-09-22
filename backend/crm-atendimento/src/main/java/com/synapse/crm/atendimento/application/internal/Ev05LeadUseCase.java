@@ -251,8 +251,9 @@ public class Ev05LeadUseCase {
     }
 
     private void exigirAtendimentoElegivel(UUID leadId) {
-        atendimentos.porLeadEmAtendimento(leadId)
-                .orElseThrow(() -> new Ev05LeadSemAtendimentoException(leadId));
+        if (!atendimentos.existeAtendimentoEmAndamento(leadId)) {
+            throw new Ev05LeadSemAtendimentoException(leadId);
+        }
     }
 
     private SolicitacaoResumoIaRepositorio.Solicitacao cicloDaSolicitacao(
