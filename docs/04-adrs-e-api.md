@@ -228,7 +228,8 @@ Fontes de cada métrica (todas em `DashboardVisaoGeralRepositorioJdbc`, vendas e
 | Atendimentos no período | `count(*)` | `atendimento` | `iniciado_em` |
 | Atendimentos acumulados | `count(*)` até o fim do período | `atendimento` | `iniciado_em < fim` |
 | Tempo médio | `avg(finalizado_em - iniciado_em)` só dos finalizados | `atendimento` | `iniciado_em` |
-| Avaliação | `avg(nota)`, escala 1–5 | `avaliacao` | `criado_em` |
+| Avaliação / satisfação | `avg(nota)`, escala 0–10; distribuição: `9–10`, `7–8`, `0–6` | `avaliacao` | `criado_em` |
+| Atendentes online (faixa Agora) | online / total entre usuários ativos com papel `ATENDENTE` ou `SUBGESTOR` | `usuario` | estado atual de `status_presenca` |
 | Resolução por IA | finalizados sem `LEAD_TRANSFERIDO_POR_ENVIO` nem `ATENDIMENTO_TRANSFERIDO` no histórico / finalizados no período | `atendimento` + `evento_timeline` | `atendimento.finalizado_em` |
 | Vendas fechadas (payload + ranking; o card de KPI saiu da Visão Geral) | leads distintos com primeira transição `ETAPA_ALTERADA` cujo `dados.resultado_novo = GANHO` | `evento_timeline` + `lead` (+ `usuario` no ranking) | `evento_timeline.criado_em`; coorte opcional em `lead.criado_em` |
 | Taxa de conversão | vendas do período / leads recebidos no mesmo recorte (ou no coorte de originação) | mesmas de vendas + `lead` | `lead.criado_em` no denominador |
@@ -239,7 +240,12 @@ Fontes de cada métrica (todas em `DashboardVisaoGeralRepositorioJdbc`, vendas e
 
 Leitura complementar na Equipe (não alimenta a Visão Geral): `GET /api/v1/equipe/avaliacoes` agrega `avaliacao` sem recorte de período.
 
-Coleta: `POST /api/v1/atendimentos/{id}/avaliacao` (JWT, visibilidade RLS) e `POST /internal/v1/atendimentos/{id}/avaliacao` (`X-Synapse-Token`, para a Automação/WhatsApp). Escala **1–5**, uma linha por atendimento (`uq_avaliacao_atendimento`). O atendente dono da conversa recebe o crédito. Conversa ainda aberta ou sem atendente → 422; segunda nota → 409.
+O gráfico de satisfação usa a distribuição e a média das avaliações existentes; não representa NPS,
+pois o sistema não registra uma pergunta de recomendação nem respostas identificadas como promotor,
+neutro e detrator. A faixa ao vivo também não exibe “aguardando 1ª resposta” ou “esquecidos”: esses
+indicadores ainda não têm definição/fonte confiável no read model.
+
+Coleta: `POST /api/v1/atendimentos/{id}/avaliacao` (JWT, visibilidade RLS) e `POST /internal/v1/atendimentos/{id}/avaliacao` (`X-Synapse-Token`, para a Automação/WhatsApp). Escala **0–10** (desde V56), uma linha por atendimento (`uq_avaliacao_atendimento`). O atendente dono da conversa recebe o crédito. Conversa ainda aberta ou sem atendente → 422; segunda nota → 409.
 
 ### ADR — Uma reação por usuário (E84)
 

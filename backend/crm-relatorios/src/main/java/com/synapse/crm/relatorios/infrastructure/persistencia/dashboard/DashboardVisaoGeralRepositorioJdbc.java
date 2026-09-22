@@ -91,6 +91,8 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         escala(avaliacaoAtual.media()),
                         EscalaDeAvaliacao.NOTA_MAXIMA,
                         avaliacaoAtual.quantidade(),
+                        new VisaoGeralDashboard.DistribuicaoDeAvaliacoes(
+                                avaliacaoAtual.otimo(), avaliacaoAtual.bom(), avaliacaoAtual.ruim()),
                         Comparativo.pontos(avaliacaoAtual.media(), avaliacaoAnterior.media())),
                 new VisaoGeralDashboard.ResolucaoPorIa(
                         taxaResolucaoIaAtual,
@@ -140,11 +142,22 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     private AgregadoAvaliacao avaliacoes(List<IntervaloTemporal> periodos) {
         FiltroSql filtro = semAdministradores(periodos("a.criado_em", periodos), "u");
         return jdbc.queryForObject(
-                "SELECT count(*) AS quantidade, avg(a.nota) AS media"
-                        + " FROM avaliacao a JOIN usuario u ON u.id = a.atendente_id WHERE "
-                        + filtro.clausula(),
+                """
+                SELECT count(*) AS quantidade,
+                       avg(a.nota) AS media,
+                       count(*) FILTER (WHERE a.nota BETWEEN 9 AND 10) AS otimo,
+                       count(*) FILTER (WHERE a.nota BETWEEN 7 AND 8) AS bom,
+                       count(*) FILTER (WHERE a.nota BETWEEN 0 AND 6) AS ruim
+                  FROM avaliacao a
+                  JOIN usuario u ON u.id = a.atendente_id
+                 WHERE %s
+                """.formatted(filtro.clausula()),
                 (linha, indice) -> new AgregadoAvaliacao(
-                        linha.getLong("quantidade"), linha.getBigDecimal("media")),
+                        linha.getLong("quantidade"),
+                        linha.getBigDecimal("media"),
+                        linha.getLong("otimo"),
+                        linha.getLong("bom"),
+                        linha.getLong("ruim")),
                 filtro.parametros().toArray());
     }
 
@@ -288,7 +301,17 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 hoje.atStartOfDay(fuso).toInstant(), hoje.plusDays(1).atStartOfDay(fuso).toInstant());
         long leadsNovosHoje = contarLeads(List.of(intervaloHoje));
         long vendasHoje = vendas.totalDeVendas(List.of(intervaloHoje), null);
-        return new VisaoGeralDashboard.StatusAoVivo(emIa, emAtendimento, leadsNovosHoje, vendasHoje);
+        VisaoGeralDashboard.AtendentesOnline atendentesOnline = jdbc.queryForObject(
+                """
+                SELECT count(*) FILTER (WHERE status_presenca = 'ONLINE') AS online,
+                       count(*) AS total
+                  FROM usuario
+                 WHERE ativo = TRUE AND papel IN ('ATENDENTE', 'SUBGESTOR')
+                """,
+                (linha, indice) -> new VisaoGeralDashboard.AtendentesOnline(
+                        linha.getLong("online"), linha.getLong("total")));
+        return new VisaoGeralDashboard.StatusAoVivo(
+                emIa, emAtendimento, leadsNovosHoje, vendasHoje, atendentesOnline);
     }
 
     private long contarPorStatusAtendimento(String status) {
@@ -439,7 +462,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     private record AgregadoAtendimento(long quantidade, BigDecimal mediaSegundos) {}
 
-    private record AgregadoAvaliacao(long quantidade, BigDecimal media) {}
+    private record AgregadoAvaliacao(long quantidade, BigDecimal media, long otimo, long bom, long ruim) {}
 
     private record AgregadoResolucaoIa(long finalizados, long semTransferencia) {}
 

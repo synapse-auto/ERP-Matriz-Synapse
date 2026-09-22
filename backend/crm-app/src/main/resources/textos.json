@@ -1118,6 +1118,7 @@
       "emAtendimento": "Em atendimento humano",
       "leadsNovosHoje": "Leads novos hoje",
       "vendasHoje": "Vendas hoje",
+      "atendentesOnline": "Atendentes online",
       "atualizadoAgora": "atualizado agora",
       "atualizadoSegundos": "atualizado há {segundos}s",
       "atualizadoMinutos": "atualizado há {minutos}min"
@@ -1165,6 +1166,15 @@
     "tempo": {
       "minutos": "{minutos} min",
       "horasMinutos": "{horas}h {minutos}min"
+    },
+    "satisfacao": {
+      "titulo": "Satisfação no período",
+      "apoio": "Escala de 0 a 10 · {total} avaliações",
+      "media": "média",
+      "otimo": "Ótimo 9–10",
+      "bom": "Bom 7–8",
+      "ruim": "Ruim 0–6",
+      "vazio": "Nenhuma avaliação no período."
     }
   },
   "agenda": {

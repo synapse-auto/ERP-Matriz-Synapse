@@ -123,6 +123,9 @@ class DashboardVisaoGeralIT extends PostgresIT {
         assertThat(resposta.at("/tempoMedioAtendimento/segundos").asLong()).isEqualTo(1500);
         assertThat(resposta.at("/avaliacaoMedia/media").decimalValue()).isEqualByComparingTo("4.50");
         assertThat(resposta.at("/avaliacaoMedia/escalaMaxima").asInt()).isEqualTo(10);
+        assertThat(resposta.at("/avaliacaoMedia/distribuicao/otimo").asLong()).isZero();
+        assertThat(resposta.at("/avaliacaoMedia/distribuicao/bom").asLong()).isZero();
+        assertThat(resposta.at("/avaliacaoMedia/distribuicao/ruim").asLong()).isEqualTo(2);
 
         // Um dos quatro finalizados teve transferencia: permanece no denominador e sai apenas do
         // numerador. Os dois finalizados de julho nao tiveram transferencia, portanto o comparativo
@@ -219,6 +222,26 @@ class DashboardVisaoGeralIT extends PostgresIT {
 
         assertThat(resposta.at("/statusAoVivo/emIa").asLong()).isEqualTo(emIaAntes + 1);
         assertThat(resposta.at("/statusAoVivo/emAtendimento").asLong()).isEqualTo(emAtendimentoAntes + 1);
+    }
+
+    @Test
+    @DisplayName("status ao vivo conta presença dos atendentes ativos e exclui papéis de gestão")
+    void statusAoVivo_contaSomenteAtendentesOnline() throws Exception {
+        long ativosElegiveis = jdbc.queryForObject(
+                "SELECT count(*) FROM usuario WHERE ativo=TRUE AND papel IN ('ATENDENTE','SUBGESTOR')",
+                Long.class);
+        long onlineElegiveis = jdbc.queryForObject(
+                "SELECT count(*) FROM usuario WHERE ativo=TRUE AND papel IN ('ATENDENTE','SUBGESTOR') AND status_presenca='ONLINE'",
+                Long.class);
+        long onlineTodosOsPapeis = jdbc.queryForObject(
+                "SELECT count(*) FROM usuario WHERE ativo=TRUE AND status_presenca='ONLINE'",
+                Long.class);
+
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+
+        assertThat(resposta.at("/statusAoVivo/atendentesOnline/total").asLong()).isEqualTo(ativosElegiveis);
+        assertThat(resposta.at("/statusAoVivo/atendentesOnline/online").asLong()).isEqualTo(onlineElegiveis);
+        assertThat(onlineTodosOsPapeis).isGreaterThanOrEqualTo(onlineElegiveis);
     }
 
     @Test

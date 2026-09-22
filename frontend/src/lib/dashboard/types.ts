@@ -14,6 +14,7 @@ export interface VisaoGeralDashboard {
     media: number | null;
     escalaMaxima: number;
     quantidade: number;
+    distribuicao: { otimo: number; bom: number; ruim: number };
     comparativo: Comparativo | null;
   };
   resolucaoPorIa: {
@@ -32,10 +33,16 @@ export interface VisaoGeralDashboard {
   /**
    * Contadores ao vivo (sem recorte de período): emIa/emAtendimento refletem o instante da
    * consulta; leadsNovosHoje/vendasHoje, o dia corrente no fuso do tenant. Os demais itens do
-   * "AGORA" do mockup (aguardando 1ª resposta, esquecidos, atendentes online) não têm critério
-   * definido ainda — por isso não têm campo aqui, em vez de vir zerado por engano.
+   * "AGORA" do mockup (aguardando 1ª resposta e esquecidos) ainda não têm critério definido —
+   * por isso não têm campo aqui, em vez de vir zerados por engano.
    */
-  statusAoVivo: { emIa: number; emAtendimento: number; leadsNovosHoje: number; vendasHoje: number };
+  statusAoVivo: {
+    emIa: number;
+    emAtendimento: number;
+    leadsNovosHoje: number;
+    vendasHoje: number;
+    atendentesOnline: { online: number; total: number };
+  };
   funil: Array<{
     id: string;
     nome: string;

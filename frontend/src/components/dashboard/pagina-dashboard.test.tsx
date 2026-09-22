@@ -24,12 +24,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", anoInteiro: "Ano inteiro", originacao: "Originação", intervalo: "{inicio} até {fim}", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
       kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", periodoAnterior: "vs. período anterior" },
-      agora: { rotulo: "Agora", emIa: "Em IA", emAtendimento: "Em atendimento humano", leadsNovosHoje: "Leads novos hoje", vendasHoje: "Vendas hoje", atualizadoAgora: "atualizado agora", atualizadoSegundos: "atualizado há {segundos}s", atualizadoMinutos: "atualizado há {minutos}min" },
+      agora: { rotulo: "Agora", emIa: "Em IA", emAtendimento: "Em atendimento humano", leadsNovosHoje: "Leads novos hoje", vendasHoje: "Vendas hoje", atendentesOnline: "Atendentes online", atualizadoAgora: "atualizado agora", atualizadoSegundos: "atualizado há {segundos}s", atualizadoMinutos: "atualizado há {minutos}min" },
       secoes: { ranking: "Top atendentes · avaliação", equipe: "Equipe · desempenho", equipeApoio: "Atendimentos, vendas e nota média no período", equipeOrdenadoPor: "ordenado por vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
       equipe: { vazio: "Sem atendimentos no período", colunaAtendente: "Atendente", colunaAtendimentos: "Atend.", colunaVendas: "Vendas", colunaNota: "Nota", semNota: "—" },
       funil: { vazio: "Sem etapas", semPassagem: "—", perdido: "Perdido", colunaEtapa: "Etapa", colunaPassa: "Passa" }, horario: { vazio: "Sem mensagens", hora: "{hora}h", apoio: "Mensagens trocadas em cada hora do dia", picoUnico: "pico às {hora}", picos: "picos às {manha} e {tarde}", picosEValeUnico: "picos às {manha} e {tarde} · vale às {vale}", picosEVale: "picos às {manha} e {tarde} · vale entre {inicio} e {fim}" },
       tempo: { minutos: "{minutos} min", horasMinutos: "{horas}h {minutos}min" },
+      satisfacao: { titulo: "Satisfação no período", apoio: "Escala 0 a 10 · {total} avaliações", media: "média", otimo: "Ótimo 9–10", bom: "Bom 7–8", ruim: "Ruim 0–6", vazio: "Nenhuma avaliação no período." },
     },
   }),
 }));
@@ -41,11 +42,11 @@ const PAYLOAD_COM_DADOS = {
   atendimentos: { noPeriodo: 12, acumulado: 40, comparativo: { valor: 20, unidade: "PERCENTUAL" } },
   novosLeads: { noPeriodo: 30, comparativo: { valor: 14, unidade: "PERCENTUAL" } },
   tempoMedioAtendimento: { segundos: 5400, comparativo: { valor: -10, unidade: "PERCENTUAL" } },
-  avaliacaoMedia: { media: 4.5, escalaMaxima: 10, quantidade: 8, comparativo: null },
+  avaliacaoMedia: { media: 4.5, escalaMaxima: 10, quantidade: 8, distribuicao: { otimo: 2, bom: 3, ruim: 3 }, comparativo: null },
   resolucaoPorIa: { percentual: 75, resolvidosSemTransferencia: 9, atendimentosFinalizados: 12, comparativo: { valor: 5, unidade: "PONTOS_PERCENTUAIS" } },
   vendasFechadas: { noPeriodo: 3, acumulado: 9, comparativo: null },
   taxaConversao: { percentual: 50, vendas: 3, leadsRecebidos: 6, comparativo: { valor: 25, unidade: "PONTOS_PERCENTUAIS" } },
-  statusAoVivo: { emIa: 6, emAtendimento: 4, leadsNovosHoje: 2, vendasHoje: 1 },
+  statusAoVivo: { emIa: 6, emAtendimento: 4, leadsNovosHoje: 2, vendasHoje: 1, atendentesOnline: { online: 5, total: 8 } },
   funil: [{ id: "e1", nome: "Negociação", ordem: 1, corVisual: null, quantidade: 6, percentualDePassagem: 50 }],
   leadsPerdidos: 5,
   horarioDePico: [{ hora: 10, quantidade: 7 }],
@@ -71,11 +72,11 @@ const PAYLOAD_ZERADO = {
   atendimentos: { noPeriodo: 0, acumulado: 0, comparativo: null },
   novosLeads: { noPeriodo: 0, comparativo: null },
   tempoMedioAtendimento: { segundos: null, comparativo: null },
-  avaliacaoMedia: { media: null, escalaMaxima: 10, quantidade: 0, comparativo: null },
+  avaliacaoMedia: { media: null, escalaMaxima: 10, quantidade: 0, distribuicao: { otimo: 0, bom: 0, ruim: 0 }, comparativo: null },
   resolucaoPorIa: { percentual: null, resolvidosSemTransferencia: 0, atendimentosFinalizados: 0, comparativo: null },
   vendasFechadas: { noPeriodo: 0, acumulado: 0, comparativo: null },
   taxaConversao: { percentual: 0, vendas: 0, leadsRecebidos: 0, comparativo: null },
-  statusAoVivo: { emIa: 0, emAtendimento: 0, leadsNovosHoje: 0, vendasHoje: 0 },
+  statusAoVivo: { emIa: 0, emAtendimento: 0, leadsNovosHoje: 0, vendasHoje: 0, atendentesOnline: { online: 0, total: 0 } },
   funil: [
     { id: "e1", nome: "Novo contato", ordem: 1, corVisual: null, quantidade: 0, percentualDePassagem: null },
     { id: "e2", nome: "Qualificação", ordem: 2, corVisual: null, quantidade: 0, percentualDePassagem: null },
@@ -112,7 +113,10 @@ describe("PaginaDashboard", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("1h 30min")).toBeInTheDocument();
     expect(screen.getByText("Avaliação")).toBeInTheDocument();
-    expect(screen.getByText("4,5/10")).toBeInTheDocument();
+    expect(screen.getByTestId("kpi-Avaliação")).toHaveTextContent("4,5/10");
+    expect(screen.getByText("Satisfação no período")).toBeInTheDocument();
+    expect(screen.getByTestId("grafico-distribuicao-avaliacoes")).toBeInTheDocument();
+    expect(screen.getByText("Ótimo 9–10")).toBeInTheDocument();
     // 50,0% aparece duas vezes: taxa de conversão (KPI) e passagem da etapa (funil).
     expect(screen.getAllByText("50,0%")).toHaveLength(2);
     expect(screen.getAllByText("Vendas fechadas").length).toBeGreaterThan(0);
@@ -143,12 +147,12 @@ describe("PaginaDashboard", () => {
     expect(within(faixa).getByText("4")).toBeInTheDocument();
     expect(within(faixa).getByText("Leads novos hoje")).toBeInTheDocument();
     expect(within(faixa).getByText("Vendas hoje")).toBeInTheDocument();
+    expect(within(faixa).getByText("Atendentes online")).toBeInTheDocument();
+    expect(within(faixa).getByText("5/8")).toBeInTheDocument();
     expect(within(faixa).getByText("atualizado agora")).toBeInTheDocument();
-    // Itens do mockup sem critério definido (aguardando 1ª resposta, esquecidos, atendentes online):
-    // a API não os devolve, então não podem aparecer inventados na faixa.
+    // Itens do mockup sem critério definido (aguardando 1ª resposta e esquecidos) não são inventados.
     expect(within(faixa).queryByText(/Aguardando/)).not.toBeInTheDocument();
     expect(within(faixa).queryByText(/Esquecid/)).not.toBeInTheDocument();
-    expect(within(faixa).queryByText(/online/i)).not.toBeInTheDocument();
 
     expect(screen.getByText("Novos leads")).toBeInTheDocument();
     expect(screen.getByText("30")).toBeInTheDocument();

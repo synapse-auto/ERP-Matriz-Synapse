@@ -478,11 +478,7 @@ function ConteudoDashboard({
     <>
       <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} />
 
-      {/*
-        Sete indicadores em grade — os que têm dado real hoje. NPS, 1ª resposta humana,
-        Transferência IA→Humano e Leads parados aparecem no mockup mas não têm critério definido
-        (ver relatório da E197): a caixa não existe em vez de existir com número inventado.
-      */}
+      {/* Indicadores existentes com fonte real; métricas sem critério definido não são inventadas. */}
       <section
         className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
         role="group"
@@ -566,7 +562,14 @@ function ConteudoDashboard({
         />
       </section>
 
-      <Funil dados={dados} />
+      <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="min-w-0 xl:col-span-7">
+          <Funil dados={dados} />
+        </div>
+        <div className="min-w-0 xl:col-span-5">
+          <ResumoSatisfacao dados={dados.avaliacaoMedia} />
+        </div>
+      </div>
       <Equipe dados={dados} />
       <HorarioDePico dados={dados} />
       {telaEstreita && (
@@ -693,23 +696,108 @@ function FaixaAoVivo({
         <span className="size-2 rounded-full bg-[var(--cor-sucesso)]" aria-hidden />
         {textos.agora.rotulo}
       </span>
-      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+      <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
         <ItemAoVivo rotulo={textos.agora.emIa} valor={status.emIa} />
         <ItemAoVivo rotulo={textos.agora.emAtendimento} valor={status.emAtendimento} />
         <ItemAoVivo rotulo={textos.agora.leadsNovosHoje} valor={status.leadsNovosHoje} />
         <ItemAoVivo rotulo={textos.agora.vendasHoje} valor={status.vendasHoje} />
+        <ItemAoVivo
+          rotulo={textos.agora.atendentesOnline}
+          valor={`${status.atendentesOnline.online}/${status.atendentesOnline.total}`}
+        />
       </div>
       <span className="shrink-0 text-[11px] text-sidebar-foreground/70">{rotuloAtualizado}</span>
     </section>
   );
 }
 
-function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number }) {
+function ItemAoVivo({ rotulo, valor }: { rotulo: string; valor: number | string }) {
   return (
     <div className="min-w-0">
       <p className="truncate text-[11px] font-medium text-sidebar-foreground/75">{rotulo}</p>
-      <p className="text-lg leading-tight font-bold tabular-nums">{numero(valor)}</p>
+      <p className="text-lg leading-tight font-bold tabular-nums">
+        {typeof valor === "number" ? numero(valor) : valor}
+      </p>
     </div>
+  );
+}
+
+function ResumoSatisfacao({
+  dados,
+}: {
+  dados: VisaoGeralDashboard["avaliacaoMedia"];
+}) {
+  const textos = useTextos().dashboard;
+  const { otimo, bom, ruim } = dados.distribuicao;
+  const total = otimo + bom + ruim;
+  const percentualOtimo = total === 0 ? 0 : (otimo / total) * 100;
+  const percentualBom = total === 0 ? 0 : (bom / total) * 100;
+  const percentualRuim = total === 0 ? 0 : (ruim / total) * 100;
+  const fimOtimo = percentualOtimo;
+  const fimBom = percentualOtimo + percentualBom;
+  const grafico: React.CSSProperties = {
+    background: total === 0
+      ? "var(--muted)"
+      : `conic-gradient(var(--cor-sucesso) 0% ${fimOtimo}%, var(--cor-atencao) ${fimOtimo}% ${fimBom}%, var(--destructive) ${fimBom}% 100%)`,
+  };
+  const apoio = preencher(textos.satisfacao.apoio, { total: dados.quantidade });
+  const media = dados.media === null
+    ? textos.semDado
+    : `${percentual(dados.media)}/${dados.escalaMaxima}`;
+
+  return (
+    <Card className="h-full min-w-0">
+      <CardHeader>
+        <CardTitle>{textos.satisfacao.titulo}</CardTitle>
+        <p className="text-xs font-normal text-muted-foreground">{apoio}</p>
+      </CardHeader>
+      <CardContent className="grid grid-cols-[minmax(8rem,auto)_minmax(0,1fr)] items-center gap-5 max-sm:grid-cols-1">
+        <div
+          className="mx-auto grid size-36 place-items-center rounded-full"
+          style={grafico}
+          role="img"
+          aria-label={`${textos.satisfacao.titulo}: ${apoio}`}
+          data-testid="grafico-distribuicao-avaliacoes"
+        >
+          <div className="grid size-24 place-content-center rounded-full bg-card text-center">
+            <span className="text-2xl font-bold tabular-nums">{media}</span>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {textos.satisfacao.media}
+            </span>
+          </div>
+        </div>
+        <ul className="space-y-3 text-xs">
+          <FaixaSatisfacao rotulo={textos.satisfacao.otimo} quantidade={otimo} percentual={percentualOtimo} tom="bg-[var(--cor-sucesso)]" />
+          <FaixaSatisfacao rotulo={textos.satisfacao.bom} quantidade={bom} percentual={percentualBom} tom="bg-[var(--cor-atencao)]" />
+          <FaixaSatisfacao rotulo={textos.satisfacao.ruim} quantidade={ruim} percentual={percentualRuim} tom="bg-destructive" />
+          {dados.quantidade === 0 && (
+            <li className="text-muted-foreground">{textos.satisfacao.vazio}</li>
+          )}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FaixaSatisfacao({
+  rotulo,
+  quantidade,
+  percentual: valorPercentual,
+  tom,
+}: {
+  rotulo: string;
+  quantidade: number;
+  percentual: number;
+  tom: string;
+}) {
+  return (
+    <li className="flex min-w-0 items-center gap-2">
+      <span className={cn("size-2.5 shrink-0 rounded-sm", tom)} aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{rotulo}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground">
+        {quantidade} · {percentual(valorPercentual)}%
+      </span>
+    </li>
   );
 }
 
