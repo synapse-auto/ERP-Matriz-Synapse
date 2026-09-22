@@ -93,8 +93,10 @@ public class RegistrarMensagemRecebidaUseCase {
             // Cliente que volta (atendimento anterior ja FINALIZADO) cai em Potenciais e
             // fica elegivel ao rodizio da automacao, em vez de continuar amarrado ao
             // atendente que o finalizou. Decisao comercial: o retorno e fila, nao heranca.
-            // Nao limpa atendente_responsavel_id — o historico de quem atendeu por ultimo
-            // continua na ficha, como devolverParaIa tambem nao limpa.
+            // O responsavel ja saiu na finalizacao (finalizarSemResponsavel), e por isso o
+            // rodizio e a reabertura manual escolhem o novo dono; quem atendeu o ciclo anterior
+            // continua no atendimento encerrado. Aqui so muda o status, sem tocar no
+            // responsavel: lead que abre atendimento sem ter sido finalizado mantem o dono.
             leads.marcarStatus(entrada.leadId(), StatusBasicoLead.IA);
         }
 

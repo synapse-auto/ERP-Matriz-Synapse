@@ -86,6 +86,19 @@ public interface LeadNoCaminhoDeMensagem {
     void marcarStatus(UUID leadId, StatusBasicoLead status);
 
     /**
+     * Encerra o ciclo comercial do lead: {@code FINALIZADO} e sem responsavel, numa escrita so.
+     *
+     * <p>Finalizar devolve o cliente ao balcao. Se o responsavel sobrevivesse ao encerramento, o
+     * retorno do cliente abriria o atendimento novo em IA, mas o primeiro atendente a assumir
+     * esbarraria em {@link #assumirSeSemDono} preservando o dono antigo — o cliente voltava para
+     * quem o finalizou, sem rodizio e sem escolha de quem clicou em reabrir.
+     *
+     * <p>Quem atendeu fica registrado em {@code atendimento.atendente_id} do atendimento encerrado,
+     * que esta porta nao toca: e esse o dado de historico, avaliacao e comissao.
+     */
+    void finalizarSemResponsavel(UUID leadId);
+
+    /**
      * E195: zera etapa e resumo de IA para repetir teste manual no mesmo lead.
      *
      * <p>Mora nesta porta, e nao em {@code LeadRepositorio}, pela mesma restricao que trouxe as

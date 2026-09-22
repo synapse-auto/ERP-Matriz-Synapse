@@ -6,8 +6,10 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_GESTOR;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,17 +21,24 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.atendimento.application.RegistrarMensagemRecebidaUseCase;
+import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
@@ -46,8 +55,19 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     @Autowired
     private ObjectMapper json;
 
+    @Autowired
+    private RegistrarMensagemRecebidaUseCase registrarRecebida;
+
     @AfterEach
     void limpar() {
+        jdbc.update(
+                "DELETE FROM audit_log WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)"
+                        + " OR ator_id IN (SELECT id FROM usuario WHERE nome LIKE ?)",
+                MARCADOR + "%",
+                MARCADOR + "%");
+        jdbc.update(
+                "DELETE FROM evento_timeline WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
+                MARCADOR + "%");
         jdbc.update(
                 "DELETE FROM mensagem WHERE atendimento_id IN "
                         + "(SELECT a.id FROM atendimento a JOIN lead l ON l.id = a.lead_id WHERE l.nome LIKE ?)",
@@ -56,6 +76,7 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 "DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
                 MARCADOR + "%");
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", MARCADOR + "%");
+        jdbc.update("DELETE FROM usuario WHERE nome LIKE ?", MARCADOR + "%");
     }
 
     @Test
@@ -164,42 +185,118 @@ class FinalizadosEReaberturaIT extends PostgresIT {
     }
 
     @Test
-    void atendenteAbreLeadFinalizadoDeColegaPreservaResponsavel() throws Exception {
+    void finalizacaoManualLiberaOLeadEPreservaODonoHistoricoDoAtendimento() {
+        UUID bruno = usuario(EMAIL_BRUNO);
+        UUID lead = lead("finaliza-manual", bruno, "EM_ATENDIMENTO", null);
+        UUID aberto = atendimento(
+                lead, canal(), bruno, "EM_ATENDIMENTO", Instant.parse("2026-08-20T10:00:00Z"), null);
+
+        ResponseEntity<String> resposta =
+                post(token(EMAIL_BRUNO), "/api/v1/atendimentos/" + aberto + "/finalizar");
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(statusDoLead(lead)).isEqualTo("FINALIZADO");
+        assertThat(responsavelDoLead(lead)).isNull();
+        assertThat(statusDoAtendimento(aberto)).isEqualTo("FINALIZADO");
+        assertThat(atendenteDoAtendimento(aberto)).isEqualTo(bruno);
+        assertThat(eventosDeFinalizacao(aberto)).isEqualTo(1);
+    }
+
+    @Test
+    void finalizacaoEmLoteLiberaOLeadEPreservaODonoHistoricoDoAtendimento() throws Exception {
+        UUID atendente = atendenteDeTeste("lote");
+        UUID lead = lead("finaliza-lote", atendente, "EM_ATENDIMENTO", null);
+        UUID aberto = atendimento(
+                lead, canal(), atendente, "EM_ATENDIMENTO", Instant.parse("2026-08-20T10:00:00Z"), null);
+
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(tokenGestor());
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        // O filtro por atendente confina o lote ao usuario criado aqui; sem ele, o gestor
+        // finalizaria atendimentos de outros testes no Postgres compartilhado.
+        ResponseEntity<String> resposta = http.exchange(
+                "/api/v1/atendimentos/finalizar-lote",
+                HttpMethod.POST,
+                new HttpEntity<>(java.util.Map.of("atendenteId", atendente.toString()), cabecalhos),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(json.readTree(resposta.getBody()).path("finalizados").asInt()).isEqualTo(1);
+        assertThat(statusDoLead(lead)).isEqualTo("FINALIZADO");
+        assertThat(responsavelDoLead(lead)).isNull();
+        assertThat(atendenteDoAtendimento(aberto)).isEqualTo(atendente);
+        assertThat(eventosDeFinalizacao(aberto)).isEqualTo(1);
+    }
+
+    @Test
+    void atendenteReabreLeadFinalizadoPorColegaEAssumeONovoCiclo() throws Exception {
         UUID bruno = usuario(EMAIL_BRUNO);
         UUID ana = usuario(EMAIL_ANA);
-        UUID lead = lead("reativa-colega", bruno, "FINALIZADO", null);
+        UUID lead = lead("reativa-colega", bruno, "EM_ATENDIMENTO", null);
         UUID antigo = atendimento(
-                lead,
-                canal(),
-                bruno,
-                "FINALIZADO",
-                Instant.parse("2026-08-20T10:00:00Z"),
-                Instant.parse("2026-08-20T11:00:00Z"));
+                lead, canal(), bruno, "EM_ATENDIMENTO", Instant.parse("2026-08-20T10:00:00Z"), null);
         mensagem(antigo, "LEAD", null, "conversa antiga do colega", Instant.parse("2026-08-20T10:30:00Z"));
+        assertThat(post(token(EMAIL_BRUNO), "/api/v1/atendimentos/" + antigo + "/finalizar").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         ResponseEntity<String> resposta = post(
                 token(EMAIL_ANA), "/api/v1/atendimentos/leads/" + lead + "/novo");
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        JsonNode corpo = json.readTree(resposta.getBody());
-        UUID novo = UUID.fromString(corpo.path("atendimentoId").asText());
+        UUID novo = UUID.fromString(json.readTree(resposta.getBody()).path("atendimentoId").asText());
         assertThat(novo).isNotEqualTo(antigo);
-        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, antigo))
-                .isEqualTo("FINALIZADO");
-        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, antigo))
-                .isEqualTo(bruno);
-        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, novo))
-                .isEqualTo("EM_ATENDIMENTO");
-        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, novo))
-                .isEqualTo(bruno);
-        assertThat(jdbc.queryForObject(
-                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
-                .isEqualTo(bruno);
+        assertThat(statusDoAtendimento(antigo)).isEqualTo("FINALIZADO");
+        assertThat(atendenteDoAtendimento(antigo)).isEqualTo(bruno);
+        assertThat(statusDoAtendimento(novo)).isEqualTo("EM_ATENDIMENTO");
+        assertThat(atendenteDoAtendimento(novo)).isEqualTo(ana);
+        assertThat(responsavelDoLead(lead)).isEqualTo(ana);
+        assertThat(quantidade("atendimento_participante", "atendimento_id = ?", novo)).isZero();
 
         ResponseEntity<String> historico = get(
                 token(EMAIL_ANA), "/api/v1/atendimentos/" + novo + "/mensagens");
         assertThat(historico.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(historico.getBody()).contains("conversa antiga do colega");
+
+        // Negativo: o dono do ciclo anterior nao carrega o ciclo novo entre os seus ativos.
+        assertThat(ativosDe(token(EMAIL_BRUNO))).doesNotContain(lead.toString());
+    }
+
+    /**
+     * Os nomes reproduzem o incidente relatado; nao ha regra por atendente — os dois casos percorrem
+     * exatamente o mesmo fluxo com usuarios comuns criados pelo teste.
+     */
+    @ParameterizedTest(name = "cliente que estava com {0} nao volta automaticamente para {0}")
+    @ValueSource(strings = {"Michael", "Michele"})
+    void clienteQueVoltaDepoisDeFinalizadoNaoVoltaParaODonoAnterior(String nome) throws Exception {
+        UUID donoAnterior = atendenteDeTeste(nome);
+        UUID ana = usuario(EMAIL_ANA);
+        UUID lead = lead("retorno-" + nome, donoAnterior, "EM_ATENDIMENTO", null);
+        UUID antigo = atendimento(
+                lead, canal(), donoAnterior, "EM_ATENDIMENTO", Instant.parse("2026-08-20T10:00:00Z"), null);
+        String tokenDoDonoAnterior = token(emailDeTeste(nome));
+        assertThat(post(tokenDoDonoAnterior, "/api/v1/atendimentos/" + antigo + "/finalizar").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        RegistrarMensagemRecebidaUseCase.Resultado retorno = ContextoDeServico.buscarComo(
+                "teste-finalizados-retorno",
+                () -> registrarRecebida.executar(
+                        new RegistrarMensagemRecebidaUseCase.MensagemRecebida(lead, null, null, "voltei")));
+
+        UUID novo = retorno.atendimento().id();
+        assertThat(retorno.abriuAtendimento()).isTrue();
+        assertThat(statusDoAtendimento(novo)).isEqualTo("EM_IA");
+        assertThat(atendenteDoAtendimento(novo)).isNull();
+        assertThat(statusDoLead(lead)).isEqualTo("IA");
+        assertThat(responsavelDoLead(lead)).isNull();
+
+        // Outra atendente assume a partir de Potenciais: o ciclo novo e dela, nao do dono anterior.
+        assertThat(post(token(EMAIL_ANA), "/api/v1/atendimentos/leads/" + lead + "/novo").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(atendenteDoAtendimento(novo)).isEqualTo(ana);
+        assertThat(responsavelDoLead(lead)).isEqualTo(ana);
+        assertThat(atendenteDoAtendimento(antigo)).isEqualTo(donoAnterior);
+        assertThat(ativosDe(tokenDoDonoAnterior)).doesNotContain(lead.toString());
+        assertThat(ativosDe(token(EMAIL_ANA))).contains(lead.toString());
     }
 
     @Test
@@ -335,6 +432,54 @@ class FinalizadosEReaberturaIT extends PostgresIT {
                 remetente,
                 texto,
                 timestamp(quando));
+    }
+
+    private UUID atendenteDeTeste(String nome) {
+        UUID id = UUID.randomUUID();
+        String senhaDeAtendente = jdbc.queryForObject(
+                "SELECT senha_hash FROM usuario WHERE email = ?", String.class, EMAIL_ANA);
+        jdbc.update(
+                // senha_alterada_em preenchida: sem ela a senha e provisoria e o
+                // SenhaProvisoriaFilter recusa toda rota com 403.
+                "INSERT INTO usuario (id,nome,email,senha_hash,papel,status_presenca,ativo,senha_alterada_em) "
+                        + "VALUES (?,?,?,?,'ATENDENTE','ONLINE',TRUE,now())",
+                id,
+                MARCADOR + nome,
+                emailDeTeste(nome),
+                senhaDeAtendente);
+        return id;
+    }
+
+    private static String emailDeTeste(String nome) {
+        return "e99-finalizados-" + nome.toLowerCase(java.util.Locale.ROOT) + "@dev.invalid";
+    }
+
+    private List<String> ativosDe(String token) throws Exception {
+        return valores(json.readTree(get(token, "/api/v1/atendimentos?visao=ATIVOS").getBody()), "leadId");
+    }
+
+    private String statusDoLead(UUID lead) {
+        return jdbc.queryForObject("SELECT status_basico::text FROM lead WHERE id = ?", String.class, lead);
+    }
+
+    private UUID responsavelDoLead(UUID lead) {
+        return jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead);
+    }
+
+    private String statusDoAtendimento(UUID atendimento) {
+        return jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento);
+    }
+
+    private UUID atendenteDoAtendimento(UUID atendimento) {
+        return jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+    }
+
+    /** Timeline e escrita apos o commit; espera por condicao em vez de afirmar de imediato. */
+    private int eventosDeFinalizacao(UUID atendimento) {
+        String condicao = "atendimento_id = ? AND tipo = 'ATENDIMENTO_FINALIZADO'";
+        await().atMost(Duration.ofSeconds(5))
+                .until(() -> quantidade("evento_timeline", condicao, atendimento) > 0);
+        return quantidade("evento_timeline", condicao, atendimento);
     }
 
     private UUID usuario(String email) {
