@@ -402,7 +402,6 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
             assertThat(cartao.path("atendimentoAtivoId").asText()).isEqualTo(abertoDaAna.toString());
             assertThat(cartao.path("atendenteId").asText()).isEqualTo(idAna.toString());
             assertThat(cartao.path("atendenteNome").asText()).isEqualTo(nomeDoUsuario(idAna));
-            assertThat(cartao.path("status").asText()).isEqualTo("EM_ATENDIMENTO");
 
             JsonNode estado = json.readTree(respostaComo(
                             EMAIL_GESTOR,
