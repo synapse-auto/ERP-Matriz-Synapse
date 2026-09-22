@@ -69,11 +69,19 @@ class TransferenciaAutomacaoInternalController {
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido.")
             })
     @GetMapping("/atendentes")
-    List<AtendenteParaTransferenciaRepositorio.Destino> buscarAtendentePorNome(
+    List<Destino> buscarAtendentePorNome(
             @Parameter(description = "Nome (ou parte do nome) do atendente citado pelo cliente.", required = true)
                     @RequestParam @NotBlank String nome) {
         return ContextoDeServico.buscarComo(
-                "buscar-atendente-automacao", () -> busca.executar(nome));
+                "buscar-atendente-automacao",
+                () -> busca.executar(nome).stream().map(Destino::de).toList());
+    }
+
+    /** Resposta legada da Automação: mantém o contrato id/nome sem expor metadados da UI. */
+    record Destino(UUID id, String nome) {
+        static Destino de(AtendenteParaTransferenciaRepositorio.Destino destino) {
+            return new Destino(destino.id(), destino.nome());
+        }
     }
 
     @Operation(

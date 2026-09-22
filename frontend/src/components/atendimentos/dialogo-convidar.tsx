@@ -19,6 +19,8 @@ import type { ParticipanteAtendimento } from "@/lib/atendimento/types";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
+import { SeletorDestinoAtendimento } from "./seletor-destino-atendimento";
+
 type Props = {
   atendimentoId: string;
   participantes: ParticipanteAtendimento[];
@@ -53,8 +55,9 @@ export function DialogoConvidar({
   });
 
   const participantesIds = new Set(participantes.map((participante) => participante.usuarioId));
-  const candidatos = (destinos.data ?? []).filter(
-    (destino) => destino.id !== usuarioId && !participantesIds.has(destino.id),
+  const candidatos = destinos.data ?? [];
+  const destinosExcluidos = new Set(
+    [usuarioId, ...participantesIds].filter((id): id is string => Boolean(id)),
   );
 
   return (
@@ -69,19 +72,16 @@ export function DialogoConvidar({
         {!destinos.isLoading && candidatos.length === 0 && (
           <p className="text-sm text-muted-foreground">{textos.convidarVazio}</p>
         )}
-        <div className="max-h-64 space-y-1 overflow-y-auto">
-          {candidatos.map((destino) => (
-            <Button
-              key={destino.id}
-              type="button"
-              variant="outline"
-              className="w-full justify-start"
-              disabled={convite.isPending}
-              onClick={() => convite.mutate(destino.id)}
-            >
-              {destino.nome}
-            </Button>
-          ))}
+        <div className="max-h-64 overflow-y-auto">
+          <SeletorDestinoAtendimento
+            key={aberto ? "aberto" : "fechado"}
+            destinos={candidatos}
+            excluidos={destinosExcluidos}
+            desabilitado={convite.isPending}
+            aberto={aberto}
+            textos={{ outros: textos.outros, voltar: textos.voltar }}
+            onSelecionar={(destino) => convite.mutate(destino.id)}
+          />
         </div>
         {convite.isError && <p className="text-sm text-destructive">{textos.convidarErro}</p>}
         <DialogFooter>

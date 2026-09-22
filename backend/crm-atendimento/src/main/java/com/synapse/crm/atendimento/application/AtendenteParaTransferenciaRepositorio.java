@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+
 /** Consulta atômica do destino permitido pela distribuição interna. */
 public interface AtendenteParaTransferenciaRepositorio {
 
@@ -31,5 +33,10 @@ public interface AtendenteParaTransferenciaRepositorio {
                 .orElseThrow(() -> new AtendenteDestinoInvalidoException(atendenteId, motivoDaRecusa(atendenteId)));
     }
 
-    record Destino(UUID id, String nome) {}
+    record Destino(UUID id, String nome, PapelUsuario papel) {
+        /** Compatibilidade com adaptadores e testes que só precisam da identificação do destino. */
+        public Destino(UUID id, String nome) {
+            this(id, nome, null);
+        }
+    }
 }

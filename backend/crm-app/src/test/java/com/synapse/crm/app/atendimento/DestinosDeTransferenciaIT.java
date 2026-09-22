@@ -59,8 +59,8 @@ class DestinosDeTransferenciaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("atendente recebe so id e nome, sem e-mail nem papel")
-    void atendente_listaSoIdENome() throws Exception {
+    @DisplayName("atendente recebe id, nome e papel, sem e-mail")
+    void atendente_listaIncluiPapelSemEmail() throws Exception {
         ResponseEntity<String> resposta = chamar(EMAIL_ANA, SENHA_ATENDENTE, "/api/v1/atendimentos/destinos-de-transferencia");
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -73,14 +73,15 @@ class DestinosDeTransferenciaIT extends PostgresIT {
         for (JsonNode item : itens) {
             List<String> campos = new ArrayList<>();
             item.fieldNames().forEachRemaining(campos::add);
-            assertThat(campos).containsExactlyInAnyOrder("id", "nome");
+            assertThat(campos).containsExactlyInAnyOrder("id", "nome", "papel");
             ids.add(item.get("id").asText());
             nomes.add(item.get("nome").asText());
         }
         assertThat(nomes).contains("Ana Atendente", "Bruno Atendente");
         assertThat(ids).doesNotHaveDuplicates();
         assertThat(nomes).doesNotContain("Gestora", "Administrador");
-        assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
+        assertThat(resposta.getBody()).doesNotContain("\"email\"");
+        assertThat(itens.findValuesAsText("papel")).contains("ATENDENTE");
     }
 
     @Test
@@ -135,7 +136,7 @@ class DestinosDeTransferenciaIT extends PostgresIT {
                 .doesNotContain("Subgestora")
                 .doesNotContain("Gestora")
                 .doesNotContain("Administrador");
-        assertThat(resposta.getBody()).doesNotContain("\"email\"").doesNotContain("\"papel\"");
+        assertThat(resposta.getBody()).doesNotContain("\"email\"");
     }
 
     @Test

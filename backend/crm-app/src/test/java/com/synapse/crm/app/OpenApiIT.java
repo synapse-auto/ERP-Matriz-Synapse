@@ -189,6 +189,26 @@ class OpenApiIT extends PostgresIT {
                 .isTrue();
     }
 
+    @Test
+    void destinosDeTransferenciaDocumentamPapelOpcionalSemAmpliarOsPapeisElegiveis() throws Exception {
+        JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
+        JsonNode operacao = operacao(openApi, "/api/v1/atendimentos/destinos-de-transferencia", "get");
+        JsonNode content = operacao.at("/responses/200/content");
+        JsonNode media = content.path("*/*");
+        if (media.isMissingNode()) {
+            media = content.elements().next();
+        }
+        JsonNode schema = media.path("schema").path("items");
+        JsonNode destino = schema;
+        if (schema.path("$ref").isTextual()) {
+            destino = openApi.at(schema.path("$ref").asText().substring(1));
+        }
+        JsonNode papel = destino.path("properties").path("papel");
+        assertThat(destino.path("required").findValuesAsText("papel")).isEmpty();
+        assertThat(papel.path("enum")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("ATENDENTE", "SUBGESTOR");
+    }
+
     /** Teste negativo: prova que a verificacao acima realmente acusa uma operacao sem documentacao. */
     @Test
     void verificadorDeCoberturaReprovaOperacaoSemResumoDescricaoTagOuResposta() throws Exception {

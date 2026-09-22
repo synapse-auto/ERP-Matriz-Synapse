@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.AtendenteDestinoInvalidoException.Motivo;
 import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Lê o destino no mesmo pool/transação que grava lead e atendimento. */
@@ -40,7 +41,7 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
             """;
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
-            "SELECT id, nome FROM usuario WHERE " + ELEGIVEL_NA_LISTA + " ORDER BY nome, id";
+            "SELECT id, nome, papel FROM usuario WHERE " + ELEGIVEL_NA_LISTA + " ORDER BY nome, id";
     private static final String SQL_BUSCAR_POR_NOME =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " AND nome ILIKE ? ORDER BY nome, id";
     private static final String SQL_MOTIVO = """
@@ -70,7 +71,10 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
     public java.util.List<Destino> listarAtivos() {
         return chat.query(
                 SQL_LISTAR,
-                (linha, indice) -> new Destino(linha.getObject("id", UUID.class), linha.getString("nome")));
+                (linha, indice) -> new Destino(
+                        linha.getObject("id", UUID.class),
+                        linha.getString("nome"),
+                        PapelUsuario.valueOf(linha.getString("papel"))));
     }
 
     @Override
