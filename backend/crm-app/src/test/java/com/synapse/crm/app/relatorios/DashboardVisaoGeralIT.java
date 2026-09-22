@@ -183,7 +183,8 @@ class DashboardVisaoGeralIT extends PostgresIT {
                 "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
                 UUID.class);
         UUID etapaPerdido = jdbc.queryForObject(
-                "SELECT id FROM etapa_atendimento WHERE resultado='PERDIDO'", UUID.class);
+                "SELECT id FROM etapa_atendimento WHERE resultado='PERDIDO' ORDER BY ordem LIMIT 1",
+                UUID.class);
         Instant agosto = Instant.parse("2040-08-10T13:00:00Z");
 
         UUID[] leads = criarLeads(3, "funil", agosto, etapaEmAndamento, ana);
