@@ -49,17 +49,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                  ELSE l.foto_url END AS lead_foto_url,
             l.empresa AS lead_empresa, l.codigo AS lead_codigo, c.tipo AS canal_tipo,
             l.etapa_atendimento_id, et.nome AS etapa_nome,
-            et.cor_visual AS etapa_cor, a.status, a.atendente_id, u.nome AS atendente_nome,
+            et.cor_visual AS etapa_cor, dono.status, dono.atendente_id, u.nome AS atendente_nome,
             a.iniciado_em AS iniciado_em,
-            (
-                SELECT aberto.id FROM atendimento aberto
-                 WHERE aberto.lead_id = a.lead_id AND aberto.status <> 'FINALIZADO'
-                 ORDER BY COALESCE((
-                     SELECT max(m_aberto.enviado_em) FROM mensagem m_aberto
-                      WHERE m_aberto.atendimento_id = aberto.id
-                 ), aberto.iniciado_em) DESC, aberto.iniciado_em DESC, aberto.id DESC
-                 LIMIT 1
-            ) AS atendimento_ativo_id,
+            ativo.id AS atendimento_ativo_id,
             ultima.conteudo AS ultima_mensagem_preview,
             ultima.remetente_tipo AS ultima_mensagem_remetente_tipo,
             ultima.enviado_em AS ultima_mensagem_em,
@@ -91,7 +83,24 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             JOIN lead l ON l.id = a.lead_id
             LEFT JOIN canal c ON c.id = a.canal_id
             LEFT JOIN etapa_atendimento et ON et.id = l.etapa_atendimento_id
-            LEFT JOIN usuario u ON u.id = a.atendente_id
+            LEFT JOIN LATERAL (
+                SELECT aberto.id, aberto.status, aberto.atendente_id FROM atendimento aberto
+                 WHERE aberto.lead_id = a.lead_id AND aberto.status <> 'FINALIZADO'
+                 ORDER BY COALESCE((
+                     SELECT max(m_aberto.enviado_em) FROM mensagem m_aberto
+                      WHERE m_aberto.atendimento_id = aberto.id
+                 ), aberto.iniciado_em) DESC, aberto.iniciado_em DESC, aberto.id DESC
+                 LIMIT 1
+            ) ativo ON true
+            -- E206: o cartao abre o atendimento ativo, entao status e dono tambem vem dele. Sem
+            -- isso, a linha da ultima mensagem (ja FINALIZADA) exibia o dono do ciclo anterior
+            -- enquanto o cabecalho, via /estado do ativo, exibia o atual.
+            CROSS JOIN LATERAL (
+                SELECT COALESCE(ativo.status, a.status) AS status,
+                       CASE WHEN ativo.id IS NULL THEN a.atendente_id ELSE ativo.atendente_id END
+                           AS atendente_id
+            ) dono
+            LEFT JOIN usuario u ON u.id = dono.atendente_id
             LEFT JOIN LATERAL (
                 SELECT conteudo, remetente_tipo, enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
