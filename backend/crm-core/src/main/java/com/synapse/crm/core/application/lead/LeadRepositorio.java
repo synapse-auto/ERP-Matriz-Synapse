@@ -50,6 +50,13 @@ public interface LeadRepositorio {
      */
     Optional<Lead> porId(UUID id);
 
+    /**
+     * Resolve o id pelo telefone já normalizado, sempre dentro da visibilidade do usuário.
+     * {@code lead.telefone} possui índice único parcial quando não é nulo, então o resultado é
+     * determinístico sem uma regra paralela de desempate.
+     */
+    Optional<UUID> porTelefone(String telefoneCanonico);
+
     long contar(FiltroLead filtro);
 
     /**

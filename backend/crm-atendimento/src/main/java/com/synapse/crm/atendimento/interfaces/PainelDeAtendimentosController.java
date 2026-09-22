@@ -23,6 +23,7 @@ import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
 import com.synapse.crm.atendimento.application.painel.ContarAtendimentosPorVisaoUseCase;
 import com.synapse.crm.atendimento.application.painel.EstadoAtendimentoSelecionado;
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
+import com.synapse.crm.atendimento.application.painel.ObterCartaoAtendimentoPorLeadOuTelefoneUseCase;
 import com.synapse.crm.atendimento.application.painel.ObterCartaoAtendimentoVisivelUseCase;
 import com.synapse.crm.atendimento.application.painel.ObterEstadoAtendimentoSelecionadoUseCase;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
@@ -40,16 +41,19 @@ class PainelDeAtendimentosController {
     private final ListarAtendimentosVisiveisUseCase listar;
     private final ContarAtendimentosPorVisaoUseCase contarPorVisao;
     private final ObterCartaoAtendimentoVisivelUseCase obterCartao;
+    private final ObterCartaoAtendimentoPorLeadOuTelefoneUseCase obterCartaoPorLeadOuTelefone;
     private final ObterEstadoAtendimentoSelecionadoUseCase obterEstado;
 
     PainelDeAtendimentosController(
             ListarAtendimentosVisiveisUseCase listar,
             ContarAtendimentosPorVisaoUseCase contarPorVisao,
             ObterCartaoAtendimentoVisivelUseCase obterCartao,
+            ObterCartaoAtendimentoPorLeadOuTelefoneUseCase obterCartaoPorLeadOuTelefone,
             ObterEstadoAtendimentoSelecionadoUseCase obterEstado) {
         this.listar = listar;
         this.contarPorVisao = contarPorVisao;
         this.obterCartao = obterCartao;
+        this.obterCartaoPorLeadOuTelefone = obterCartaoPorLeadOuTelefone;
         this.obterEstado = obterEstado;
     }
 
@@ -88,6 +92,22 @@ class PainelDeAtendimentosController {
         return obterEstado.executar(atendimentoId);
     }
 
+    @Operation(
+            summary = "Buscar atendimento por lead ou telefone",
+            description = "Retorna o cartão representativo mais recente do lead visível. Informe exatamente um dos parâmetros; telefone é normalizado pelo mesmo contrato do cadastro.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Cartão do atendimento."),
+                @ApiResponse(responseCode = "400", description = "Informe exatamente leadId ou telefone."),
+                @ApiResponse(responseCode = "404", description = "Lead ou atendimento inexistente ou não visível.")
+            })
+    @GetMapping("/busca")
+    CartaoAtendimento buscar(
+            @Parameter(description = "Identificador do lead.") @RequestParam(required = false) UUID leadId,
+            @Parameter(description = "Telefone em qualquer formato aceito pelo cadastro.")
+                    @RequestParam(required = false) String telefone) {
+        return obterCartaoPorLeadOuTelefone.executar(leadId, telefone);
+    }
+
     /**
      * Os badges das abas (E17b §Bloco 6): uma contagem por visão, na mesma chamada, para a tela não
      * disparar uma requisição por aba.
@@ -105,6 +125,13 @@ class PainelDeAtendimentosController {
     ProblemDetail naoEncontrado(RecursoDeAtendimentoIndisponivelException erro) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, erro.getMessage());
         problema.setTitle("Nao encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail pedidoInvalido(IllegalArgumentException erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, erro.getMessage());
+        problema.setTitle("Requisicao invalida");
         return problema;
     }
 }

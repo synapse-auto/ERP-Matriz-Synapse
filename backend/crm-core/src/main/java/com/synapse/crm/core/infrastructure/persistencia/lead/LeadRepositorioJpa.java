@@ -137,6 +137,13 @@ class LeadRepositorioJpa implements LeadRepositorio {
     }
 
     @Override
+    public Optional<UUID> porTelefone(String telefoneCanonico) {
+        return jpa.findOne(visibilidade().and((raiz, consulta, cb) -> cb.equal(
+                        raiz.get(LeadEntity.Campos.TELEFONE), telefoneCanonico)))
+                .map(LeadEntity::id);
+    }
+
+    @Override
     public long contar(FiltroLead filtro) {
         return jpa.count(visivel(filtro));
     }

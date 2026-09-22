@@ -34,6 +34,9 @@ public interface PainelDeAtendimentosRepositorio {
      */
     Optional<CartaoAtendimento> porAtendimentoId(UUID atendimentoId, UUID usuarioId);
 
+    /** Cartão representativo mais recente do lead, sem depender da visão atual do painel. */
+    Optional<CartaoAtendimento> porLeadId(UUID leadId, UUID usuarioId);
+
     /**
      * Leitura limitada para composição da inbox; a chave é (sem atendimento aberto, última
      * mensagem, atendimento). O primeiro componente mantém os finalizados depois dos cartões

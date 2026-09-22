@@ -36,6 +36,15 @@ class PainelDeAtendimentosRepositorioJdbcTest {
         }
     }
 
+    @Test
+    void buscaPorLeadMantemAProjecaoPontualSemPaginacaoExterna() throws Exception {
+        String sql = constante("SQL_POR_LEAD");
+
+        assertThat(sql)
+                .contains("WHERE a.lead_id = ?", "ROW_NUMBER() OVER", "WHERE linha_do_lead = 1")
+                .doesNotContain("OFFSET", "FETCH FIRST");
+    }
+
     private static Map<String, Integer> parametrosEsperados() {
         return Map.of(
                 "SQL_CONTAR_ATIVOS", 1,
