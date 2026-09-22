@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,9 +25,14 @@ class AtendimentosEmAndamentoRepositorioJdbc implements AtendimentosEmAndamentoR
 
     private final JdbcTemplate chat;
 
+    @Autowired
     AtendimentosEmAndamentoRepositorioJdbc(
             @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
-        this.chat = new JdbcTemplate(chatDataSource);
+        this(new JdbcTemplate(chatDataSource));
+    }
+
+    AtendimentosEmAndamentoRepositorioJdbc(JdbcTemplate chat) {
+        this.chat = chat;
     }
 
     @Override
@@ -86,6 +92,16 @@ class AtendimentosEmAndamentoRepositorioJdbc implements AtendimentosEmAndamentoR
                         leadId)
                 .stream()
                 .findFirst();
+    }
+
+    @Override
+    public boolean existeAtendimentoEmAndamento(UUID leadId) {
+        TransacaoObrigatoria.exigir("verificar atendimento EV-05 do lead");
+        Boolean existe = chat.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM atendimento WHERE lead_id = ? AND status = 'EM_ATENDIMENTO')",
+                Boolean.class,
+                leadId);
+        return Boolean.TRUE.equals(existe);
     }
 
     private static Item mapear(ResultSet linha, int indice) throws SQLException {

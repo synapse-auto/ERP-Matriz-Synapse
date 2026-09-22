@@ -14,6 +14,9 @@ public interface AtendimentosEmAndamentoRepositorio {
     /** Atendimento humano em curso de um lead, usado para ancorar o ciclo EV-05. */
     java.util.Optional<Item> porLeadEmAtendimento(UUID leadId);
 
+    /** Existencia de atendimento humano em curso, sem carregar responsavel ou ultima mensagem. */
+    boolean existeAtendimentoEmAndamento(UUID leadId);
+
     record Filtro(Instant atividadeDesde, Instant atividadeAte, int pagina, int tamanho) {}
 
     record Item(

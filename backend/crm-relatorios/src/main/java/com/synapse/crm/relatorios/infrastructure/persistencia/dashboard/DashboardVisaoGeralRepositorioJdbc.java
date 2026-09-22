@@ -57,15 +57,15 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
         AgregacaoDeVendas vendasAtual =
                 vendas.agregar(filtro.periodoAtual(), filtro.periodoDeOriginacao());
-        AgregacaoDeVendas vendasAnterior =
-                vendas.agregar(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
+        long vendasAnteriores =
+                vendas.totalDeVendas(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
         long vendasAcumuladas =
                 vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
         long leadsAtuais = contarLeadsDaConversao(filtro, true);
         long leadsAnteriores = contarLeadsDaConversao(filtro, false);
         BigDecimal taxaAtual = percentual(vendasAtual.total(), leadsAtuais);
-        BigDecimal taxaAnterior = percentual(vendasAnterior.total(), leadsAnteriores);
+        BigDecimal taxaAnterior = percentual(vendasAnteriores, leadsAnteriores);
 
         long novosLeadsAtual = contarLeads(filtro.periodoAtual());
         long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
@@ -102,7 +102,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                         vendasAtual.total(),
                         vendasAcumuladas,
                         Comparativo.percentual(
-                                decimal(vendasAtual.total()), decimal(vendasAnterior.total()))),
+                                decimal(vendasAtual.total()), decimal(vendasAnteriores))),
                 new VisaoGeralDashboard.TaxaConversao(
                         taxaAtual,
                         vendasAtual.total(),
@@ -287,7 +287,7 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         IntervaloTemporal intervaloHoje = new IntervaloTemporal(
                 hoje.atStartOfDay(fuso).toInstant(), hoje.plusDays(1).atStartOfDay(fuso).toInstant());
         long leadsNovosHoje = contarLeads(List.of(intervaloHoje));
-        long vendasHoje = vendas.agregar(List.of(intervaloHoje), null).total();
+        long vendasHoje = vendas.totalDeVendas(List.of(intervaloHoje), null);
         return new VisaoGeralDashboard.StatusAoVivo(emIa, emAtendimento, leadsNovosHoje, vendasHoje);
     }
 

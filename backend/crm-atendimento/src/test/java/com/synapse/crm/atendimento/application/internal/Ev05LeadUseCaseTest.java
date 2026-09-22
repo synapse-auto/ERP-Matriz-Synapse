@@ -154,4 +154,27 @@ class Ev05LeadUseCaseTest {
                 .isInstanceOf(EscritaEv05ObsoletaException.class);
         verify(leads, never()).gravarResumo(any(), any(), any(), any());
     }
+
+    @Test
+    void estadoResumoVerificaSomenteExistenciaDoAtendimentoElegivel() {
+        when(atendimentos.existeAtendimentoEmAndamento(LEAD)).thenReturn(true);
+        when(leads.resumo(LEAD)).thenReturn(new AutomacaoEv05LeadRepositorio.EstadoResumo(LEAD, true, AGORA, AGORA));
+
+        var resultado = caso.estadoResumo(LEAD);
+
+        assertThat(resultado.leadId()).isEqualTo(LEAD);
+        verify(atendimentos).existeAtendimentoEmAndamento(LEAD);
+        verify(atendimentos, never()).porLeadEmAtendimento(LEAD);
+    }
+
+    @Test
+    void estadoResumoMantemErroQuandoNaoHaAtendimentoElegivel() {
+        when(atendimentos.existeAtendimentoEmAndamento(LEAD)).thenReturn(false);
+
+        assertThatThrownBy(() -> caso.estadoResumo(LEAD))
+                .isInstanceOf(Ev05LeadSemAtendimentoException.class);
+
+        verify(leads, never()).resumo(any());
+        verify(atendimentos, never()).porLeadEmAtendimento(LEAD);
+    }
 }
