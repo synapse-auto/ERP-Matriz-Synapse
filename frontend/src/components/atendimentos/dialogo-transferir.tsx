@@ -17,6 +17,8 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { recebeAtendimento } from "@/lib/equipe/papel";
 
+import { SeletorDestinoAtendimento } from "./seletor-destino-atendimento";
+
 type Props = {
   atendimentoId: string;
   aberto: boolean;
@@ -24,7 +26,8 @@ type Props = {
 };
 
 export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
-  const textos = useTextos().atendimentos.transferir;
+  const catalogo = useTextos().atendimentos;
+  const textos = catalogo.transferir;
   const papel = useAuthStore((estado) => estado.papel);
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
   const transferir = useTransferirAtendimento();
@@ -35,8 +38,8 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
     enabled: aberto,
   });
 
-  const candidatos = (destinos ?? []).filter((destino) => destino.id !== usuarioId);
   const eu = recebeAtendimento(papel) && usuarioId ? { id: usuarioId } : undefined;
+  const destinosExcluidos = new Set(usuarioId ? [usuarioId] : []);
 
   function transferirPara(paraAtendenteId: string | null) {
     transferir.mutate({ atendimentoId, paraAtendenteId }, { onSuccess: onFechar });
@@ -50,7 +53,7 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
           <DialogDescription>{textos.descricao}</DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-64 space-y-1 overflow-y-auto">
+        <div className="max-h-64 overflow-y-auto">
           <Button
             type="button"
             variant="outline"
@@ -71,18 +74,15 @@ export function DialogoTransferir({ atendimentoId, aberto, onFechar }: Props) {
               {textos.assumirParaMim}
             </Button>
           )}
-          {candidatos.map((destino) => (
-            <Button
-              key={destino.id}
-              type="button"
-              variant="outline"
-              className="w-full justify-start"
-              disabled={transferir.isPending}
-              onClick={() => transferirPara(destino.id)}
-            >
-              {destino.nome}
-            </Button>
-          ))}
+          <SeletorDestinoAtendimento
+            key={aberto ? "aberto" : "fechado"}
+            destinos={destinos ?? []}
+            excluidos={destinosExcluidos}
+            desabilitado={transferir.isPending}
+            aberto={aberto}
+            textos={{ outros: catalogo.cabecalho.outros, voltar: catalogo.cabecalho.voltar }}
+            onSelecionar={(destino) => transferirPara(destino.id)}
+          />
         </div>
 
         {transferir.isError && (

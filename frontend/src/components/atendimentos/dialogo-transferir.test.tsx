@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type AuthEstado = { papel: string; usuarioId: string };
+type DestinoMock = { id: string; nome: string; papel?: "ATENDENTE" | "SUBGESTOR" };
+type AuthEstado = {
+  papel: string;
+  usuarioId: string;
+  destinos: DestinoMock[];
+  erro: Error | null;
+  transferir: ReturnType<typeof vi.fn>;
+};
 
 const estado = vi.hoisted(() => ({
   papel: "GESTOR",
@@ -9,7 +16,7 @@ const estado = vi.hoisted(() => ({
   destinos: [
     { id: "ana-1", nome: "Ana Atendente" },
     { id: "bruno-1", nome: "Bruno Atendente" },
-  ],
+  ] as DestinoMock[],
   erro: null as Error | null,
   transferir: vi.fn(),
 }));
@@ -33,6 +40,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
+      cabecalho: { outros: "Outros", voltar: "Voltar" },
       transferir: {
         titulo: "Transferir atendimento",
         descricao: "Escolha o destino",
@@ -110,6 +118,36 @@ describe("DialogoTransferir", () => {
       { atendimentoId: "atendimento-1", paraAtendenteId: "bruno-1" },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it("agrupa subgestora em Outros e usa seu UUID ao selecionar", () => {
+    estado.destinos = [
+      { id: "ana-1", nome: "Ana Atendente", papel: "ATENDENTE" },
+      { id: "michele-1", nome: "Michele Subgestora", papel: "SUBGESTOR" },
+    ];
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Outros" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Michele Subgestora" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Outros" }));
+    expect(screen.getByRole("button", { name: "Michele Subgestora" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Michele Subgestora" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("mantem destino sem papel na lista principal para clientes antigos", () => {
+    estado.destinos = [{ id: "legado-1", nome: "Destino legado" }];
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Destino legado" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Outros" })).not.toBeInTheDocument();
   });
 
   it("exibe o detalhe RFC 7807 da recusa do backend", () => {

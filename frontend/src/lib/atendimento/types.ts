@@ -259,6 +259,8 @@ export interface PedidoEntradaAtendimento {
 export interface DestinoDeTransferencia {
   id: string;
   nome: string;
+  /** Campo adicionado após a primeira versão; ausência mantém compatibilidade com respostas antigas. */
+  papel?: "ATENDENTE" | "SUBGESTOR" | null;
 }
 
 /** Espelha UsuarioController.UsuarioResposta — GET /api/v1/usuarios. */

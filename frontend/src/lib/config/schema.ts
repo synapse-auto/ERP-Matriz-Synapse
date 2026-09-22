@@ -405,6 +405,7 @@ export const TextosSchema = z.object({
       participando: z.string(),
       transferir: z.string(),
       convidar: z.string(),
+      outros: z.string(),
       convidarTitulo: z.string(),
       convidarDescricao: z.string(),
       convidarCarregando: z.string(),
