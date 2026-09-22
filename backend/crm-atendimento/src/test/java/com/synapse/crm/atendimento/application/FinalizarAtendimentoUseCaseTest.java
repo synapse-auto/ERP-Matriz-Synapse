@@ -22,7 +22,6 @@ import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
-import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 
 class FinalizarAtendimentoUseCaseTest {
 
@@ -54,7 +53,7 @@ class FinalizarAtendimentoUseCaseTest {
         InOrder ordem = inOrder(atendimentos);
         ordem.verify(atendimentos).elevarRlsParaEscritaDeNovoDono();
         ordem.verify(atendimentos).salvar(depois);
-        verify(leads).marcarStatus(leadId, StatusBasicoLead.FINALIZADO);
+        verify(leads).finalizarSemResponsavel(leadId);
         verify(avaliacao).preparar(depois);
     }
 
@@ -133,7 +132,7 @@ class FinalizarAtendimentoUseCaseTest {
                 .orElseThrow();
 
         assertThat(finalizado.status()).isEqualTo(StatusAtendimento.FINALIZADO);
-        verify(leads).marcarStatus(leadId, StatusBasicoLead.FINALIZADO);
+        verify(leads).finalizarSemResponsavel(leadId);
     }
 
     @Test
@@ -157,7 +156,7 @@ class FinalizarAtendimentoUseCaseTest {
 
         assertThat(resultado).isEmpty();
         verify(atendimentos, never()).salvar(any());
-        verify(leads, never()).marcarStatus(any(), any());
+        verify(leads, never()).finalizarSemResponsavel(any());
     }
 
     @Test
@@ -183,6 +182,6 @@ class FinalizarAtendimentoUseCaseTest {
         assertThat(resultado).isEmpty();
         verify(atendimentos, never()).ultimaMensagemEm(any());
         verify(atendimentos, never()).salvar(any());
-        verify(leads, never()).marcarStatus(any(), any());
+        verify(leads, never()).finalizarSemResponsavel(any());
     }
 }

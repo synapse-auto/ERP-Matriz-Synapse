@@ -98,18 +98,24 @@ class RetornoDoLeadFinalizadoIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("1. lead FINALIZADO com dono recebe mensagem: atendimento EM_IA e status_basico IA")
+    @DisplayName("1. lead finalizado pela dona recebe mensagem: atendimento EM_IA, lead IA e sem responsavel")
     void finalizadoQueVolta_abreEmIaEMarcaOLead() {
-        UUID leadId = criarLead("dos-seis", idAna, "FINALIZADO");
-        criarAtendimento(leadId, idAna, "FINALIZADO");
+        UUID leadId = criarLead("dos-seis", idAna, "EM_ATENDIMENTO");
+        UUID anterior = criarAtendimento(leadId, idAna, "EM_ATENDIMENTO");
+        finalizarComo(EMAIL_ANA, anterior);
 
         var resultado = comoServico(() -> registrarRecebida.executar(entrada(leadId)));
 
         assertThat(resultado.abriuAtendimento()).isTrue();
         assertThat(resultado.atendimento().status()).isEqualTo(StatusAtendimento.EM_IA);
+        assertThat(resultado.atendimento().atendenteId()).isNull();
         assertThat(statusDoLead(leadId)).isEqualTo("IA");
-        assertThat(donoDoLead(leadId)).isEqualTo(idAna);
+        // A finalizacao liberou o lead: o retorno e fila, e o rodizio escolhe o proximo dono.
+        assertThat(donoDoLead(leadId)).isNull();
         assertThat(contarAtendimentos(leadId)).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, anterior))
+                .isEqualTo(idAna);
     }
 
     @Test
@@ -133,8 +139,8 @@ class RetornoDoLeadFinalizadoIT extends PostgresIT {
     @Test
     @DisplayName("3. controle: FINALIZADO que nao voltou nao entra em POTENCIAIS, embora a V59 o deixe visivel")
     void finalizadoQueNaoVoltou_naoEntraEmPotenciaisMasContinuaVisivel() throws Exception {
-        UUID leadId = criarLead("so-finalizado", idAna, "FINALIZADO");
-        criarAtendimento(leadId, idAna, "FINALIZADO");
+        UUID leadId = criarLead("so-finalizado", idAna, "EM_ATENDIMENTO");
+        finalizarComo(EMAIL_ANA, criarAtendimento(leadId, idAna, "EM_ATENDIMENTO"));
 
         JsonNode potenciais = json.readTree(listarComo(EMAIL_BRUNO, "POTENCIAIS"));
         assertThat(idsDeLead(potenciais)).doesNotContain(leadId.toString());
@@ -144,8 +150,7 @@ class RetornoDoLeadFinalizadoIT extends PostgresIT {
         ResponseEntity<String> ficha = getLeadComo(EMAIL_BRUNO, leadId);
         assertThat(ficha.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(json.readTree(ficha.getBody()).path("status").asText()).isEqualTo("FINALIZADO");
-        assertThat(json.readTree(ficha.getBody()).path("atendenteResponsavelId").asText())
-                .isEqualTo(idAna.toString());
+        assertThat(json.readTree(ficha.getBody()).path("atendenteResponsavelId").isNull()).isTrue();
     }
 
     @Test
@@ -240,6 +245,18 @@ class RetornoDoLeadFinalizadoIT extends PostgresIT {
         return ApoioAutenticacao.comToken(
                         http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
                 .getBody();
+    }
+
+    /** Finaliza pelo endpoint real: o estado de FINALIZADO sai do fluxo canonico, nao de INSERT. */
+    private void finalizarComo(String email, UUID atendimentoId) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+        ResponseEntity<String> resposta = ApoioAutenticacao.comToken(
+                http,
+                token,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/finalizar",
+                String.class);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     private ResponseEntity<String> getLeadComo(String email, UUID leadId) {

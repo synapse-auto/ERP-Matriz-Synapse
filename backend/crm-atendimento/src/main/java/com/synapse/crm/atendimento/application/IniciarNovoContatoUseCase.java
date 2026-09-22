@@ -37,6 +37,9 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * <p>Telefone já presente na Agenda é reutilizado. Quando o contato pertence a outro atendente,
  * a abertura registra o solicitante como participante e preserva o responsável comercial; uma
  * transferência deliberada ou envio manual posterior aplica a RN-CRM-06 e troca a posse.
+ *
+ * <p>Lead finalizado não tem responsável — a finalização o libera. Reabrir um finalizado, portanto,
+ * cai em {@code assumirSeSemDono} e o novo ciclo é de quem clicou, não do dono do ciclo anterior.
  */
 @Service
 public class IniciarNovoContatoUseCase {

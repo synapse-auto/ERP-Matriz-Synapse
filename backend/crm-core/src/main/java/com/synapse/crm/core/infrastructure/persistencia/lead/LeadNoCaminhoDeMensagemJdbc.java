@@ -83,6 +83,17 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     private static final String SQL_STATUS =
             "UPDATE lead SET status_basico = ?::status_basico_lead WHERE id = ?";
 
+    // Status e responsavel no mesmo UPDATE: nao existe instante em que o lead esteja FINALIZADO
+    // ainda amarrado ao dono. A linha nova continua visivel a quem executa porque FINALIZADO
+    // entra no escape da RLS de lead (V59).
+    private static final String SQL_FINALIZAR_SEM_RESPONSAVEL =
+            """
+            UPDATE lead
+               SET status_basico            = 'FINALIZADO',
+                   atendente_responsavel_id = NULL
+             WHERE id = ?
+            """;
+
     private static final String SQL_ALCANCAVEL = "SELECT 1 FROM lead WHERE id = ?";
 
     // Uma mensagem que abre/permanece em EM_IA não possui dono nem participante para
@@ -191,6 +202,12 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     public void marcarStatus(UUID leadId, StatusBasicoLead status) {
         TransacaoObrigatoria.exigir("marcarStatus");
         chat.update(SQL_STATUS, status.name(), leadId);
+    }
+
+    @Override
+    public void finalizarSemResponsavel(UUID leadId) {
+        TransacaoObrigatoria.exigir("finalizarSemResponsavel");
+        chat.update(SQL_FINALIZAR_SEM_RESPONSAVEL, leadId);
     }
 
     /**

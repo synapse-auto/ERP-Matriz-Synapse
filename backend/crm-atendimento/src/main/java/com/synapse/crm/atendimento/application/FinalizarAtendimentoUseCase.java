@@ -15,7 +15,6 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
-import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -151,7 +150,9 @@ public class FinalizarAtendimentoUseCase {
         }
 
         Atendimento finalizado = atendimentos.salvar(aberto.finalizar(agora));
-        leads.marcarStatus(aberto.leadId(), StatusBasicoLead.FINALIZADO);
+        // O lead sai sem responsavel: o retorno do cliente e fila (rodizio) e a reabertura manual
+        // e de quem clicou. O dono deste ciclo continua em atendimento.atendente_id, intocado.
+        leads.finalizarSemResponsavel(aberto.leadId());
         if (origem == Origem.INDIVIDUAL || origem == Origem.AUTOMACAO) {
             avaliacao.preparar(finalizado);
         }

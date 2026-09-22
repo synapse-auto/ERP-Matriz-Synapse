@@ -515,8 +515,10 @@ class WebhookAvaliacaoIT extends PostgresIT {
         assertThat(dono(id)).isEqualTo(esperado);
         assertThat(json.readTree(linha(id).get("payload").toString()).path("atendente_id").asText())
                 .isEqualTo(esperado.toString());
+        // O vencedor fica no atendimento encerrado e no snapshot da avaliacao; o lead finalizado
+        // sai sem responsavel para que o retorno do cliente siga o rodizio.
         assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leads.getFirst()))
-                .isEqualTo(esperado);
+                .isNull();
         assertThat(total(id)).isEqualTo(1);
     }
 

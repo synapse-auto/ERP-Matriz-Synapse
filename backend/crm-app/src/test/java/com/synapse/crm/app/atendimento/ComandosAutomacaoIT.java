@@ -268,6 +268,30 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void finalizarComoAutomacao_liberaResponsavelDoLeadEPreservaDonoDoAtendimento() {
+        UUID atendente = criarAtendente("FINALIZAR-DONO-ATENDENTE");
+        UUID atendimento = criarAtendimento("FINALIZAR-DONO", "EM_ATENDIMENTO", atendente, false);
+        UUID lead = jdbc.queryForObject("SELECT lead_id FROM atendimento WHERE id = ?", UUID.class, atendimento);
+
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-dono", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT status_basico::text FROM lead WHERE id = ?", String.class, lead))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject(
+                        "SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isNull();
+        assertThat(dono(atendimento)).isEqualTo(atendente);
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'ATENDIMENTO_FINALIZADO' AND origem = 'AUTOMACAO'",
+                        Integer.class,
+                        atendimento))
+                .isEqualTo(1));
+    }
+
+    @Test
     void finalizarRepetidoComMesmaChave_devolveRespostaIdenticaESemSegundoEvento() {
         UUID atendimento = criarAtendimento("FINALIZAR-RETRY", "EM_IA", null, false);
 

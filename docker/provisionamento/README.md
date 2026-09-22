@@ -265,3 +265,37 @@ docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
 Comparar as duas saidas e o criterio para liberar uma nova tentativa na Femina: contagens na mesma
 ordem de grandeza e os mesmos tipos de no no plano. O script e somente leitura, termina em
 `ROLLBACK` e a saida pode conter nomes e telefones — guarde em local restrito.
+
+## Liberar o responsavel de leads finalizados antes da correcao
+
+Ate a correcao que faz a finalizacao limpar `lead.atendente_responsavel_id`, todo lead
+`FINALIZADO` guardava o ultimo atendente como responsavel. O cliente que voltava a escrever caia em
+Potenciais, mas o primeiro atendente a assumir o devolvia ao dono antigo. O codigo novo resolve os
+proximos encerramentos; os registros antigos precisam deste script.
+
+Primeiro a conferencia — somente leitura, termina em `ROLLBACK`:
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  < docker/provisionamento/liberar-responsavel-de-leads-finalizados.sql \
+  | tee /caminho/seguro/relatorios/liberar-responsavel-conferencia-$(date +%Y%m%d-%H%M%S).txt
+```
+
+A saida traz a contagem total, os leads excluidos por terem atendimento aberto (inconsistencia a
+investigar, nunca alterada pelo script), a quebra por responsavel anterior e a lista
+`lead_id, responsavel_anterior` que serve para desfazer.
+
+A escrita so acontece com confirmacao explicita, depois de autorizacao de quem responde pela
+instancia:
+
+```bash
+docker exec -i "$container" psql -U "$SYNAPSE_DB_USER" -d "$SYNAPSE_DB_NAME" \
+  -v confirmar=LIBERAR \
+  < docker/provisionamento/liberar-responsavel-de-leads-finalizados.sql \
+  | tee /caminho/seguro/relatorios/liberar-responsavel-execucao-$(date +%Y%m%d-%H%M%S).txt
+```
+
+Tudo roda numa transacao so, com as linhas travadas: o `UPDATE` repete as condicoes (lead ainda
+`FINALIZADO`, mesmo responsavel, sem atendimento aberto) e uma verificacao final aborta o commit se
+algum elegivel continuar com responsavel. `atendimento.atendente_id` nao e tocado — historico,
+avaliacao e comissao do ciclo encerrado continuam com quem atendeu.
