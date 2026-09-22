@@ -369,6 +369,82 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         assertThat(json.readTree(contagemJson).path("TODOS").asLong()).isEqualTo(lista.size());
     }
 
+    /**
+     * E206: lead com o ciclo anterior FINALIZADO (dono X, mensagem mais recente) e outro atendimento
+     * aberto (dono Y). O cartão abre o ativo; lista e cabeçalho precisam apontar o mesmo dono.
+     */
+    @Nested
+    @DisplayName("dono do cartao")
+    class DonoDoCartao {
+
+        private UUID leadComDoisCiclos;
+        private UUID finalizadoDoBruno;
+        private UUID abertoDaAna;
+
+        @BeforeEach
+        void prepararDoisCiclos() {
+            leadComDoisCiclos = criarLead("Dois ciclos", idAna, "EM_ATENDIMENTO");
+            abertoDaAna = criarAtendimento(leadComDoisCiclos, idAna, "EM_ATENDIMENTO");
+            finalizadoDoBruno = criarAtendimento(leadComDoisCiclos, idBruno, "FINALIZADO");
+            Instant base = Instant.parse("2026-09-14T17:00:00Z");
+            definirInicio(abertoDaAna, base);
+            definirInicio(finalizadoDoBruno, base.plusSeconds(60));
+            inserirMensagem(abertoDaAna, "LEAD", null, "pedido de confirmacao", base.plusSeconds(1));
+            inserirMensagem(finalizadoDoBruno, "ATENDENTE", idBruno, "obgd!!", base.plusSeconds(120));
+        }
+
+        @Test
+        @DisplayName("lista exibe o dono do atendimento que o clique abre, igual ao /estado")
+        void listaECabecalho_exibemOMesmoDono() throws Exception {
+            JsonNode cartao = cartaoDoLead(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"), leadComDoisCiclos);
+
+            assertThat(cartao.path("atendimentoId").asText()).isEqualTo(finalizadoDoBruno.toString());
+            assertThat(cartao.path("atendimentoAtivoId").asText()).isEqualTo(abertoDaAna.toString());
+            assertThat(cartao.path("atendenteId").asText()).isEqualTo(idAna.toString());
+            assertThat(cartao.path("atendenteNome").asText()).isEqualTo(nomeDoUsuario(idAna));
+            assertThat(cartao.path("status").asText()).isEqualTo("EM_ATENDIMENTO");
+
+            JsonNode estado = json.readTree(respostaComo(
+                            EMAIL_GESTOR,
+                            SENHA_GESTOR,
+                            "/api/v1/atendimentos/" + abertoDaAna + "/estado")
+                    .getBody());
+            assertThat(estado.path("cartao").path("atendenteNome").asText())
+                    .isEqualTo(cartao.path("atendenteNome").asText());
+        }
+
+        @Test
+        @DisplayName("lead com um único atendimento continua exibindo o próprio dono")
+        void atendimentoUnico_mantemODono() throws Exception {
+            JsonNode cartao = cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"), atendimentoPendenteDoBruno);
+
+            assertThat(cartao.path("atendenteId").asText()).isEqualTo(idBruno.toString());
+            assertThat(cartao.path("atendenteNome").asText()).isEqualTo(nomeDoUsuario(idBruno));
+        }
+
+        @Test
+        @DisplayName("dono do ciclo finalizado não passa a enxergar o lead do colega")
+        void donoDoCicloFinalizado_naoVeOLead() {
+            assertThat(listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "ATIVOS"))
+                    .doesNotContain(leadComDoisCiclos.toString());
+            assertThat(listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "PENDENTES"))
+                    .doesNotContain(leadComDoisCiclos.toString());
+        }
+
+        private JsonNode cartaoDoLead(String corpo, UUID leadId) throws Exception {
+            for (JsonNode item : json.readTree(corpo)) {
+                if (leadId.toString().equals(item.path("leadId").asText())) {
+                    return item;
+                }
+            }
+            throw new AssertionError("cartao do lead nao encontrado: " + leadId);
+        }
+
+        private String nomeDoUsuario(UUID usuarioId) {
+            return jdbc.queryForObject("SELECT nome FROM usuario WHERE id = ?", String.class, usuarioId);
+        }
+    }
+
     @Nested
     @DisplayName("nao lidas")
     class NaoLidas {
