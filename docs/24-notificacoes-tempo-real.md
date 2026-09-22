@@ -17,7 +17,11 @@ Esta entrega centraliza no navegador as notificações de mensagens novas e de m
   interno e não cria um aviso de nova mensagem.
 - O payload de mensagem externa inclui `eventoId`, `leadNome` e `destinatarios` apenas no backplane. A lista de destinatários é removida antes da entrega ao fio da conversa e antes da fila pessoal.
 
-Não foi criada variável de ambiente nova. O transporte usa o mesmo `NEXT_PUBLIC_WS_URL` e as mesmas configurações de Redis já existentes.
+O transporte usa o mesmo `NEXT_PUBLIC_WS_URL` e as mesmas configurações de Redis já existentes.
+O backend anuncia no frame STOMP `CONNECTED` o perfil de reconexão configurado por instância,
+`WS_RECONEXAO_ATRASO_INICIAL_MS`, `WS_RECONEXAO_FATOR` e
+`WS_RECONEXAO_ATRASO_MAXIMO_MS`; assim a imagem genérica do frontend não precisa conter variável
+pública de cada filho.
 
 ## Decisão no frontend
 
@@ -41,6 +45,12 @@ O som é curto e discreto, produzido com Web Audio API. A primeira interação d
 A preferência é exposta em Configurações, começa habilitada por padrão e é persistida por usuário no armazenamento local do navegador. Os textos de título, descrição, acessibilidade, mídia e continuação de preview vêm de `textos.json`.
 
 ## Reconexão e leitura
+
+O `Client` do stompjs continua com o seu reconector fixo desabilitado (`reconnectDelay: 0`) para não
+somar dois reconectores. `ConexaoTempoReal` agenda uma única nova conexão por vez com backoff
+exponencial e jitter entre 50% e 100% do atraso calculado. A primeira tentativa nunca é imediata,
+e um `CONNECTED` reinicia a contagem; assim, muitas abas não retornam ao mesmo instante depois de
+um restart, mas uma conexão que voltou a ficar estável não herda atrasos antigos.
 
 O fluxo de atendimento usa o sinal mínimo `ATENDIMENTO_ESTADO` e o snapshot autorizado
 `GET /api/v1/atendimentos/{atendimentoId}/estado`. Após cada reconexão, o snapshot termina antes de o

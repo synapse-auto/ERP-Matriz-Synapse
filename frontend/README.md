@@ -31,6 +31,10 @@ fora do proxy da stack, inicie o frontend com `NEXT_PUBLIC_WS_URL=ws://localhost
 reinicie o processo após alterar a variável. Em homologação/produção, mantenha a variável vazia:
 o navegador usa a origem pública (`/ws`) e o proxy da stack encaminha a conexão para o backend.
 
+O reconector STOMP aplica atraso exponencial com jitter para evitar uma rajada sincronizada após
+um restart. Os defaults são 1 s, fator 2 e teto de 30 s; o backend anuncia a configuração efetiva
+no frame STOMP `CONNECTED`, então a imagem genérica do frontend continua configurável por instância.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

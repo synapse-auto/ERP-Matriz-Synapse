@@ -9,6 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 import com.synapse.crm.equipe.infrastructure.seguranca.SecurityContextPropagationInterceptor;
 
@@ -44,6 +45,7 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer, DisposableBea
     private final AutenticacaoHandshakeHandler manipuladorDeHandshake;
     private final SecurityContextPropagationInterceptor propagacaoDeContexto;
     private final AutorizacaoDeAssinaturaInterceptor autorizacaoDeAssinatura;
+    private final ConfiguracaoDeReconexaoWebSocketDecoratorFactory configuracaoDeReconexao;
     private final TempoRealProperties propriedades;
 
     WebSocketConfig(
@@ -51,11 +53,13 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer, DisposableBea
             AutenticacaoHandshakeHandler manipuladorDeHandshake,
             SecurityContextPropagationInterceptor propagacaoDeContexto,
             AutorizacaoDeAssinaturaInterceptor autorizacaoDeAssinatura,
+            ConfiguracaoDeReconexaoWebSocketDecoratorFactory configuracaoDeReconexao,
             TempoRealProperties propriedades) {
         this.autenticacaoHandshake = autenticacaoHandshake;
         this.manipuladorDeHandshake = manipuladorDeHandshake;
         this.propagacaoDeContexto = propagacaoDeContexto;
         this.autorizacaoDeAssinatura = autorizacaoDeAssinatura;
+        this.configuracaoDeReconexao = configuracaoDeReconexao;
         this.propriedades = propriedades;
         agendadorDeHeartbeat.setPoolSize(THREADS_HEARTBEAT);
         agendadorDeHeartbeat.setThreadNamePrefix("ws-heartbeat-");
@@ -106,6 +110,11 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer, DisposableBea
     @Override
     public void configureClientOutboundChannel(ChannelRegistration registro) {
         registro.taskExecutor(executor(propriedades.threadsSaida(), "ws-saida-"));
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registro) {
+        configuracaoDeReconexao.registrar(registro);
     }
 
     @Override

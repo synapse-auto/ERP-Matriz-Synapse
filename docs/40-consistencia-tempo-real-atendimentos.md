@@ -121,6 +121,18 @@ Os logs do sinal canônico usam somente `atendimentoId`, `leadId`, `eventoId`, `
 correlacionar um incidente, conserve esses cinco campos, horário, código HTTP e ciclo de conexão. Não
 copie texto, nome, telefone, mídia, URL assinada, JWT, `X-Synapse-Token` ou payload real.
 
+Cada instância também registra periodicamente `[METRICA_WEBSOCKET_SESSOES]` com
+`sessoesAtivas` e `usuariosAutenticadosUnicos`, obtidos do `SimpUserRegistry` local. A primeira
+conta abas/dispositivos; a segunda não duplica duas sessões do mesmo principal. Essa medição não
+atravessa instâncias pelo Redis: para um total do cluster, some as linhas de cada réplica no mesmo
+intervalo. O intervalo vem de `WS_METRICAS_INTERVALO` (padrão `1m`) e o log não contém identidade,
+token, telefone nem conteúdo.
+
+O broker simples negocia heartbeat STOMP em ambos os sentidos. Com o cliente anunciando saída de
+10 s, o `SimpleBrokerMessageHandler` acompanha a última leitura e encerra a sessão que exceder o
+intervalo negociado; não há limpador paralelo de sessões. O valor de heartbeat permanece 10 s e é
+independente do backoff do navegador.
+
 ## Runbook
 
 ### `lead ... não encontrado`

@@ -45,7 +45,10 @@ import com.synapse.crm.app.seguranca.ApoioAutenticacao;
             "synapse.tempo-real.outbox.intervalo-ms=3600000",
             "synapse.canal.whatsapp.provedor=fake",
             "synapse.tempo-real.heartbeat-saida-ms=7000",
-            "synapse.tempo-real.heartbeat-entrada-ms=9000"
+            "synapse.tempo-real.heartbeat-entrada-ms=9000",
+            "synapse.tempo-real.reconexao-atraso-inicial-ms=1500",
+            "synapse.tempo-real.reconexao-fator=2.5",
+            "synapse.tempo-real.reconexao-atraso-maximo-ms=20000"
         })
 class HeartbeatWebSocketIT extends PostgresIT {
 
@@ -89,12 +92,12 @@ class HeartbeatWebSocketIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("o frame CONNECTED anuncia o heartbeat configurado, nunca 0,0")
-    void connected_anunciaHeartbeatConfigurado() throws Exception {
+    @DisplayName("o frame CONNECTED anuncia heartbeat e backoff configurados")
+    void connected_anunciaHeartbeatEBackoffConfigurados() throws Exception {
         String token = ApoioAutenticacao.login(
                         http, ApoioAutenticacao.EMAIL_ANA, ApoioAutenticacao.SENHA_ATENDENTE)
                 .accessToken();
-        CompletableFuture<long[]> pulsoAnunciado = new CompletableFuture<>();
+        CompletableFuture<StompHeaders> cabecalhosAnunciados = new CompletableFuture<>();
 
         sessao = stomp.connectAsync(
                         "ws://localhost:" + porta + "/ws?access_token=" + token,
@@ -102,16 +105,20 @@ class HeartbeatWebSocketIT extends PostgresIT {
                             @Override
                             public void afterConnected(
                                     StompSession sessaoConectada, StompHeaders cabecalhosDoConnected) {
-                                pulsoAnunciado.complete(cabecalhosDoConnected.getHeartbeat());
+                                cabecalhosAnunciados.complete(cabecalhosDoConnected);
                             }
                         })
                 .get(5, TimeUnit.SECONDS);
 
-        long[] pulso = pulsoAnunciado.get(5, TimeUnit.SECONDS);
+        StompHeaders cabecalhos = cabecalhosAnunciados.get(5, TimeUnit.SECONDS);
+        long[] pulso = cabecalhos.getHeartbeat();
 
         assertThat(pulso)
                 .as("CONNECTED sem heartbeat (0,0) e o que deixava a conexao morta passar despercebida")
                 .isNotNull()
                 .containsExactly(SAIDA_ESPERADA_MS, ENTRADA_ESPERADA_MS);
+        assertThat(cabecalhos.getFirst("x-synapse-reconexao-atraso-inicial-ms")).isEqualTo("1500");
+        assertThat(cabecalhos.getFirst("x-synapse-reconexao-fator")).isEqualTo("2.5");
+        assertThat(cabecalhos.getFirst("x-synapse-reconexao-atraso-maximo-ms")).isEqualTo("20000");
     }
 }
