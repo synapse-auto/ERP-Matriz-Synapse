@@ -17,14 +17,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.relatorios.application.dashboard.CacheVisaoGeralDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
+import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 /**
  * Reaproveita o Redis da instancia para os agregados. A chave inclui sujeito, autoridades e filtro
@@ -39,6 +38,7 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper json;
+    private final UsuarioContext usuario;
     private final Duration tempoDeVida;
     private final Duration esperaMaxima;
     private final int tamanhoMaximo;
@@ -46,6 +46,7 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
     CacheVisaoGeralDashboardRedis(
             StringRedisTemplate redis,
             ObjectMapper json,
+            UsuarioContext usuario,
             @Value("${synapse.dashboard.cache-ttl}") Duration tempoDeVida,
             @Value("${synapse.dashboard.cache-wait}") Duration esperaMaxima,
             @Value("${synapse.dashboard.cache-max-bytes}") int tamanhoMaximo) {
@@ -57,6 +58,7 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
         }
         this.redis = redis;
         this.json = json;
+        this.usuario = usuario;
         this.tempoDeVida = tempoDeVida;
         this.esperaMaxima = esperaMaxima;
         this.tamanhoMaximo = tamanhoMaximo;
@@ -143,16 +145,9 @@ class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
         }
     }
 
-    private static String chavePara(FiltroTemporalDashboard filtro) {
-        Authentication autenticacao = SecurityContextHolder.getContext().getAuthentication();
-        if (autenticacao == null || !autenticacao.isAuthenticated()) {
-            throw new AccessDeniedException("autenticacao obrigatoria para o dashboard");
-        }
-        String papeis = autenticacao.getAuthorities().stream()
-                .map(autoridade -> autoridade.getAuthority())
-                .sorted()
-                .reduce("", (atual, papel) -> atual + "," + papel);
-        String escopo = autenticacao.getName() + "|" + papeis + "|" + filtro;
+    private String chavePara(FiltroTemporalDashboard filtro) {
+        UsuarioAutenticado ator = usuario.atual();
+        String escopo = ator.id() + "|" + ator.papel() + "|" + filtro;
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256")
                     .digest(escopo.getBytes(StandardCharsets.UTF_8));

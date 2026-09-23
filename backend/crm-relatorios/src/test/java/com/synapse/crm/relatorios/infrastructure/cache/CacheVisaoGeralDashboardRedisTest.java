@@ -12,9 +12,9 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +23,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.synapse.crm.relatorios.domain.dashboard.FiltroTemporalDashboard;
 import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.identidade.UsuarioAutenticado;
+import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 
 @ExtendWith(MockitoExtension.class)
 class CacheVisaoGeralDashboardRedisTest {
@@ -39,20 +39,18 @@ class CacheVisaoGeralDashboardRedisTest {
     @Mock
     private ValueOperations<String, String> valores;
 
+    @Mock
+    private UsuarioContext usuario;
+
     private CacheVisaoGeralDashboardRedis cache;
 
     @BeforeEach
     void preparar() {
-        SecurityContextHolder.getContext()
-                .setAuthentication(new UsernamePasswordAuthenticationToken(
-                        "gestor-teste", null, List.of(new SimpleGrantedAuthority("ROLE_GESTOR"))));
+        when(usuario.atual())
+                .thenReturn(new UsuarioAutenticado(
+                        UUID.fromString("11111111-1111-1111-1111-111111111111"), PapelUsuario.GESTOR, false));
         cache = new CacheVisaoGeralDashboardRedis(
-                redis, new ObjectMapper(), Duration.ofSeconds(30), Duration.ofSeconds(1), 131072);
-    }
-
-    @AfterEach
-    void limparContexto() {
-        SecurityContextHolder.clearContext();
+                redis, new ObjectMapper(), usuario, Duration.ofSeconds(30), Duration.ofSeconds(1), 131072);
     }
 
     @Test
