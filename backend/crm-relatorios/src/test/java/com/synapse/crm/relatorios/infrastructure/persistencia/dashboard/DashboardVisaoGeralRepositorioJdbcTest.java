@@ -50,6 +50,12 @@ class DashboardVisaoGeralRepositorioJdbcTest {
                     lenient().when(linha.getBigDecimal(anyString())).thenReturn(BigDecimal.ZERO);
                     return ((RowMapper<?>) chamada.getArgument(1)).mapRow(linha, 0);
                 });
+        when(jdbc.queryForObject(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any()))
+                .thenAnswer(chamada -> {
+                    ResultSet linha = org.mockito.Mockito.mock(ResultSet.class);
+                    when(linha.getLong(anyString())).thenReturn(0L);
+                    return ((RowMapper<?>) chamada.getArgument(1)).mapRow(linha, 0);
+                });
         when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), any(Object[].class)))
                 .thenReturn(List.of());
         when(vendas.agregar(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), any()))
