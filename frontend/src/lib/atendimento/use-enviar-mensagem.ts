@@ -21,8 +21,14 @@ interface VariaveisEnvio {
   idempotencyKey?: string;
 }
 
+const PREFIXO_ID_TEMPORARIO = "temp-";
+
 function idTemporario(): string {
-  return `temp-${crypto.randomUUID()}`;
+  return `${PREFIXO_ID_TEMPORARIO}${crypto.randomUUID()}`;
+}
+
+function ehBolhaLocal(mensagem: MensagemResposta): boolean {
+  return mensagem.id.startsWith(PREFIXO_ID_TEMPORARIO);
 }
 
 type ContextoOtimista = {
@@ -189,11 +195,13 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
           citacao: otimista?.citacao ?? variaveis.citacao ?? null,
           idempotencyKey: resposta.idempotencyKey ?? variaveis.idempotencyKey,
         };
+        // Só bolhas locais saem. A versão do servidor com a mesma chave (WebSocket/STATUS que chegou
+        // antes do HTTP) fica e é fundida: a resposta PENDENTE não pode rebaixar um ENVIADO.
         return mesclarMensagens(
           atual.filter(
             (mensagem) =>
               mensagem.id !== contexto.idOtimista
-              && mensagem.idempotencyKey !== real.idempotencyKey,
+              && !(ehBolhaLocal(mensagem) && mensagem.idempotencyKey === real.idempotencyKey),
           ),
           [real],
         );

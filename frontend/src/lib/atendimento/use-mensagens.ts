@@ -5,8 +5,9 @@ import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { mensagensDesde, paginaMensagens } from "./api";
-import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
+import { atualizarPaginaRecente } from "./cache-mensagens";
 import { atualizarReacoesDoHistorico } from "./reacoes-cache";
+import { aplicarStatusNoHistorico, reconciliarEnviosPendentes } from "./reconciliar-status";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type {
   EventoCanonicoAtendimentoTempoReal,
@@ -111,39 +112,11 @@ export function useMensagens(
         onMensagemRecebidaRef.current?.();
       } else if (evento.tipo === "STATUS") {
         if (!evento.dados.mensagemId) return;
-        queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) =>
-          atual
-            ? {
-                ...atual,
-                pages: atual.pages.map((pagina) => ({
-                  ...pagina,
-                  mensagens: mesclarMensagens(
-                    pagina.mensagens,
-                    pagina.mensagens
-                      .filter(
-                        (mensagem) =>
-                          mensagem.id === evento.dados.mensagemId
-                          || (evento.dados.idempotencyKey != null
-                            && mensagem.idempotencyKey === evento.dados.idempotencyKey),
-                      )
-                      .map((mensagem) => ({
-                        ...mensagem,
-                        id: evento.dados.mensagemId,
-                        statusEntrega: evento.dados.statusEntrega,
-                        // Um status posterior do backend reconcilia qualquer marcador local
-                        // transitório; motivo de erro só pertence a FALHOU persistido.
-                        erroEntrega:
-                          evento.dados.statusEntrega === "FALHOU"
-                            ? mensagem.erroEntrega
-                            : null,
-                        idempotencyKey:
-                          mensagem.idempotencyKey ?? evento.dados.idempotencyKey ?? null,
-                      })),
-                  ),
-                })),
-              }
-            : atual,
-        );
+        // O STATUS do backend traz só o id do servidor. Se a bolha ainda é a otimista (resposta HTTP
+        // em trânsito), descartá-lo deixaria "Enviando" até o F5: o histórico persistido resolve.
+        if (!aplicarStatusNoHistorico(queryClient, queryKey, evento.dados)) {
+          void reconciliarEnviosPendentes(queryClient, queryKey, atendimentoParaAssinar);
+        }
       } else if (evento.tipo === "REACAO") {
         atualizarReacoesDoHistorico(
           queryClient,
@@ -182,6 +155,9 @@ export function useMensagens(
         atualizarPaginaRecente(queryClient, queryKey, (atuais) => mesclarMensagens(atuais, novas));
       }
     });
+    // O /desde traz mensagens novas, não status novo de mensagem conhecida (`enviado_em` não muda).
+    // STATUS perdido com o socket fora, ou descartado na janela do snapshot, volta por aqui.
+    void reconciliarEnviosPendentes(queryClient, queryKey, atendimentoParaAssinar, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reage somente a transicao da conexao
   }, [estadoConexao, atendimentoParaAssinar, incrementaisLiberados]);
 

@@ -287,16 +287,10 @@ export class ConexaoTempoReal {
 
   desconectar(): void {
     this.desativadoManualmente = true;
-    if (this.timerReconexao) {
-      clearTimeout(this.timerReconexao);
-      this.timerReconexao = null;
-    }
-    this.assinaturaAtendimento = null;
-    this.assinaturaNotificacoes = null;
+    this.cancelarReconexaoAgendada();
+    this.descartarCliente();
     this.atendimentoAberto = null;
     this.onEventoAtual = null;
-    this.cliente?.deactivate();
-    this.cliente = null;
     this.emitirEstado("desconectado");
   }
 
@@ -339,10 +333,17 @@ export class ConexaoTempoReal {
     });
   }
 
+  /**
+   * Uma conexão viva por vez. O cliente anterior é desativado antes de o próximo nascer — sem isso,
+   * `conectar()` a cada renovação de token deixava o socket antigo aberto e com as próprias
+   * assinaturas, e o fechamento tardio dele disparava "reconectando" (e um cliente a mais) enquanto
+   * o atual estava saudável.
+   */
   private abrirClienteEConectar(): void {
+    this.cancelarReconexaoAgendada();
+    this.descartarCliente();
     const accessToken = this.leitorDeAccessToken();
     if (!accessToken) {
-      this.cliente = null;
       this.emitirEstado("desconectado");
       return;
     }
@@ -353,6 +354,7 @@ export class ConexaoTempoReal {
     this.cliente = cliente;
 
     cliente.onConnect = (frame) => {
+      if (this.cliente !== cliente) return;
       this.configuracaoDeBackoff = configuracaoDeBackoffDoServidor(frame?.headers);
       this.tentativas = 0;
       cliente.subscribe(DESTINO_REVOGACOES, (mensagem) => {
@@ -391,21 +393,47 @@ export class ConexaoTempoReal {
       this.emitirEstado("conectado");
     };
 
-    const agendarReconexao = () => {
-      if (this.desativadoManualmente) {
-        return;
-      }
-      this.emitirEstado("reconectando");
-      const atraso = calcularBackoffMs(this.tentativas, true, this.configuracaoDeBackoff);
-      this.tentativas += 1;
-      this.timerReconexao = setTimeout(() => this.abrirClienteEConectar(), atraso);
+    // Um ERROR do STOMP costuma vir seguido do close do socket (e vice-versa): os dois avisos são
+    // a mesma queda. Callback de cliente já substituído não fala mais pela conexão.
+    const aoPerderConexao = () => {
+      if (this.cliente === cliente) this.agendarReconexao();
     };
-
-    cliente.onWebSocketClose = agendarReconexao;
-    cliente.onStompError = agendarReconexao;
+    cliente.onWebSocketClose = aoPerderConexao;
+    cliente.onStompError = aoPerderConexao;
 
     this.emitirEstado("conectando");
     cliente.activate();
+  }
+
+  private agendarReconexao(): void {
+    if (this.desativadoManualmente || this.timerReconexao) {
+      return;
+    }
+    this.assinaturaAtendimento = null;
+    this.assinaturaNotificacoes = null;
+    this.emitirEstado("reconectando");
+    const atraso = calcularBackoffMs(this.tentativas, true, this.configuracaoDeBackoff);
+    this.tentativas += 1;
+    this.timerReconexao = setTimeout(() => {
+      this.timerReconexao = null;
+      this.abrirClienteEConectar();
+    }, atraso);
+  }
+
+  private cancelarReconexaoAgendada(): void {
+    if (this.timerReconexao) {
+      clearTimeout(this.timerReconexao);
+      this.timerReconexao = null;
+    }
+  }
+
+  /** Solta o cliente antes de desativá-lo: o close que o `deactivate` provoca já chega como tardio. */
+  private descartarCliente(): void {
+    const anterior = this.cliente;
+    this.cliente = null;
+    this.assinaturaAtendimento = null;
+    this.assinaturaNotificacoes = null;
+    void anterior?.deactivate();
   }
 
   private emitirEstado(estado: EstadoConexao): void {

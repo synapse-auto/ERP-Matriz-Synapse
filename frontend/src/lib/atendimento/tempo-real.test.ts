@@ -463,3 +463,188 @@ describe("ConexaoTempoReal", () => {
     expect(callbackDaConversa2).not.toHaveBeenCalled();
   });
 });
+
+/** Cliente cuja conexão só acontece quando o teste manda — o servidor "responde" em `aceitar`. */
+function clienteControlado(nome: string) {
+  const assinaturas: string[] = [];
+  const cliente: ClienteStompLike = {
+    connected: false,
+    activate: vi.fn(),
+    deactivate: vi.fn(() => {
+      cliente.connected = false;
+    }),
+    subscribe: vi.fn((destino: string) => {
+      if (!cliente.connected) {
+        throw new TypeError(`${nome}: There is no underlying STOMP connection`);
+      }
+      assinaturas.push(destino);
+      return { id: destino, unsubscribe: vi.fn() };
+    }),
+  };
+  const aceitar = () => {
+    cliente.connected = true;
+    cliente.onConnect?.();
+  };
+  const cair = () => {
+    cliente.connected = false;
+    cliente.onWebSocketClose?.();
+  };
+  return { cliente, assinaturas, aceitar, cair };
+}
+
+describe("ConexaoTempoReal — reconexão idempotente", () => {
+  function conexaoComClientes(...clientes: ReturnType<typeof clienteControlado>[]) {
+    const fila = [...clientes];
+    const criarCliente = vi.fn(() => {
+      const proximo = fila.shift();
+      if (!proximo) throw new Error("cliente STOMP extra criado");
+      return proximo.cliente;
+    });
+    const estados: string[] = [];
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onEstadoMudou: (estado) => estados.push(estado),
+      criarCliente,
+    });
+    return { conexao, criarCliente, estados };
+  }
+
+  it("close seguido de ERROR do STOMP agenda uma única reconexão e cria um único cliente novo", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const segundo = clienteControlado("segundo");
+      const { conexao, criarCliente } = conexaoComClientes(primeiro, segundo);
+      conexao.conectar();
+      primeiro.aceitar();
+
+      primeiro.cair();
+      primeiro.cliente.onStompError?.();
+
+      expect(vi.getTimerCount()).toBe(1);
+      vi.runOnlyPendingTimers();
+      expect(criarCliente).toHaveBeenCalledTimes(2);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ERROR seguido de close também agenda uma única reconexão", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const segundo = clienteControlado("segundo");
+      const { conexao, criarCliente } = conexaoComClientes(primeiro, segundo);
+      conexao.conectar();
+      primeiro.aceitar();
+
+      primeiro.cliente.onStompError?.();
+      primeiro.cair();
+
+      expect(vi.getTimerCount()).toBe(1);
+      vi.runOnlyPendingTimers();
+      expect(criarCliente).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a reconexão refaz cada assinatura exatamente uma vez e volta o indicador para 'conectado'", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const segundo = clienteControlado("segundo");
+      const { conexao, estados } = conexaoComClientes(primeiro, segundo);
+      conexao.abrirConversa("atendimento-1", () => {});
+      conexao.conectar();
+      primeiro.aceitar();
+
+      primeiro.cair();
+      primeiro.cliente.onStompError?.();
+      vi.runOnlyPendingTimers();
+      segundo.aceitar();
+
+      expect(segundo.assinaturas).toEqual([
+        "/user/queue/revogacoes",
+        "/user/queue/notificacoes",
+        "/user/queue/atendimento.atendimento-1",
+      ]);
+      expect(estados).toEqual(["conectando", "conectado", "reconectando", "conectando", "conectado"]);
+      expect(primeiro.cliente.deactivate).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("callbacks tardios de um cliente substituído não mudam o indicador nem agendam reconexão", () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const segundo = clienteControlado("segundo");
+      const { conexao, criarCliente, estados } = conexaoComClientes(primeiro, segundo);
+      conexao.conectar();
+      primeiro.aceitar();
+      primeiro.cair();
+      vi.runOnlyPendingTimers();
+      segundo.aceitar();
+      estados.length = 0;
+
+      primeiro.cliente.onStompError?.();
+      primeiro.cliente.onWebSocketClose?.();
+      primeiro.cliente.onConnect?.();
+
+      expect(estados).toEqual([]);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(criarCliente).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("conectar de novo (troca de token) desativa o cliente anterior em vez de deixá-lo vivo", () => {
+    vi.useFakeTimers();
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const segundo = clienteControlado("segundo");
+      const { conexao, estados } = conexaoComClientes(primeiro, segundo);
+      conexao.conectar();
+      primeiro.aceitar();
+
+      conexao.conectar();
+      segundo.aceitar();
+      estados.length = 0;
+      // O socket antigo fecha depois (deactivate é assíncrono no stompjs): não é queda da conexão atual.
+      primeiro.cliente.onWebSocketClose?.();
+
+      expect(primeiro.cliente.deactivate).toHaveBeenCalledTimes(1);
+      expect(estados).toEqual([]);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("desconectar cancela a reconexão já agendada", () => {
+    vi.useFakeTimers();
+    try {
+      const primeiro = clienteControlado("primeiro");
+      const { conexao, criarCliente } = conexaoComClientes(primeiro);
+      conexao.conectar();
+      primeiro.aceitar();
+      primeiro.cair();
+
+      conexao.desconectar();
+      vi.runAllTimers();
+
+      expect(criarCliente).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

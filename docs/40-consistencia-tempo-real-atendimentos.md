@@ -112,8 +112,28 @@ atendimento:
 
 Cada conexão bem-sucedida recebe um número de ciclo local. Na primeira conexão e em toda reconexão, o
 composer e os incrementais de mensagem permanecem bloqueados até o snapshot do `atendimentoId`
-selecionado terminar para esse ciclo. Frames de mensagem recebidos nesse intervalo são recuperados
-pelo histórico HTTP; não há polling periódico, reload nem timeout de estado.
+selecionado terminar para esse ciclo. Frames recebidos nesse intervalo, ou perdidos com o socket
+fora, são recuperados pelo histórico HTTP em duas leituras com papéis distintos:
+
+- `GET .../mensagens/desde?desde=` traz mensagens **novas** (`enviado_em > desde`). Não traz mudança
+  de status de mensagem já conhecida, porque o status muda sem mudar `enviado_em`;
+- `GET .../mensagens` (página recente, sem cursor) só é lida quando a página recente em memória tem
+  bolha `PENDENTE`, e é fundida sem substituir as páginas carregadas nem o cursor. A fusão nunca
+  rebaixa status e une a bolha otimista pela `idempotencyKey`.
+
+Um `STATUS` que chega sem bolha correspondente (o evento traz só `mensagemId`, e a bolha ainda é a
+otimista porque a resposta HTTP do envio não chegou) dispara a mesma leitura da página recente. Não
+há polling periódico, reload nem timeout de estado: cada leitura é disparada por reconexão ou por um
+evento, e leituras concorrentes da mesma conversa colapsam numa só (mais uma rodada, se um pedido
+chegou durante a leitura).
+
+O cliente mantém **uma** conexão STOMP por aba. `ERROR` do STOMP seguido de `close` (ou o inverso) é
+uma queda só e agenda um único timer; callbacks de um cliente já substituído são ignorados; e trocar
+o access token (renovação proativa a cada ~14,5 min) desativa o cliente anterior antes de abrir o
+novo. Antes disso, cada renovação deixava um socket vivo com as próprias assinaturas — e o fechamento
+tardio de qualquer um deles mostrava "Reconectando" e abria mais um cliente. Um
+`sessoesAtivas` crescendo ao longo do dia para os mesmos `usuariosAutenticadosUnicos` (ver
+Observabilidade) é o sinal operacional desse vazamento.
 
 ## Observabilidade
 

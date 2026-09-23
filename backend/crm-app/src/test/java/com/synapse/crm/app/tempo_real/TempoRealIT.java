@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -19,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +36,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
@@ -83,6 +87,7 @@ class TempoRealIT extends PostgresIT {
     private static final String PREFIXO = "E06-";
     private static final Duration ESPERA_CURTA = Duration.ofSeconds(3);
     private static final Duration ESPERA_NEGATIVA = Duration.ofSeconds(2);
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Autowired
     private TestRestTemplate http;
@@ -468,6 +473,64 @@ class TempoRealIT extends PostgresIT {
             // Sem duplicata: cada texto aparece uma unica vez.
             assertThat(contarOcorrencias(resposta.getBody(), "primeira mensagem perdida")).isEqualTo(1);
         }
+
+        /**
+         * O contrato de que o frontend depende para tirar a bolha de "Enviando" sem F5: o STATUS que
+         * se perde com o socket fechado nao volta pelo {@code /desde} (o filtro e {@code enviado_em >
+         * desde}, e mudar de status nao muda {@code enviado_em}), mas a pagina recente do historico
+         * devolve o status ja persistido, com a chave idempotente que une a bolha otimista.
+         */
+        @Test
+        @DisplayName("status que muda com o socket fechado volta pela pagina recente, nao pelo /desde")
+        void statusComSocketFechado_voltaPelaPaginaRecente() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+            String tokenAna = tokenDe("ana@dev.local");
+            String chave = "clique-da-queda-" + UUID.randomUUID();
+            StompSession sessao = conectar(tokenAna);
+            Captura captura = assinar(sessao, atendimentoId);
+            captura.descartarPendentes();
+
+            JsonNode envio = enviarPorHttp(tokenAna, atendimentoId, "orcamento na queda", chave);
+            String mensagemId = envio.get("mensagemId").asText();
+            assertThat(envio.get("statusEntrega").asText()).isEqualTo("PENDENTE");
+            captura.aguardarContendo(mensagemId, ESPERA_CURTA);
+
+            sessao.disconnect(); // a queda acontece antes de a outbox confirmar o envio
+            publicador.publicarPendentes();
+
+            JsonNode lacuna = getJson(
+                    tokenAna,
+                    "/api/v1/atendimentos/" + atendimentoId + "/mensagens/desde?desde="
+                            + envio.get("enviadoEm").asText());
+            assertThat(lacuna.findValuesAsText("id")).doesNotContain(mensagemId);
+
+            JsonNode recente = getJson(tokenAna, "/api/v1/atendimentos/" + atendimentoId + "/mensagens");
+            JsonNode persistida = mensagemPorId(recente.get("mensagens"), mensagemId);
+            assertThat(persistida.get("statusEntrega").asText()).isEqualTo("ENVIADO");
+            assertThat(persistida.get("idempotencyKey").asText()).isEqualTo(chave);
+
+            // Negativo: quem nao enxerga o atendimento nao alcanca o status pela pagina recente.
+            assertThat(get(tokenDe("bruno@dev.local"), "/api/v1/atendimentos/" + atendimentoId + "/mensagens")
+                            .getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("STATUS identifica a mensagem pelo id que a resposta HTTP devolveu")
+        void statusEmTempoReal_usaOIdDaRespostaHttp() throws Exception {
+            UUID atendimentoId = abrirAtendimentoComoAna();
+            String tokenAna = tokenDe("ana@dev.local");
+            Captura captura = assinar(conectar(tokenAna), atendimentoId);
+            captura.descartarPendentes();
+
+            JsonNode envio = enviarPorHttp(tokenAna, atendimentoId, "orcamento ao vivo", "clique-ao-vivo-" + UUID.randomUUID());
+            String mensagemId = envio.get("mensagemId").asText();
+            captura.aguardarContendo(mensagemId, ESPERA_CURTA);
+            publicador.publicarPendentes();
+
+            JsonNode status = captura.aguardarStatusDe(mensagemId, ESPERA_CURTA);
+            assertThat(status.at("/dados/statusEntrega").asText()).isEqualTo("ENVIADO");
+        }
     }
 
     @Nested
@@ -590,6 +653,23 @@ class TempoRealIT extends PostgresIT {
             return true;
         }
 
+        /** Ignora os frames de outras mensagens (ex.: o STATUS da abertura, que tambem estava na outbox). */
+        JsonNode aguardarStatusDe(String mensagemId, Duration tempo) {
+            AtomicReference<JsonNode> encontrado = new AtomicReference<>();
+            await().atMost(tempo).until(() -> {
+                String valor = recebidas.poll();
+                if (valor == null) return false;
+                JsonNode evento = JSON.readTree(valor);
+                if (!"STATUS".equals(evento.path("tipo").asText())
+                        || !mensagemId.equals(evento.at("/dados/mensagemId").asText())) {
+                    return false;
+                }
+                encontrado.set(evento);
+                return true;
+            });
+            return encontrado.get();
+        }
+
         void descartarPendentes() {
             recebidas.clear();
         }
@@ -655,12 +735,50 @@ class TempoRealIT extends PostgresIT {
         redis.convertAndSend("synapse:atendimento:" + atendimentoId, envelope);
     }
 
+    /** O mesmo POST do composer, com a chave idempotente do clique. */
+    private JsonNode enviarPorHttp(String token, UUID atendimentoId, String texto, String chave) throws Exception {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        cabecalhos.set("Idempotency-Key", chave);
+        String corpo = JSON.writeValueAsString(
+                Map.of("leadId", leadDaAna, "atendimentoId", atendimentoId, "conteudo", texto));
+        ResponseEntity<String> resposta = http.exchange(
+                "/api/v1/atendimentos/mensagens", HttpMethod.POST, new HttpEntity<>(corpo, cabecalhos), String.class);
+        assertThat(resposta.getStatusCode().is2xxSuccessful()).as(resposta.getBody()).isTrue();
+        return JSON.readTree(resposta.getBody());
+    }
+
+    private ResponseEntity<String> get(String token, String caminho) {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        return http.exchange(caminho, HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class);
+    }
+
+    private JsonNode getJson(String token, String caminho) throws Exception {
+        ResponseEntity<String> resposta = get(token, caminho);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return JSON.readTree(resposta.getBody());
+    }
+
+    private static JsonNode mensagemPorId(JsonNode mensagens, String mensagemId) {
+        for (JsonNode mensagem : mensagens) {
+            if (mensagemId.equals(mensagem.get("id").asText())) {
+                return mensagem;
+            }
+        }
+        throw new AssertionError("mensagem " + mensagemId + " ausente da pagina recente");
+    }
+
     private static int contarOcorrencias(String texto, String trecho) {
         return texto.split(Pattern.quote(trecho), -1).length - 1;
     }
 
     private void limpar() {
         jdbc.update("DELETE FROM outbox_evento");
+        jdbc.update(
+                "DELETE FROM mensagem_envio_idempotencia WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)",
+                PREFIXO + "%");
         jdbc.update(
                 """
                 DELETE FROM mensagem WHERE atendimento_id IN (
