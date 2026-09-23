@@ -42,15 +42,30 @@ public record VisaoGeralDashboard(
     /**
      * Contadores ao vivo, sem recorte de período: refletem o estado do atendimento no instante da
      * consulta (emIa/emAtendimento) ou o dia corrente no fuso do tenant (leadsNovosHoje/vendasHoje).
-     * Os demais itens do "AGORA" do mockup (aguardando 1ª resposta, esquecidos, atendentes online)
-     * ficam de fora: não existe hoje critério nem instrumentação para eles — ver relatório da E197.
+     * Os itens aguardando 1ª resposta e esquecidos do "AGORA" do mockup ficam de fora: não existe
+     * hoje critério nem instrumentação para eles — ver relatório da E197. A presença inclui apenas
+     * atendentes e subgestores ativos.
      */
-    public record StatusAoVivo(long emIa, long emAtendimento, long leadsNovosHoje, long vendasHoje) {}
+    public record StatusAoVivo(
+            long emIa,
+            long emAtendimento,
+            long leadsNovosHoje,
+            long vendasHoje,
+            AtendentesOnline atendentesOnline) {}
+
+    public record AtendentesOnline(long online, long total) {}
 
     public record TempoMedioAtendimento(Long segundos, Comparativo comparativo) {}
 
     public record AvaliacaoMedia(
-            BigDecimal media, int escalaMaxima, long quantidade, Comparativo comparativo) {}
+            BigDecimal media,
+            int escalaMaxima,
+            long quantidade,
+            DistribuicaoDeAvaliacoes distribuicao,
+            Comparativo comparativo) {}
+
+    /** Contagens reais nas faixas usadas pelo resumo visual; não confunde média com distribuição. */
+    public record DistribuicaoDeAvaliacoes(long otimo, long bom, long ruim) {}
 
     public record ResolucaoPorIa(
             BigDecimal percentual,
