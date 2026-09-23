@@ -386,6 +386,9 @@ Nenhum valor desta tabela deve ser commitado. Cadastre-os no ambiente da stack n
 | `AUTOMACAO_RESUMO_IA_INTERVALO_MS` | Frequência do publisher assíncrono; padrão `1000ms`. |
 | `AUTOMACAO_TOKEN` | Token permanente usado nas chamadas do CRM para a Automação. |
 | `AUTOMACAO_CONFIG_CACHE_TTL` | TTL do cache Redis de `configuracao_automacao` (default `5m`). Rede de segurança; invalidação por evento continua. |
+| `DASHBOARD_CACHE_TTL` | Validade dos agregados históricos do Dashboard no Redis; padrão `30s`. Status ao vivo é consultado a cada leitura. |
+| `DASHBOARD_CACHE_WAIT` | Espera máxima por uma consulta equivalente em outra réplica antes de consultar o banco; padrão `1s`. |
+| `DASHBOARD_CACHE_MAX_BYTES` | Tamanho máximo de uma resposta agregada gravada no cache; padrão `131072` bytes. |
 | `AUTOMACAO_WEBHOOK_EVENTOS_URL` | URL completa do webhook do n8n que recebe, de forma assíncrona, o payload cru e `X-Hub-Signature-256` enviados pela Meta. |
 | `AUTOMACAO_AVALIACAO_URL` | Opcional, vazio desliga pesquisas após encerramento individual; não é o repasse cru. |
 | `AUTOMACAO_AVALIACAO_TOKEN` | Segredo privado do webhook de avaliação, somente no ambiente; default vazio. |
