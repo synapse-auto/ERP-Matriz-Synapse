@@ -968,6 +968,7 @@ export const TextosSchema = z.object({
   dashboard: z.object({
     titulo: z.string(), descricao: z.string(), carregando: z.string(), erro: z.string(), semDado: z.string(),
     abas: z.object({ rotulo: z.string(), visaoGeral: z.string(), operacional: z.string(), comercial: z.string(), iaAutomacao: z.string(), depois: z.string() }),
+    modos: z.object({ rotulo: z.string(), compacta: z.string(), expandida: z.string(), serieIndisponivel: z.string() }).default({ rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" }),
     periodos: z.object({ rotulo: z.string(), hoje: z.string(), seteDias: z.string(), mes: z.string(), ano: z.string() }),
     somenteComputador: z.string(),
     avisoComputador: z.string(),

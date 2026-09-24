@@ -1057,6 +1057,12 @@
       "iaAutomacao": "IA e Automação",
       "depois": "Em breve"
     },
+    "modos": {
+      "rotulo": "Modo de visualização",
+      "compacta": "Compacta",
+      "expandida": "Expandida",
+      "serieIndisponivel": "Série mensal indisponível"
+    },
     "periodos": {
       "rotulo": "Período",
       "hoje": "Hoje",
