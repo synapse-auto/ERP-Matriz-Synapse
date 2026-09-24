@@ -544,11 +544,11 @@ describe("PaginaAtendimentosCliente", () => {
     }));
     // O canal amplo nao inicia um GET enquanto o POST de leitura esta pendente, eliminando a
     // possibilidade de o retorno stale reintroduzir o contador antigo.
-    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+    expect(invalidar).not.toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
     expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(0);
 
     act(() => leitura.resolver?.());
-    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] }));
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] })));
   });
 
   it("continua invalidando a lista para mensagem nova de conversa fechada", () => {
@@ -571,7 +571,7 @@ describe("PaginaAtendimentosCliente", () => {
       },
     }));
 
-    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["atendimentos"] });
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
   });
 
   it("mantém o snapshot até o evento canônico e então reconcilia cabeçalho e painel", async () => {

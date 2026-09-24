@@ -5,6 +5,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, MessageCircle, UserRound, X } from "lucide-react";
 
+import {
+  atualizarPainelDeAtendimentos,
+  pedidoDaNotificacao,
+} from "@/lib/atendimento/atualizacao-do-painel";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import {
   chaveTecnicaDaNotificacao,
@@ -52,7 +56,9 @@ export function NotificacoesTempoReal() {
     });
     if (!decisao) return;
     if (decisao.atualizarAtendimentos) {
-      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      // E209: este ouvinte vive no layout (todas as páginas) e recebe ATENDIMENTO_ESTADO de cada
+      // mensagem visível ao papel; o agendador junta a rajada e o eco da tela de Atendimentos.
+      atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(notificacao));
     }
     if (decisao.atualizarChatInterno) {
       void cache.invalidateQueries({ queryKey: ["chat-interno"] });
