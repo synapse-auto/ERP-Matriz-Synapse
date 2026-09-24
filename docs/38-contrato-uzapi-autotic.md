@@ -190,6 +190,21 @@ Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId
 `WHATSAPP_USUARIO_API`.
 Localização não chama o downloader e é persistida em metadados estruturados.
 
+**Contato compartilhado (PR do contato compartilhado, V81).** O schema `ContactsMessage` de
+`/webhook/message/contacts` traz o cartão em `messages[].contacts[]`, com `name.formatted_name`/
+`first_name` e `phones[].phone`/`type` — sem `wa_id`, diferente da Meta. O tradutor grava uma
+mensagem `CONTATO` com `midia_metadados = {"contatos":[{"nome","telefones":[{"numero","tipo"}]}]}`;
+contato sem telefone é preservado com `telefones: []`. O `value.contacts[]` do envelope continua
+servindo só para o nome do remetente e nunca vira contato compartilhado. Um cartão Status/Story
+continua filtrado como qualquer evento Status/Story.
+
+**Itens que não viram mensagem.** Reação, enquete e qualquer tipo ainda não traduzido, item sem
+`id`/`from`, mídia sem id e item malformado são registrados na linha de `webhook_entrada`
+(`itens_descartados`, `descartes`) e no log `[DESCARTE_WEBHOOK]`, sem telefone nem conteúdo. Status
+de entrega (inclusive `played`/`deleted`, ainda sem mapeamento) e Status/Story são ignorados por
+decisão e não contam como descarte. Detalhe e consulta operacional em
+`docs/44-paridade-whatsapp-auditoria-e-plano.md`.
+
 Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
 identificador técnico da mídia e devolve uma indisponibilidade retentável. O processador mantém o
 payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o

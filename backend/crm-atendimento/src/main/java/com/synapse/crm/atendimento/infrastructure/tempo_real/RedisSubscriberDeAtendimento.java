@@ -326,17 +326,22 @@ class RedisSubscriberDeAtendimento implements MessageListener {
         return false;
     }
 
+    /**
+     * Falha fechada para o <b>evento</b>, nao para a <b>assinatura</b> (E208). Erro tecnico na
+     * revalidacao — pool de banco esgotado, timeout — nao e prova de que o usuario perdeu acesso:
+     * este evento nao e entregue, mas a assinatura continua registrada e a proxima mensagem tenta
+     * revalidar de novo. Antes, a assinatura era removida e a revogacao enviada; o frontend fechava
+     * a conversa e so voltava a receber eventos depois de um F5 — com o pool esgotado, isso atingia
+     * todos os atendentes ao mesmo tempo. Negacao real de acesso continua revogando em
+     * {@link #revalidarERenovar}.
+     */
     private boolean revalidarERenovarComFalhaFechada(AssinaturaAutorizada assinatura) {
         try {
             return revalidarERenovar(assinatura);
         } catch (RuntimeException erro) {
-            registro.remover(assinatura);
-            enviarParaUsuario(
-                    assinatura.usuarioId(),
-                    DESTINO_REVOGACAO,
-                    "{\"atendimentoId\":\"" + assinatura.atendimentoId() + "\"}");
             log.warn(
-                    "Falha ao revalidar assinatura; acesso revogado: atendimentoId={}, usuarioId={}",
+                    "Revalidacao de assinatura indisponivel; evento nao entregue, assinatura mantida"
+                            + " para nova tentativa: atendimentoId={}, usuarioId={}",
                     assinatura.atendimentoId(),
                     assinatura.usuarioId(),
                     erro);

@@ -15,12 +15,18 @@ vi.mock("@/lib/config/textos-provider", () => ({
         pausar: "Pausar áudio",
         posicao: "Posição do áudio",
         documento: "Documento",
+        midiaNaoRecebida: "O arquivo não chegou ao CRM.",
         baixar: "Baixar",
         botoes: "Opções",
         lista: "Lista",
         localizacao: "Localização",
         localizacaoIncompleta: "Localização incompleta",
         abrirLocalizacao: "Abrir localização",
+        contato: "Contato compartilhado",
+        contatoSemNome: "Contato sem nome",
+        contatoSemTelefone: "Sem telefone no cartão",
+        copiarTelefone: "Copiar número",
+        ligarPara: "Ligar para {numero}",
         visualizador: {
           fechar: "Fechar visualizador",
           anterior: "Mídia anterior",
@@ -185,6 +191,45 @@ describe("BolhaMensagem", () => {
     expect(screen.getByRole("button", { name: "Abrir Orcamento_2231.pdf" })).toBeInTheDocument();
     expect(document.querySelector("a[target='_blank']")).toBeNull();
     expect(document.querySelector("[href*='/api/']")).toBeNull();
+  });
+
+  it("avisa quando o documento do cliente não chegou, sem oferecer abrir", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
+          tipo: "DOCUMENTO",
+          conteudo: null,
+          midiaUrl: null,
+          midiaMetadados: JSON.stringify({ indisponivel: true, nome: "exame.pdf" }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("exame.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("O arquivo não chegou ao CRM.");
+    expect(screen.getByRole("button", { name: "Abrir exame.pdf" })).toBeDisabled();
+  });
+
+  it("não mostra o aviso de arquivo não recebido em mídia que chegou", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          tipo: "IMAGEM",
+          conteudo: null,
+          midiaUrl: "https://example.test/foto.png",
+          midiaMetadados: JSON.stringify({ indisponivel: true }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("O arquivo não chegou ao CRM.")).not.toBeInTheDocument();
   });
 
   it("não coloca caminho /api/ em src nem href mesmo se a API devolver um", () => {
@@ -589,9 +634,38 @@ describe("BolhaMensagem", () => {
 
     expect(screen.getByText("Localização")).toBeInTheDocument();
     expect(screen.getByText("-7.115, -34.864")).toBeInTheDocument();
-    
+
     const botaoAbrir = screen.getByRole("link", { name: "Abrir localização" });
     expect(botaoAbrir).toBeInTheDocument();
     expect(botaoAbrir).toHaveAttribute("href", "https://www.google.com/maps/search/?api=1&query=-7.115,-34.864");
+  });
+
+  it("mostra o contato compartilhado recebido a partir dos metadados persistidos", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
+          tipo: "CONTATO",
+          conteudo: null,
+          midiaMetadados: JSON.stringify({
+            contatos: [
+              { nome: "Arquiteta Exemplo", telefones: [{ numero: "+55 61 98888-0000", tipo: "CELL" }] },
+              { nome: "Sem Telefone", telefones: [] },
+            ],
+          }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Arquiteta Exemplo")).toBeInTheDocument();
+    expect(screen.getByText("Sem Telefone")).toBeInTheDocument();
+    expect(screen.getByText("Sem telefone no cartão")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /^Ligar para/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Ligar para +55 61 98888-0000" }))
+      .toHaveAttribute("href", "tel:+5561988880000");
   });
 });

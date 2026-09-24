@@ -213,6 +213,96 @@ describe("ConexaoTempoReal", () => {
     vi.useRealTimers();
   });
 
+  it("E208: reconectar (renovação do token) desativa o cliente anterior em vez de deixá-lo vivo", () => {
+    const primeiro = clienteStompFalso().cliente;
+    const segundo = clienteStompFalso().cliente;
+    const criarCliente = vi.fn().mockReturnValueOnce(primeiro).mockReturnValueOnce(segundo);
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente,
+    });
+
+    conexao.conectar();
+    conexao.conectar();
+
+    expect(criarCliente).toHaveBeenCalledTimes(2);
+    expect(primeiro.deactivate).toHaveBeenCalledTimes(1);
+    expect(segundo.deactivate).not.toHaveBeenCalled();
+  });
+
+  it("E208: fechamento tardio de um cliente substituído não abre outro socket", () => {
+    vi.useFakeTimers();
+    const criados: ClienteStompLike[] = [];
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => {
+        const { cliente } = clienteStompFalso();
+        criados.push(cliente);
+        return cliente;
+      },
+    });
+
+    conexao.conectar();
+    const fecharAntigo = criados[0].onWebSocketClose;
+    const erroAntigo = criados[0].onStompError;
+    conexao.conectar(); // renovação do token
+    fecharAntigo?.();
+    erroAntigo?.();
+    vi.advanceTimersByTime(60_000);
+
+    expect(criados).toHaveLength(2);
+    expect(criados[1].deactivate).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("E208: várias renovações de token com quedas de rede mantêm um único cliente ativo", () => {
+    vi.useFakeTimers();
+    const criados: ClienteStompLike[] = [];
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => {
+        const { cliente } = clienteStompFalso();
+        criados.push(cliente);
+        return cliente;
+      },
+    });
+
+    for (let i = 0; i < 10; i += 1) {
+      conexao.conectar();
+      criados[criados.length - 1].onWebSocketClose?.();
+      vi.advanceTimersByTime(60_000);
+    }
+
+    const ativos = criados.filter((cliente) => vi.mocked(cliente.deactivate).mock.calls.length === 0);
+    expect(ativos).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("E208: erro STOMP seguido de close do mesmo cliente agenda uma única reconexão", () => {
+    vi.useFakeTimers();
+    const criados: ClienteStompLike[] = [];
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      criarCliente: () => {
+        const { cliente } = clienteStompFalso();
+        criados.push(cliente);
+        return cliente;
+      },
+    });
+
+    conexao.conectar();
+    criados[0].onStompError?.();
+    criados[0].onWebSocketClose?.();
+    vi.advanceTimersByTime(60_000);
+
+    expect(criados).toHaveLength(2);
+    vi.useRealTimers();
+  });
+
   it("nao cria nem ativa cliente STOMP sem access token", () => {
     const { cliente } = clienteStompFalso();
     const criarCliente = vi.fn(() => cliente);

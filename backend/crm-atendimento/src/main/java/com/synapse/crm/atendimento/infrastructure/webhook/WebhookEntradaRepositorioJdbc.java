@@ -6,11 +6,14 @@ import java.util.List;
 
 import javax.sql.DataSource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.WebhookEntrada;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -51,6 +54,14 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     private static final String SQL_PROCESSADO =
             "UPDATE webhook_entrada SET processado_em = ?, ultimo_erro = NULL WHERE id_externo = ?";
 
+    /**
+     * Separado do {@link #SQL_PROCESSADO} de proposito: o caminho comum (nada descartado) continua
+     * exatamente o SQL anterior a V81. As colunas novas so sao tocadas quando ha o que registrar.
+     */
+    private static final String SQL_PROCESSADO_COM_DESCARTES =
+            "UPDATE webhook_entrada SET processado_em = ?, ultimo_erro = NULL,"
+                    + " itens_descartados = ?, descartes = ?::jsonb WHERE id_externo = ?";
+
     private static final String SQL_REAGENDAR =
             "UPDATE webhook_entrada SET tentativas = tentativas + 1, proxima_tentativa_em = ?,"
                     + " ultimo_erro = ? WHERE id_externo = ?";
@@ -67,9 +78,12 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
             "SELECT count(*) FROM webhook_entrada WHERE esgotado_em IS NOT NULL";
 
     private final JdbcTemplate chat;
+    private final ObjectMapper json;
 
-    WebhookEntradaRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
+    WebhookEntradaRepositorioJdbc(
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource, ObjectMapper json) {
         this.chat = new JdbcTemplate(chatDataSource);
+        this.json = json;
     }
 
     @Override
@@ -95,9 +109,27 @@ class WebhookEntradaRepositorioJdbc implements WebhookEntrada {
     }
 
     @Override
-    public void marcarProcessado(String idExterno, Instant quando) {
+    public void marcarProcessado(
+            String idExterno, Instant quando, List<TradutorDeCanal.ItemDescartado> descartes) {
         TransacaoObrigatoria.exigir("marcarProcessado");
-        chat.update(SQL_PROCESSADO, Timestamp.from(quando), idExterno);
+        if (descartes == null || descartes.isEmpty()) {
+            chat.update(SQL_PROCESSADO, Timestamp.from(quando), idExterno);
+            return;
+        }
+        chat.update(
+                SQL_PROCESSADO_COM_DESCARTES,
+                Timestamp.from(quando),
+                descartes.size(),
+                emJson(descartes),
+                idExterno);
+    }
+
+    private String emJson(List<TradutorDeCanal.ItemDescartado> descartes) {
+        ArrayNode itens = json.createArrayNode();
+        descartes.forEach(descarte -> itens.addObject()
+                .put("tipo", descarte.tipo())
+                .put("motivo", descarte.motivo().name()));
+        return itens.toString();
     }
 
     @Override

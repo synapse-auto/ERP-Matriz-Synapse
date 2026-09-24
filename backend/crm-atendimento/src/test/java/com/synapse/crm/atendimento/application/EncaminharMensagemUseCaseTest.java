@@ -79,6 +79,42 @@ class EncaminharMensagemUseCaseTest {
     }
 
     @Test
+    void midiaQueOProvedorNaoEntregouNaoEEncaminhada() {
+        UUID origemAtendimentoId = UUID.randomUUID();
+        UUID destinoAtendimentoId = UUID.randomUUID();
+        UUID origemLead = UUID.randomUUID();
+        UUID mensagemId = UUID.randomUUID();
+        Instant quando = Instant.parse("2026-09-22T18:17:42Z");
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        OrigemDeMensagemRepositorio origens = mock(OrigemDeMensagemRepositorio.class);
+        EnviarMensagemUseCase enviar = mock(EnviarMensagemUseCase.class);
+
+        Atendimento origemAtendimento = new Atendimento(
+                origemAtendimentoId, origemLead, UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), StatusAtendimento.EM_ATENDIMENTO, quando, null);
+        Atendimento destino = new Atendimento(
+                destinoAtendimentoId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), StatusAtendimento.EM_ATENDIMENTO, quando, null);
+        Mensagem origem = Mensagem.midia(
+                mensagemId, origemAtendimentoId, Remetente.lead(), TipoMensagem.DOCUMENTO,
+                null, "{\"indisponivel\":true,\"nome\":\"exame.pdf\"}", quando);
+
+        when(atendimentos.porId(origemAtendimentoId)).thenReturn(Optional.of(origemAtendimento));
+        when(atendimentos.porId(destinoAtendimentoId)).thenReturn(Optional.of(destino));
+        when(origens.buscar(mensagemId, quando))
+                .thenReturn(Optional.of(new OrigemDeMensagem(origem, origemLead, "Lead", null)));
+
+        EncaminharMensagemUseCase useCase = new EncaminharMensagemUseCase(atendimentos, origens, enviar);
+
+        assertThatThrownBy(() -> useCase.executar(
+                        origemAtendimentoId, mensagemId, quando, destinoAtendimentoId))
+                .isInstanceOf(EncaminhamentoIncompativelException.class);
+
+        verify(enviar, never()).executarComReferencia(any(), any(), any());
+    }
+
+    @Test
     void destinoForaDaVisibilidadeNaoChamaEnvio() {
         UUID origemAtendimentoId = UUID.randomUUID();
         UUID destinoAtendimentoId = UUID.randomUUID();

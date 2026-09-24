@@ -3,6 +3,8 @@ package com.synapse.crm.atendimento.application;
 import java.time.Instant;
 import java.util.List;
 
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+
 /**
  * Fila duravel de entrada: o que o provedor mandou, antes de o CRM entender.
  *
@@ -28,7 +30,15 @@ public interface WebhookEntrada {
     /** Pendentes reservados para este processador. */
     List<Pendente> reservarPendentes(int limite);
 
-    void marcarProcessado(String idExterno, Instant quando);
+    /**
+     * Conclui a linha.
+     *
+     * @param descartes itens de mensagem do cliente que nao viraram mensagem; vazio quando todos
+     *     foram traduzidos. Gravados na linha por tipo e motivo — nunca payload, id de contato ou
+     *     telefone — para que "processada" nao esconda uma perda parcial.
+     */
+    void marcarProcessado(
+            String idExterno, Instant quando, List<TradutorDeCanal.ItemDescartado> descartes);
 
     /** Falhou depois de consultar o provedor; incrementa tentativa e agenda com backoff. */
     void reagendar(String idExterno, Instant proximaTentativa, String erro);

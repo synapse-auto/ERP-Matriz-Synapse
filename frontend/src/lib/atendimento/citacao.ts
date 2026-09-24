@@ -8,6 +8,7 @@ type RotulosDeMidia = {
   documento: string;
   video?: string;
   localizacao?: string;
+  contato?: string;
   origemIndisponivel: string;
 };
 
@@ -30,6 +31,8 @@ export function previaExibida(citacao: CitacaoMensagem, rotulos: RotulosDeMidia)
   if (citacao.tipoConteudo === "DOCUMENTO") return rotulos.documento;
   if (citacao.tipoConteudo === "VIDEO" && rotulos.video) return rotulos.video;
   if (citacao.tipoConteudo === "LOCALIZACAO" && rotulos.localizacao) return rotulos.localizacao;
+  // Nome e telefone do contato não viram prévia (o backend também devolve prévia vazia).
+  if (citacao.tipoConteudo === "CONTATO" && rotulos.contato) return rotulos.contato;
   return rotulos.origemIndisponivel;
 }
 

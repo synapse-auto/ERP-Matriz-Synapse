@@ -188,111 +188,159 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                     "sticker", "IMAGEM");
 
     @Override
-    public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
+    public Traducao traduzirComDescartes(String payloadCru) {
         List<MensagemRecebidaDoCanal> traduzidas = new ArrayList<>();
-        for (MensagemDoPayload mensagemDoPayload : mensagens(payloadCru)) {
-            JsonNode no = mensagemDoPayload.mensagem();
-            String tipoMeta = no.path("type").asText();
-
-            // A Meta manda epoch em segundos, como string.
-            Instant enviadoEm =
-                    Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond()));
-            String idExterno = no.path("id").asText();
-            String identificadorDestino = mensagemDoPayload.valor().path("metadata").path("phone_number_id").asText(null);
-            String telefoneRemetente = no.path("from").asText();
-            String nomeExibicao = nomeDeExibicao(mensagemDoPayload.valor(), telefoneRemetente);
-            String contextoWamid = no.path("context").path("id").asText(null);
-
-            if ("interactive".equals(tipoMeta)) {
-                JsonNode interativa = no.path("interactive");
-                String titulo = tituloDaResposta(interativa);
-                if (titulo == null || titulo.isBlank()) {
-                    // O continue abaixo é metade do bug histórico: sem log, a resposta do
-                    // cliente sumia sem rastro no histórico (E134). type e nomes das chaves
-                    // bastam para diagnosticar; o payload inteiro carrega telefone/conteúdo.
-                    log.warn(
-                            "Resposta interativa sem titulo reconhecido; item descartado. type={} chaves={}",
-                            interativa.path("type").asText(""),
-                            campos(interativa));
-                    continue;
-                }
-                // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
-                // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
-                traduzidas.add(MensagemRecebidaDoCanal.texto(
-                        idExterno, identificadorDestino, telefoneRemetente, nomeExibicao, titulo, enviadoEm,
-                        contextoWamid));
-                continue;
+        List<ItemDescartado> descartes = new ArrayList<>();
+        for (MensagemDoPayload item : mensagens(payloadCru)) {
+            String tipo = TipoDeItemDoProvedor.normalizar(item.mensagem().path("type").asText(null));
+            try {
+                traduzidas.add(traduzirItem(item));
+            } catch (ItemNaoTraduzido e) {
+                descartes.add(new ItemDescartado(tipo, e.motivo()));
+            } catch (RuntimeException e) {
+                // Um item malformado nao pode levar os demais do mesmo POST. Nem a excecao nem o
+                // JSON vao para o log: os dois podem carregar telefone ou conteudo.
+                log.warn("Item de webhook Meta malformado; item descartado. type={}", tipo);
+                descartes.add(new ItemDescartado(tipo, MotivoDeDescarte.ITEM_MALFORMADO));
             }
+        }
+        return new Traducao(traduzidas, descartes);
+    }
 
-            if ("text".equals(tipoMeta)) {
-                traduzidas.add(MensagemRecebidaDoCanal.texto(
-                        idExterno, identificadorDestino, telefoneRemetente, nomeExibicao,
-                        no.path("text").path("body").asText(), enviadoEm, contextoWamid));
-                continue;
+    private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload item) {
+        JsonNode no = item.mensagem();
+        String tipoMeta = no.path("type").asText();
+        Origem origem = origemDo(item);
+        if (origem.idExterno().isBlank() || origem.telefoneRemetente().isBlank()) {
+            // Mesma checagem da Uzapi, aqui no tradutor: o descarte sai com o tipo no vocabulario
+            // do provedor, e a mesma causa nao aparece com dois nomes conforme o provedor.
+            log.warn("Mensagem Meta sem identificador obrigatorio; item descartado. type={}", tipoMeta);
+            throw new ItemNaoTraduzido(MotivoDeDescarte.SEM_IDENTIFICADOR);
+        }
+        return switch (tipoMeta) {
+            case "text" -> origem.texto(no.path("text").path("body").asText());
+            // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
+            // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
+            case "interactive" -> origem.texto(tituloExigido(no.path("interactive")));
+            case "location" -> origem.estruturada("LOCALIZACAO", localizacao(no.path("location")));
+            // messages[].contacts[] e o cartao compartilhado; value.contacts[] (remetente) nao
+            // chega aqui.
+            case "contacts" -> origem.estruturada("CONTATO", contatoCompartilhado(no.path("contacts")));
+            default -> origem.midia(tipoDeMidia(tipoMeta), no.path(tipoMeta));
+        };
+    }
+
+    private Origem origemDo(MensagemDoPayload item) {
+        JsonNode no = item.mensagem();
+        String telefoneRemetente = no.path("from").asText();
+        return new Origem(
+                no.path("id").asText(),
+                item.valor().path("metadata").path("phone_number_id").asText(null),
+                telefoneRemetente,
+                nomeDeExibicao(item.valor(), telefoneRemetente),
+                // A Meta manda epoch em segundos, como string.
+                Instant.ofEpochSecond(no.path("timestamp").asLong(Instant.now().getEpochSecond())),
+                no.path("context").path("id").asText(null));
+    }
+
+    private static String tituloExigido(JsonNode interativa) {
+        String titulo = tituloDaResposta(interativa);
+        if (titulo == null || titulo.isBlank()) {
+            // Sem este registro a resposta do cliente sumia sem rastro no histórico (E134). type e
+            // nomes das chaves bastam para diagnosticar; o payload inteiro carrega telefone/conteúdo.
+            log.warn(
+                    "Resposta interativa sem titulo reconhecido; item descartado. type={} chaves={}",
+                    interativa.path("type").asText(""),
+                    campos(interativa));
+            throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+        }
+        return titulo;
+    }
+
+    private String localizacao(JsonNode locNode) {
+        double latitude = locNode.path("latitude").asDouble();
+        double longitude = locNode.path("longitude").asDouble();
+        if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+            // As coordenadas nao vao para o log: localizacao do cliente e dado pessoal.
+            log.warn("Coordenadas de localizacao invalidas; item descartado.");
+            throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+        }
+
+        ObjectNode metadados = json.createObjectNode();
+        metadados.put("latitude", latitude);
+        metadados.put("longitude", longitude);
+        String nome = locNode.path("name").asText(null);
+        if (nome != null && !nome.isBlank()) {
+            metadados.put("nome", nome);
+        }
+        String endereco = locNode.path("address").asText(null);
+        if (endereco != null && !endereco.isBlank()) {
+            metadados.put("endereco", endereco);
+        }
+        return metadados.toString();
+    }
+
+    private String contatoCompartilhado(JsonNode contatos) {
+        return ContatoCompartilhado.metadados(contatos, json).orElseThrow(() -> {
+            log.warn("Contato compartilhado sem nome nem telefone; item descartado.");
+            return new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+        });
+    }
+
+    private static String tipoDeMidia(String tipoMeta) {
+        String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
+        if (tipoCrm == null) {
+            // Nem texto, nem midia suportada (reacao, unsupported, etc.). Descartar somente este
+            // item preserva as mensagens boas que vierem no mesmo POST; o descarte vai para a
+            // linha da fila, e o warn continua para quem le o log (E134).
+            log.warn("Tipo de mensagem Meta desconhecido; item descartado. type={}", tipoMeta);
+            throw new ItemNaoTraduzido(MotivoDeDescarte.TIPO_NAO_SUPORTADO);
+        }
+        return tipoCrm;
+    }
+
+    /** O que todo item de mensagem carrega, independente do tipo. */
+    private record Origem(
+            String idExterno,
+            String identificadorDestino,
+            String telefoneRemetente,
+            String nomeExibicao,
+            Instant enviadoEm,
+            String contextoWamid) {
+
+        MensagemRecebidaDoCanal texto(String texto) {
+            return MensagemRecebidaDoCanal.texto(
+                    idExterno, identificadorDestino, telefoneRemetente, nomeExibicao, texto, enviadoEm,
+                    contextoWamid);
+        }
+
+        MensagemRecebidaDoCanal estruturada(String tipo, String metadados) {
+            return new MensagemRecebidaDoCanal(
+                    idExterno, telefoneRemetente, nomeExibicao, metadados, tipo, null, null, null, null,
+                    enviadoEm, identificadorDestino, contextoWamid);
+        }
+
+        MensagemRecebidaDoCanal midia(String tipo, JsonNode midiaNo) {
+            String midiaId = midiaNo.path("id").asText(null);
+            if (midiaId == null || midiaId.isBlank()) {
+                // Sem id nao ha como baixar a midia com seguranca.
+                log.warn("Midia Meta sem id; item descartado. type={}", tipo);
+                throw new ItemNaoTraduzido(MotivoDeDescarte.SEM_IDENTIFICADOR);
             }
-
-            if ("location".equals(tipoMeta)) {
-                JsonNode locNode = no.path("location");
-                double latitude = locNode.path("latitude").asDouble();
-                double longitude = locNode.path("longitude").asDouble();
-                if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-                    log.warn("Coordenadas de localizacao invalidas; item descartado. latitude={} longitude={}", latitude, longitude);
-                    continue;
-                }
-
-                ObjectNode metadados = json.createObjectNode();
-                metadados.put("latitude", latitude);
-                metadados.put("longitude", longitude);
-                String nome = locNode.path("name").asText(null);
-                if (nome != null && !nome.isBlank()) {
-                    metadados.put("nome", nome);
-                }
-                String endereco = locNode.path("address").asText(null);
-                if (endereco != null && !endereco.isBlank()) {
-                    metadados.put("endereco", endereco);
-                }
-
-                traduzidas.add(new MensagemRecebidaDoCanal(
-                        idExterno,
-                        telefoneRemetente,
-                        nomeExibicao,
-                        metadados.toString(),
-                        "LOCALIZACAO",
-                        null,
-                        null,
-                        null,
-                        null,
-                        enviadoEm,
-                        identificadorDestino,
-                        contextoWamid));
-                continue;
-            }
-
-            String tipoCrm = TIPO_META_PARA_CRM.get(tipoMeta);
-            if (tipoCrm == null) {
-                // Nem texto, nem midia suportada (status, reacao, etc.). Ignorar
-                // somente este item preserva as mensagens boas que vierem no mesmo POST.
-                // Sem warn, um type novo da Meta some sem rastro (E134).
-                log.warn("Tipo de mensagem Meta desconhecido; item descartado. type={}", tipoMeta);
-                continue;
-            }
-
-            JsonNode midiaNo = no.path(tipoMeta);
-            traduzidas.add(new MensagemRecebidaDoCanal(
+            return new MensagemRecebidaDoCanal(
                     idExterno,
                     telefoneRemetente,
                     nomeExibicao,
                     null,
-                    tipoCrm,
-                    midiaNo.path("id").asText(null),
+                    tipo,
+                    midiaId,
                     midiaNo.path("mime_type").asText(null),
                     midiaNo.path("filename").asText(null),
                     midiaNo.path("caption").asText(null),
                     enviadoEm,
                     identificadorDestino,
-                    contextoWamid));
+                    contextoWamid);
         }
-        return traduzidas;
     }
 
     // --- formato da Meta (nada abaixo daqui sai desta classe) ------------------

@@ -304,8 +304,15 @@ no MinIO um arquivo que a Uzapi não disponibiliza.
   HTTP 404. **Nunca** envie token, telefone do contato, corpo do webhook ou URL temporária.
 - Pergunte pela rota de resolução efetiva, pela janela de disponibilidade do arquivo e por eventual
   mudança na instância desde 08/09/2026.
-- O backoff durável mantém o evento em `webhook_entrada`; se a Uzapi disponibilizar o arquivo dentro
-  do prazo, o CRM o recupera sem ação manual.
+- O backoff durável mantém o evento em `webhook_entrada` e retenta até `WEBHOOK_PRAZO_MIDIA`
+  (padrão 10 minutos a partir de `recebido_em`); se a Uzapi disponibilizar o arquivo nesse prazo, o
+  CRM o recupera sem ação manual. **Até o E207 esse prazo era, na prática, ~77s** (5 tentativas com
+  backoff de 5s), e a mídia não entregue sumia sem deixar rastro na conversa.
+- Vencido o prazo, a mensagem entra na conversa **sem arquivo**, com o aviso "o arquivo não chegou
+  ao CRM" para o atendente pedir o reenvio. O log registra `[MIDIA_NAO_RECEBIDA]` com o id da entrada
+  e o HTTP do resolvedor. Um HTTP 410 em mídia recém-chegada (caso Fêmina, 22/09/2026: 4 documentos
+  da mesma paciente) não se resolve com retentativa: o arquivo não existe mais na Uzapi e deve ser
+  levado ao suporte deles com `mediaId` e horário.
 - Não adicionar `phone_number_id` ou `username` como fallback: o endpoint corrigido é exclusivamente
   `/{version}/{mediaId}`.
 - Não reprocessar automaticamente linhas esgotadas. Depois da confirmação de uma mídia nova

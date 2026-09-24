@@ -63,8 +63,60 @@ public interface TradutorDeCanal {
      */
     List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru);
 
-    /** Traduz todas as mensagens, na ordem do payload. Vazio quando nao ha mensagens de cliente. */
-    List<MensagemRecebidaDoCanal> traduzir(String payloadCru);
+    /**
+     * Traduz todas as mensagens, na ordem do payload, e declara cada item de cliente que ficou para
+     * tras.
+     *
+     * <p>O descarte faz parte do resultado, e nao so de um log: a fila de entrada grava os descartes
+     * na propria linha do POST, e e isso que distingue "processada com item perdido" de "todos os
+     * itens traduzidos". Eventos que o provedor manda e o CRM ignora por decisao (status de entrega,
+     * Status/Story) nao entram em {@link Traducao#descartes()} — nao sao mensagem perdida.
+     */
+    Traducao traduzirComDescartes(String payloadCru);
+
+    /** Atalho para quem so precisa das mensagens. */
+    default List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
+        return traduzirComDescartes(payloadCru).mensagens();
+    }
+
+    /** Por que um item de mensagem do cliente nao virou mensagem no historico. */
+    enum MotivoDeDescarte {
+        /** O provedor documenta o tipo, mas o CRM ainda nao o traduz. */
+        TIPO_NAO_SUPORTADO,
+        /** Tipo conhecido, mas o conteudo nao passa na validacao (ex.: coordenada fora da faixa). */
+        CONTEUDO_INVALIDO,
+        /** Sem identificador externo, remetente ou referencia de midia: nao da para registrar. */
+        SEM_IDENTIFICADOR,
+        /** A leitura do item falhou; os demais itens do mesmo POST seguem. */
+        ITEM_MALFORMADO
+    }
+
+    /**
+     * Um item de cliente que nao virou mensagem.
+     *
+     * @param tipo tipo do item <b>normalizado</b> pelo adaptador para um vocabulario fechado; nunca
+     *     texto livre do payload, para nao explodir cardinalidade nem carregar conteudo
+     */
+    record ItemDescartado(String tipo, MotivoDeDescarte motivo) {
+
+        public ItemDescartado {
+            Objects.requireNonNull(tipo, "tipo e obrigatorio");
+            Objects.requireNonNull(motivo, "motivo e obrigatorio");
+        }
+    }
+
+    /** Resultado da traducao de um POST: o que entra no historico e o que ficou de fora. */
+    record Traducao(List<MensagemRecebidaDoCanal> mensagens, List<ItemDescartado> descartes) {
+
+        public Traducao {
+            mensagens = List.copyOf(mensagens);
+            descartes = List.copyOf(descartes);
+        }
+
+        public static Traducao semDescartes(List<MensagemRecebidaDoCanal> mensagens) {
+            return new Traducao(mensagens, List.of());
+        }
+    }
 
     /**
      * Uma atualizacao de entrega, ja traduzida.
@@ -100,10 +152,10 @@ public interface TradutorDeCanal {
      * @param telefoneRemetente e por ele que se acha (ou se cria) o lead — o provedor nao conhece
      *     nosso id
      * @param nomeExibicao como o cliente aparece no WhatsApp; serve para nomear um lead novo
-     * @param texto {@code null} quando a mensagem e midia; para {@code "LOCALIZACAO"}, carrega os
-     *     metadados estruturados normalizados
+     * @param texto {@code null} quando a mensagem e midia; para {@code "LOCALIZACAO"} e
+     *     {@code "CONTATO"}, carrega os metadados estruturados normalizados
      * @param tipo {@code "TEXTO"}, {@code "IMAGEM"}, {@code "AUDIO"}, {@code "DOCUMENTO"},
-     *     {@code "VIDEO"} ou {@code "LOCALIZACAO"} — nome
+     *     {@code "VIDEO"}, {@code "LOCALIZACAO"} ou {@code "CONTATO"} — nome
      *     de {@code TipoMensagem} como String, e nao o enum em si, para o dominio de canal nao
      *     depender do de mensagem so por causa disto; quem converte e
      *     {@code ProcessadorDeWebhookEntradaOperacoes}

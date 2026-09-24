@@ -291,13 +291,36 @@ export class ConexaoTempoReal {
       clearTimeout(this.timerReconexao);
       this.timerReconexao = null;
     }
-    this.assinaturaAtendimento = null;
-    this.assinaturaNotificacoes = null;
     this.atendimentoAberto = null;
     this.onEventoAtual = null;
-    this.cliente?.deactivate();
-    this.cliente = null;
+    this.descartarCliente();
     this.emitirEstado("desconectado");
+  }
+
+  /**
+   * Encerra o cliente atual antes de outro assumir o lugar (E208). Sem isto, cada renovação do
+   * access token (a cada 15 min) e cada reconexão abriam um socket novo e deixavam o anterior vivo,
+   * com heartbeat e assinaturas: em produção chegou a mais de 130 sessões STOMP por usuário, e as
+   * revalidações dessas assinaturas esgotaram o pool de banco do chat. Os handlers do cliente
+   * descartado viram no-op — o fechamento dele não pode agendar reconexão nem trocar o cliente atual.
+   */
+  private descartarCliente(): void {
+    if (this.timerReconexao) {
+      clearTimeout(this.timerReconexao);
+      this.timerReconexao = null;
+    }
+    const anterior = this.cliente;
+    this.cliente = null;
+    this.assinaturaAtendimento = null;
+    this.assinaturaNotificacoes = null;
+    if (!anterior) {
+      return;
+    }
+    const ignorar = () => undefined;
+    anterior.onConnect = ignorar;
+    anterior.onWebSocketClose = ignorar;
+    anterior.onStompError = ignorar;
+    anterior.deactivate();
   }
 
   /** Desassina a conversa anterior (se houver) antes de assinar a nova. */
@@ -340,9 +363,9 @@ export class ConexaoTempoReal {
   }
 
   private abrirClienteEConectar(): void {
+    this.descartarCliente();
     const accessToken = this.leitorDeAccessToken();
     if (!accessToken) {
-      this.cliente = null;
       this.emitirEstado("desconectado");
       return;
     }
@@ -353,6 +376,11 @@ export class ConexaoTempoReal {
     this.cliente = cliente;
 
     cliente.onConnect = (frame) => {
+      if (this.cliente !== cliente) {
+        // CONNECTED tardio de um cliente já substituído: não assina nada nem anuncia "conectado".
+        cliente.deactivate();
+        return;
+      }
       this.configuracaoDeBackoff = configuracaoDeBackoffDoServidor(frame?.headers);
       this.tentativas = 0;
       cliente.subscribe(DESTINO_REVOGACOES, (mensagem) => {
@@ -392,13 +420,18 @@ export class ConexaoTempoReal {
     };
 
     const agendarReconexao = () => {
-      if (this.desativadoManualmente) {
+      // Só o cliente atual reconecta. Um cliente já substituído que fecha depois não pode
+      // derrubar o atual nem abrir mais um socket — era isso que multiplicava as sessões.
+      if (this.desativadoManualmente || this.cliente !== cliente || this.timerReconexao) {
         return;
       }
       this.emitirEstado("reconectando");
       const atraso = calcularBackoffMs(this.tentativas, true, this.configuracaoDeBackoff);
       this.tentativas += 1;
-      this.timerReconexao = setTimeout(() => this.abrirClienteEConectar(), atraso);
+      this.timerReconexao = setTimeout(() => {
+        this.timerReconexao = null;
+        this.abrirClienteEConectar();
+      }, atraso);
     };
 
     cliente.onWebSocketClose = agendarReconexao;

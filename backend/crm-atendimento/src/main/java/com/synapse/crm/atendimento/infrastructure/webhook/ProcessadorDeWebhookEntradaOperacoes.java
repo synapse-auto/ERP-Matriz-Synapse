@@ -3,8 +3,10 @@ package com.synapse.crm.atendimento.infrastructure.webhook;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +68,18 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
     public static final String MARCADOR_ALARME = "[ALERTA_WEBHOOK_ESGOTADO]";
 
+    /**
+     * Item de mensagem do cliente que nao virou mensagem no historico. Fixo para alerta de log; o
+     * detalhe duravel fica em {@code webhook_entrada.descartes}.
+     */
+    public static final String MARCADOR_DESCARTE = "[DESCARTE_WEBHOOK]";
+
+    /**
+     * Midia que o provedor nao entregou dentro do prazo e entrou na conversa sem arquivo. Fixo para
+     * alerta de log: e anexo do cliente que o atendente precisa pedir de novo.
+     */
+    public static final String MARCADOR_MIDIA_NAO_RECEBIDA = "[MIDIA_NAO_RECEBIDA]";
+
     private final WebhookEntrada entrada;
     private final TradutorDeCanal tradutor;
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
@@ -88,6 +102,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final Duration backoffInicial;
     private final Duration backoffMaximo;
     private final Duration prazoAbsoluto;
+    private final Duration prazoMidia;
     private final TransactionTemplate transacoes;
 
     public ProcessadorDeWebhookEntradaOperacoes(
@@ -113,7 +128,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             @Value("${synapse.canal.webhook.maximo-de-tentativas:5}") int maximoDeTentativas,
             @Value("${synapse.canal.webhook.prazo-absoluto:2h}") Duration prazoAbsoluto,
             @Value("${synapse.canal.webhook.backoff-inicial:5s}") Duration backoffInicial,
-            @Value("${synapse.canal.webhook.backoff-maximo:30m}") Duration backoffMaximo) {
+            @Value("${synapse.canal.webhook.backoff-maximo:30m}") Duration backoffMaximo,
+            @Value("${synapse.canal.webhook.prazo-midia:10m}") Duration prazoMidia) {
         this.entrada = entrada;
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
@@ -136,6 +152,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.backoffInicial = backoffInicial;
         this.backoffMaximo = backoffMaximo;
         this.prazoAbsoluto = prazoAbsoluto;
+        this.prazoMidia = prazoMidia;
         this.transacoes = new TransactionTemplate(chatTransactionManager);
         this.transacoes.setName("processar webhook de entrada");
     }
@@ -150,8 +167,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
 
     private void processar(WebhookEntrada.Pendente pendente) {
         Instant agora = Instant.now(relogio);
+        boolean ultimaChanceDaMidia = prazoDaMidiaEstourado(pendente, agora);
         try {
-            transacoes.executeWithoutResult(status -> processarEmTransacao(pendente, agora));
+            transacoes.executeWithoutResult(
+                    status -> processarEmTransacao(pendente, agora, ultimaChanceDaMidia));
 
         } catch (RuntimeException e) {
             // O estado de retry precisa de uma transação própria: a transação da mensagem foi
@@ -160,9 +179,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         }
     }
 
-    private void processarEmTransacao(WebhookEntrada.Pendente pendente, Instant agora) {
-        List<TradutorDeCanal.MensagemRecebidaDoCanal> traduzidas =
-                tradutor.traduzir(pendente.payloadCru());
+    private void processarEmTransacao(
+            WebhookEntrada.Pendente pendente, Instant agora, boolean ultimaChanceDaMidia) {
+        TradutorDeCanal.Traducao traducao = tradutor.traduzirComDescartes(pendente.payloadCru());
+        List<TradutorDeCanal.ItemDescartado> descartes = new ArrayList<>(traducao.descartes());
         String comandoReset = configuracaoDoReset.valor().orElse("");
         if (comandoReset.isBlank()) {
             log.warn(
@@ -174,9 +194,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     "Comando de reset geral indisponivel; mensagens de reset geral nao serao reconhecidas.");
         }
 
-        for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
-            if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()
-                    || !idempotencia.reservarSeNova(mensagem.idExterno())) {
+        for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traducao.mensagens()) {
+            if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()) {
+                descartes.add(descarteDoProcessador(mensagem));
+                continue;
+            }
+            if (!idempotencia.reservarSeNova(mensagem.idExterno())) {
+                // Reentrega de mensagem ja registrada: e deduplicacao, nao perda.
                 continue;
             }
 
@@ -193,22 +217,36 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     // Um webhook de midia sem referencia nao pode ser baixado com seguranca. O item
                     // e descartado isoladamente para que as demais mensagens do mesmo POST sigam.
                     log.warn("Mensagem de midia sem id externo; item descartado.");
+                    descartes.add(descarteDoProcessador(mensagem));
                     continue;
                 }
                 try {
                     requisicao = mensagemRecebidaDeMidia(leadId, mensagem, canalEntrada, referencia);
                 } catch (MidiaRecebidaTemporariamenteIndisponivelException e) {
-                    // Tipo normalizado + id tecnico ficam no motivo seguro de retry; o payload e o
-                    // corpo da resposta do provedor nunca atravessam esta fronteira.
-                    throw e.comTipo(mensagem.tipo());
+                    if (!ultimaChanceDaMidia) {
+                        // Tipo normalizado + id tecnico ficam no motivo seguro de retry; o payload
+                        // e o corpo da resposta do provedor nunca atravessam esta fronteira.
+                        throw e.comTipo(mensagem.tipo());
+                    }
+                    // E207: o prazo acabou e o provedor nao entregou o arquivo. Esgotar a linha
+                    // deixaria o anexo do cliente invisivel para o atendente; registrar sem
+                    // arquivo mostra na conversa que ele existiu e precisa ser pedido de novo.
+                    requisicao = mensagemRecebidaSemArquivo(leadId, mensagem, canalEntrada, referencia);
+                    log.warn(
+                            "{} entrada={} {}",
+                            MARCADOR_MIDIA_NAO_RECEBIDA,
+                            pendente.idExterno(),
+                            e.comTipo(mensagem.tipo()).getMessage());
                 }
-            } else if (TipoMensagem.LOCALIZACAO.name().equals(mensagem.tipo())) {
+            } else if (TipoMensagem.valueOf(mensagem.tipo()).exigeMetadados()) {
+                // Localizacao e contato compartilhado: o tradutor ja normalizou o conteudo em JSON,
+                // que vai para midia_metadados; conteudo fica nulo.
                 requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                         leadId,
                         canalEntrada.canalId(),
                         canalEntrada.canalCredencialId(),
                         null,
-                        TipoMensagem.LOCALIZACAO,
+                        TipoMensagem.valueOf(mensagem.tipo()),
                         null,
                         mensagem.texto(),
                         referencia);
@@ -255,8 +293,54 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             }
         }
 
-        // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
-        entrada.marcarProcessado(pendente.idExterno(), agora);
+        // Payload sem mensagem suportada tambem e consumido — reentregar nao faria o tipo passar a
+        // ser suportado. O que muda e que a perda fica registrada na propria linha, por tipo e
+        // motivo, e aparece no log com um marcador fixo para alerta.
+        entrada.marcarProcessado(pendente.idExterno(), agora, descartes);
+        if (!descartes.isEmpty()) {
+            log.warn(
+                    "{} entrada={} provedor={} itens={} descartes={}",
+                    MARCADOR_DESCARTE,
+                    pendente.idExterno(),
+                    tradutor.provedor(),
+                    descartes.size(),
+                    resumo(descartes));
+        }
+    }
+
+    /**
+     * {@code TipoMensagem} do CRM -> tipo de item como os provedores o chamam. O descarte do
+     * processador usa o mesmo vocabulario dos tradutores, para que a mesma causa nao apareca com
+     * dois nomes na consulta operacional.
+     */
+    private static final Map<String, String> TIPO_DO_ITEM_POR_TIPO_DO_CRM = Map.of(
+            "TEXTO", "text",
+            "IMAGEM", "image",
+            "AUDIO", "audio",
+            "DOCUMENTO", "document",
+            "VIDEO", "video",
+            "LOCALIZACAO", "location",
+            "CONTATO", "contacts");
+
+    /**
+     * Defesa em profundidade: os tradutores ja recusam item sem id ou sem referencia de midia, mas
+     * o processador nao registra mensagem que chegue assim de um tradutor futuro.
+     */
+    private static TradutorDeCanal.ItemDescartado descarteDoProcessador(
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem) {
+        String tipo = mensagem.tipo() == null
+                ? "outro"
+                : TIPO_DO_ITEM_POR_TIPO_DO_CRM.getOrDefault(mensagem.tipo(), "outro");
+        return new TradutorDeCanal.ItemDescartado(
+                tipo, TradutorDeCanal.MotivoDeDescarte.SEM_IDENTIFICADOR);
+    }
+
+    /** {@code tipo:MOTIVO} por item, sem id, telefone ou conteudo. */
+    private static String resumo(List<TradutorDeCanal.ItemDescartado> descartes) {
+        return descartes.stream()
+                .map(descarte -> descarte.tipo() + ":" + descarte.motivo())
+                .toList()
+                .toString();
     }
 
     static boolean ehComandoReset(String texto, String comando) {
@@ -304,6 +388,35 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                 referenciaDaMensagem);
     }
 
+    /**
+     * O anexo que o provedor nao entregou: mesmo tipo, sem arquivo, com {@code indisponivel} nos
+     * metadados para a tela explicar o que houve. Nome e legenda seguem porque ajudam o atendente a
+     * pedir o arquivo certo; nenhum id do provedor entra na conversa.
+     */
+    private RegistrarMensagemRecebidaUseCase.MensagemRecebida mensagemRecebidaSemArquivo(
+            UUID leadId,
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem,
+            CanalEntradaAtiva canalEntrada,
+            ReferenciaDeMensagem referenciaDaMensagem) {
+        ObjectNode metadados = json.createObjectNode();
+        metadados.put("indisponivel", true);
+        if (mensagem.nomeArquivo() != null) {
+            metadados.put("nome", mensagem.nomeArquivo());
+        }
+        if (mensagem.legenda() != null && !mensagem.legenda().isBlank()) {
+            metadados.put("legenda", mensagem.legenda());
+        }
+        return new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
+                leadId,
+                canalEntrada.canalId(),
+                canalEntrada.canalCredencialId(),
+                null,
+                TipoMensagem.valueOf(mensagem.tipo()),
+                null,
+                metadados.toString(),
+                referenciaDaMensagem);
+    }
+
     private ReferenciaDeMensagem referenciaDaMensagem(
             TradutorDeCanal.MensagemRecebidaDoCanal mensagem, UUID leadId) {
         String contextoWamid = mensagem.contextoWamid();
@@ -342,6 +455,19 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             return;
         }
 
+        if (e instanceof MidiaRecebidaTemporariamenteIndisponivelException) {
+            // Arquivo ainda nao disponivel no provedor: retenta com backoff ate o prazo de midia,
+            // sem o teto de tentativas — com ele a linha desistia em ~77s. Passado o prazo, a
+            // proxima rodada registra a mensagem sem arquivo em vez de esgotar (E207).
+            entrada.reagendar(
+                    pendente.idExterno(),
+                    proximaTentativa(agora, pendente.tentativas()),
+                    e.toString());
+            log.warn("Midia do evento {} ainda indisponivel no provedor; sera retentada.",
+                    pendente.idExterno());
+            return;
+        }
+
         int tentativasFeitas = pendente.tentativas() + 1;
 
         if (tentativasFeitas >= maximoDeTentativas) {
@@ -370,6 +496,10 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             espera = backoffMaximo;
         }
         return agora.plus(espera);
+    }
+
+    private boolean prazoDaMidiaEstourado(WebhookEntrada.Pendente pendente, Instant agora) {
+        return !agora.isBefore(pendente.recebidoEm().plus(prazoMidia));
     }
 
     private boolean prazoAbsolutoEstourado(WebhookEntrada.Pendente pendente, Instant agora) {
