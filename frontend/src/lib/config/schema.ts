@@ -665,6 +665,7 @@ export const TextosSchema = z.object({
       pausar: z.string(),
       posicao: z.string(),
       documento: z.string(),
+      midiaNaoRecebida: z.string(),
       baixar: z.string(),
       botoes: z.string(),
       lista: z.string(),

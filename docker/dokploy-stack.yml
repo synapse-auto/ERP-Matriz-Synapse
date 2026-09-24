@@ -208,6 +208,7 @@ services:
       # Fila de entrada. Default seguro; ausencia no painel nao derruba o deploy.
       WEBHOOK_MAX_TENTATIVAS: ${WEBHOOK_MAX_TENTATIVAS:-5}
       WEBHOOK_PRAZO_ABSOLUTO: ${WEBHOOK_PRAZO_ABSOLUTO:-2h}
+      WEBHOOK_PRAZO_MIDIA: ${WEBHOOK_PRAZO_MIDIA:-10m}
       SAUDE_INTERVALO_MONITORAMENTO: ${SAUDE_INTERVALO_MONITORAMENTO:-30s}
       AUTOMACAO_URL: http://synapse-n8n-internal:5678
       AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}

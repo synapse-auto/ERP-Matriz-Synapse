@@ -22,6 +22,8 @@ interface MidiaMetadados {
   latitude?: number;
   longitude?: number;
   endereco?: string;
+  /** O cliente enviou o anexo, mas o provedor nunca entregou o arquivo (E207). */
+  indisponivel?: boolean;
 }
 
 interface OpcaoInterativa {
@@ -266,6 +268,12 @@ export function BolhaMensagem({
               )}
             </span>
           </button>
+        )}
+
+        {!midiaUrl && metadados.indisponivel === true && (
+          <p role="status" className="mt-1.5 text-xs font-medium text-destructive">
+            {textos.midiaNaoRecebida}
+          </p>
         )}
 
         {mensagem.tipo === "TEXTO" && (

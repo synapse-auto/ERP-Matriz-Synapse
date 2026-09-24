@@ -48,7 +48,11 @@ public record Mensagem(
         Objects.requireNonNull(statusEntrega, "status de entrega e obrigatorio");
         Objects.requireNonNull(enviadoEm, "enviadoEm e obrigatorio: e a chave de particao");
 
-        if (tipo.exigeMidia() && (midiaUrl == null || midiaUrl.isBlank())) {
+        // Midia sem arquivo so existe como registro de que o cliente mandou algo que o provedor
+        // nao entregou (E207): os metadados dizem o que era. Sem arquivo e sem metadados nao ha
+        // o que mostrar, e isso continua sendo erro de quem montou a mensagem.
+        if (tipo.exigeMidia() && !temArquivo(midiaUrl)
+                && (midiaMetadados == null || midiaMetadados.isBlank())) {
             throw new IllegalArgumentException("mensagem do tipo " + tipo + " exige midiaUrl");
         }
         if (!tipo.exigeMidia() && !tipo.exigeOpcoes() && !tipo.exigeMetadados()
@@ -121,5 +125,14 @@ public record Mensagem(
 
     public boolean ehRecebida() {
         return remetente.ehDoLead();
+    }
+
+    /** Midia cujo arquivo o provedor nunca entregou: fica no historico, mas nao ha o que abrir. */
+    public boolean ehMidiaSemArquivo() {
+        return tipo.exigeMidia() && !temArquivo(midiaUrl);
+    }
+
+    private static boolean temArquivo(String midiaUrl) {
+        return midiaUrl != null && !midiaUrl.isBlank();
     }
 }

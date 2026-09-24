@@ -437,6 +437,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WEBHOOK_BACKOFF_INICIAL` | `5s` | Espera da primeira retentativa de webhook; dobra a cada falha até o teto. |
 | `WEBHOOK_BACKOFF_MAXIMO` | `30m` | Teto da espera entre retentativas de webhook; persistido em `webhook_entrada`. |
 | `WEBHOOK_PRAZO_ABSOLUTO` | `2h` | Esgota a linha de `webhook_entrada` mesmo com o disjuntor aberto, a partir de `recebido_em`. |
+| `WEBHOOK_PRAZO_MIDIA` | `10m` | Quanto o CRM insiste quando o provedor não entrega o arquivo de uma mídia recebida. Vencido, a mensagem entra na conversa como "arquivo não recebido" em vez de sumir. |
 | `SAUDE_INTERVALO_MONITORAMENTO` | `30s` | Intervalo da sonda de saúde. Isolada dos disjuntores de envio e de mídia. |
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |

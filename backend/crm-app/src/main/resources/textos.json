@@ -582,6 +582,7 @@
       "pausar": "Pausar áudio",
       "posicao": "Posição do áudio",
       "documento": "Documento",
+      "midiaNaoRecebida": "O arquivo não chegou ao CRM. Peça ao cliente para enviar de novo.",
       "localizacao": "Localização",
       "localizacaoIncompleta": "Localização recebida (sem endereço extraído)",
       "abrirLocalizacao": "Abrir no Google Maps",

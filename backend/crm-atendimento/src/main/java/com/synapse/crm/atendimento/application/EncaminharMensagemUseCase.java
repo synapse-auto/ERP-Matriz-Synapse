@@ -108,6 +108,10 @@ public class EncaminharMensagemUseCase {
             return new ConteudoDeEnvio.MensagemLivre(mensagem.conteudo());
         }
         if (tipo.exigeMidia()) {
+            if (mensagem.ehMidiaSemArquivo()) {
+                throw new EncaminhamentoIncompativelException(
+                        "a origem e uma midia que o provedor nao entregou");
+            }
             String legenda = CitacaoDeMensagem.previaDe(tipo, mensagem.conteudo(), mensagem.midiaMetadados());
             return new ConteudoDeEnvio.MensagemMidia(
                     tipo, mensagem.midiaUrl(), mensagem.midiaMetadados(), legenda.isBlank() ? null : legenda);
