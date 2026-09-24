@@ -36,6 +36,9 @@ public record CitacaoDeMensagem(
             case IMAGEM, AUDIO, DOCUMENTO, VIDEO -> sanitizar(legendaDe(metadados));
             case BOTOES, LISTA -> sanitizar(conteudo);
             case LOCALIZACAO -> "Localização";
+            // Nome e telefone de terceiro nao viram previa: a citacao rotula o tipo pelo catalogo
+            // de textos, sem espalhar dado pessoal do contato por outras bolhas.
+            case CONTATO -> "";
         };
     }
 

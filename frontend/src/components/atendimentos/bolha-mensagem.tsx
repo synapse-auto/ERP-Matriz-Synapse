@@ -6,9 +6,11 @@ import { FileText, Maximize2, MapPin } from "lucide-react";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
 import type { MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types";
+import { contatosDaMensagem, textoCopiavelDosContatos } from "@/lib/atendimento/contato-compartilhado";
 
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 
+import { BolhaContato } from "./bolha-contato";
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { StatusEntregaIcone } from "./status-entrega";
 import { PlayerAudio } from "./player-audio";
@@ -73,6 +75,9 @@ type Props = {
 };
 
 export function textoCopiavelDaMensagem(mensagem: MensagemResposta): string | null {
+  if (mensagem.tipo === "CONTATO") {
+    return textoCopiavelDosContatos(contatosDaMensagem(mensagem.midiaMetadados));
+  }
   const conteudo = mensagem.conteudo?.trim();
   if (conteudo) return mensagem.conteudo;
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
@@ -94,7 +99,10 @@ function podeReenviar(
   return janelaTextoLivreAberta;
 }
 
-/** Texto, imagem, áudio, vídeo ou documento — a bolha renderiza os tipos que o backend entrega. */
+/**
+ * Texto, mídia, localização, contato compartilhado, botões e lista — a bolha renderiza os tipos que
+ * o backend entrega.
+ */
 export function BolhaMensagem({
   mensagem,
   leadId,
@@ -309,6 +317,22 @@ export function BolhaMensagem({
               </a>
             )}
           </div>
+        )}
+
+        {mensagem.tipo === "CONTATO" && (
+          <BolhaContato
+            midiaMetadados={mensagem.midiaMetadados}
+            textos={{
+              contato: textos.contato,
+              contatoSemNome: textos.contatoSemNome,
+              contatoSemTelefone: textos.contatoSemTelefone,
+              copiarTelefone: textos.copiarTelefone,
+              ligarPara: textos.ligarPara,
+              copiar: catalogo.mensagem.acoes.copiar,
+              copiada: catalogo.mensagem.acoes.copiada,
+              copiarErro: catalogo.mensagem.acoes.copiarErro,
+            }}
+          />
         )}
 
         {(mensagem.tipo === "BOTOES" || mensagem.tipo === "LISTA") && (

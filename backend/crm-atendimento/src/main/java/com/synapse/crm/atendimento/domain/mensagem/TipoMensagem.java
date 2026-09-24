@@ -9,7 +9,9 @@ public enum TipoMensagem {
     VIDEO,
     BOTOES,
     LISTA,
-    LOCALIZACAO;
+    LOCALIZACAO,
+    /** Cartão de contato compartilhado pelo cliente: nome e telefones em {@code midiaMetadados}. */
+    CONTATO;
 
     /** Tipos de mídia carregam arquivo e precisam de {@code midiaUrl}. */
     public boolean exigeMidia() {
@@ -25,6 +27,6 @@ public enum TipoMensagem {
      * livre em {@code conteudo}. Não exigem {@code midiaUrl}.
      */
     public boolean exigeMetadados() {
-        return this == LOCALIZACAO;
+        return this == LOCALIZACAO || this == CONTATO;
     }
 }

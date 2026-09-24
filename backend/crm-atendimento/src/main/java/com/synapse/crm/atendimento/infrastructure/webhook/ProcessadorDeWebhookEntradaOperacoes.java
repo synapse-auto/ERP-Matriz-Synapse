@@ -3,8 +3,10 @@ package com.synapse.crm.atendimento.infrastructure.webhook;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,6 +67,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private static final Logger log = LoggerFactory.getLogger(ProcessadorDeWebhookEntradaOperacoes.class);
 
     public static final String MARCADOR_ALARME = "[ALERTA_WEBHOOK_ESGOTADO]";
+
+    /**
+     * Item de mensagem do cliente que nao virou mensagem no historico. Fixo para alerta de log; o
+     * detalhe duravel fica em {@code webhook_entrada.descartes}.
+     */
+    public static final String MARCADOR_DESCARTE = "[DESCARTE_WEBHOOK]";
 
     private final WebhookEntrada entrada;
     private final TradutorDeCanal tradutor;
@@ -161,8 +169,8 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     }
 
     private void processarEmTransacao(WebhookEntrada.Pendente pendente, Instant agora) {
-        List<TradutorDeCanal.MensagemRecebidaDoCanal> traduzidas =
-                tradutor.traduzir(pendente.payloadCru());
+        TradutorDeCanal.Traducao traducao = tradutor.traduzirComDescartes(pendente.payloadCru());
+        List<TradutorDeCanal.ItemDescartado> descartes = new ArrayList<>(traducao.descartes());
         String comandoReset = configuracaoDoReset.valor().orElse("");
         if (comandoReset.isBlank()) {
             log.warn(
@@ -174,9 +182,13 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     "Comando de reset geral indisponivel; mensagens de reset geral nao serao reconhecidas.");
         }
 
-        for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traduzidas) {
-            if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()
-                    || !idempotencia.reservarSeNova(mensagem.idExterno())) {
+        for (TradutorDeCanal.MensagemRecebidaDoCanal mensagem : traducao.mensagens()) {
+            if (mensagem.idExterno() == null || mensagem.idExterno().isBlank()) {
+                descartes.add(descarteDoProcessador(mensagem));
+                continue;
+            }
+            if (!idempotencia.reservarSeNova(mensagem.idExterno())) {
+                // Reentrega de mensagem ja registrada: e deduplicacao, nao perda.
                 continue;
             }
 
@@ -193,6 +205,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     // Um webhook de midia sem referencia nao pode ser baixado com seguranca. O item
                     // e descartado isoladamente para que as demais mensagens do mesmo POST sigam.
                     log.warn("Mensagem de midia sem id externo; item descartado.");
+                    descartes.add(descarteDoProcessador(mensagem));
                     continue;
                 }
                 try {
@@ -202,13 +215,15 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     // corpo da resposta do provedor nunca atravessam esta fronteira.
                     throw e.comTipo(mensagem.tipo());
                 }
-            } else if (TipoMensagem.LOCALIZACAO.name().equals(mensagem.tipo())) {
+            } else if (TipoMensagem.valueOf(mensagem.tipo()).exigeMetadados()) {
+                // Localizacao e contato compartilhado: o tradutor ja normalizou o conteudo em JSON,
+                // que vai para midia_metadados; conteudo fica nulo.
                 requisicao = new RegistrarMensagemRecebidaUseCase.MensagemRecebida(
                         leadId,
                         canalEntrada.canalId(),
                         canalEntrada.canalCredencialId(),
                         null,
-                        TipoMensagem.LOCALIZACAO,
+                        TipoMensagem.valueOf(mensagem.tipo()),
                         null,
                         mensagem.texto(),
                         referencia);
@@ -255,8 +270,54 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             }
         }
 
-        // Payload sem mensagem suportada (status, reação, sticker) também é consumido.
-        entrada.marcarProcessado(pendente.idExterno(), agora);
+        // Payload sem mensagem suportada tambem e consumido — reentregar nao faria o tipo passar a
+        // ser suportado. O que muda e que a perda fica registrada na propria linha, por tipo e
+        // motivo, e aparece no log com um marcador fixo para alerta.
+        entrada.marcarProcessado(pendente.idExterno(), agora, descartes);
+        if (!descartes.isEmpty()) {
+            log.warn(
+                    "{} entrada={} provedor={} itens={} descartes={}",
+                    MARCADOR_DESCARTE,
+                    pendente.idExterno(),
+                    tradutor.provedor(),
+                    descartes.size(),
+                    resumo(descartes));
+        }
+    }
+
+    /**
+     * {@code TipoMensagem} do CRM -> tipo de item como os provedores o chamam. O descarte do
+     * processador usa o mesmo vocabulario dos tradutores, para que a mesma causa nao apareca com
+     * dois nomes na consulta operacional.
+     */
+    private static final Map<String, String> TIPO_DO_ITEM_POR_TIPO_DO_CRM = Map.of(
+            "TEXTO", "text",
+            "IMAGEM", "image",
+            "AUDIO", "audio",
+            "DOCUMENTO", "document",
+            "VIDEO", "video",
+            "LOCALIZACAO", "location",
+            "CONTATO", "contacts");
+
+    /**
+     * Defesa em profundidade: os tradutores ja recusam item sem id ou sem referencia de midia, mas
+     * o processador nao registra mensagem que chegue assim de um tradutor futuro.
+     */
+    private static TradutorDeCanal.ItemDescartado descarteDoProcessador(
+            TradutorDeCanal.MensagemRecebidaDoCanal mensagem) {
+        String tipo = mensagem.tipo() == null
+                ? "outro"
+                : TIPO_DO_ITEM_POR_TIPO_DO_CRM.getOrDefault(mensagem.tipo(), "outro");
+        return new TradutorDeCanal.ItemDescartado(
+                tipo, TradutorDeCanal.MotivoDeDescarte.SEM_IDENTIFICADOR);
+    }
+
+    /** {@code tipo:MOTIVO} por item, sem id, telefone ou conteudo. */
+    private static String resumo(List<TradutorDeCanal.ItemDescartado> descartes) {
+        return descartes.stream()
+                .map(descarte -> descarte.tipo() + ":" + descarte.motivo())
+                .toList()
+                .toString();
     }
 
     static boolean ehComandoReset(String texto, String comando) {
