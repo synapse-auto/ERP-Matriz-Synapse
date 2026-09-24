@@ -215,6 +215,13 @@ O componente `fila-outbox` mede a fila transacional que o backend realmente cons
 
 Um único `GET` devolve todos os KPIs, funil, ranking e horário de pico. Papéis: `GESTOR`, `SUBGESTOR`, `ADMINISTRADOR`. Atendente recebe 403.
 
+Os agregados do recorte ficam em cache Redis por até `DASHBOARD_CACHE_TTL` (padrão `30s`),
+com chave que inclui usuário, papéis, intervalos, coorte e fuso. A autorização acontece antes
+da leitura do cache. A faixa `statusAoVivo` é sempre recalculada no PostgreSQL e substitui o
+valor armazenado na resposta agregada. Erros e respostas incompletas não são cacheados. A
+expiração curta limita a defasagem dos agregados sem invalidar Redis no caminho de mensagens;
+detalhes e medições estão em `docs/43-dashboard-performance.md`.
+
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
 | GET | `/api/v1/dashboard/visao-geral` | Visão consolidada (`ano`/`meses` **ou** `inicio`/`fim`, mais `origemInicio`/`origemFim`) | Gestor | `DashboardController` · `DashboardVisaoGeralIT` |

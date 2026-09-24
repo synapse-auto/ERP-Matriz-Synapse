@@ -29,6 +29,25 @@ public record VisaoGeralDashboard(
         equipeDesempenho = List.copyOf(equipeDesempenho);
     }
 
+    public VisaoGeralDashboard comStatusAoVivo(StatusAoVivo statusAtual) {
+        return new VisaoGeralDashboard(
+                periodo,
+                atendimentos,
+                novosLeads,
+                tempoMedioAtendimento,
+                avaliacaoMedia,
+                resolucaoPorIa,
+                vendasFechadas,
+                taxaConversao,
+                statusAtual,
+                funil,
+                leadsPerdidos,
+                horarioDePico,
+                rankingDeVendas,
+                rankingDeAvaliacoes,
+                equipeDesempenho);
+    }
+
     public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
         public Periodo {
             meses = List.copyOf(meses);

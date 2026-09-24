@@ -17,12 +17,15 @@ import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 public class ObterVisaoGeralDashboardUseCase {
 
     private final DashboardVisaoGeralRepositorio repositorio;
+    private final CacheVisaoGeralDashboard cache;
     private final ZoneId fusoHorario;
 
     public ObterVisaoGeralDashboardUseCase(
             DashboardVisaoGeralRepositorio repositorio,
+            CacheVisaoGeralDashboard cache,
             @Value("${synapse.tenant.timezone}") String fusoHorario) {
         this.repositorio = repositorio;
+        this.cache = cache;
         this.fusoHorario = ZoneId.of(fusoHorario);
     }
 
@@ -35,8 +38,12 @@ public class ObterVisaoGeralDashboardUseCase {
             LocalDate fim,
             LocalDate origemInicio,
             LocalDate origemFim) {
-        return repositorio.consultar(
-                FiltroTemporalDashboard.deEntrada(
-                        ano, meses, inicio, fim, origemInicio, origemFim, fusoHorario));
+        FiltroTemporalDashboard filtro = FiltroTemporalDashboard.deEntrada(
+                ano, meses, inicio, fim, origemInicio, origemFim, fusoHorario);
+        CacheVisaoGeralDashboard.Resultado resultado =
+                cache.buscarOuCalcular(filtro, () -> repositorio.consultar(filtro));
+        return resultado.encontradoNoCache()
+                ? resultado.valor().comStatusAoVivo(repositorio.consultarStatusAoVivo(filtro))
+                : resultado.valor();
     }
 }

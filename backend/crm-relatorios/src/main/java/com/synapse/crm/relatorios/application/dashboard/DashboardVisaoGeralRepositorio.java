@@ -7,4 +7,6 @@ import com.synapse.crm.relatorios.domain.dashboard.VisaoGeralDashboard;
 public interface DashboardVisaoGeralRepositorio {
 
     VisaoGeralDashboard consultar(FiltroTemporalDashboard filtro);
+
+    VisaoGeralDashboard.StatusAoVivo consultarStatusAoVivo(FiltroTemporalDashboard filtro);
 }

@@ -62,13 +62,19 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         long vendasAcumuladas =
                 vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
-        long leadsAtuais = contarLeadsDaConversao(filtro, true);
-        long leadsAnteriores = contarLeadsDaConversao(filtro, false);
-        BigDecimal taxaAtual = percentual(vendasAtual.total(), leadsAtuais);
-        BigDecimal taxaAnterior = percentual(vendasAnteriores, leadsAnteriores);
-
         long novosLeadsAtual = contarLeads(filtro.periodoAtual());
         long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
+        long leadsDaOriginacao = filtro.periodoDeOriginacao() == null
+                ? 0
+                : contarLeads(List.of(filtro.periodoDeOriginacao()));
+        long leadsAtuais = filtro.periodoDeOriginacao() == null
+                ? novosLeadsAtual
+                : leadsDaOriginacao;
+        long leadsAnteriores = filtro.periodoDeOriginacao() == null
+                ? novosLeadsAnterior
+                : leadsDaOriginacao;
+        BigDecimal taxaAtual = percentual(vendasAtual.total(), leadsAtuais);
+        BigDecimal taxaAnterior = percentual(vendasAnteriores, leadsAnteriores);
 
         List<VisaoGeralDashboard.AtendenteNaAvaliacao> avaliacoesDoPeriodo =
                 rankingAvaliacoes(filtro.periodoAtual());
@@ -224,13 +230,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 filtro.parametros().toArray());
     }
 
-    private long contarLeadsDaConversao(FiltroTemporalDashboard filtro, boolean atual) {
-        if (filtro.periodoDeOriginacao() != null) {
-            return contarLeads(List.of(filtro.periodoDeOriginacao()));
-        }
-        return contarLeads(atual ? filtro.periodoAtual() : List.of(filtro.periodoAnterior()));
-    }
-
     private long contarLeads(List<IntervaloTemporal> periodos) {
         FiltroSql temporal = periodos("criado_em", periodos);
         Long total = jdbc.queryForObject(
@@ -292,9 +291,22 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         return new FunilResultado(resposta, perdidos);
     }
 
+    @Override
+    public VisaoGeralDashboard.StatusAoVivo consultarStatusAoVivo(FiltroTemporalDashboard filtro) {
+        return statusAoVivo(filtro);
+    }
+
     private VisaoGeralDashboard.StatusAoVivo statusAoVivo(FiltroTemporalDashboard filtro) {
-        long emIa = contarPorStatusAtendimento("EM_IA");
-        long emAtendimento = contarPorStatusAtendimento("EM_ATENDIMENTO");
+        long[] atendimentosPorStatus = jdbc.queryForObject(
+                """
+                SELECT count(*) FILTER (WHERE status = 'EM_IA') AS em_ia,
+                       count(*) FILTER (WHERE status = 'EM_ATENDIMENTO') AS em_atendimento
+                  FROM atendimento
+                 WHERE status IN ('EM_IA', 'EM_ATENDIMENTO')
+                """,
+                (linha, indice) -> new long[] {
+                    linha.getLong("em_ia"), linha.getLong("em_atendimento")
+                });
         ZoneId fuso = filtro.fusoHorario();
         LocalDate hoje = LocalDate.now(fuso);
         IntervaloTemporal intervaloHoje = new IntervaloTemporal(
@@ -311,15 +323,11 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 (linha, indice) -> new VisaoGeralDashboard.AtendentesOnline(
                         linha.getLong("online"), linha.getLong("total")));
         return new VisaoGeralDashboard.StatusAoVivo(
-                emIa, emAtendimento, leadsNovosHoje, vendasHoje, atendentesOnline);
-    }
-
-    private long contarPorStatusAtendimento(String status) {
-        Long total = jdbc.queryForObject(
-                "SELECT count(*) FROM atendimento WHERE status = CAST(? AS status_atendimento)",
-                Long.class,
-                status);
-        return total == null ? 0 : total;
+                atendimentosPorStatus[0],
+                atendimentosPorStatus[1],
+                leadsNovosHoje,
+                vendasHoje,
+                atendentesOnline);
     }
 
     /**

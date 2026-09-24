@@ -254,6 +254,11 @@ synapse:
     reconexao-fator: ${WS_RECONEXAO_FATOR:2}
     reconexao-atraso-maximo-ms: ${WS_RECONEXAO_ATRASO_MAXIMO_MS:30000}
 
+  dashboard:
+    cache-ttl: ${DASHBOARD_CACHE_TTL:30s}
+    cache-wait: ${DASHBOARD_CACHE_WAIT:1s}
+    cache-max-bytes: ${DASHBOARD_CACHE_MAX_BYTES:131072}
+
   automacao:
     # E104: teto do cache de configuracao_automacao. Invalidacao por evento
     # continua sendo o caminho normal; o TTL evita entrada eterna se algo falhar.
