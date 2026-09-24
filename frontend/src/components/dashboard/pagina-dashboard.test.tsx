@@ -17,6 +17,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     dashboard: {
       titulo: "Dashboard", descricao: "Visão consolidada", carregando: "Carregando", erro: "Erro", semDado: "Sem dados",
       abas: { rotulo: "Áreas", visaoGeral: "Visão Geral", operacional: "Operacional", comercial: "Comercial", iaAutomacao: "IA e Automação", depois: "Em breve" },
+      modos: { rotulo: "Modo de visualização", compacta: "Compacta", expandida: "Expandida", serieIndisponivel: "Série mensal indisponível" },
       periodos: { rotulo: "Período", hoje: "Hoje", seteDias: "7 dias", mes: "Mês", ano: "Ano" },
       somenteComputador: "Filtros avançados no computador",
       avisoComputador: "Relatórios completos ficam no computador.",
@@ -108,7 +109,7 @@ describe("PaginaDashboard", () => {
 
     expect(screen.getByTestId("dashboard-conteudo")).toHaveClass("bg-background");
     expect(screen.getByTestId("dashboard-conteudo")).toHaveClass("min-h-full");
-    expect(screen.getByLabelText("Filtros")).toHaveClass("bg-card/75");
+    expect(screen.getByLabelText("Filtros")).toHaveClass("bg-card");
     expect(screen.getAllByText("Atendimentos")[0].closest('[data-slot="card"]')).toHaveClass("bg-card");
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("1h 30min")).toBeInTheDocument();
@@ -134,6 +135,26 @@ describe("PaginaDashboard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Jan" }));
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }));
+  });
+
+  it("alterna Compacta e Expandida sem refazer a consulta nem inventar a série mensal", () => {
+    useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
+    render(<PaginaDashboard />);
+
+    const compacta = screen.getByRole("button", { name: "Compacta" });
+    const expandida = screen.getByRole("button", { name: "Expandida" });
+    expect(compacta).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("serie-indisponivel-Atendimentos")).not.toBeInTheDocument();
+
+    fireEvent.click(expandida);
+    expect(expandida).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("serie-indisponivel-Atendimentos")).toHaveTextContent("Série mensal indisponível");
+    expect(screen.getByTestId("kpi-Atendimentos")).toHaveTextContent("12");
+    expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: expect.any(Array) }));
+
+    fireEvent.click(compacta);
+    expect(compacta).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("serie-indisponivel-Atendimentos")).not.toBeInTheDocument();
   });
 
   it("faixa AGORA mostra os contadores ao vivo e o KPI de novos leads, sem inventar os itens sem critério definido", () => {
@@ -219,7 +240,7 @@ describe("PaginaDashboard", () => {
     render(<PaginaDashboard />);
 
     const janeiro = screen.getByRole("button", { name: "Jan" });
-    expect(janeiro).toHaveClass("bg-primary/10", "border-primary");
+    expect(janeiro).toHaveClass("bg-primary/10", "border-transparent");
 
     fireEvent.click(janeiro);
     const desmarcado = screen.getByRole("button", { name: "Jan" });
