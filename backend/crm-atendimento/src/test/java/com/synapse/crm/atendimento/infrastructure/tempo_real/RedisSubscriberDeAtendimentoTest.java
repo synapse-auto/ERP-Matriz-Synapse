@@ -288,6 +288,52 @@ class RedisSubscriberDeAtendimentoTest {
                 .noneMatch(assinatura -> assinatura.usuarioId().equals(semAcesso));
     }
 
+    @Test
+    void erro_tecnico_na_revalidacao_nao_entrega_mas_mantem_assinatura_e_nao_revoga() {
+        // E208: pool de banco esgotado nao prova perda de acesso. Revogar aqui fechava a conversa
+        // de todos os atendentes ao mesmo tempo, ate um F5.
+        UUID atendente = UUID.randomUUID();
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-e208", "sub-e208", atendimentoId, atendente, PapelUsuario.ATENDENTE));
+        when(listarDestinatarios.executar(atendimentoId)).thenReturn(List.of());
+        when(revalidar.aindaValida(atendimentoId, atendente, PapelUsuario.ATENDENTE))
+                .thenThrow(new IllegalStateException(
+                        "synapse-chat - Connection is not available, request timed out after 3000ms"));
+
+        subscriber.onMessage(mensagem(estadoCanonico()), null);
+
+        verify(template, never()).convertAndSendToUser(
+                eq(atendente.toString()), eq("/queue/revogacoes"), anyString());
+        verify(template, never()).convertAndSendToUser(
+                eq(atendente.toString()), eq("/queue/atendimento." + atendimentoId), anyString());
+        assertThat(registro.doAtendimento(atendimentoId))
+                .anyMatch(assinatura -> assinatura.usuarioId().equals(atendente));
+
+        // Banco de volta: o evento seguinte e entregue sem o usuario precisar de F5.
+        reset(revalidar);
+        when(revalidar.aindaValida(atendimentoId, atendente, PapelUsuario.ATENDENTE)).thenReturn(true);
+        subscriber.onMessage(mensagem(estadoCanonico()), null);
+
+        verify(template).convertAndSendToUser(
+                eq(atendente.toString()), eq("/queue/atendimento." + atendimentoId), contains("ATENDIMENTO_ESTADO"));
+    }
+
+    @Test
+    void negacao_real_na_revalidacao_continua_revogando() {
+        UUID atendente = UUID.randomUUID();
+        registro.registrar(new AssinaturaAutorizada(
+                "sessao-negada", "sub-negada", atendimentoId, atendente, PapelUsuario.ATENDENTE));
+        when(listarDestinatarios.executar(atendimentoId)).thenReturn(List.of());
+        when(revalidar.aindaValida(atendimentoId, atendente, PapelUsuario.ATENDENTE)).thenReturn(false);
+
+        subscriber.onMessage(mensagem(estadoCanonico()), null);
+
+        verify(template).convertAndSendToUser(
+                eq(atendente.toString()), eq("/queue/revogacoes"), contains(atendimentoId.toString()));
+        assertThat(registro.doAtendimento(atendimentoId))
+                .noneMatch(assinatura -> assinatura.usuarioId().equals(atendente));
+    }
+
     private Message mensagem(String corpo) {
         Message mensagem = mock(Message.class);
         org.mockito.Mockito.when(mensagem.getChannel())
