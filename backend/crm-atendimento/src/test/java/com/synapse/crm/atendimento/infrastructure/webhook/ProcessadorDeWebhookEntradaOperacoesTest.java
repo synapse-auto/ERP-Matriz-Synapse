@@ -82,7 +82,9 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         when(leads.resolverPorTelefone(anyString(), any())).thenReturn(UUID.randomUUID());
         when(canaisAtivos.porIdentificadorExterno(anyString()))
                 .thenReturn(Optional.of(new CanalEntradaAtiva(UUID.randomUUID(), UUID.randomUUID())));
-        when(tradutor.traduzir(anyString())).thenReturn(List.of(mensagemDeMidia()));
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(TradutorDeCanal.Traducao.semDescartes(List.of(mensagemDeMidia())));
+        when(tradutor.provedor()).thenReturn("meta-cloud");
     }
 
     @ParameterizedTest
@@ -160,12 +162,16 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     @Test
     void midiaSemIdNaoChamaDownloadENaoBloqueiaOsDemaisItensDoPost() {
         when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
-        when(tradutor.traduzir(anyString())).thenReturn(List.of(mensagemDeMidiaSemId()));
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(TradutorDeCanal.Traducao.semDescartes(List.of(mensagemDeMidiaSemId())));
 
         processador(Duration.ofHours(2)).rodada();
 
         verify(canal, never()).baixarMidiaRecebida(anyString());
-        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA);
+        // A midia sem referencia continua descartada, mas agora a linha diz isso.
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of(
+                new TradutorDeCanal.ItemDescartado(
+                        "image", TradutorDeCanal.MotivoDeDescarte.SEM_IDENTIFICADOR)));
         verify(entrada, never()).reagendar(anyString(), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
     }
@@ -207,8 +213,23 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 .contains("\"indisponivel\":true")
                 .contains("foto.jpg")
                 .doesNotContain("media-id-meta");
-        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA);
+        // Mensagem sem arquivo nao e descarte: o anexo entrou na conversa.
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
+    }
+
+    @Test
+    void descarteDoTradutorEGravadoNaLinhaMesmoSemNenhumaMensagem() {
+        var descarte = new TradutorDeCanal.ItemDescartado(
+                "reaction", TradutorDeCanal.MotivoDeDescarte.TIPO_NAO_SUPORTADO);
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(new TradutorDeCanal.Traducao(List.of(), List.of(descarte)));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of(descarte));
         verify(entrada, never()).reagendar(anyString(), any(), anyString());
     }
 
@@ -235,6 +256,29 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 UUID.randomUUID(), atendimentoId, Remetente.lead(), TipoMensagem.IMAGEM,
                 null, "{\"indisponivel\":true}", AGORA);
         return new RegistrarMensagemRecebidaUseCase.Resultado(atendimento, mensagem, false);
+    }
+
+    @Test
+    void reentregaDeMensagemJaRegistradaNaoEDescarte() {
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        when(idempotencia.reservarSeNova(anyString())).thenReturn(false);
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(canal, never()).baixarMidiaRecebida(anyString());
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
+    }
+
+    @Test
+    void postSemItemDeClienteNaoGeraDescarte() {
+        // POST so de status (ou Status/Story filtrado): o tradutor nao devolve mensagem nem descarte.
+        when(entrada.reservarPendentes(anyInt())).thenReturn(List.of(pendente(0, AGORA)));
+        when(tradutor.traduzirComDescartes(anyString()))
+                .thenReturn(TradutorDeCanal.Traducao.semDescartes(List.of()));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
     }
 
     private ProcessadorDeWebhookEntradaOperacoes processador(Duration prazoAbsoluto) {

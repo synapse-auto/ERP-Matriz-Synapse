@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+
 import { SinalizadorShellPronto } from "@/components/auth/sinalizador-shell-pronto";
 import { NavegacaoInferior } from "@/components/shell/navegacao-inferior";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -19,6 +22,14 @@ export function ShellComSidebar({ children }: { children: React.ReactNode }) {
 
 function ShellInterno({ children }: { children: React.ReactNode }) {
   const expansao = useExpansaoDaSidebar();
+  const pathname = usePathname();
+  const [dashboardFixada, setDashboardFixada] = useState(true);
+  const noDashboard = pathname === "/dashboard";
+  const fixada = noDashboard ? dashboardFixada : expansao.fixada;
+  const expandida = noDashboard ? dashboardFixada || expansao.expandida : expansao.expandida;
+  const alternarFixacao = noDashboard
+    ? () => setDashboardFixada((atual) => !atual)
+    : expansao.alternarFixacao;
   const telaEstreita = useTelaEstreita();
   const { ativa: conversaEmTelaCheia } = useConversaEmTelaCheia();
   const mostrarBarraInferior = telaEstreita && !conversaEmTelaCheia;
@@ -31,16 +42,16 @@ function ShellInterno({ children }: { children: React.ReactNode }) {
       {!telaEstreita && (
         <div
           className="relative h-full shrink-0"
-          style={estiloDaLarguraDoSlot(expansao.fixada)}
+          style={estiloDaLarguraDoSlot(fixada)}
           data-slot="sidebar-slot"
-          data-fixada={expansao.fixada ? "true" : "false"}
-          data-expandida={expansao.expandida ? "true" : "false"}
-          data-sobreposta={expansao.sobreposta ? "true" : "false"}
+          data-fixada={fixada ? "true" : "false"}
+          data-expandida={expandida ? "true" : "false"}
+          data-sobreposta={expandida && !fixada ? "true" : "false"}
         >
           <Sidebar
-            retraida={!expansao.expandida}
-            fixada={expansao.fixada}
-            onAlternar={expansao.alternarFixacao}
+            retraida={!expandida}
+            fixada={fixada}
+            onAlternar={alternarFixacao}
             onPonteiroEntrar={expansao.aoPonteiroEntrar}
             onPonteiroSair={expansao.aoPonteiroSair}
             onFocoDentro={expansao.aoFocoDentro}

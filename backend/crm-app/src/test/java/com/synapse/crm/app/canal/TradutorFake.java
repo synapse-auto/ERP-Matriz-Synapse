@@ -64,6 +64,11 @@ public class TradutorFake implements TradutorDeCanal {
     }
 
     @Override
+    public Traducao traduzirComDescartes(String payloadCru) {
+        return Traducao.semDescartes(traduzir(payloadCru));
+    }
+
+    @Override
     public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
         List<String> ids = idsExternos(payloadCru);
         if (ids.isEmpty()) {

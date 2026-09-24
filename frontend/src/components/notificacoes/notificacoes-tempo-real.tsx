@@ -212,6 +212,7 @@ function rotuloDaMidia(
   if (normalizado === "VIDEO") return media.visualizador.video;
   if (normalizado === "DOCUMENTO") return media.documento;
   if (normalizado === "LOCALIZACAO") return media.localizacao;
+  if (normalizado === "CONTATO" && media.contato) return media.contato;
   try {
     const mime = typeof metadados === "string"
       ? String((JSON.parse(metadados) as { mimetype?: unknown }).mimetype ?? "").toLowerCase()

@@ -5,7 +5,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ has: () => true }),
 }));
 
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("next/navigation", () => ({ redirect: vi.fn(), usePathname: () => "/atendimentos" }));
 
 vi.mock("@/components/shell/sidebar", () => ({
   Sidebar: () => <aside>Menu</aside>,

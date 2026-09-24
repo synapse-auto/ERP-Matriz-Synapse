@@ -485,6 +485,7 @@
         "documento": "Documento",
         "video": "Vídeo",
         "localizacao": "Localização",
+        "contato": "Contato",
         "irParaOrigem": "Ir para mensagem respondida"
       }
     },
@@ -586,6 +587,11 @@
       "localizacao": "Localização",
       "localizacaoIncompleta": "Localização recebida (sem endereço extraído)",
       "abrirLocalizacao": "Abrir no Google Maps",
+      "contato": "Contato compartilhado",
+      "contatoSemNome": "Contato sem nome",
+      "contatoSemTelefone": "Sem telefone no cartão",
+      "copiarTelefone": "Copiar número",
+      "ligarPara": "Ligar para {numero}",
       "baixar": "Baixar",
       "botoes": "Opções",
       "lista": "Lista",
@@ -1057,6 +1063,12 @@
       "comercial": "Comercial",
       "iaAutomacao": "IA e Automação",
       "depois": "Em breve"
+    },
+    "modos": {
+      "rotulo": "Modo de visualização",
+      "compacta": "Compacta",
+      "expandida": "Expandida",
+      "serieIndisponivel": "Série mensal indisponível"
     },
     "periodos": {
       "rotulo": "Período",

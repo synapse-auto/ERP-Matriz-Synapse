@@ -18,6 +18,9 @@ const estadoSidebar = vi.hoisted(() => ({
   onFocoDentro: undefined as undefined | (() => void),
   onFocoFora: undefined as undefined | (() => void),
 }));
+const rota = vi.hoisted(() => ({ atual: "/atendimentos" }));
+
+vi.mock("next/navigation", () => ({ usePathname: () => rota.atual }));
 
 vi.mock("@/components/shell/sidebar", () => ({
   Sidebar: ({
@@ -84,6 +87,7 @@ describe("ShellComSidebar", () => {
   let notificarMudanca: (() => void) | undefined;
 
   beforeEach(() => {
+    rota.atual = "/atendimentos";
     telaEstreita = false;
     notificarMudanca = undefined;
     estadoSidebar.retraida = true;
@@ -115,6 +119,16 @@ describe("ShellComSidebar", () => {
     expect(screen.getByTestId("sidebar")).toHaveAttribute("data-fixada", "false");
     expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
     expect(screen.queryByTestId("navegacao-inferior")).not.toBeInTheDocument();
+  });
+
+  it("abre a sidebar no Dashboard sem mudar o estado inicial de Atendimentos", () => {
+    rota.atual = "/dashboard";
+    render(<ShellComSidebar><p>Dashboard</p></ShellComSidebar>);
+
+    expect(screen.getByTestId("sidebar")).toHaveAttribute("data-state", "expanded");
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraExpandidaPx}px` });
+    fireEvent.click(screen.getByRole("button", { name: "pin" }));
+    expect(slotDaSidebar()).toHaveStyle({ width: `${EXPANSAO_DA_SIDEBAR.larguraRetraidaPx}px` });
   });
 
   it("hover abre em sobreposicao: slot fica em 76px e o chat nao e empurrado", () => {

@@ -5,9 +5,11 @@ import { ptBR } from "date-fns/locale";
 import {
   Bot,
   CalendarDays,
+  ChartColumn,
   CircleDollarSign,
   Clock3,
   Handshake,
+  LayoutGrid,
   ListFilter,
   Lock,
   Monitor,
@@ -43,6 +45,7 @@ import { cn, iniciaisDoNome } from "@/lib/utils";
 const ANOS_DISPONIVEIS = 7;
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
+type ModoDashboard = "compacta" | "expandida";
 
 /*
  * Cor por métrica vem SEMPRE de token (tema.json → CSS custom property). Nada de hex aqui: trocar
@@ -134,6 +137,7 @@ export function PaginaDashboard() {
   const [fim, setFim] = useState("");
   const [periodo, setPeriodo] = useState<PeriodoEnxuto>("mes");
   const [avisoComputadorAberto, setAvisoComputadorAberto] = useState(false);
+  const [modo, setModo] = useState<ModoDashboard>("compacta");
 
   const filtro = useMemo(
     () => ({
@@ -203,25 +207,35 @@ export function PaginaDashboard() {
   return (
     <div
       data-testid="dashboard-conteudo"
-      className="flex min-h-full flex-col gap-6 bg-background p-6 lg:p-8 max-sm:gap-4 max-sm:p-4"
+      className="flex min-h-full flex-col gap-5 bg-background p-6 lg:p-7 max-sm:gap-4 max-sm:p-4"
     >
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
-          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">{textos.descricao}</p>
+      <header className="-mx-6 -mt-6 border-b bg-card px-6 pt-7 lg:-mx-7 lg:-mt-7 lg:px-7 max-sm:-mx-4 max-sm:-mt-4 max-sm:px-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">{textos.titulo}</h1>
+            <p className="mt-1 hidden text-sm text-muted-foreground sm:block">{textos.descricao}</p>
+          </div>
+          {telaEstreita && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => setAvisoComputadorAberto(true)}
+            >
+              <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+              {textos.filtros.rotulo}
+            </Button>
+          )}
         </div>
-        {telaEstreita && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => setAvisoComputadorAberto(true)}
-          >
-            <Lock className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-            {textos.filtros.rotulo}
-          </Button>
-        )}
+        {/* As abas futuras continuam desabilitadas até terem dados e comportamento reais. */}
+        <nav className="mt-3 flex flex-wrap items-end gap-1" aria-label={textos.abas.rotulo}>
+          <Aba ativa>{textos.abas.visaoGeral}</Aba>
+          {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
+            <Aba key={aba}>{`${aba} · ${textos.abas.depois}`}</Aba>
+          ))}
+          <Aba className="max-sm:hidden">{`${textos.abas.iaAutomacao} · ${textos.abas.depois}`}</Aba>
+        </nav>
       </header>
 
       {telaEstreita && (
@@ -245,27 +259,14 @@ export function PaginaDashboard() {
         </div>
       )}
 
-      {/*
-        Abas por sublinhado, não por pílula preenchida. As três abas futuras continuam com o sufixo
-        "Em breve" e `disabled`: o modelo não tem o sufixo porque é mock com tudo pronto — aqui,
-        aba que parece clicável e não abre nada é pior que aba feia.
-      */}
-      <nav className="flex flex-wrap items-end gap-1 border-b" aria-label={textos.abas.rotulo}>
-        <Aba ativa>{textos.abas.visaoGeral}</Aba>
-        {[textos.abas.operacional, textos.abas.comercial].map((aba) => (
-          <Aba key={aba}>{`${aba} · ${textos.abas.depois}`}</Aba>
-        ))}
-        <Aba className="max-sm:hidden">{`${textos.abas.iaAutomacao} · ${textos.abas.depois}`}</Aba>
-      </nav>
-
       <section
-        className="hidden rounded-xl border bg-card/75 p-4 sm:block"
+        className="hidden rounded-2xl border bg-card p-4 sm:block"
         aria-label={textos.filtros.rotulo}
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-28">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-20 shrink-0">
             <label
-              className="mb-1.5 block text-xs font-semibold text-muted-foreground"
+              className="sr-only"
               htmlFor="dashboard-ano"
             >
               {textos.filtros.ano}
@@ -278,15 +279,15 @@ export function PaginaDashboard() {
               placeholder={textos.filtros.ano}
             />
           </div>
-          <div className="min-w-0 flex-1">
-            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+          <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2">
+            <span className="sr-only">
               {textos.filtros.meses}
             </span>
             {/*
               Pílulas suaves com contorno: só o que está selecionado ganha destaque. Doze pílulas
               azuis sólidas liam como "tudo selecionado" e viravam parede de azul.
             */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1">
               <Button
                 type="button"
                 size="sm"
@@ -296,7 +297,7 @@ export function PaginaDashboard() {
                 className={cn(
                   "rounded-full",
                   anoInteiroSelecionado &&
-                    "border-primary bg-primary/10 text-primary hover:bg-primary/15",
+                    "border-transparent bg-primary/10 text-primary hover:bg-primary/15",
                 )}
               >
                 {textos.filtros.anoInteiro}
@@ -314,7 +315,7 @@ export function PaginaDashboard() {
                     onClick={() => alternarMes(valor)}
                     className={cn(
                       "min-w-10 rounded-full",
-                      ativo && "border-primary bg-primary/10 text-primary hover:bg-primary/15",
+                      ativo && "border-transparent bg-primary/10 text-primary hover:bg-primary/15",
                     )}
                   >
                     {mes}
@@ -323,8 +324,36 @@ export function PaginaDashboard() {
               })}
             </div>
           </div>
-          <div className="w-[214px] shrink-0">
-            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+          <div
+            className="flex shrink-0 items-center rounded-xl bg-muted p-1"
+            role="group"
+            aria-label={textos.modos.rotulo}
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant={modo === "compacta" ? "outline" : "ghost"}
+              aria-pressed={modo === "compacta"}
+              onClick={() => setModo("compacta")}
+              className={cn("h-8 gap-1.5 px-2 text-xs", modo === "compacta" && "text-primary shadow-sm")}
+            >
+              <LayoutGrid className="size-3.5" aria-hidden />
+              {textos.modos.compacta}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={modo === "expandida" ? "outline" : "ghost"}
+              aria-pressed={modo === "expandida"}
+              onClick={() => setModo("expandida")}
+              className={cn("h-8 gap-1.5 px-2 text-xs", modo === "expandida" && "text-primary shadow-sm")}
+            >
+              <ChartColumn className="size-3.5" aria-hidden />
+              {textos.modos.expandida}
+            </Button>
+          </div>
+          <div className="w-48 shrink-0 text-xs">
+            <span className="sr-only">
               {textos.filtros.originacao}
             </span>
             <SeletorDeOriginacao
@@ -356,6 +385,7 @@ export function PaginaDashboard() {
       {consulta.data && (
         <ConteudoDashboard
           dados={consulta.data}
+          modo={modo}
           telaEstreita={telaEstreita}
           atualizadoEm={consulta.dataUpdatedAt ?? 0}
         />
@@ -463,10 +493,12 @@ function SeletorDeOriginacao({
 
 function ConteudoDashboard({
   dados,
+  modo,
   telaEstreita,
   atualizadoEm,
 }: {
   dados: VisaoGeralDashboard;
+  modo: ModoDashboard;
   telaEstreita: boolean;
   atualizadoEm: number;
 }) {
@@ -480,7 +512,10 @@ function ConteudoDashboard({
 
       {/* Indicadores existentes com fonte real; métricas sem critério definido não são inventadas. */}
       <section
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+        className={cn(
+          "grid grid-cols-1 gap-3 sm:grid-cols-2",
+          modo === "compacta" ? "lg:grid-cols-3 2xl:grid-cols-4" : "lg:grid-cols-3",
+        )}
         role="group"
         aria-label={textos.kpis.rotulo}
       >
@@ -493,6 +528,7 @@ function ConteudoDashboard({
           comparativo={dados.atendimentos.comparativo}
           Icone={UsersRound}
           tom={TOM_ATENDIMENTOS}
+          modo={modo}
         />
         <Kpi
           titulo={textos.kpis.novosLeads}
@@ -501,6 +537,7 @@ function ConteudoDashboard({
           comparativo={dados.novosLeads.comparativo}
           Icone={UserPlus}
           tom={TOM_NOVOS_LEADS}
+          modo={modo}
         />
         <Kpi
           titulo={textos.kpis.tempoMedio}
@@ -509,6 +546,7 @@ function ConteudoDashboard({
           comparativo={dados.tempoMedioAtendimento.comparativo}
           Icone={Clock3}
           tom={TOM_TEMPO}
+          modo={modo}
           quedaPositiva
         />
         <Kpi
@@ -520,6 +558,7 @@ function ConteudoDashboard({
           comparativo={dados.vendasFechadas.comparativo}
           Icone={CircleDollarSign}
           tom={TOM_VENDAS}
+          modo={modo}
         />
         <Kpi
           titulo={textos.kpis.conversao}
@@ -535,6 +574,7 @@ function ConteudoDashboard({
           comparativo={dados.taxaConversao.comparativo}
           Icone={Handshake}
           tom={TOM_CONVERSAO}
+          modo={modo}
         />
         <Kpi
           titulo={textos.kpis.csat}
@@ -547,6 +587,7 @@ function ConteudoDashboard({
           comparativo={dados.avaliacaoMedia.comparativo}
           Icone={Star}
           tom={TOM_AVALIACAO}
+          modo={modo}
         />
         <Kpi
           titulo={textos.kpis.resolucaoIa}
@@ -559,6 +600,7 @@ function ConteudoDashboard({
           comparativo={dados.resolucaoPorIa.comparativo}
           Icone={Bot}
           tom={TOM_IA}
+          modo={modo}
         />
       </section>
 
@@ -590,18 +632,41 @@ interface KpiProps {
   Icone: React.ComponentType<{ className?: string }>;
   tom: string;
   quedaPositiva?: boolean;
+  modo: ModoDashboard;
 }
 
-function Kpi({ titulo, valor, apoio, comparativo, Icone, tom, quedaPositiva = false }: KpiProps) {
+function Kpi({
+  titulo,
+  valor,
+  apoio,
+  comparativo,
+  Icone,
+  tom,
+  quedaPositiva = false,
+  modo,
+}: KpiProps) {
   const textos = useTextos().dashboard;
 
   // Card compacto do mockup: ícone e título na mesma linha, selo no canto direito, número e
   // linha de apoio embaixo. A sparkline do mockup fica de fora: o DTO não traz série por mês, e
   // barras desenhadas sem série seriam dado inventado.
   return (
-    <Card className="gap-1.5 py-4" style={{ "--tom": tom } as React.CSSProperties}>
-      <CardHeader className="flex items-center gap-1.5 px-4">
-        <Icone className="size-(--tamanho-icone-interface) shrink-0 text-[var(--tom)]" />
+    <Card
+      className={cn("gap-1.5", modo === "compacta" ? "min-h-22 py-2.5" : "min-h-60 py-5")}
+      style={{ "--tom": tom } as React.CSSProperties}
+    >
+      <CardHeader
+        className={cn("flex items-center px-4", modo === "compacta" ? "gap-1.5" : "gap-3")}
+      >
+        <span
+          className={cn(
+            "flex shrink-0 items-center justify-center text-[var(--tom)]",
+            modo === "expandida" &&
+              "size-10 rounded-xl bg-[color-mix(in_oklab,var(--tom)_10%,transparent)]",
+          )}
+        >
+          <Icone className="size-(--tamanho-icone-interface)" />
+        </span>
         <CardTitle className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
           {titulo}
         </CardTitle>
@@ -622,6 +687,14 @@ function Kpi({ titulo, valor, apoio, comparativo, Icone, tom, quedaPositiva = fa
           {valor}
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">{apoio}</p>
+        {modo === "expandida" && (
+          <div
+            className="mt-5 flex min-h-28 items-center justify-center rounded-md border border-dashed text-center text-xs text-muted-foreground"
+            data-testid={`serie-indisponivel-${titulo}`}
+          >
+            {textos.modos.serieIndisponivel}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
