@@ -1,4 +1,4 @@
-import { FileText, Image, MapPin, Music2, Video } from "lucide-react";
+import { FileText, Image, MapPin, Music2, UserRound, Video } from "lucide-react";
 
 import type { CitacaoMensagem, OrigemDaCitacao } from "@/lib/atendimento/types";
 import { previaExibida } from "@/lib/atendimento/citacao";
@@ -109,11 +109,13 @@ function IconeDaCitacao({
     : tipo === "VIDEO" ? Video
       : tipo === "AUDIO" ? Music2
         : tipo === "LOCALIZACAO" ? MapPin
+          : tipo === "CONTATO" ? UserRound
           : FileText;
   const rotulo = tipo === "IMAGEM" ? textos.imagem
     : tipo === "VIDEO" ? (textos.video ?? textos.origemIndisponivel)
     : tipo === "AUDIO" ? textos.audio
       : tipo === "LOCALIZACAO" ? (textos.localizacao ?? textos.origemIndisponivel)
+      : tipo === "CONTATO" ? (textos.contato ?? textos.origemIndisponivel)
           : textos.documento;
   return (
     <span className="flex size-10 shrink-0 flex-col items-center justify-center rounded bg-muted/60 text-muted-foreground" aria-label={rotulo}>

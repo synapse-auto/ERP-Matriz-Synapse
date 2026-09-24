@@ -568,6 +568,7 @@ export const TextosSchema = z.object({
         // publicados antes da navegação de citações. O backend atual já os fornece.
         video: z.string().optional(),
         localizacao: z.string().optional(),
+        contato: z.string().optional(),
         irParaOrigem: z.string().optional(),
       }),
     }),
@@ -671,6 +672,13 @@ export const TextosSchema = z.object({
       localizacao: z.string(),
       localizacaoIncompleta: z.string(),
       abrirLocalizacao: z.string(),
+      // Contato compartilhado (V81). Opcionais pelo mesmo motivo das citações: um catálogo de filho
+      // publicado antes não pode reprovar a tela inteira; sem eles a bolha mostra só o dado.
+      contato: z.string().optional(),
+      contatoSemNome: z.string().optional(),
+      contatoSemTelefone: z.string().optional(),
+      copiarTelefone: z.string().optional(),
+      ligarPara: z.string().optional(),
       visualizador: z.object({
         fechar: z.string(),
         anterior: z.string(),

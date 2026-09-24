@@ -1,6 +1,50 @@
 # Capacidades WhatsApp no CRM: lacunas e plano de implementação
 
-**Estado:** plano, sem implementação. **Base:** auditoria estática recebida em 23/09/2026, conferida pontualmente com o código de `origin/main`. Não houve consulta às instâncias, aos bancos, aos logs de produção ou aos workflows do n8n nesta etapa. Este documento não certifica comportamento em produção.
+**Estado:** Fase 1 (itens 1 a 4) implementada na branch `feat/whatsapp-contato-compartilhado` (V81), coberta por testes e **não verificada em instância real**; Fase 0 e Fases 2–4 seguem como plano. **Base:** auditoria estática recebida em 23/09/2026, conferida pontualmente com o código de `origin/main`. Não houve consulta às instâncias, aos bancos, aos logs de produção ou aos workflows do n8n. Este documento não certifica comportamento em produção.
+
+## Fase 1 — comportamento implementado
+
+**Contato compartilhado.** Os tradutores Meta e Uzapi/Autotic leem `messages[].contacts[]` e gravam
+uma mensagem `CONTATO` (novo valor de `tipo_mensagem`, V81) com `conteudo` nulo e
+`midia_metadados = {"contatos":[{"nome":"...","telefones":[{"numero":"...","waId":"...","tipo":"..."}]}]}`.
+`nome`, `waId` e `tipo` só aparecem quando o provedor os envia (a Uzapi não envia `waId`). Vários
+contatos e vários números no mesmo cartão são preservados na ordem; contato sem telefone fica com
+`telefones: []`; cartão sem nome e sem telefone não traz nada utilizável e vira descarte
+`CONTEUDO_INVALIDO`. O `value.contacts[]` do envelope segue servindo só para o nome do remetente.
+Id externo, remetente, horário, ordem e deduplicação (`mensagem_recebida_idempotencia`) seguem o
+mesmo caminho da localização. A citação não mostra nome/telefone do contato: rotula pelo catálogo.
+
+**Bolha.** `BolhaContato` mostra nome e números; `tel:` e "copiar" só aparecem para número com 8 a
+15 dígitos (sem letras). As chaves de texto novas (`media.contato`, `contatoSemNome`,
+`contatoSemTelefone`, `copiarTelefone`, `ligarPara`, `mensagem.citacao.contato`) são opcionais no
+schema, como as de citação: um catálogo de filho publicado antes delas não reprova a tela.
+
+**Descartes observáveis.** O tradutor devolve `Traducao(mensagens, descartes)`. Cada descarte é
+`{tipo, motivo}`, com `tipo` normalizado para os tipos documentados pelos dois provedores (o resto
+vira `outro`) e `motivo` em `TIPO_NAO_SUPORTADO`, `CONTEUDO_INVALIDO`, `SEM_IDENTIFICADOR` ou
+`ITEM_MALFORMADO`. O processador grava na linha `webhook_entrada.itens_descartados` e
+`webhook_entrada.descartes` (JSONB) e escreve um único log
+`[DESCARTE_WEBHOOK] entrada=<id_externo> provedor=<p> itens=<n> descartes=[tipo:MOTIVO,...]`.
+Nenhum dos dois carrega telefone, nome, conteúdo ou payload. **Não contam como descarte**, por
+decisão: `statuses[]` (inclusive `played`/`deleted` da Uzapi), Status/Story da Uzapi e reentrega
+de mensagem já registrada. Não há métrica Micrometer: o módulo de atendimento não depende dele e
+não há coleta de métricas em produção documentada; o registro durável é a própria linha.
+
+Consulta operacional, limitada por tempo e servida pelo índice parcial `idx_webhook_entrada_com_descarte`:
+
+```sql
+SELECT id_externo, provedor, processado_em, itens_descartados, descartes
+FROM webhook_entrada
+WHERE itens_descartados > 0 AND processado_em >= now() - interval '7 days'
+ORDER BY processado_em DESC
+LIMIT 100;
+```
+
+**Limites conhecidos.** A linha só registra o descarte quando a transação do POST termina bem; se
+o POST falha e esgota, vale o alarme `[ALERTA_WEBHOOK_ESGOTADO]` já existente. O SQL de conclusão
+sem descarte é idêntico ao anterior à V81, então o caminho comum não depende das colunas novas; já
+um contato recebido exige a V81 aplicada (valor `CONTATO` do enum). Onde a V73 ainda estiver
+pendente, a V74 em diante — incluindo a V81 — não roda no boot (ver `docs/41`).
 
 ## Objetivo e limites
 
@@ -12,10 +56,10 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 
 | Capacidade | Meta | UZAPI/Uzapi Autotic | Situação no CRM e evidência | Prioridade proposta |
 |---|---|---|---|---|
-| Contato compartilhado recebido | Documentado pelo provedor | Documentado pelo provedor | `type: contacts` não consta do mapeamento de nenhum dos dois tradutores; tipo desconhecido gera `WARN` e o item é descartado. `value.contacts[]` é usado para o perfil do remetente e **não** é o contato compartilhado de `messages[].contacts[]`. A linha de entrada pode terminar processada sem mensagem no histórico. | P1; elevar a P0 se o incidente real for correlacionado |
+| Contato compartilhado recebido | Documentado pelo provedor | Documentado pelo provedor | `type: contacts` não consta do mapeamento de nenhum dos dois tradutores; tipo desconhecido gera `WARN` e o item é descartado. `value.contacts[]` é usado para o perfil do remetente e **não** é o contato compartilhado de `messages[].contacts[]`. A linha de entrada pode terminar processada sem mensagem no histórico. **Fase 1: traduzido, persistido e exibido nos dois provedores; coberto por testes, não verificado em instância real.** | P1; elevar a P0 se o incidente real for correlacionado |
 | Reação recebida | Documentada | Documentada | Não traduzida; o modelo atual de reação está ligado a usuário do CRM. | P2 |
 | Resposta rápida de template recebida | `type: button` documentado | Verificar contrato efetivo | Tradutor Meta não contempla `button`; descarte estático identificado, sem caso real observado. | P1 suspeito; confirmar uso antes da correção |
-| Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. | P2 |
+| Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
 | Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | Suspeita de que mensagem de grupo seja associada à conversa individual do remetente; ainda não demonstrada em produção. | P2, decisão de produto antes de alterar |
 | Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | Tipos permitidos no domínio e seletor do composer não incluem vídeo. | P2 |
 | Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. | P3 |
@@ -90,8 +134,7 @@ Avaliar individualmente pedido, Flows, edição/revogação em Coexistência, gr
 
 ## Divergências documentais a corrigir durante as respectivas fases
 
-- Comentários do processador de entrada citam figurinha como não suportada, embora os tradutores a mapeiem para imagem.
-- Comentário da bolha de mensagem omite capacidades já presentes, como localização e respostas interativas.
-- O contrato UZAPI/Autotic não explicita o descarte atual de contato e reação.
-
-Essas correções documentais pertencem aos PRs que mudarem os comportamentos; este plano não os altera.
+- ~~Comentários do processador de entrada citam figurinha como não suportada~~ — corrigido na Fase 1.
+- ~~Comentário da bolha de mensagem omite capacidades já presentes~~ — corrigido na Fase 1.
+- ~~O contrato UZAPI/Autotic não explicita o descarte atual de contato e reação~~ — `docs/38` §8
+  atualizado na Fase 1 (contato traduzido; reação registrada como descarte).

@@ -149,93 +149,108 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
     }
 
     @Override
-    public List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
+    public Traducao traduzirComDescartes(String payloadCru) {
         List<MensagemRecebidaDoCanal> resultado = new ArrayList<>();
+        List<ItemDescartado> descartes = new ArrayList<>();
         for (MensagemDoPayload mensagemDoPayload : mensagens(payloadCru)) {
-            JsonNode mensagem = mensagemDoPayload.mensagem();
-            JsonNode valor = mensagemDoPayload.valor();
-            String tipo = mensagem.path("type").asText("").toLowerCase(Locale.ROOT);
+            String tipo = mensagemDoPayload.mensagem().path("type").asText("").toLowerCase(Locale.ROOT);
             try {
-                if (ehStatusOuStory(mensagem)) {
+                if (ehStatusOuStory(mensagemDoPayload.mensagem())) {
+                    // Ignorado por decisao (E163): Status/Story nao e conversa. Nao vira descarte,
+                    // para nao produzir alarme falso na linha da fila.
                     log.debug("Evento Status/Story da Uzapi descartado.");
                     continue;
                 }
-
-                String idExterno = texto(mensagem, "id");
-                String telefone = primeiroTexto(mensagem, "from", "sender", "participant");
-                if (idExterno == null || idExterno.isBlank() || telefone == null || telefone.isBlank()) {
-                    log.warn("Mensagem Uzapi sem identificador obrigatorio; item descartado. type={}", tipo);
-                    continue;
-                }
-                String destino = valor.path("metadata").path("phone_number_id").asText(null);
-                String nome = nomeDeExibicao(valor, mensagem, telefone);
-                Instant enviadoEm = timestamp(mensagem.path("timestamp"));
-                String contexto = contextoWamid(mensagem);
-
-                if ("text".equals(tipo)) {
-                    resultado.add(MensagemRecebidaDoCanal.texto(
-                            idExterno,
-                            destino,
-                            telefone,
-                            nome,
-                            mensagem.path("text").path("body").asText(""),
-                            enviadoEm,
-                            contexto));
-                    continue;
-                }
-
-                if ("interactive".equals(tipo) || "button_reply".equals(tipo) || "list_reply".equals(tipo)) {
-                    String titulo = tituloDaResposta(mensagem);
-                    if (titulo == null || titulo.isBlank()) {
-                        log.warn("Resposta interativa Uzapi sem titulo reconhecido; item descartado. type={}", tipo);
-                        continue;
-                    }
-                    resultado.add(MensagemRecebidaDoCanal.texto(
-                            idExterno, destino, telefone, nome, titulo, enviadoEm, contexto));
-                    continue;
-                }
-
-                if ("location".equals(tipo)) {
-                    MensagemRecebidaDoCanal localizacao = traduzirLocalizacao(
-                            mensagem, idExterno, destino, telefone, nome, enviadoEm, contexto);
-                    if (localizacao != null) {
-                        resultado.add(localizacao);
-                    }
-                    continue;
-                }
-
-                String tipoCrm = TIPO_PARA_CRM.get(tipo);
-                if (tipoCrm == null) {
-                    log.warn("Tipo de mensagem Uzapi desconhecido; item descartado. type={}", tipo);
-                    continue;
-                }
-
-                JsonNode midia = mensagem.path(tipo);
-                String midiaId = primeiroTexto(midia, "media_id", "mediaId", "id");
-                if (midiaId == null || midiaId.isBlank()) {
-                    log.warn("Midia Uzapi sem id; item descartado. type={}", tipo);
-                    continue;
-                }
-                resultado.add(new MensagemRecebidaDoCanal(
-                        idExterno,
-                        telefone,
-                        nome,
-                        null,
-                        tipoCrm,
-                        midiaId,
-                        primeiroTexto(midia, "mime_type", "mimeType", "mimetype"),
-                        primeiroTexto(midia, "filename", "fileName", "name"),
-                        primeiroTexto(midia, "caption"),
-                        enviadoEm,
-                        destino,
-                        contexto));
+                resultado.add(traduzirItem(mensagemDoPayload, tipo));
+            } catch (ItemNaoTraduzido e) {
+                descartes.add(new ItemDescartado(TipoDeItemDoProvedor.normalizar(tipo), e.motivo()));
             } catch (RuntimeException e) {
                 // Nunca deixar um item malformado perder os demais itens do mesmo POST. O log não
                 // inclui a exceção nem o JSON, pois ambos podem carregar telefone ou conteúdo.
                 log.warn("Item de webhook Uzapi malformado; item descartado. type={}", tipo);
+                descartes.add(new ItemDescartado(
+                        TipoDeItemDoProvedor.normalizar(tipo), MotivoDeDescarte.ITEM_MALFORMADO));
             }
         }
-        return List.copyOf(resultado);
+        return new Traducao(resultado, descartes);
+    }
+
+    private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload mensagemDoPayload, String tipo) {
+        JsonNode mensagem = mensagemDoPayload.mensagem();
+        JsonNode valor = mensagemDoPayload.valor();
+        String idExterno = texto(mensagem, "id");
+        String telefone = primeiroTexto(mensagem, "from", "sender", "participant");
+        if (idExterno == null || idExterno.isBlank() || telefone == null || telefone.isBlank()) {
+            log.warn("Mensagem Uzapi sem identificador obrigatorio; item descartado. type={}", tipo);
+            throw new ItemNaoTraduzido(MotivoDeDescarte.SEM_IDENTIFICADOR);
+        }
+        String destino = valor.path("metadata").path("phone_number_id").asText(null);
+        String nome = nomeDeExibicao(valor, mensagem, telefone);
+        Instant enviadoEm = timestamp(mensagem.path("timestamp"));
+        String contexto = contextoWamid(mensagem);
+
+        if ("text".equals(tipo)) {
+            return MensagemRecebidaDoCanal.texto(
+                    idExterno, destino, telefone, nome, mensagem.path("text").path("body").asText(""),
+                    enviadoEm, contexto);
+        }
+
+        if ("interactive".equals(tipo) || "button_reply".equals(tipo) || "list_reply".equals(tipo)) {
+            String titulo = tituloDaResposta(mensagem);
+            if (titulo == null || titulo.isBlank()) {
+                log.warn("Resposta interativa Uzapi sem titulo reconhecido; item descartado. type={}", tipo);
+                throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+            }
+            return MensagemRecebidaDoCanal.texto(idExterno, destino, telefone, nome, titulo, enviadoEm, contexto);
+        }
+
+        if ("location".equals(tipo)) {
+            MensagemRecebidaDoCanal localizacao = traduzirLocalizacao(
+                    mensagem, idExterno, destino, telefone, nome, enviadoEm, contexto);
+            if (localizacao == null) {
+                throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+            }
+            return localizacao;
+        }
+
+        if ("contacts".equals(tipo)) {
+            // O cartao vem em messages[].contacts[] (schema ContactsMessage do Swagger). O
+            // value.contacts[] do envelope e o remetente e ja foi usado so para o nome acima.
+            String metadados = ContatoCompartilhado.metadados(mensagem.path("contacts"), json)
+                    .orElseThrow(() -> {
+                        log.warn("Contato compartilhado Uzapi sem nome nem telefone; item descartado.");
+                        return new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+                    });
+            return new MensagemRecebidaDoCanal(
+                    idExterno, telefone, nome, metadados, "CONTATO", null, null, null, null, enviadoEm,
+                    destino, contexto);
+        }
+
+        String tipoCrm = TIPO_PARA_CRM.get(tipo);
+        if (tipoCrm == null) {
+            log.warn("Tipo de mensagem Uzapi desconhecido; item descartado. type={}", tipo);
+            throw new ItemNaoTraduzido(MotivoDeDescarte.TIPO_NAO_SUPORTADO);
+        }
+
+        JsonNode midia = mensagem.path(tipo);
+        String midiaId = primeiroTexto(midia, "media_id", "mediaId", "id");
+        if (midiaId == null || midiaId.isBlank()) {
+            log.warn("Midia Uzapi sem id; item descartado. type={}", tipo);
+            throw new ItemNaoTraduzido(MotivoDeDescarte.SEM_IDENTIFICADOR);
+        }
+        return new MensagemRecebidaDoCanal(
+                idExterno,
+                telefone,
+                nome,
+                null,
+                tipoCrm,
+                midiaId,
+                primeiroTexto(midia, "mime_type", "mimeType", "mimetype"),
+                primeiroTexto(midia, "filename", "fileName", "name"),
+                primeiroTexto(midia, "caption"),
+                enviadoEm,
+                destino,
+                contexto);
     }
 
     private static StatusDeEntregaDoCanal traduzirStatus(JsonNode status) {

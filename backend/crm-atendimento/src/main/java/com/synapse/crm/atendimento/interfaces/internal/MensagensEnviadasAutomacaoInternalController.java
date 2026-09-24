@@ -26,7 +26,6 @@ import com.synapse.crm.atendimento.application.MensagemAutomacaoInvalidaExceptio
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarMensagemEnviadaDaAutomacaoUseCase;
 import com.synapse.crm.atendimento.application.WamidJaRegistradoEmOutroAtendimentoException;
-import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
 /** Registra no histórico uma mensagem que a Automação já enviou ao provedor. */
@@ -58,7 +57,7 @@ class MensagensEnviadasAutomacaoInternalController {
             @Valid @RequestBody MensagemEnviadaRequisicao requisicao) {
         var entrada = new RegistrarMensagemEnviadaDaAutomacaoUseCase.Requisicao(
                 requisicao.wamid(),
-                requisicao.tipo(),
+                requisicao.tipo().paraDominio(),
                 requisicao.conteudo(),
                 requisicao.midiaUrl(),
                 requisicao.midiaMetadados(),
@@ -92,7 +91,7 @@ class MensagensEnviadasAutomacaoInternalController {
             @Schema(description = "Identificador retornado pela Meta.", requiredMode = Schema.RequiredMode.REQUIRED)
                     @NotBlank String wamid,
             @Schema(description = "Tipo normalizado da mensagem.", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotNull TipoMensagem tipo,
+                    @NotNull TipoMensagemDaAutomacao tipo,
             @Schema(description = "Texto quando tipo=TEXTO.") String conteudo,
             @Schema(description = "Referência opaca de mídia já armazenada no CRM.") String midiaUrl,
             @Schema(description = "Metadados normalizados da mídia.") String midiaMetadados,

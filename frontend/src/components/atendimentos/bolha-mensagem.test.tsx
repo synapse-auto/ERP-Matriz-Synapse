@@ -21,6 +21,11 @@ vi.mock("@/lib/config/textos-provider", () => ({
         localizacao: "Localização",
         localizacaoIncompleta: "Localização incompleta",
         abrirLocalizacao: "Abrir localização",
+        contato: "Contato compartilhado",
+        contatoSemNome: "Contato sem nome",
+        contatoSemTelefone: "Sem telefone no cartão",
+        copiarTelefone: "Copiar número",
+        ligarPara: "Ligar para {numero}",
         visualizador: {
           fechar: "Fechar visualizador",
           anterior: "Mídia anterior",
@@ -589,9 +594,38 @@ describe("BolhaMensagem", () => {
 
     expect(screen.getByText("Localização")).toBeInTheDocument();
     expect(screen.getByText("-7.115, -34.864")).toBeInTheDocument();
-    
+
     const botaoAbrir = screen.getByRole("link", { name: "Abrir localização" });
     expect(botaoAbrir).toBeInTheDocument();
     expect(botaoAbrir).toHaveAttribute("href", "https://www.google.com/maps/search/?api=1&query=-7.115,-34.864");
+  });
+
+  it("mostra o contato compartilhado recebido a partir dos metadados persistidos", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          remetenteNome: null,
+          tipo: "CONTATO",
+          conteudo: null,
+          midiaMetadados: JSON.stringify({
+            contatos: [
+              { nome: "Arquiteta Exemplo", telefones: [{ numero: "+55 61 98888-0000", tipo: "CELL" }] },
+              { nome: "Sem Telefone", telefones: [] },
+            ],
+          }),
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Arquiteta Exemplo")).toBeInTheDocument();
+    expect(screen.getByText("Sem Telefone")).toBeInTheDocument();
+    expect(screen.getByText("Sem telefone no cartão")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /^Ligar para/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Ligar para +55 61 98888-0000" }))
+      .toHaveAttribute("href", "tel:+5561988880000");
   });
 });
