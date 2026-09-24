@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
@@ -40,9 +41,15 @@ import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaReposit
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
+import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
+import com.synapse.crm.atendimento.domain.mensagem.Remetente;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.core.application.lead.ResetarFichaDoLeadUseCase;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
@@ -51,6 +58,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
 
     private static final Instant AGORA = Instant.parse("2026-09-02T15:00:00Z");
     private static final String ID_EXTERNO = "wamid.midia-1";
+    private static final Duration PRAZO_MIDIA = Duration.ofMinutes(10);
 
     private final WebhookEntrada entrada = mock(WebhookEntrada.class);
     private final TradutorDeCanal tradutor = mock(TradutorDeCanal.class);
@@ -60,6 +68,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     private final CanalCredencialAtivaRepositorio canaisAtivos =
             mock(CanalCredencialAtivaRepositorio.class);
     private final LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+    private final RegistrarMensagemRecebidaUseCase registrar = mock(RegistrarMensagemRecebidaUseCase.class);
     private final ConfiguracaoDoComandoResetRepositorio configuracaoDoReset =
             mock(ConfiguracaoDoComandoResetRepositorio.class);
     private final ConfiguracaoDoComandoResetGeralRepositorio configuracaoDoResetGeral =
@@ -168,6 +177,49 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
     }
 
     @Test
+    void midiaIndisponivelAntesDoPrazoRetentaMesmoAlemDoTetoDeTentativas() {
+        // Com o teto de 5 tentativas a linha desistia em ~77s (E207). Antes do prazo de midia a
+        // falha do provedor so reagenda, qualquer que seja o numero de tentativas ja feitas.
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(7, AGORA.minus(PRAZO_MIDIA).plusSeconds(1))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaTemporariamenteIndisponivelException(
+                        "resolvedor de midia uzapi-autotic respondeu HTTP 410; midiaId=1"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).reagendar(eq(ID_EXTERNO), any(), anyString());
+        verify(entrada, never()).esgotar(anyString(), any(), anyString());
+        verify(registrar, never()).executar(any());
+    }
+
+    @Test
+    void midiaIndisponivelAposOPrazoEntraNaConversaSemArquivoEmVezDeSumir() {
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(9, AGORA.minus(PRAZO_MIDIA))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaTemporariamenteIndisponivelException(
+                        "resolvedor de midia uzapi-autotic respondeu HTTP 410; midiaId=1"));
+        when(registrar.executar(any())).thenReturn(resultadoDeMidiaSemArquivo());
+
+        processador(Duration.ofHours(2)).rodada();
+
+        ArgumentCaptor<RegistrarMensagemRecebidaUseCase.MensagemRecebida> requisicao =
+                ArgumentCaptor.forClass(RegistrarMensagemRecebidaUseCase.MensagemRecebida.class);
+        verify(registrar).executar(requisicao.capture());
+        assertThat(requisicao.getValue().tipo()).isEqualTo(TipoMensagem.IMAGEM);
+        assertThat(requisicao.getValue().midiaUrl()).isNull();
+        assertThat(requisicao.getValue().midiaMetadados())
+                .contains("\"indisponivel\":true")
+                .contains("foto.jpg")
+                .doesNotContain("media-id-meta");
+        // Mensagem sem arquivo nao e descarte: o anexo entrou na conversa.
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
+        verify(entrada, never()).esgotar(anyString(), any(), anyString());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
+    }
+
+    @Test
     void descarteDoTradutorEGravadoNaLinhaMesmoSemNenhumaMensagem() {
         var descarte = new TradutorDeCanal.ItemDescartado(
                 "reaction", TradutorDeCanal.MotivoDeDescarte.TIPO_NAO_SUPORTADO);
@@ -179,6 +231,31 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
 
         verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of(descarte));
         verify(entrada, never()).reagendar(anyString(), any(), anyString());
+    }
+
+    @Test
+    void falhaQueNaoEDeMidiaIndisponivelContinuaEsgotandoNoTeto() {
+        // Negativo: o prazo de midia nao vira passe livre para qualquer erro do download.
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(4, AGORA.minus(PRAZO_MIDIA))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new IllegalStateException("erro do storage"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).esgotar(eq(ID_EXTERNO), eq(AGORA), anyString());
+        verify(registrar, never()).executar(any());
+    }
+
+    private static RegistrarMensagemRecebidaUseCase.Resultado resultadoDeMidiaSemArquivo() {
+        UUID atendimentoId = UUID.randomUUID();
+        Atendimento atendimento = new Atendimento(
+                atendimentoId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
+                StatusAtendimento.EM_IA, AGORA, null);
+        Mensagem mensagem = Mensagem.midia(
+                UUID.randomUUID(), atendimentoId, Remetente.lead(), TipoMensagem.IMAGEM,
+                null, "{\"indisponivel\":true}", AGORA);
+        return new RegistrarMensagemRecebidaUseCase.Resultado(atendimento, mensagem, false);
     }
 
     @Test
@@ -210,7 +287,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 entrada,
                 tradutor,
                 idempotencia,
-                mock(RegistrarMensagemRecebidaUseCase.class),
+                registrar,
                 mock(MensagemIdExternoRepositorio.class),
                 mock(OrigemDeMensagemRepositorio.class),
                 mock(AtendimentoRepositorio.class),
@@ -229,7 +306,8 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 5,
                 prazoAbsoluto,
                 Duration.ofSeconds(5),
-                Duration.ofMinutes(30));
+                Duration.ofMinutes(30),
+                PRAZO_MIDIA);
     }
 
     private static PlatformTransactionManager transacaoPassThrough() {

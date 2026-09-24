@@ -289,6 +289,54 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("E207: midia que o provedor nao entrega retenta e, vencido o prazo, entra na conversa sem arquivo")
+    void webhookMidia_provedorNaoEntrega_entraNaConversaSemArquivoEmVezDeSumir() {
+        canal.programarMidiaIndisponivel(
+                "resolvedor de midia uzapi-autotic respondeu HTTP 410; midiaId=385949128354419");
+
+        http.postForEntity(
+                "/webhook/canal",
+                new HttpEntity<>(
+                        payloadDeMidia("ext-midia-410", "DOCUMENTO", "media-410", "application/pdf"),
+                        cabecalhosWebhook(CanalFake.ASSINATURA_VALIDA)),
+                String.class);
+        processador.processarPendentes();
+
+        // Dentro do prazo: nada na conversa ainda, e a linha continua viva para nova tentativa
+        // (antes do E207 ela esgotava em ~77s e o anexo sumia).
+        assertThat(mensagensDoLead()).isZero();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM webhook_entrada WHERE processado_em IS NULL AND esgotado_em IS NULL",
+                        Integer.class))
+                .isEqualTo(1);
+
+        // Vence o prazo de midia (10m por padrao) sem esperar: recua recebido_em e libera a linha.
+        jdbc.update(
+                "UPDATE webhook_entrada SET recebido_em = now() - interval '11 minutes',"
+                        + " proxima_tentativa_em = now() WHERE processado_em IS NULL");
+        processador.processarPendentes();
+
+        esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+        assertThat(jdbc.queryForObject(
+                        """
+                        SELECT m.midia_url IS NULL FROM mensagem m
+                          JOIN atendimento a ON a.id = m.atendimento_id
+                         WHERE a.lead_id = ?
+                        """,
+                        Boolean.class,
+                        leadDaAna))
+                .isTrue();
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM webhook_entrada WHERE esgotado_em IS NOT NULL", Integer.class))
+                .isZero();
+
+        String corpo = mensagensComo(EMAIL_ANA, atendimentoDoLead()).getBody();
+        assertThat(corpo).contains("\"tipo\":\"DOCUMENTO\"");
+        assertThat(corpo).contains("indisponivel");
+        assertThat(corpo).doesNotContain("media-410");
+    }
+
+    @Test
     @DisplayName("vídeo recebido via webhook é persistido como VIDEO, listado em /midias e emite URL assinada válida")
     void webhookVideo_recebidoPersisteComoVideo() {
         byte[] conteudoDoCliente = "video-fixture".getBytes(StandardCharsets.UTF_8);

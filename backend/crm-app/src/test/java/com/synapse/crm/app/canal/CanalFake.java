@@ -87,6 +87,7 @@ public class CanalFake implements CanalGateway {
     public void limpar() {
         enviados.clear();
         templates.clear();
+        midiaIndisponivel.set(null);
         religar();
         abrirJanela();
     }
@@ -134,8 +135,23 @@ public class CanalFake implements CanalGateway {
         proximaMidiaRecebida.set(new MidiaRecebida(conteudo, mimetype));
     }
 
+    private final AtomicReference<String> midiaIndisponivel = new AtomicReference<>();
+
+    /**
+     * Faz {@link #baixarMidiaRecebida} falhar como o resolvedor da Uzapi quando nao entrega o arquivo
+     * (404/410/5xx). Vale ate {@link #limpar()}.
+     */
+    public void programarMidiaIndisponivel(String motivo) {
+        midiaIndisponivel.set(motivo);
+    }
+
     @Override
     public MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
+        String indisponivel = midiaIndisponivel.get();
+        if (indisponivel != null) {
+            throw new com.synapse.crm.atendimento.domain.canal
+                    .MidiaRecebidaTemporariamenteIndisponivelException(indisponivel);
+        }
         MidiaRecebida programada = proximaMidiaRecebida.get();
         if (programada == null) {
             throw new IllegalStateException(
