@@ -76,7 +76,7 @@ Não foi executado `EXPLAIN ANALYZE` nem carga nas instâncias `matriz_hml` ou `
 quando estiver ativo, use `calls`, `total_exec_time`, `mean_exec_time` e `rows` por queryid
 em uma janela comparável para priorizar qualquer otimização adicional de SQL.
 
-## Medição da série mensal na PR #207 (24/09/2026)
+## Medição da série mensal na PR #211 (24/09/2026)
 
 Antes da série, o mesmo `DashboardCustoIT` mediu 20 leituras SQL frias e 4 quentes
 (amostras de 120 ms e 41 ms, respectivamente). Após agrupar totais e meses na mesma

@@ -3,8 +3,9 @@
 Referência visual fornecida: `CRM Estrutural Vidros - Sistema Completo.html`, nos modos
 Compacta e Expandida. Os valores e séries desse HTML são ilustrativos e não entram no CRM.
 
-Capturas da aplicação local com banco de desenvolvimento sem atendimentos/leads, após duas
-rodadas de comparação visual:
+Capturas da aplicação local com dados reais do banco de desenvolvimento (cinco atendimentos,
+sete leads no ano selecionado), após duas rodadas de comparação visual. O volume é pequeno e
+não representa a distribuição operacional:
 
 - [Compacta · 1920px](assets/dashboard-paridade/final-compacta-1920.png)
 - [Expandida · 1920px](assets/dashboard-paridade/final-expandida-1920.png)
@@ -18,16 +19,17 @@ rodadas de comparação visual:
 | Sidebar | Retraída por padrão na tela do Dashboard | Aberta por padrão somente nesta rota, mantendo o botão de fixação e o comportamento das outras telas |
 | Cabeçalho e abas | Dentro do canvas, sem faixa branca própria | Faixa branca única com título, descrição e abas sublinhadas |
 | Filtros | Rótulos empilhados e faixa alta | Ano, meses, modo e originação na mesma faixa; quebram linha quando necessário |
-| Modos | Um único formato de card | Controle acessível Compacta/Expandida; grade de 4/3 colunas conforme a largura |
+| Modos | Um único formato de card | Controle acessível Compacta/Expandida; grade de 4/3 colunas em desktop amplo e redução responsiva para 2 colunas |
 | Cards | Mesma altura e densidade nos dois modos | Compacta curta; Expandida com hierarquia e área reservada à série |
 | Faixa AGORA e painéis inferiores | Dados reais já existentes | Preservados, sem polling nem chamadas por card |
 
-## Série mensal em desenvolvimento na PR #207
+## Série mensal em desenvolvimento na PR #211
 
 `GET /api/v1/dashboard/visao-geral` passa a fornecer `seriesMensais`, com um ponto por mês
 selecionado. Os sete indicadores já existentes usam agregados reais; `null` representa média
 sem amostra ou mês futuro, enquanto `0` representa contagem observada. `parcial` identifica o
-mês corrente ou um recorte de datas que não cobre o mês inteiro no fuso configurado. O mesmo payload alimenta as barras de Compacta e Expandida,
+mês corrente ou um recorte de datas que não cobre o mês inteiro no fuso configurado. O mesmo
+payload alimenta as barras de Compacta e Expandida,
 sem requisições por card e sem copiar os valores ilustrativos do HTML.
 
 | Série | Fonte e fórmula | Unidade e recorte |
