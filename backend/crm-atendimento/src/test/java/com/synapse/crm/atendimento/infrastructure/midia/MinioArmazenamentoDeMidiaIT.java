@@ -46,7 +46,7 @@ class MinioArmazenamentoDeMidiaIT {
     private static final String ACCESS_KEY = "e172-access-key";
     private static final String SECRET_KEY = "e172-secret-key-com-tamanho-suficiente";
     private static final DockerImageName IMAGEM_MINIO =
-            DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z");
+            DockerImageName.parse("cgr.dev/chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1");
     private static final GenericContainer<?> MINIO = new GenericContainer<>(IMAGEM_MINIO)
             .withEnv("MINIO_ROOT_USER", ACCESS_KEY)
             .withEnv("MINIO_ROOT_PASSWORD", SECRET_KEY)

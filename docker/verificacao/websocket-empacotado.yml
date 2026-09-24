@@ -24,7 +24,7 @@ services:
     networks: [internal]
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: cgr.dev/chainguard/minio@sha256:bd014394a80898e68c149f2311fdf8d5a2c2f3bb2c33b9327ae6d02b4b065ae1
     environment:
       MINIO_ROOT_USER: e172-access-key
       MINIO_ROOT_PASSWORD: e172-secret-key-com-tamanho-suficiente
