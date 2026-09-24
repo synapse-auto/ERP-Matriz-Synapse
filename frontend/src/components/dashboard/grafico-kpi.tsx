@@ -61,14 +61,14 @@ export function GraficoKpi({
           {!compacto && <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />}
           {!compacto && <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10 }} tickFormatter={formatar} />}
           {!compacto && <Tooltip formatter={(valor) => formatar(Number(valor))} />}
-          <Bar dataKey="valor" fill={`url(#${gradiente})`} radius={[3, 3, 0, 0]} maxBarSize={32} isAnimationActive={false}>
+          <Bar dataKey="valor" fill={`url(#${gradiente})`} radius={[3, 3, 0, 0]} maxBarSize={32} minPointSize={compacto ? 0 : 2} isAnimationActive={false}>
             {!compacto && (
               <LabelList
                 dataKey="valor"
                 position="top"
                 fontSize={9}
                 fill="var(--muted-foreground)"
-                formatter={(valor) => Number(valor) === 0 ? "" : formatar(Number(valor))}
+                formatter={(valor) => formatar(Number(valor))}
               />
             )}
           </Bar>

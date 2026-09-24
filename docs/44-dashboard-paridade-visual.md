@@ -31,6 +31,8 @@ sem amostra ou mês futuro, enquanto `0` representa contagem observada. `parcial
 mês corrente ou um recorte de datas que não cobre o mês inteiro no fuso configurado. O mesmo
 payload alimenta as barras de Compacta e Expandida,
 sem requisições por card e sem copiar os valores ilustrativos do HTML.
+No gráfico Expandida, zero observado mantém rótulo e marcador mínimo; valor indisponível
+não gera barra nem rótulo.
 
 | Série | Fonte e fórmula | Unidade e recorte |
 | --- | --- | --- |
