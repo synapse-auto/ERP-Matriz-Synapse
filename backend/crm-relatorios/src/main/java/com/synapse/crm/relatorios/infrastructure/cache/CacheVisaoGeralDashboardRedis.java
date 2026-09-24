@@ -33,7 +33,7 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class CacheVisaoGeralDashboardRedis implements CacheVisaoGeralDashboard {
 
     private static final Logger LOG = LoggerFactory.getLogger(CacheVisaoGeralDashboardRedis.class);
-    private static final String PREFIXO = "dashboard:visao-geral:v1:";
+    private static final String PREFIXO = "dashboard:visao-geral:v2:";
     private static final DefaultRedisScript<Long> LIBERAR_TRAVA = scriptDeLiberacao();
 
     private final StringRedisTemplate redis;

@@ -179,6 +179,65 @@ class DashboardVisaoGeralIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("series mensais usam fuso local, mantem zero real e nao duplicam venda do mesmo lead")
+    void seriesMensais_fusoZerosETimeline() throws Exception {
+        UUID ana = idDoUsuario(EMAIL_ANA);
+        UUID gestor = idDoUsuario(EMAIL_GESTOR);
+        UUID etapa = jdbc.queryForObject(
+                "SELECT id FROM etapa_atendimento WHERE resultado='EM_ANDAMENTO' ORDER BY ordem LIMIT 1",
+                UUID.class);
+        // 03:30Z ja e fevereiro em Sao Paulo; janeiro continua vazio no recorte local.
+        Instant fevereiro = Instant.parse("2025-02-01T03:30:00Z");
+        Instant marco = Instant.parse("2025-03-10T13:00:00Z");
+        UUID leadFev = criarLeads(1, "serie-fev", fevereiro, etapa, ana)[0];
+        UUID leadMar = criarLeads(1, "serie-mar", marco, etapa, ana)[0];
+        UUID atendimentoFev = criarAtendimento(leadFev, ana, fevereiro, 20);
+        criarAtendimento(leadMar, ana, marco, 40);
+        criarAvaliacao(atendimentoFev, ana, 8, fevereiro.plusSeconds(1500));
+        registrarGanho(leadFev, ana, gestor, fevereiro.plusSeconds(100));
+        registrarGanho(leadFev, ana, gestor, marco.plusSeconds(100));
+        registrarGanho(leadMar, ana, gestor, marco.plusSeconds(200));
+
+        JsonNode resposta = chamarComo(
+                EMAIL_GESTOR, SENHA_GESTOR,
+                "/api/v1/dashboard/visao-geral?ano=2025&meses=1,2,3");
+        JsonNode serie = resposta.path("seriesMensais");
+        assertThat(serie.size()).isEqualTo(3);
+        assertThat(serie.get(0).path("mes").asText()).isEqualTo("2025-01");
+        assertThat(serie.get(0).path("atendimentos").asLong()).isZero();
+        assertThat(serie.get(0).path("tempoMedioSegundos").isNull()).isTrue();
+        assertThat(serie.get(1).path("mes").asText()).isEqualTo("2025-02");
+        assertThat(serie.get(1).path("atendimentos").asLong()).isEqualTo(1);
+        assertThat(serie.get(1).path("novosLeads").asLong()).isEqualTo(1);
+        assertThat(serie.get(1).path("tempoMedioSegundos").asLong()).isEqualTo(1200);
+        assertThat(serie.get(1).path("vendasFechadas").asLong()).isEqualTo(1);
+        assertThat(serie.get(1).path("avaliacaoMedia").decimalValue())
+                .isEqualByComparingTo("8.00");
+        assertThat(serie.get(2).path("mes").asText()).isEqualTo("2025-03");
+        assertThat(serie.get(2).path("vendasFechadas").asLong()).isEqualTo(1);
+        assertThat(serie.get(2).path("taxaConversao").decimalValue())
+                .isEqualByComparingTo("100.00");
+        assertThat(resposta.at("/vendasFechadas/noPeriodo").asLong()).isEqualTo(2);
+
+        JsonNode recorteDiario = chamarComo(
+                EMAIL_GESTOR, SENHA_GESTOR,
+                "/api/v1/dashboard/visao-geral?inicio=2025-02-01&fim=2025-02-01");
+        assertThat(recorteDiario.path("seriesMensais").size()).isEqualTo(1);
+        assertThat(recorteDiario.at("/seriesMensais/0/parcial").asBoolean()).isTrue();
+        assertThat(recorteDiario.at("/seriesMensais/0/atendimentos").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("mes futuro e indisponivel, distinto de contagem zero em mes passado")
+    void serieMensal_futuroNaoPareceZeroReal() throws Exception {
+        JsonNode resposta = chamarComo(EMAIL_GESTOR, SENHA_GESTOR, URL);
+        JsonNode ponto = resposta.path("seriesMensais").get(0);
+        assertThat(ponto.path("disponivel").asBoolean()).isFalse();
+        assertThat(ponto.path("atendimentos").isNull()).isTrue();
+        assertThat(ponto.path("resolucaoPorIa").isNull()).isTrue();
+    }
+
+    @Test
     @DisplayName("funil separa leads em etapa Perdido do restante da sequência ordenada")
     void funil_separaLeadsPerdidosDaSequenciaOrdenada() throws Exception {
         UUID ana = idDoUsuario(EMAIL_ANA);

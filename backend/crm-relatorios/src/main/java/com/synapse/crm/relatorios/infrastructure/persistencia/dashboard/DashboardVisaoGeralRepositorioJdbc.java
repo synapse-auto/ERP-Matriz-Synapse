@@ -4,12 +4,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,14 +42,17 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
 
     @Override
     public VisaoGeralDashboard consultar(FiltroTemporalDashboard filtro) {
-        AgregadoAtendimento atual = atendimentos(filtro.periodoAtual());
+        ResultadoMensal<AgregadoAtendimento> atendimentosMensais = atendimentosMensais(filtro);
+        AgregadoAtendimento atual = atendimentosMensais.total();
         AgregadoAtendimento anterior = atendimentos(List.of(filtro.periodoAnterior()));
         long atendimentosAcumulados = contarAte("atendimento", "iniciado_em", filtro);
 
-        AgregadoAvaliacao avaliacaoAtual = avaliacoes(filtro.periodoAtual());
+        ResultadoMensal<AgregadoAvaliacao> avaliacoesMensais = avaliacoesMensais(filtro);
+        AgregadoAvaliacao avaliacaoAtual = avaliacoesMensais.total();
         AgregadoAvaliacao avaliacaoAnterior = avaliacoes(List.of(filtro.periodoAnterior()));
 
-        AgregadoResolucaoIa resolucaoIaAtual = resolucaoPorIa(filtro.periodoAtual());
+        ResultadoMensal<AgregadoResolucaoIa> resolucoesMensais = resolucoesMensais(filtro);
+        AgregadoResolucaoIa resolucaoIaAtual = resolucoesMensais.total();
         AgregadoResolucaoIa resolucaoIaAnterior =
                 resolucaoPorIa(List.of(filtro.periodoAnterior()));
         BigDecimal taxaResolucaoIaAtual = percentual(
@@ -55,14 +60,16 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
         BigDecimal taxaResolucaoIaAnterior = percentual(
                 resolucaoIaAnterior.semTransferencia(), resolucaoIaAnterior.finalizados());
 
-        AgregacaoDeVendas vendasAtual =
-                vendas.agregar(filtro.periodoAtual(), filtro.periodoDeOriginacao());
+        AgregacaoDeVendasRepositorio.VendasComSerie vendasComSerie = vendas.agregarComSerie(
+                filtro.periodoAtual(), filtro.periodoDeOriginacao(), filtro.fusoHorario());
+        AgregacaoDeVendas vendasAtual = vendasComSerie.agregado();
         long vendasAnteriores =
                 vendas.totalDeVendas(List.of(filtro.periodoAnterior()), filtro.periodoDeOriginacao());
         long vendasAcumuladas =
                 vendas.contarAte(filtro.fimDoPeriodoAtual(), filtro.periodoDeOriginacao());
 
-        long novosLeadsAtual = contarLeads(filtro.periodoAtual());
+        ResultadoMensal<Long> leadsMensais = leadsMensais(filtro);
+        long novosLeadsAtual = leadsMensais.total();
         long novosLeadsAnterior = contarLeads(List.of(filtro.periodoAnterior()));
         long leadsDaOriginacao = filtro.periodoDeOriginacao() == null
                 ? 0
@@ -127,7 +134,15 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                                 .toList(),
                         vendasAtual.semResponsavel()),
                 new VisaoGeralDashboard.RankingDeAvaliacoes(avaliacoesDoPeriodo),
-                equipeDesempenho(filtro, vendasAtual, avaliacoesDoPeriodo));
+                equipeDesempenho(filtro, vendasAtual, avaliacoesDoPeriodo),
+                seriesMensais(
+                        filtro,
+                        leadsDaOriginacao,
+                        atendimentosMensais.porMes(),
+                        leadsMensais.porMes(),
+                        avaliacoesMensais.porMes(),
+                        resolucoesMensais.porMes(),
+                        vendasComSerie.porMes()));
     }
 
     private AgregadoAtendimento atendimentos(List<IntervaloTemporal> periodos) {
@@ -413,6 +428,200 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
                 .toList();
     }
 
+    private List<VisaoGeralDashboard.PontoMensal> seriesMensais(
+            FiltroTemporalDashboard filtro,
+            long leadsDaOriginacao,
+            Map<YearMonth, AgregadoAtendimento> atendimentos,
+            Map<YearMonth, Long> leads,
+            Map<YearMonth, AgregadoAvaliacao> avaliacoes,
+            Map<YearMonth, AgregadoResolucaoIa> resolucoes,
+            Map<YearMonth, Long> vendasMensais) {
+        YearMonth mesAtual = YearMonth.now(filtro.fusoHorario());
+        TreeSet<YearMonth> meses = new TreeSet<>();
+        for (IntervaloTemporal intervalo : filtro.periodoAtual()) {
+            YearMonth mes = YearMonth.from(intervalo.inicioInclusivo().atZone(filtro.fusoHorario()));
+            YearMonth ultimo = YearMonth.from(
+                    intervalo.fimExclusivo().minusNanos(1).atZone(filtro.fusoHorario()));
+            while (!mes.isAfter(ultimo)) {
+                meses.add(mes);
+                mes = mes.plusMonths(1);
+            }
+        }
+        return meses.stream()
+                .map(mes -> {
+                    if (mes.isAfter(mesAtual)) {
+                        return new VisaoGeralDashboard.PontoMensal(
+                                mes, false, false, null, null, null, null, null, null, null);
+                    }
+                    AgregadoAtendimento atendimento =
+                            atendimentos.getOrDefault(mes, new AgregadoAtendimento(0, null));
+                    AgregadoResolucaoIa resolucao =
+                            resolucoes.getOrDefault(mes, new AgregadoResolucaoIa(0, 0));
+                    long novos = leads.getOrDefault(mes, 0L);
+                    long fechadas = vendasMensais.getOrDefault(mes, 0L);
+                    long denominador = filtro.periodoDeOriginacao() == null
+                            ? novos
+                            : leadsDaOriginacao;
+                    boolean mesCompleto = filtro.periodoAtual().stream().anyMatch(intervalo ->
+                            !intervalo.inicioInclusivo().isAfter(mes.atDay(1).atStartOfDay(filtro.fusoHorario()).toInstant())
+                                    && !intervalo.fimExclusivo().isBefore(mes.plusMonths(1).atDay(1).atStartOfDay(filtro.fusoHorario()).toInstant()));
+                    return new VisaoGeralDashboard.PontoMensal(
+                            mes,
+                            mes.equals(mesAtual) || !mesCompleto,
+                            true,
+                            atendimento.quantidade(),
+                            novos,
+                            segundos(atendimento.mediaSegundos()),
+                            fechadas,
+                            percentual(fechadas, denominador),
+                            escala(avaliacoes.containsKey(mes) ? avaliacoes.get(mes).media() : null),
+                            percentual(resolucao.semTransferencia(), resolucao.finalizados()));
+                })
+                .toList();
+    }
+
+    private ResultadoMensal<AgregadoAtendimento> atendimentosMensais(FiltroTemporalDashboard filtro) {
+        FiltroSql temporal = periodos("iniciado_em", filtro.periodoAtual());
+        return jdbc.query(
+                """
+                WITH recorte AS (
+                    SELECT date_trunc('month', iniciado_em AT TIME ZONE ?)::date AS mes,
+                           iniciado_em, finalizado_em
+                      FROM atendimento WHERE %s
+                )
+                SELECT mes,
+                       count(*) AS quantidade,
+                       avg(extract(epoch FROM (finalizado_em - iniciado_em)))
+                           FILTER (WHERE finalizado_em IS NOT NULL) AS media_segundos
+                  FROM recorte
+                 GROUP BY ROLLUP(mes)
+                """.formatted(temporal.clausula()),
+                linha -> {
+                    Map<YearMonth, AgregadoAtendimento> porMes = new LinkedHashMap<>();
+                    AgregadoAtendimento total = new AgregadoAtendimento(0, null);
+                    while (linha.next()) {
+                        AgregadoAtendimento agregado = new AgregadoAtendimento(
+                                linha.getLong("quantidade"), linha.getBigDecimal("media_segundos"));
+                        if (linha.getDate("mes") == null) {
+                            total = agregado;
+                        } else {
+                            porMes.put(YearMonth.from(linha.getDate("mes").toLocalDate()), agregado);
+                        }
+                    }
+                    return new ResultadoMensal<>(total, porMes);
+                },
+                comFusoAntes(filtro, temporal));
+    }
+
+    private ResultadoMensal<Long> leadsMensais(FiltroTemporalDashboard filtro) {
+        FiltroSql temporal = periodos("criado_em", filtro.periodoAtual());
+        return jdbc.query(
+                """
+                WITH recorte AS (
+                    SELECT date_trunc('month', criado_em AT TIME ZONE ?)::date AS mes
+                      FROM lead WHERE %s
+                )
+                SELECT mes,
+                       count(*) AS quantidade
+                  FROM recorte
+                 GROUP BY ROLLUP(mes)
+                """.formatted(temporal.clausula()),
+                linha -> {
+                    Map<YearMonth, Long> porMes = new LinkedHashMap<>();
+                    long total = 0;
+                    while (linha.next()) {
+                        if (linha.getDate("mes") == null) {
+                            total = linha.getLong("quantidade");
+                        } else {
+                            porMes.put(
+                                    YearMonth.from(linha.getDate("mes").toLocalDate()),
+                                    linha.getLong("quantidade"));
+                        }
+                    }
+                    return new ResultadoMensal<>(total, porMes);
+                },
+                comFusoAntes(filtro, temporal));
+    }
+
+    private ResultadoMensal<AgregadoAvaliacao> avaliacoesMensais(FiltroTemporalDashboard filtro) {
+        FiltroSql temporal = semAdministradores(periodos("a.criado_em", filtro.periodoAtual()), "u");
+        return jdbc.query(
+                """
+                WITH recorte AS (
+                    SELECT date_trunc('month', a.criado_em AT TIME ZONE ?)::date AS mes,
+                           a.nota
+                      FROM avaliacao a
+                      JOIN usuario u ON u.id = a.atendente_id
+                     WHERE %s
+                )
+                SELECT mes, count(*) AS quantidade, avg(nota) AS media,
+                       count(*) FILTER (WHERE nota BETWEEN 9 AND 10) AS otimo,
+                       count(*) FILTER (WHERE nota BETWEEN 7 AND 8) AS bom,
+                       count(*) FILTER (WHERE nota BETWEEN 0 AND 6) AS ruim
+                  FROM recorte GROUP BY ROLLUP(mes)
+                """.formatted(temporal.clausula()),
+                linha -> {
+                    Map<YearMonth, AgregadoAvaliacao> porMes = new LinkedHashMap<>();
+                    AgregadoAvaliacao total = new AgregadoAvaliacao(0, null, 0, 0, 0);
+                    while (linha.next()) {
+                        AgregadoAvaliacao agregado = new AgregadoAvaliacao(
+                                linha.getLong("quantidade"),
+                                linha.getBigDecimal("media"),
+                                linha.getLong("otimo"),
+                                linha.getLong("bom"),
+                                linha.getLong("ruim"));
+                        if (linha.getDate("mes") == null) {
+                            total = agregado;
+                        } else {
+                            porMes.put(YearMonth.from(linha.getDate("mes").toLocalDate()), agregado);
+                        }
+                    }
+                    return new ResultadoMensal<>(total, porMes);
+                },
+                comFusoAntes(filtro, temporal));
+    }
+
+    private ResultadoMensal<AgregadoResolucaoIa> resolucoesMensais(FiltroTemporalDashboard filtro) {
+        FiltroSql temporal = periodos("a.finalizado_em", filtro.periodoAtual());
+        return jdbc.query(
+                """
+                WITH recorte AS (
+                    SELECT date_trunc('month', a.finalizado_em AT TIME ZONE ?)::date AS mes,
+                           NOT EXISTS (
+                               SELECT 1 FROM evento_timeline e
+                                WHERE e.atendimento_id = a.id
+                                  AND e.tipo IN ('LEAD_TRANSFERIDO_POR_ENVIO', 'ATENDIMENTO_TRANSFERIDO')
+                           ) AS sem_transferencia
+                      FROM atendimento a WHERE %s
+                )
+                SELECT mes, count(*) AS finalizados,
+                       count(*) FILTER (WHERE sem_transferencia) AS sem_transferencia
+                  FROM recorte GROUP BY ROLLUP(mes)
+                """.formatted(temporal.clausula()),
+                linha -> {
+                    Map<YearMonth, AgregadoResolucaoIa> porMes = new LinkedHashMap<>();
+                    AgregadoResolucaoIa total = new AgregadoResolucaoIa(0, 0);
+                    while (linha.next()) {
+                        AgregadoResolucaoIa agregado = new AgregadoResolucaoIa(
+                                linha.getLong("finalizados"), linha.getLong("sem_transferencia"));
+                        if (linha.getDate("mes") == null) {
+                            total = agregado;
+                        } else {
+                            porMes.put(YearMonth.from(linha.getDate("mes").toLocalDate()), agregado);
+                        }
+                    }
+                    return new ResultadoMensal<>(total, porMes);
+                },
+                comFusoAntes(filtro, temporal));
+    }
+
+    private static Object[] comFusoAntes(FiltroTemporalDashboard filtro, FiltroSql temporal) {
+        List<Object> parametros = new ArrayList<>();
+        parametros.add(filtro.fusoHorario().getId());
+        parametros.addAll(temporal.parametros());
+        return parametros.toArray();
+    }
+
     private long contarAte(String tabela, String coluna, FiltroTemporalDashboard filtro) {
         Long total = jdbc.queryForObject(
                 "SELECT count(*) FROM " + tabela + " WHERE " + coluna + " < ?",
@@ -480,4 +689,6 @@ class DashboardVisaoGeralRepositorioJdbc implements DashboardVisaoGeralRepositor
     private record FunilResultado(List<VisaoGeralDashboard.EtapaDoFunil> etapas, long perdidos) {}
 
     private record LinhaDeAtendimentoPorAtendente(UUID id, String nome, long quantidade) {}
+
+    private record ResultadoMensal<T>(T total, Map<YearMonth, T> porMes) {}
 }

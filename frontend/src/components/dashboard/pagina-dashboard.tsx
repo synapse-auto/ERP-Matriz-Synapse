@@ -42,6 +42,8 @@ import type { Comparativo, VisaoGeralDashboard } from "@/lib/dashboard/types";
 import { useTelaEstreita } from "@/lib/navegacao/tela-estreita";
 import { cn, iniciaisDoNome } from "@/lib/utils";
 
+import { GraficoKpi, type CampoSerie } from "./grafico-kpi";
+
 const ANOS_DISPONIVEIS = 7;
 const HORAS_DO_DIA = Array.from({ length: 24 }, (_, hora) => hora);
 type PeriodoEnxuto = "hoje" | "seteDias" | "mes" | "ano";
@@ -510,11 +512,12 @@ function ConteudoDashboard({
     <>
       <FaixaAoVivo status={dados.statusAoVivo} atualizadoEm={atualizadoEm} />
 
-      {/* Indicadores existentes com fonte real; métricas sem critério definido não são inventadas. */}
+      {/* Indicadores com fonte confirmada; NPS continua sem coleta própria. */}
       <section
         className={cn(
-          "grid grid-cols-1 gap-3 sm:grid-cols-2",
-          modo === "compacta" ? "lg:grid-cols-3 2xl:grid-cols-4" : "lg:grid-cols-3",
+          "grid grid-cols-1 sm:grid-cols-2",
+          modo === "compacta" ? "gap-3" : "gap-4",
+          modo === "compacta" ? "lg:grid-cols-3 2xl:grid-cols-4" : "lg:grid-cols-2 2xl:grid-cols-3",
         )}
         role="group"
         aria-label={textos.kpis.rotulo}
@@ -529,6 +532,8 @@ function ConteudoDashboard({
           Icone={UsersRound}
           tom={TOM_ATENDIMENTOS}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="atendimentos"
         />
         <Kpi
           titulo={textos.kpis.novosLeads}
@@ -538,6 +543,8 @@ function ConteudoDashboard({
           Icone={UserPlus}
           tom={TOM_NOVOS_LEADS}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="novosLeads"
         />
         <Kpi
           titulo={textos.kpis.tempoMedio}
@@ -548,6 +555,8 @@ function ConteudoDashboard({
           tom={TOM_TEMPO}
           modo={modo}
           quedaPositiva
+          serie={dados.seriesMensais ?? []}
+          campoSerie="tempoMedioSegundos"
         />
         <Kpi
           titulo={textos.kpis.vendas}
@@ -559,6 +568,8 @@ function ConteudoDashboard({
           Icone={CircleDollarSign}
           tom={TOM_VENDAS}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="vendasFechadas"
         />
         <Kpi
           titulo={textos.kpis.conversao}
@@ -575,6 +586,8 @@ function ConteudoDashboard({
           Icone={Handshake}
           tom={TOM_CONVERSAO}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="taxaConversao"
         />
         <Kpi
           titulo={textos.kpis.csat}
@@ -588,6 +601,8 @@ function ConteudoDashboard({
           Icone={Star}
           tom={TOM_AVALIACAO}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="avaliacaoMedia"
         />
         <Kpi
           titulo={textos.kpis.resolucaoIa}
@@ -601,6 +616,8 @@ function ConteudoDashboard({
           Icone={Bot}
           tom={TOM_IA}
           modo={modo}
+          serie={dados.seriesMensais ?? []}
+          campoSerie="resolucaoPorIa"
         />
       </section>
 
@@ -633,6 +650,8 @@ interface KpiProps {
   tom: string;
   quedaPositiva?: boolean;
   modo: ModoDashboard;
+  serie: NonNullable<VisaoGeralDashboard["seriesMensais"]>;
+  campoSerie: CampoSerie;
 }
 
 function Kpi({
@@ -644,20 +663,38 @@ function Kpi({
   tom,
   quedaPositiva = false,
   modo,
+  serie,
+  campoSerie,
 }: KpiProps) {
   const textos = useTextos().dashboard;
+  const formatarValor = (valorSerie: number) => {
+    if (campoSerie === "tempoMedioSegundos") return formatarDuracao(valorSerie, textos.tempo);
+    if (campoSerie === "taxaConversao" || campoSerie === "resolucaoPorIa") return `${percentual(valorSerie)}%`;
+    if (campoSerie === "avaliacaoMedia") return percentual(valorSerie);
+    return numero(valorSerie);
+  };
+  const amostras = serie
+    .filter((ponto) => ponto.disponivel && ponto[campoSerie] !== null)
+    .map((ponto) => ({ mes: ponto.mes, valor: Number(ponto[campoSerie]) }));
+  const resumoSerie = amostras.length === 0 ? textos.semDado : (() => {
+    const minimo = amostras.reduce((atual, ponto) => ponto.valor < atual.valor ? ponto : atual);
+    const maximo = amostras.reduce((atual, ponto) => ponto.valor > atual.valor ? ponto : atual);
+    const media = amostras.reduce((total, ponto) => total + ponto.valor, 0) / amostras.length;
+    const rotuloMes = (mes: string) => textos.meses[Number(mes.slice(-2)) - 1] ?? mes;
+    return preencher(textos.kpis.resumoSerie, {
+      minMes: rotuloMes(minimo.mes), min: formatarValor(minimo.valor),
+      maxMes: rotuloMes(maximo.mes), max: formatarValor(maximo.valor),
+      media: formatarValor(media),
+    });
+  })();
 
-  // Card compacto do mockup: ícone e título na mesma linha, selo no canto direito, número e
-  // linha de apoio embaixo. A sparkline do mockup fica de fora: o DTO não traz série por mês, e
-  // barras desenhadas sem série seriam dado inventado.
+  // O mesmo agregado mensal alimenta a sparkline compacta e o gráfico detalhado expandido.
   return (
     <Card
-      className={cn("gap-1.5", modo === "compacta" ? "min-h-22 py-2.5" : "min-h-60 py-5")}
+      className={cn(modo === "compacta" ? "min-h-22 gap-1 py-2" : "min-h-60 gap-1.5 py-5")}
       style={{ "--tom": tom } as React.CSSProperties}
     >
-      <CardHeader
-        className={cn("flex items-center px-4", modo === "compacta" ? "gap-1.5" : "gap-3")}
-      >
+      <CardHeader className="flex items-center gap-3 px-4">
         <span
           className={cn(
             "flex shrink-0 items-center justify-center text-[var(--tom)]",
@@ -667,14 +704,30 @@ function Kpi({
         >
           <Icone className="size-(--tamanho-icone-interface)" />
         </span>
-        <CardTitle className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-          {titulo}
-        </CardTitle>
+        <div className="min-w-0 flex-1">
+          <CardTitle className="truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            {titulo}
+          </CardTitle>
+          {modo === "expandida" && (
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+                {valor}
+              </p>
+              {comparativo && (
+                <SeloDeTendencia
+                  comparativo={comparativo}
+                  quedaPositiva={quedaPositiva}
+                  sufixo={textos.kpis.periodoAnterior}
+                />
+              )}
+            </div>
+          )}
+        </div>
         {/*
           Sem comparativo, sem selo. A API só devolve variação quando existe período anterior
           comparável; calcular no cliente daria selo inventado em painel executivo.
         */}
-        {comparativo && (
+        {modo === "compacta" && comparativo && (
           <SeloDeTendencia
             comparativo={comparativo}
             quedaPositiva={quedaPositiva}
@@ -683,17 +736,23 @@ function Kpi({
         )}
       </CardHeader>
       <CardContent className="px-4">
-        <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
-          {valor}
-        </p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">{apoio}</p>
-        {modo === "expandida" && (
-          <div
-            className="mt-5 flex min-h-28 items-center justify-center rounded-md border border-dashed text-center text-xs text-muted-foreground"
-            data-testid={`serie-indisponivel-${titulo}`}
-          >
-            {textos.modos.serieIndisponivel}
+        {modo === "compacta" && (
+          <div className="float-right mt-0.5 ml-2">
+            <GraficoKpi pontos={serie} campo={campoSerie} compacto titulo={titulo}
+              meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
           </div>
+        )}
+        {modo === "compacta" && (
+          <p className="text-2xl font-bold tracking-tight" data-testid={`kpi-${titulo}`}>
+            {valor}
+          </p>
+        )}
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
+          {modo === "compacta" ? apoio : resumoSerie}
+        </p>
+        {modo === "expandida" && (
+          <GraficoKpi pontos={serie} campo={campoSerie} compacto={false} titulo={titulo}
+            meses={textos.meses} semDado={textos.semDado} formatar={formatarValor} />
         )}
       </CardContent>
     </Card>

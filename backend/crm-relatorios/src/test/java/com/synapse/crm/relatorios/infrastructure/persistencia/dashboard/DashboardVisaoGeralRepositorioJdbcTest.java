@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 
 import com.synapse.crm.relatorios.application.vendas.AgregacaoDeVendasRepositorio;
@@ -58,8 +60,16 @@ class DashboardVisaoGeralRepositorioJdbcTest {
                 });
         when(jdbc.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(), any(Object[].class)))
                 .thenReturn(List.of());
-        when(vendas.agregar(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), any()))
-                .thenReturn(new AgregacaoDeVendas(0, 0, List.of()));
+        when(jdbc.query(
+                        anyString(),
+                        org.mockito.ArgumentMatchers.<ResultSetExtractor<Object>>any(),
+                        any(Object[].class)))
+                .thenAnswer(chamada -> ((ResultSetExtractor<?>) chamada.getArgument(1))
+                        .extractData(org.mockito.Mockito.mock(ResultSet.class)));
+        when(vendas.agregarComSerie(
+                        org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), any(), any()))
+                .thenReturn(new AgregacaoDeVendasRepositorio.VendasComSerie(
+                        new AgregacaoDeVendas(0, 0, List.of()), Map.of()));
         when(vendas.totalDeVendas(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), any()))
                 .thenReturn(0L);
         when(vendas.contarAte(any(), any())).thenReturn(0L);
@@ -71,7 +81,7 @@ class DashboardVisaoGeralRepositorioJdbcTest {
 
         repositorio.consultar(filtro);
 
-        verify(vendas, times(1)).agregar(same(filtro.periodoAtual()), isNull());
+        verify(vendas, times(1)).agregarComSerie(same(filtro.periodoAtual()), isNull(), eq(filtro.fusoHorario()));
         verify(vendas).totalDeVendas(eq(List.of(filtro.periodoAnterior())), isNull());
         verify(vendas, times(2))
                 .totalDeVendas(org.mockito.ArgumentMatchers.<List<IntervaloTemporal>>any(), isNull());

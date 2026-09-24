@@ -1116,6 +1116,7 @@
       "resolucaoIaApoio": "Sem transferência humana",
       "novosLeads": "Novos leads",
       "novosLeadsApoio": "Criados no período",
+      "resumoSerie": "mín {minMes} {min} · máx {maxMes} {max} · média {media}",
       "periodoAnterior": "vs. período anterior"
     },
     "agora": {

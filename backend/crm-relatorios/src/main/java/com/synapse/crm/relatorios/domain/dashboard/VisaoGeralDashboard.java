@@ -2,6 +2,7 @@ package com.synapse.crm.relatorios.domain.dashboard;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,12 +22,14 @@ public record VisaoGeralDashboard(
         List<MensagensPorHora> horarioDePico,
         RankingDeVendas rankingDeVendas,
         RankingDeAvaliacoes rankingDeAvaliacoes,
-        List<AtendenteDesempenho> equipeDesempenho) {
+        List<AtendenteDesempenho> equipeDesempenho,
+        List<PontoMensal> seriesMensais) {
 
     public VisaoGeralDashboard {
         funil = List.copyOf(funil);
         horarioDePico = List.copyOf(horarioDePico);
         equipeDesempenho = List.copyOf(equipeDesempenho);
+        seriesMensais = List.copyOf(seriesMensais);
     }
 
     public VisaoGeralDashboard comStatusAoVivo(StatusAoVivo statusAtual) {
@@ -45,7 +48,8 @@ public record VisaoGeralDashboard(
                 horarioDePico,
                 rankingDeVendas,
                 rankingDeAvaliacoes,
-                equipeDesempenho);
+                equipeDesempenho,
+                seriesMensais);
     }
 
     public record Periodo(int ano, List<Integer> meses, LocalDate inicio, LocalDate fim) {
@@ -122,6 +126,22 @@ public record VisaoGeralDashboard(
     }
 
     public record AtendenteNaAvaliacao(UUID id, String nome, BigDecimal media, long quantidade) {}
+
+    /**
+     * Agregados do mesmo recorte dos KPIs. Nulo significa ausencia de amostra (medias/taxas) ou
+     * periodo futuro; zero e uma contagem observada de fato. O mes corrente e parcial.
+     */
+    public record PontoMensal(
+            YearMonth mes,
+            boolean parcial,
+            boolean disponivel,
+            Long atendimentos,
+            Long novosLeads,
+            Long tempoMedioSegundos,
+            Long vendasFechadas,
+            BigDecimal taxaConversao,
+            BigDecimal avaliacaoMedia,
+            BigDecimal resolucaoPorIa) {}
 
     /**
      * Linha da tabela "Equipe · desempenho". {@code nota}/{@code avaliacoes} vêm nulos/zerados
