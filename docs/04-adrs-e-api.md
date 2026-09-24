@@ -79,6 +79,7 @@
 | Método | Rota | Descrição | Papel mínimo | Evidência |
 |---|---|---|---|---|
 | GET | `/api/v1/atendimentos` | Lista atendimentos por visão operacional | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
+| GET | `/api/v1/atendimentos/contagem[?incluirFinalizados=true]` | Badges: um total por aba do papel (`ATIVOS`, `PENDENTES`, `POTENCIAIS` e, para gestão, `TODOS`), com a mesma visibilidade da listagem. `FINALIZADOS` não é aba e, desde a E209, só vem com `incluirFinalizados=true` | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
 | GET | `/api/v1/atendimentos/busca?leadId=...` ou `?telefone=...` | Busca pontualmente o cartão representativo mais recente de um lead visível; exige exatamente um parâmetro e normaliza telefone pelo contrato canônico | Atendente | `PainelDeAtendimentosController` · `PainelDeAtendimentosControllerIT` |
 | GET | `/api/v1/atendimentos/{id}/mensagens` | Histórico paginado por cursor, com resumo de reações agregado em lote | Atendente | `AtendimentoMensagensController` · `HistoricoMensagensCursorIT` · `ReacoesDeMensagemIT` |
 | GET | `/api/v1/atendimentos/{id}/mensagens/{mensagemId}` | Busca pontual de mensagem citada, limitada ao histórico do lead do atendimento visível; mídia somente por URL assinada | Atendente | `AtendimentoMensagensController` · `ListarHistoricoMensagensUseCase` |

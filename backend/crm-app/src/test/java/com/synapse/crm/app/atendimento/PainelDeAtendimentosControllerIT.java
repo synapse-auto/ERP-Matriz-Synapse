@@ -673,7 +673,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                 String email, String senha, List<String> visoes) throws Exception {
             String token = ApoioAutenticacao.login(http, email, senha).accessToken();
             String corpo = ApoioAutenticacao.comToken(
-                    http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class).getBody();
+                    http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem?incluirFinalizados=true", String.class).getBody();
             JsonNode contagens = json.readTree(corpo);
             for (String visao : visoes) {
                 String listagem = ApoioAutenticacao.comToken(
@@ -700,6 +700,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         private UUID atendimentoFinalizadoDoBruno;
         private UUID leadComHistoricoEAberto;
         private UUID atendimentoAbertoDoHistorico;
+        private UUID leadDoBrunoComHistoricoEAberto;
 
         @BeforeEach
         void prepararFinalizados() {
@@ -726,6 +727,52 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
             inserirMensagem(atendimentoAbertoDoHistorico, "ATENDENTE", idAna, "ainda aberto");
             definirUltimaMensagem(historico, base.plusSeconds(21));
             definirUltimaMensagem(atendimentoAbertoDoHistorico, base.plusSeconds(31));
+
+            // E209: o ciclo antigo FINALIZADO do Bruno e visivel para a Ana pela RLS de
+            // atendimento, o ciclo aberto nao, e o lead (EM_ATENDIMENTO do Bruno) tambem nao. A
+            // lista nunca mostrou esse lead; a contagem da E199 o contava. A mensagem mais recente
+            // de todas o coloca no topo da escolha da primeira pagina.
+            leadDoBrunoComHistoricoEAberto = criarLead("Historico aberto Bruno", idBruno, "EM_ATENDIMENTO");
+            UUID historicoDoBruno = criarAtendimento(leadDoBrunoComHistoricoEAberto, idBruno, "FINALIZADO");
+            UUID abertoDoBruno = criarAtendimento(leadDoBrunoComHistoricoEAberto, idBruno, "EM_ATENDIMENTO");
+            definirInicio(historicoDoBruno, base.plusSeconds(40));
+            definirInicio(abertoDoBruno, base.plusSeconds(50));
+            inserirMensagem(historicoDoBruno, "LEAD", null, "ciclo antigo do Bruno");
+            definirUltimaMensagem(historicoDoBruno, Instant.now().plusSeconds(3600));
+        }
+
+        @Test
+        @DisplayName("E209: contagem padrao so traz as abas; FINALIZADOS so quando pedido")
+        void contagemPadrao_omiteFinalizados() throws Exception {
+            for (String[] credencial : List.of(
+                    new String[] {EMAIL_ANA, SENHA_ATENDENTE}, new String[] {EMAIL_GESTOR, SENHA_GESTOR})) {
+                String token = ApoioAutenticacao.login(http, credencial[0], credencial[1]).accessToken();
+                JsonNode padrao = json.readTree(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class).getBody());
+                JsonNode completa = json.readTree(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem?incluirFinalizados=true",
+                        String.class).getBody());
+
+                assertThat(padrao.has("FINALIZADOS")).as(credencial[0]).isFalse();
+                assertThat(completa.has("FINALIZADOS")).as(credencial[0]).isTrue();
+                assertThat(completa.has("TODOS")).as(credencial[0]).isEqualTo(padrao.has("TODOS"));
+                for (String aba : List.of("ATIVOS", "PENDENTES", "POTENCIAIS")) {
+                    assertThat(padrao.has(aba)).as("%s %s", credencial[0], aba).isTrue();
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("E209: lead escondido pela RLS de lead nao encolhe a pagina da inbox")
+        void paginaDaInbox_naoEncolheComLeadEscondidoPelaRlsDeLead() throws Exception {
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            JsonNode corpo = json.readTree(ApoioAutenticacao.comToken(
+                    http, token, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=FINALIZADOS&limite=1",
+                    String.class).getBody());
+
+            assertThat(corpo.path("itens")).hasSize(1);
+            assertThat(corpo.toString()).doesNotContain(leadDoBrunoComHistoricoEAberto.toString());
+            assertThat(corpo.path("proximoCursor").asText("")).isNotBlank();
         }
 
         @Test
@@ -865,7 +912,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         private void assertContagemFinalizados(String email, String senha) throws Exception {
             String token = ApoioAutenticacao.login(http, email, senha).accessToken();
             String contagemJson = ApoioAutenticacao.comToken(
-                            http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem", String.class)
+                            http, token, HttpMethod.GET, "/api/v1/atendimentos/contagem?incluirFinalizados=true", String.class)
                     .getBody();
             String listagem = ApoioAutenticacao.comToken(
                             http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=FINALIZADOS", String.class)

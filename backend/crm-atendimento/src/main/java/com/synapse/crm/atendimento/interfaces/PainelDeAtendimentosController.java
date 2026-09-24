@@ -110,15 +110,17 @@ class PainelDeAtendimentosController {
 
     /**
      * Os badges das abas (E17b §Bloco 6): uma contagem por visão, na mesma chamada, para a tela não
-     * disparar uma requisição por aba.
+     * disparar uma requisição por aba. FINALIZADOS não é aba e só entra quando pedido (E209).
      */
     @Operation(
             summary = "Contar atendimentos por visão",
-            description = "Retorna, para cada visão operacional, quantos cartões o papel autenticado enxergaria — a mesma visibilidade da listagem.",
+            description = "Retorna, para cada aba do papel autenticado, quantos cartões ele enxergaria — a mesma visibilidade da listagem. FINALIZADOS só é incluído com incluirFinalizados=true.",
             responses = @ApiResponse(responseCode = "200", description = "Contagem por visão."))
     @GetMapping("/contagem")
-    Map<VisaoAtendimento, Long> contagem() {
-        return contarPorVisao.executar();
+    Map<VisaoAtendimento, Long> contagem(
+            @Parameter(description = "Inclui a visão FINALIZADOS, que não é aba e é a contagem mais cara.")
+                    @RequestParam(defaultValue = "false") boolean incluirFinalizados) {
+        return contarPorVisao.executar(incluirFinalizados);
     }
 
     @ExceptionHandler(RecursoDeAtendimentoIndisponivelException.class)

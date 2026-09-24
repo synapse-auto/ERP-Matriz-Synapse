@@ -142,3 +142,118 @@ e registrar `calls`, `total_exec_time`, `mean_exec_time`, `rows` e a consulta no
 
 Não comparar CPU antes/depois sem carga equivalente. O critério para abrir uma correção deve ser
 tempo total relevante ou alta multiplicidade, não apenas SQL visualmente grande.
+
+## E209 — CPU do Postgres da Estrutural em 24/09
+
+### Evidência disponível e seus limites
+
+Observado na instância (não reproduzido aqui): ~180 min com CPU da VPS em 100%, container
+`erp-matriz-hml-oxj4cd_postgres` em 224,72% e 182,66%, memória perto de 915 MiB de 1 GiB, e em
+`pg_stat_activity` o `SELECT COUNT(*)` da visão FINALIZADOS. Entre 16:12:58 e 16:17:23 os
+contadores acumulados cresceram 898.840 varreduras de `usuario` e 7.805.651 buscas por índice em
+`atendimento` — são **deltas** de 4 min 25 s, não totais.
+
+Sem `pg_stat_statements` e sem métricas HTTP expostas (`management.endpoints` só publica
+`health`/`info`), **não é possível atribuir as três horas a uma consulta nem saber a frequência
+real de `/contagem` e da inbox em produção.** O que se afirma abaixo vem do código, de testes e da
+bancada `docs/benchmarks/e209-painel/`.
+
+Uma inferência que a evidência sustenta: a SQL de contagem não referencia `usuario`. Na bancada, só
+as listagens produzem `seq_scan` em `usuario` (até 9.974 por página TODOS, pelo `LEFT JOIN usuario`
+por linha). As 898.840 varreduras de `usuario` indicam, portanto, listagens do painel (ou outra
+consulta que junte `usuario`) rodando em volume no período — não só o COUNT visto no snapshot.
+
+### Causa confirmada no código
+
+1. **Ouvinte global invalidando tudo a cada evento.** `NotificacoesTempoReal` fica no layout (todas
+   as páginas) e invalidava `["atendimentos"]` em toda notificação de origem ATENDIMENTO, incluindo
+   `ATENDIMENTO_ESTADO`, que o backend envia a **todos os gestores/subgestores/administradores** a
+   cada mensagem recebida, enviada ou respondida pela IA (`ListarDestinatariosTempoRealUseCase`).
+   Para lead com a IA, `NOVA_MENSAGEM` vai a todos os usuários ativos. Cada invalidação relia a
+   contagem (5 COUNTs para gestão, incluindo FINALIZADOS), **todas** as páginas já carregadas da
+   inbox e o `/estado` da conversa aberta.
+2. **Mesmo evento invalidado duas vezes na tela de Atendimentos** (ouvinte global + ouvinte da
+   página). `invalidateQueries` usa `cancelRefetch`: o navegador descarta a primeira resposta, mas o
+   servidor executa as duas consultas.
+3. **Página 1 da inbox custava a lista inteira.** O `ROW_NUMBER() OVER (PARTITION BY lead)` impede o
+   `LIMIT` de descer; não lidas, atendimento ativo, dono, etapa e prévia eram calculados para cada
+   atendimento da visão antes do corte.
+4. **FINALIZADOS contado e descartado em toda chamada** a `/contagem`.
+5. `mensagem` é particionada por mês: cada lateral "última mensagem" sonda o índice de todas as
+   partições (default + meses), por atendimento.
+
+**Hipótese não comprovada:** a soma 1–4, com vários gestores/abas e tráfego da IA, explica a
+saturação. É coerente com os contadores, mas não há como provar volume sem telemetria. A automação
+(E200) **não foi avaliada**: não há acesso aos logs do n8n nem registro de requisições no backend.
+
+### O que mudou
+
+| Frente | Antes | Depois |
+|---|---|---|
+| `/contagem` padrão | abas + FINALIZADOS | só abas; `?incluirFinalizados=true` mantém o total com a mesma equivalência |
+| SQL da contagem | `ROW_NUMBER` + lateral de mensagem por atendimento, sem `JOIN lead` | `COUNT(DISTINCT a.lead_id)` com `JOIN lead` (RLS de lead) |
+| Listagem/página | cartão completo para todo atendimento da visão | fase 1 estreita escolhe e pagina; fase 2 monta ≤ limite cartões |
+| Refetch por evento | 1 (global) ou 2 (tela) invalidações amplas por evento | ≤ 1 imediato + 1 no fim de 2 s por aba; mesmo evento deduplicado |
+| `/estado` por evento | relido em todo evento de qualquer lead | só quando o evento é daquele atendimento, ou urgente |
+| Revogação | fechava o painel; lista só mudava no próximo evento | refetch urgente imediato da lista |
+
+### Bancada — SQL (mesma massa, RLS real, média de 3 execuções)
+
+Massa sintética: 20 mil leads, 40.104 atendimentos, 506 mil mensagens. `idx_msg` e `idx_at` são
+buscas por índice por execução em `mensagem` (todas as partições) e `atendimento`.
+
+| Cenário | ms antes | ms depois | blocos antes | blocos depois | idx_at antes→depois | idx_msg antes→depois | seq `usuario` antes→depois |
+|---|---:|---:|---:|---:|---|---|---|
+| inbox pág. 1 TODOS (gestor) | 1.396,9 | 233,6 | 625.149 | 184.675 | 19.960→10.147 | 146.288→50.686 | 9.974→1 |
+| inbox pág. 1 PENDENTES (gestor) | 2.113,7 | 123,9 | 1.141.963 | 130.952 | 84.710→6.908 | 301.605→38.258 | 1→1 |
+| inbox pág. 1 FINALIZADOS (gestor) | 2.642,3 | 563,3 | 1.465.060 | 637.429 | 100.374→70.403 | 291.486→151.211 | 1→1 |
+| inbox pág. 1 ATIVOS (atendente) | 72,0 | 43,1 | 47.035 | 17.362 | 1.850→1.273 | 10.868→4.454 | 738→51 |
+| inbox pág. 1 FINALIZADOS (atendente) | 2.291,9 | 738,4 | 1.451.151 | 618.801 | 95.069→65.098 | 291.486→151.211 | 1→1 |
+| listar PENDENTES (atendente, legado) | 2.397,2 | 95,2 | 801.318 | 31.315 | 70.163→1.108 | 203.672→8.424 | 1→1 |
+| listar TODOS (gestor, legado) | 731,6 | 541,2 | 625.149 | 455.941 | 19.960→14.975 | 146.288→119.668 | 9.974→1 |
+| contar FINALIZADOS (gestor) | 241,9 | 199,7 | 362.852 | 181.799 | 4→40.110 | 150.650→0 | 0→0 |
+| `/contagem` gestor (soma) | 753,4 (5 SQL) | 270,2 (4 SQL) | 637.946 | 109.497 | | | |
+| `/contagem` atendente (soma) | 670,5 (4 SQL) | 253,1 (3 SQL) | 472.158 | 29.095 | | | |
+
+Resultados comparados byte a byte (`comparar.sh`): as 20 listagens/páginas e 8 das 9 contagens são
+idênticas. A diferente é FINALIZADOS do **atendente**: 16.780 → 15.015, que é o tamanho da
+listagem. A contagem da E199 perdera o `JOIN lead` e contava leads que um colega está atendendo
+(ciclo antigo FINALIZADO visível, lead invisível pela RLS de `lead`) — divergência pré-existente
+entre badge e lista.
+
+Tempos têm ruído de máquina local (3 execuções); blocos e buscas por índice são determinísticos.
+Não foi medido p95 HTTP nem CPU de produção.
+
+### Frequência de refetch (teste `atualizacao-do-painel.test.ts`, QueryClient real)
+
+| Cenário | Antes | Depois |
+|---|---:|---:|
+| 50 eventos em 1 s, tela de Atendimentos (2 ouvintes): execuções de `/contagem` | 100 | 2 |
+| idem, `/estado` da conversa aberta (eventos de outros leads) | 100 | 0 |
+| evento isolado | imediato | imediato |
+| transferência/devolução/convite/revogação no meio de rajada | imediato | imediato |
+| duas abas na tela de Atendimentos, N eventos | 2 × 2N | 2 × 2 por janela |
+
+Estimativa de custo de banco por evento, **modelada** a partir das duas tabelas (gestor na aba
+TODOS com uma página carregada): antes 2 × (753 + 1.397) ≈ 4,3 s de execução SQL por evento;
+depois ≈ 0,5 s por janela de 2 s, independente do número de eventos. Com três gestores e um evento
+por segundo, isso vai de ~13 s de CPU por segundo (acima de 4 vCPU) para ~0,75 s. É um modelo sobre
+massa sintética, não medição de produção.
+
+### Fora do repositório
+
+- **n8n / E200.** A busca pontual já existe (`GET /api/v1/atendimentos/busca?leadId=` ou
+  `?telefone=`, PR #196). Não há evidência de que a automação chame a listagem inteira — o
+  `docs/04` afirma o contrário ("A Automação não usa `/api/v1/atendimentos?visao=TODOS`"), e o E200
+  diz que sim. Nada foi alterado no fluxo. Para confirmar: habilitar log de acesso no Traefik (ou
+  consultar o existente) e contar `GET /api/v1/atendimentos?visao=` sem cabeçalho de navegador; se
+  houver, trocar no workflow o nó HTTP por `/busca` e validar 200/404 com um lead conhecido.
+- **Janela de infraestrutura.** `pg_stat_statements` exige `shared_preload_libraries` e restart do
+  Postgres — fora do horário 08:00–18:30, em cada instância, com `CREATE EXTENSION` depois.
+- **RLS por linha.** As políticas chamam `app_papel()`/`app_usuario_id()` (inlinados em
+  `current_setting`) em cada linha; na bancada isso é boa parte do custo restante da contagem.
+  Envolver as chamadas em `(SELECT ...)` permitiria ao planejador avaliá-las uma vez, mas é mudança
+  de RLS: exige migration própria, teste negativo e janela.
+- **Última mensagem desnormalizada.** O custo restante da fase 1 (FINALIZADOS ~0,5 s) é a lateral
+  por atendimento em todas as partições. `atendimento.ultima_mensagem_em` mantida na gravação
+  eliminaria isso, mas toca o caminho de envio/recebimento e exige backfill: decisão separada.
