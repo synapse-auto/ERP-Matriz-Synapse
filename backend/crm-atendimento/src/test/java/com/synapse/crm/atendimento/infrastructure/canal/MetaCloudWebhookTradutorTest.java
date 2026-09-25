@@ -88,6 +88,27 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void mensagemComGroupIdViraDescarteDeGrupoSemDerrubarOPrivado() {
+        String grupo = """
+                {"from":"5561000000001","id":"G","group_id":"120363000000000000","timestamp":"1720000000",
+                 "type":"text","text":{"body":"no grupo"}}""";
+        String privado = """
+                {"from":"5561000000001","id":"A","timestamp":"1720000001","type":"text","text":{"body":"ok"}}""";
+
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(grupo + "," + privado));
+
+        assertThat(traducao.mensagens()).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+        assertThat(traducao.descartes()).singleElement().satisfies(descarte -> {
+            assertThat(descarte.tipo()).isEqualTo("text");
+            assertThat(descarte.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+        });
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo))).isTrue();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + privado))).isFalse();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(privado))).isFalse();
+    }
+
+    @Test
     void interactiveDeTipoDesconhecidoDescartaSemDerrubarAsDemaisELogaWarn() {
         var mensagens = tradutor.traduzir(payloadComMensagens(
                 """

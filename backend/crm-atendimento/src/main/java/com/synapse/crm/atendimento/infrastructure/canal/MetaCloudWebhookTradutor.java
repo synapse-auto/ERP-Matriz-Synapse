@@ -194,6 +194,9 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         for (MensagemDoPayload item : mensagens(payloadCru)) {
             String tipo = TipoDeItemDoProvedor.normalizar(item.mensagem().path("type").asText(null));
             try {
+                if (ehGrupo(item.mensagem())) {
+                    throw new ItemNaoTraduzido(MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+                }
                 traduzidas.add(traduzirItem(item));
             } catch (ItemNaoTraduzido e) {
                 descartes.add(new ItemDescartado(tipo, e.motivo()));
@@ -205,6 +208,23 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             }
         }
         return new Traducao(traduzidas, descartes);
+    }
+
+    @Override
+    public boolean somenteMensagensDeGrupo(String payloadCru) {
+        List<MensagemDoPayload> itens = mensagens(payloadCru);
+        return !itens.isEmpty() && itens.stream().map(MensagemDoPayload::mensagem).allMatch(
+                MetaCloudWebhookTradutor::ehGrupo);
+    }
+
+    /**
+     * Defensivo: a conta Cloud API usada é de conversa individual, mas a API de grupos da Meta marca a
+     * mensagem de grupo com {@code group_id}. Se um dia chegar, o {@code from} é o participante —
+     * traduzir colaria o grupo no privado dele.
+     */
+    private static boolean ehGrupo(JsonNode mensagem) {
+        String grupo = mensagem.path("group_id").asText(null);
+        return grupo != null && !grupo.isBlank();
     }
 
     private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload item) {

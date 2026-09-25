@@ -176,7 +176,14 @@ public class WebhookCanalController {
         }
 
         Instant recebidoEm = Instant.now(relogio);
-        agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
+        if (tradutor.somenteMensagensDeGrupo(payloadCru)) {
+            // Grupo nao e conversa do CRM (docs/44). Repassado, chegaria a Automacao com o telefone
+            // do participante e poderia virar resposta automatica no privado. O POST ainda entra na
+            // fila abaixo, onde cada item vira descarte GRUPO_NAO_SUPORTADO — visivel, nao perdido.
+            log.debug("POST so com mensagens de grupo: repasse a Automacao suprimido.");
+        } else {
+            agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
+        }
 
         List<StatusDeEntregaDoCanal> statuses = tradutor.statusDeEntrega(payloadCru);
         if (!statuses.isEmpty()) {

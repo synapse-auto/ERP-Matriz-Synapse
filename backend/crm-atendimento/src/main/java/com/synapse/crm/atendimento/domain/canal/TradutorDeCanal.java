@@ -74,6 +74,19 @@ public interface TradutorDeCanal {
      */
     Traducao traduzirComDescartes(String payloadCru);
 
+    /**
+     * O POST traz mensagens e todas elas sao de grupo?
+     *
+     * <p>Conversa de grupo nao e suportada (docs/44): cada item de grupo vira descarte
+     * {@link MotivoDeDescarte#GRUPO_NAO_SUPORTADO}. Este atalho existe para a borda nao repassar a
+     * Automacao um POST que so tem grupo — la ele chegaria com o telefone do participante e poderia
+     * gerar resposta automatica no privado. POST misto nao e reescrito (a assinatura cobre o corpo
+     * inteiro) e continua sendo repassado. Status sem mensagem devolve {@code false}.
+     */
+    default boolean somenteMensagensDeGrupo(String payloadCru) {
+        return false;
+    }
+
     /** Atalho para quem so precisa das mensagens. */
     default List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
         return traduzirComDescartes(payloadCru).mensagens();
@@ -88,7 +101,13 @@ public interface TradutorDeCanal {
         /** Sem identificador externo, remetente ou referencia de midia: nao da para registrar. */
         SEM_IDENTIFICADOR,
         /** A leitura do item falhou; os demais itens do mesmo POST seguem. */
-        ITEM_MALFORMADO
+        ITEM_MALFORMADO,
+        /**
+         * Mensagem de grupo. Ignorada de proposito — o CRM so tem conversa individual e associar o
+         * item ao participante misturaria o grupo com o privado dele —, mas registrada como descarte
+         * para ficar visivel quanto chega.
+         */
+        GRUPO_NAO_SUPORTADO
     }
 
     /**

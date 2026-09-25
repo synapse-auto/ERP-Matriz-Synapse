@@ -21,8 +21,8 @@ schema, como as de citação: um catálogo de filho publicado antes delas não r
 
 **Descartes observáveis.** O tradutor devolve `Traducao(mensagens, descartes)`. Cada descarte é
 `{tipo, motivo}`, com `tipo` normalizado para os tipos documentados pelos dois provedores (o resto
-vira `outro`) e `motivo` em `TIPO_NAO_SUPORTADO`, `CONTEUDO_INVALIDO`, `SEM_IDENTIFICADOR` ou
-`ITEM_MALFORMADO`. O processador grava na linha `webhook_entrada.itens_descartados` e
+vira `outro`) e `motivo` em `TIPO_NAO_SUPORTADO`, `CONTEUDO_INVALIDO`, `SEM_IDENTIFICADOR`,
+`ITEM_MALFORMADO` ou `GRUPO_NAO_SUPORTADO` (E213: grupo ignorado de propósito, mas visível). O processador grava na linha `webhook_entrada.itens_descartados` e
 `webhook_entrada.descartes` (JSONB) e escreve um único log
 `[DESCARTE_WEBHOOK] entrada=<id_externo> provedor=<p> itens=<n> descartes=[tipo:MOTIVO,...]`.
 Nenhum dos dois carrega telefone, nome, conteúdo ou payload. **Não contam como descarte**, por
@@ -46,6 +46,38 @@ sem descarte é idêntico ao anterior à V81, então o caminho comum não depend
 um contato recebido exige a V81 aplicada (valor `CONTATO` do enum). Onde a V73 ainda estiver
 pendente, a V74 em diante — incluindo a V81 — não roda no boot (ver `docs/41`).
 
+## Fase 2, item 3 — isolamento de grupo (filtrar com observabilidade)
+
+**Decisão aplicada:** filtrar. Conversa de grupo **não** foi implementada (sem UI, schema ou fluxo).
+
+**Falha encontrada.** O Swagger da Uzapi declara `isGroup` obrigatório em toda mensagem recebida, e
+o registro de callback recomendado em `docs/38` §8.0 liga `group_messages: true`. O tradutor ignorava
+a flag: a mensagem de grupo chegava com `from` = participante e era gravada no atendimento individual
+dele — e passava pelo comando de reset por texto. O controller repassava o POST à Automação antes de
+qualquer tradução, então o n8n recebia o texto do grupo como se fosse do privado. Provado por
+`WebhookGrupoUzapiIT`: com o filtro desligado, "no grupo" cai na conversa do participante e o repasse
+é enfileirado. As 10 amostras reais de Status registradas na E163 já traziam `isGroup: true`, o que
+confirma a presença do campo no payload real.
+
+**Comportamento.**
+
+- **Uzapi:** item com `isGroup: true` (booleano ou texto) ou com JID de chat terminando em `@g.us`
+  (`from`, `chatid`, `remoteJid`, `groupId`…) vira descarte `GRUPO_NAO_SUPORTADO`, com o tipo
+  normalizado e sem telefone/conteúdo. Status/Story continua identificado só por `status@broadcast`,
+  avaliado **antes**, e ignorado em silêncio (decisão da E163 preservada: `isGroup` nunca aciona o
+  filtro de Status).
+- **Meta:** defensivo. A conta Cloud API usada é individual; item com `group_id` recebe o mesmo
+  descarte. Formato de grupo da Meta não verificado nesta etapa.
+- **Repasse à Automação:** POST cujas mensagens são **todas** de grupo não é repassado. POST misto
+  (grupo + privado) não pode ser reescrito, porque a assinatura cobre o corpo inteiro: segue inteiro para
+  o n8n. É um limite conhecido; o CRM já não o associa ao privado. Nenhum contrato `/internal/v1` mudou.
+- O POST só de grupo ainda entra em `webhook_entrada`, para o descarte ficar na consulta operacional.
+
+**Testes.** `UzapiAutoticWebhookTradutorTest` (flag booleana e textual, JID `@g.us`, grupo ≠
+Status, `somenteMensagensDeGrupo`), `MetaCloudWebhookTradutorTest` (`group_id`), `WebhookGrupoUzapiIT`
+(segredo inválido; grupo com texto de reset não toca o atendimento aberto do participante, não cria
+lead, não enfileira repasse e registra o descarte; reentrega; POST misto).
+
 ## Objetivo e limites
 
 Garantir que uma mensagem válida e relevante ao atendimento não desapareça silenciosamente entre o provedor WhatsApp e o histórico do CRM. A comparação é por **provedor × direção × capacidade**: recurso do aplicativo WhatsApp não implica suporte da API, da versão instalada ou do CRM. A Base PAI deve funcionar por capacidade, sem condicional pelo nome do cliente.
@@ -60,7 +92,7 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 | Reação recebida | Documentada | Documentada | Não traduzida; o modelo atual de reação está ligado a usuário do CRM. | P2 |
 | Resposta rápida de template recebida | `type: button` documentado | Verificar contrato efetivo | Tradutor Meta não contempla `button`; descarte estático identificado, sem caso real observado. | P1 suspeito; confirmar uso antes da correção |
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
-| Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | Suspeita de que mensagem de grupo seja associada à conversa individual do remetente; ainda não demonstrada em produção. | P2, decisão de produto antes de alterar |
+| Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | **Confirmado no código (E213): a mensagem de grupo entrava na conversa individual do participante e ia para a Automação. Corrigido: filtrada com descarte `GRUPO_NAO_SUPORTADO` e sem repasse (ver seção abaixo). Conversa de grupo continua não implementada. Coberto por teste local e CI; não verificado em instância real.** | P2, decisão de produto antes de alterar |
 | Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | Tipos permitidos no domínio e seletor do composer não incluem vídeo. | P2 |
 | Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. | P3 |
 | Status `played`/`deleted` | Contrato próprio | Eventos possíveis | Não mapeados pela integração UZAPI. Sem decisão de produto registrada sobre exibição/semântica. | P3 |

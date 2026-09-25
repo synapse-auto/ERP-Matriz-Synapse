@@ -145,13 +145,19 @@ class UzapiAutoticWebhookTradutorTest {
     }
 
     @Test
-    void isGroupSemGroupIdDeStatusNaoDescartaGrupoReal() {
-        var mensagens = tradutor.traduzir(payloadComMensagem(
-                "{\"from\":\"556177777777\",\"isGroup\":true,\"id\":\"grupo-real\","
-                        + "\"type\":\"text\",\"text\":{\"body\":\"mensagem do grupo\"}}"));
+    void isGroupSemGroupIdDeStatusNaoETratadoComoStatus() {
+        // E163: isGroup sozinho nao pode acionar o filtro silencioso de Status/Story. Desde a E213 o
+        // grupo real tambem nao vira conversa, mas sai como descarte visivel — nunca some como Status.
+        String grupoReal = "{\"from\":\"556177777777\",\"isGroup\":true,\"id\":\"grupo-real\","
+                + "\"type\":\"text\",\"text\":{\"body\":\"mensagem do grupo\"}}";
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagem(grupoReal));
 
-        assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
-                .containsExactly("grupo-real");
+        assertThat(traducao.mensagens()).isEmpty();
+        assertThat(traducao.descartes()).singleElement()
+                .extracting(TradutorDeCanal.ItemDescartado::motivo)
+                .isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+        // Status/Story fica fora da fila; o grupo entra, para o descarte ser registrado.
+        assertThat(tradutor.idsExternos(payloadComMensagem(grupoReal))).containsExactly("grupo-real");
     }
 
     @Test
@@ -173,6 +179,39 @@ class UzapiAutoticWebhookTradutorTest {
 
         assertThat(mensagens).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
                 .containsExactly("ok");
+    }
+
+    @Test
+    void mensagemDeGrupoViraDescarteVisivelSemVirarConversaDoParticipante() {
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(
+                "{\"from\":\"556188888888\",\"id\":\"grupo-flag\",\"isGroup\":true,\"type\":\"text\","
+                        + "\"text\":{\"body\":\"oi grupo\"}},"
+                        + "{\"from\":\"556188888888\",\"id\":\"grupo-jid\",\"chatid\":\"120363000000000000@g.us\","
+                        + "\"type\":\"image\",\"image\":{\"id\":\"m1\"}},"
+                        + "{\"from\":\"556188888888\",\"id\":\"grupo-texto\",\"isGroup\":\"true\",\"type\":\"reaction\"},"
+                        + "{\"from\":\"556188888888\",\"id\":\"privado\",\"isGroup\":false,\"type\":\"text\","
+                        + "\"text\":{\"body\":\"oi\"}}"));
+
+        assertThat(traducao.mensagens()).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("privado");
+        assertThat(traducao.descartes()).extracting(TradutorDeCanal.ItemDescartado::tipo)
+                .containsExactly("text", "image", "reaction");
+        assertThat(traducao.descartes()).allSatisfy(descarte -> assertThat(descarte.motivo())
+                .isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO));
+    }
+
+    @Test
+    void somenteMensagensDeGrupoSoQuandoTodoItemDeConversaEDeGrupo() {
+        String grupo = "{\"from\":\"556188888888\",\"id\":\"g\",\"isGroup\":true,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
+        String privado = "{\"from\":\"556188888888\",\"id\":\"p\",\"isGroup\":false,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
+        String story = "{\"from\":\"556188888888\",\"id\":\"s\",\"group_id\":\"status@broadcast\",\"type\":\"text\"}";
+
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo))).isTrue();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + story))).isTrue();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + privado))).isFalse();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(privado))).isFalse();
+        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(story))).isFalse();
+        assertThat(tradutor.somenteMensagensDeGrupo("{\"entry\":[]}")).isFalse();
     }
 
     @Test
