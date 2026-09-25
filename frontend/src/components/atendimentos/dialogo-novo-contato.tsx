@@ -30,6 +30,8 @@ type Props = {
   onConfirmar: (pedido: PedidoDeNovoContato) => void;
   pendente?: boolean;
   erro?: string | null;
+  /** E211: nome e telefone vindos de um contato compartilhado; o usuário revisa e confirma. */
+  valoresIniciais?: { nome: string; telefone: string } | null;
 };
 
 export function mascararTelefoneBr(valor: string): string {
@@ -51,6 +53,7 @@ export function DialogoNovoContato({
   onConfirmar,
   pendente = false,
   erro = null,
+  valoresIniciais = null,
 }: Props) {
   return (
     <Dialog open={aberto} onOpenChange={(valor) => !valor && onFechar()}>
@@ -61,6 +64,7 @@ export function DialogoNovoContato({
             onConfirmar={onConfirmar}
             pendente={pendente}
             erro={erro}
+            valoresIniciais={valoresIniciais}
           />
         ) : null}
       </DialogContent>
@@ -73,11 +77,12 @@ function FormularioNovoContato({
   onConfirmar,
   pendente,
   erro,
+  valoresIniciais,
 }: Omit<Props, "aberto">) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.novoContato;
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [nome, setNome] = useState(valoresIniciais?.nome ?? "");
+  const [telefone, setTelefone] = useState(mascararTelefoneBr(valoresIniciais?.telefone ?? ""));
   const [primeiraMensagem, setPrimeiraMensagem] = useState("");
   const [templateSelecionado, setTemplateSelecionado] = useState<TemplateWhatsApp | null>(null);
   const [parametros, setParametros] = useState<Record<string, string[]>>({});

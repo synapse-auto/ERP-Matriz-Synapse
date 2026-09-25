@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, X } from "lucide-react";
 
@@ -16,6 +16,10 @@ import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import {
+  ProvedorDeAberturaDeConversa,
+  type AberturaDeConversaDoContato,
+} from "@/lib/atendimento/abrir-conversa-do-contato";
 import {
   atualizarPainelDeAtendimentos,
   pedidoDaNotificacao,
@@ -154,6 +158,7 @@ export function PaginaAtendimentosCliente({
     },
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
+  const [novoContatoInicial, setNovoContatoInicial] = useState<{ nome: string; telefone: string } | null>(null);
   const sessao = useAuthStore.getState();
   const marcarLeituraDaConversa = useCallback(
     (atendimentoId: string, leadId: string) => {
@@ -242,6 +247,16 @@ export function PaginaAtendimentosCliente({
       focarAtendimentoIniciado(resposta);
     },
   });
+  // E211: o card de contato compartilhado abre o cartão que o backend já autorizou pela mesma seleção
+  // da lista, ou só abre o diálogo de novo contato preenchido — confirmar continua com o usuário.
+  const aberturaDeConversaDoContato = useMemo<AberturaDeConversaDoContato>(() => ({
+    abrirCartao: (cartao) => selecionarAtendimento(cartao),
+    iniciarNovoContato: (dados) => {
+      iniciarContato.reset();
+      setNovoContatoInicial(dados);
+      setNovoContatoAberto(true);
+    },
+  }), [iniciarContato, selecionarAtendimento]);
   const abrirNovoAtendimento = useMutation({
     mutationFn: abrirAtendimentoParaLead,
     onSuccess: (resposta) => {
@@ -670,6 +685,7 @@ export function PaginaAtendimentosCliente({
       : "grid-cols-[346px_minmax(0,1fr)]";
 
   return (
+    <ProvedorDeAberturaDeConversa valor={aberturaDeConversaDoContato}>
     <div
       className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
     >
@@ -796,6 +812,7 @@ export function PaginaAtendimentosCliente({
         onCriarGrupoInterno={(nome, participantes) => criarGrupoInterno.mutateAsync({ nome, participantes })}
         onNovoContato={() => {
           iniciarContato.reset();
+          setNovoContatoInicial(null);
           setNovoContatoAberto(true);
         }}
         className={cn(telaEstreita && conversaAberta && "hidden")}
@@ -936,6 +953,7 @@ export function PaginaAtendimentosCliente({
         aberto={novoContatoAberto}
         onFechar={() => setNovoContatoAberto(false)}
         onConfirmar={(pedido) => iniciarContato.mutate(pedido)}
+        valoresIniciais={novoContatoInicial}
         pendente={iniciarContato.isPending}
         erro={
           iniciarContato.isError
@@ -955,6 +973,7 @@ export function PaginaAtendimentosCliente({
         />
       )}
     </div>
+    </ProvedorDeAberturaDeConversa>
   );
 }
 

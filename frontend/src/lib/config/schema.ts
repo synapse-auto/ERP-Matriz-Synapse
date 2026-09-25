@@ -682,6 +682,16 @@ export const TextosSchema = z.object({
       contatoSemTelefone: z.string().optional(),
       copiarTelefone: z.string().optional(),
       ligarPara: z.string().optional(),
+      // E211: abrir conversa pelo número compartilhado. Opcionais: sem elas o card não oferece a ação.
+      abrirConversa: z.string().optional(),
+      abrirConversaCom: z.string().optional(),
+      procurandoConversa: z.string().optional(),
+      conversaNaoEncontrada: z.string().optional(),
+      iniciarNovoContato: z.string().optional(),
+      iniciarNovoContatoCom: z.string().optional(),
+      telefoneInvalidoParaConversa: z.string().optional(),
+      erroAbrirConversa: z.string().optional(),
+      tentarAbrirConversaDeNovo: z.string().optional(),
       visualizador: z.object({
         fechar: z.string(),
         anterior: z.string(),
