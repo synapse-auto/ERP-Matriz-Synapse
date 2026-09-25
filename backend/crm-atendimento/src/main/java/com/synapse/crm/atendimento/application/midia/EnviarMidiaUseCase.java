@@ -151,18 +151,22 @@ public class EnviarMidiaUseCase {
             AlvoDeResposta resposta,
             boolean gravacaoDoComposer,
             String chaveIdempotencia) {
-        String mimetypeReal =
-                IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
-        TipoMensagem tipo = TiposDeMidiaPermitidos.tipoDe(mimetypeReal).orElse(null);
-        if (tipo == null) {
-            throw new TipoDeMidiaNaoPermitidoException(mimetypeReal);
-        }
+        String mimetypeDetectado = detector.detectar(conteudo);
+        // E215: a classificacao olha as trilhas do conteiner. Video disfarcado de audio (M4A com
+        // trilha de video) e recusado; video de verdade vira VIDEO, nunca AUDIO.
+        TiposDeMidiaPermitidos.Classificacao classificacao = TiposDeMidiaPermitidos
+                .classificar(mimetypeDetectado, conteudo)
+                .orElseThrow(() -> new TipoDeMidiaNaoPermitidoException(
+                        IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(mimetypeDetectado, conteudo)));
+        String mimetypeReal = classificacao.mimetype();
+        TipoMensagem tipo = classificacao.tipo();
 
         // Converter para a CategoriaDeMidia exigida pelos limites
         CategoriaDeMidia categoria = switch (tipo) {
             case IMAGEM -> CategoriaDeMidia.IMAGEM;
             case AUDIO -> CategoriaDeMidia.AUDIO;
             case DOCUMENTO -> CategoriaDeMidia.DOCUMENTO;
+            case VIDEO -> CategoriaDeMidia.VIDEO;
             default -> throw new IllegalStateException("TipoMensagem invalido para midia: " + tipo);
         };
 

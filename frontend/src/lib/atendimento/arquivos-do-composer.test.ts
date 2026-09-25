@@ -6,9 +6,27 @@ import {
   arquivosDeDataTransfer,
   filtrarArquivos,
   TIPOS_DE_ANEXO_ACEITOS,
+  TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO,
 } from "./arquivos-do-composer";
 
 const ACCEPT = TIPOS_DE_ANEXO_ACEITOS;
+
+describe("E215 — vídeo só no atendimento", () => {
+  const mp4 = new File([new Uint8Array(8)], "visita.mp4", { type: "video/mp4" });
+  const tresGp = new File([new Uint8Array(8)], "clip.3gp", { type: "video/3gpp" });
+  const mov = new File([new Uint8Array(8)], "iphone.mov", { type: "video/quicktime" });
+
+  it("aceita MP4 e 3GP no composer do atendimento e recusa .mov", () => {
+    expect(arquivoCompativel(mp4, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO)).toBe(true);
+    expect(arquivoCompativel(tresGp, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO)).toBe(true);
+    expect(arquivoCompativel(mov, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO)).toBe(false);
+  });
+
+  it("não abre vídeo para o chat interno, que usa a lista base", () => {
+    expect(arquivoCompativel(mp4, TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
+    expect(TIPOS_DE_ANEXO_ACEITOS).not.toContain("video/");
+  });
+});
 
 function arquivo(nome: string, tipo: string): File {
   return new File(["x"], nome, { type: tipo });

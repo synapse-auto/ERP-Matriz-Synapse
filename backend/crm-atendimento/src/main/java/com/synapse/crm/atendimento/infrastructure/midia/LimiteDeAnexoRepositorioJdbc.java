@@ -20,7 +20,9 @@ class LimiteDeAnexoRepositorioJdbc implements LimiteDeAnexoRepositorio {
     private static final Map<CategoriaDeMidia, String> CHAVE_POR_TIPO = Map.of(
             CategoriaDeMidia.IMAGEM, "anexo.tamanho_maximo_imagem_mb",
             CategoriaDeMidia.AUDIO, "anexo.tamanho_maximo_audio_mb",
-            CategoriaDeMidia.DOCUMENTO, "anexo.tamanho_maximo_documento_mb");
+            CategoriaDeMidia.DOCUMENTO, "anexo.tamanho_maximo_documento_mb",
+            // E215: opcional; sem a chave vale o teto da Meta (16 MB).
+            CategoriaDeMidia.VIDEO, "anexo.tamanho_maximo_video_mb");
 
     private static final String SQL = "SELECT valor FROM configuracao_automacao WHERE chave = ?";
     private static final String CHAVE_DURACAO_AUDIO = "gravacao_audio.duracao_maxima_segundos";

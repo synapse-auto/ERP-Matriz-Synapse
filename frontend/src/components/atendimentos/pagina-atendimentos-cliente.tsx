@@ -39,7 +39,7 @@ import {
   registrarDiagnosticoDeAbertura,
   statusHttpDoErro,
 } from "@/lib/atendimento/abertura-atendimento";
-import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { ReconciliadorEstadoAtendimento } from "@/lib/atendimento/reconciliar-estado-atendimento";
@@ -876,7 +876,7 @@ export function PaginaAtendimentosCliente({
               }
             />
             <ZonaSoltarArquivos
-              accept={TIPOS_DE_ANEXO_ACEITOS}
+              accept={TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO}
               disabled={
                 !atendimentoAtivo
                 || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)

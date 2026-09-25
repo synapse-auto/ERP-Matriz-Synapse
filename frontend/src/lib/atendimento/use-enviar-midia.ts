@@ -30,6 +30,7 @@ function idTemporario(): string {
 function tipoDoArquivo(mimetype: string): TipoMensagem {
   if (mimetype.startsWith("image/")) return "IMAGEM";
   if (mimetype.startsWith("audio/")) return "AUDIO";
+  if (mimetype.startsWith("video/")) return "VIDEO";
   return "DOCUMENTO";
 }
 

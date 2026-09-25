@@ -93,6 +93,17 @@ class AnexoMidiaIT extends PostgresIT {
             box("ftyp", concatenar("qt  ".getBytes(StandardCharsets.US_ASCII), "qt  ".getBytes(StandardCharsets.US_ASCII))),
             box("moov", box("trak", box("mdia", box("hdlr", concatenar(new byte[8], "soun".getBytes(StandardCharsets.US_ASCII)))))));
 
+    private static final String CHAVE_LIMITE_VIDEO = "anexo.tamanho_maximo_video_mb";
+
+    /** E215: MP4 comum (ftyp isom, que o Tika rotula quicktime) com trilhas vide e soun. */
+    private static final byte[] VIDEO_MP4_COM_TRILHA = conteinerIso("isom", "vide", "soun");
+
+    /** E215: trilha de video num conteiner que se diz M4A — nao pode passar como audio. */
+    private static final byte[] VIDEO_DISFARCADO_DE_M4A = conteinerIso("M4A ", "vide", "soun");
+
+    /** E215: .mov do iPhone (ftyp qt) — a Meta nao aceita QuickTime. */
+    private static final byte[] VIDEO_MOV = conteinerIso("qt  ", "vide", "soun");
+
     @Autowired
     private TestRestTemplate http;
 
@@ -137,6 +148,17 @@ class AnexoMidiaIT extends PostgresIT {
     void restaurarConfiguracao() {
         jdbc.update(
                 "UPDATE configuracao_automacao SET valor = '5' WHERE chave = 'anexo.tamanho_maximo_imagem_mb'");
+        jdbc.update("DELETE FROM configuracao_automacao WHERE chave = ?", CHAVE_LIMITE_VIDEO);
+    }
+
+    private static byte[] conteinerIso(String marca, String... trilhas) {
+        byte[] marcaAscii = marca.getBytes(StandardCharsets.US_ASCII);
+        byte[] traks = new byte[0];
+        for (String trilha : trilhas) {
+            traks = concatenar(traks, box("trak", box("mdia", box("hdlr",
+                    concatenar(new byte[8], trilha.getBytes(StandardCharsets.US_ASCII))))));
+        }
+        return concatenar(box("ftyp", concatenar(marcaAscii, marcaAscii)), box("moov", traks));
     }
 
     @Test
@@ -220,8 +242,8 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("vídeo MP4 real continua recusado pela allowlist")
-    void upload_videoReal_continuaRecusado() {
+    @DisplayName("E215: conteiner sem trilha de video, mesmo rotulado como MP4, continua recusado")
+    void upload_conteinerSemTrilha_continuaRecusado() {
         ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_REAL, "video.mp4", null);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -229,12 +251,70 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("vídeo ISO-BMFF disfarçado de M4A continua recusado")
-    void upload_videoDisfarcado_continuaRecusado() {
-        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_REAL, "gravacao.m4a", null);
+    @DisplayName("E215: MP4 com trilha de video sai como VIDEO pela outbox, com legenda")
+    void upload_videoMp4_eEnviadoComoVideo() {
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_COM_TRILHA, "visita.mp4", "obra");
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"statusEntrega\":\"PENDENTE\"");
+        assertThat(armazenamento.ultimoMimetype()).isEqualTo("video/mp4");
+        assertThat(jdbc.queryForList(
+                "SELECT m.tipo::text FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id"
+                        + " WHERE a.lead_id = ? AND m.midia_url IS NOT NULL",
+                String.class, leadDaAna)).containsExactly("VIDEO");
+        publicador.publicarPendentes();
+        esperar().untilAsserted(() -> {
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(canal.enviados().get(0).conteudo())
+                    .isInstanceOfSatisfying(ConteudoDeEnvio.MensagemMidia.class, midia -> {
+                        assertThat(midia.tipo()).isEqualTo(TipoMensagem.VIDEO);
+                        assertThat(midia.legenda()).contains("obra");
+                    });
+        });
+    }
+
+    @Test
+    @DisplayName("E215: video disfarcado de M4A e .mov nao viram audio nem video")
+    void upload_videoDisfarcadoOuMov_eRecusado() {
+        assertThat(enviarAnexo(leadDaAna, VIDEO_DISFARCADO_DE_M4A, "gravacao.m4a", null).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(enviarAnexo(leadDaAna, VIDEO_MOV, "iphone.mov", null).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(armazenamento.contagemDeObjetos()).isZero();
+    }
+
+    @Test
+    @DisplayName("E215: video acima do limite configurado e recusado antes do storage")
+    void upload_videoAcimaDoLimite_rejeitaAntesDoStorage() {
+        jdbc.update(
+                "INSERT INTO configuracao_automacao (chave, valor, tipo) VALUES (?, '1', 'INT')"
+                        + " ON CONFLICT (chave) DO UPDATE SET valor = '1'",
+                CHAVE_LIMITE_VIDEO);
+        byte[] videoGrande = concatenar(VIDEO_MP4_COM_TRILHA, box("free", new byte[2 * 1024 * 1024]));
+
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, videoGrande, "longo.mp4", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE);
+        assertThat(armazenamento.contagemDeObjetos()).isZero();
+    }
+
+    @Test
+    @DisplayName("E215: provedor recusa o video — a mensagem fica FALHOU e o chat segue enviando")
+    void upload_videoProvedorRecusa_falhaSemTravarOChat() {
+        // Abrir a conversa limpa o CanalFake; a recusa vale so para o video.
+        atendimentoDoLeadOuAbrir(leadDaAna);
+        canal.recusarDeVez("131053 midia recusada");
+        ResponseEntity<String> resposta = enviarAnexo(leadDaAna, VIDEO_MP4_COM_TRILHA, "visita.mp4", null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        publicador.publicarPendentes();
+        esperar().untilAsserted(() -> assertThat(jdbc.queryForList(
+                "SELECT m.status_entrega::text FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id"
+                        + " WHERE a.lead_id = ? AND m.tipo = 'VIDEO'",
+                String.class, leadDaAna)).containsExactly("FALHOU"));
+
+        canal.religar();
+        assertThat(enviarAnexo(leadDaAna, PNG_VALIDO, "depois.png", null).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
