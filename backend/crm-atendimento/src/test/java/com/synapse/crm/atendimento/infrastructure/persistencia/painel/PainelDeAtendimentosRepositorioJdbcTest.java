@@ -9,21 +9,51 @@ import org.junit.jupiter.api.Test;
 
 class PainelDeAtendimentosRepositorioJdbcTest {
 
+    /**
+     * E209: a contagem e {@code COUNT(DISTINCT lead_id)} sobre as mesmas condicoes de visao — sem
+     * janela nem lateral de ultima mensagem, que nao mudam quantos leads existem. O {@code JOIN lead}
+     * fica: e ele que aplica a RLS de lead, como a listagem.
+     */
     @Test
-    void contagensUsamProjecaoMinimaSemCalculosDoCartao() throws Exception {
+    void contagensContamLeadsDistintosSemJanelaNemUltimaMensagem() throws Exception {
         for (String campo : parametrosEsperados().keySet()) {
             String sql = constante(campo);
 
             assertThat(sql)
+                    .as(campo)
+                    .startsWith("SELECT COUNT(DISTINCT a.lead_id) FROM atendimento a JOIN lead l ON l.id = a.lead_id")
                     .doesNotContain(
-                            "JOIN lead",
+                            "ROW_NUMBER() OVER",
+                            "linha_do_lead",
+                            "ultima.enviado_em",
                             "JOIN canal",
                             "JOIN etapa_atendimento",
                             "JOIN usuario",
                             "atendimento_leitura",
-                            "AS atendimento_ativo_id",
-                            "AS nao_lidas")
-                    .contains("ROW_NUMBER() OVER", "LEFT JOIN LATERAL", "WHERE linha_do_lead = 1");
+                            "AS nao_lidas");
+        }
+    }
+
+    /**
+     * E209: a listagem escolhe o atendimento de cada lead numa primeira fase estreita e so depois
+     * monta o cartao. Nao lidas, dono e atendimento ativo nao podem voltar para a fase que roda
+     * para cada atendimento da visao.
+     */
+    @Test
+    void listagensMontamOCartaoSoParaOsAtendimentosEscolhidos() throws Exception {
+        for (String campo : new String[] {
+            "SQL_ATIVOS", "SQL_PENDENTES_PROPRIOS", "SQL_PENDENTES_TODOS", "SQL_POTENCIAIS", "SQL_TODOS",
+            "SQL_FINALIZADOS"
+        }) {
+            String sql = constante(campo);
+            int inicioDaEscolha = sql.indexOf("WHERE a.id IN (SELECT atendimento_id FROM (SELECT");
+            assertThat(inicioDaEscolha).as(campo).isPositive();
+            String escolha = sql.substring(inicioDaEscolha);
+
+            assertThat(escolha)
+                    .as(campo)
+                    .contains("JOIN lead l ON l.id = a.lead_id", "ROW_NUMBER() OVER", "WHERE linha_do_lead = 1")
+                    .doesNotContain("atendimento_leitura", "JOIN usuario", "AS atendimento_ativo_id");
         }
     }
 

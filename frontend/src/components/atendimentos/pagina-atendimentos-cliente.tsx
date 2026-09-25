@@ -16,6 +16,10 @@ import { PainelDaConversa } from "@/components/atendimentos/painel-da-conversa";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { PainelConversaInterna } from "@/components/chat-interno/painel-conversa-interna";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
+import {
+  atualizarPainelDeAtendimentos,
+  pedidoDaNotificacao,
+} from "@/lib/atendimento/atualizacao-do-painel";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoHistorico } from "@/lib/atendimento/reacoes-cache";
 import {
   abrirAtendimentoParaLead,
@@ -171,7 +175,7 @@ export function PaginaAtendimentosCliente({
             leiturasEmVoo.current.delete(leadId);
           }
           if (leiturasEmVoo.current.size === 0) {
-            void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+            atualizarPainelDeAtendimentos(cache, { atendimentoId });
           }
         });
     },
@@ -405,6 +409,8 @@ export function PaginaAtendimentosCliente({
         evento: "REVOGACAO",
       });
       indisponibilizarAtendimento(atendimentoRevogado);
+      // Proteção de visibilidade nunca espera a janela de coalescência (E209).
+      atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {
       registrarDiagnosticoDeAbertura({
@@ -435,7 +441,9 @@ export function PaginaAtendimentosCliente({
       // Uma leitura iniciada localmente tem precedencia sobre o GET amplo: aguarde o POST de
       // leitura terminar para nao reintroduzir no cache um contador anterior ao que o usuario viu.
       if (evento.tipo !== "CHAT_INTERNO_REACAO" && leiturasEmVoo.current.size === 0) {
-        void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+        // E209: mesmo pedido (mesma chave) que o ouvinte global gera para este evento — os dois
+        // viram um refetch só, e uma rajada vira no máximo um por janela.
+        atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
       }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
         void cache.invalidateQueries({ queryKey: ["chat-interno", "mensagens", evento.dados.conversaId] });

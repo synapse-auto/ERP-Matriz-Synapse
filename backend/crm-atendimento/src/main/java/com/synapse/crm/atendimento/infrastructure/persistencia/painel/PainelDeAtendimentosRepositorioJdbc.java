@@ -107,26 +107,49 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             """;
 
     /**
-     * Projecao minima da contagem: preserva o mesmo {@code ROW_NUMBER} da listagem sem calcular
-     * campos que o {@code COUNT(*)} descarta (atendimento ativo, nao lidas e dados do cartao).
+     * E209 — primeira fase da listagem: so o que decide QUAL atendimento representa o lead e em que
+     * posicao ele aparece. O {@code ROW_NUMBER} por lead impede o Postgres de empurrar o
+     * {@code LIMIT} para dentro da consulta, entao tudo que esta aqui roda para cada atendimento da
+     * visao (inclusive o historico de leads com varios ciclos). Por isso nada do cartao entra aqui:
+     * nao lidas, atendimento ativo, dono, etapa e previa da mensagem sao calculados depois, so para
+     * os atendimentos escolhidos.
+     *
+     * <p>{@code sem_atendimento_aberto} e o mesmo {@link #GRUPO_FINALIZADO} da segunda fase: o
+     * {@code LEFT JOIN LATERAL ativo} de {@link #ORIGEM} devolve linha se, e somente se, existir um
+     * atendimento nao finalizado do lead que a RLS deixe ver — exatamente este {@code EXISTS}.
      */
-    private static final String CAMPOS_CONTAGEM =
+    private static final String CAMPOS_ESCOLHA =
             """
-            a.lead_id,
+            a.id AS atendimento_id,
+            ultima.enviado_em AS ultima_mensagem_em,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM atendimento aberto
+                 WHERE aberto.lead_id = a.lead_id AND aberto.status <> 'FINALIZADO'
+            ) THEN 0 ELSE 1 END AS sem_atendimento_aberto,
             ROW_NUMBER() OVER (
                 PARTITION BY a.lead_id
                 ORDER BY COALESCE(ultima.enviado_em, a.iniciado_em) DESC, a.iniciado_em DESC, a.id DESC
             ) AS linha_do_lead
             """;
 
-    private static final String ORIGEM_CONTAGEM =
+    /**
+     * O {@code JOIN lead} e filtro, nao projecao: {@code lead} tem RLS propria, e para o atendente
+     * ela esconde o lead que um colega esta atendendo mesmo quando o ciclo FINALIZADO dele continua
+     * visivel em {@code atendimento}. Sem este join a escolha incluiria leads que a segunda fase
+     * descarta, e a pagina viria com menos cartoes do que o limite.
+     */
+    private static final String ORIGEM_ESCOLHA =
             """
             FROM atendimento a
+            JOIN lead l ON l.id = a.lead_id
             LEFT JOIN LATERAL (
                 SELECT enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
             ) ultima ON true
             """;
+
+    private static final String ORDEM_ESCOLHA =
+            " ORDER BY sem_atendimento_aberto ASC, ultima_mensagem_em DESC NULLS LAST, atendimento_id DESC";
 
     private static final String GRUPO_FINALIZADO =
             "CASE WHEN atendimento_ativo_id IS NULL THEN 1 ELSE 0 END";
@@ -191,17 +214,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      */
     private static final String WHERE_FINALIZADOS = WHERE_SEM_ATENDIMENTO_ABERTO;
 
-    private static final String SQL_ATIVOS = agrupar(CAMPOS + ORIGEM + WHERE_ATIVOS);
+    private static final String SQL_ATIVOS = cartoesDe(escolher(WHERE_ATIVOS));
 
-    private static final String SQL_PENDENTES_PROPRIOS = agrupar(CAMPOS + ORIGEM + WHERE_PENDENTES_PROPRIOS);
+    private static final String SQL_PENDENTES_PROPRIOS = cartoesDe(escolher(WHERE_PENDENTES_PROPRIOS));
 
-    private static final String SQL_PENDENTES_TODOS = agrupar(CAMPOS + ORIGEM + WHERE_PENDENTES_TODOS);
+    private static final String SQL_PENDENTES_TODOS = cartoesDe(escolher(WHERE_PENDENTES_TODOS));
 
-    private static final String SQL_POTENCIAIS = agrupar(CAMPOS + ORIGEM + WHERE_POTENCIAIS);
+    private static final String SQL_POTENCIAIS = cartoesDe(escolher(WHERE_POTENCIAIS));
 
-    private static final String SQL_TODOS = agrupar(CAMPOS + ORIGEM + WHERE_TODOS_ATIVOS);
+    private static final String SQL_TODOS = cartoesDe(escolher(WHERE_TODOS_ATIVOS));
 
-    private static final String SQL_FINALIZADOS = agrupar(CAMPOS + ORIGEM + WHERE_FINALIZADOS);
+    private static final String SQL_FINALIZADOS = cartoesDe(escolher(WHERE_FINALIZADOS));
 
     private static final String SQL_POR_ATENDIMENTO = agrupar(CAMPOS + ORIGEM + " WHERE a.id = ?");
 
@@ -230,9 +253,41 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 + " WHERE linha_do_lead = 1" + ORDEM;
     }
 
-    private static String contar(String whereClause) {
-        return "SELECT COUNT(*) FROM (SELECT " + CAMPOS_CONTAGEM + ORIGEM_CONTAGEM + whereClause + ") cartoes"
-                + " WHERE linha_do_lead = 1";
+    /**
+     * Primeira fase (E209): ids dos atendimentos que representam cada lead da visao. O chamador pode
+     * acrescentar {@code AND ...} (cursor), ordem e limite — a consulta termina no {@code WHERE}.
+     */
+    private static String escolher(String filtro) {
+        return "SELECT atendimento_id FROM (SELECT " + CAMPOS_ESCOLHA + ORIGEM_ESCOLHA + filtro
+                + ") escolha WHERE linha_do_lead = 1";
+    }
+
+    /**
+     * Segunda fase (E209): o cartao completo so dos atendimentos escolhidos. Como sobra um
+     * atendimento por lead, o {@code ROW_NUMBER} de {@link #CAMPOS} vale 1 em toda linha; o
+     * {@link #agrupar} continua aqui apenas para manter a mesma projecao e a mesma {@link #ORDEM}.
+     * Tudo roda no mesmo comando, portanto no mesmo snapshot e sob a mesma RLS das duas fases.
+     */
+    private static String cartoesDe(String atendimentosEscolhidos) {
+        return agrupar(CAMPOS + ORIGEM + " WHERE a.id IN (" + atendimentosEscolhidos + ")");
+    }
+
+    /**
+     * E209 — {@code COUNT(DISTINCT a.lead_id)} e o mesmo numero que a listagem devolve, sem
+     * {@code ROW_NUMBER} nem a lateral da ultima mensagem. Todas as condicoes de visao dependem so
+     * de {@code a.lead_id} (sao {@code EXISTS} por lead), e {@code linha_do_lead = 1} escolhe
+     * exatamente uma linha em cada particao nao vazia de lead — qualquer que seja a ordem. Logo, o
+     * total de cartoes e o total de leads distintos entre as linhas que a RLS e o filtro deixam
+     * passar. {@code lead_id} e {@code NOT NULL}, entao nenhum lead e descartado pelo
+     * {@code DISTINCT}. Uma condicao nova que dependa da linha (e nao do lead) quebra essa
+     * equivalencia: o teste de integracao que compara contagem e listagem reprova.
+     *
+     * <p>O {@code JOIN lead} aplica a RLS de {@code lead}, como a listagem faz. A contagem da E199
+     * nao tinha esse join e, para atendente, contava em FINALIZADOS leads que um colega esta
+     * atendendo (ciclo antigo FINALIZADO visivel, lead invisivel) — numero maior que a lista.
+     */
+    private static String contar(String filtro) {
+        return "SELECT COUNT(DISTINCT a.lead_id) FROM atendimento a JOIN lead l ON l.id = a.lead_id" + filtro;
     }
 
     private static final RowMapper<CartaoAtendimento> MAPEADOR =
@@ -296,8 +351,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         if (filtroAtendenteId != null && visao == VisaoAtendimento.FINALIZADOS) {
             filtro += " AND a.atendente_id = ?";
         }
-        String consulta = "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + CAMPOS + ORIGEM + filtro
-                + ") cartoes WHERE linha_do_lead = 1";
+        // E209: cursor, ordem e LIMIT ficam na primeira fase; a segunda so monta os cartoes da
+        // pagina. A ordem dos parametros continua a do texto: o `?` de nao_lidas (segunda fase)
+        // vem antes do filtro da primeira.
+        String escolha = escolher(filtro);
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS) {
@@ -311,25 +368,24 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         }
         if (depoisDoId != null) {
             int grupoDoCursor = depoisSemAtendimentoAberto ? 1 : 0;
-            consulta += " AND (" + GRUPO_FINALIZADO + " > ? OR (" + GRUPO_FINALIZADO
-                    + " = ? AND (";
+            escolha += " AND (sem_atendimento_aberto > ? OR (sem_atendimento_aberto = ? AND (";
             parametros.add(grupoDoCursor);
             parametros.add(grupoDoCursor);
             if (depoisDe == null) {
-                consulta += "ultima_mensagem_em IS NULL AND atendimento_id < ?";
+                escolha += "ultima_mensagem_em IS NULL AND atendimento_id < ?";
                 parametros.add(depoisDoId);
             } else {
-                consulta += "ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
+                escolha += "ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
                         + " OR ultima_mensagem_em IS NULL";
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(depoisDoId);
             }
-            consulta += ")))";
+            escolha += ")))";
         }
-        consulta += ORDEM + " LIMIT ?";
+        escolha += ORDEM_ESCOLHA + " LIMIT ?";
         parametros.add(Math.min(101, Math.max(1, limite)));
-        return chat.query(consulta, MAPEADOR, parametros.toArray());
+        return chat.query(cartoesDe(escolha), MAPEADOR, parametros.toArray());
     }
 
     @Override

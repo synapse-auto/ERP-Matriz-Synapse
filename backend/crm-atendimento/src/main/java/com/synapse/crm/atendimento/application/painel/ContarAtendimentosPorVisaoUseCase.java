@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.application.painel;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,16 +31,24 @@ public class ContarAtendimentosPorVisaoUseCase {
         this.usuarioContext = usuarioContext;
     }
 
+    /**
+     * @param incluirFinalizados E209: {@code false} devolve so as abas ({@link
+     *     VisaoAtendimento#abasPara}), que e o que os badges exibem e o que a tela pede a cada evento
+     *     de tempo real. {@code true} acrescenta {@link VisaoAtendimento#FINALIZADOS}, com a mesma
+     *     equivalencia com a listagem, para quem de fato precisa desse total. Antes da E209 o total
+     *     de finalizados era calculado em toda chamada e descartado pela tela.
+     */
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public Map<VisaoAtendimento, Long> executar() {
+    public Map<VisaoAtendimento, Long> executar(boolean incluirFinalizados) {
         UsuarioAutenticado atual = usuarioContext.atual();
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
 
         Map<VisaoAtendimento, Long> contagens = new EnumMap<>(VisaoAtendimento.class);
-        // solicitaveisPor (nao abasPara): FINALIZADOS tambem precisa de contagem coerente com a
-        // listagem, embora nao vire badge de aba — a tela so exibe as chaves das abas.
-        for (VisaoAtendimento visao : VisaoAtendimento.solicitaveisPor(atual)) {
+        List<VisaoAtendimento> visoes = incluirFinalizados
+                ? VisaoAtendimento.solicitaveisPor(atual)
+                : VisaoAtendimento.abasPara(atual);
+        for (VisaoAtendimento visao : visoes) {
             contagens.put(visao, painel.contar(visao, atual.id(), restritoAoProprioAtendente));
         }
         return contagens;
