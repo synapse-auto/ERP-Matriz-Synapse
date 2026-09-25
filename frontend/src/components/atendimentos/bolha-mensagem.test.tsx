@@ -63,6 +63,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
   }),
 }));
 
+vi.mock("@/lib/lead/api", () => ({
+  emitirUrlAssinadaDaMidia: vi.fn().mockResolvedValue({ url: "https://media.example.test/anexo.jpg" }),
+}));
+
 vi.mock("@/components/mensagens/interacao-mensagem", () => ({
   InteracaoMensagem: ({ children }: { children: ReactNode }) => children,
 }));
@@ -150,6 +154,62 @@ describe("BolhaMensagem", () => {
       "border",
     );
     expect(screen.getByText("Preciso de um orçamento.").closest("div")).not.toHaveClass("min-w-[12rem]");
+  });
+
+  it("torna clicável URL numa mensagem recebida sem linkificar imagem anexada", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({
+          remetenteTipo: "LEAD",
+          remetenteId: null,
+          conteudo: "Veja https://example.test/medidas.",
+        })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Abrir https://example.test/medidas" }))
+      .toHaveAttribute("href", "https://example.test/medidas");
+  });
+
+  it("torna clicável URL numa mensagem enviada e preserva as ações da bolha", () => {
+    render(
+      <BolhaMensagem
+        mensagem={mensagem({ conteudo: "https://example.test/enviado" })}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+        onResponder={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Abrir https://example.test/enviado" }))
+      .toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("mantém a imagem anexada abrindo o visualizador, sem tratá-la como prévia de link", async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cliente}>
+        <BolhaMensagem
+          mensagem={mensagem({
+            tipo: "IMAGEM",
+            conteudo: null,
+            midiaUrl: "https://media.example.test/anexo.jpg",
+            midiaMetadados: JSON.stringify({ legenda: "Imagem anexada" }),
+          })}
+          leadId="lead-1"
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    const abrirImagem = screen.getByRole("button", { name: "Abrir Imagem anexada" });
+    expect(abrirImagem).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    fireEvent.click(abrirImagem);
+    expect(await screen.findByRole("dialog", { name: "Imagem anexada" })).toBeInTheDocument();
   });
 
   it("mostra o nome conhecido do atendente dentro da bolha enviada", () => {

@@ -9,6 +9,7 @@ import type { MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types"
 import { contatosDaMensagem, textoCopiavelDosContatos } from "@/lib/atendimento/contato-compartilhado";
 
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
+import { TextoComLinks } from "@/components/mensagens/texto-com-links";
 
 import { BolhaContato } from "./bolha-contato";
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
@@ -285,7 +286,12 @@ export function BolhaMensagem({
         )}
 
         {mensagem.tipo === "TEXTO" && (
-          <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>
+          <p className="whitespace-pre-wrap break-words">
+            <TextoComLinks
+              texto={mensagem.conteudo ?? ""}
+              rotuloAbrir={catalogo.media.visualizador.abrirMidia}
+            />
+          </p>
         )}
 
         {mensagem.tipo === "LOCALIZACAO" && (
@@ -346,7 +352,12 @@ export function BolhaMensagem({
         {(mensagem.tipo === "BOTOES" || mensagem.tipo === "LISTA") && (
           <div className="space-y-2">
             {mensagem.conteudo && (
-              <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>
+              <p className="whitespace-pre-wrap break-words">
+                <TextoComLinks
+                  texto={mensagem.conteudo}
+                  rotuloAbrir={catalogo.media.visualizador.abrirMidia}
+                />
+              </p>
             )}
             <p className="text-xs font-semibold opacity-80">
               {mensagem.tipo === "BOTOES" ? textos.botoes : textos.lista}
