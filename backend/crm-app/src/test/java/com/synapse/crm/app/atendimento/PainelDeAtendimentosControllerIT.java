@@ -268,6 +268,54 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
         }
 
         @Test
+        @DisplayName("E211: telefone de lead de colega responde 404 ao atendente e 200 ao gestor")
+        void telefoneDeColega_404ParaAtendente200ParaGestor() throws Exception {
+            // O número existe (o gestor o encontra); para a Ana, o 404 é idêntico ao de inexistente
+            // — conhecer o número de um contato compartilhado não abre a conversa do Bruno.
+            definirTelefone(leadPendenteDoBruno, "5561977770001");
+            String url = "/api/v1/atendimentos/busca?telefone=5561977770001";
+
+            ResponseEntity<String> paraAna = respostaComo(EMAIL_ANA, SENHA_ATENDENTE, url);
+            ResponseEntity<String> paraGestor = respostaComo(EMAIL_GESTOR, SENHA_GESTOR, url);
+
+            assertThat(paraAna.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(paraAna.getBody()).doesNotContain(leadPendenteDoBruno.toString(), "Pendente Bruno");
+            assertThat(paraGestor.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(json.readTree(paraGestor.getBody()).path("leadId").asText())
+                    .isEqualTo(leadPendenteDoBruno.toString());
+        }
+
+        @Test
+        @DisplayName("E211: telefone recusado pelo normalizador responde 400")
+        void telefoneInvalido_devolve400() {
+            assertThat(respostaComo(EMAIL_ANA, SENHA_ATENDENTE, "/api/v1/atendimentos/busca?telefone=0800%2012")
+                    .getStatusCode())
+                    .isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        @Test
+        @DisplayName("E211: conversa finalizada visível é devolvida como FINALIZADO, sem abrir atendimento")
+        void conversaFinalizada_devolveCartaoFinalizado() throws Exception {
+            UUID leadFinalizado = criarLead("Finalizado por telefone", idAna, "FINALIZADO");
+            definirTelefone(leadFinalizado, "5561977770002");
+            UUID finalizado = criarAtendimento(leadFinalizado, idAna, "FINALIZADO");
+            int atendimentosAntes = jdbc.queryForObject(
+                    "SELECT count(*) FROM atendimento WHERE lead_id = ?", Integer.class, leadFinalizado);
+
+            ResponseEntity<String> resposta = respostaComo(
+                    EMAIL_ANA, SENHA_ATENDENTE, "/api/v1/atendimentos/busca?telefone=5561977770002");
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            JsonNode cartao = json.readTree(resposta.getBody());
+            assertThat(cartao.path("atendimentoId").asText()).isEqualTo(finalizado.toString());
+            assertThat(cartao.path("status").asText()).isEqualTo("FINALIZADO");
+            assertThat(cartao.path("atendimentoAtivoId").isNull()).isTrue();
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM atendimento WHERE lead_id = ?", Integer.class, leadFinalizado))
+                    .isEqualTo(atendimentosAntes);
+        }
+
+        @Test
         @DisplayName("zero ou dois parâmetros respondem 400")
         void parametrosInvalidos_devolve400() {
             assertThat(respostaComo(EMAIL_ANA, SENHA_ATENDENTE, "/api/v1/atendimentos/busca")

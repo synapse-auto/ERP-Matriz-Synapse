@@ -172,6 +172,23 @@ export function abrirAtendimentoParaLead(leadId: string): Promise<NovoContatoRes
   });
 }
 
+/**
+ * E211 — conversa acessível para um telefone, pela busca pontual do backend (E200): telefone
+ * canônico exato, visibilidade do papel e RLS aplicadas no servidor, no máximo um lead por número
+ * (índice único). `null` quando não há conversa que a sessão possa abrir — o backend não distingue
+ * "não existe" de "é de outro atendente", e esta função também não. Demais falhas propagam.
+ */
+export async function buscarAtendimentoPorTelefone(telefone: string): Promise<CartaoAtendimento | null> {
+  try {
+    return await apiFetch<CartaoAtendimento>(
+      `/api/v1/atendimentos/busca?telefone=${encodeURIComponent(telefone)}`,
+    );
+  } catch (erro) {
+    if (erro instanceof ErroDeApi && erro.status === 404) return null;
+    throw erro;
+  }
+}
+
 /** Leitura pontual autorizada para abrir a conversa confirmada, sem depender da visão da lista. */
 export function obterCartaoAtendimento(atendimentoId: string): Promise<CartaoAtendimento> {
   return apiFetch<CartaoAtendimento>(

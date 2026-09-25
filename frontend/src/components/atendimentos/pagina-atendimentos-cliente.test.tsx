@@ -197,14 +197,17 @@ vi.mock("./dialogo-novo-contato", () => ({
     onConfirmar,
     onFechar,
     erro,
+    valoresIniciais,
   }: {
     aberto: boolean;
     onConfirmar: (pedido: { nome: string; telefone: string }) => void;
     onFechar: () => void;
     erro: string | null;
+    valoresIniciais?: { nome: string; telefone: string } | null;
   }) =>
     aberto ? (
       <div data-testid="dialogo-novo-contato">
+        <span data-testid="novo-contato-inicial">{valoresIniciais ? `${valoresIniciais.nome}|${valoresIniciais.telefone}` : "vazio"}</span>
         <button
           type="button"
           onClick={() => onConfirmar({ nome: "Maria", telefone: "61999990000" })}
@@ -273,7 +276,35 @@ vi.mock("./painel-da-conversa", () => ({
 vi.mock("@/components/chat-interno/painel-conversa-interna", () => ({
   PainelConversaInterna: () => <div data-testid="conversa-interna" />,
 }));
-vi.mock("./lista-mensagens", () => ({ ListaMensagens: () => <div data-testid="historico" /> }));
+vi.mock("./lista-mensagens", async () => {
+  // Consome o contexto do card de contato compartilhado como a bolha real (E211).
+  const { useAberturaDeConversaDoContato } = await import("@/lib/atendimento/abrir-conversa-do-contato");
+  function ListaMensagens() {
+    const abertura = useAberturaDeConversaDoContato();
+    return (
+      <div data-testid="historico">
+        <button
+          type="button"
+          onClick={() => abertura?.abrirCartao({
+            atendimentoId: "atendimento-contato",
+            atendimentoAtivoId: "atendimento-contato",
+            leadId: "lead-contato",
+            leadNome: "Contato compartilhado",
+          } as CartaoAtendimento)}
+        >
+          abrir pelo contato
+        </button>
+        <button
+          type="button"
+          onClick={() => abertura?.iniciarNovoContato({ nome: "Contato Compartilhado", telefone: "61988880000" })}
+        >
+          novo pelo contato
+        </button>
+      </div>
+    );
+  }
+  return { ListaMensagens };
+});
 function ComposerDeTeste({
   conversa,
   onMensagemEnviada,
@@ -1330,5 +1361,54 @@ describe("E175 — permissão de envio independente do tempo real", () => {
     clicarRevalidarEnvio();
 
     await waitFor(() => expect(revalidacoes).toEqual([false]));
+  });
+});
+
+describe("E211 — abrir conversa a partir de contato compartilhado", () => {
+  beforeEach(() => {
+    obterCartao.mockReset();
+    obterCartao.mockImplementation((atendimentoId: string) => Promise.resolve({
+      ...cartaoInicial,
+      atendimentoId,
+      atendimentoAtivoId: atendimentoId,
+    }));
+    iniciarNovo.mockReset();
+    iniciarNovo.mockResolvedValue({
+      leadId: "lead-novo",
+      atendimentoId: "atendimento-novo",
+      mensagemId: null,
+      leadCriado: true,
+    });
+  });
+
+  it("abre o cartão já autorizado pelo backend usando a mesma seleção da lista", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    fireEvent.click(await screen.findByRole("button", { name: "abrir pelo contato" }));
+
+    await waitFor(() => expect(obterCartao).toHaveBeenCalledWith("atendimento-contato"));
+    expect(iniciarNovo).not.toHaveBeenCalled();
+  });
+
+  it("sem conversa acessível, só abre o novo contato preenchido; nada é criado sem confirmar", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    fireEvent.click(await screen.findByRole("button", { name: "novo pelo contato" }));
+
+    expect(screen.getByTestId("novo-contato-inicial")).toHaveTextContent("Contato Compartilhado|61988880000");
+    expect(iniciarNovo).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar novo contato" }));
+    await waitFor(() => expect(iniciarNovo).toHaveBeenCalledTimes(1));
+  });
+
+  it("o novo contato pela lista continua em branco depois de um pré-preenchido", async () => {
+    renderPagina();
+    act(() => callbacks.abrir?.(cartaoInicial));
+    fireEvent.click(await screen.findByRole("button", { name: "novo pelo contato" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar modal" }));
+
+    act(() => callbacks.novoContato?.());
+    expect(screen.getByTestId("novo-contato-inicial")).toHaveTextContent("vazio");
   });
 });

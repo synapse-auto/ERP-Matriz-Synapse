@@ -4,7 +4,9 @@ vi.mock("@/lib/api/http-client", () => ({ apiFetch: vi.fn() }));
 
 import { apiFetch } from "@/lib/api/http-client";
 
-import { enviarTemplate, listarInboxUnificada } from "./api";
+import { ErroDeApi } from "@/lib/api/errors";
+
+import { buscarAtendimentoPorTelefone, enviarTemplate, listarInboxUnificada } from "./api";
 
 describe("listarInboxUnificada — contrato da primeira versão da E63", () => {
   it("normaliza nome genérico do cliente sem derrubar a tela durante atualização gradual", async () => {
@@ -84,5 +86,28 @@ describe("enviarTemplate — corpo renderizado opcional", () => {
         }),
       },
     );
+  });
+});
+
+describe("buscarAtendimentoPorTelefone (E211)", () => {
+  it("usa a busca pontual com o telefone codificado e devolve o cartão autorizado", async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ atendimentoId: "a-1", leadId: "l-1" });
+
+    await expect(buscarAtendimentoPorTelefone("+55 61 98888-0000")).resolves.toEqual({ atendimentoId: "a-1", leadId: "l-1" });
+    expect(apiFetch).toHaveBeenLastCalledWith("/api/v1/atendimentos/busca?telefone=%2B55%2061%2098888-0000");
+  });
+
+  it("404 (inexistente ou fora do alcance da sessão) vira ausência, sem distinguir os dois", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new ErroDeApi(404, null, "não encontrado"));
+
+    await expect(buscarAtendimentoPorTelefone("5561988880000")).resolves.toBeNull();
+  });
+
+  it("outras falhas propagam para a tela mostrar erro", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new ErroDeApi(500, null, "erro"));
+    await expect(buscarAtendimentoPorTelefone("5561988880000")).rejects.toBeInstanceOf(ErroDeApi);
+
+    vi.mocked(apiFetch).mockRejectedValue(new TypeError("Failed to fetch"));
+    await expect(buscarAtendimentoPorTelefone("5561988880000")).rejects.toBeInstanceOf(TypeError);
   });
 });

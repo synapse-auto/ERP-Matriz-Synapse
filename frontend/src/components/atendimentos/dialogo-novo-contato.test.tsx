@@ -262,3 +262,25 @@ describe("mascararTelefoneBr", () => {
     expect(mascararTelefoneBr("83999998888")).toBe("(83) 99999-8888");
   });
 });
+
+describe("DialogoNovoContato — pré-preenchido pelo contato compartilhado (E211)", () => {
+  it("abre com nome e telefone do contato, editáveis, e só envia ao confirmar", () => {
+    const confirmar = vi.fn();
+    renderDialog(
+      <DialogoNovoContato
+        aberto
+        onFechar={vi.fn()}
+        onConfirmar={confirmar}
+        valoresIniciais={{ nome: "Maria Silva", telefone: "61988880000" }}
+      />,
+      false,
+    );
+
+    expect(screen.getByLabelText("Nome do contato")).toHaveValue("Maria Silva");
+    expect(screen.getByLabelText("Telefone")).toHaveValue("(61) 98888-0000");
+    expect(confirmar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
+    expect(confirmar).toHaveBeenCalledWith(expect.objectContaining({ nome: "Maria Silva", telefone: "(61) 98888-0000" }));
+  });
+});
