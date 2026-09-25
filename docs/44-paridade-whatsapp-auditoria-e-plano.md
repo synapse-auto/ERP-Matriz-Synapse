@@ -1,6 +1,6 @@
 # Capacidades WhatsApp no CRM: lacunas e plano de implementação
 
-**Estado:** Fase 1 (itens 1 a 4) implementada na branch `feat/whatsapp-contato-compartilhado` (V81), coberta por testes e **não verificada em instância real**; Fase 0 e Fases 2–4 seguem como plano. **Base:** auditoria estática recebida em 23/09/2026, conferida pontualmente com o código de `origin/main`. Não houve consulta às instâncias, aos bancos, aos logs de produção ou aos workflows do n8n. Este documento não certifica comportamento em produção.
+**Estado (25/09/2026):** Fase 1 implementada (V81). Fase 2: botão de template Meta (E212), isolamento de grupo (E213) e reação do cliente (E214, V82) implementados. Fase 3: vídeo do atendente (E215) implementado; figurinha, `played`/`deleted` e ações de saída decididos em E216 (adiados ou ignorados, com motivo). Tudo **coberto por teste local e CI, nenhum item verificado em instância real**. Fase 0 (confirmação do incidente) e Fase 4 seguem como plano; conversa de grupo **não** foi implementada. **Base:** auditoria estática recebida em 23/09/2026, conferida pontualmente com o código de `origin/main`. Não houve consulta às instâncias, aos bancos, aos logs de produção ou aos workflows do n8n. Este documento não certifica comportamento em produção.
 
 ## Fase 1 — comportamento implementado
 
@@ -46,6 +46,21 @@ sem descarte é idêntico ao anterior à V81, então o caminho comum não depend
 um contato recebido exige a V81 aplicada (valor `CONTATO` do enum). Onde a V73 ainda estiver
 pendente, a V74 em diante — incluindo a V81 — não roda no boot (ver `docs/41`).
 
+## Fase 3, itens 2 a 4 — decisões (E216)
+
+Cada item foi avaliado pela regra "só implementar com suporte confirmado **e** regra de produto
+definida". Nenhum recurso da Fase 4 foi aberto.
+
+| Item | Suporte do provedor | Decisão | Motivo |
+|---|---|---|---|
+| Figurinha recebida | Confirmado: `type: sticker`, `image/webp`, `animated` (Meta e Swagger Uzapi) | **Adiado** | Falta regra de exibição: tamanho da bolha, se permite baixar/encaminhar, como aparece na citação e na notificação. Hoje a figurinha chega e aparece como imagem — nada é perdido. Implementar é barato quando a regra existir: o tradutor já sabe o tipo. |
+| `played` (Uzapi) | Confirmado: `statuses[].status = played` | **Ignorado intencionalmente** | O CRM não tem estado "reproduzido"; `LIDO` já cobre a leitura. Sem valor para o atendente que justifique enum, migração e tela. |
+| `deleted` (Uzapi) | Confirmado no enum `MessageStatus`; semântica não documentada (mensagem de quem, apagada para quem) | **Adiado — decisão de produto** | Esconder mensagem apagada pelo cliente muda o registro da conversa, que pode ter valor de prova comercial. Precisa de regra: some, fica riscada ou só sinaliza. Até lá é ignorado, sem alterar status. |
+| Enviar contato, localização, reação e figurinha | Documentados nos dois provedores | **Adiado** | O próprio item 4 da Fase 3 condiciona a valor de produto e demanda; não há pedido registrado. |
+
+`UzapiAutoticWebhookTradutorContatoTest.playedEDeletedSaoIgnoradosSemMexerNoStatusDeEntrega` prova que
+um `read` seguido de `played` e `deleted` continua `LIDO`.
+
 ## Objetivo e limites
 
 Garantir que uma mensagem válida e relevante ao atendimento não desapareça silenciosamente entre o provedor WhatsApp e o histórico do CRM. A comparação é por **provedor × direção × capacidade**: recurso do aplicativo WhatsApp não implica suporte da API, da versão instalada ou do CRM. A Base PAI deve funcionar por capacidade, sem condicional pelo nome do cliente.
@@ -62,9 +77,9 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
 | Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | Suspeita de que mensagem de grupo seja associada à conversa individual do remetente; ainda não demonstrada em produção. | P2, decisão de produto antes de alterar |
 | Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | Tipos permitidos no domínio e seletor do composer não incluem vídeo. | P2 |
-| Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. | P3 |
-| Status `played`/`deleted` | Contrato próprio | Eventos possíveis | Não mapeados pela integração UZAPI. Sem decisão de produto registrada sobre exibição/semântica. | P3 |
-| Teste ponta a ponta da entrada UZAPI | — | — | Há testes do tradutor, mas não ficou demonstrado teste controller → job → mensagem comparável ao da Meta. | P2 |
+| Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. **E216: adiado** — suporte confirmado, falta regra de exibição (ver seção abaixo). | P3 |
+| Status `played`/`deleted` | Contrato próprio | Eventos possíveis | Não mapeados pela integração UZAPI. **E216: `played` ignorado intencionalmente; `deleted` adiado até decisão de produto. Teste prova que nenhum dos dois altera o status.** | P3 |
+| Teste ponta a ponta da entrada UZAPI | — | — | **Coberto:** `WebhookContatoCompartilhadoUzapiIT` (Fase 1), `WebhookGrupoUzapiIT` (E213) e `WebhookReacaoDoClienteUzapiIT` (E214) — POST com `?secret` → fila → persistência, com segredo inválido, POST misto e reentrega. | P2 |
 
 Referências de código inicial: [tradutor Meta](../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/canal/MetaCloudWebhookTradutor.java), [tradutor UZAPI](../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/canal/UzapiAutoticWebhookTradutor.java), [processador de entrada](../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/infrastructure/webhook/ProcessadorDeWebhookEntradaOperacoes.java), [tipos de mídia](../backend/crm-atendimento/src/main/java/com/synapse/crm/atendimento/domain/midia/TiposDeMidiaPermitidos.java), [seletor de arquivos](../frontend/src/lib/atendimento/arquivos-do-composer.ts). Contratos existentes: [Meta/UAZAPI](./37-contrato-uazapi.md) e [UZAPI Autotic](./38-contrato-uzapi-autotic.md). Essas referências são pontos de partida; o implementador deve redescobrir o caminho completo no commit em que trabalhar.
 
