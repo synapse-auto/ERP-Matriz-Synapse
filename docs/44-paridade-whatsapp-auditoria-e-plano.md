@@ -68,15 +68,28 @@ confirma a presença do campo no payload real.
   filtro de Status).
 - **Meta:** defensivo. A conta Cloud API usada é individual; item com `group_id` recebe o mesmo
   descarte. Formato de grupo da Meta não verificado nesta etapa.
-- **Repasse à Automação:** POST cujas mensagens são **todas** de grupo não é repassado. POST misto
-  (grupo + privado) não pode ser reescrito, porque a assinatura cobre o corpo inteiro: segue inteiro para
-  o n8n. É um limite conhecido; o CRM já não o associa ao privado. Nenhum contrato `/internal/v1` mudou.
-- O POST só de grupo ainda entra em `webhook_entrada`, para o descarte ficar na consulta operacional.
+- **Repasse à Automação (decisão de 25/09: misto não é limite aceitável):**
+  - POST sem grupo: corpo e assinatura **originais, byte a byte**.
+  - POST só de grupo: não é repassado.
+  - POST misto: repassado **no mesmo envelope, sem os itens de grupo**. Na Meta a
+    `X-Hub-Signature-256` é recalculada com o mesmo App Secret, então continua válida para quem a
+    confere; a Uzapi não assina o corpo (segredo na query).
+  - Reentrega do provedor (mesmo POST, mesma linha de `webhook_entrada`) **não é repassada de novo**:
+    a mensagem privada é processada uma vez no CRM e uma vez no n8n. POST só de status continua sendo
+    repassado a cada chegada, como antes.
+- O POST original (com grupo) ainda entra em `webhook_entrada`, para o descarte ficar na consulta
+  operacional. Nenhum contrato `/internal/v1` mudou.
+- **Segunda camada no n8n:** o workflow também deve ignorar grupo — ver
+  [`docs/n8n/filtro-de-grupo.md`](./n8n/filtro-de-grupo.md). Não aplicado nesta etapa (sem acesso ao
+  workflow); precisa ser feito e testado antes do deploy.
 
 **Testes.** `UzapiAutoticWebhookTradutorTest` (flag booleana e textual, JID `@g.us`, grupo ≠
-Status, `somenteMensagensDeGrupo`), `MetaCloudWebhookTradutorTest` (`group_id`), `WebhookGrupoUzapiIT`
-(segredo inválido; grupo com texto de reset não toca o atendimento aberto do participante, não cria
-lead, não enfileira repasse e registra o descarte; reentrega; POST misto).
+Status, `repasseSemGrupos`), `MetaCloudWebhookTradutorTest` (`group_id`; assinatura refeita e válida
+no misto, original intacta sem grupo), `WebhookCanalControllerTest` (repasse agendado com o corpo e a
+assinatura devolvidos), `WebhookGrupoUzapiIT` (segredo inválido; grupo com `#reset` não toca o
+atendimento, não cria lead nem repassa; lote misto realista com reentrega: privado gravado uma vez,
+`#reset` do grupo não devolve a conversa da Ana à IA, repasse único e sem o item de grupo). Com o
+filtro do repasse desligado de propósito, os dois ITs reprovam.
 
 ## Objetivo e limites
 

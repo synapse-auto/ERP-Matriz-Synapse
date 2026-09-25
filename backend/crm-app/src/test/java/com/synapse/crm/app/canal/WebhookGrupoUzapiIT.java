@@ -135,14 +135,25 @@ class WebhookGrupoUzapiIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("POST misto: a mensagem privada entra, a de grupo vira descarte e o POST segue para a Automação")
-    void postMisto_privadoEntraGrupoDescartadoERepasseMantido() {
-        String misto = payload(mensagemDeGrupo(PREFIXO + "2", "no grupo") + ","
+    @DisplayName("lote misto realista: privado processado uma vez, grupo sem reset nem repasse, também na reentrega")
+    void postMisto_privadoUmaVezGrupoSemResetNemRepasse() {
+        // Conversa privada ja atendida pela Ana: um reset indevido a devolveria para a IA.
+        UUID anaId = jdbc.queryForObject(
+                "SELECT id FROM usuario WHERE email = 'ana@dev.local'", UUID.class);
+        jdbc.update("UPDATE lead SET atendente_responsavel_id = ?, status_basico = 'EM_ATENDIMENTO' WHERE id = ?",
+                anaId, leadId);
+        jdbc.update("UPDATE atendimento SET atendente_id = ? WHERE id = ?", anaId, atendimentoId);
+
+        // Ordem real de um lote: grupo com o comando de reset, depois a mensagem privada.
+        String misto = payload(mensagemDeGrupo(PREFIXO + "2", "#reset") + ","
                 + """
                 {"from":"%s","id":"%s","isGroup":false,"timestamp":"1768843400","type":"text",
                  "text":{"body":"no privado"}}
                 """.formatted(PARTICIPANTE, PREFIXO + "3"));
 
+        assertThat(postar(misto, SEGREDO).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processador.processarPendentes();
+        // Reentrega do provedor: nada entra de novo, nem aqui nem na Automacao.
         assertThat(postar(misto, SEGREDO).getStatusCode()).isEqualTo(HttpStatus.OK);
         processador.processarPendentes();
 
@@ -153,8 +164,21 @@ class WebhookGrupoUzapiIT extends PostgresIT {
         assertThat(jdbc.queryForObject(
                 "SELECT descartes::text FROM webhook_entrada WHERE id_externo = ?", String.class, PREFIXO + "2"))
                 .contains("GRUPO_NAO_SUPORTADO");
-        // Limite documentado: o corpo assinado nao e reescrito, entao o POST misto segue inteiro.
+        // O #reset do grupo nao devolveu a conversa da Ana para a IA.
+        assertThat(jdbc.queryForObject(
+                "SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId)).isEqualTo(anaId);
+        assertThat(jdbc.queryForObject(
+                "SELECT status_basico::text FROM lead WHERE id = ?", String.class, leadId))
+                .isEqualTo("EM_ATENDIMENTO");
+        // A Automacao recebe o lote uma vez, so com a mensagem privada, no mesmo envelope.
         assertThat(repassesComId(PREFIXO + "3")).isEqualTo(1);
+        assertThat(repassesComId(PREFIXO + "2")).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT payload->>'payloadCru' FROM outbox_evento WHERE tipo = 'automacao.webhook.repassar'"
+                        + " AND payload->>'payloadCru' LIKE ?",
+                String.class, "%" + PREFIXO + "3%"))
+                .contains("\"phone_number_id\":\"" + PHONE_NUMBER_ID + "\"")
+                .doesNotContain("#reset");
     }
 
     private int mensagensDoParticipante() {

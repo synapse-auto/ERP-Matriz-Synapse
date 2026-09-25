@@ -176,14 +176,6 @@ public class WebhookCanalController {
         }
 
         Instant recebidoEm = Instant.now(relogio);
-        if (tradutor.somenteMensagensDeGrupo(payloadCru)) {
-            // Grupo nao e conversa do CRM (docs/44). Repassado, chegaria a Automacao com o telefone
-            // do participante e poderia virar resposta automatica no privado. O POST ainda entra na
-            // fila abaixo, onde cada item vira descarte GRUPO_NAO_SUPORTADO — visivel, nao perdido.
-            log.debug("POST so com mensagens de grupo: repasse a Automacao suprimido.");
-        } else {
-            agendarRepasse.executar(payloadCru, assinatura, recebidoEm);
-        }
 
         List<StatusDeEntregaDoCanal> statuses = tradutor.statusDeEntrega(payloadCru);
         if (!statuses.isEmpty()) {
@@ -202,6 +194,8 @@ public class WebhookCanalController {
 
         List<String> idsExternos = tradutor.idsExternos(payloadCru);
         if (idsExternos.isEmpty()) {
+            // So status/eventos sem mensagem: repassados a cada POST, como sempre foram.
+            agendarRepasseSemGrupos(payloadCru, assinatura, recebidoEm);
             return ResponseEntity.ok().build();
         }
 
@@ -212,9 +206,25 @@ public class WebhookCanalController {
                 () -> entrada.registrarSeNovo(
                         idsExternos.get(0), tradutor.provedor(), payloadCru, recebidoEm));
 
-        if (!novo) {
+        if (novo) {
+            // Reentrega do provedor nao chega de novo a Automacao: a mensagem e processada uma vez
+            // aqui e uma vez la. Mesma transacao da linha de entrada.
+            agendarRepasseSemGrupos(payloadCru, assinatura, recebidoEm);
+        } else {
             log.debug("Reentrega do payload {} ignorada.", idsExternos.get(0));
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Grupo nao e conversa do CRM (docs/44). Repassado, chegaria a Automacao com o telefone do
+     * participante e poderia virar resposta automatica ou reset no privado. So o repasse perde os
+     * itens de grupo: a fila de entrada guarda o POST original, onde cada item vira descarte
+     * GRUPO_NAO_SUPORTADO — visivel, nao perdido.
+     */
+    private void agendarRepasseSemGrupos(String payloadCru, String assinatura, Instant recebidoEm) {
+        tradutor.repasseSemGrupos(payloadCru, assinatura).ifPresentOrElse(
+                repasse -> agendarRepasse.executar(repasse.payloadCru(), repasse.assinatura(), recebidoEm),
+                () -> log.debug("POST so com mensagens de grupo: repasse a Automacao suprimido."));
     }
 }

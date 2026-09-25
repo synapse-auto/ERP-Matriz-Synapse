@@ -241,6 +241,11 @@ reutilizada em outro atendimento/operação ou uma segunda finalização com cha
 
 ## 4. O que continua exatamente igual
 
+> **Atualização E213 (25/09/2026).** O repasse deixou de levar mensagens de grupo e reentregas:
+> POST sem grupo segue cru e com a assinatura original; POST misto segue no mesmo envelope sem os
+> itens de grupo e, na Meta, com `X-Hub-Signature-256` recalculada com o mesmo App Secret; POST só de
+> grupo e reentrega do mesmo POST não são repassados. Detalhe em `docs/44`, Fase 2 item 3.
+
 - O repasse do webhook da Meta: payload cru, `X-Hub-Signature-256` repassado, retentativa com recuo
   exponencial até 8 tentativas, workflow precisa estar **ativado** (a URL de produção, não a de
   teste).

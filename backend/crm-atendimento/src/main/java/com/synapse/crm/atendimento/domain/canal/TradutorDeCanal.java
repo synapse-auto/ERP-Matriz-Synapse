@@ -75,17 +75,24 @@ public interface TradutorDeCanal {
     Traducao traduzirComDescartes(String payloadCru);
 
     /**
-     * O POST traz mensagens e todas elas sao de grupo?
+     * O que repassar a Automacao, sem mensagens de grupo.
      *
-     * <p>Conversa de grupo nao e suportada (docs/44): cada item de grupo vira descarte
-     * {@link MotivoDeDescarte#GRUPO_NAO_SUPORTADO}. Este atalho existe para a borda nao repassar a
-     * Automacao um POST que so tem grupo — la ele chegaria com o telefone do participante e poderia
-     * gerar resposta automatica no privado. POST misto nao e reescrito (a assinatura cobre o corpo
-     * inteiro) e continua sendo repassado. Status sem mensagem devolve {@code false}.
+     * <p>Conversa de grupo nao e suportada (docs/44): repassada, a mensagem chegaria ao n8n com o
+     * telefone do participante e poderia gerar resposta automatica ou reset no privado. Contrato:
+     *
+     * <ul>
+     *   <li>POST sem grupo: devolve o corpo e a assinatura <b>originais, intactos</b>;
+     *   <li>POST so de grupo: vazio — nada e repassado;
+     *   <li>POST misto: o mesmo envelope sem os itens de grupo, e a assinatura recalculada pelo
+     *       adaptador que a tem (Meta, com o mesmo App Secret), para continuar valida.
+     * </ul>
      */
-    default boolean somenteMensagensDeGrupo(String payloadCru) {
-        return false;
+    default java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
     }
+
+    /** Corpo e assinatura a repassar a Automacao. */
+    record RepasseParaAutomacao(String payloadCru, String assinatura) {}
 
     /** Atalho para quem so precisa das mensagens. */
     default List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {

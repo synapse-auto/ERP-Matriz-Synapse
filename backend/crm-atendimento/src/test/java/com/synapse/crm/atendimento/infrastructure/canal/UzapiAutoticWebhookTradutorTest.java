@@ -201,17 +201,26 @@ class UzapiAutoticWebhookTradutorTest {
     }
 
     @Test
-    void somenteMensagensDeGrupoSoQuandoTodoItemDeConversaEDeGrupo() {
-        String grupo = "{\"from\":\"556188888888\",\"id\":\"g\",\"isGroup\":true,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
-        String privado = "{\"from\":\"556188888888\",\"id\":\"p\",\"isGroup\":false,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
-        String story = "{\"from\":\"556188888888\",\"id\":\"s\",\"group_id\":\"status@broadcast\",\"type\":\"text\"}";
+    void repasseSemGruposTiraSoOsItensDeGrupo() {
+        String grupo = "{\"from\":\"556188888888\",\"id\":\"g-1\",\"isGroup\":true,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
+        String privado = "{\"from\":\"556188888888\",\"id\":\"p-1\",\"isGroup\":false,\"type\":\"text\",\"text\":{\"body\":\"x\"}}";
+        String story = "{\"from\":\"556188888888\",\"id\":\"s-1\",\"group_id\":\"status@broadcast\",\"isGroup\":true,\"type\":\"text\"}";
 
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo))).isTrue();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + story))).isTrue();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + privado))).isFalse();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(privado))).isFalse();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(story))).isFalse();
-        assertThat(tradutor.somenteMensagensDeGrupo("{\"entry\":[]}")).isFalse();
+        String soPrivado = payloadComMensagens(privado);
+        assertThat(tradutor.repasseSemGrupos(soPrivado, null))
+                .hasValueSatisfying(r -> assertThat(r.payloadCru()).isSameAs(soPrivado));
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo), null)).isEmpty();
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo + "," + privado), null))
+                .hasValueSatisfying(r -> {
+                    assertThat(r.payloadCru()).contains("p-1").contains("phone-id-1").doesNotContain("g-1");
+                    assertThat(r.assinatura()).isNull();
+                });
+        // Status/Story nao e grupo (E163), mesmo com isGroup: segue como antes.
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo + "," + story), null))
+                .hasValueSatisfying(r -> assertThat(r.payloadCru()).contains("s-1").doesNotContain("g-1"));
+        String vazio = "{\"entry\":[]}";
+        assertThat(tradutor.repasseSemGrupos(vazio, null))
+                .hasValueSatisfying(r -> assertThat(r.payloadCru()).isSameAs(vazio));
     }
 
     @Test

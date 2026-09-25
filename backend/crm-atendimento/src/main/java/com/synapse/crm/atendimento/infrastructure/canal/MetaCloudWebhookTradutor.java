@@ -210,11 +210,21 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
         return new Traducao(traduzidas, descartes);
     }
 
+    /**
+     * POST misto: o corpo muda, entao a assinatura e recalculada com o mesmo App Secret que validou a
+     * entrada — quem confere {@code X-Hub-Signature-256} no n8n continua aceitando. Sem grupo, nada
+     * muda: corpo e assinatura originais.
+     */
     @Override
-    public boolean somenteMensagensDeGrupo(String payloadCru) {
-        List<MensagemDoPayload> itens = mensagens(payloadCru);
-        return !itens.isEmpty() && itens.stream().map(MensagemDoPayload::mensagem).allMatch(
-                MetaCloudWebhookTradutor::ehGrupo);
+    public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return switch (RepasseSemGrupos.filtrar(payloadCru, json, MetaCloudWebhookTradutor::ehGrupo)) {
+            case RepasseSemGrupos.Resultado.Intacto intacto ->
+                    java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
+            case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();
+            case RepasseSemGrupos.Resultado.Filtrado filtrado -> java.util.Optional.of(new RepasseParaAutomacao(
+                    filtrado.payload(),
+                    PREFIXO_ASSINATURA + HexFormat.of().formatHex(calcular(filtrado.payload()))));
+        };
     }
 
     /**

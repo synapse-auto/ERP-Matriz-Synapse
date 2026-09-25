@@ -389,13 +389,20 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
         }
     }
 
+    /**
+     * A Uzapi nao assina o corpo (o segredo vem na query), entao o POST misto segue sem os itens de
+     * grupo e com a mesma assinatura (nula). Status/Story nao e grupo: segue como antes.
+     */
     @Override
-    public boolean somenteMensagensDeGrupo(String payloadCru) {
-        List<JsonNode> conversas = mensagens(payloadCru).stream()
-                .map(MensagemDoPayload::mensagem)
-                .filter(mensagem -> !ehStatusOuStory(mensagem))
-                .toList();
-        return !conversas.isEmpty() && conversas.stream().allMatch(UzapiAutoticWebhookTradutor::ehGrupo);
+    public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return switch (RepasseSemGrupos.filtrar(
+                payloadCru, json, mensagem -> !ehStatusOuStory(mensagem) && ehGrupo(mensagem))) {
+            case RepasseSemGrupos.Resultado.Intacto intacto ->
+                    java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
+            case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();
+            case RepasseSemGrupos.Resultado.Filtrado filtrado ->
+                    java.util.Optional.of(new RepasseParaAutomacao(filtrado.payload(), assinatura));
+        };
     }
 
     /** Campos em que a Uzapi ou o evento nativo podem trazer o JID do chat. */

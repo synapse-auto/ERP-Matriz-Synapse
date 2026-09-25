@@ -103,9 +103,19 @@ class MetaCloudWebhookTradutorTest {
             assertThat(descarte.tipo()).isEqualTo("text");
             assertThat(descarte.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
         });
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo))).isTrue();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(grupo + "," + privado))).isFalse();
-        assertThat(tradutor.somenteMensagensDeGrupo(payloadComMensagens(privado))).isFalse();
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo), "sha256=original")).isEmpty();
+        String soPrivado = payloadComMensagens(privado);
+        assertThat(tradutor.repasseSemGrupos(soPrivado, "sha256=original")).hasValueSatisfying(r -> {
+            assertThat(r.payloadCru()).isSameAs(soPrivado);
+            assertThat(r.assinatura()).isEqualTo("sha256=original");
+        });
+        // Misto: corpo sem o grupo e assinatura refeita com o mesmo App Secret — continua valida.
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo + "," + privado), "sha256=original"))
+                .hasValueSatisfying(r -> {
+                    assertThat(r.payloadCru()).contains("\"A\"").doesNotContain("120363000000000000");
+                    assertThat(r.assinatura()).isNotEqualTo("sha256=original");
+                    assertThat(tradutor.assinaturaValida(r.payloadCru(), r.assinatura(), null)).isTrue();
+                });
     }
 
     @Test
