@@ -222,6 +222,10 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
             // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
             case "interactive" -> origem.texto(tituloExigido(no.path("interactive")));
+            // Clique em resposta rápida de template: a Meta manda type=button, não interactive. O
+            // payload é controle de quem montou o template; o histórico mostra o texto do botão, e
+            // o context.id (já na origem) liga o clique ao template enviado.
+            case "button" -> origem.texto(textoDoBotaoExigido(no.path("button")));
             case "location" -> origem.estruturada("LOCALIZACAO", localizacao(no.path("location")));
             // messages[].contacts[] e o cartao compartilhado; value.contacts[] (remetente) nao
             // chega aqui.
@@ -255,6 +259,17 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
         }
         return titulo;
+    }
+
+    private static String textoDoBotaoExigido(JsonNode botao) {
+        String texto = botao.path("text").asText(null);
+        if (texto == null || texto.isBlank()) {
+            // Sem texto não há o que o atendente ler. O payload não substitui: é identificador
+            // interno do template, não a escolha que o cliente viu.
+            log.warn("Clique de botao de template sem texto; item descartado. chaves={}", campos(botao));
+            throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+        }
+        return texto;
     }
 
     private String localizacao(JsonNode locNode) {
