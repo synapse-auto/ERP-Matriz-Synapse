@@ -76,9 +76,9 @@ type NotificacaoDeAtendimento = Exclude<
 >;
 
 /**
- * O contrato ainda nÃ£o possui um id de evento. A ocorrÃªncia, junto do recurso e do tipo, Ã© a
- * identidade estÃ¡vel disponÃ­vel: uma nova transiÃ§Ã£o do mesmo atendimento continua distinta pelo
- * `ocorridoEm`, enquanto a repetiÃ§Ã£o do mesmo frame apÃ³s reconexÃ£o mantÃ©m a mesma chave.
+ * O contrato ainda não possui um id de evento. A ocorrência, junto do recurso e do tipo, é a
+ * identidade estável disponível: uma nova transição do mesmo atendimento continua distinta pelo
+ * `ocorridoEm`, enquanto a repetição do mesmo frame após reconexão mantém a mesma chave.
  */
 function chaveDaNotificacao(notificacao: NotificacaoDeAtendimento): string {
   const ocorridoEm = "ocorridoEm" in notificacao.dados
@@ -94,7 +94,7 @@ function chaveDaNotificacao(notificacao: NotificacaoDeAtendimento): string {
 
 /**
  * Um clique seleciona o atendimento e reassina o socket existente (RN-CRM-05). A ficha acompanha
- * a conversa no painel da direita, sem um overlay intermediÃ¡rio.
+ * a conversa no painel da direita, sem um overlay intermediário.
  */
 export function PaginaAtendimentosCliente({
   leadInicialId,
@@ -164,8 +164,8 @@ export function PaginaAtendimentosCliente({
     (atendimentoId: string, leadId: string) => {
       const quantidadeAtual = leiturasEmVoo.current.get(leadId) ?? 0;
       leiturasEmVoo.current.set(leadId, quantidadeAtual + 1);
-      // Cancela um GET amplo que possa ter comeÃ§ado antes do clique; seu retorno tambÃ©m pode ser
-      // anterior Ã  leitura e sobrescrever o zero otimista.
+      // Cancela um GET amplo que possa ter começado antes do clique; seu retorno também pode ser
+      // anterior à leitura e sobrescrever o zero otimista.
       void cache.cancelQueries({ queryKey: ["atendimentos"] });
       zerarNaoLidasDoLead(cache, leadId);
       void marcarAtendimentoComoLido(atendimentoId)
@@ -220,8 +220,8 @@ export function PaginaAtendimentosCliente({
   );
 
   /**
-   * Depois de iniciar/reativar: o lead cai em Ativos. Sem trocar a visÃ£o, a lista atual
-   * (Pendentes/Potenciais/Finalizados) nÃ£o contÃ©m o cartÃ£o e o chat nunca abre.
+   * Depois de iniciar/reativar: o lead cai em Ativos. Sem trocar a visão, a lista atual
+   * (Pendentes/Potenciais/Finalizados) não contém o cartão e o chat nunca abre.
    */
   const focarAtendimentoIniciado = useCallback(
     (resposta: { leadId: string; atendimentoId: string }) => {
@@ -239,7 +239,7 @@ export function PaginaAtendimentosCliente({
   );
 
   const iniciarContato = useMutation({
-    // Uma chave nasce por clique no diÃ¡logo e acompanha qualquer repetiÃ§Ã£o desse POST.
+    // Uma chave nasce por clique no diálogo e acompanha qualquer repetição desse POST.
     mutationFn: (pedido: Parameters<typeof iniciarNovoContato>[0]) =>
       iniciarNovoContato(pedido, crypto.randomUUID()),
     onSuccess: (resposta) => {
@@ -344,9 +344,9 @@ export function PaginaAtendimentosCliente({
     visaoAtendimento,
   ]);
 
-  // NotificaÃ§Ãµes sÃ£o efÃªmeras: o evento continua persistido no backend, mas o aviso de trabalho
-  // nÃ£o pode ocupar a tela indefinidamente. O timer Ã© apenas apresentaÃ§Ã£o (nÃ£o regra de negÃ³cio)
-  // e Ã© cancelado quando chega um evento novo ou quando a tela desmonta.
+  // Notificações são efêmeras: o evento continua persistido no backend, mas o aviso de trabalho
+  // não pode ocupar a tela indefinidamente. O timer é apenas apresentação (não regra de negócio)
+  // e é cancelado quando chega um evento novo ou quando a tela desmonta.
   useEffect(() => {
     if (!notificacao) return;
     const segundos = configuracao?.tempoNotificacaoSegundos ?? 8;
@@ -424,7 +424,7 @@ export function PaginaAtendimentosCliente({
         evento: "REVOGACAO",
       });
       indisponibilizarAtendimento(atendimentoRevogado);
-      // ProteÃ§Ã£o de visibilidade nunca espera a janela de coalescÃªncia (E209).
+      // Proteção de visibilidade nunca espera a janela de coalescência (E209).
       atualizarPainelDeAtendimentos(cache, { atendimentoId: atendimentoRevogado, urgente: true });
     },
     (evento) => {
@@ -456,8 +456,8 @@ export function PaginaAtendimentosCliente({
       // Uma leitura iniciada localmente tem precedencia sobre o GET amplo: aguarde o POST de
       // leitura terminar para nao reintroduzir no cache um contador anterior ao que o usuario viu.
       if (evento.tipo !== "CHAT_INTERNO_REACAO" && leiturasEmVoo.current.size === 0) {
-        // E209: mesmo pedido (mesma chave) que o ouvinte global gera para este evento â os dois
-        // viram um refetch sÃ³, e uma rajada vira no mÃ¡ximo um por janela.
+        // E209: mesmo pedido (mesma chave) que o ouvinte global gera para este evento — os dois
+        // viram um refetch só, e uma rajada vira no máximo um por janela.
         atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
       }
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM") {
@@ -476,8 +476,8 @@ export function PaginaAtendimentosCliente({
     },
   );
 
-  // Governa sÃ³ a aplicaÃ§Ã£o de frames incrementais (snapshot antes de incremental, a cada ciclo de
-  // conexÃ£o). Nunca a permissÃ£o de envio: essa vem do snapshot REST, que independe do WebSocket.
+  // Governa só a aplicação de frames incrementais (snapshot antes de incremental, a cada ciclo de
+  // conexão). Nunca a permissão de envio: essa vem do snapshot REST, que independe do WebSocket.
   const incrementaisLiberados = estado === "conectado"
     && sincronizacaoLiberada?.atendimentoId === atendimentoSelecionadoId
     && sincronizacaoLiberada.ciclo === ciclo;
@@ -575,8 +575,8 @@ export function PaginaAtendimentosCliente({
   const enviar = useEnviarMensagem();
   const reenviarMidia = useEnviarMidia();
   const aposMensagemEnviada = useCallback(() => {
-    // PR #71: sÃ³ PENDENTES â ATIVOS apÃ³s envio bem-sucedido. FINALIZADOS (e as demais
-    // visÃµes) permanecem â o usuÃ¡rio nÃ£o Ã© expulso da lista de finalizados por um envio.
+    // PR #71: só PENDENTES → ATIVOS após envio bem-sucedido. FINALIZADOS (e as demais
+    // visões) permanecem — o usuário não é expulso da lista de finalizados por um envio.
     if (visaoAtendimento === "PENDENTES") {
       setVisaoAtendimento("ATIVOS");
     }
@@ -590,9 +590,9 @@ export function PaginaAtendimentosCliente({
   }, [indisponibilizarAtendimento, reconciliador]);
 
   /**
-   * Rede de seguranÃ§a no instante do envio: rebusca o estado canÃ´nico e recusa ciclo finalizado ou
-   * substituÃ­do. Falha transitÃ³ria do `/estado` nÃ£o trava o atendente â vale o Ãºltimo snapshot
-   * aceito, e o backend continua recusando envio para atendimento que nÃ£o estÃ¡ aberto.
+   * Rede de segurança no instante do envio: rebusca o estado canônico e recusa ciclo finalizado ou
+   * substituído. Falha transitória do `/estado` não trava o atendente — vale o último snapshot
+   * aceito, e o backend continua recusando envio para atendimento que não está aberto.
    */
   const revalidarEnvio = useCallback(async (): Promise<boolean> => {
     const atendimentoId = atendimentoSelecionadoId;
