@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CartaoAtendimento, EstadoAtendimentoSelecionado } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
@@ -58,6 +58,8 @@ vi.mock("@/lib/config/textos-provider", () => ({
         atendidoPor: "Atendido por",
         semAtendente: "Sem atendente",
         transferir: "Transferir",
+        maisAcoes: "Mais ações",
+        convidar: "Convidar",
         finalizar: "Finalizar",
         buscar: "Buscar na conversa",
         novoAtendimento: "Reativar atendimento",
@@ -117,20 +119,21 @@ vi.mock("@/lib/config/textos-provider", () => ({
         reabrir: "Reabrir detalhes do lead",
       },
     },
-    painelLead: { dados: { telefone: "Telefone" } },
+    painelLead: { dados: { telefone: "Telefone" }, tags: { titulo: "Tags" } },
   }),
 }));
 
 vi.mock("./atalho-tags", () => ({
   AtalhoTags: () => <button type="button">Etiquetar</button>,
+  DialogoTagsDoLead: ({ aberto }: { aberto: boolean }) => (aberto ? <div>dialogo-tags</div> : null),
 }));
 
 vi.mock("./dialogo-transferir", () => ({
-  DialogoTransferir: () => null,
+  DialogoTransferir: ({ aberto }: { aberto: boolean }) => (aberto ? <div>dialogo-transferir</div> : null),
 }));
 
 vi.mock("./dialogo-convidar", () => ({
-  DialogoConvidar: () => null,
+  DialogoConvidar: ({ aberto }: { aberto: boolean }) => (aberto ? <div>dialogo-convidar</div> : null),
 }));
 
 import { CabecalhoConversa } from "./cabecalho-conversa";
@@ -458,5 +461,202 @@ describe("CabecalhoConversa", () => {
     );
 
     expect(document.querySelector('[data-slot="cabecalho-conversa"]')).toHaveClass("flex-wrap", "min-h-[72px]");
+  });
+});
+
+describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
+  const larguras: Record<string, number> = {
+    participacao: 180, convidar: 100, transferir: 110, finalizar: 100, "novo-atendimento": 160,
+    separador: 10, buscar: 40, tags: 40, telefone: 40, "reabrir-painel": 40, __menu: 40,
+  };
+  let larguraDoCabecalho = 1000;
+  const observadores = new Set<ResizeObserverCallback>();
+
+  beforeEach(() => {
+    participacao.papel = "GESTOR";
+    participacao.participantes = [];
+    participacao.meuPedido = null;
+    participacao.pedidosPendentes = [];
+    larguraDoCabecalho = 1000;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe() { observadores.add(this.callback); }
+      unobserve() {}
+      disconnect() { observadores.delete(this.callback); }
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      const largura = this.dataset.slot === "cabecalho-conversa"
+        ? larguraDoCabecalho
+        : (larguras[this.dataset.medida ?? ""] ?? 0);
+      return { width: largura, height: 32, x: 0, y: 0, top: 0, left: 0, right: largura, bottom: 32, toJSON: () => ({}) };
+    });
+  });
+
+  afterEach(() => {
+    observadores.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function redimensionar(largura: number) {
+    larguraDoCabecalho = largura;
+    act(() => observadores.forEach((callback) => callback([], {} as ResizeObserver)));
+  }
+
+  function renderizar(sobrescritas: Partial<Parameters<typeof CabecalhoConversa>[0]> = {}) {
+    const props = {
+      conversa,
+      estado: estado(),
+      buscaAberta: false,
+      onAlternarBusca: vi.fn(),
+      painelDetalhesAberto: false,
+      onAlternarPainelDetalhes: vi.fn(),
+      ...sobrescritas,
+    };
+    render(<CabecalhoConversa {...props} />);
+    return props;
+  }
+
+  function abrirMenu() {
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+  }
+
+  it("desktop grande: todas as ações na barra e nenhum ⋯", () => {
+    renderizar();
+
+    for (const nome of ["Convidar", "Transferir", "Finalizar", "Buscar na conversa", "Reabrir detalhes do lead", "Entrar no atendimento"]) {
+      expect(screen.getByRole("button", { name: new RegExp(nome) })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("link", { name: /Telefone/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
+  });
+
+  it("desktop pequeno: telefone e convidar saem primeiro; transferir e finalizar ficam", async () => {
+    renderizar();
+    redimensionar(800);
+
+    expect(screen.queryByRole("link", { name: /Telefone/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Convidar/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Transferir/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Finalizar/ })).toBeInTheDocument();
+
+    abrirMenu();
+    const itens = await screen.findAllByRole("menuitem");
+    expect(itens.map((item) => item.textContent)).toEqual(["Convidar", "Telefone: (61) 99999-0000"]);
+  });
+
+  it("muito estreito: só participação e Finalizar ficam; o ⋯ traz o resto na ordem original", async () => {
+    renderizar();
+    redimensionar(600);
+
+    expect(screen.getByRole("button", { name: "Entrar no atendimento" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Finalizar/ })).toBeInTheDocument();
+    for (const nome of ["Convidar", "Transferir", "Buscar na conversa", "Reabrir detalhes do lead"]) {
+      expect(screen.queryByRole("button", { name: new RegExp(nome) })).not.toBeInTheDocument();
+    }
+
+    abrirMenu();
+    await screen.findByRole("menu");
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Convidar", "Transferir", "Tags", "Telefone: (61) 99999-0000", "Reabrir detalhes do lead",
+    ]);
+    expect(screen.getByRole("menuitemcheckbox", { name: "Buscar na conversa" })).toBeInTheDocument();
+  });
+
+  it("ação pelo menu abre o mesmo diálogo e o menu fecha", async () => {
+    renderizar();
+    redimensionar(600);
+
+    abrirMenu();
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Transferir" }));
+
+    expect(screen.getByText("dialogo-transferir")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("tags pelo menu abrem o seletor em diálogo", async () => {
+    renderizar();
+    redimensionar(600);
+
+    abrirMenu();
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Tags" }));
+
+    expect(screen.getByText("dialogo-tags")).toBeInTheDocument();
+  });
+
+  it("buscar no menu reflete o mesmo estado ligado e alterna pelo mesmo handler", async () => {
+    const props = renderizar({ buscaAberta: true });
+    expect(screen.getByRole("button", { name: "Buscar na conversa" })).toHaveAttribute("aria-pressed", "true");
+
+    redimensionar(600);
+    abrirMenu();
+    const item = await screen.findByRole("menuitemcheckbox", { name: "Buscar na conversa" });
+    expect(item).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(item);
+    expect(props.onAlternarBusca).toHaveBeenCalledTimes(1);
+  });
+
+  it("telefone no menu continua sendo o mesmo link de discagem", async () => {
+    renderizar();
+    redimensionar(600);
+
+    abrirMenu();
+    const item = await screen.findByRole("menuitem", { name: "Telefone: (61) 99999-0000" });
+    expect(item).toHaveAttribute("href", "tel:61999990000");
+  });
+
+  it("volta a mostrar as ações quando o painel lateral fecha e sobra espaço", () => {
+    renderizar();
+    redimensionar(600);
+    expect(screen.queryByRole("button", { name: /Transferir/ })).not.toBeInTheDocument();
+
+    redimensionar(1200);
+    expect(screen.getByRole("button", { name: /Transferir/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
+  });
+
+  it("atendente fora do atendimento: pedir entrada nunca vai para o menu e convidar não existe", async () => {
+    participacao.papel = "ATENDENTE";
+    renderizar();
+    redimensionar(500);
+
+    expect(screen.getByRole("button", { name: "Pedir para entrar" })).toBeInTheDocument();
+    abrirMenu();
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: "Convidar" })).not.toBeInTheDocument();
+  });
+
+  it("finalizado: Novo atendimento é fixo e transferir/finalizar não aparecem em lugar nenhum", async () => {
+    renderizar({
+      conversa: { ...conversa, status: "FINALIZADO" },
+      onAbrirNovoAtendimento: vi.fn(),
+    });
+    redimensionar(500);
+
+    expect(screen.getByRole("button", { name: /Reativar atendimento/ })).toBeInTheDocument();
+    abrirMenu();
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: "Transferir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Finalizar/ })).not.toBeInTheDocument();
+  });
+
+  it("painel aberto: reabrir detalhes não existe nem na barra nem no menu", async () => {
+    renderizar({ painelDetalhesAberto: true });
+    redimensionar(500);
+
+    expect(screen.queryByRole("button", { name: "Reabrir detalhes do lead" })).not.toBeInTheDocument();
+    abrirMenu();
+    await screen.findByRole("menu");
+    expect(screen.queryByRole("menuitem", { name: "Reabrir detalhes do lead" })).not.toBeInTheDocument();
+  });
+
+  it("nome longo fica truncado com o nome completo no título", () => {
+    const nome = "Cliente com um nome bastante comprido para testar o cabeçalho responsivo";
+    renderizar({ conversa: { ...conversa, leadNome: nome } });
+
+    const titulo = screen.getByText(nome, { selector: "p" });
+    expect(titulo).toHaveClass("truncate");
+    expect(titulo).toHaveAttribute("title", nome);
   });
 });

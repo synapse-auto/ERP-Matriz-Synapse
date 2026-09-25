@@ -406,6 +406,8 @@ export const TextosSchema = z.object({
       transferir: z.string(),
       convidar: z.string(),
       outros: z.string(),
+      // E210: opcional para catálogos de filhos publicados antes do menu "⋯"; cai em `outros`.
+      maisAcoes: z.string().optional(),
       convidarTitulo: z.string(),
       convidarDescricao: z.string(),
       convidarCarregando: z.string(),

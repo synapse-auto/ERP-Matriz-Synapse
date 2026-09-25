@@ -6,6 +6,7 @@ import { Check, Plus, Tag, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -27,12 +28,7 @@ export function AtalhoTags({
   modo?: "cabecalho" | "painel";
 }) {
   const textos = useTextos().painelLead.tags;
-  const [erro, setErro] = useState(false);
   const tags = useTagsDoLead(leadId);
-  const todas = useTodasAsTags();
-  const vincular = useVincularTag(leadId);
-  const desvincular = useDesvincularTag(leadId);
-  const vinculadas = new Set(tags.data?.map((tag) => tag.id));
 
   return (
     <div
@@ -79,46 +75,86 @@ export function AtalhoTags({
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72 space-y-2">
           <p className="text-sm font-medium text-foreground">{textos.titulo}</p>
-          {erro && (
-            <p className="text-xs text-destructive">{textos.erroReversao}</p>
-          )}
-          <div className="max-h-64 space-y-1 overflow-y-auto">
-            {todas.data?.map((tag) => {
-              const ativa = vinculadas.has(tag.id);
-              return (
-                <Button
-                  key={tag.id}
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-start gap-2"
-                  aria-label={
-                    ativa
-                      ? textos.remover.replace("{nome}", tag.nome)
-                      : `${textos.adicionar} ${tag.nome}`
-                  }
-                  onClick={() => {
-                    setErro(false);
-                    const mutacao = ativa ? desvincular : vincular;
-                    mutacao.mutate({ tag }, { onError: () => setErro(true) });
-                  }}
-                >
-                  {ativa ? (
-                    <Check className="size-(--tamanho-icone-interface)" />
-                  ) : (
-                    <Plus className="size-(--tamanho-icone-interface)" />
-                  )}
-                  <span
-                    className="size-2.5 rounded-full border"
-                    style={{ borderColor: tag.cor, backgroundColor: tag.cor }}
-                  />
-                  <span className="flex-1 truncate text-left">{tag.nome}</span>
-                  {ativa && <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />}
-                </Button>
-              );
-            })}
-          </div>
+          <SeletorDeTagsDoLead leadId={leadId} />
         </PopoverContent>
       </Popover>
     </div>
+  );
+}
+
+/**
+ * E210 — o mesmo seletor do atalho, em diálogo, para quando o atalho foi para o menu "⋯" do
+ * cabeçalho: um popover precisa de um gatilho visível para se ancorar.
+ */
+export function DialogoTagsDoLead({
+  leadId,
+  aberto,
+  onFechar,
+}: {
+  leadId: string;
+  aberto: boolean;
+  onFechar: () => void;
+}) {
+  const textos = useTextos().painelLead.tags;
+  return (
+    <Dialog open={aberto} onOpenChange={(proximo) => { if (!proximo) onFechar(); }}>
+      <DialogContent className="max-w-sm space-y-2">
+        <DialogTitle>{textos.titulo}</DialogTitle>
+        {aberto && <SeletorDeTagsDoLead leadId={leadId} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SeletorDeTagsDoLead({ leadId }: { leadId: string }) {
+  const textos = useTextos().painelLead.tags;
+  const [erro, setErro] = useState(false);
+  const tags = useTagsDoLead(leadId);
+  const todas = useTodasAsTags();
+  const vincular = useVincularTag(leadId);
+  const desvincular = useDesvincularTag(leadId);
+  const vinculadas = new Set(tags.data?.map((tag) => tag.id));
+
+  return (
+    <>
+      {erro && (
+        <p className="text-xs text-destructive">{textos.erroReversao}</p>
+      )}
+      <div className="max-h-64 space-y-1 overflow-y-auto">
+        {todas.data?.map((tag) => {
+          const ativa = vinculadas.has(tag.id);
+          return (
+            <Button
+              key={tag.id}
+              type="button"
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              aria-label={
+                ativa
+                  ? textos.remover.replace("{nome}", tag.nome)
+                  : `${textos.adicionar} ${tag.nome}`
+              }
+              onClick={() => {
+                setErro(false);
+                const mutacao = ativa ? desvincular : vincular;
+                mutacao.mutate({ tag }, { onError: () => setErro(true) });
+              }}
+            >
+              {ativa ? (
+                <Check className="size-(--tamanho-icone-interface)" />
+              ) : (
+                <Plus className="size-(--tamanho-icone-interface)" />
+              )}
+              <span
+                className="size-2.5 rounded-full border"
+                style={{ borderColor: tag.cor, backgroundColor: tag.cor }}
+              />
+              <span className="flex-1 truncate text-left">{tag.nome}</span>
+              {ativa && <X className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />}
+            </Button>
+          );
+        })}
+      </div>
+    </>
   );
 }

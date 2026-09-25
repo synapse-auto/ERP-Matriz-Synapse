@@ -86,13 +86,14 @@ vi.mock("@/lib/config/textos-provider", () => ({
       },
       painel: { reabrir: "Reabrir detalhes do lead" },
     },
-    painelLead: { dados: { telefone: "Telefone" } },
+    painelLead: { dados: { telefone: "Telefone" }, tags: { titulo: "Tags" } },
     chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
   }),
 }));
 
 vi.mock("./atalho-tags", () => ({
   AtalhoTags: () => <button type="button">Etiquetar</button>,
+  DialogoTagsDoLead: () => null,
 }));
 
 vi.mock("./dialogo-transferir", () => ({
