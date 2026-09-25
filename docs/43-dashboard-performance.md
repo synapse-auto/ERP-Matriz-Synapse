@@ -75,3 +75,21 @@ Não foi executado `EXPLAIN ANALYZE` nem carga nas instâncias `matriz_hml` ou `
 `pg_stat_statements` continua dependente de janela operacional e restart do PostgreSQL;
 quando estiver ativo, use `calls`, `total_exec_time`, `mean_exec_time` e `rows` por queryid
 em uma janela comparável para priorizar qualquer otimização adicional de SQL.
+
+## Medição da série mensal na PR #211 (24/09/2026)
+
+Antes da série, o mesmo `DashboardCustoIT` mediu 20 leituras SQL frias e 4 quentes
+(amostras de 120 ms e 41 ms, respectivamente). Após agrupar totais e meses na mesma
+leitura por `ROLLUP` e consolidar ranking/série de vendas, o teste do GET real voltou a
+**20 frias, 4 quentes e 20 após expiração**. Nesta execução as amostras foram 117 ms,
+28 ms e 106 ms; a variação de JVM e seed impede afirmar ganho de latência ou CPU.
+Uma coorte explícita usa 21 consultas, como antes. O teste concorrente mantém um só
+cálculo frio para duas requisições equivalentes (24 consultas ao todo, incluindo os
+dois status ao vivo).
+
+`ROLLUP` e o agrupamento mensal podem consumir mais CPU dentro de cada SQL mesmo sem
+aumentar a quantidade de comandos. O seed local possui poucos registros; nenhuma
+medição de cardinalidade representativa ou `EXPLAIN (ANALYZE, BUFFERS)` em base
+equivalente à operação foi obtida. Portanto, a paridade P1 permanece em draft e não
+está autorizada para deploy com base somente nesses números. Não foi proposto índice
+nem migration sem evidência de plano e impacto na escrita.

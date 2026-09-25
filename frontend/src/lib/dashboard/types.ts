@@ -69,6 +69,19 @@ export interface VisaoGeralDashboard {
     nota: number | null;
     avaliacoes: number;
   }>;
+  /** Null representa ausencia de amostra ou mes futuro; zero representa contagem real. */
+  seriesMensais?: Array<{
+    mes: string;
+    parcial: boolean;
+    disponivel: boolean;
+    atendimentos: number | null;
+    novosLeads: number | null;
+    tempoMedioSegundos: number | null;
+    vendasFechadas: number | null;
+    taxaConversao: number | null;
+    avaliacaoMedia: number | null;
+    resolucaoPorIa: number | null;
+  }>;
 }
 
 export interface FiltroDashboard {

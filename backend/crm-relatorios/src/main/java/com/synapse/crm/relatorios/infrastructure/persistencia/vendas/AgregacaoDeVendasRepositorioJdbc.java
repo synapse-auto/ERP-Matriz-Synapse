@@ -2,8 +2,14 @@ package com.synapse.crm.relatorios.infrastructure.persistencia.vendas;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -27,13 +33,36 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
     @Override
     public AgregacaoDeVendas agregar(
             List<IntervaloTemporal> periodos, IntervaloTemporal periodoDeOriginacao) {
+        return consultar(periodos, periodoDeOriginacao, null).agregado();
+    }
+
+    @Override
+    public VendasComSerie agregarComSerie(
+            List<IntervaloTemporal> periodos,
+            IntervaloTemporal periodoDeOriginacao,
+            ZoneId fusoHorario) {
+        return consultar(periodos, periodoDeOriginacao, fusoHorario);
+    }
+
+    private VendasComSerie consultar(
+            List<IntervaloTemporal> periodos,
+            IntervaloTemporal periodoDeOriginacao,
+            ZoneId fusoHorario) {
         FiltrosDeVendas filtros = filtros(periodos, periodoDeOriginacao);
+        String expressaoMes = fusoHorario == null
+                ? "NULL::date"
+                : "date_trunc('month', v.criado_em AT TIME ZONE ?)::date";
+        List<Object> parametros = new ArrayList<>(filtros.parametros());
+        if (fusoHorario != null) {
+            parametros.add(fusoHorario.getId());
+        }
 
         List<LinhaDeVendas> linhas = jdbc.query(
                 """
                 WITH vendas AS (
                     SELECT DISTINCT ON (e.lead_id)
                            e.lead_id,
+                           e.criado_em,
                            NULLIF(e.dados ->> 'responsavel_id', '')::uuid AS responsavel_id
                       FROM evento_timeline e
                       JOIN lead l ON l.id = e.lead_id
@@ -43,33 +72,51 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
                        AND %s
                      ORDER BY e.lead_id, e.criado_em, e.id
                 )
-                SELECT v.responsavel_id, u.nome, u.papel::text AS papel, count(*) AS vendas
+                SELECT v.responsavel_id, u.nome, u.papel::text AS papel,
+                       %s AS mes, count(*) AS vendas
                   FROM vendas v
                   LEFT JOIN usuario u ON u.id = v.responsavel_id
-                 GROUP BY v.responsavel_id, u.nome, u.papel
+                 GROUP BY v.responsavel_id, u.nome, u.papel, mes
                  ORDER BY vendas DESC, u.nome NULLS LAST
-                """.formatted(filtros.eventos().clausula(), filtros.origem().clausula()),
+                """.formatted(
+                        filtros.eventos().clausula(), filtros.origem().clausula(), expressaoMes),
                 (linha, indice) -> new LinhaDeVendas(
                         linha.getObject("responsavel_id", java.util.UUID.class),
                         linha.getString("nome"),
                         linha.getString("papel") == null
                                 ? null
                                 : PapelUsuario.valueOf(linha.getString("papel")),
+                        linha.getDate("mes") == null
+                                ? null
+                                : YearMonth.from(linha.getDate("mes").toLocalDate()),
                         linha.getLong("vendas")),
-                filtros.parametros().toArray());
+                parametros.toArray());
 
-        long semResponsavel = linhas.stream()
-                .filter(linha -> linha.atendenteId() == null)
-                .mapToLong(LinhaDeVendas::vendas)
-                .sum();
-        List<VendasPorAtendente> porAtendente = linhas.stream()
-                .filter(linha -> linha.atendenteId() != null
-                        && linha.papel() != PapelUsuario.ADMINISTRADOR)
-                .map(linha -> new VendasPorAtendente(
-                        linha.atendenteId(), linha.atendenteNome(), linha.vendas()))
+        Map<UUID, VendasPorAtendente> porId = new LinkedHashMap<>();
+        Map<YearMonth, Long> porMes = new LinkedHashMap<>();
+        long semResponsavel = 0;
+        long total = 0;
+        for (LinhaDeVendas linha : linhas) {
+            total += linha.vendas();
+            if (linha.mes() != null) {
+                porMes.merge(linha.mes(), linha.vendas(), Long::sum);
+            }
+            if (linha.atendenteId() == null) {
+                semResponsavel += linha.vendas();
+            } else if (linha.papel() != PapelUsuario.ADMINISTRADOR) {
+                porId.merge(
+                        linha.atendenteId(),
+                        new VendasPorAtendente(linha.atendenteId(), linha.atendenteNome(), linha.vendas()),
+                        (anterior, atual) -> new VendasPorAtendente(
+                                anterior.atendenteId(), anterior.atendenteNome(), anterior.vendas() + atual.vendas()));
+            }
+        }
+        List<VendasPorAtendente> porAtendente = porId.values().stream()
+                .sorted(Comparator.comparingLong(VendasPorAtendente::vendas)
+                        .reversed()
+                        .thenComparing(VendasPorAtendente::atendenteNome, Comparator.nullsLast(String::compareTo)))
                 .toList();
-        long total = linhas.stream().mapToLong(LinhaDeVendas::vendas).sum();
-        return new AgregacaoDeVendas(total, semResponsavel, porAtendente);
+        return new VendasComSerie(new AgregacaoDeVendas(total, semResponsavel, porAtendente), porMes);
     }
 
     @Override
@@ -161,5 +208,6 @@ class AgregacaoDeVendasRepositorioJdbc implements AgregacaoDeVendasRepositorio {
             java.util.UUID atendenteId,
             String atendenteNome,
             PapelUsuario papel,
+            YearMonth mes,
             long vendas) {}
 }

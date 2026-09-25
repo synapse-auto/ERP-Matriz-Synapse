@@ -24,7 +24,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       funilApoio: "Etapas do pipeline",
       filtros: { rotulo: "Filtros", ano: "Ano", meses: "Meses", anoInteiro: "Ano inteiro", originacao: "Originação", intervalo: "{inicio} até {fim}", de: "De", ate: "Até", limpar: "Limpar", selecioneMes: "Selecione", origemCompleta: "Complete" },
       meses: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"],
-      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", periodoAnterior: "vs. período anterior" },
+      kpis: { rotulo: "Indicadores", atendimentos: "Atendimentos", atendimentosApoio: "{total} acumulados", conversao: "Conversão", conversaoApoio: "{vendas} vendas / {leads} leads", tempoMedio: "Tempo médio", tempoMedioApoio: "Atendimentos finalizados", vendas: "Vendas fechadas", vendasApoio: "{total} acumuladas", csat: "Avaliação", csatApoio: "{total} avaliações", resolucaoIa: "Resolução por IA", resolucaoIaApoio: "Sem transferência humana", novosLeads: "Novos leads", novosLeadsApoio: "Criados no período", resumoSerie: "mín {minMes} {min} · máx {maxMes} {max} · média {media}", periodoAnterior: "vs. período anterior" },
       agora: { rotulo: "Agora", emIa: "Em IA", emAtendimento: "Em atendimento humano", leadsNovosHoje: "Leads novos hoje", vendasHoje: "Vendas hoje", atendentesOnline: "Atendentes online", atualizadoAgora: "atualizado agora", atualizadoSegundos: "atualizado há {segundos}s", atualizadoMinutos: "atualizado há {minutos}min" },
       secoes: { ranking: "Top atendentes · avaliação", equipe: "Equipe · desempenho", equipeApoio: "Atendimentos, vendas e nota média no período", equipeOrdenadoPor: "ordenado por vendas fechadas", funil: "Funil de conversão", horarioPico: "Horário de pico · mensagens por hora" },
       ranking: { vazio: "Sem avaliações", media: "{media}", quantidadeSingular: "{total} avaliação", quantidadePlural: "{total} avaliações", semResponsavelSingular: "{total} venda sem responsável atribuído", semResponsavelPlural: "{total} vendas sem responsável atribuído" },
@@ -65,6 +65,9 @@ const PAYLOAD_COM_DADOS = {
     { id: "u2", nome: "Bruno Costa", atendimentos: 9, vendas: 1, nota: 4.2, avaliacoes: 5 },
     { id: "u3", nome: "Carla Dias", atendimentos: 7, vendas: 0, nota: null, avaliacoes: 0 },
   ],
+  seriesMensais: [{ mes: "2040-08", parcial: false, disponivel: true,
+    atendimentos: 12, novosLeads: 30, tempoMedioSegundos: 5400,
+    vendasFechadas: 3, taxaConversao: 10, avaliacaoMedia: 4.5, resolucaoPorIa: 75 }],
 };
 
 /** Estado real desta instância hoje: quase tudo zerado. Uma tela desenhada só para o mock quebra aqui. */
@@ -87,6 +90,9 @@ const PAYLOAD_ZERADO = {
   rankingDeVendas: { atendentes: [], semResponsavel: 0 },
   rankingDeAvaliacoes: { atendentes: [] },
   equipeDesempenho: [],
+  seriesMensais: [{ mes: "2040-08", parcial: false, disponivel: true,
+    atendimentos: 0, novosLeads: 0, tempoMedioSegundos: null,
+    vendasFechadas: 0, taxaConversao: null, avaliacaoMedia: null, resolucaoPorIa: null }],
 };
 
 /**
@@ -137,24 +143,25 @@ describe("PaginaDashboard", () => {
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }));
   });
 
-  it("alterna Compacta e Expandida sem refazer a consulta nem inventar a série mensal", () => {
+  it("alterna Compacta e Expandida com a série recebida, sem refazer a consulta", () => {
     useDashboardMock.mockReturnValue({ data: PAYLOAD_COM_DADOS, isLoading: false, isError: false });
     render(<PaginaDashboard />);
 
     const compacta = screen.getByRole("button", { name: "Compacta" });
     const expandida = screen.getByRole("button", { name: "Expandida" });
     expect(compacta).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("serie-indisponivel-Atendimentos")).not.toBeInTheDocument();
+    expect(screen.getByTestId("serie-atendimentos")).toBeInTheDocument();
 
     fireEvent.click(expandida);
     expect(expandida).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("serie-indisponivel-Atendimentos")).toHaveTextContent("Série mensal indisponível");
+    expect(screen.getByTestId("serie-atendimentos")).toBeInTheDocument();
     expect(screen.getByTestId("kpi-Atendimentos")).toHaveTextContent("12");
+    expect(screen.getByText("mín Ago 12 · máx Ago 12 · média 12")).toBeInTheDocument();
     expect(useDashboardMock).toHaveBeenLastCalledWith(expect.objectContaining({ meses: expect.any(Array) }));
 
     fireEvent.click(compacta);
     expect(compacta).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByTestId("serie-indisponivel-Atendimentos")).not.toBeInTheDocument();
+    expect(screen.getByTestId("serie-atendimentos")).toBeInTheDocument();
   });
 
   it("faixa AGORA mostra os contadores ao vivo e o KPI de novos leads, sem inventar os itens sem critério definido", () => {
