@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.ReacaoRecebidaDoCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
 /**
@@ -191,9 +192,21 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
     public Traducao traduzirComDescartes(String payloadCru) {
         List<MensagemRecebidaDoCanal> traduzidas = new ArrayList<>();
         List<ItemDescartado> descartes = new ArrayList<>();
+        List<ReacaoRecebidaDoCanal> reacoes = new ArrayList<>();
         for (MensagemDoPayload item : mensagens(payloadCru)) {
             String tipo = TipoDeItemDoProvedor.normalizar(item.mensagem().path("type").asText(null));
             try {
+                if ("reaction".equals(tipo)) {
+                    // Reacao nao e mensagem do historico: vai para o proprio registro do cliente.
+                    Origem origem = origemDo(item);
+                    reacoes.add(ReacaoDoProvedor.ler(
+                            item.mensagem(),
+                            origem.idExterno(),
+                            origem.telefoneRemetente(),
+                            origem.identificadorDestino(),
+                            origem.enviadoEm()));
+                    continue;
+                }
                 traduzidas.add(traduzirItem(item));
             } catch (ItemNaoTraduzido e) {
                 descartes.add(new ItemDescartado(tipo, e.motivo()));
@@ -204,7 +217,7 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 descartes.add(new ItemDescartado(tipo, MotivoDeDescarte.ITEM_MALFORMADO));
             }
         }
-        return new Traducao(traduzidas, descartes);
+        return new Traducao(traduzidas, descartes, reacoes);
     }
 
     private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload item) {

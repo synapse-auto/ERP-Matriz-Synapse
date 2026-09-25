@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.application.reacao.ReacaoDeMensagemRepositorio;
+import com.synapse.crm.atendimento.application.reacao.ReacaoDoClienteRepositorio;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -23,16 +24,19 @@ public class ListarHistoricoMensagensUseCase {
     private final AtendimentoRepositorio atendimentos;
     private final HistoricoDeMensagensRepositorio mensagens;
     private final ReacaoDeMensagemRepositorio reacoes;
+    private final ReacaoDoClienteRepositorio reacoesDoCliente;
     private final UsuarioContext usuarios;
 
     public ListarHistoricoMensagensUseCase(
             AtendimentoRepositorio atendimentos,
             HistoricoDeMensagensRepositorio mensagens,
             ReacaoDeMensagemRepositorio reacoes,
+            ReacaoDoClienteRepositorio reacoesDoCliente,
             UsuarioContext usuarios) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.reacoes = reacoes;
+        this.reacoesDoCliente = reacoesDoCliente;
         this.usuarios = usuarios;
     }
 
@@ -81,13 +85,13 @@ public class ListarHistoricoMensagensUseCase {
                         item.mensagem().id(), item.mensagem().enviadoEm()))
                 .toList();
         var resumos = reacoes.resumir(chaves, usuarioId);
+        var doCliente = reacoesDoCliente.atuais(chaves);
         return pagina.stream()
                 .map(item -> {
-                    List<ResumoDeReacao> daMensagem = resumos.getOrDefault(
-                            new ReacaoDeMensagemRepositorio.Chave(
-                                    item.mensagem().id(), item.mensagem().enviadoEm()),
-                            List.of());
-                    return item.comReacoes(daMensagem);
+                    var chave = new ReacaoDeMensagemRepositorio.Chave(
+                            item.mensagem().id(), item.mensagem().enviadoEm());
+                    List<ResumoDeReacao> daMensagem = resumos.getOrDefault(chave, List.of());
+                    return item.comReacoes(daMensagem).comReacaoDoCliente(doCliente.get(chave));
                 })
                 .toList();
     }

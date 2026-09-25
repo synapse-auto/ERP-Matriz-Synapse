@@ -103,6 +103,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_programada",
                     "mensagem_rapida",
                     "mensagem_reacao",
+                    "mensagem_reacao_cliente",
                     "mensagem_referencia",
                     "outbox_evento",
                     "preferencia_usuario",

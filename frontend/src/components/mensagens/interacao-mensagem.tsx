@@ -29,6 +29,8 @@ type Props = {
   alinhadaADireita: boolean;
   textoCopiavel: string | null;
   reacoes: ResumoReacao[];
+  /** Emoji atual do cliente no WhatsApp (só em Atendimentos). Informativo: o CRM não o altera. */
+  reacaoDoCliente?: string | null;
   textos: TextosAcoes;
   onDefinirReacao: (emoji: string) => Promise<void>;
   onRemoverReacao: () => Promise<void>;
@@ -49,6 +51,7 @@ export function InteracaoMensagem({
   alinhadaADireita,
   textoCopiavel,
   reacoes,
+  reacaoDoCliente = null,
   textos,
   onDefinirReacao,
   onRemoverReacao,
@@ -117,8 +120,23 @@ export function InteracaoMensagem({
           <Popover open={menuAberto} onOpenChange={setMenuAberto}>
             <div className="min-w-0 max-w-full">
               {children}
-              {reacoes.length > 0 && (
+              {(reacoes.length > 0 || reacaoDoCliente) && (
                 <div className={cn("mt-1 flex flex-wrap gap-1", alinhadaADireita && "justify-end")}>
+                  {reacaoDoCliente && (
+                    // Não é botão: a reação é do cliente e o atendente não a altera. Borda tracejada a
+                    // separa das reações da equipe, que são clicáveis.
+                    <span
+                      role="img"
+                      aria-label={
+                        textos.reacaoDoCliente?.replace("{emoji}", reacaoDoCliente) ?? reacaoDoCliente
+                      }
+                      title={textos.reacaoDoCliente?.replace("{emoji}", reacaoDoCliente)}
+                      data-slot="reacao-do-cliente"
+                      className="inline-flex items-center rounded-full border border-dashed border-border bg-muted px-2 py-0.5 text-xs text-foreground"
+                    >
+                      <span aria-hidden>{reacaoDoCliente}</span>
+                    </span>
+                  )}
                   {reacoes.map((reacao) => (
                     <button
                       key={reacao.emoji}

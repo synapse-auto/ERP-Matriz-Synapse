@@ -61,6 +61,67 @@ const textos: Textos["atendimentos"]["mensagem"]["acoes"] = {
 const fantasmas = ["Responder", "Encaminhar", "Fixar", "Pergunte à IA", "Favoritar", "Denunciar", "Apagar"];
 
 describe("InteracaoMensagem", () => {
+  it("mostra a reação do cliente como informação, separada e sem virar botão da equipe", () => {
+    const aoDefinir = vi.fn();
+    render(
+      <InteracaoMensagem
+        alinhadaADireita
+        textoCopiavel="Olá"
+        reacoes={[{ emoji: "👍", quantidade: 1, reagi: true }]}
+        reacaoDoCliente="❤️"
+        textos={{ ...textos, reacaoDoCliente: "{emoji}, reação do cliente" }}
+        onDefinirReacao={aoDefinir}
+        onRemoverReacao={vi.fn()}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+
+    const doCliente = screen.getByRole("img", { name: "❤️, reação do cliente" });
+    expect(doCliente.tagName).toBe("SPAN");
+    expect(screen.queryByRole("button", { name: /reação do cliente/ })).toBeNull();
+    // A reação da equipe continua clicável ao lado.
+    expect(screen.getByRole("button", { name: "👍, 1, sua reação" })).toBeInTheDocument();
+    fireEvent.click(doCliente);
+    expect(aoDefinir).not.toHaveBeenCalled();
+  });
+
+  it("com catálogo antigo, sem a chave nova, ainda mostra a reação do cliente pelo próprio emoji", () => {
+    render(
+      <InteracaoMensagem
+        alinhadaADireita={false}
+        textoCopiavel="Olá"
+        reacoes={[]}
+        reacaoDoCliente="🙏"
+        textos={textos}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+
+    expect(screen.getByRole("img", { name: "🙏" })).toBeInTheDocument();
+  });
+
+  it("sem reação do cliente nem da equipe, não desenha a faixa de reações", () => {
+    const { container } = render(
+      <InteracaoMensagem
+        alinhadaADireita
+        textoCopiavel="Olá"
+        reacoes={[]}
+        reacaoDoCliente={null}
+        textos={textos}
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+
+    expect(container.querySelector('[data-slot="reacao-do-cliente"]')).toBeNull();
+  });
+
   it("mantém a ação fora da geometria da bolha e acessível nos dois alinhamentos", () => {
     const { rerender } = render(
       <InteracaoMensagem

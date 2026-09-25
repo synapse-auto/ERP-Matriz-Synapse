@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import com.synapse.crm.atendimento.application.historico.HistoricoDeMensagensRepositorio;
 import com.synapse.crm.atendimento.application.historico.MensagemDoHistorico;
 import com.synapse.crm.atendimento.application.reacao.ReacaoDeMensagemRepositorio;
+import com.synapse.crm.atendimento.application.reacao.ReacaoDoClienteRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
 import com.synapse.crm.atendimento.domain.mensagem.Remetente;
@@ -43,7 +44,8 @@ class ListarHistoricoMensagensUseCaseTest {
         when(reacoes.resumir(List.of(new ReacaoDeMensagemRepositorio.Chave(mensagemId, origem.mensagem().enviadoEm())), usuarioId))
                 .thenReturn(java.util.Map.of());
 
-        MensagemDoHistorico resultado = new ListarHistoricoMensagensUseCase(atendimentos, mensagens, reacoes, usuarios)
+        MensagemDoHistorico resultado = new ListarHistoricoMensagensUseCase(
+                        atendimentos, mensagens, reacoes, mock(ReacaoDoClienteRepositorio.class), usuarios)
                 .executarPorId(atendimentoId, mensagemId);
 
         assertThat(resultado.mensagem().id()).isEqualTo(mensagemId);
@@ -62,7 +64,8 @@ class ListarHistoricoMensagensUseCaseTest {
                 Atendimento.abrirComIa(atendimentoId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), Instant.now())));
         when(mensagens.porId(atendimentoId, mensagemId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> new ListarHistoricoMensagensUseCase(atendimentos, mensagens, reacoes, usuarios)
+        assertThatThrownBy(() -> new ListarHistoricoMensagensUseCase(
+                        atendimentos, mensagens, reacoes, mock(ReacaoDoClienteRepositorio.class), usuarios)
                 .executarPorId(atendimentoId, mensagemId))
                 .isInstanceOf(RecursoDeAtendimentoIndisponivelException.class);
     }

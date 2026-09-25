@@ -171,6 +171,8 @@ export interface MensagemResposta {
   erroEntrega: ErroDeEntrega | null;
   enviadoEm: string;
   reacoes?: ResumoReacao[];
+  /** E214: emoji atual do cliente no WhatsApp; separado de `reacoes`, que são da equipe. */
+  reacaoDoCliente?: string | null;
   citacao?: CitacaoMensagem | null;
   /** Chave do clique de envio, presente nas mensagens humanas e usada para reconciliar o otimista. */
   idempotencyKey?: string | null;
@@ -371,6 +373,14 @@ export interface ReacaoTempoReal {
   reacoes: { emoji: string; quantidade: number }[];
 }
 
+/** E214: reação do cliente no WhatsApp; `emoji` nulo = o cliente removeu. */
+export interface ReacaoClienteTempoReal {
+  atendimentoId: string;
+  mensagemId: string;
+  enviadoEm: string;
+  emoji: string | null;
+}
+
 export interface ResumoIaStatusTempoReal {
   atendimentoId: string;
   leadId: string;
@@ -417,6 +427,7 @@ export type EventoTempoReal =
   | { tipo: "TRANSFERENCIA"; dados: TransferenciaTempoReal }
   | { tipo: "FINALIZACAO"; dados: FinalizacaoTempoReal }
   | { tipo: "REACAO"; dados: ReacaoTempoReal }
+  | { tipo: "REACAO_CLIENTE"; dados: ReacaoClienteTempoReal }
   | { tipo: "RESUMO_IA_STATUS"; dados: ResumoIaStatusTempoReal }
   | EventoCanonicoAtendimentoTempoReal;
 

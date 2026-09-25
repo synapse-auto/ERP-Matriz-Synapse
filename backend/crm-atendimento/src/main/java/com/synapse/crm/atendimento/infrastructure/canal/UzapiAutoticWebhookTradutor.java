@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.ReacaoRecebidaDoCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
 /**
@@ -152,6 +153,7 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
     public Traducao traduzirComDescartes(String payloadCru) {
         List<MensagemRecebidaDoCanal> resultado = new ArrayList<>();
         List<ItemDescartado> descartes = new ArrayList<>();
+        List<ReacaoRecebidaDoCanal> reacoes = new ArrayList<>();
         for (MensagemDoPayload mensagemDoPayload : mensagens(payloadCru)) {
             String tipo = mensagemDoPayload.mensagem().path("type").asText("").toLowerCase(Locale.ROOT);
             try {
@@ -159,6 +161,17 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
                     // Ignorado por decisao (E163): Status/Story nao e conversa. Nao vira descarte,
                     // para nao produzir alarme falso na linha da fila.
                     log.debug("Evento Status/Story da Uzapi descartado.");
+                    continue;
+                }
+                if ("reaction".equals(tipo)) {
+                    // Schema ReactionMessage do Swagger: mesmo formato da Meta.
+                    JsonNode mensagem = mensagemDoPayload.mensagem();
+                    reacoes.add(ReacaoDoProvedor.ler(
+                            mensagem,
+                            texto(mensagem, "id"),
+                            primeiroTexto(mensagem, "from", "sender", "participant"),
+                            mensagemDoPayload.valor().path("metadata").path("phone_number_id").asText(null),
+                            timestamp(mensagem.path("timestamp"))));
                     continue;
                 }
                 resultado.add(traduzirItem(mensagemDoPayload, tipo));
@@ -172,7 +185,7 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
                         TipoDeItemDoProvedor.normalizar(tipo), MotivoDeDescarte.ITEM_MALFORMADO));
             }
         }
-        return new Traducao(resultado, descartes);
+        return new Traducao(resultado, descartes, reacoes);
     }
 
     private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload mensagemDoPayload, String tipo) {
