@@ -74,6 +74,26 @@ public interface TradutorDeCanal {
      */
     Traducao traduzirComDescartes(String payloadCru);
 
+    /**
+     * O que repassar a Automacao, sem mensagens de grupo.
+     *
+     * <p>Conversa de grupo nao e suportada (docs/44): repassada, a mensagem chegaria ao n8n com o
+     * telefone do participante e poderia gerar resposta automatica ou reset no privado. Contrato:
+     *
+     * <ul>
+     *   <li>POST sem grupo: devolve o corpo e a assinatura <b>originais, intactos</b>;
+     *   <li>POST so de grupo: vazio — nada e repassado;
+     *   <li>POST misto: o mesmo envelope sem os itens de grupo, e a assinatura recalculada pelo
+     *       adaptador que a tem (Meta, com o mesmo App Secret), para continuar valida.
+     * </ul>
+     */
+    default java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
+    }
+
+    /** Corpo e assinatura a repassar a Automacao. */
+    record RepasseParaAutomacao(String payloadCru, String assinatura) {}
+
     /** Atalho para quem so precisa das mensagens. */
     default List<MensagemRecebidaDoCanal> traduzir(String payloadCru) {
         return traduzirComDescartes(payloadCru).mensagens();
@@ -88,7 +108,13 @@ public interface TradutorDeCanal {
         /** Sem identificador externo, remetente ou referencia de midia: nao da para registrar. */
         SEM_IDENTIFICADOR,
         /** A leitura do item falhou; os demais itens do mesmo POST seguem. */
-        ITEM_MALFORMADO
+        ITEM_MALFORMADO,
+        /**
+         * Mensagem de grupo. Ignorada de proposito — o CRM so tem conversa individual e associar o
+         * item ao participante misturaria o grupo com o privado dele —, mas registrada como descarte
+         * para ficar visivel quanto chega.
+         */
+        GRUPO_NAO_SUPORTADO
     }
 
     /**

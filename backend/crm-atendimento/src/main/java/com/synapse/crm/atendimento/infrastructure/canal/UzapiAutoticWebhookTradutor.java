@@ -161,6 +161,11 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
                     log.debug("Evento Status/Story da Uzapi descartado.");
                     continue;
                 }
+                if (ehGrupo(mensagemDoPayload.mensagem())) {
+                    // O `from` de grupo e o participante: traduzir colaria a conversa do grupo no
+                    // privado dele (e no comando de reset e na Automacao). Fica visivel como descarte.
+                    throw new ItemNaoTraduzido(MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+                }
                 resultado.add(traduzirItem(mensagemDoPayload, tipo));
             } catch (ItemNaoTraduzido e) {
                 descartes.add(new ItemDescartado(TipoDeItemDoProvedor.normalizar(tipo), e.motivo()));
@@ -382,6 +387,44 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
             log.warn("Payload de webhook Uzapi ilegivel.");
             return json.createArrayNode();
         }
+    }
+
+    /**
+     * A Uzapi nao assina o corpo (o segredo vem na query), entao o POST misto segue sem os itens de
+     * grupo e com a mesma assinatura (nula). Status/Story nao e grupo: segue como antes.
+     */
+    @Override
+    public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return switch (RepasseSemGrupos.filtrar(
+                payloadCru, json, mensagem -> !ehStatusOuStory(mensagem) && ehGrupo(mensagem))) {
+            case RepasseSemGrupos.Resultado.Intacto intacto ->
+                    java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
+            case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();
+            case RepasseSemGrupos.Resultado.Filtrado filtrado ->
+                    java.util.Optional.of(new RepasseParaAutomacao(filtrado.payload(), assinatura));
+        };
+    }
+
+    /** Campos em que a Uzapi ou o evento nativo podem trazer o JID do chat. */
+    private static final List<String> CHAVES_DE_CHAT =
+            List.of("from", "chatid", "chatId", "remotejid", "remoteJid", "groupId", "group_id", "jid");
+
+    /**
+     * {@code isGroup} e obrigatorio em toda mensagem do Swagger da Uzapi; o sufixo {@code @g.us} do
+     * JID cobre o evento nativo que nao traga a flag. Os dois sinais bastam isoladamente.
+     */
+    private static boolean ehGrupo(JsonNode mensagem) {
+        JsonNode flag = mensagem.path("isGroup");
+        if (flag.asBoolean(false) || "true".equalsIgnoreCase(flag.asText(""))) {
+            return true;
+        }
+        for (String chave : CHAVES_DE_CHAT) {
+            String valor = texto(mensagem, chave);
+            if (valor != null && valor.toLowerCase(Locale.ROOT).endsWith("@g.us")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean ehStatusOuStory(JsonNode mensagem) {

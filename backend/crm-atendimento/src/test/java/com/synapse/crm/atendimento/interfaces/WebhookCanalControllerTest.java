@@ -48,10 +48,13 @@ class WebhookCanalControllerTest {
                         0));
         when(tradutor.statusDeEntrega(payload)).thenReturn(List.of());
         when(tradutor.idsExternos(payload)).thenReturn(List.of());
+        when(tradutor.repasseSemGrupos(payload, "sha256=assinatura")).thenReturn(java.util.Optional.of(
+                new TradutorDeCanal.RepasseParaAutomacao(payload, "sha256=assinatura")));
 
         var resposta = controller.receber(payload, "sha256=assinatura", null);
 
         assertThat(resposta.getStatusCode().value()).isEqualTo(200);
         verify(tradutor).assinaturaValida(payload, "sha256=assinatura", null);
+        verify(repasse).executar(payload, "sha256=assinatura", Instant.parse("2026-09-09T12:00:00Z"));
     }
 }

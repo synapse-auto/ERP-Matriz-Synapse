@@ -88,6 +88,37 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void mensagemComGroupIdViraDescarteDeGrupoSemDerrubarOPrivado() {
+        String grupo = """
+                {"from":"5561000000001","id":"G","group_id":"120363000000000000","timestamp":"1720000000",
+                 "type":"text","text":{"body":"no grupo"}}""";
+        String privado = """
+                {"from":"5561000000001","id":"A","timestamp":"1720000001","type":"text","text":{"body":"ok"}}""";
+
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(grupo + "," + privado));
+
+        assertThat(traducao.mensagens()).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+        assertThat(traducao.descartes()).singleElement().satisfies(descarte -> {
+            assertThat(descarte.tipo()).isEqualTo("text");
+            assertThat(descarte.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+        });
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo), "sha256=original")).isEmpty();
+        String soPrivado = payloadComMensagens(privado);
+        assertThat(tradutor.repasseSemGrupos(soPrivado, "sha256=original")).hasValueSatisfying(r -> {
+            assertThat(r.payloadCru()).isSameAs(soPrivado);
+            assertThat(r.assinatura()).isEqualTo("sha256=original");
+        });
+        // Misto: corpo sem o grupo e assinatura refeita com o mesmo App Secret — continua valida.
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo + "," + privado), "sha256=original"))
+                .hasValueSatisfying(r -> {
+                    assertThat(r.payloadCru()).contains("\"A\"").doesNotContain("120363000000000000");
+                    assertThat(r.assinatura()).isNotEqualTo("sha256=original");
+                    assertThat(tradutor.assinaturaValida(r.payloadCru(), r.assinatura(), null)).isTrue();
+                });
+    }
+
+    @Test
     void cliqueEmBotaoDeTemplateViraTextoComContextoDoTemplate() {
         // Formato oficial da Meta para resposta rápida de template (type=button, não interactive).
         var traducao = tradutor.traduzirComDescartes(payloadComMensagens(
