@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Download, ExternalLink, FileText, Image as ImageIcon, Music, Video } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ContadorDoPainel } from "@/components/ui/contador-do-painel";
-import { emitirUrlAssinadaDaMidiaChat } from "@/lib/chat-interno/api";
+import { baixarArquivoChat } from "@/lib/chat-interno/midia";
+import { VisualizadorMidia } from "@/components/atendimentos/visualizador-midia";
 import type { MidiaDoGrupo, TipoMidiaChatInterno } from "@/lib/chat-interno/types";
 import { useMidiasDoGrupo, useUrlAssinadaDaMidiaGrupo } from "@/lib/chat-interno/use-midias-do-grupo";
-import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
 import { urlSegura } from "@/lib/utils";
 import type { Textos } from "@/lib/config/schema";
 
@@ -27,6 +27,9 @@ function IconeDaMidia({ tipo }: { tipo: TipoMidiaChatInterno }) {
 
 function MidiaGrupoItem({ conversaId, item, textos }: { conversaId: string; item: MidiaDoGrupo; textos: TextosChat["midias"] }) {
   const [pendente, setPendente] = useState(false);
+  const [erro, setErro] = useState(false);
+  const [aberto, setAberto] = useState(false);
+  const downloadEmCurso = useRef(false);
   const visualizavel = item.tipo === "IMAGEM" || item.tipo === "AUDIO" || item.tipo === "VIDEO";
   const url = useUrlAssinadaDaMidiaGrupo(conversaId, item.mensagemId, visualizavel);
   const segura = urlSegura(url.data?.url);
@@ -34,12 +37,17 @@ function MidiaGrupoItem({ conversaId, item, textos }: { conversaId: string; item
   const rotuloAbrir = textos.abrir.replace("{nome}", nome);
   const rotuloBaixar = textos.baixar.replace("{nome}", nome);
 
-  async function abrirOuBaixar() {
+  async function baixar() {
+    if (downloadEmCurso.current) return;
+    downloadEmCurso.current = true;
     setPendente(true);
+    setErro(false);
     try {
-      const resposta = visualizavel && segura ? { url: segura } : await emitirUrlAssinadaDaMidiaChat(conversaId, item.mensagemId);
-      baixarUrlAssinada(resposta.url);
+      await baixarArquivoChat(conversaId, item.mensagemId, item.nome);
+    } catch {
+      setErro(true);
     } finally {
+      downloadEmCurso.current = false;
       setPendente(false);
     }
   }
@@ -49,20 +57,24 @@ function MidiaGrupoItem({ conversaId, item, textos }: { conversaId: string; item
       <div className="flex items-center gap-2">
         <IconeDaMidia tipo={item.tipo} />
         <span className="min-w-0 flex-1 truncate text-xs font-medium" title={nome}>{nome}</span>
-        <Button type="button" variant="ghost" size="icon" aria-label={rotuloAbrir} title={rotuloAbrir} disabled={pendente} onClick={() => void abrirOuBaixar()}>
+        <Button type="button" variant="ghost" size="icon" aria-label={rotuloAbrir} title={rotuloAbrir} onClick={() => setAberto(true)}>
           <ExternalLink className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
-        <Button type="button" variant="ghost" size="icon" aria-label={rotuloBaixar} title={rotuloBaixar} disabled={pendente} onClick={() => void abrirOuBaixar()}>
+        <Button type="button" variant="ghost" size="icon" aria-label={rotuloBaixar} title={rotuloBaixar} disabled={pendente} aria-busy={pendente} onClick={() => void baixar()}>
           <Download className="size-(--tamanho-icone-interface)" aria-hidden />
         </Button>
       </div>
       {item.tipo === "IMAGEM" && segura && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={segura} alt={item.legenda || nome} className="mt-2 max-h-40 w-full rounded-md object-cover" />
+        <button type="button" className="block w-full rounded-md focus-visible:ring-2 focus-visible:ring-ring" aria-label={rotuloAbrir} onClick={() => setAberto(true)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={segura} alt={item.legenda || nome} className="mt-2 max-h-40 w-full rounded-md object-cover" />
+        </button>
       )}
       {item.tipo === "AUDIO" && segura && <audio className="mt-2 w-full" controls src={segura} />}
       {item.tipo === "VIDEO" && segura && <video className="mt-2 max-h-40 w-full rounded-md" controls src={segura} />}
       {item.legenda && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.legenda}</p>}
+      {erro && <p role="alert" className="text-xs text-destructive">{textos.erro}</p>}
+      {aberto && <VisualizadorMidia aberto onFechar={() => setAberto(false)} indice={0} itens={[{ id: item.mensagemId, nome: item.nome, mimetype: item.mimetype, tamanho: item.tamanho, enviadoEm: item.enviadoEm, tipoMensagem: item.tipo, origem: { tipo: "chat-interno", conversaId, mensagemId: item.mensagemId } }]} />}
       <p className="mt-1 text-[0.65rem] text-muted-foreground">
         {item.tipo} {item.tamanho > 0 ? `· ${Math.ceil(item.tamanho / 1024)} KB` : ""} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(item.enviadoEm))}
       </p>

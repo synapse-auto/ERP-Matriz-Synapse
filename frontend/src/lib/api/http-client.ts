@@ -92,6 +92,21 @@ export async function apiFetch<T>(caminho: string, opcoes: OpcoesRequisicao = {}
 
 /** Mesmo fluxo de autorização/refresh para respostas binárias (fotos e outros arquivos). */
 export async function apiFetchBlob(caminho: string): Promise<Blob> {
+  return (await apiFetchRespostaBinaria(caminho)).blob();
+}
+
+/** Nome confirmado pelo backend; nunca infere um arquivo a partir de uma URL assinada. */
+export async function apiFetchArquivo(caminho: string): Promise<{ blob: Blob; nome: string | null }> {
+  const resposta = await apiFetchRespostaBinaria(caminho);
+  const disposicao = resposta.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposicao)?.[1];
+  const simples = /filename="([^"\r\n]+)"/i.exec(disposicao)?.[1];
+  let nome = simples ?? null;
+  if (utf8) { try { nome = decodeURIComponent(utf8); } catch { /* Usa o nome simples seguro. */ } }
+  return { blob: await resposta.blob(), nome };
+}
+
+async function apiFetchRespostaBinaria(caminho: string): Promise<Response> {
   const accessToken = useAuthStore.getState().accessToken;
   const cabecalhos = new Headers();
   if (accessToken) cabecalhos.set("Authorization", `Bearer ${accessToken}`);
@@ -108,5 +123,5 @@ export async function apiFetchBlob(caminho: string): Promise<Blob> {
     }
   }
   if (!resposta.ok) throw new ErroDeApi(resposta.status, null, `Erro ${resposta.status} ao chamar ${caminho}`);
-  return resposta.blob();
+  return resposta;
 }

@@ -67,6 +67,9 @@ class OpenApiIT extends PostgresIT {
                         .at("/paths/~1api~1v1~1chat-interno~1conversas~1{id}~1participantes/get/security/0/bearerAuth")
                         .isArray())
                 .isTrue();
+        JsonNode download = openApi.at("/paths/~1api~1v1~1chat-interno~1conversas~1{id}~1midias~1{mensagemId}~1arquivo/get");
+        assertThat(download.at("/security/0/bearerAuth").isArray()).isTrue();
+        assertThat(download.path("responses").fieldNames()).toIterable().contains("200", "401", "403", "404", "503");
         assertThat(openApi
                         .at("/paths/~1api~1v1~1leads~1{leadId}~1midias~1{mensagemId}~1url/get/security/0/bearerAuth")
                         .isArray())
