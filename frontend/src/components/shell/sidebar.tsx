@@ -25,9 +25,9 @@ import {
   Settings,
   Sparkles,
   ShieldCheck,
+  ShieldUser,
   Tag,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
@@ -38,6 +38,7 @@ import { obterCapacidadeDoCanal } from "@/lib/atendimento/api";
 import { atualizarPresenca } from "@/lib/equipe/api";
 import type { StatusPresenca } from "@/lib/equipe/types";
 import { useMeuUsuario } from "@/lib/equipe/use-equipe";
+import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
@@ -70,7 +71,7 @@ const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> =
   mensagensProgramadas: Clock,
   lembretes: Bell,
   feedbacks: MessageSquarePlus,
-  equipe: Users,
+  gestao: ShieldUser,
   campanhas: Megaphone,
   automacao: Bot,
   horarios: CalendarClock,
@@ -155,6 +156,9 @@ export function Sidebar({
   const { data: tema } = useTemaConfig();
   const [novidadesAberto, setNovidadesAberto] = useState(false);
   const papel = useAuthStore((estado) => estado.papel);
+  const sessaoPronta = useAuthStore((estado) => estado.status === "autenticado" && !estado.precisaTrocarSenha);
+  // Gestão (docs/47): efetivas do backend; revalidadas no foco e no aviso ACESSO_ALTERADO.
+  const minhasPermissoes = useMinhasPermissoes(sessaoPronta);
   const meuUsuario = useMeuUsuario();
   const { data: contagens } = useContagemDeAtendimentos();
   const { data: capacidadeDoCanal } = useQuery({
@@ -184,6 +188,7 @@ export function Sidebar({
       flags,
       item.flag,
       capacidadeDoCanal?.gerenciaTemplates !== false,
+      minhasPermissoes.data,
     );
   }
 

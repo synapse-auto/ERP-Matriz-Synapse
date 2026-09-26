@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { GestaoTextosSchema } from "./schema-gestao";
+
 /**
  * Espelha tema.json (backend/crm-app/src/main/resources/tema.json), gerado a partir de
  * design/TOKENS.md. Tokens da primeira versão continuam obrigatórios. Os adicionados depois dela
@@ -1240,6 +1242,7 @@ export const TextosSchema = z.object({
       erro: z.string(),
     }),
   }),
+  gestao: GestaoTextosSchema,
 });
 
 export type Textos = z.infer<typeof TextosSchema>;
