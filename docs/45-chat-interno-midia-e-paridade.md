@@ -45,6 +45,18 @@ Validação operacional, sem mensagens a clientes: abrir conversa interna autori
 
 ## Evidências e pendências
 
-Testes de integração usam PostgreSQL real e storage de teste em memória; isso prova autorização/contrato/bytes, mas não substitui validação MinIO real. A validação visual usa aplicação e storage locais separados, nunca produção. Números finais, screenshots e CI serão registrados no relatório do PR.
+Testes de integração usam PostgreSQL real e storage de teste em memória; isso prova autorização/contrato/bytes, mas não substitui validação MinIO real. `DownloadMidiaChatIT` passou 13/13, incluindo negativo gestor/administrador e CORS de outra origem; OpenApiIT passou 6/6. `clean verify` completo Java 21 terminou com sucesso (750 integrações, sem falhas). Frontend dirigido passou 101/101; após a correção de M4A no seletor, 59/59 adicionais, typecheck, lint sem erros (4 avisos preexistentes) e build. A tentativa da suíte frontend inteira não concluiu localmente e foi interrompida; não é apresentada como verde.
+
+A validação Playwright CLI headed usou aplicação real local e MinIO, base isolada `synapse_chat_validacao_fresh`, com contas de desenvolvimento. Imagem, áudio MP4 e PDF foram enviados pelo composer, persistidos, recarregados e baixados; SHA-256 do download coincidiu com os originais. Player de áudio reproduziu o arquivo. Imagem abriu com Enter, fechou por Escape restaurando foco, e abriu/fechou por toque em contexto `hasTouch`. Desktop 1440×1000 e celular 390×844. Nenhum endpoint/provedor foi mockado nessa validação. Vídeo teve contrato de download testado, mas upload/player real de vídeo fica para a próxima capacidade.
+
+O navegador identificou M4A como `audio/x-m4a`, recusado pelo filtro antigo; o seletor interno agora aceita extensão `.m4a`, sem mudar Atendimentos nem a validação real do backend. A base local antiga falhou na validação de checksum; não houve repair, alteração de histórico ou migration. A base vazia isolada foi preparada explicitamente com as migrations e seed de desenvolvimento atuais.
+
+Screenshots sanitizados da execução:
+
+- [Bolha desktop](assets/chat-interno-midia/chat-midia-desktop.png), [imagem ampliada desktop](assets/chat-interno-midia/chat-imagem-ampliada-desktop.png).
+- [Bolha celular](assets/chat-interno-midia/chat-midia-mobile.png), [imagem ampliada celular](assets/chat-interno-midia/chat-imagem-ampliada-mobile.png), [contexto touch](assets/chat-interno-midia/chat-imagem-touch.png).
+- [Áudio/documento desktop](assets/chat-interno-midia/chat-audio-documento-desktop.png), [áudio/documento celular](assets/chat-interno-midia/chat-audio-documento-mobile.png).
+
+PR #223, primeira CI verde: run `36222394426` (pull_request) no commit `6fe193f`. A correção posterior do seletor M4A e documentação exige conferir a run do HEAD atual; não extrapolar o verde para outro SHA. Não houve deploy nem validação em instância de cliente. Skills clean-code/architecture-patterns/api-design-principles/supabaseboaspraticas não estavam disponíveis; Playwright CLI foi usado.
 
 Pendências deliberadas desta primeira capacidade: upload de vídeo, card de contato interno, idempotência de retry de encaminhamento e E2E de reações entre abas/reconexão. Não marcar a task inteira concluída a partir deste PR.

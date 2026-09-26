@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
-import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/chat-interno/arquivos";
 import { listarConversasChat, listarMensagensChat, obterMensagemChat, enviarMensagemChat, enviarMidiaChat, marcarChatComoLido, definirReacaoChat, removerReacaoChat, responderMensagemChat, encaminharMensagemChat, excluirMensagemChat, editarMensagemChat } from "@/lib/chat-interno/api";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { useTextos } from "@/lib/config/textos-provider";

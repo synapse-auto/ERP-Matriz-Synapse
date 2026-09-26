@@ -31,7 +31,7 @@ import {
 } from "@/lib/chat-interno/api";
 import { previewUltimaMensagem } from "@/lib/chat-interno/mensagem-sistema";
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
-import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/chat-interno/arquivos";
 import { ZonaSoltarArquivos } from "@/components/atendimentos/zona-soltar-arquivos";
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
 import { DialogoSelecionarPessoa } from "./dialogo-selecionar-pessoa";

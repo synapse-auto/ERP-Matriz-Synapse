@@ -10,7 +10,8 @@ import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-comp
 import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
 import { MidiaMensagemChat } from "./midia-mensagem-chat";
 import { TextoComLinks } from "@/components/mensagens/texto-com-links";
-import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { filtrarArquivos } from "@/lib/atendimento/arquivos-do-composer";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/chat-interno/arquivos";
 import type { Textos } from "@/lib/config/schema";
 import type { OrigemDaCitacao } from "@/lib/atendimento/types";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
