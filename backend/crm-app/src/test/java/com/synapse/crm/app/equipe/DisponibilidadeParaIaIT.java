@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,21 @@ class DisponibilidadeParaIaIT extends PostgresIT {
     private UUID bruno;
     private UUID gestor;
     private UUID subgestor;
+    private UUID usuarioCriado;
+
+    @AfterEach
+    void limparUsuarioCriado() {
+        if (usuarioCriado == null) {
+            return;
+        }
+        // PostgresIT compartilha o banco entre os contextos de integração. O usuário é
+        // explicitamente ativado neste cenário e precisa ser removido para não entrar no
+        // rodízio nem interferir na limpeza de outras suites.
+        jdbc.update("DELETE FROM audit_log WHERE ator_id = ?", usuarioCriado);
+        jdbc.update("DELETE FROM disponibilidade_atendente_ia WHERE atendente_id = ?", usuarioCriado);
+        jdbc.update("DELETE FROM usuario WHERE id = ?", usuarioCriado);
+        usuarioCriado = null;
+    }
 
     @BeforeEach
     void preparar() {
@@ -176,6 +192,7 @@ class DisponibilidadeParaIaIT extends PostgresIT {
 
         assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         UUID usuarioId = UUID.fromString(json.readTree(criado.getBody()).path("id").asText());
+        usuarioCriado = usuarioId;
         assertThat(json.readTree(criado.getBody()).path("disponivelParaIa").asBoolean()).isFalse();
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM disponibilidade_atendente_ia WHERE atendente_id=?",
