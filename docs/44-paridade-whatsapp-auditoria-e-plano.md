@@ -74,6 +74,45 @@ no meio de um lote) e `RespostaInterativaWebhookIT` (POST assinado → fila → 
 pela API com citação do template; assinatura inválida não grava; reentrega não duplica; descarte
 registrado em `webhook_entrada.descartes` sem o payload do botão).
 
+## Fase 2, item 2 — reação recebida do cliente (E214)
+
+**Contrato do provedor.** Meta e Uzapi (schema `ReactionMessage` do Swagger) usam o mesmo formato:
+`type: reaction`, `reaction.message_id` = id externo da mensagem reagida, `reaction.emoji` = emoji
+atual; emoji vazio ou ausente = o cliente removeu a reação. O evento tem `id` próprio.
+
+**Semântica (definida antes do banco).**
+
+| Caso | Comportamento |
+|---|---|
+| Vínculo | Pelo id externo (`mensagem_id_externo`), nunca por "última mensagem". |
+| Autoria | O cliente **não** é `usuario_id`: tabela própria `mensagem_reacao_cliente` (V82), uma linha por mensagem. `mensagem_reacao` (equipe) não é tocada. |
+| Substituição | Reagir de novo troca o emoji. |
+| Remoção | Grava `emoji = NULL` (não apaga a linha), para um evento atrasado não ressuscitar a reação. |
+| Ordem | Só evento com `reagido_em` (horário do provedor) igual ou mais novo altera a linha. |
+| Repetição | Mesmo id de evento é deduplicado em `mensagem_recebida_idempotencia`; evento que não muda o emoji não grava nem publica. |
+| Mensagem desconhecida | Descarte `ALVO_DESCONHECIDO` na linha de `webhook_entrada`; não cria lead nem atendimento. |
+| Outra conversa | O alvo precisa ser da conversa do lead que reagiu; senão, o mesmo descarte. Conhecer o id não dá acesso. |
+| Remetente sem lead | Mesmo descarte; reação nunca cria lead. |
+| Efeitos colaterais | Reação não é mensagem: não entra no histórico, não conta interação, não passa pelo reset nem abre a janela de 24h. |
+| Emoji inválido / sem alvo / malformado | `CONTEUDO_INVALIDO` / `SEM_IDENTIFICADOR`, sem derrubar o lote. |
+
+**Leitura e tela.** `GET /api/v1/atendimentos/{id}/mensagens` ganha o campo aditivo `reacaoDoCliente`
+(emoji ou `null`), carregado em lote pela PK junto das reações da equipe — uma consulta a mais por
+página, sem varrer partição. A autorização continua a do histórico (RN-CRM-01 pela Specification).
+Depois do commit, o CRM publica no tópico do atendimento o evento WebSocket
+`REACAO_CLIENTE {atendimentoId, mensagemId, enviadoEm, emoji|null}` — sem telefone nem nome —, e a
+tela troca só esse campo no cache, sem F5 e sem mexer nas reações da equipe. Na bolha a reação do
+cliente é um chip informativo (não é botão), com rótulo do catálogo `acoes.reacaoDoCliente`
+(opcional; catálogo antigo mostra o próprio emoji).
+
+**Testes.** `ReacaoRecebidaTradutoresTest` (Meta e Uzapi: reação, remoção, alvo ausente, emoji
+inválido, malformada, sem remetente), `WebhookReacaoDoClienteMetaIT` (assinatura inválida; alvo de
+outra conversa e desconhecido viram descarte; reação da equipe preservada; atendente de outro lead
+recebe 404; reentrega sem republicar; substituição; evento atrasado ignorado; remoção; eventos de
+tempo real), `WebhookReacaoDoClienteUzapiIT` (segredo, reentrega, alvo desconhecido, remoção),
+`SchemaMigracoesIT`, testes de frontend do chip e do cache. Com a guarda "mesma conversa" desligada
+de propósito, `WebhookReacaoDoClienteMetaIT` reprova.
+
 ## Fase 2, item 3 — isolamento de grupo (filtrar com observabilidade)
 
 **Decisão aplicada:** filtrar. Conversa de grupo **não** foi implementada (sem UI, schema ou fluxo).
@@ -130,7 +169,7 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 | Capacidade | Meta | UZAPI/Uzapi Autotic | Situação no CRM e evidência | Prioridade proposta |
 |---|---|---|---|---|
 | Contato compartilhado recebido | Documentado pelo provedor | Documentado pelo provedor | `type: contacts` não consta do mapeamento de nenhum dos dois tradutores; tipo desconhecido gera `WARN` e o item é descartado. `value.contacts[]` é usado para o perfil do remetente e **não** é o contato compartilhado de `messages[].contacts[]`. A linha de entrada pode terminar processada sem mensagem no histórico. **Fase 1: traduzido, persistido e exibido nos dois provedores; coberto por testes, não verificado em instância real.** | P1; elevar a P0 se o incidente real for correlacionado |
-| Reação recebida | Documentada | Documentada | Não traduzida; o modelo atual de reação está ligado a usuário do CRM. | P2 |
+| Reação recebida | Documentada | Documentada | **Fase 2, item 2 (E214): traduzida nos dois provedores e gravada em `mensagem_reacao_cliente` (V82), separada da reação por usuário do CRM; aparece na bolha e chega por evento `REACAO_CLIENTE`. Coberto por teste local e CI; não verificado em instância real.** | P2 |
 | Resposta rápida de template recebida | `type: button` documentado | `button_reply` (sem template no Swagger) | **Fase 2, item 1: Meta `type: button` traduzido (ver seção abaixo); Uzapi já traduzia `button_reply`. Coberto por teste local e CI; não verificado com payload real.** | P1 suspeito; confirmar uso antes da correção |
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
 | Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | **Confirmado no código (E213): a mensagem de grupo entrava na conversa individual do participante e ia para a Automação. Corrigido: filtrada com descarte `GRUPO_NAO_SUPORTADO` e sem repasse (ver seção abaixo). Conversa de grupo continua não implementada. Coberto por teste local e CI; não verificado em instância real.** | P2, decisão de produto antes de alterar |

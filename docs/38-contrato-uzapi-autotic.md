@@ -198,7 +198,10 @@ contato sem telefone é preservado com `telefones: []`. O `value.contacts[]` do 
 servindo só para o nome do remetente e nunca vira contato compartilhado. Um cartão Status/Story
 continua filtrado como qualquer evento Status/Story.
 
-**Itens que não viram mensagem.** Reação, enquete e qualquer tipo ainda não traduzido, item sem
+**Reação (E214).** `type: reaction` (schema `ReactionMessage`) é traduzida como reação do cliente à
+mensagem de `reaction.message_id`, não como mensagem; semântica em `docs/44`, Fase 2 item 2.
+
+**Itens que não viram mensagem.** Enquete e qualquer tipo ainda não traduzido, item sem
 `id`/`from`, mídia sem id e item malformado são registrados na linha de `webhook_entrada`
 (`itens_descartados`, `descartes`) e no log `[DESCARTE_WEBHOOK]`, sem telefone nem conteúdo. Status
 de entrega (inclusive `played`/`deleted`, ainda sem mapeamento) e Status/Story são ignorados por

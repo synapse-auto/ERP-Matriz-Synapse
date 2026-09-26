@@ -114,7 +114,12 @@ public interface TradutorDeCanal {
          * item ao participante misturaria o grupo com o privado dele —, mas registrada como descarte
          * para ficar visivel quanto chega.
          */
-        GRUPO_NAO_SUPORTADO
+        GRUPO_NAO_SUPORTADO,
+        /**
+         * Reacao a uma mensagem que o CRM nao conhece, ou que nao e da conversa de quem reagiu. Nao
+         * cria lead nem atendimento; so fica registrada.
+         */
+        ALVO_DESCONHECIDO
     }
 
     /**
@@ -131,16 +136,55 @@ public interface TradutorDeCanal {
         }
     }
 
-    /** Resultado da traducao de um POST: o que entra no historico e o que ficou de fora. */
-    record Traducao(List<MensagemRecebidaDoCanal> mensagens, List<ItemDescartado> descartes) {
+    /**
+     * Resultado da traducao de um POST: o que entra no historico, as reacoes do cliente e o que ficou
+     * de fora. Reacao nao e mensagem: nao abre atendimento nem conta como interacao.
+     */
+    record Traducao(
+            List<MensagemRecebidaDoCanal> mensagens,
+            List<ItemDescartado> descartes,
+            List<ReacaoRecebidaDoCanal> reacoes) {
 
         public Traducao {
             mensagens = List.copyOf(mensagens);
             descartes = List.copyOf(descartes);
+            reacoes = List.copyOf(reacoes);
+        }
+
+        public Traducao(List<MensagemRecebidaDoCanal> mensagens, List<ItemDescartado> descartes) {
+            this(mensagens, descartes, List.of());
         }
 
         public static Traducao semDescartes(List<MensagemRecebidaDoCanal> mensagens) {
             return new Traducao(mensagens, List.of());
+        }
+    }
+
+    /**
+     * Reacao do cliente a uma mensagem da conversa, ja no vocabulario do CRM.
+     *
+     * @param idExterno id do proprio evento de reacao (deduplica reentrega)
+     * @param idExternoAlvo id externo da mensagem reagida ({@code reaction.message_id})
+     * @param emoji emoji validado; {@code null} quando o cliente removeu a reacao
+     * @param reagidoEm horario do provedor: ordena eventos que chegam fora de ordem
+     */
+    record ReacaoRecebidaDoCanal(
+            String idExterno,
+            String telefoneRemetente,
+            String identificadorDestino,
+            String idExternoAlvo,
+            String emoji,
+            Instant reagidoEm) {
+
+        public ReacaoRecebidaDoCanal {
+            Objects.requireNonNull(idExterno, "idExterno e obrigatorio");
+            Objects.requireNonNull(telefoneRemetente, "telefoneRemetente e obrigatorio");
+            Objects.requireNonNull(idExternoAlvo, "idExternoAlvo e obrigatorio");
+            Objects.requireNonNull(reagidoEm, "reagidoEm e obrigatorio");
+        }
+
+        public boolean remocao() {
+            return emoji == null;
         }
     }
 

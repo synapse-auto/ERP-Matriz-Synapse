@@ -61,6 +61,30 @@ export function atualizarReacoesDoHistorico(
   });
 }
 
+/**
+ * E214: troca só a reação do cliente da mensagem (nulo = removida). As reações da equipe ficam como
+ * estão — o evento do cliente não as carrega e não pode apagá-las.
+ */
+export function atualizarReacaoDoClienteDoHistorico(
+  queryClient: QueryClient,
+  queryKey: ChaveDoHistorico,
+  mensagemId: string,
+  emoji: string | null,
+): void {
+  queryClient.setQueryData<DadosDoHistorico>(queryKey, (atual) => {
+    if (!atual) return atual;
+    return {
+      ...atual,
+      pages: atual.pages.map((pagina) => ({
+        ...pagina,
+        mensagens: pagina.mensagens.map((mensagem) =>
+          mensagem.id === mensagemId ? { ...mensagem, reacaoDoCliente: emoji } : mensagem,
+        ),
+      })),
+    };
+  });
+}
+
 export function atualizarReacoesDoChatInterno(
   queryClient: QueryClient,
   conversaId: string,

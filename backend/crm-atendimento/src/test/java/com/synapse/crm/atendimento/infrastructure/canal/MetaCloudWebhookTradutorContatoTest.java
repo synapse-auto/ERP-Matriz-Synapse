@@ -111,14 +111,15 @@ class MetaCloudWebhookTradutorContatoTest {
     @Test
     void tipoNaoSuportadoFicaRegistradoComVocabularioFechado() {
         Traducao traducao = tradutor.traduzirComDescartes(payloadComMensagens("""
-                {"from":"5561000000001","id":"wamid.r","timestamp":"1720000000","type":"reaction",
-                 "reaction":{"message_id":"wamid.x","emoji":"ok"}},
+                {"from":"5561000000001","id":"wamid.r","timestamp":"1720000000","type":"order",
+                 "order":{"catalog_id":"x"}},
                 {"from":"5561000000001","id":"wamid.n","timestamp":"1720000000","type":"tipo_inventado_123"}
                 """));
 
         assertThat(traducao.mensagens()).isEmpty();
+        // E214: reaction deixou de ser exemplo de tipo nao suportado; order continua sendo.
         assertThat(traducao.descartes()).containsExactly(
-                new ItemDescartado("reaction", MotivoDeDescarte.TIPO_NAO_SUPORTADO),
+                new ItemDescartado("order", MotivoDeDescarte.TIPO_NAO_SUPORTADO),
                 new ItemDescartado("outro", MotivoDeDescarte.TIPO_NAO_SUPORTADO));
     }
 
