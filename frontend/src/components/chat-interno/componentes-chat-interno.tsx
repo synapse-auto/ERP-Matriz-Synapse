@@ -1,15 +1,17 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
-import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X, Download, FileText } from "lucide-react";
+import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
-import { urlSegura, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
-import { PlayerAudio } from "@/components/atendimentos/player-audio";
-import { filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { MidiaMensagemChat } from "./midia-mensagem-chat";
+import { TextoComLinks } from "@/components/mensagens/texto-com-links";
+import { filtrarArquivos } from "@/lib/atendimento/arquivos-do-composer";
+import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/chat-interno/arquivos";
 import type { Textos } from "@/lib/config/schema";
 import type { OrigemDaCitacao } from "@/lib/atendimento/types";
 import type { ChatConversa, ChatMensagem } from "@/lib/chat-interno/types";
@@ -215,7 +217,6 @@ export function ListaMensagensChatInterno({
   onBuscarMensagem?: (mensagemId: string) => Promise<ChatMensagem | null>;
 }) {
   const catalogoAtendimentos = useTextos().atendimentos;
-  const textosAtendimentos = catalogoAtendimentos.media;
   const acoes = catalogoAtendimentos.mensagem.acoes;
   const historicoRef = useRef<HTMLDivElement>(null);
   const ultimoId = mensagens.at(-1)?.id;
@@ -304,11 +305,7 @@ export function ListaMensagensChatInterno({
             </Fragment>
           );
         }
-        const midiaUrl = urlSegura(mensagem.midiaUrl ?? null);
         const metadados = (typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados as string); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {})) as { legenda?: string; nome?: string; tamanho?: number };
-        const legenda = typeof metadados.legenda === "string" && metadados.legenda.trim()
-          ? metadados.legenda
-          : mensagem.conteudo ?? undefined;
         const textoCopiavel = mensagem.conteudo?.trim()
           ? mensagem.conteudo
           : typeof metadados.legenda === "string" && metadados.legenda.trim()
@@ -358,49 +355,8 @@ export function ListaMensagensChatInterno({
               ) : (
                 <>
 
-              {tipo === "IMAGEM" && (
-                <div className="space-y-1.5 rounded-lg border border-border bg-background/50 p-1.5 shadow-sm">
-                  {midiaUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={midiaUrl} alt={legenda ?? textosAtendimentos.imagem} className="max-h-64 w-full rounded-md object-cover" />
-                  )}
-                  {legenda && <p className="whitespace-pre-wrap break-words">{legenda}</p>}
-                </div>
-              )}
-
-              {tipo === "AUDIO" && (
-                midiaUrl
-                  ? (
-                    <PlayerAudio
-                      src={midiaUrl}
-                      rotulo={textosAtendimentos.audio}
-                      reproduzir={textosAtendimentos.reproduzir}
-                      pausar={textosAtendimentos.pausar}
-                      posicao={textosAtendimentos.posicao}
-                    />
-                  )
-                  : <p>{textosAtendimentos.audio}</p>
-              )}
-
-              {tipo === "VIDEO" && (
-                midiaUrl
-                  ? <video controls className="max-h-64 max-w-full rounded-md" src={midiaUrl} aria-label={textosAtendimentos.visualizador.video} />
-                  : <p>{textosAtendimentos.visualizador.video}</p>
-              )}
-
-              {tipo === "DOCUMENTO" && (
-                <a href={midiaUrl ?? "#"} target="_blank" rel="noopener noreferrer" title={textosAtendimentos.baixar} className="flex min-w-64 items-center gap-3 rounded-lg bg-background/10 p-2.5 no-underline">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-background/15"><FileText className="size-5" /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{metadados.nome ?? textosAtendimentos.documento}</span>
-                    {metadados.tamanho !== undefined && <span className="block text-xs opacity-75">{tamanhoLegivel(metadados.tamanho)}</span>}
-                    {legenda && <span className="mt-0.5 block whitespace-pre-wrap text-xs opacity-85">{legenda}</span>}
-                  </span>
-                  <Download className="size-4 shrink-0" />
-                </a>
-              )}
-
-              {tipo === "TEXTO" && <p className="whitespace-pre-wrap break-words">{mensagem.conteudo}</p>}
+              {["IMAGEM", "AUDIO", "VIDEO", "DOCUMENTO"].includes(tipo) && <MidiaMensagemChat mensagem={mensagem} />}
+              {tipo === "TEXTO" && <p className="whitespace-pre-wrap break-words"><TextoComLinks texto={mensagem.conteudo ?? ""} rotuloAbrir={textos.midias.abrir} /></p>}
 
                 </>
               )}

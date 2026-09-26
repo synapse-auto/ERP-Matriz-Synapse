@@ -182,7 +182,8 @@ public class SecurityConfig {
         CorsConfiguration configuracao = new CorsConfiguration();
         configuracao.setAllowedOrigins(List.of(propriedades.frontendOrigem()));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
+        configuracao.setExposedHeaders(List.of("Content-Disposition"));
 
         UrlBasedCorsConfigurationSource fonte = new UrlBasedCorsConfigurationSource();
         fonte.registerCorsConfiguration("/**", configuracao);

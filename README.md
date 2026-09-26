@@ -442,6 +442,8 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
 | `MIDIA_S3_EXPIRACAO_LEITURA` | `1h` | Validade das URLs assinadas de anexos (bolha do chat e painel). |
+| `CHAT_INTERNO_DOWNLOAD_CONCORRENCIA` | `2` | Downloads binários simultâneos do chat interno por réplica; excedentes recebem 503 recuperável, sem esperar. |
+| `CHAT_INTERNO_DOWNLOAD_CB_JANELA`, `CHAT_INTERNO_DOWNLOAD_CB_MINIMO`, `CHAT_INTERNO_DOWNLOAD_CB_LIMIAR`, `CHAT_INTERNO_DOWNLOAD_CB_ESPERA` | `10`, `5`, `50`, `30s` | Circuit breaker exclusivo do download interno. Opcionais; sem ação obrigatória no Dokploy. |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |
 | `FEATURE_CHAT_INTERNO`, `FEATURE_FIDELIZACAO` | `true` | Corte de capacidade por filho. |
 | `BACKEND_REPLICAS`, `FRONTEND_REPLICAS` | `1` | Escala horizontal; o Redis já é o backplane do WebSocket. |
