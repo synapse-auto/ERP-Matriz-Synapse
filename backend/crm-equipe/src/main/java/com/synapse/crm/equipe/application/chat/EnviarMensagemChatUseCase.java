@@ -29,8 +29,7 @@ public class EnviarMensagemChatUseCase {
         UUID remetente = usuario.atual().id();
         if (!repositorio.participante(conversaId, remetente)) throw new ChatSemAcessoException();
         MensagemChat mensagem = new MensagemChat(conteudo);
-        var destinatarios = repositorio.participantes(conversaId).stream()
-                .filter(id -> !id.equals(remetente)).toList();
+        var destinatarios = repositorio.participantes(conversaId);
         ChatInternoRepositorio.MensagemResumo salva = repositorio.salvarMensagem(conversaId, remetente, mensagem.conteudo());
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(
                 conversaId, salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm(),

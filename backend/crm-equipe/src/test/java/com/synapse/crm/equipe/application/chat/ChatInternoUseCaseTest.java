@@ -57,10 +57,14 @@ class ChatInternoUseCaseTest {
         Instant quando = Instant.parse("2026-08-24T03:00:00Z");
         var salva = new ChatInternoRepositorio.MensagemResumo(UUID.randomUUID(), conversa, usuario, "Ana", "TEXTO", "texto", null, null, quando);
         when(repositorio.salvarMensagem(conversa, usuario, "texto")).thenReturn(salva);
+        UUID outro = UUID.randomUUID();
+        when(repositorio.participantes(conversa)).thenReturn(List.of(usuario, outro));
 
         new EnviarMensagemChatUseCase(repositorio, contexto, eventos).executar(conversa, " texto ");
 
-        verify(eventos).publishEvent(any(EventoDeChatInterno.MensagemEnviada.class));
+        var evento = org.mockito.ArgumentCaptor.forClass(EventoDeChatInterno.MensagemEnviada.class);
+        verify(eventos).publishEvent(evento.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(usuario, outro), evento.getValue().destinatarios());
     }
 
     @Test
@@ -159,8 +163,8 @@ class ChatInternoUseCaseTest {
         when(repositorio.participante(destino, usuario)).thenReturn(false);
 
         assertThrows(ChatSemAcessoException.class,
-                () -> new EncaminharMensagemChatUseCase(repositorio, contexto, eventos)
-                        .executar(origem, conversa, destino));
+                () -> new EncaminharMensagemChatUseCase(repositorio, contexto, eventos, Mockito.mock(IdempotenciaDeMidiaChatRepositorio.class))
+                        .executar(origem, conversa, destino, null));
         verifyNoInteractions(eventos);
     }
 

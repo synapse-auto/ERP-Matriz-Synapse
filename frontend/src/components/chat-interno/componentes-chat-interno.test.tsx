@@ -18,7 +18,7 @@ vi.mock("next/dynamic", () => ({
 import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
-import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
+import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -98,6 +98,33 @@ const mensagens: ChatMensagem[] = [
 ];
 
 describe("componentes de apresentação do chat interno", () => {
+
+  it("encaminhamento conserva destino e chave no retry e bloqueia clique concorrente", async () => {
+    let concluir!: () => void;
+    const confirmar = vi.fn().mockRejectedValueOnce(new Error("rede"))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => { concluir = resolve; }));
+    render(<DialogoEncaminharChatInterno aberto conversas={[
+      { id: "origem", tipo: "DIRETA", participantes: "Ana", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 },
+      { id: "destino", tipo: "GRUPO", participantes: "Equipe", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 },
+    ]} conversaOrigemId="origem" textos={textos} onFechar={vi.fn()} onConfirmar={confirmar} />);
+    fireEvent.click(screen.getByRole("combobox", { name: "Conversa de destino" }));
+    const opcao = await screen.findByRole("option", { name: "Equipe" });
+    fireEvent.pointerDown(opcao, { pointerType: "mouse" });
+    fireEvent.click(opcao);
+    const botao = screen.getByRole("button", { name: "Encaminhar" });
+    fireEvent.click(botao);
+    await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(1));
+    expect(confirmar.mock.calls[0][0]).toBe("destino");
+    const chave = confirmar.mock.calls[0][1];
+    expect(chave).toMatch(/^[0-9a-f-]{36}$/);
+    await waitFor(() => expect(botao).toBeEnabled());
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+    await waitFor(() => expect(confirmar).toHaveBeenCalledTimes(2));
+    expect(confirmar.mock.calls[1]).toEqual(["destino", chave]);
+    concluir();
+    await waitFor(() => expect(botao).toBeDisabled());
+  });
   it("não oferece finalização, transferência ou controles de lead no cabeçalho interno", () => {
     render(<CabecalhoChatInterno textos={textos} conversa={{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 0 }} />);
 

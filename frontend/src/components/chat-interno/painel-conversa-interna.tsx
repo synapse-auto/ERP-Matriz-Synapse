@@ -46,7 +46,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     onSuccess: () => { void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
   });
   const encaminhar = useMutation({
-    mutationFn: ({ mensagemId, destinoId }: { mensagemId: string; destinoId: string }) => encaminharMensagemChat(conversaId, mensagemId, destinoId),
+    mutationFn: ({ mensagemId, destinoId, chave }: { mensagemId: string; destinoId: string; chave:string }) => encaminharMensagemChat(conversaId, mensagemId, destinoId,chave),
     onSuccess: () => { setEncaminharAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
   });
   const editar = useMutation({
@@ -56,7 +56,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
-  useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
+  const { ciclo } = useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
       atualizar();
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarChatComoLido(conversaId);
@@ -65,6 +65,10 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
       atualizarReacoesDoChatInterno(cache, conversaId, evento.dados.mensagemId, evento.dados.reacoes, { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor }, useAuthStore.getState().usuarioId);
     }
   });
+  useEffect(() => {
+    // Histórico é a fonte durável; cada CONNECTED recupera eventos perdidos na queda.
+    if (ciclo > 0) atualizar();
+  }, [ciclo, atualizar]);
   useEffect(() => { void marcarChatComoLido(conversaId).catch(() => undefined); }, [conversaId]);
   useEffect(() => {
     definirConversaAtiva({ origem: "CHAT_INTERNO", id: conversaId });
@@ -109,7 +113,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
           <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} onRetrair={() => setPainelAberto(false)} />
         )}
       </div>
-      <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })} />
+      <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId,chave) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId,chave })} />
     </Fragment>
   );
 }
