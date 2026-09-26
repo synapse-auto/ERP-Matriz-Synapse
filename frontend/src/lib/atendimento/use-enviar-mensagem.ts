@@ -7,8 +7,8 @@ import { ErroDeApi } from "@/lib/api/errors";
 
 import { enviarMensagem, enviarTemplate } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
+import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
-import { mesclarMensagens } from "./tempo-real";
 import type { EnvioResposta, MensagemResposta } from "./types";
 
 interface VariaveisEnvio {
@@ -29,6 +29,7 @@ type ContextoOtimista = {
   queryKey: readonly ["mensagens", string];
   idOtimista: string;
   criadoEm: string;
+  otimista: MensagemResposta;
 };
 
 function erroDefinitivo(erro: unknown): boolean {
@@ -126,7 +127,7 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         idempotencyKey: chaveIdempotencia,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm, otimista };
       contextos.current.set(chaveIdempotencia, contexto);
       return contexto;
     },
@@ -167,37 +168,9 @@ export function useEnviarMensagem(onMensagemEnviada?: () => void) {
         && chavesReconciliadas.current.delete(resposta.idempotencyKey);
       if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       const identidade = identidadeAutenticada(queryClient);
-      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
-        const otimista = atual.find(
-          (mensagem) =>
-            mensagem.id === contexto.idOtimista
-            || mensagem.idempotencyKey === resposta.idempotencyKey,
-        );
-        const real: MensagemResposta = {
-          id: resposta.mensagemId,
-          remetenteTipo: otimista?.remetenteTipo ?? "ATENDENTE",
-          remetenteId: identidade.id ?? otimista?.remetenteId ?? null,
-          remetenteNome: identidade.nome ?? otimista?.remetenteNome ?? null,
-          tipo: otimista?.tipo ?? "TEXTO",
-          conteudo: otimista?.conteudo ?? variaveis.conteudo,
-          midiaUrl: otimista?.midiaUrl ?? null,
-          midiaMetadados: otimista?.midiaMetadados ?? null,
-          opcoes: otimista?.opcoes ?? null,
-          statusEntrega: resposta.statusEntrega,
-          erroEntrega: null,
-          enviadoEm: resposta.enviadoEm,
-          citacao: otimista?.citacao ?? variaveis.citacao ?? null,
-          idempotencyKey: resposta.idempotencyKey ?? variaveis.idempotencyKey,
-        };
-        return mesclarMensagens(
-          atual.filter(
-            (mensagem) =>
-              mensagem.id !== contexto.idOtimista
-              && mensagem.idempotencyKey !== real.idempotencyKey,
-          ),
-          [real],
-        );
-      });
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        confirmarEnvioNoHistorico(atual, contexto.otimista, resposta, identidade),
+      );
       if (resposta.transferiuOLead || reconciliada) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }

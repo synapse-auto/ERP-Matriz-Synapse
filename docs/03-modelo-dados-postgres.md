@@ -127,6 +127,11 @@ CREATE TABLE disponibilidade_atendente_ia (
     atualizado_em       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+Uma conta sem registro nesta tabela é considerada indisponível para o rodízio (`FALSE`), como nas
+leituras com `COALESCE`. Contas criadas pela gestão não recebem registro automaticamente; apenas o
+toggle explícito de disponibilidade o cria. Backfills históricos permanecem responsáveis pelos
+usuários já cadastrados e não devem ser reaplicados como comportamento de criação.
+
 CREATE TABLE horario_trabalho (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aplicavel_a    VARCHAR(20) NOT NULL, -- 'IA' ou papel_usuario

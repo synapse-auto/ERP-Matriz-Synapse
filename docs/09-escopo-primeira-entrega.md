@@ -19,7 +19,7 @@ Registro formal do recorte de escopo. Este documento tem precedência sobre a li
 
 A E15b (verificação de código) encontrou que `horario_trabalho` e `rotina_disponibilidade` existem **só como migration** (`V2__equipe.sql`) — nenhum domain, application, repository ou controller as usa em lugar nenhum do backend. `docs/05` marcava `RF-CRM-54` como concluído; não estava. A aba sai do menu por feature flag (`horarios = false`, mesmo padrão das demais), não por remoção de código, e o Placeholder não fica exposto — item de menu visível é promessa, e este item nunca teve entrega por trás.
 
-> A disponibilidade do atendente é **manual** na primeira entrega. Ninguém entra em expediente automaticamente; cada um marca a própria presença. As tabelas `horario_trabalho` e `rotina_disponibilidade` permanecem no schema — a regra deste documento de não cortar schema continua valendo.
+> A disponibilidade para o rodízio da IA é **manual e independente da presença**: novo usuário começa fora do rodízio e só entra após ativação explícita por usuário autorizado. Presença ONLINE e login não ativam a flag. As janelas de expediente continuam sem automação; as tabelas `horario_trabalho` e `rotina_disponibilidade` permanecem no schema — a regra deste documento de não cortar schema continua valendo.
 
 **Isto precisa ser dito à subgestora na homologação.** Não é detalhe técnico: muda a rotina de quem usa — hoje, cobertura fora do horário combinado depende de alguém lembrar de marcar presença como ausente/offline, não de uma janela configurada previamente.
 

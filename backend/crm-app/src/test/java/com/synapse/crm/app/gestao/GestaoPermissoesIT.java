@@ -370,8 +370,8 @@ class GestaoPermissoesIT extends PostgresIT {
         UUID novoId = UUID.fromString(novo.path("id").asText());
         criados.add(novoId);
         assertThat(novo.path("disponivelParaIa").asBoolean(true)).isFalse();
-        assertThat(jdbc.queryForObject("SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id = ?",
-                Boolean.class, novoId)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT COALESCE((SELECT disponivel_para_ia FROM disponibilidade_atendente_ia "
+                + "WHERE atendente_id = ?), FALSE)", Boolean.class, novoId)).isFalse();
 
         assertThat(codigo(chamar(tokenSub, HttpMethod.POST, "/api/v1/usuarios", novoUsuario("SUBGESTOR"))))
                 .isEqualTo("ALVO_FORA_DA_ALCADA");

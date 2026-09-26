@@ -15,7 +15,7 @@ const USUARIOS = [
     papel: "ATENDENTE",
     statusPresenca: "ONLINE",
     ativo: true,
-    disponivelParaIa: true,
+    disponivelParaIa: false,
   },
   {
     id: "u2",
@@ -209,5 +209,19 @@ describe("pagina de equipe", () => {
     expect(screen.queryByRole("button", { name: "Editar Gil Gestor" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desativar Gil Gestor" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gerar senha provisória Gil Gestor" })).not.toBeInTheDocument();
+  });
+
+  it("exibe disponibilidade desligada e preserva o estado retornado após remontar a tela", () => {
+    const tela = render(<PaginaEquipe />);
+    const toggle = screen.getByRole("switch", { name: "Disponibilidade IA Ana Beatriz" });
+
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(screen.getAllByText("Fora do rodízio").length).toBeGreaterThan(0);
+
+    tela.unmount();
+    render(<PaginaEquipe />);
+
+    expect(screen.getByRole("switch", { name: "Disponibilidade IA Ana Beatriz" }))
+      .toHaveAttribute("aria-checked", "false");
   });
 });

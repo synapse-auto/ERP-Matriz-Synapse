@@ -103,7 +103,7 @@ class UsuarioController {
         if (!desativar.executar(id)) throw naoEncontrado();
     }
 
-    @Operation(summary = "Alternar disponibilidade para IA", description = "Inclui ou remove um atendente do rodízio da IA sem alterar sua presença. Apenas atendentes podem ser marcados.", responses = {@ApiResponse(responseCode = "200", description = "Disponibilidade atualizada."), @ApiResponse(responseCode = "404", description = "Atendente não encontrado ou papel não elegível.")})
+    @Operation(summary = "Alternar disponibilidade para IA", description = "Inclui ou remove um atendente ou subgestor ativo do rodízio da IA sem alterar sua presença. Apenas papéis elegíveis podem ser marcados por usuários autorizados.", responses = {@ApiResponse(responseCode = "200", description = "Disponibilidade atualizada."), @ApiResponse(responseCode = "404", description = "Usuário não encontrado, inativo ou papel não elegível.")})
     @PatchMapping("/{id}/disponibilidade-ia")
     DisponibilidadeIaResposta disponibilidadeParaIa(@Parameter(description = "Identificador do atendente.", required = true) @PathVariable UUID id, @Valid @RequestBody DisponibilidadeIaRequisicao requisicao) {
         return atualizarDisponibilidadeParaIa.executar(id, requisicao.disponivelParaIa())
