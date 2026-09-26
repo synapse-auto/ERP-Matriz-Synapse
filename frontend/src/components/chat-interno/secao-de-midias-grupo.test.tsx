@@ -10,15 +10,12 @@ vi.mock("@/lib/chat-interno/use-midias-do-grupo", () => ({
   useMidiasDoGrupo: () => estado.consulta,
   useUrlAssinadaDaMidiaGrupo: (_conversaId: string, mensagemId: string) => estado.urls.get(mensagemId) ?? { data: undefined },
 }));
-vi.mock("@/lib/chat-interno/api", () => ({
-  emitirUrlAssinadaDaMidiaChat: vi.fn().mockResolvedValue({ url: "https://storage.test/media" }),
-}));
-vi.mock("@/lib/midia/baixar-url-assinada", () => ({ baixarUrlAssinada: vi.fn() }));
+vi.mock("@/lib/chat-interno/midia", () => ({ baixarArquivoChat: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/components/atendimentos/visualizador-midia", () => ({ VisualizadorMidia: ({ itens }: { itens: { origem: { conversaId: string; mensagemId: string } }[] }) => <div role="dialog">{itens[0].origem.conversaId}:{itens[0].origem.mensagemId}</div> }));
 
 import type { Textos } from "@/lib/config/schema";
 import type { MidiaDoGrupo } from "@/lib/chat-interno/types";
-import { emitirUrlAssinadaDaMidiaChat } from "@/lib/chat-interno/api";
-import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
+import { baixarArquivoChat } from "@/lib/chat-interno/midia";
 import { ListaDeMidiasDoGrupo } from "./secao-de-midias-grupo";
 
 const textos = {
@@ -61,12 +58,22 @@ describe("ListaDeMidiasDoGrupo", () => {
     await waitFor(() => expect(estado.consulta.fetchNextPage).toHaveBeenCalledOnce());
   });
 
-  it("emite URL sob demanda ao abrir ou baixar um documento", async () => {
+  it("baixa os bytes reais e abre documento no visualizador com IDs da conversa", async () => {
     const documento: MidiaDoGrupo = { ...imagem, mensagemId: "m2", tipo: "DOCUMENTO", nome: "contrato.pdf", mimetype: "application/pdf" };
     estado.consulta = { ...estado.consulta, data: { pages: [[documento]] } };
     render(<ListaDeMidiasDoGrupo conversaId="c1" textos={textos} />);
     fireEvent.click(screen.getByRole("button", { name: "Baixar contrato.pdf" }));
-    await waitFor(() => expect(emitirUrlAssinadaDaMidiaChat).toHaveBeenCalledWith("c1", "m2"));
-    expect(baixarUrlAssinada).toHaveBeenCalledWith("https://storage.test/media");
+    await waitFor(() => expect(baixarArquivoChat).toHaveBeenCalledWith("c1", "m2", "contrato.pdf"));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir contrato.pdf" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("c1:m2");
+  });
+
+  it("arquivo ausente mostra erro recuperável sem sair do painel", async () => {
+    estado.consulta = { ...estado.consulta, data: { pages: [[imagem]] } };
+    vi.mocked(baixarArquivoChat).mockRejectedValueOnce(new Error("503"));
+    render(<ListaDeMidiasDoGrupo conversaId="c1" textos={textos} />);
+    fireEvent.click(screen.getByRole("button", { name: "Baixar foto.png" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(textos.midias.erro);
+    expect(screen.getByRole("button", { name: "Baixar foto.png" })).toBeEnabled();
   });
 });

@@ -1,5 +1,6 @@
 package com.synapse.crm.equipe.interfaces;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -11,12 +12,16 @@ import jakarta.validation.constraints.NotNull;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,6 +50,7 @@ import com.synapse.crm.equipe.application.chat.EncaminharMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ExcluirMensagemChatUseCase;
+import com.synapse.crm.equipe.application.chat.LeitorDeArquivoChat;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarMensagensChatUseCase;
@@ -88,6 +94,7 @@ public class ChatInternoController {
     private final ExcluirMensagemChatUseCase excluirMensagem;
     private final EditarMensagemChatUseCase editarMensagem;
     private final ArmazenamentoDeMidia armazenamento;
+    private final LeitorDeArquivoChat leitorDeArquivo;
 
     ChatInternoController(
             ListarConversasChatUseCase listar,
@@ -109,7 +116,8 @@ public class ChatInternoController {
             EncaminharMensagemChatUseCase encaminharMensagem,
             ExcluirMensagemChatUseCase excluirMensagem,
             EditarMensagemChatUseCase editarMensagem,
-            ArmazenamentoDeMidia armazenamento) {
+            ArmazenamentoDeMidia armazenamento, LeitorDeArquivoChat leitorDeArquivo) {
+        this.leitorDeArquivo = leitorDeArquivo;
         this.listar = listar;
         this.contatos = contatos;
         this.abrir = abrir;
@@ -238,6 +246,29 @@ public class ChatInternoController {
         var midia = midias.executar(id, mensagemId);
         String url = armazenamento.urlAssinada(midia.referenciaStorage(), Duration.ofHours(1));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new UrlAssinada(url));
+    }
+
+    @Operation(summary = "Baixar arquivo de mídia interna", description = "Entrega os bytes do storage privado após validar participação e mensagem na conversa. Não depende da URL assinada do histórico. Nome e MIME vêm dos metadados persistidos; falhas do storage devolvem erro recuperável sem referência ou credenciais.", responses = {
+            @ApiResponse(responseCode = "200", description = "Arquivo binário com Content-Disposition attachment e MIME persistido.", content = @Content(schema = @Schema(type = "string", format = "binary"))),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa."),
+            @ApiResponse(responseCode = "404", description = "Mensagem ausente, removida ou sem mídia nesta conversa."),
+            @ApiResponse(responseCode = "503", description = "Arquivo indisponível ou capacidade de download esgotada.")})
+    @GetMapping("/conversas/{id}/midias/{mensagemId}/arquivo")
+    ResponseEntity<?> baixarMidia(@PathVariable UUID id, @PathVariable UUID mensagemId) {
+        // A transação curta de autorização termina antes de qualquer I/O de storage.
+        var midia = midias.executar(id, mensagemId);
+        try {
+            byte[] bytes = leitorDeArquivo.baixar(midia.referenciaStorage());
+            String nome = NomeDeArquivoChat.de(midia.nome(), midia.mimetype(), mensagemId.toString());
+            MediaType mime = midia.mimetype() == null ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(midia.mimetype());
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                    .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(nome, StandardCharsets.UTF_8).build().toString())
+                    .header("X-Content-Type-Options", "nosniff")
+                    .contentType(mime).contentLength(bytes.length).body(bytes);
+        } catch (RuntimeException erro) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).cacheControl(CacheControl.noStore())
+                    .body(ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Arquivo temporariamente indisponível. Tente novamente."));
+        }
     }
 
     @Operation(summary = "Enviar mensagem de texto", description = "Persiste uma mensagem textual para os participantes da conversa e publica a notificação em tempo real.", responses = {

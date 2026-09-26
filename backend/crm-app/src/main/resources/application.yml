@@ -78,8 +78,18 @@ server:
 # explicita, nao erro de tela.
 # ---------------------------------------------------------------------------
 resilience4j:
+  bulkhead:
+    instances:
+      chat-interno-download:
+        max-concurrent-calls: ${CHAT_INTERNO_DOWNLOAD_CONCORRENCIA:2}
+        max-wait-duration: 0
   circuitbreaker:
     instances:
+      chat-interno-download:
+        sliding-window-size: ${CHAT_INTERNO_DOWNLOAD_CB_JANELA:10}
+        minimum-number-of-calls: ${CHAT_INTERNO_DOWNLOAD_CB_MINIMO:5}
+        failure-rate-threshold: ${CHAT_INTERNO_DOWNLOAD_CB_LIMIAR:50}
+        wait-duration-in-open-state: ${CHAT_INTERNO_DOWNLOAD_CB_ESPERA:30s}
       canal-meta-cloud:
         sliding-window-type: COUNT_BASED
         sliding-window-size: ${CANAL_CB_JANELA:20}

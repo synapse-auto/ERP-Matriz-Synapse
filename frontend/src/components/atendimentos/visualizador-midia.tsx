@@ -16,6 +16,8 @@ import {
 import { apiFetchBlob } from "@/lib/api/http-client";
 import { useTextos } from "@/lib/config/textos-provider";
 import { emitirUrlAssinadaDaMidia } from "@/lib/lead/api";
+import { emitirUrlAssinadaDaMidiaChat } from "@/lib/chat-interno/api";
+import { baixarArquivoChat } from "@/lib/chat-interno/midia";
 import { classificarMidiaVisual } from "@/lib/midia/classificar-midia-visual";
 import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
 import { classificarOrigemDeRecursoVisual } from "@/lib/midia/origem-de-recurso-visual";
@@ -25,6 +27,7 @@ import { PlayerAudio } from "./player-audio";
 
 export type OrigemDoVisualizador =
   | { tipo: "mensagem"; leadId: string; mensagemId: string }
+  | { tipo: "chat-interno"; conversaId: string; mensagemId: string }
   | { tipo: "foto"; fotoUrl: string };
 
 export type ItemDoVisualizador = {
@@ -97,6 +100,9 @@ export function VisualizadorMidia({
   const navegavel = Boolean(onIndiceChange) && itens.length > 1;
   const origemDoFoco = useRef<HTMLElement | null>(null);
   const src = useSrcDoVisualizador(aberto, item);
+  const [baixando, setBaixando] = useState(false);
+  const [erroDownload, setErroDownload] = useState(false);
+  const downloadEmCurso = useRef(false);
 
   useEffect(() => {
     if (aberto) {
@@ -119,7 +125,15 @@ export function VisualizadorMidia({
   }
 
   async function baixar() {
-    if (!item) return;
+    if (!item || downloadEmCurso.current) return;
+    downloadEmCurso.current = true;
+    setBaixando(true);
+    setErroDownload(false);
+    try {
+    if (item.origem.tipo === "chat-interno") {
+      await baixarArquivoChat(item.origem.conversaId, item.origem.mensagemId, item.nome);
+      return;
+    }
     if (item.origem.tipo === "mensagem") {
       const { url } = await emitirUrlAssinadaDaMidia(item.origem.leadId, item.origem.mensagemId);
       baixarUrlAssinada(url);
@@ -133,6 +147,8 @@ export function VisualizadorMidia({
     if (origem.tipo === "autenticada" && src.blob) {
       baixarBlob(src.blob, item.nome ?? "foto");
     }
+    } catch { setErroDownload(true); }
+    finally { downloadEmCurso.current = false; setBaixando(false); }
   }
 
   const titulo = item?.nome?.trim()
@@ -198,6 +214,7 @@ export function VisualizadorMidia({
           )}
 
           <ConteudoDoVisualizador
+            key={src.src ?? item?.id}
             ramo={ramo}
             src={src.src}
             carregando={src.carregando}
@@ -224,9 +241,10 @@ export function VisualizadorMidia({
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3">
-          <Button type="button" variant="outline" onClick={() => void baixar()} disabled={!item}>
+          {erroDownload && <p role="alert" className="text-sm text-destructive">{vis.erroAoCarregar}</p>}
+          <Button type="button" variant="outline" onClick={() => void baixar()} disabled={!item || baixando} aria-busy={baixando}>
             <Download className="size-(--tamanho-icone-interface)" aria-hidden />
-            {textos.baixar}
+            {baixando ? vis.carregando : textos.baixar}
           </Button>
         </div>
       </DialogContent>
@@ -236,13 +254,14 @@ export function VisualizadorMidia({
 
 function useSrcDoVisualizador(aberto: boolean, item: ItemDoVisualizador | null) {
   const origemMensagem = item?.origem.tipo === "mensagem" ? item.origem : null;
+  const origemChat = item?.origem.tipo === "chat-interno" ? item.origem : null;
   const origemFoto = item?.origem.tipo === "foto" ? item.origem.fotoUrl : null;
   const classificacaoFoto = origemFoto ? classificarOrigemDeRecursoVisual(origemFoto) : null;
 
   const urlAssinada = useQuery({
-    queryKey: ["visualizador-midia-url", origemMensagem?.leadId, origemMensagem?.mensagemId],
-    queryFn: () => emitirUrlAssinadaDaMidia(origemMensagem!.leadId, origemMensagem!.mensagemId),
-    enabled: aberto && Boolean(origemMensagem),
+    queryKey: ["visualizador-midia-url", origemChat ? "chat-interno" : "atendimento", origemMensagem?.leadId ?? origemChat?.conversaId, origemMensagem?.mensagemId ?? origemChat?.mensagemId],
+    queryFn: () => origemChat ? emitirUrlAssinadaDaMidiaChat(origemChat.conversaId, origemChat.mensagemId) : emitirUrlAssinadaDaMidia(origemMensagem!.leadId, origemMensagem!.mensagemId),
+    enabled: aberto && Boolean(origemMensagem || origemChat),
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: "always",
@@ -266,7 +285,7 @@ function useSrcDoVisualizador(aberto: boolean, item: ItemDoVisualizador | null) 
     return { src: undefined as string | undefined, carregando: false, erro: false, blob: undefined as Blob | undefined };
   }
 
-  if (origemMensagem) {
+  if (origemMensagem || origemChat) {
     return {
       src: urlSegura(urlAssinada.data?.url),
       carregando: urlAssinada.isLoading || urlAssinada.isFetching,
@@ -324,10 +343,11 @@ function ConteudoDoVisualizador({
   };
   onBaixar: () => void;
 }) {
+  const [falhaDeRecurso, setFalhaDeRecurso] = useState(false);
   if (carregando) {
     return <p className="text-sm text-muted-foreground">{vis.carregando}</p>;
   }
-  if (erro || (!src && ramo !== "documento")) {
+  if (erro || falhaDeRecurso || (!src && ramo !== "documento")) {
     return (
       <div className="flex max-w-sm flex-col items-center gap-3 text-center">
         <p className="text-sm text-destructive" role="alert">{vis.erroAoCarregar}</p>
@@ -338,12 +358,13 @@ function ConteudoDoVisualizador({
 
   if (ramo === "imagem" && src) {
     // eslint-disable-next-line @next/next/no-img-element -- mídia do storage ou blob autenticado
-    return <img src={src} alt={item?.nome ?? textos.imagem} className="max-h-[min(70vh,40rem)] max-w-full object-contain" />;
+    return <img src={src} onError={() => setFalhaDeRecurso(true)} alt={item?.nome ?? textos.imagem} className="max-h-[min(70vh,40rem)] max-w-full object-contain" />;
   }
 
   if (ramo === "video" && src) {
     return (
       <video
+        onError={() => setFalhaDeRecurso(true)}
         controls
         preload="metadata"
         src={src}
@@ -356,6 +377,7 @@ function ConteudoDoVisualizador({
   if (ramo === "audio" && src) {
     return (
       <PlayerAudio
+        onError={() => setFalhaDeRecurso(true)}
         src={src}
         rotulo={textos.audio}
         reproduzir={textos.reproduzir}

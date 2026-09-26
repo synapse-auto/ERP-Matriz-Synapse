@@ -11,6 +11,7 @@ type Props = {
   reproduzir: string;
   pausar: string;
   posicao: string;
+  onError?: () => void;
 };
 
 export function formatarDuracaoDoAudio(segundos: number): string {
@@ -28,7 +29,7 @@ function duracaoUtil(valor: number): number {
  * Player compacto que herda a cor da bolha (`currentColor`), no lugar do controle nativo
  * branco que quebrava o balão de áudio enviado.
  */
-export function PlayerAudio({ src, rotulo, reproduzir, pausar, posicao }: Props) {
+export function PlayerAudio({ src, rotulo, reproduzir, pausar, posicao, onError }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [srcAtual, setSrcAtual] = useState(src);
   const [tocando, setTocando] = useState(false);
@@ -69,6 +70,7 @@ export function PlayerAudio({ src, rotulo, reproduzir, pausar, posicao }: Props)
         ref={audioRef}
         src={src}
         preload="metadata"
+        onError={onError}
         onPlay={() => setTocando(true)}
         onPause={() => setTocando(false)}
         onEnded={() => {
