@@ -46,6 +46,34 @@ sem descarte é idêntico ao anterior à V81, então o caminho comum não depend
 um contato recebido exige a V81 aplicada (valor `CONTATO` do enum). Onde a V73 ainda estiver
 pendente, a V74 em diante — incluindo a V81 — não roda no boot (ver `docs/41`).
 
+## Fase 2, item 1 — clique em botão de template (Meta)
+
+**Evidência antes de implementar.** A Meta Cloud API documenta o clique em resposta rápida de
+template como `type: button`, com `button.text`, `button.payload` e `context.id` (o wamid do template
+enviado) — formato distinto da resposta interativa (`type: interactive` + `button_reply`), que já
+era traduzida. O CRM lista e envia qualquer template aprovado da conta
+(`MetaCloudApiAdapter.listarTemplates` não filtra componentes), inclusive os criados no Business
+Manager com botões de resposta rápida; só a criação/edição pelo CRM é limitada a corpo textual.
+Logo, o formato pode ocorrer na versão usada, e até aqui virava descarte `TIPO_NAO_SUPORTADO`.
+**Não houve amostra real** — não há acesso às instâncias nesta etapa. Para confirmar uso real, basta a
+consulta operacional acima filtrando `descartes @> '[{"tipo":"button"}]'`.
+
+Na **Uzapi** o Swagger salvo (07/09) não tem template: o clique documentado é `type: button_reply`
+com `interactive.button_reply.{id,title}`, que o tradutor já cobria.
+
+**Comportamento.** `type: button` vira mensagem `TEXTO` do lead com `button.text`; `context.id`
+vincula a resposta ao template (citação `RESPOSTA`) quando o template é do mesmo lead. O
+`button.payload` é identificador de controle de quem montou o template: não vai para o histórico
+(o n8n continua recebendo o payload cru). Clique sem `button.text`, sem objeto `button` ou com
+`button` malformado vira descarte `CONTEUDO_INVALIDO` — o payload **não** substitui o texto — e não
+derruba os demais itens do POST. Remetente, deduplicação e ordem seguem o caminho do texto; como em
+toda mensagem recebida, `enviado_em` é a hora do processamento, não o `timestamp` do provedor.
+
+**Testes.** `MetaCloudWebhookTradutorTest` (clique com contexto; clique vazio/sem objeto/malformado
+no meio de um lote) e `RespostaInterativaWebhookIT` (POST assinado → fila → persistência → leitura
+pela API com citação do template; assinatura inválida não grava; reentrega não duplica; descarte
+registrado em `webhook_entrada.descartes` sem o payload do botão).
+
 ## Objetivo e limites
 
 Garantir que uma mensagem válida e relevante ao atendimento não desapareça silenciosamente entre o provedor WhatsApp e o histórico do CRM. A comparação é por **provedor × direção × capacidade**: recurso do aplicativo WhatsApp não implica suporte da API, da versão instalada ou do CRM. A Base PAI deve funcionar por capacidade, sem condicional pelo nome do cliente.
@@ -58,7 +86,7 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 |---|---|---|---|---|
 | Contato compartilhado recebido | Documentado pelo provedor | Documentado pelo provedor | `type: contacts` não consta do mapeamento de nenhum dos dois tradutores; tipo desconhecido gera `WARN` e o item é descartado. `value.contacts[]` é usado para o perfil do remetente e **não** é o contato compartilhado de `messages[].contacts[]`. A linha de entrada pode terminar processada sem mensagem no histórico. **Fase 1: traduzido, persistido e exibido nos dois provedores; coberto por testes, não verificado em instância real.** | P1; elevar a P0 se o incidente real for correlacionado |
 | Reação recebida | Documentada | Documentada | Não traduzida; o modelo atual de reação está ligado a usuário do CRM. | P2 |
-| Resposta rápida de template recebida | `type: button` documentado | Verificar contrato efetivo | Tradutor Meta não contempla `button`; descarte estático identificado, sem caso real observado. | P1 suspeito; confirmar uso antes da correção |
+| Resposta rápida de template recebida | `type: button` documentado | `button_reply` (sem template no Swagger) | **Fase 2, item 1: Meta `type: button` traduzido (ver seção abaixo); Uzapi já traduzia `button_reply`. Coberto por teste local e CI; não verificado com payload real.** | P1 suspeito; confirmar uso antes da correção |
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
 | Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | Suspeita de que mensagem de grupo seja associada à conversa individual do remetente; ainda não demonstrada em produção. | P2, decisão de produto antes de alterar |
 | Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | Tipos permitidos no domínio e seletor do composer não incluem vídeo. | P2 |
