@@ -60,3 +60,9 @@ Screenshots sanitizados da execução:
 PR #223, primeira CI verde: run `36222394426` (pull_request) no commit `6fe193f`. A correção posterior do seletor M4A e documentação exige conferir a run do HEAD atual; não extrapolar o verde para outro SHA. Não houve deploy nem validação em instância de cliente. Skills clean-code/architecture-patterns/api-design-principles/supabaseboaspraticas não estavam disponíveis; Playwright CLI foi usado.
 
 Pendências deliberadas desta primeira capacidade: upload de vídeo, card de contato interno, idempotência de retry de encaminhamento e E2E de reações entre abas/reconexão. Não marcar a task inteira concluída a partir deste PR.
+
+## Continuação por capacidades
+
+PR #223: mídia/download, HEAD `d4f7193`, CI pull_request `36222861636` e push `36222859384` aprovadas. PR #224: upload e reprodução de vídeo, SHA `73beee3`, CI `36223500990` e `36223498307` aprovadas; `clean verify` local completo passou 757 integrações. Evidências e limites em [46 — vídeo](46-chat-interno-envio-video.md).
+
+PR #225 adiciona compartilhamento e card de contato externo/interno, sem inferência por telefone/nome; ver [47 — contato](47-chat-interno-contato-compartilhado.md). A task global ainda não está concluída: permanecem retry idempotente de encaminhamento, reconciliação das mensagens nas abas do remetente e prova conclusiva de reconexão. A falta de metadados reais de prévia de link continua documentada, sem imagem inventada.
