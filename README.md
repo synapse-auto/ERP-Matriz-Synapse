@@ -419,6 +419,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `SYNAPSE_ACCESS_TOKEN_VALIDADE` | `15m` | Curto de propósito — um token vazado tem pouca janela de uso. |
 | `SYNAPSE_REFRESH_TOKEN_VALIDADE` | `7d` | Revogável e rotativo a cada uso; ver `RenovarSessaoUseCase`. |
 | `SYNAPSE_SENHA_TAMANHO_MINIMO` | `8` | Política de senha (E29): vale na troca, na criação de usuário e na senha provisória gerada pelo gestor. |
+| `SYNAPSE_PERMISSOES_REVALIDACAO` | `2s` | Gestão (docs/47): atraso máximo para uma alteração de acesso salva em outro nó valer neste; no mesmo nó é imediato. Limita também a vida de um JWT com papel antigo. Opcional. |
 | `MENSAGENS_PROGRAMADAS_LOTE` | `50` | Quantidade máxima de mensagens programadas vencidas reservadas por rodada do scheduler. |
 | `ATENDIMENTOS_FINALIZAR_INATIVOS_LOTE` | `50` | Quantidade máxima de atendimentos humanos finalizados por rodada; a seleção continua na rodada seguinte. |
 | `ATENDIMENTOS_FINALIZAR_INATIVOS_INTERVALO_MS` | `300000` | Intervalo entre rodadas de finalização automática por inatividade (5 minutos). |

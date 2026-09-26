@@ -32,7 +32,7 @@ CREATE TABLE permissao_perfil (
     papel          papel_usuario PRIMARY KEY CHECK (papel IN ('SUBGESTOR', 'ATENDENTE')),
     revisao        BIGINT NOT NULL DEFAULT 0,
     atualizado_em  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    atualizado_por UUID REFERENCES usuario (id)
+    atualizado_por UUID REFERENCES usuario (id) ON DELETE SET NULL
 );
 INSERT INTO permissao_perfil (papel) VALUES ('SUBGESTOR'), ('ATENDENTE');
 
@@ -54,10 +54,10 @@ COMMENT ON COLUMN permissao_perfil_item.alvo IS
     'Id estavel do modulo (tipo NIVEL) ou da capacidade (tipo ACAO), ex.: tags / tags.criar.';
 
 CREATE TABLE permissao_usuario (
-    usuario_id     UUID PRIMARY KEY REFERENCES usuario (id),
+    usuario_id     UUID PRIMARY KEY REFERENCES usuario (id) ON DELETE CASCADE,
     revisao        BIGINT NOT NULL DEFAULT 0,
     atualizado_em  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    atualizado_por UUID REFERENCES usuario (id)
+    atualizado_por UUID REFERENCES usuario (id) ON DELETE SET NULL
 );
 
 COMMENT ON TABLE permissao_usuario IS
@@ -81,15 +81,15 @@ CREATE TABLE permissao_historico (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     escopo            VARCHAR(7)  NOT NULL CHECK (escopo IN ('PERFIL', 'USUARIO')),
     papel             papel_usuario,
-    usuario_id        UUID REFERENCES usuario (id),
+    usuario_id        UUID,
     operacao          VARCHAR(30) NOT NULL,
     revisao_anterior  BIGINT NOT NULL,
     revisao_nova      BIGINT NOT NULL,
     antes             JSONB NOT NULL,
     depois            JSONB NOT NULL,
     origem_papel      papel_usuario,
-    origem_usuario_id UUID REFERENCES usuario (id),
-    autor_id          UUID REFERENCES usuario (id),
+    origem_usuario_id UUID,
+    autor_id          UUID,
     criado_em         TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT permissao_historico_alvo CHECK (
         (escopo = 'PERFIL' AND papel IS NOT NULL AND usuario_id IS NULL)
@@ -98,6 +98,8 @@ CREATE TABLE permissao_historico (
 
 COMMENT ON TABLE permissao_historico IS
     'Historico atomico de alteracoes de permissao: autor, alvo, antes/depois, revisao e operacao. Sem senha, token ou conteudo de conversa.';
+COMMENT ON COLUMN permissao_historico.usuario_id IS
+    'Sem FK de proposito, como audit_log: o historico sobrevive ao alvo. Usuarios sao desativados, nao apagados.';
 
 CREATE INDEX idx_permissao_historico_usuario ON permissao_historico (usuario_id, criado_em DESC)
     WHERE usuario_id IS NOT NULL;

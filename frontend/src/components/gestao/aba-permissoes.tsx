@@ -152,7 +152,7 @@ export function AbaPermissoes({
         )}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)]">
         <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
           <p className="px-1 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">{textos.permissoes.perfil}</p>
           <div role="radiogroup" aria-label={textos.permissoes.perfil} className="space-y-2.5">

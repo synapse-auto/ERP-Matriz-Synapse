@@ -257,7 +257,7 @@ export const GestaoTextosSchema = z.object({
       "restaurar": z.string().default("Restaurar o padrão de {acao}"),
       "voltarPadrao": z.string().default("Voltar ao padrão do perfil"),
       "copiarDe": z.string().default("Copiar de outro usuário…"),
-      "copiaIndisponivel": z.string().default("{nome} tem acesso fixo e não pode ser copiado"),
+      "copiaIndisponivel": z.string().default("{nome} · acesso fixo, não copiável"),
       "copiaForaDaAlcada": z.string().default("Fora da sua alçada"),
       "selecione": z.string().default("Selecione um integrante para ver as permissões."),
       "sim": z.string().default("Sim"),

@@ -150,7 +150,7 @@ export function AbaExcecoes({
         <Legenda textos={textos} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(15rem,19rem)_minmax(0,1fr)]">
         <ListaDeIntegrantes
           textos={textos}
           usuarios={equipe.data}
@@ -415,13 +415,14 @@ function DetalheDoUsuario({
         </p>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-sm">
+      {/* relative: o sr-only (absolute) do cabeçalho não pode escapar do recorte e alargar a página. */}
+      <div className="relative overflow-x-auto">
+        <table className="w-full min-w-[44rem] text-sm">
           <thead className="bg-muted/50 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
             <tr>
               <th scope="col" className="px-4 py-2.5 text-left">{textos.excecoes.colunas.permissao}</th>
               <th scope="col" className="w-36 px-3 py-2.5 text-left">{textos.excecoes.colunas.padrao}</th>
-              <th scope="col" className="w-72 px-3 py-2.5 text-left">{textos.excecoes.colunas.usuario}</th>
+              <th scope="col" className="w-[22rem] px-3 py-2.5 text-left">{textos.excecoes.colunas.usuario}</th>
               <th scope="col" className="w-12 px-2 py-2.5"><span className="sr-only">{textos.excecoes.personalizado}</span></th>
             </tr>
           </thead>

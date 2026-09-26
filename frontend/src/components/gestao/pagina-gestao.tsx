@@ -112,7 +112,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
           )}
         </div>
         <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor)))} className="mt-4">
-          <TabsList variant="line" aria-label={textos.abas.rotulo} className="h-auto gap-4 overflow-x-auto p-0">
+          <TabsList variant="line" aria-label={textos.abas.rotulo} className="h-auto max-w-full justify-start gap-4 overflow-x-auto p-0">
             {ABAS.map((a) => {
               const Icone = icones[a];
               return (

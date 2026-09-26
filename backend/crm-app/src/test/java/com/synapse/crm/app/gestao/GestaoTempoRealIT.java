@@ -104,6 +104,12 @@ class GestaoTempoRealIT extends PostgresIT {
         jdbc.update("DELETE FROM permissao_perfil_item");
         jdbc.update("DELETE FROM permissao_usuario_excecao");
         criados.forEach(u -> jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", u));
+        // Nada deste teste pode sobrar para outra suite: um atendimento aberto esquecido aqui seria
+        // finalizado por quem testa inatividade e geraria avaliacao alheia (ex.: EquipeAvaliacoesIT).
+        jdbc.update("DELETE FROM outbox_evento WHERE payload::text LIKE ?", "%" + leadDaAna + "%");
+        jdbc.update("DELETE FROM mensagem WHERE atendimento_id IN (SELECT id FROM atendimento WHERE lead_id = ?)", leadDaAna);
+        jdbc.update("DELETE FROM atendimento WHERE lead_id = ?", leadDaAna);
+        jdbc.update("DELETE FROM lead WHERE id = ?", leadDaAna);
     }
 
     @Test

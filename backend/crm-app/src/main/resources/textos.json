@@ -1722,7 +1722,7 @@
       "restaurar": "Restaurar o padrão de {acao}",
       "voltarPadrao": "Voltar ao padrão do perfil",
       "copiarDe": "Copiar de outro usuário…",
-      "copiaIndisponivel": "{nome} tem acesso fixo e não pode ser copiado",
+      "copiaIndisponivel": "{nome} · acesso fixo, não copiável",
       "copiaForaDaAlcada": "Fora da sua alçada",
       "selecione": "Selecione um integrante para ver as permissões.",
       "sim": "Sim",

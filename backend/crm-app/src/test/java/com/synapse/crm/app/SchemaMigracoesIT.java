@@ -104,6 +104,13 @@ class SchemaMigracoesIT extends PostgresIT {
                     "mensagem_rapida",
                     "mensagem_reacao",
                     "mensagem_reacao_cliente",
+                    // V83 (Gestao, docs/47)
+                    "permissao_politica",
+                    "permissao_perfil",
+                    "permissao_perfil_item",
+                    "permissao_usuario",
+                    "permissao_usuario_excecao",
+                    "permissao_historico",
                     "mensagem_referencia",
                     "outbox_evento",
                     "preferencia_usuario",

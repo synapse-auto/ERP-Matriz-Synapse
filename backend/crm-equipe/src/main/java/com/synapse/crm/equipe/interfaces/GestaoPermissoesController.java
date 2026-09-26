@@ -120,7 +120,7 @@ class GestaoPermissoesController {
     }
 
     @Operation(summary = "Permissões de um usuário", description = "Padrão do perfil, exceção explícita e efetivo por módulo e ação.",
-            responses = {@ApiResponse(responseCode = "403", description = "Alvo fora da alçada."), @ApiResponse(responseCode = "404", description = "Usuário inexistente.")})
+            responses = {@ApiResponse(responseCode = "200", description = "Padrão, exceções e efetivo."), @ApiResponse(responseCode = "403", description = "Alvo fora da alçada."), @ApiResponse(responseCode = "404", description = "Usuário inexistente.")})
     @GetMapping("/usuarios/{id}")
     UsuarioResposta usuario(@PathVariable UUID id) {
         return UsuarioResposta.de(usuarios.obter(id));

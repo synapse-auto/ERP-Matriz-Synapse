@@ -41,6 +41,7 @@ Este pacote cobre a análise, arquitetura e modelagem. A execução (automação
 - [`41-runbook-upgrade-controlado-v73.md`](./41-runbook-upgrade-controlado-v73.md) — bridge one-shot para schema72, lock exclusivo, validações e rollback seguro da V73.
 - [`42-auditoria-performance-pos-incidente-21-09.md`](./42-auditoria-performance-pos-incidente-21-09.md) — inventário E201 de consultas caras reaproveitadas por chamadores estreitos, prioridades e plano de medição.
 - [`44-paridade-whatsapp-auditoria-e-plano.md`](./44-paridade-whatsapp-auditoria-e-plano.md) — lacunas de funções básicas do WhatsApp, evidências e plano de implementação por risco e dependência.
+- [`47-gestao-permissoes.md`](./47-gestao-permissoes.md) — Gestão: inventário de capacidades, teto por papel, delegação, persistência com revisão, revalidação de sessão, API, tela e runbook de rollback.
 
 ### Execução com Claude Code
 - [`CLAUDE.md`](./CLAUDE.md) — **vai na raiz do repositório**, não em `/docs`. Lido automaticamente pelo Claude Code em todo comando: stack, regras de arquitetura, padrões obrigatórios, proibições e regras de negócio sensíveis.

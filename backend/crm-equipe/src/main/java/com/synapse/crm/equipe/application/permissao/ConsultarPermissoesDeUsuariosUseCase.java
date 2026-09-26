@@ -49,7 +49,9 @@ public class ConsultarPermissoesDeUsuariosUseCase {
         return equipe.listar(new FiltroEquipe(true)).stream()
                 .filter(u -> u.papel() != PapelUsuario.ADMINISTRADOR)
                 .filter(u -> enxerga(ator, u))
-                .sorted(Comparator.comparing(Usuario::papel).reversed().thenComparing(Usuario::nome))
+                .sorted(Comparator.comparing(Usuario::papel).reversed()
+                        .thenComparing(Usuario::ativo, Comparator.reverseOrder())
+                        .thenComparing(Usuario::nome))
                 .map(u -> resumo(u, contarValidas(excecoes.get(u.id()), flags), ator))
                 .toList();
     }

@@ -42,6 +42,8 @@ const COR_PRESENCA: Record<StatusPresenca, string> = {
   OFFLINE: "var(--texto-fraco)",
 };
 
+const ORDEM_DO_PAPEL: Record<Papel, number> = { ADMINISTRADOR: 0, GESTOR: 1, SUBGESTOR: 2, ATENDENTE: 3 };
+
 const TOM_DO_PAPEL = { GESTOR: "info", SUBGESTOR: "info", ATENDENTE: "neutro", ADMINISTRADOR: "info" } as const;
 
 /**
@@ -85,7 +87,10 @@ export function AbaEquipe({
     return <ErroDeCarregamento mensagem={textos.erro} onTentarNovamente={() => void Promise.all([equipe.refetch(), perfis.refetch()])} />;
   }
 
-  const usuarios = (equipe.data ?? []).filter((u) => visivelNaEquipe(u.papel));
+  const usuarios = (equipe.data ?? [])
+    .filter((u) => visivelNaEquipe(u.papel))
+    .sort((a, b) => ORDEM_DO_PAPEL[a.papel] - ORDEM_DO_PAPEL[b.papel]
+      || Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome));
   const excecoesPorId = new Map((permissoes.data ?? []).map((p) => [p.id, p.excecoes]));
   const visiveisNasExcecoes = new Set((permissoes.data ?? []).map((p) => p.id));
   const avaliacaoPorId = new Map((avaliacoes.data?.porAtendente ?? []).map((a) => [a.atendenteId, a]));
@@ -195,7 +200,7 @@ export function AbaEquipe({
                   )}
                   <td className="hidden px-3 py-3.5 md:table-cell">{permissao}</td>
                   <td className="px-5 py-3.5">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap">
                       {visiveisNasExcecoes.has(u.id) && (
                         <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => onAbrirExcecoes(u.id)}>
                           <ShieldCheck className="size-4" />
