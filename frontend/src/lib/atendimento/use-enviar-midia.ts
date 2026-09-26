@@ -7,8 +7,8 @@ import { ErroDeApi } from "@/lib/api/errors";
 
 import { enviarMidia } from "./api";
 import { atualizarPaginaRecente, identidadeAutenticada } from "./cache-mensagens";
+import { confirmarEnvioNoHistorico } from "./confirmar-envio";
 import { reconciliarEnvioAmbiguo } from "./reconciliar-envio";
-import { mesclarMensagens } from "./tempo-real";
 import type { EnvioResposta, MensagemResposta, TipoMensagem } from "./types";
 
 interface VariaveisEnvioMidia {
@@ -37,6 +37,7 @@ type ContextoOtimista = {
   queryKey: readonly ["mensagens", string];
   idOtimista: string;
   criadoEm: string;
+  otimista: MensagemResposta;
 };
 
 function erroDefinitivo(erro: unknown): boolean {
@@ -130,7 +131,7 @@ export function useEnviarMidia() {
         idempotencyKey: chaveIdempotencia,
       };
       atualizarPaginaRecente(queryClient, queryKey, (atual) => [...atual, otimista]);
-      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm };
+      const contexto = { queryKey, idOtimista, criadoEm: otimista.enviadoEm, otimista };
       contextos.current.set(chaveIdempotencia, contexto);
       return contexto;
     },
@@ -171,49 +172,9 @@ export function useEnviarMidia() {
         && chavesReconciliadas.current.delete(resposta.idempotencyKey);
       if (variaveis.idempotencyKey) contextos.current.delete(variaveis.idempotencyKey);
       const identidade = identidadeAutenticada(queryClient);
-      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) => {
-        // O WebSocket pode ter entregue a versão definitiva (inclusive a URL assinada) antes
-        // da resposta HTTP. Nesse caso, não reconstrua a mensagem com a prévia blob: obsoleta.
-        const definitiva = atual.find(
-          (mensagem) =>
-            mensagem.id === resposta.mensagemId
-            || mensagem.idempotencyKey === resposta.idempotencyKey,
-        );
-        if (definitiva) {
-          return atual
-            .filter((mensagem) => mensagem.id !== contexto.idOtimista)
-            .map((mensagem) =>
-              mensagem.id === resposta.mensagemId
-                ? {
-                    ...mensagem,
-                    // O evento não carrega o nome do remetente; apenas enriquecemos os campos
-                    // ausentes com a identidade da sessão, sem tocar na URL/dados da mídia real.
-                    remetenteId: mensagem.remetenteId ?? identidade.id,
-                    remetenteNome: mensagem.remetenteNome ?? identidade.nome,
-                  }
-                : mensagem,
-            );
-        }
-        const otimista = atual.find((mensagem) => mensagem.id === contexto.idOtimista);
-        if (!otimista) return mesclarMensagens(atual, []);
-        const real: MensagemResposta = {
-          ...otimista,
-          id: resposta.mensagemId,
-          remetenteId: identidade.id ?? otimista.remetenteId,
-          remetenteNome: identidade.nome ?? otimista.remetenteNome,
-          statusEntrega: resposta.statusEntrega,
-          enviadoEm: resposta.enviadoEm,
-          idempotencyKey: resposta.idempotencyKey ?? variaveis.idempotencyKey,
-        };
-        return mesclarMensagens(
-          atual.filter(
-            (mensagem) =>
-              mensagem.id !== contexto.idOtimista
-              && mensagem.idempotencyKey !== real.idempotencyKey,
-          ),
-          [real],
-        );
-      });
+      atualizarPaginaRecente(queryClient, contexto.queryKey, (atual) =>
+        confirmarEnvioNoHistorico(atual, contexto.otimista, resposta, identidade),
+      );
       if (resposta.transferiuOLead || reconciliada) {
         queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       }
