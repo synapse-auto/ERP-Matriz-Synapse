@@ -520,6 +520,8 @@ export const TextosSchema = z.object({
         reagir: z.string(),
         reacaoQuantidade: z.string(),
         reacaoMinha: z.string(),
+        // E214: opcional — catálogo de filho publicado antes da reação do cliente continua válido.
+        reacaoDoCliente: z.string().optional(),
         maisEmojis: z.string(),
         seletorTitulo: z.string(),
         seletorFechar: z.string(),

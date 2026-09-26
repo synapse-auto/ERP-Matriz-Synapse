@@ -21,8 +21,8 @@ schema, como as de citação: um catálogo de filho publicado antes delas não r
 
 **Descartes observáveis.** O tradutor devolve `Traducao(mensagens, descartes)`. Cada descarte é
 `{tipo, motivo}`, com `tipo` normalizado para os tipos documentados pelos dois provedores (o resto
-vira `outro`) e `motivo` em `TIPO_NAO_SUPORTADO`, `CONTEUDO_INVALIDO`, `SEM_IDENTIFICADOR` ou
-`ITEM_MALFORMADO`. O processador grava na linha `webhook_entrada.itens_descartados` e
+vira `outro`) e `motivo` em `TIPO_NAO_SUPORTADO`, `CONTEUDO_INVALIDO`, `SEM_IDENTIFICADOR`,
+`ITEM_MALFORMADO` ou `GRUPO_NAO_SUPORTADO` (E213: grupo ignorado de propósito, mas visível). O processador grava na linha `webhook_entrada.itens_descartados` e
 `webhook_entrada.descartes` (JSONB) e escreve um único log
 `[DESCARTE_WEBHOOK] entrada=<id_externo> provedor=<p> itens=<n> descartes=[tipo:MOTIVO,...]`.
 Nenhum dos dois carrega telefone, nome, conteúdo ou payload. **Não contam como descarte**, por
@@ -45,6 +45,118 @@ o POST falha e esgota, vale o alarme `[ALERTA_WEBHOOK_ESGOTADO]` já existente. 
 sem descarte é idêntico ao anterior à V81, então o caminho comum não depende das colunas novas; já
 um contato recebido exige a V81 aplicada (valor `CONTATO` do enum). Onde a V73 ainda estiver
 pendente, a V74 em diante — incluindo a V81 — não roda no boot (ver `docs/41`).
+
+## Fase 2, item 1 — clique em botão de template (Meta)
+
+**Evidência antes de implementar.** A Meta Cloud API documenta o clique em resposta rápida de
+template como `type: button`, com `button.text`, `button.payload` e `context.id` (o wamid do template
+enviado) — formato distinto da resposta interativa (`type: interactive` + `button_reply`), que já
+era traduzida. O CRM lista e envia qualquer template aprovado da conta
+(`MetaCloudApiAdapter.listarTemplates` não filtra componentes), inclusive os criados no Business
+Manager com botões de resposta rápida; só a criação/edição pelo CRM é limitada a corpo textual.
+Logo, o formato pode ocorrer na versão usada, e até aqui virava descarte `TIPO_NAO_SUPORTADO`.
+**Não houve amostra real** — não há acesso às instâncias nesta etapa. Para confirmar uso real, basta a
+consulta operacional acima filtrando `descartes @> '[{"tipo":"button"}]'`.
+
+Na **Uzapi** o Swagger salvo (07/09) não tem template: o clique documentado é `type: button_reply`
+com `interactive.button_reply.{id,title}`, que o tradutor já cobria.
+
+**Comportamento.** `type: button` vira mensagem `TEXTO` do lead com `button.text`; `context.id`
+vincula a resposta ao template (citação `RESPOSTA`) quando o template é do mesmo lead. O
+`button.payload` é identificador de controle de quem montou o template: não vai para o histórico
+(o n8n continua recebendo o payload cru). Clique sem `button.text`, sem objeto `button` ou com
+`button` malformado vira descarte `CONTEUDO_INVALIDO` — o payload **não** substitui o texto — e não
+derruba os demais itens do POST. Remetente, deduplicação e ordem seguem o caminho do texto; como em
+toda mensagem recebida, `enviado_em` é a hora do processamento, não o `timestamp` do provedor.
+
+**Testes.** `MetaCloudWebhookTradutorTest` (clique com contexto; clique vazio/sem objeto/malformado
+no meio de um lote) e `RespostaInterativaWebhookIT` (POST assinado → fila → persistência → leitura
+pela API com citação do template; assinatura inválida não grava; reentrega não duplica; descarte
+registrado em `webhook_entrada.descartes` sem o payload do botão).
+
+## Fase 2, item 2 — reação recebida do cliente (E214)
+
+**Contrato do provedor.** Meta e Uzapi (schema `ReactionMessage` do Swagger) usam o mesmo formato:
+`type: reaction`, `reaction.message_id` = id externo da mensagem reagida, `reaction.emoji` = emoji
+atual; emoji vazio ou ausente = o cliente removeu a reação. O evento tem `id` próprio.
+
+**Semântica (definida antes do banco).**
+
+| Caso | Comportamento |
+|---|---|
+| Vínculo | Pelo id externo (`mensagem_id_externo`), nunca por "última mensagem". |
+| Autoria | O cliente **não** é `usuario_id`: tabela própria `mensagem_reacao_cliente` (V82), uma linha por mensagem. `mensagem_reacao` (equipe) não é tocada. |
+| Substituição | Reagir de novo troca o emoji. |
+| Remoção | Grava `emoji = NULL` (não apaga a linha), para um evento atrasado não ressuscitar a reação. |
+| Ordem | Só evento com `reagido_em` (horário do provedor) igual ou mais novo altera a linha. |
+| Repetição | Mesmo id de evento é deduplicado em `mensagem_recebida_idempotencia`; evento que não muda o emoji não grava nem publica. |
+| Mensagem desconhecida | Descarte `ALVO_DESCONHECIDO` na linha de `webhook_entrada`; não cria lead nem atendimento. |
+| Outra conversa | O alvo precisa ser da conversa do lead que reagiu; senão, o mesmo descarte. Conhecer o id não dá acesso. |
+| Remetente sem lead | Mesmo descarte; reação nunca cria lead. |
+| Efeitos colaterais | Reação não é mensagem: não entra no histórico, não conta interação, não passa pelo reset nem abre a janela de 24h. |
+| Emoji inválido / sem alvo / malformado | `CONTEUDO_INVALIDO` / `SEM_IDENTIFICADOR`, sem derrubar o lote. |
+
+**Leitura e tela.** `GET /api/v1/atendimentos/{id}/mensagens` ganha o campo aditivo `reacaoDoCliente`
+(emoji ou `null`), carregado em lote pela PK junto das reações da equipe — uma consulta a mais por
+página, sem varrer partição. A autorização continua a do histórico (RN-CRM-01 pela Specification).
+Depois do commit, o CRM publica no tópico do atendimento o evento WebSocket
+`REACAO_CLIENTE {atendimentoId, mensagemId, enviadoEm, emoji|null}` — sem telefone nem nome —, e a
+tela troca só esse campo no cache, sem F5 e sem mexer nas reações da equipe. Na bolha a reação do
+cliente é um chip informativo (não é botão), com rótulo do catálogo `acoes.reacaoDoCliente`
+(opcional; catálogo antigo mostra o próprio emoji).
+
+**Testes.** `ReacaoRecebidaTradutoresTest` (Meta e Uzapi: reação, remoção, alvo ausente, emoji
+inválido, malformada, sem remetente), `WebhookReacaoDoClienteMetaIT` (assinatura inválida; alvo de
+outra conversa e desconhecido viram descarte; reação da equipe preservada; atendente de outro lead
+recebe 404; reentrega sem republicar; substituição; evento atrasado ignorado; remoção; eventos de
+tempo real), `WebhookReacaoDoClienteUzapiIT` (segredo, reentrega, alvo desconhecido, remoção),
+`SchemaMigracoesIT`, testes de frontend do chip e do cache. Com a guarda "mesma conversa" desligada
+de propósito, `WebhookReacaoDoClienteMetaIT` reprova.
+
+## Fase 2, item 3 — isolamento de grupo (filtrar com observabilidade)
+
+**Decisão aplicada:** filtrar. Conversa de grupo **não** foi implementada (sem UI, schema ou fluxo).
+
+**Falha encontrada.** O Swagger da Uzapi declara `isGroup` obrigatório em toda mensagem recebida, e
+o registro de callback recomendado em `docs/38` §8.0 liga `group_messages: true`. O tradutor ignorava
+a flag: a mensagem de grupo chegava com `from` = participante e era gravada no atendimento individual
+dele — e passava pelo comando de reset por texto. O controller repassava o POST à Automação antes de
+qualquer tradução, então o n8n recebia o texto do grupo como se fosse do privado. Provado por
+`WebhookGrupoUzapiIT`: com o filtro desligado, "no grupo" cai na conversa do participante e o repasse
+é enfileirado. As 10 amostras reais de Status registradas na E163 já traziam `isGroup: true`, o que
+confirma a presença do campo no payload real.
+
+**Comportamento.**
+
+- **Uzapi:** item com `isGroup: true` (booleano ou texto) ou com JID de chat terminando em `@g.us`
+  (`from`, `chatid`, `remoteJid`, `groupId`…) vira descarte `GRUPO_NAO_SUPORTADO`, com o tipo
+  normalizado e sem telefone/conteúdo. Status/Story continua identificado só por `status@broadcast`,
+  avaliado **antes**, e ignorado em silêncio (decisão da E163 preservada: `isGroup` nunca aciona o
+  filtro de Status).
+- **Meta:** defensivo. A conta Cloud API usada é individual; item com `group_id` recebe o mesmo
+  descarte. Formato de grupo da Meta não verificado nesta etapa.
+- **Repasse à Automação (decisão de 25/09: misto não é limite aceitável):**
+  - POST sem grupo: corpo e assinatura **originais, byte a byte**.
+  - POST só de grupo: não é repassado.
+  - POST misto: repassado **no mesmo envelope, sem os itens de grupo**. Na Meta a
+    `X-Hub-Signature-256` é recalculada com o mesmo App Secret, então continua válida para quem a
+    confere; a Uzapi não assina o corpo (segredo na query).
+  - Reentrega do provedor (mesmo POST, mesma linha de `webhook_entrada`) **não é repassada de novo**:
+    a mensagem privada é processada uma vez no CRM e uma vez no n8n. POST só de status continua sendo
+    repassado a cada chegada, como antes.
+- O POST original (com grupo) ainda entra em `webhook_entrada`, para o descarte ficar na consulta
+  operacional. Nenhum contrato `/internal/v1` mudou.
+- **Segunda camada no n8n:** o workflow também deve ignorar grupo — ver
+  [`docs/n8n/filtro-de-grupo.md`](./n8n/filtro-de-grupo.md). Não aplicado nesta etapa (sem acesso ao
+  workflow); precisa ser feito e testado antes do deploy.
+
+**Testes.** `UzapiAutoticWebhookTradutorTest` (flag booleana e textual, JID `@g.us`, grupo ≠
+Status, `repasseSemGrupos`), `MetaCloudWebhookTradutorTest` (`group_id`; assinatura refeita e válida
+no misto, original intacta sem grupo), `WebhookCanalControllerTest` (repasse agendado com o corpo e a
+assinatura devolvidos), `WebhookGrupoUzapiIT` (segredo inválido; grupo com `#reset` não toca o
+atendimento, não cria lead nem repassa; lote misto realista com reentrega: privado gravado uma vez,
+`#reset` do grupo não devolve a conversa da Ana à IA, repasse único e sem o item de grupo). Com o
+filtro do repasse desligado de propósito, os dois ITs reprovam.
 
 ## Fase 3, item 1 — vídeo enviado pelo atendente (E215)
 
@@ -91,10 +203,10 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 | Capacidade | Meta | UZAPI/Uzapi Autotic | Situação no CRM e evidência | Prioridade proposta |
 |---|---|---|---|---|
 | Contato compartilhado recebido | Documentado pelo provedor | Documentado pelo provedor | `type: contacts` não consta do mapeamento de nenhum dos dois tradutores; tipo desconhecido gera `WARN` e o item é descartado. `value.contacts[]` é usado para o perfil do remetente e **não** é o contato compartilhado de `messages[].contacts[]`. A linha de entrada pode terminar processada sem mensagem no histórico. **Fase 1: traduzido, persistido e exibido nos dois provedores; coberto por testes, não verificado em instância real.** | P1; elevar a P0 se o incidente real for correlacionado |
-| Reação recebida | Documentada | Documentada | Não traduzida; o modelo atual de reação está ligado a usuário do CRM. | P2 |
-| Resposta rápida de template recebida | `type: button` documentado | Verificar contrato efetivo | Tradutor Meta não contempla `button`; descarte estático identificado, sem caso real observado. | P1 suspeito; confirmar uso antes da correção |
+| Reação recebida | Documentada | Documentada | **Fase 2, item 2 (E214): traduzida nos dois provedores e gravada em `mensagem_reacao_cliente` (V82), separada da reação por usuário do CRM; aparece na bolha e chega por evento `REACAO_CLIENTE`. Coberto por teste local e CI; não verificado em instância real.** | P2 |
+| Resposta rápida de template recebida | `type: button` documentado | `button_reply` (sem template no Swagger) | **Fase 2, item 1: Meta `type: button` traduzido (ver seção abaixo); Uzapi já traduzia `button_reply`. Coberto por teste local e CI; não verificado com payload real.** | P1 suspeito; confirmar uso antes da correção |
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
-| Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | Suspeita de que mensagem de grupo seja associada à conversa individual do remetente; ainda não demonstrada em produção. | P2, decisão de produto antes de alterar |
+| Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | **Confirmado no código (E213): a mensagem de grupo entrava na conversa individual do participante e ia para a Automação. Corrigido: filtrada com descarte `GRUPO_NAO_SUPORTADO` e sem repasse (ver seção abaixo). Conversa de grupo continua não implementada. Coberto por teste local e CI; não verificado em instância real.** | P2, decisão de produto antes de alterar |
 | Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | **Fase 3, item 1 (E215): habilitado no composer do atendimento (MP4/3GP, teto de 16 MB configurável), classificado pelas trilhas do contêiner; .mov e vídeo disfarçado de áudio recusados. Coberto por teste local e CI; não verificado em instância real.** | P2 |
 | Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. | P3 |
 | Status `played`/`deleted` | Contrato próprio | Eventos possíveis | Não mapeados pela integração UZAPI. Sem decisão de produto registrada sobre exibição/semântica. | P3 |

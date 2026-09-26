@@ -556,7 +556,8 @@ export function PaginaAtendimentosCliente({
       registrarDiagnosticoDeAbertura({
         origem: "rota",
         etapa: "evento_websocket",
-        leadId: evento.tipo === "REACAO" ? null : evento.dados.leadId,
+        leadId:
+          evento.tipo === "REACAO" || evento.tipo === "REACAO_CLIENTE" ? null : evento.dados.leadId,
         atendimentoId: evento.dados.atendimentoId,
         usuarioId: sessao.usuarioId,
         papel: sessao.papel,

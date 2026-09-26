@@ -198,12 +198,20 @@ contato sem telefone é preservado com `telefones: []`. O `value.contacts[]` do 
 servindo só para o nome do remetente e nunca vira contato compartilhado. Um cartão Status/Story
 continua filtrado como qualquer evento Status/Story.
 
-**Itens que não viram mensagem.** Reação, enquete e qualquer tipo ainda não traduzido, item sem
+**Reação (E214).** `type: reaction` (schema `ReactionMessage`) é traduzida como reação do cliente à
+mensagem de `reaction.message_id`, não como mensagem; semântica em `docs/44`, Fase 2 item 2.
+
+**Itens que não viram mensagem.** Enquete e qualquer tipo ainda não traduzido, item sem
 `id`/`from`, mídia sem id e item malformado são registrados na linha de `webhook_entrada`
 (`itens_descartados`, `descartes`) e no log `[DESCARTE_WEBHOOK]`, sem telefone nem conteúdo. Status
 de entrega (inclusive `played`/`deleted`, ainda sem mapeamento) e Status/Story são ignorados por
 decisão e não contam como descarte. Detalhe e consulta operacional em
 `docs/44-paridade-whatsapp-auditoria-e-plano.md`.
+
+**Grupo (E213).** Mensagem com `isGroup: true` ou JID `@g.us` vira descarte `GRUPO_NAO_SUPORTADO` e
+não entra na conversa individual do participante. POST só de grupo não é repassado à Automação.
+Conversa de grupo não é suportada; `group_messages: true` no registro do callback continua
+inofensivo, mas pode ser desligado para reduzir ruído na fila.
 
 Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
 identificador técnico da mídia e devolve uma indisponibilidade retentável. O processador mantém o

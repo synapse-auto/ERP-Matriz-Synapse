@@ -145,6 +145,7 @@ export function BolhaMensagem({
       alinhadaADireita={doAtendente}
       textoCopiavel={textoCopiavelDaMensagem(mensagem)}
       reacoes={mensagem.reacoes ?? []}
+      reacaoDoCliente={mensagem.reacaoDoCliente ?? null}
       textos={catalogo.mensagem.acoes}
       onDefinirReacao={onDefinirReacao}
       onRemoverReacao={onRemoverReacao}
