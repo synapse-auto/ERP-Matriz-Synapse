@@ -4,6 +4,19 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 26/09/2026 — Investigação do HTTP 410 em documentos da Uzapi/Autotic (FMNA)
+
+Investigação sem acesso a produção, registrada em
+[`47-investigacao-midia-documento-410-uzapi.md`](./47-investigacao-midia-documento-410-uzapi.md).
+Pelo código, a primeira busca de mídia ocorre ~1 s após `recebido_em`, com o mesmo caminho para
+todos os tipos. Qualquer 4xx/5xx é retentado por 10 min, e o `[MIDIA_NAO_RECEBIDA]` marca a última
+tentativa (~10,6 min), não a primeira. A mensagem recebida é datada no processamento, então uma bolha
+visível 31 min antes do log não pode ser a mesma entrada. Nem o `docs/38` nem o Swagger da Uzapi
+documentam retenção ou 410. Decisão: a proposta A (log por etapa: `etapa=resolvedor` ou
+`etapa=download` + host) foi implementada, sem mudar classificação, backoff ou prazo. A B (410
+terminal) depende de a consulta 4.1 rodar na FMNA; a C (executor próprio) só com a 4.4 mostrando
+trava do agendador.
+
 ### 20/09/2026 — Convite para atendimento
 
 O header da conversa agora pode convidar um atendente ativo elegível por

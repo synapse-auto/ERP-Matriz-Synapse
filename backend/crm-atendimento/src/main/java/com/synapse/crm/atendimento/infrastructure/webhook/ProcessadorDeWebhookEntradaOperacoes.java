@@ -479,8 +479,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     pendente.idExterno(),
                     proximaTentativa(agora, pendente.tentativas()),
                     e.toString());
-            log.warn("Midia do evento {} ainda indisponivel no provedor; sera retentada.",
-                    pendente.idExterno());
+            // O motivo ja vem sem corpo, URL ou token (adaptador), e diz a etapa que falhou (E218):
+            // sem ele no log, o diagnostico de um 410 dependia de consultar ultimo_erro no banco.
+            log.warn("Midia do evento {} ainda indisponivel no provedor; sera retentada. tentativa={} {}",
+                    pendente.idExterno(),
+                    pendente.tentativas() + 1,
+                    e.getMessage());
             return;
         }
 

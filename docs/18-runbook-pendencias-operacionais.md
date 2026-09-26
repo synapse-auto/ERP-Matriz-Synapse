@@ -289,7 +289,9 @@ WHATSAPP_TOKEN=<token>
    | Log | Significado | Ação |
    | --- | --- | --- |
    | `Username parameter is missing` | container ainda usa rota/cliente legado ou imagem não foi recriada | conferir a imagem e promover a versão que chama `/{version}/{mediaId}` |
-   | `resolvedor de midia uzapi-autotic respondeu HTTP 404` | a Uzapi aceitou o path oficial, mas não encontrou bytes para um `mediaId` recebido agora | não alterar MinIO, token ou rota; manter backoff e acionar a Uzapi |
+   | `etapa=resolvedor respondeu HTTP 404` (imagens anteriores ao E218: `resolvedor de midia uzapi-autotic respondeu HTTP 404`) | a Uzapi aceitou o path oficial, mas não encontrou bytes para um `mediaId` recebido agora | não alterar MinIO, token ou rota; manter backoff e acionar a Uzapi |
+   | `etapa=resolvedor respondeu HTTP 410` | a Uzapi informa que a mídia foi removida | registrar `midiaId` e horário; ver `docs/47` |
+   | `etapa=download respondeu HTTP {status}; host=…` | o resolvedor respondeu, mas a URL entregue não serviu os bytes (expirada ou recusada) | registrar host, `midiaId` e horário para a Uzapi; ver `docs/47` |
    | erro S3/MinIO depois de URL/bytes resolvidos | a falha é de storage, fora da Uzapi | usar o runbook específico de MinIO |
    | sem erro e mídia aparece na conversa | fluxo normal | repetir para PDF, áudio e vídeo |
 

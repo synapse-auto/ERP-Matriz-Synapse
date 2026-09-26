@@ -626,7 +626,7 @@ class UzapiAutoticAdapterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {400, 404, 500, 502})
+    @ValueSource(ints = {400, 404, 410, 500, 502})
     void erroHttpAoResolverMidiaEClassificadoComoIndisponibilidadeRetentavel(int status) {
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
@@ -634,10 +634,42 @@ class UzapiAutoticAdapterTest {
 
         assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
                 .isInstanceOf(MidiaRecebidaTemporariamenteIndisponivelException.class)
-                .hasMessageContaining("HTTP " + status)
+                .hasMessageContaining("etapa=resolvedor respondeu HTTP " + status)
                 .hasMessageContaining("midiaId=media-inbound")
+                .hasMessageNotContaining("etapa=download")
                 .hasMessageNotContaining("token-de-teste")
                 .hasMessageNotContaining(URL_BASE);
+
+        servidor.verify();
+    }
+
+    /**
+     * E218: o resolvedor responde e o 410 vem do download da URL devolvida. Antes as duas falhas
+     * saiam com o mesmo texto "resolvedor de midia ... respondeu HTTP 410", e nao dava para saber
+     * se a Uzapi nao tinha mais o arquivo ou se a URL entregue ja estava expirada.
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {403, 404, 410, 500})
+    void erroHttpAoBaixarBytesIdentificaAEtapaDeDownloadESoOHostDaUrl(int status) {
+        String urlComSegredo = "https://media.example.test/arquivos/abc123.pdf?assinatura=segredo-da-url";
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"id\":\"media-inbound\",\"url\":\"" + urlComSegredo + "\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(urlComSegredo))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.valueOf(status)));
+
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
+                .isInstanceOf(MidiaRecebidaTemporariamenteIndisponivelException.class)
+                .hasMessageContaining("etapa=download respondeu HTTP " + status)
+                .hasMessageContaining("host=media.example.test")
+                .hasMessageContaining("midiaId=media-inbound")
+                .hasMessageNotContaining("etapa=resolvedor")
+                .hasMessageNotContaining("segredo-da-url")
+                .hasMessageNotContaining("/arquivos/")
+                .hasMessageNotContaining("token-de-teste");
 
         servidor.verify();
     }
