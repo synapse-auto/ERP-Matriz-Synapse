@@ -48,6 +48,21 @@ class VideoChatInternoIT extends PostgresIT {
         assertThat(arquivo.getBody()).containsExactly(video);
         assertThat(arquivo.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType("video/mp4"));
         assertThat(arquivo.getHeaders().getContentDisposition().getFilename()).isEqualTo("video.mp4");
+        UUID destino = conversa(ana, "grupo");
+        var encaminharHeaders = new HttpHeaders();
+        encaminharHeaders.setBearerAuth(ana.accessToken());
+        encaminharHeaders.setContentType(MediaType.APPLICATION_JSON);
+        encaminharHeaders.set("Idempotency-Key", UUID.randomUUID().toString());
+        String rota = "/api/v1/chat-interno/conversas/" + conversa + "/mensagens/" + mensagem + "/encaminhar";
+        var pedido = new HttpEntity<>(Map.of("conversaDestinoId", destino), encaminharHeaders);
+        var copia = http.exchange(rota, HttpMethod.POST, pedido, Map.class);
+        assertThat(copia.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String copiaId = copia.getBody().get("id").toString();
+        assertThat(http.exchange(rota, HttpMethod.POST, pedido, Map.class).getBody()).containsEntry("id", copiaId);
+        assertThat(copia.getBody()).containsEntry("tipo", "VIDEO").containsEntry("conteudo", "Legenda\ncom acento 💬");
+        assertThat(db.queryForObject("SELECT midia_url FROM chat_interno_mensagem WHERE id = ?", String.class, UUID.fromString(copiaId)))
+                .isEqualTo(db.queryForObject("SELECT midia_url FROM chat_interno_mensagem WHERE id = ?", String.class, UUID.fromString(mensagem)));
+        assertThat(http.exchange("/api/v1/chat-interno/conversas/" + destino + "/midias/" + copiaId + "/arquivo", HttpMethod.GET, new HttpEntity<>(headers), byte[].class).getBody()).containsExactly(video);
         var historico = http.exchange("/api/v1/chat-interno/conversas/" + conversa + "/mensagens", HttpMethod.GET, new HttpEntity<>(headers), String.class);
         assertThat(historico.getBody()).contains(mensagem, "VIDEO", "Legenda");
         var gestor = login(http, EMAIL_GESTOR, SENHA_GESTOR);

@@ -44,7 +44,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 }));
 
 vi.mock("@/lib/atendimento/tempo-real", () => ({
-  useConexaoTempoReal: vi.fn(),
+  useConexaoTempoReal: vi.fn().mockReturnValue({ ciclo: 0, estado: "desconectado", conexao: {} }),
 }));
 
 vi.mock("@/lib/chat-interno/api", () => ({
@@ -111,6 +111,7 @@ import {
   marcarChatComoLido,
 } from "@/lib/chat-interno/api";
 import { PaginaChatInterno } from "./pagina-chat-interno";
+import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 
 const conversas: ChatConversa[] = [
   { id: "g1", tipo: "GRUPO", participantes: "Grupo 1", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 },
@@ -129,10 +130,28 @@ function renderizar() {
 
 describe("PaginaChatInterno", () => {
   beforeEach(() => {
+    vi.mocked(useConexaoTempoReal).mockReturnValue({ ciclo: 0 } as ReturnType<typeof useConexaoTempoReal>);
     vi.mocked(listarConversasChat).mockResolvedValue(conversas);
     vi.mocked(listarContatosChat).mockResolvedValue([]);
     vi.mocked(listarMensagensChat).mockResolvedValue({ mensagens: [], proximoCursor: null });
     vi.mocked(marcarChatComoLido).mockResolvedValue(undefined);
+  });
+
+  it("reconcilia lista e histórico ao conectar novamente sem polling", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const tela = () => <QueryClientProvider client={client}><PaginaChatInterno conversaInicialId="d1" /></QueryClientProvider>;
+    const { rerender } = render(tela());
+    await waitFor(() => expect(listarMensagensChat).toHaveBeenCalledWith("d1"));
+    const invalidar = vi.spyOn(client, "invalidateQueries");
+    vi.mocked(useConexaoTempoReal).mockReturnValue({ ciclo: 1 } as ReturnType<typeof useConexaoTempoReal>);
+    rerender(tela());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] }));
+    invalidar.mockClear();
+    rerender(tela());
+    expect(invalidar).not.toHaveBeenCalled();
+    vi.mocked(useConexaoTempoReal).mockReturnValue({ ciclo: 2 } as ReturnType<typeof useConexaoTempoReal>);
+    rerender(tela());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledTimes(1));
   });
 
   it("abre grupos por padrão, esconde o painel em diretas e reabre ao trocar para outro grupo", async () => {
