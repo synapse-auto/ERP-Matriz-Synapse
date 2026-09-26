@@ -14,6 +14,26 @@ contradiz o código (seção 2.3).
 O documento `claude/incidente-postgres-backend-refused-e-rabbitmq-n8n-parados-24-26-09.md` citado
 no prompt não existe neste repositório nem em nenhuma branch; a Parte 2 não pôde ser lida.
 
+## Decisão pós-Bloco 0 (26/09/2026)
+
+- Bloco 1 original (intervalo menor, processamento síncrono, prioridade para DOCUMENTO):
+  **descartado** — a primeira tentativa já ocorre em ~1 s; o que pesa é quanto tempo o sistema
+  insiste antes de desistir.
+- **A — implementada.** O erro de mídia recebida da Uzapi agora diz a etapa. Formato (no
+  `ultimo_erro`, precedido de `tipo=…;` pelo processador, e no log de retentativa):
+  - `midia recebida uzapi-autotic: etapa=resolvedor respondeu HTTP 410; midiaId=…`
+  - `midia recebida uzapi-autotic: etapa=download respondeu HTTP 410; host=…; midiaId=…`
+
+  Do download sai só o host da URL, nunca caminho ou query. O aviso
+  `Midia do evento … ainda indisponivel no provedor; sera retentada.` passou a trazer
+  `tentativa=N` e esse motivo. Classificação, backoff, prazo e disjuntor não mudaram. Linhas
+  gravadas antes do deploy continuam com o texto antigo `resolvedor de midia uzapi-autotic
+  respondeu HTTP …`, que não distingue as etapas.
+- **B — condicionada à 4.1** confirmar o padrão nos três casos; se confirmar, só o 410 vira
+  terminal e timeout/5xx/404 continuam com retentativa.
+- **C — não fazer** sem a 4.4 mostrar trava do agendador.
+- **Breakers da Uzapi** (`CANAL_CB_*`): item separado, fora do escopo.
+
 ## 1. Como o pipeline funciona (itens 1 e 2)
 
 | Ponto | Valor em `main` | Onde |

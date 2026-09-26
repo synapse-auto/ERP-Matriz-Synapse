@@ -515,13 +515,14 @@ class UzapiAutoticAdapter implements CanalGateway {
                     "circuit breaker aberto para " + PROVEDOR + "; midia " + midiaIdExterno
                             + " sera retentada",
                     breakerAberto);
-        } catch (RestClientResponseException respostaDoProvedor) {
+        } catch (EtapaDaMidiaRecebidaFalhou falha) {
             // A conta em producao responde 404 quando o arquivo ainda nao esta disponivel. Isso
             // nao e uma credencial invalida: a fila deve retentar com backoff, sem guardar o corpo
-            // da resposta (que pode conter URL temporaria ou outros dados do provedor).
+            // da resposta (que pode conter URL temporaria ou outros dados do provedor). A etapa
+            // (E218) separa "a Uzapi nao tem o arquivo" de "a URL que ela entregou nao serve".
             throw new MidiaRecebidaTemporariamenteIndisponivelException(
-                    "resolvedor de midia " + PROVEDOR + " respondeu HTTP "
-                            + respostaDoProvedor.getStatusCode().value() + "; midiaId=" + midiaIdExterno);
+                    "midia recebida " + PROVEDOR + ": " + falha.getMessage()
+                            + "; midiaId=" + midiaIdExterno);
         }
     }
 
@@ -768,24 +769,38 @@ class UzapiAutoticAdapter implements CanalGateway {
      * externo e evitamos vazar a credencial do canal.
      */
     private MidiaRecebida buscarMidiaRecebida(String midiaIdExterno) {
-        String resposta = http.get()
-                .uri(
-                        "/{version}/{mediaId}",
-                        propriedades.versaoApi(),
-                        midiaIdExterno)
-                .header("Authorization", "Bearer " + propriedades.token())
-                .retrieve()
-                .body(String.class);
+        String resposta;
+        try {
+            resposta = http.get()
+                    .uri(
+                            "/{version}/{mediaId}",
+                            propriedades.versaoApi(),
+                            midiaIdExterno)
+                    .header("Authorization", "Bearer " + propriedades.token())
+                    .retrieve()
+                    .body(String.class);
+        } catch (RestClientResponseException falha) {
+            throw new EtapaDaMidiaRecebidaFalhou("etapa=resolvedor respondeu HTTP "
+                    + falha.getStatusCode().value());
+        }
         JsonNode no = lerJson(resposta, "resposta da midia recebida");
         String url = no.path("url").asText("").trim();
         if (url.isBlank()) {
             throw new IllegalStateException("resposta da midia recebida sem url");
         }
 
-        ResponseEntity<byte[]> respostaDosBytes = http.get()
-                .uri(java.net.URI.create(url))
-                .retrieve()
-                .toEntity(byte[].class);
+        URI destino = URI.create(url);
+        ResponseEntity<byte[]> respostaDosBytes;
+        try {
+            respostaDosBytes = http.get()
+                    .uri(destino)
+                    .retrieve()
+                    .toEntity(byte[].class);
+        } catch (RestClientResponseException falha) {
+            // So o host: caminho e query de URL temporaria podem carregar assinatura ou token.
+            throw new EtapaDaMidiaRecebidaFalhou("etapa=download respondeu HTTP "
+                    + falha.getStatusCode().value() + "; host=" + hostOuDesconhecido(destino));
+        }
         byte[] bytes = respostaDosBytes.getBody();
         if (bytes == null) {
             throw new IllegalStateException("resposta da midia recebida sem bytes");
@@ -793,6 +808,25 @@ class UzapiAutoticAdapter implements CanalGateway {
         MediaType contentType = respostaDosBytes.getHeaders().getContentType();
         String mimetype = contentType == null ? "application/octet-stream" : contentType.toString();
         return new MidiaRecebida(bytes, mimetype);
+    }
+
+    private static String hostOuDesconhecido(URI destino) {
+        String host = destino.getHost();
+        return host == null || host.isBlank() ? "desconhecido" : host;
+    }
+
+    /**
+     * Resposta HTTP de erro em uma das duas chamadas do recebimento de midia, ja com a etapa e sem
+     * corpo, URL ou credencial. Lancada dentro do circuit breaker, que a registra como falha do
+     * mesmo jeito que registrava a {@link RestClientResponseException} original.
+     */
+    private static final class EtapaDaMidiaRecebidaFalhou extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        EtapaDaMidiaRecebidaFalhou(String descricao) {
+            super(descricao);
+        }
     }
 
     /** 2xx do provedor, mas o corpo nao confirma sucesso — sempre recusa permanente. */

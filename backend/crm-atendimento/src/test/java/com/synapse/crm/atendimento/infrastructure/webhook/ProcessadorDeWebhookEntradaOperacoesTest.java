@@ -22,10 +22,13 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
@@ -191,6 +194,32 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         verify(entrada).reagendar(eq(ID_EXTERNO), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
         verify(registrar, never()).executar(any());
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void midiaIndisponivelRegistraAEtapaQueFalhouNoUltimoErroENoLog(CapturedOutput log) {
+        // E218: sem a etapa, "HTTP 410" do resolvedor e do download dos bytes eram indistinguiveis
+        // tanto no ultimo_erro persistido quanto no log de retentativa.
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(2, AGORA.minusSeconds(20))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaTemporariamenteIndisponivelException(
+                        "midia recebida uzapi-autotic: etapa=download respondeu HTTP 410;"
+                                + " host=media.example.test; midiaId=1"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        ArgumentCaptor<String> ultimoErro = ArgumentCaptor.forClass(String.class);
+        verify(entrada).reagendar(eq(ID_EXTERNO), any(), ultimoErro.capture());
+        assertThat(ultimoErro.getValue())
+                .contains("tipo=IMAGEM")
+                .contains("etapa=download respondeu HTTP 410")
+                .contains("host=media.example.test");
+        assertThat(log.getOut())
+                .contains("Midia do evento " + ID_EXTERNO + " ainda indisponivel")
+                .contains("tentativa=3")
+                .contains("etapa=download respondeu HTTP 410");
     }
 
     @Test
