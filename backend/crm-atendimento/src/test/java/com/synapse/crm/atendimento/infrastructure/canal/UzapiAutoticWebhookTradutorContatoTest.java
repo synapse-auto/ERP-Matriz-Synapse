@@ -85,6 +85,21 @@ class UzapiAutoticWebhookTradutorContatoTest {
         assertThat(traducao.descartes()).isEmpty();
     }
 
+    @Test
+    void playedEDeletedSaoIgnoradosSemMexerNoStatusDeEntrega() {
+        // E216: decisao registrada em docs/44 — played nao tem estado no CRM (LIDO ja cobre) e
+        // deleted aguarda regra de produto. Nenhum dos dois pode rebaixar ou trocar o status.
+        var statuses = tradutor.statusDeEntrega(
+                "{\"entry\":[{\"changes\":[{\"value\":{\"metadata\":{\"phone_number_id\":\"phone-id-1\"},"
+                        + "\"statuses\":[{\"id\":\"w1\",\"status\":\"read\"},"
+                        + "{\"id\":\"w1\",\"status\":\"played\"},"
+                        + "{\"id\":\"w1\",\"status\":\"deleted\"}]}}]}]}");
+
+        assertThat(statuses).extracting(
+                        com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal::statusEntrega)
+                .containsExactly("LIDO");
+    }
+
     private static String payloadComMensagens(String mensagens) {
         return "{\"entry\":[{\"changes\":[{\"value\":{"
                 + "\"metadata\":{\"phone_number_id\":\"phone-id-1\"},"
