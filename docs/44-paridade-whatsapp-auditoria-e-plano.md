@@ -158,6 +158,40 @@ atendimento, não cria lead nem repassa; lote misto realista com reentrega: priv
 `#reset` do grupo não devolve a conversa da Ana à IA, repasse único e sem o item de grupo). Com o
 filtro do repasse desligado de propósito, os dois ITs reprovam.
 
+## Fase 3, item 1 — vídeo enviado pelo atendente (E215)
+
+**Limites reais.** Meta Cloud API: `video/mp4` e `video/3gpp`, até 16 MB, vídeo H.264 + áudio AAC. Uzapi:
+o Swagger documenta `type: video` (por `id` do upload ou `link`) com legenda, mas **não publica MIME nem
+teto**; o CRM aplica a ela o mesmo recorte da Meta. Os dois adaptadores já enviavam `VIDEO`.
+
+**Classificação pelo conteúdo** (`TiposDeMidiaPermitidos.classificar`), nunca pela extensão:
+
+| Conteúdo | Resultado |
+|---|---|
+| Contêiner ISO-BMFF com trilha `vide` e marca MP4 (`isom`, `mp42`, `avc1`…) | `VIDEO`, `video/mp4` — o Tika rotula o MP4 comum como `video/quicktime` |
+| Idem com marca 3GP | `VIDEO`, `video/3gpp` |
+| Trilha `vide` com marca `qt  ` (.mov do iPhone) | Recusado (422): a Meta não aceita QuickTime |
+| Trilha `vide` com marca `M4A ` (vídeo disfarçado de áudio) | Recusado (422) — antes passava como **áudio** (ver bug abaixo) |
+| Contêiner sem trilha de vídeo | Caminho de áudio de antes, sem afrouxar nada |
+
+**Bug encontrado.** O chat interno já recusava `audio/mp4` com trilha de vídeo; o envio no atendimento
+não tinha essa guarda, e um vídeo com cabeçalho M4A saía para o cliente como nota de áudio.
+
+**Limite.** Categoria nova `VIDEO`; chave opcional `anexo.tamanho_maximo_video_mb` em
+`configuracao_automacao` (sem ela, 16 MB). Acima do limite: 413 antes do storage. O MIME de vídeo
+existe só no atendimento: `RegrasDeAnexoBase` segue sem vídeo, então chat interno, logo e foto não
+mudam. No frontend, `TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO` acrescenta MP4/3GP só ao composer do
+atendimento.
+
+**Não coberto.** Codec não é inspecionado (HEVC/VP9 dentro de MP4 passa pela classificação); se o
+provedor recusar, a mensagem fica `FALHOU` com o motivo, como qualquer mídia, sem travar o chat. Não há
+transcodificação de vídeo.
+
+**Testes.** `TiposDeMidiaPermitidosTest` (8; com a checagem de trilha desligada de propósito, 3
+reprovam), `AnexoMidiaIT` (MP4 sai como `VIDEO` com legenda; disfarçado e .mov recusados; acima do
+limite configurado; provedor recusa → `FALHOU` e o próximo anexo segue; contêiner sem trilha
+recusado), teste da lista de aceitos do frontend.
+
 ## Objetivo e limites
 
 Garantir que uma mensagem válida e relevante ao atendimento não desapareça silenciosamente entre o provedor WhatsApp e o histórico do CRM. A comparação é por **provedor × direção × capacidade**: recurso do aplicativo WhatsApp não implica suporte da API, da versão instalada ou do CRM. A Base PAI deve funcionar por capacidade, sem condicional pelo nome do cliente.
@@ -173,7 +207,7 @@ Antes de qualquer mudança, preservar a disponibilidade da aba Atendimentos: par
 | Resposta rápida de template recebida | `type: button` documentado | `button_reply` (sem template no Swagger) | **Fase 2, item 1: Meta `type: button` traduzido (ver seção abaixo); Uzapi já traduzia `button_reply`. Coberto por teste local e CI; não verificado com payload real.** | P1 suspeito; confirmar uso antes da correção |
 | Tipo `unsupported` ou novo | Pode ocorrer | Pode ocorrer | Item descartado com `WARN`, sem indicação ao atendente ou contador operacional por tipo. Não transformar todo evento desconhecido em mensagem visível: status e ruído devem continuar filtrados. **Fase 1: o descarte agora fica na linha da fila e no log `[DESCARTE_WEBHOOK]`; aviso ao atendente continua pendente.** | P2 |
 | Grupo recebido | Fora do fluxo individual deste plano | Possível na configuração da instância | **Confirmado no código (E213): a mensagem de grupo entrava na conversa individual do participante e ia para a Automação. Corrigido: filtrada com descarte `GRUPO_NAO_SUPORTADO` e sem repasse (ver seção abaixo). Conversa de grupo continua não implementada. Coberto por teste local e CI; não verificado em instância real.** | P2, decisão de produto antes de alterar |
-| Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | Tipos permitidos no domínio e seletor do composer não incluem vídeo. | P2 |
+| Vídeo enviado pelo atendente | Adaptador tem caminho de envio | Adaptador tem caminho de envio | **Fase 3, item 1 (E215): habilitado no composer do atendimento (MP4/3GP, teto de 16 MB configurável), classificado pelas trilhas do contêiner; .mov e vídeo disfarçado de áudio recusados. Coberto por teste local e CI; não verificado em instância real.** | P2 |
 | Figurinha recebida | Aceita | Aceita | Renderizada como imagem, sem identificação de figurinha. | P3 |
 | Status `played`/`deleted` | Contrato próprio | Eventos possíveis | Não mapeados pela integração UZAPI. Sem decisão de produto registrada sobre exibição/semântica. | P3 |
 | Teste ponta a ponta da entrada UZAPI | — | — | Há testes do tradutor, mas não ficou demonstrado teste controller → job → mensagem comparável ao da Meta. | P2 |

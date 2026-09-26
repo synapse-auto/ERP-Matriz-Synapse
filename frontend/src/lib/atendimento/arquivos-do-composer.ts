@@ -1,6 +1,12 @@
 export const TIPOS_DE_ANEXO_ACEITOS =
   "image/jpeg,image/png,image/webp,audio/ogg,audio/mpeg,audio/mp4,audio/amr,audio/aac,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt";
 
+/**
+ * E215: só o atendimento envia vídeo (MP4 e 3GP, os que a Meta aceita). O chat interno continua com a
+ * lista base. .mov (QuickTime) fica de fora de propósito — o servidor também o recusa.
+ */
+export const TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO = `${TIPOS_DE_ANEXO_ACEITOS},video/mp4,video/3gpp,.mp4,.3gp`;
+
 export function arquivoCompativel(arquivo: File, accept: string): boolean {
   const regras = accept
     .split(",")

@@ -19,6 +19,26 @@ public final class IsoBmffAudioOnly {
     }
 
     /**
+     * Existe trilha {@code vide} no contêiner? Conservador de propósito: uma trilha de vídeo vista
+     * antes de uma caixa malformada ainda conta — quem pergunta isto quer barrar vídeo, e um arquivo
+     * truncado não pode escondê-lo.
+     */
+    public static boolean temTrilhaDeVideo(byte[] bytes) {
+        if (bytes == null || bytes.length < CABECALHO) return false;
+        Resultado resultado = new Resultado();
+        lerCaixas(bytes, 0, bytes.length, 0, resultado);
+        return resultado.temVideo;
+    }
+
+    /** Marca principal da caixa {@code ftyp} inicial ({@code isom}, {@code M4A }, {@code qt  }...), ou vazio. */
+    public static String marcaPrincipal(byte[] bytes) {
+        if (bytes == null || bytes.length < 12) return "";
+        String tipo = new String(bytes, 4, 4, java.nio.charset.StandardCharsets.US_ASCII);
+        if (!"ftyp".equals(tipo) || inteiro32(bytes, 0) < 12) return "";
+        return new String(bytes, 8, 4, java.nio.charset.StandardCharsets.US_ASCII);
+    }
+
+    /**
      * Indica se o contêiner ISO-BMFF possui fragmentos ({@code moof}) no nível superior.
      * Gravações de navegador nesse formato exigem transcodificação antes do upload à Meta.
      */
