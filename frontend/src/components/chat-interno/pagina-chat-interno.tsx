@@ -253,6 +253,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                     />
                   )}
                   <ComposerChatInterno
+                    conversaId={conversaId}
                     ref={composerRef}
                     textos={textos}
                     resposta={respostaAlvo}

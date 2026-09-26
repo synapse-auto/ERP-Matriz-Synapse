@@ -986,6 +986,16 @@
     }
   },
   "chatInterno": {
+    "contatoCompartilhado": {
+      "compartilhar": "Compartilhar contato",
+      "titulo": "Compartilhar contato",
+      "descricao": "Escolha um usuário interno ou informe um contato externo.",
+      "interno": "Usuário interno",
+      "externo": "Contato externo",
+      "nome": "Nome",
+      "telefones": "Telefones (um por linha)",
+      "abrir": "Abrir conversa interna"
+    },
     "titulo": "Chat interno",
     "novaConversa": "Nova conversa",
     "novoGrupo": "Novo grupo",

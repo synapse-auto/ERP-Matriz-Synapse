@@ -9,7 +9,9 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useGravadorAudio } from "@/components/atendimentos/use-gravador-audio";
 import { MidiaMensagemChat } from "./midia-mensagem-chat";
+import { CompartilharContatoChat, ContatoCompartilhadoChat } from "./contato-compartilhado-chat";
 import { TextoComLinks } from "@/components/mensagens/texto-com-links";
+import { contatosDaMensagem, textoCopiavelDosContatos } from "@/lib/atendimento/contato-compartilhado";
 import { filtrarArquivos } from "@/lib/atendimento/arquivos-do-composer";
 import { TIPOS_DE_ANEXO_ACEITOS } from "@/lib/chat-interno/arquivos";
 import type { Textos } from "@/lib/config/schema";
@@ -306,7 +308,9 @@ export function ListaMensagensChatInterno({
           );
         }
         const metadados = (typeof mensagem.midiaMetadados === "string" ? (() => { try { return JSON.parse(mensagem.midiaMetadados as string); } catch { return {}; } })() : (mensagem.midiaMetadados ?? {})) as { legenda?: string; nome?: string; tamanho?: number };
-        const textoCopiavel = mensagem.conteudo?.trim()
+        const textoCopiavel = tipo === "CONTATO"
+          ? textoCopiavelDosContatos(contatosDaMensagem(typeof mensagem.midiaMetadados === "string" ? mensagem.midiaMetadados : JSON.stringify(mensagem.midiaMetadados ?? null)))
+          : mensagem.conteudo?.trim()
           ? mensagem.conteudo
           : typeof metadados.legenda === "string" && metadados.legenda.trim()
             ? metadados.legenda
@@ -356,6 +360,7 @@ export function ListaMensagensChatInterno({
                 <>
 
               {["IMAGEM", "AUDIO", "VIDEO", "DOCUMENTO"].includes(tipo) && <MidiaMensagemChat mensagem={mensagem} />}
+              {tipo === "CONTATO" && <ContatoCompartilhadoChat mensagem={mensagem} />}
               {tipo === "TEXTO" && <p className="whitespace-pre-wrap break-words"><TextoComLinks texto={mensagem.conteudo ?? ""} rotuloAbrir={textos.midias.abrir} /></p>}
 
                 </>
@@ -379,6 +384,7 @@ export type ComposerChatHandle = {
 
 export function ComposerChatInterno({
   textos,
+  conversaId,
   onEnviar,
   resposta,
   onCancelarResposta,
@@ -391,6 +397,7 @@ export function ComposerChatInterno({
   ref,
 }: {
   textos: TextosChat;
+  conversaId?: string;
   onEnviar: (conteudo: string) => Promise<unknown>;
   resposta?: ChatMensagem | null;
   onCancelarResposta?: () => void;
@@ -698,6 +705,7 @@ export function ComposerChatInterno({
             <Button type="button" variant="ghost" size="icon" aria-label={tComp.anexo} onClick={() => inputArquivoRef.current?.click()} disabled={Boolean(edicao) || gravador.fase !== "INATIVO" || pendente}>
               <Paperclip className="size-(--tamanho-icone-interface)" />
             </Button>
+            {conversaId && <CompartilharContatoChat conversaId={conversaId} disabled={Boolean(edicao || resposta) || gravador.fase !== "INATIVO" || pendente} />}
             <PainelEmojiComposer
               rotulo={tComp.emoji}
               i18n={textosAtendimentos.mensagem.acoes.seletor}
