@@ -12,13 +12,13 @@ import com.synapse.crm.automacaoconfig.domain.regras.*;
 public class SalvarRegraFidelizacaoUseCase {
     private final RegraFidelizacaoRepositorio repositorio;
     public SalvarRegraFidelizacaoUseCase(RegraFidelizacaoRepositorio repositorio) { this.repositorio = repositorio; }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.regras')")
     @Transactional
     public RegraFidelizacao criar(int dias, String mensagem, boolean ativo) { validar(dias); return repositorio.salvar(new RegraFidelizacao(UUID.randomUUID(), dias, ValidadorDeMensagemDeAutomacao.validar(mensagem), ativo)); }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.regras')")
     @Transactional
     public RegraFidelizacao atualizar(UUID id, int dias, String mensagem, boolean ativo) { validar(dias); repositorio.porId(id).orElseThrow(() -> new RegraAutomacaoNaoEncontradaException(id)); return repositorio.salvar(new RegraFidelizacao(id, dias, ValidadorDeMensagemDeAutomacao.validar(mensagem), ativo)); }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.regras')")
     @Transactional
     public void excluir(UUID id) { repositorio.porId(id).orElseThrow(() -> new RegraAutomacaoNaoEncontradaException(id)); repositorio.excluir(id); }
     private static void validar(int dias) { if (dias <= 0) throw new RegraAutomacaoInvalidaException("Os dias sem contato devem ser maiores que zero"); }

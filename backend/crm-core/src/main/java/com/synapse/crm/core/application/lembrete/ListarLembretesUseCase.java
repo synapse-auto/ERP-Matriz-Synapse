@@ -12,7 +12,7 @@ public class ListarLembretesUseCase {
         this.lembretes = lembretes;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') and @capacidades.permite('lembretes.ver')")
     @Transactional(readOnly = true)
     public PaginaLembretes executar(FiltroLembretes filtro) {
         return lembretes.listar(filtro);

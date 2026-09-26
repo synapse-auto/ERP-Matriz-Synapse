@@ -145,20 +145,20 @@ public class EnviarMensagemUseCase {
      * valem</b> por este caminho. Sem estas duas linhas, o envio por texto rodaria sem transacao e
      * sem autorizacao — e a trava de {@code TransacaoObrigatoria} foi exatamente o que expos isso.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, String conteudo) {
         return executar(leadId, new ConteudoDeEnvio.MensagemLivre(conteudo));
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo) {
         return executarInterno(
                 leadId, conteudo, usuarioContext.atual().id(), null, null, null, null, null, true);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, String chaveIdempotencia) {
         return executarInterno(
@@ -169,7 +169,7 @@ public class EnviarMensagemUseCase {
      * Envio da conversa que o navegador tem aberta. A âncora impede que uma resposta atrasada seja
      * aplicada a uma nova conversa do mesmo lead depois de a anterior ter sido finalizada.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(
             UUID leadId,
@@ -189,14 +189,14 @@ public class EnviarMensagemUseCase {
                 true);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta) {
         return executarInterno(
                 leadId, conteudo, usuarioContext.atual().id(), null, null, resposta, null, null, true);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(
             UUID leadId, ConteudoDeEnvio conteudo, AlvoDeResposta resposta, String chaveIdempotencia) {
@@ -216,7 +216,7 @@ public class EnviarMensagemUseCase {
      * Encaminhamento ja autorizado: a origem e o destino foram validados pelo caso de uso de
      * encaminhar. Aqui so reusa o caminho de envio (janela, RN-CRM-06, outbox).
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComReferencia(
             UUID leadId, ConteudoDeEnvio conteudo, ReferenciaDeMensagem referencia) {
@@ -224,7 +224,7 @@ public class EnviarMensagemUseCase {
                 leadId, conteudo, usuarioContext.atual().id(), null, referencia, null, null, null, true);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executarComReferencia(
             UUID leadId,

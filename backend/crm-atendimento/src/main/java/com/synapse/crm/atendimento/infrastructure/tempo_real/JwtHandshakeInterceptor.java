@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import com.synapse.crm.sharedkernel.identidade.ClaimsJwt;
+import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
+import com.synapse.crm.sharedkernel.permissao.VerificadorDeSessao;
 
 /**
  * Autentica ANTES de aceitar a conexao — nao a cada frame.
@@ -39,9 +44,11 @@ class JwtHandshakeInterceptor implements HandshakeInterceptor {
     private static final String PARAMETRO_TOKEN = "access_token";
 
     private final JwtDecoder jwtDecoder;
+    private final VerificadorDeSessao sessoes;
 
-    JwtHandshakeInterceptor(JwtDecoder jwtDecoder) {
+    JwtHandshakeInterceptor(JwtDecoder jwtDecoder, VerificadorDeSessao sessoes) {
         this.jwtDecoder = jwtDecoder;
+        this.sessoes = sessoes;
     }
 
     @Override
@@ -62,11 +69,28 @@ class JwtHandshakeInterceptor implements HandshakeInterceptor {
         }
 
         try {
-            atributos.put(ATRIBUTO_JWT, jwtDecoder.decode(token));
+            Jwt jwt = jwtDecoder.decode(token);
+            if (!vigente(jwt)) {
+                // Gestao (docs/47): papel mudou ou usuario desativado. Mesmo 401 do REST; o cliente
+                // renova o token e reconecta com o papel atual.
+                log.warn("Handshake de WebSocket recusado: sessao desatualizada.");
+                resposta.setStatusCode(HttpStatus.UNAUTHORIZED);
+                return false;
+            }
+            atributos.put(ATRIBUTO_JWT, jwt);
             return true;
         } catch (JwtException e) {
             log.warn("Handshake de WebSocket recusado: token invalido ou expirado.");
             resposta.setStatusCode(HttpStatus.UNAUTHORIZED);
+            return false;
+        }
+    }
+
+    private boolean vigente(Jwt jwt) {
+        try {
+            return sessoes.vigente(UUID.fromString(jwt.getSubject()),
+                    PapelUsuario.valueOf(jwt.getClaimAsString(ClaimsJwt.PAPEL)));
+        } catch (IllegalArgumentException | NullPointerException e) {
             return false;
         }
     }

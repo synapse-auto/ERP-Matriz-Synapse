@@ -58,7 +58,12 @@ public class TransferirAtendimentoUseCase {
      * @param paraAtendenteId {@code null} devolve a conversa para a IA
      * @param quemPediu autor da transferencia, para a timeline dizer quem moveu o lead
      */
-    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR')")
+    /**
+     * Gestao (docs/47): transferir para colega e devolver para a IA sao capacidades distintas;
+     * {@code #p1} e {@code paraAtendenteId} (nulo = devolver). A regra de Potenciais (atendente nao
+     * escolhe destino) continua valendo abaixo, independente da capacidade.
+     */
+    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR') and (#p1 == null ? @capacidades.permite('atendimentos.devolver_ia') : @capacidades.permite('atendimentos.transferir'))")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento executar(UUID atendimentoId, UUID paraAtendenteId, UUID quemPediu) {
         return transferir(atendimentoId, paraAtendenteId, quemPediu, OrigemEvento.USUARIO, false, false);

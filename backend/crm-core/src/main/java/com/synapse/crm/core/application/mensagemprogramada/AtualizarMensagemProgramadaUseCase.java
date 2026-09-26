@@ -14,7 +14,7 @@ import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 public class AtualizarMensagemProgramadaUseCase {
     private final MensagemProgramadaRepositorio mensagens;
     public AtualizarMensagemProgramadaUseCase(MensagemProgramadaRepositorio mensagens) { this.mensagens = mensagens; }
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_programadas.editar_cancelar')")
     @Transactional
     public Optional<MensagemProgramada> executar(UUID id, String conteudo, Instant dataEnvio) {
         Optional<MensagemProgramada> alterada = mensagens.atualizarAgendada(id, conteudo.trim(), dataEnvio);

@@ -23,7 +23,7 @@ public class ObterStatusAutomacaoTelemetriaUseCase {
         this.telemetria = telemetria;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
     @Transactional(readOnly = true)
     public StatusAutomacaoTelemetria executar() {
         return telemetria.obter();

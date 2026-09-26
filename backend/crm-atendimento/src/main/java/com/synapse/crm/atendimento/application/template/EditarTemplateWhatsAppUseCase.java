@@ -17,7 +17,7 @@ public class EditarTemplateWhatsAppUseCase {
         this.canal = canal;
     }
 
-    @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('templates.editar')")
     public void executar(String id, String corpo) {
         if (id == null || id.isBlank()) {
             throw new PedidoDeTemplateInvalidoException("template exige um id");

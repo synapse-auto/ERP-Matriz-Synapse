@@ -44,7 +44,7 @@ public class SolicitarResumoIaUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('resumo_ia.solicitar')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public SolicitacaoResumoIaRepositorio.Solicitacao executar(UUID atendimentoId, UUID solicitacaoId) {
         if (!automacao.configurado()) throw new ResumoIaAutomacaoDesabilitadoException();
@@ -77,7 +77,7 @@ public class SolicitarResumoIaUseCase {
         return resposta;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('resumo_ia.ver')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public SolicitacaoResumoIaRepositorio.Solicitacao estado(UUID atendimentoId) {
         atendimentos.porId(atendimentoId)

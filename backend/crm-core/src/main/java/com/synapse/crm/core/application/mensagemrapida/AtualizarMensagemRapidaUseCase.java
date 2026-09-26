@@ -20,7 +20,7 @@ public class AtualizarMensagemRapidaUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_rapidas.editar_excluir')")
     @Transactional
     public Optional<MensagemRapida> executar(UUID id, String chave, String conteudo) {
         var atual = usuario.atual();

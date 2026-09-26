@@ -18,7 +18,7 @@ public class RemoverMensagemRapidaUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_rapidas.editar_excluir')")
     @Transactional
     public boolean executar(UUID id) {
         var atual = usuario.atual();

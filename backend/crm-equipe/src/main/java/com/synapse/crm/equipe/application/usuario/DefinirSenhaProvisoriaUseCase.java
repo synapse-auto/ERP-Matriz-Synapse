@@ -37,25 +37,34 @@ public class DefinirSenhaProvisoriaUseCase {
     private final CodificadorDeSenha senhas;
     private final PoliticaDeSenha politica;
     private final RefreshTokenRepositorio refreshTokens;
+    private final AlcadaSobreIntegrantes alcada;
 
     public DefinirSenhaProvisoriaUseCase(
             EquipeRepositorio equipe,
             CodificadorDeSenha senhas,
             PoliticaDeSenha politica,
-            RefreshTokenRepositorio refreshTokens) {
+            RefreshTokenRepositorio refreshTokens,
+            AlcadaSobreIntegrantes alcada) {
         this.equipe = equipe;
         this.senhas = senhas;
         this.politica = politica;
         this.refreshTokens = refreshTokens;
+        this.alcada = alcada;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR','ADMINISTRADOR')")
+    /** Gestao (docs/47): SUBGESTOR delegado ({@code equipe.senha_provisoria}) so alcanca ATENDENTE. */
+    @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('equipe.senha_provisoria')")
     @Transactional
     @Auditable(
             acao = "GERAR_SENHA_PROVISORIA",
             entidadeTipo = "USUARIO",
             capturarDados = false)
     public Optional<String> executar(UUID usuarioId) {
+        Optional<com.synapse.crm.equipe.domain.usuario.Usuario> alvo = equipe.porId(usuarioId);
+        if (alvo.isEmpty()) {
+            return Optional.empty();
+        }
+        alcada.exigirAlvo(usuarioId, alvo.get().papel());
         String senha = GeradorDeSenhaAleatoria.gerar(Math.max(politica.tamanhoMinimo(), TAMANHO_MINIMO_GERADO));
         boolean encontrado = equipe.definirSenhaProvisoria(usuarioId, senhas.codificar(senha));
         if (!encontrado) {

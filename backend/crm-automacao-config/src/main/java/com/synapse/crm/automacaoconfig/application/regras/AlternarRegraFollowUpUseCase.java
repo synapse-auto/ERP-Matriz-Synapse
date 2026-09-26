@@ -12,7 +12,7 @@ import com.synapse.crm.automacaoconfig.domain.regras.*;
 public class AlternarRegraFollowUpUseCase {
     private final RegraFollowUpRepositorio repositorio;
     public AlternarRegraFollowUpUseCase(RegraFollowUpRepositorio repositorio) { this.repositorio = repositorio; }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.regras')")
     @Transactional
     public RegraFollowUp executar(UUID id, boolean ativo) {
         RegraFollowUp atual = repositorio.porId(id).orElseThrow(() -> new RegraAutomacaoNaoEncontradaException(id));

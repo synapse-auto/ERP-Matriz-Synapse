@@ -64,13 +64,13 @@ public class EnviarMidiaUseCase {
                 new ConversorDeAudio.Resultado(conteudo, mimetype));
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId, byte[] conteudo, String nomeArquivoOriginal, String legenda) {
         return executar(leadId, conteudo, nomeArquivoOriginal, legenda, null, false, null);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId,
             byte[] conteudo,
@@ -84,7 +84,7 @@ public class EnviarMidiaUseCase {
      * Envia mídia, identificando explicitamente se o arquivo veio da gravação do composer.
      * Anexos escolhidos pelo atendente não entram no conversor.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId,
             byte[] conteudo,
@@ -96,7 +96,7 @@ public class EnviarMidiaUseCase {
     }
 
     /** Variante HTTP que propaga a chave estável do clique até a mensagem transacional. */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId,
             byte[] conteudo,
@@ -121,7 +121,7 @@ public class EnviarMidiaUseCase {
      * Se o upload terminar depois de a conversa mudar, {@link EnviarMensagemUseCase} recusa o
      * clique ancorado antes de gravar mensagem ou outbox e este caso de uso remove o objeto recém-salvo.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     public EnviarMensagemUseCase.Resultado executar(
             UUID leadId,
             UUID atendimentoEsperadoId,

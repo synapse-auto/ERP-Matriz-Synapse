@@ -18,7 +18,7 @@ public class ListarTemplatesWhatsAppUseCase {
         this.canal = canal;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('templates.ver')")
     public List<TemplateDoCanal> executar() {
         return canal.listarTemplates();
     }

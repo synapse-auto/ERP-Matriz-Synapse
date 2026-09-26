@@ -13,7 +13,7 @@ public class ObterConfiguracaoResumoIaUseCase {
         this.repositorio = repositorio;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
     public ConfiguracaoResumoIa executar() {
         return repositorio.obter();
     }
