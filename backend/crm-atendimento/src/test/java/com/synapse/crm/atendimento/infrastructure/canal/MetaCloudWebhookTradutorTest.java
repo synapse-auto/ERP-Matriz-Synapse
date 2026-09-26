@@ -88,6 +88,80 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void mensagemComGroupIdViraDescarteDeGrupoSemDerrubarOPrivado() {
+        String grupo = """
+                {"from":"5561000000001","id":"G","group_id":"120363000000000000","timestamp":"1720000000",
+                 "type":"text","text":{"body":"no grupo"}}""";
+        String privado = """
+                {"from":"5561000000001","id":"A","timestamp":"1720000001","type":"text","text":{"body":"ok"}}""";
+
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(grupo + "," + privado));
+
+        assertThat(traducao.mensagens()).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+        assertThat(traducao.descartes()).singleElement().satisfies(descarte -> {
+            assertThat(descarte.tipo()).isEqualTo("text");
+            assertThat(descarte.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+        });
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo), "sha256=original")).isEmpty();
+        String soPrivado = payloadComMensagens(privado);
+        assertThat(tradutor.repasseSemGrupos(soPrivado, "sha256=original")).hasValueSatisfying(r -> {
+            assertThat(r.payloadCru()).isSameAs(soPrivado);
+            assertThat(r.assinatura()).isEqualTo("sha256=original");
+        });
+        // Misto: corpo sem o grupo e assinatura refeita com o mesmo App Secret — continua valida.
+        assertThat(tradutor.repasseSemGrupos(payloadComMensagens(grupo + "," + privado), "sha256=original"))
+                .hasValueSatisfying(r -> {
+                    assertThat(r.payloadCru()).contains("\"A\"").doesNotContain("120363000000000000");
+                    assertThat(r.assinatura()).isNotEqualTo("sha256=original");
+                    assertThat(tradutor.assinaturaValida(r.payloadCru(), r.assinatura(), null)).isTrue();
+                });
+    }
+
+    @Test
+    void cliqueEmBotaoDeTemplateViraTextoComContextoDoTemplate() {
+        // Formato oficial da Meta para resposta rápida de template (type=button, não interactive).
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(
+                """
+                {"context":{"from":"5561900000000","id":"wamid.template-enviado"},
+                 "from":"5561000000001","id":"wamid.clique","timestamp":"1720000000","type":"button",
+                 "button":{"payload":"CONFIRMAR_VISITA","text":"Confirmar visita"}}
+                """));
+
+        assertThat(traducao.descartes()).isEmpty();
+        assertThat(traducao.mensagens()).singleElement().satisfies(mensagem -> {
+            assertThat(mensagem.tipo()).isEqualTo("TEXTO");
+            assertThat(mensagem.texto()).isEqualTo("Confirmar visita");
+            assertThat(mensagem.idExterno()).isEqualTo("wamid.clique");
+            assertThat(mensagem.telefoneRemetente()).isEqualTo("5561000000001");
+            assertThat(mensagem.nomeExibicao()).isEqualTo("Cliente");
+            assertThat(mensagem.enviadoEm().getEpochSecond()).isEqualTo(1720000000L);
+            assertThat(mensagem.contextoWamid()).isEqualTo("wamid.template-enviado");
+        });
+    }
+
+    @Test
+    void cliqueDeBotaoSemTextoEDescartadoSemDerrubarOLoteNemUsarOPayload() {
+        var traducao = tradutor.traduzirComDescartes(payloadComMensagens(
+                """
+                {"from":"5561000000001","id":"B1","timestamp":"1720000000","type":"button",
+                 "button":{"payload":"SO_PAYLOAD","text":"  "}},
+                {"from":"5561000000001","id":"B2","timestamp":"1720000001","type":"button"},
+                {"from":"5561000000001","id":"B3","timestamp":"1720000002","type":"button","button":"quebrado"},
+                {"from":"5561000000001","id":"A","timestamp":"1720000003","type":"text","text":{"body":"ok"}}
+                """));
+
+        assertThat(traducao.mensagens()).extracting(TradutorDeCanal.MensagemRecebidaDoCanal::idExterno)
+                .containsExactly("A");
+        assertThat(traducao.descartes()).hasSize(3).allSatisfy(descarte -> {
+            assertThat(descarte.tipo()).isEqualTo("button");
+            assertThat(descarte.motivo()).isEqualTo(TradutorDeCanal.MotivoDeDescarte.CONTEUDO_INVALIDO);
+        });
+        assertThat(logs.list).noneMatch(evento -> evento.getFormattedMessage().contains("SO_PAYLOAD")
+                || evento.getFormattedMessage().contains("5561000000001"));
+    }
+
+    @Test
     void interactiveDeTipoDesconhecidoDescartaSemDerrubarAsDemaisELogaWarn() {
         var mensagens = tradutor.traduzir(payloadComMensagens(
                 """

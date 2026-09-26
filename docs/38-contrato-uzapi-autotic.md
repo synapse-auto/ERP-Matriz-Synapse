@@ -208,6 +208,11 @@ de entrega (inclusive `played`/`deleted`, ainda sem mapeamento) e Status/Story s
 decisão e não contam como descarte. Detalhe e consulta operacional em
 `docs/44-paridade-whatsapp-auditoria-e-plano.md`.
 
+**Grupo (E213).** Mensagem com `isGroup: true` ou JID `@g.us` vira descarte `GRUPO_NAO_SUPORTADO` e
+não entra na conversa individual do participante. POST só de grupo não é repassado à Automação.
+Conversa de grupo não é suportada; `group_messages: true` no registro do callback continua
+inofensivo, mas pode ser desligado para reduzir ruído na fila.
+
 Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
 identificador técnico da mídia e devolve uma indisponibilidade retentável. O processador mantém o
 payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o
