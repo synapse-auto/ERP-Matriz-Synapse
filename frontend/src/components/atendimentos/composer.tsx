@@ -32,7 +32,7 @@ import {
 import { ErroDeApi } from "@/lib/api/errors";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
-import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS } from "@/lib/atendimento/arquivos-do-composer";
+import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta, origemDaMensagem } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-template";
@@ -257,7 +257,7 @@ export function Composer({
 
   function adicionarArquivos(novos: File[]) {
     if (!podeEnviar || !janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
-    const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS);
+    const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO);
     if (aceitos.length > 0) {
       setArquivos((atual) => [...atual, ...aceitos]);
     }
@@ -769,7 +769,7 @@ export function Composer({
             <input
               ref={inputArquivoRef}
               type="file"
-              accept={TIPOS_DE_ANEXO_ACEITOS}
+              accept={TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO}
               multiple
               className="hidden"
               onChange={aoSelecionarArquivo}

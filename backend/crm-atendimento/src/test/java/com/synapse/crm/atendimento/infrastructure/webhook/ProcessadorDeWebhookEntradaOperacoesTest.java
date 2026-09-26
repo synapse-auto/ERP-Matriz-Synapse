@@ -288,6 +288,7 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
                 tradutor,
                 idempotencia,
                 registrar,
+                mock(com.synapse.crm.atendimento.application.reacao.RegistrarReacaoDoClienteUseCase.class),
                 mock(MensagemIdExternoRepositorio.class),
                 mock(OrigemDeMensagemRepositorio.class),
                 mock(AtendimentoRepositorio.class),

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.ReacaoRecebidaDoCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
 /**
@@ -191,9 +192,24 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
     public Traducao traduzirComDescartes(String payloadCru) {
         List<MensagemRecebidaDoCanal> traduzidas = new ArrayList<>();
         List<ItemDescartado> descartes = new ArrayList<>();
+        List<ReacaoRecebidaDoCanal> reacoes = new ArrayList<>();
         for (MensagemDoPayload item : mensagens(payloadCru)) {
             String tipo = TipoDeItemDoProvedor.normalizar(item.mensagem().path("type").asText(null));
             try {
+                if (ehGrupo(item.mensagem())) {
+                    throw new ItemNaoTraduzido(MotivoDeDescarte.GRUPO_NAO_SUPORTADO);
+                }
+                if ("reaction".equals(tipo)) {
+                    // Reacao nao e mensagem do historico: vai para o proprio registro do cliente.
+                    Origem origem = origemDo(item);
+                    reacoes.add(ReacaoDoProvedor.ler(
+                            item.mensagem(),
+                            origem.idExterno(),
+                            origem.telefoneRemetente(),
+                            origem.identificadorDestino(),
+                            origem.enviadoEm()));
+                    continue;
+                }
                 traduzidas.add(traduzirItem(item));
             } catch (ItemNaoTraduzido e) {
                 descartes.add(new ItemDescartado(tipo, e.motivo()));
@@ -204,7 +220,34 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
                 descartes.add(new ItemDescartado(tipo, MotivoDeDescarte.ITEM_MALFORMADO));
             }
         }
-        return new Traducao(traduzidas, descartes);
+        return new Traducao(traduzidas, descartes, reacoes);
+    }
+
+    /**
+     * POST misto: o corpo muda, entao a assinatura e recalculada com o mesmo App Secret que validou a
+     * entrada — quem confere {@code X-Hub-Signature-256} no n8n continua aceitando. Sem grupo, nada
+     * muda: corpo e assinatura originais.
+     */
+    @Override
+    public java.util.Optional<RepasseParaAutomacao> repasseSemGrupos(String payloadCru, String assinatura) {
+        return switch (RepasseSemGrupos.filtrar(payloadCru, json, MetaCloudWebhookTradutor::ehGrupo)) {
+            case RepasseSemGrupos.Resultado.Intacto intacto ->
+                    java.util.Optional.of(new RepasseParaAutomacao(payloadCru, assinatura));
+            case RepasseSemGrupos.Resultado.SemConteudo vazio -> java.util.Optional.empty();
+            case RepasseSemGrupos.Resultado.Filtrado filtrado -> java.util.Optional.of(new RepasseParaAutomacao(
+                    filtrado.payload(),
+                    PREFIXO_ASSINATURA + HexFormat.of().formatHex(calcular(filtrado.payload()))));
+        };
+    }
+
+    /**
+     * Defensivo: a conta Cloud API usada é de conversa individual, mas a API de grupos da Meta marca a
+     * mensagem de grupo com {@code group_id}. Se um dia chegar, o {@code from} é o participante —
+     * traduzir colaria o grupo no privado dele.
+     */
+    private static boolean ehGrupo(JsonNode mensagem) {
+        String grupo = mensagem.path("group_id").asText(null);
+        return grupo != null && !grupo.isBlank();
     }
 
     private MensagemRecebidaDoCanal traduzirItem(MensagemDoPayload item) {
@@ -222,6 +265,10 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             // A resposta do cliente é texto do ponto de vista do histórico. O id interno da
             // opção é controle do provedor; o atendente precisa ver o título que o cliente leu.
             case "interactive" -> origem.texto(tituloExigido(no.path("interactive")));
+            // Clique em resposta rápida de template: a Meta manda type=button, não interactive. O
+            // payload é controle de quem montou o template; o histórico mostra o texto do botão, e
+            // o context.id (já na origem) liga o clique ao template enviado.
+            case "button" -> origem.texto(textoDoBotaoExigido(no.path("button")));
             case "location" -> origem.estruturada("LOCALIZACAO", localizacao(no.path("location")));
             // messages[].contacts[] e o cartao compartilhado; value.contacts[] (remetente) nao
             // chega aqui.
@@ -255,6 +302,17 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
         }
         return titulo;
+    }
+
+    private static String textoDoBotaoExigido(JsonNode botao) {
+        String texto = botao.path("text").asText(null);
+        if (texto == null || texto.isBlank()) {
+            // Sem texto não há o que o atendente ler. O payload não substitui: é identificador
+            // interno do template, não a escolha que o cliente viu.
+            log.warn("Clique de botao de template sem texto; item descartado. chaves={}", campos(botao));
+            throw new ItemNaoTraduzido(MotivoDeDescarte.CONTEUDO_INVALIDO);
+        }
+        return texto;
     }
 
     private String localizacao(JsonNode locNode) {

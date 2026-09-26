@@ -438,6 +438,7 @@
         "reagir": "Reagir com {emoji}",
         "reacaoQuantidade": "{emoji}, {quantidade}",
         "reacaoMinha": "{emoji}, {quantidade}, sua reação",
+        "reacaoDoCliente": "{emoji}, reação do cliente",
         "maisEmojis": "Mais emojis",
         "seletorTitulo": "Escolher emoji",
         "seletorFechar": "Fechar seletor de emojis",

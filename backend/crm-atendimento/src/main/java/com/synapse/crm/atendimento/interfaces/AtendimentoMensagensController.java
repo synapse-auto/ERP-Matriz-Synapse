@@ -240,7 +240,9 @@ class AtendimentoMensagensController {
             Instant enviadoEm,
             List<ResumoReacaoResposta> reacoes,
             CitacaoResposta citacao,
-            String idempotencyKey) {
+            String idempotencyKey,
+            // E214: emoji atual do cliente no WhatsApp; separado de `reacoes`, que sao do CRM.
+            String reacaoDoCliente) {
 
         static MensagemResposta de(
                 MensagemDoHistorico item,
@@ -269,7 +271,8 @@ class AtendimentoMensagensController {
                     mensagem.enviadoEm(),
                     item.reacoes().stream().map(ResumoReacaoResposta::de).toList(),
                     CitacaoResposta.de(item.citacao()),
-                    item.chaveIdempotencia());
+                    item.chaveIdempotencia(),
+                    item.reacaoDoCliente());
         }
     }
 

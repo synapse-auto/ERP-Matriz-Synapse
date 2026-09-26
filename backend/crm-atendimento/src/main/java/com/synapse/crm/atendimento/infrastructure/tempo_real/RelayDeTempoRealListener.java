@@ -17,6 +17,7 @@ import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.MensagemParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
 import com.synapse.crm.atendimento.domain.evento.ReacaoDaMensagemParaTempoReal;
+import com.synapse.crm.atendimento.domain.evento.ReacaoDoClienteParaTempoReal;
 import com.synapse.crm.atendimento.domain.evento.ResumoIaParaTempoReal;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
@@ -213,6 +214,21 @@ class RelayDeTempoRealListener {
         }
         dados.set("reacoes", resumoPublico(evento.reacoes()));
         publicar(evento.atendimentoId(), "REACAO", dados);
+    }
+
+    /** E214: so o emoji atual do cliente (nulo = removeu). Nao mexe nas reacoes do CRM. */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    void aoReagirCliente(ReacaoDoClienteParaTempoReal evento) {
+        ObjectNode dados = json.createObjectNode();
+        dados.put("atendimentoId", evento.atendimentoId().toString());
+        dados.put("mensagemId", evento.mensagemId().toString());
+        dados.put("enviadoEm", evento.enviadoEm().toString());
+        if (evento.emoji() == null) {
+            dados.putNull("emoji");
+        } else {
+            dados.put("emoji", evento.emoji());
+        }
+        publicar(evento.atendimentoId(), "REACAO_CLIENTE", dados);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

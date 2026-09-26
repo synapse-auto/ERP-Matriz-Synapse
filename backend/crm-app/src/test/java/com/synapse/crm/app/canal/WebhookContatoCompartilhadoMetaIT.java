@@ -206,8 +206,8 @@ class WebhookContatoCompartilhadoMetaIT extends PostgresIT {
                 """.formatted(PHONE_NUMBER_ID, TELEFONE_CLIENTE);
         assertThat(postar(soStatus).getStatusCode()).isEqualTo(HttpStatus.OK);
         postar(payload("""
-                {"from":"%s","id":"wamid.contato-meta.reacao","timestamp":"1720000000","type":"reaction",
-                 "reaction":{"message_id":"wamid.qualquer","emoji":"ok"}}
+                {"from":"%s","id":"wamid.contato-meta.reacao","timestamp":"1720000000","type":"order",
+                 "order":{"catalog_id":"x"}}
                 """.formatted(TELEFONE_CLIENTE)));
 
         processador.processarPendentes();
@@ -226,7 +226,8 @@ class WebhookContatoCompartilhadoMetaIT extends PostgresIT {
         // Tipo documentado mas nao traduzido: localizavel pela linha, sem abrir o payload.
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM webhook_entrada WHERE itens_descartados > 0"
-                        + " AND descartes @> '[{\"tipo\":\"reaction\",\"motivo\":\"TIPO_NAO_SUPORTADO\"}]'"
+                        // E214: reaction passou a ser suportada; order continua fora.
+                        + " AND descartes @> '[{\"tipo\":\"order\",\"motivo\":\"TIPO_NAO_SUPORTADO\"}]'"
                         + " AND id_externo = 'wamid.contato-meta.reacao'",
                 Integer.class)).isEqualTo(1);
     }

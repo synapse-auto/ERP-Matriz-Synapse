@@ -29,6 +29,7 @@ import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
+import com.synapse.crm.atendimento.application.reacao.RegistrarReacaoDoClienteUseCase;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
@@ -84,6 +85,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
     private final TradutorDeCanal tradutor;
     private final IdempotenciaDeMensagemRecebidaRepositorio idempotencia;
     private final RegistrarMensagemRecebidaUseCase registrar;
+    private final RegistrarReacaoDoClienteUseCase registrarReacao;
     private final MensagemIdExternoRepositorio idsExternos;
     private final OrigemDeMensagemRepositorio origens;
     private final AtendimentoRepositorio atendimentos;
@@ -110,6 +112,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
             TradutorDeCanal tradutor,
             IdempotenciaDeMensagemRecebidaRepositorio idempotencia,
             RegistrarMensagemRecebidaUseCase registrar,
+            RegistrarReacaoDoClienteUseCase registrarReacao,
             MensagemIdExternoRepositorio idsExternos,
             OrigemDeMensagemRepositorio origens,
             AtendimentoRepositorio atendimentos,
@@ -134,6 +137,7 @@ public class ProcessadorDeWebhookEntradaOperacoes {
         this.tradutor = tradutor;
         this.idempotencia = idempotencia;
         this.registrar = registrar;
+        this.registrarReacao = registrarReacao;
         this.idsExternos = idsExternos;
         this.origens = origens;
         this.atendimentos = atendimentos;
@@ -290,6 +294,18 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                 if (resultado.atendimento().status().estaAberto()) {
                     transferirAtendimento.devolverParaIaPeloSistema(resultado.atendimento().id());
                 }
+            }
+        }
+
+        // Depois das mensagens: reagir a uma mensagem que chegou no mesmo POST encontra o alvo. A
+        // reacao nao passa pelo reset nem pela Automacao, nao cria lead e nao abre atendimento.
+        for (TradutorDeCanal.ReacaoRecebidaDoCanal reacao : traducao.reacoes()) {
+            if (!idempotencia.reservarSeNova(reacao.idExterno())) {
+                continue;
+            }
+            if (registrarReacao.executar(reacao) == RegistrarReacaoDoClienteUseCase.Resultado.ALVO_DESCONHECIDO) {
+                descartes.add(new TradutorDeCanal.ItemDescartado(
+                        "reaction", TradutorDeCanal.MotivoDeDescarte.ALVO_DESCONHECIDO));
             }
         }
 

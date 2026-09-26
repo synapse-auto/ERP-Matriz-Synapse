@@ -6,6 +6,7 @@ import type { PaginaChatMensagens } from "@/lib/chat-interno/types";
 import type { DadosDoHistorico } from "./cache-mensagens";
 import {
   aplicarResumoPublico,
+  atualizarReacaoDoClienteDoHistorico,
   atualizarReacoesDoChatInterno,
   atualizarReacoesDoHistorico,
   type AlteracaoDeReacao,
@@ -163,6 +164,25 @@ describe.each(adaptadores)("$nome — duas abas do mesmo usuario", (adaptador) =
     adaptador.aplicar(cache, publicos, evento, USUARIO);
     adaptador.aplicar(cache, publicos, evento, USUARIO);
     expect(adaptador.ler(cache)).toEqual([{ emoji: "👍", quantidade: 2, reagi: true }]);
+  });
+
+  it("reação do cliente troca só o próprio campo e preserva as reações da equipe", () => {
+    const cache = new QueryClient();
+    cache.setQueryData(CHAVE_HISTORICO, historico([{ emoji: "👍", quantidade: 1, reagi: true }]));
+
+    atualizarReacaoDoClienteDoHistorico(cache, [...CHAVE_HISTORICO], "m1", "❤️");
+    const comReacao = cache.getQueryData<DadosDoHistorico>(CHAVE_HISTORICO)!.pages[0].mensagens[0];
+    expect(comReacao.reacaoDoCliente).toBe("❤️");
+    expect(comReacao.reacoes).toEqual([{ emoji: "👍", quantidade: 1, reagi: true }]);
+
+    atualizarReacaoDoClienteDoHistorico(cache, [...CHAVE_HISTORICO], "m1", null);
+    const removida = cache.getQueryData<DadosDoHistorico>(CHAVE_HISTORICO)!.pages[0].mensagens[0];
+    expect(removida.reacaoDoCliente).toBeNull();
+    expect(removida.reacoes).toEqual([{ emoji: "👍", quantidade: 1, reagi: true }]);
+
+    // Mensagem que não está no cache não é criada.
+    atualizarReacaoDoClienteDoHistorico(cache, [...CHAVE_HISTORICO], "outra", "😂");
+    expect(cache.getQueryData<DadosDoHistorico>(CHAVE_HISTORICO)!.pages.flatMap((p) => p.mensagens)).toHaveLength(1);
   });
 
   it("evento de outro usuario preserva a reacao propria do destinatario", () => {

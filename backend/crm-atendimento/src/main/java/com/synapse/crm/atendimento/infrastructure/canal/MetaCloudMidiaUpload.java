@@ -81,6 +81,7 @@ final class MetaCloudMidiaUpload {
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
             case "video/mp4" -> ".mp4";
+            case "video/3gpp" -> ".3gp";
             case "video/webm" -> ".webm";
             case "video/quicktime" -> ".mov";
             case "application/pdf" -> ".pdf";

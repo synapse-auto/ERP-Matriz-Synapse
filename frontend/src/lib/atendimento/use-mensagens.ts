@@ -6,7 +6,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { mensagensDesde, paginaMensagens } from "./api";
 import { atualizarPaginaRecente, type DadosDoHistorico } from "./cache-mensagens";
-import { atualizarReacoesDoHistorico } from "./reacoes-cache";
+import { atualizarReacaoDoClienteDoHistorico, atualizarReacoesDoHistorico } from "./reacoes-cache";
 import { type ConexaoTempoReal, type EstadoConexao, mesclarMensagens } from "./tempo-real";
 import type {
   EventoCanonicoAtendimentoTempoReal,
@@ -152,6 +152,13 @@ export function useMensagens(
           evento.dados.reacoes,
           { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor },
           useAuthStore.getState().usuarioId,
+        );
+      } else if (evento.tipo === "REACAO_CLIENTE") {
+        atualizarReacaoDoClienteDoHistorico(
+          queryClient,
+          queryKey,
+          evento.dados.mensagemId,
+          evento.dados.emoji,
         );
       }
     });
