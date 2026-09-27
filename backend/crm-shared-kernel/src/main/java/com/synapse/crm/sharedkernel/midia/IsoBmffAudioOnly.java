@@ -30,6 +30,13 @@ public final class IsoBmffAudioOnly {
         return resultado.temVideo;
     }
 
+    /** Para aceitar upload de vídeo, exige trilha e estrutura completa, não só um handler visto. */
+    public static boolean ehVideoValido(byte[] bytes) {
+        if (bytes == null || bytes.length < CABECALHO) return false;
+        Resultado resultado = new Resultado();
+        return lerCaixas(bytes, 0, bytes.length, 0, resultado) && resultado.temVideo;
+    }
+
     /** Marca principal da caixa {@code ftyp} inicial ({@code isom}, {@code M4A }, {@code qt  }...), ou vazio. */
     public static String marcaPrincipal(byte[] bytes) {
         if (bytes == null || bytes.length < 12) return "";

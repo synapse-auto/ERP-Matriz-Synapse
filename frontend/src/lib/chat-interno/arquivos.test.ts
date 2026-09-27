@@ -9,4 +9,9 @@ describe("arquivos do chat interno", () => {
     expect(arquivoCompativel(audio, TIPOS_BASE)).toBe(false);
     expect(arquivoCompativel(new File([""], "script.exe"), TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
   });
+  it("seleciona MP4 e 3GP internos sem liberar QuickTime", () => {
+    expect(arquivoCompativel(new File([""], "video.mp4", { type: "video/mp4" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(true);
+    expect(arquivoCompativel(new File([""], "video.3gp", { type: "video/3gpp" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(true);
+    expect(arquivoCompativel(new File([""], "video.mov", { type: "video/quicktime" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
+  });
 });

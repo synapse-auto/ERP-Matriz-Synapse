@@ -14,13 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio.MensagemResumo;
+import com.synapse.crm.equipe.domain.chat.TiposDeMidiaInterna;
 import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 import com.synapse.crm.sharedkernel.midia.CategoriaDeMidia;
 import com.synapse.crm.sharedkernel.midia.DetectorDeTipoReal;
 import com.synapse.crm.sharedkernel.midia.IsoBmffAudioOnly;
 import com.synapse.crm.sharedkernel.midia.LimiteDeAnexoRepositorio;
-import com.synapse.crm.sharedkernel.midia.RegrasDeAnexoBase;
 
 @Service
 public class EnviarMidiaChatUseCase {
@@ -60,10 +60,11 @@ public class EnviarMidiaChatUseCase {
         UUID remetente = usuario.atual().id();
         if (!repositorio.participante(conversaId, remetente)) throw new ChatSemAcessoException();
 
-        String mimetypeReal =
-                IsoBmffAudioOnly.mimetypeDeAudioSeCamuflado(detector.detectar(conteudo), conteudo);
-        CategoriaDeMidia categoria = RegrasDeAnexoBase.categoriaDe(mimetypeReal)
-                .orElseThrow(() -> new TipoDeMidiaInternaNaoPermitidoException(mimetypeReal));
+        String detectado = detector.detectar(conteudo);
+        var classificacao = TiposDeMidiaInterna.classificar(detectado, conteudo)
+                .orElseThrow(() -> new TipoDeMidiaInternaNaoPermitidoException(detectado));
+        String mimetypeReal = classificacao.mimetype();
+        CategoriaDeMidia categoria = classificacao.categoria();
 
         long limite = limites.limiteEmBytes(categoria).orElse(100L * 1024 * 1024);
         if (conteudo.length > limite) {
