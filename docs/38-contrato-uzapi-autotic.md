@@ -213,10 +213,17 @@ não entra na conversa individual do participante. POST só de grupo não é rep
 Conversa de grupo não é suportada; `group_messages: true` no registro do callback continua
 inofensivo, mas pode ser desligado para reduzir ruído na fila.
 
-Quando o resolvedor responde HTTP 400, 404 ou 5xx, o adaptador registra apenas o status e o
-identificador técnico da mídia e devolve uma indisponibilidade retentável. O processador mantém o
-payload em `webhook_entrada`, aplica o backoff durável configurado e só esgota após o limite ou o
-prazo absoluto; o corpo da resposta do provedor nunca vai para `ultimo_erro`.
+O recebimento de mídia faz duas chamadas: o resolvedor `GET /{version}/{mediaId}` e o download dos
+bytes na `url` devolvida. O adaptador registra só a **etapa**, o status e o identificador técnico:
+`etapa=resolvedor respondeu HTTP {status}` ou `etapa=download respondeu HTTP {status}; host={host}`
+(E218 — só o host da URL, nunca caminho ou query). **HTTP 410 no resolvedor é definitivo** (E218,
+Bloco 1): o `mediaId` foi removido, a mensagem entra na conversa sem arquivo na mesma tentativa e o
+log `[MIDIA_NAO_RECEBIDA]` sai em ~1 s. Qualquer outra resposta de erro (400, 404, 5xx, e também o
+410 do **download**, que pode ser só a URL temporária vencida) continua sendo indisponibilidade
+retentável: o processador mantém o payload em `webhook_entrada`, aplica o backoff durável e, passado
+`WEBHOOK_PRAZO_MIDIA`, registra a mensagem sem arquivo (E207). O corpo da resposta do provedor nunca
+vai para `ultimo_erro`. O Swagger não documenta
+retenção da mídia nem respostas além de 200 — ver `docs/47`.
 
 ### Registro histórico — mídia indisponível na Fêmina (11/09/2026)
 

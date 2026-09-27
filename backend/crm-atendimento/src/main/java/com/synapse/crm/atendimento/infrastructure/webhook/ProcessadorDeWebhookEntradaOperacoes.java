@@ -34,6 +34,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepos
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaRemovidaNoProvedorException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
@@ -235,6 +236,16 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     // E207: o prazo acabou e o provedor nao entregou o arquivo. Esgotar a linha
                     // deixaria o anexo do cliente invisivel para o atendente; registrar sem
                     // arquivo mostra na conversa que ele existiu e precisa ser pedido de novo.
+                    requisicao = mensagemRecebidaSemArquivo(leadId, mensagem, canalEntrada, referencia);
+                    log.warn(
+                            "{} entrada={} {}",
+                            MARCADOR_MIDIA_NAO_RECEBIDA,
+                            pendente.idExterno(),
+                            e.comTipo(mensagem.tipo()).getMessage());
+                } catch (MidiaRecebidaRemovidaNoProvedorException e) {
+                    // E218 (Bloco 1): o provedor declarou o arquivo removido (410 no resolvedor).
+                    // Esperar o prazo de midia so atrasaria em ~10 min a mesma conclusao; a
+                    // mensagem entra sem arquivo ja nesta tentativa.
                     requisicao = mensagemRecebidaSemArquivo(leadId, mensagem, canalEntrada, referencia);
                     log.warn(
                             "{} entrada={} {}",
@@ -479,8 +490,12 @@ public class ProcessadorDeWebhookEntradaOperacoes {
                     pendente.idExterno(),
                     proximaTentativa(agora, pendente.tentativas()),
                     e.toString());
-            log.warn("Midia do evento {} ainda indisponivel no provedor; sera retentada.",
-                    pendente.idExterno());
+            // O motivo ja vem sem corpo, URL ou token (adaptador), e diz a etapa que falhou (E218):
+            // sem ele no log, o diagnostico de um 410 dependia de consultar ultimo_erro no banco.
+            log.warn("Midia do evento {} ainda indisponivel no provedor; sera retentada. tentativa={} {}",
+                    pendente.idExterno(),
+                    pendente.tentativas() + 1,
+                    e.getMessage());
             return;
         }
 

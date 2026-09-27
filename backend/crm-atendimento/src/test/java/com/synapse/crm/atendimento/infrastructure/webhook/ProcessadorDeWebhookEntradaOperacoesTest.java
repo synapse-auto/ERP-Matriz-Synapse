@@ -22,13 +22,18 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.web.client.ResourceAccessException;
 
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
 import com.synapse.crm.atendimento.application.ConfiguracaoDoComandoResetGeralRepositorio;
@@ -44,6 +49,7 @@ import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemReposi
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaRemovidaNoProvedorException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
@@ -191,6 +197,104 @@ class ProcessadorDeWebhookEntradaOperacoesTest {
         verify(entrada).reagendar(eq(ID_EXTERNO), any(), anyString());
         verify(entrada, never()).esgotar(anyString(), any(), anyString());
         verify(registrar, never()).executar(any());
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void midiaIndisponivelRegistraAEtapaQueFalhouNoUltimoErroENoLog(CapturedOutput log) {
+        // E218: sem a etapa, "HTTP 410" do resolvedor e do download dos bytes eram indistinguiveis
+        // tanto no ultimo_erro persistido quanto no log de retentativa.
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(2, AGORA.minusSeconds(20))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaTemporariamenteIndisponivelException(
+                        "midia recebida uzapi-autotic: etapa=download respondeu HTTP 410;"
+                                + " host=media.example.test; midiaId=1"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        ArgumentCaptor<String> ultimoErro = ArgumentCaptor.forClass(String.class);
+        verify(entrada).reagendar(eq(ID_EXTERNO), any(), ultimoErro.capture());
+        assertThat(ultimoErro.getValue())
+                .contains("tipo=IMAGEM")
+                .contains("etapa=download respondeu HTTP 410")
+                .contains("host=media.example.test");
+        assertThat(log.getOut())
+                .contains("Midia do evento " + ID_EXTERNO + " ainda indisponivel")
+                .contains("tentativa=3")
+                .contains("etapa=download respondeu HTTP 410");
+    }
+
+    /**
+     * E218 (Bloco 1): 410 no resolvedor e definitivo. Na primeira tentativa, ainda dentro do prazo
+     * de midia, a mensagem entra sem arquivo — sem reagendar e sem esperar ~10,6 min de backoff.
+     */
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void midiaRemovidaNoProvedorEntraSemArquivoNaPrimeiraTentativaSemRetentar(CapturedOutput log) {
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(0, AGORA.minusSeconds(1))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaRemovidaNoProvedorException(
+                        "midia recebida uzapi-autotic: etapa=resolvedor respondeu HTTP 410; midiaId=1"));
+        when(registrar.executar(any())).thenReturn(resultadoDeMidiaSemArquivo());
+
+        processador(Duration.ofHours(2)).rodada();
+
+        ArgumentCaptor<RegistrarMensagemRecebidaUseCase.MensagemRecebida> requisicao =
+                ArgumentCaptor.forClass(RegistrarMensagemRecebidaUseCase.MensagemRecebida.class);
+        verify(registrar).executar(requisicao.capture());
+        assertThat(requisicao.getValue().midiaUrl()).isNull();
+        assertThat(requisicao.getValue().midiaMetadados()).contains("\"indisponivel\":true");
+        verify(entrada).marcarProcessado(ID_EXTERNO, AGORA, List.of());
+        verify(entrada, never()).reagendar(anyString(), any(), anyString());
+        verify(entrada, never()).adiar(anyString(), any(), anyString());
+        verify(entrada, never()).esgotar(anyString(), any(), anyString());
+        assertThat(log.getOut())
+                .contains(ProcessadorDeWebhookEntradaOperacoes.MARCADOR_MIDIA_NAO_RECEBIDA)
+                .contains("tipo=IMAGEM")
+                .contains("etapa=resolvedor respondeu HTTP 410");
+    }
+
+    /**
+     * Regressao do Bloco 1: so o 410 do resolvedor e terminal. O 410 do download (URL temporaria
+     * talvez expirada) e os demais codigos seguem no backoff, porque a proxima tentativa pede uma
+     * URL nova ao resolvedor.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "etapa=download respondeu HTTP 410; host=media.example.test",
+        "etapa=download respondeu HTTP 404; host=media.example.test",
+        "etapa=download respondeu HTTP 503; host=media.example.test",
+        "etapa=resolvedor respondeu HTTP 404",
+        "etapa=resolvedor respondeu HTTP 500"
+    })
+    void indisponibilidadeTemporariaDentroDoPrazoContinuaRetentando(String motivo) {
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(0, AGORA.minusSeconds(1))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new MidiaRecebidaTemporariamenteIndisponivelException(
+                        "midia recebida uzapi-autotic: " + motivo + "; midiaId=1"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).reagendar(eq(ID_EXTERNO), eq(AGORA.plusSeconds(5)), anyString());
+        verify(registrar, never()).executar(any());
+        verify(entrada, never()).marcarProcessado(anyString(), any(), any());
+    }
+
+    @Test
+    void timeoutAoBaixarMidiaContinuaRetentando() {
+        when(entrada.reservarPendentes(anyInt()))
+                .thenReturn(List.of(pendente(0, AGORA.minusSeconds(1))));
+        when(canal.baixarMidiaRecebida(anyString()))
+                .thenThrow(new ResourceAccessException("I/O error: Read timed out"));
+
+        processador(Duration.ofHours(2)).rodada();
+
+        verify(entrada).reagendar(eq(ID_EXTERNO), eq(AGORA.plusSeconds(5)), anyString());
+        verify(registrar, never()).executar(any());
+        verify(entrada, never()).marcarProcessado(anyString(), any(), any());
     }
 
     @Test
