@@ -1,10 +1,17 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import textos from "../../../../backend/crm-app/src/main/resources/textos.json";
 import { CompartilharContatoChat, ContatoCompartilhadoChat, usuarioDoContato } from "./contato-compartilhado-chat";
 import * as api from "@/lib/chat-interno/api";
 import { copiarTexto } from "@/lib/mensagens/copiar-texto";
+
+// Lido em tempo de execucao, como em schema.test.ts: um import estatico entra no typecheck do
+// `next build`, e a imagem Docker do frontend nao carrega o diretorio backend/.
+const textos = JSON.parse(
+  readFileSync(resolve(process.cwd(), "../backend/crm-app/src/main/resources/textos.json"), "utf8"),
+) as Record<string, unknown>;
 
 const {push}=vi.hoisted(()=>({push:vi.fn()}));
 vi.mock("next/navigation",()=>({useRouter:()=>({push})}));
