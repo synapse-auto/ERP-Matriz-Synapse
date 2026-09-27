@@ -14,7 +14,7 @@ public class AtualizarConfiguracaoResumoIaUseCase {
         this.repositorio = repositorio;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.editar_parametros')")
     @Transactional
     public ConfiguracaoResumoIa executar(ConfiguracaoResumoIa configuracao) {
         return repositorio.salvar(configuracao);

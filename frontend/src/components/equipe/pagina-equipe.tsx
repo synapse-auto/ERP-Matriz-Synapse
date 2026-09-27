@@ -182,7 +182,7 @@ type LinhaDesempenho = {
   vendas: number;
 };
 
-function MiniDashboard({
+export function MiniDashboard({
   totalUsuarios,
   online,
   ativos,

@@ -40,13 +40,23 @@ public class RevalidarAssinaturaTempoRealUseCase {
 
     private final AtendimentoRepositorio atendimentos;
     private final ParticipacaoAtendimentoRepositorio participacoes;
+    private final PapelVigenteRepositorio papeis;
 
-    public RevalidarAssinaturaTempoRealUseCase(AtendimentoRepositorio atendimentos, ParticipacaoAtendimentoRepositorio participacoes) {
-        this.atendimentos = atendimentos; this.participacoes = participacoes;
+    public RevalidarAssinaturaTempoRealUseCase(AtendimentoRepositorio atendimentos, ParticipacaoAtendimentoRepositorio participacoes,
+            PapelVigenteRepositorio papeis) {
+        this.atendimentos = atendimentos; this.participacoes = participacoes; this.papeis = papeis;
     }
 
+    /**
+     * Gestao (docs/47): o papel capturado no SUBSCRIBE precisa continuar sendo o papel atual, e o
+     * usuario precisa estar ativo. Papel mudou ou usuario desativado = assinatura revogada; o
+     * cliente renova o token e assina de novo com o recorte novo.
+     */
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public boolean aindaValida(UUID atendimentoId, UUID usuarioId, PapelUsuario papel) {
+        if (!papeis.papelSeAtivo(usuarioId).map(atual -> atual == papel).orElse(false)) {
+            return false;
+        }
         return atendimentos
                 .porId(atendimentoId)
                 .map(atendimento -> atendimento.visivelPara(usuarioId, papel)

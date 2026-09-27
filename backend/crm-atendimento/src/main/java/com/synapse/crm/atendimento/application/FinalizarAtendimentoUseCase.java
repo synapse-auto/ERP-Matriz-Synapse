@@ -52,7 +52,7 @@ public class FinalizarAtendimentoUseCase {
         this.avaliacao = avaliacao;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar')")
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
@@ -63,7 +63,7 @@ public class FinalizarAtendimentoUseCase {
     }
 
     /** Entrada exclusiva do caso de uso de lote; nao exposta como parametro HTTP. */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar_lote')")
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {

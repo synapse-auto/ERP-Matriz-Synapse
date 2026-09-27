@@ -33,7 +33,10 @@ public class SerializadorAuditavel {
      */
     private static final Map<String, Set<String>> ALLOWLIST = Map.of(
             "TAG", Set.of("id", "nome", "cor", "icone"),
-            "USUARIO", Set.of("id", "nome", "email", "telefone", "cargo", "fotoReferencia"));
+            // papel/ativo entram na Gestao (docs/47): mudanca de papel e desativacao precisam de antes/depois.
+            "USUARIO", Set.of("id", "nome", "email", "telefone", "cargo", "fotoReferencia", "papel", "ativo"),
+            // Resumo da gravacao; o antes/depois completo vai atomicamente para permissao_historico.
+            "PERMISSAO", Set.of("papel", "usuarioId", "operacao", "revisaoAnterior", "revisao", "excecoes"));
 
     private final ObjectMapper mapper;
 

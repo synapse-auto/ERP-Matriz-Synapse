@@ -22,6 +22,9 @@ public final class CanaisRedis {
     static final String PRESENCA = "synapse:presenca";
     static final String PADRAO_CHAT = PREFIXO_CHAT + "*";
 
+    /** Gestao (docs/47): acesso de usuarios mudou. Carrega so ids e revisao, nenhum dado de lead. */
+    static final String ACESSO = "synapse:acesso";
+
     public static String doAtendimento(UUID atendimentoId) {
         return PREFIXO + atendimentoId;
     }

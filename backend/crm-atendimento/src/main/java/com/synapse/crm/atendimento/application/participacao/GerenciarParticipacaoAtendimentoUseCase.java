@@ -41,7 +41,7 @@ public class GerenciarParticipacaoAtendimentoUseCase {
         this(p, a, u, e, c, ur, null);
     }
 
-    @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.colaborar')") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public UUID solicitar(UUID atendimentoId) {
         UUID usuario=usuarios.atual().id(); UUID pedido=participacoes.solicitar(atendimentoId,usuario)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
@@ -52,7 +52,7 @@ public class GerenciarParticipacaoAtendimentoUseCase {
                 atendimentoId, lead, agora());
         return pedido;
     }
-    @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.colaborar')") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public UUID solicitarPorLead(UUID leadId) {
         return solicitar(participacoes.atendimentoAbertoDoLead(leadId).orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead", leadId)));
     }
@@ -74,13 +74,13 @@ public class GerenciarParticipacaoAtendimentoUseCase {
                 pedido.atendimentoId(), lead, agora);
     }
 
-    @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.colaborar')") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public void entrar(UUID atendimentoId) { if(!usuarios.atual().enxergaTodosOsLeads()) throw new SecurityException("sem alçada para entrar diretamente"); Instant agora=agora(); participacoes.entrar(atendimentoId,usuarios.atual().id(),agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,atendimentoId,usuarios.atual().id(),agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU,atendimentoId,lead,agora); }
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public void sair(UUID atendimentoId) { UUID u=usuarios.atual().id(); if(!participacoes.eParticipanteAtivo(atendimentoId,u)) throw new RecursoDeAtendimentoIndisponivelException("participação",atendimentoId); Instant agora=agora(); participacoes.sair(atendimentoId,u,agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteSaiu(lead,atendimentoId,u,agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_SAIU,atendimentoId,lead,agora); }
 
-    @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.colaborar')") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public ConviteResultado convidar(UUID atendimentoId, UUID convidadoId) {
         UUID convidador = usuarios.atual().id();
         if (atendimentos.porId(atendimentoId).isEmpty()) {

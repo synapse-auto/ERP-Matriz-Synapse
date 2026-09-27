@@ -68,6 +68,13 @@ class RegistroDeAssinaturas {
         assinaturas.remove(assinatura);
     }
 
+    /** Papel mudou ou usuario desativado: nenhuma assinatura dele sobrevive nesta instancia. */
+    int removerDoUsuario(UUID usuarioId) {
+        int antes = assinaturas.size();
+        assinaturas.keySet().removeIf(a -> a.usuarioId().equals(usuarioId));
+        return antes - assinaturas.size();
+    }
+
     void removerUsuarioDoAtendimento(UUID atendimentoId, UUID usuarioId) {
         assinaturas.keySet().removeIf(a -> a.atendimentoId().equals(atendimentoId) && a.usuarioId().equals(usuarioId));
     }

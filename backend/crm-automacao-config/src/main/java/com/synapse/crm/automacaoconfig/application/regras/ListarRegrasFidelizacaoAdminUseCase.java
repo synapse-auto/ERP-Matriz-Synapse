@@ -12,7 +12,7 @@ import com.synapse.crm.automacaoconfig.domain.regras.RegraFidelizacao;
 public class ListarRegrasFidelizacaoAdminUseCase {
     private final RegraFidelizacaoRepositorio repositorio;
     public ListarRegrasFidelizacaoAdminUseCase(RegraFidelizacaoRepositorio repositorio) { this.repositorio = repositorio; }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
     @Transactional(readOnly = true)
     public List<RegraFidelizacao> executar() { return repositorio.listarTodas(); }
 }

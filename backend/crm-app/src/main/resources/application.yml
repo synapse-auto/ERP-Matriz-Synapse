@@ -390,6 +390,17 @@ synapse:
       tamanho-minimo: ${SYNAPSE_SENHA_TAMANHO_MINIMO:8}
 
   # -------------------------------------------------------------------------
+  # Gestao — permissoes por perfil e excecoes por usuario (docs/47).
+  #
+  # revalidacao: atraso maximo para uma alteracao de acesso salva em OUTRO no da
+  # aplicacao valer neste (no mesmo no e imediato, apos o commit). Tambem limita
+  # quanto tempo um JWT com papel antigo continua aceito depois de mudanca de
+  # papel ou desativacao. Opcional; default curto, nunca "cache eterno".
+  # -------------------------------------------------------------------------
+  permissoes:
+    revalidacao: ${SYNAPSE_PERMISSOES_REVALIDACAO:2s}
+
+  # -------------------------------------------------------------------------
   # Particoes mensais de `mensagem`.
   #
   # Um INSERT numa faixa sem particao falha, e falhar ali significa derrubar o

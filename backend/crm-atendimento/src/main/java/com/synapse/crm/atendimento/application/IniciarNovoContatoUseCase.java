@@ -78,7 +78,7 @@ public class IniciarNovoContatoUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.iniciar_conversa')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(Pedido pedido) {
         return executar(pedido, null);
@@ -89,7 +89,7 @@ public class IniciarNovoContatoUseCase {
      * resposta do navegador se perde. A abertura do contato e a mensagem continuam na mesma
      * transação; a chave só é repassada ao caminho de envio já responsável pela reserva.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.iniciar_conversa')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(Pedido pedido, String chaveIdempotencia) {
         String nome = pedido.nome() == null ? "" : pedido.nome().trim();
@@ -199,7 +199,7 @@ public class IniciarNovoContatoUseCase {
      * e sem enviar mensagem. É uma segunda entrada do mesmo caso de uso porque a tela já conhece o
      * lead; o caminho por telefone continua atendendo contatos ainda não cadastrados.
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.abrir_para_contato')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado abrirParaLeadExistente(UUID leadId) {
         if (leadId == null) {

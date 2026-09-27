@@ -33,7 +33,7 @@ public class ListarConfiguracoesAutomacaoAdminUseCase {
         this.usuarioContext = usuarioContext;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
     @Transactional(readOnly = true)
     public List<ConfiguracaoAutomacao> executar() {
         boolean subgestor = usuarioContext.atual().papel() == PapelUsuario.SUBGESTOR;

@@ -12,7 +12,7 @@ import com.synapse.crm.automacaoconfig.domain.regras.RegraFollowUp;
 public class ListarRegrasFollowUpAdminUseCase {
     private final RegraFollowUpRepositorio repositorio;
     public ListarRegrasFollowUpAdminUseCase(RegraFollowUpRepositorio repositorio) { this.repositorio = repositorio; }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.ver')")
     @Transactional(readOnly = true)
     public List<RegraFollowUp> executar() { return repositorio.listarTodas(); }
 }

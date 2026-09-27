@@ -61,7 +61,7 @@ public class AtualizarLeadUseCase {
         this.telefoneCanonico = telefoneCanonico;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('contatos.editar')")
     @Transactional
     public Optional<Lead> executar(UUID id, DadosDeAtualizacaoLead dados) {
         return leads.porId(id).flatMap(atual -> {

@@ -32,13 +32,13 @@ export function useEquipe() {
 }
 
 /** Mini-dashboard e ranking por avaliação (E17b §Bloco 4). */
-export function useAvaliacoesEquipe() {
-  return useQuery({ queryKey: CHAVE_AVALIACOES, queryFn: avaliacoesEquipe });
+export function useAvaliacoesEquipe(habilitado = true) {
+  return useQuery({ queryKey: CHAVE_AVALIACOES, queryFn: avaliacoesEquipe, enabled: habilitado });
 }
 
 /** Atendimentos e vendas usam read model gerencial restrito a gestao. */
-export function useDesempenhoEquipe() {
-  return useQuery({ queryKey: CHAVE_DESEMPENHO, queryFn: desempenhoEquipe });
+export function useDesempenhoEquipe(habilitado = true) {
+  return useQuery({ queryKey: CHAVE_DESEMPENHO, queryFn: desempenhoEquipe, enabled: habilitado });
 }
 
 /** GET /api/v1/me (E17) — nome, papel e presença de quem está autenticado. */

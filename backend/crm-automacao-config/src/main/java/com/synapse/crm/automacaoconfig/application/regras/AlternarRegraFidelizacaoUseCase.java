@@ -12,7 +12,7 @@ import com.synapse.crm.automacaoconfig.domain.regras.*;
 public class AlternarRegraFidelizacaoUseCase {
     private final RegraFidelizacaoRepositorio repositorio;
     public AlternarRegraFidelizacaoUseCase(RegraFidelizacaoRepositorio repositorio) { this.repositorio = repositorio; }
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('automacao.regras')")
     @Transactional
     public RegraFidelizacao executar(UUID id, boolean ativo) { RegraFidelizacao atual = repositorio.porId(id).orElseThrow(() -> new RegraAutomacaoNaoEncontradaException(id)); return repositorio.salvar(new RegraFidelizacao(id, atual.diasSemContato(), atual.mensagem(), ativo)); }
 }

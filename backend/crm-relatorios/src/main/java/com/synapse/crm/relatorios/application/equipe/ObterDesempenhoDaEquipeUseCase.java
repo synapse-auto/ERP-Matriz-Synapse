@@ -28,7 +28,7 @@ public class ObterDesempenhoDaEquipeUseCase {
         this.vendas = vendas;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('equipe.ver')")
     @Transactional(readOnly = true)
     public DesempenhoDaEquipe executar() {
         Map<java.util.UUID, VendasPorAtendente> vendasPorId = vendas.agregar(List.of(), null)

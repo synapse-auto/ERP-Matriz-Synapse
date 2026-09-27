@@ -41,7 +41,7 @@ public class EncaminharMensagemUseCase {
         this.enviar = enviar;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public EnviarMensagemUseCase.Resultado executar(
             UUID origemAtendimentoId,
@@ -51,7 +51,7 @@ public class EncaminharMensagemUseCase {
         return executar(origemAtendimentoId, origemMensagemId, origemEnviadaEm, destinoAtendimentoId, null);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public EnviarMensagemUseCase.Resultado executar(
             UUID origemAtendimentoId,

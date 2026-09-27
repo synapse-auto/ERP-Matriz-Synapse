@@ -24,6 +24,8 @@ import {
 } from "@/lib/atendimento/preferencias-notificacoes";
 import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendimento/som-de-notificacao";
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
+import { renovarAccessToken } from "@/lib/api/http-client";
+import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -47,6 +49,19 @@ export function NotificacoesTempoReal() {
   const servico = useRef(new ServicoDeNotificacoesTempoReal());
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
+    const bruto: unknown = notificacao;
+    if (ehAvisoDeAcessoAlterado(bruto)) {
+      // Gestão (docs/47): o backend já aplica a mudança; aqui só refletimos sem F5. Sessão
+      // invalidada (papel mudou/desativado) renova o token antes de recarregar; se a renovação
+      // falhar, o próximo 401 leva ao login pelo cliente HTTP.
+      const recarregar = () => {
+        void cache.invalidateQueries({ queryKey: ["permissoes"] });
+        void cache.invalidateQueries({ queryKey: ["gestao"] });
+      };
+      if (bruto.dados.sessaoInvalidada) void renovarAccessToken().then(recarregar);
+      else recarregar();
+      return;
+    }
     const decisao = servico.current.decidir(notificacao, {
       usuarioId,
       conversaAtiva: obterConversaAtiva(),

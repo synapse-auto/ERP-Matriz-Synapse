@@ -43,7 +43,7 @@ public class FinalizarAtendimentosVisiveisUseCase {
      *
      * @param atendenteIdFiltro {@code null} finaliza todos os visiveis (comportamento legado).
      */
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar_lote')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID atendenteIdFiltro) {
         UUID quemFinalizou = usuarioContext.atual().id();
@@ -63,7 +63,7 @@ public class FinalizarAtendimentosVisiveisUseCase {
         return new Resultado(solicitados, finalizados, recusados);
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar_lote')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public Previa previa() {
         List<AtendimentoRepositorio.ContagemPorAtendente> porAtendente =

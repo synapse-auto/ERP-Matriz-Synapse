@@ -36,7 +36,7 @@ public class DefinirReacaoDaMensagemUseCase {
         this.eventos = eventos;
     }
 
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public List<ResumoDeReacao> executar(UUID atendimentoId, UUID mensagemId, Instant enviadoEm, String emoji) {
         String validado = EmojiUnicode.validar(emoji);

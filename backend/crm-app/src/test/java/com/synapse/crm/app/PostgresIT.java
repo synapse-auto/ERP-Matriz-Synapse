@@ -111,6 +111,10 @@ public abstract class PostgresIT {
         // agendado em todos os ApplicationContexts publicaria alertas de suites alheias e repetiria
         // a mesma interferencia entre testes que ja ocorreu com o publisher da outbox.
         registro.add("synapse.saude.critica.monitoramento-habilitado", () -> "false");
+        // Gestao (docs/47): os ApplicationContexts cacheados compartilham o Postgres; cada um tem o
+        // proprio cache de permissoes. Uma suite que restaura perfis ao terminar precisa que as
+        // outras enxerguem a restauracao ja na proxima chamada, nao 2s depois.
+        registro.add("synapse.permissoes.revalidacao", () -> "50ms");
     }
 
     /**

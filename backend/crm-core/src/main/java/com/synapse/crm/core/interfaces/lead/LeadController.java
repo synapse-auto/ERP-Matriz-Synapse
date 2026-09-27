@@ -41,6 +41,7 @@ import com.synapse.crm.core.domain.lead.NomeInvalidoException;
 import com.synapse.crm.core.domain.lead.StatusBasicoLead;
 import com.synapse.crm.core.domain.lead.TelefoneInvalidoException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeAgenda;
+import com.synapse.crm.sharedkernel.permissao.VerificadorDeCapacidades;
 
 /**
  * Leitura e edicao de leads.
@@ -58,8 +59,11 @@ class LeadController {
     private final ObterLeadUseCase obter;
     private final AtualizarLeadUseCase atualizar;
     private final BuscarLeadParaEntradaUseCase buscarParaEntrada;
+    private final VerificadorDeCapacidades capacidades;
 
-    LeadController(ListarLeadsUseCase listar, ObterLeadUseCase obter, AtualizarLeadUseCase atualizar, BuscarLeadParaEntradaUseCase buscarParaEntrada) {
+    LeadController(ListarLeadsUseCase listar, ObterLeadUseCase obter, AtualizarLeadUseCase atualizar, BuscarLeadParaEntradaUseCase buscarParaEntrada,
+            VerificadorDeCapacidades capacidades) {
+        this.capacidades = capacidades;
         this.listar = listar;
         this.obter = obter;
         this.atualizar = atualizar;
@@ -98,7 +102,7 @@ class LeadController {
     @GetMapping("/{id}")
     FichaDoLead porId(
             @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID id) {
-        return obter.executar(id).map(FichaDoLead::de).orElseThrow(LeadController::naoEncontrado);
+        return obter.executar(id).map(this::ficha).orElseThrow(LeadController::naoEncontrado);
     }
 
     @Operation(
@@ -114,7 +118,7 @@ class LeadController {
             @Parameter(description = "Identificador do lead retornado pela Agenda.", required = true)
                     @PathVariable UUID id) {
         return ContextoDeAgenda.buscarComo(
-                () -> obter.executar(id).map(FichaDoLead::de).orElseThrow(LeadController::naoEncontrado));
+                () -> obter.executar(id).map(this::ficha).orElseThrow(LeadController::naoEncontrado));
     }
 
     @Operation(
@@ -131,8 +135,16 @@ class LeadController {
             @Valid @RequestBody AtualizacaoRequisicao requisicao) {
         return atualizar
                 .executar(id, requisicao.paraDados())
-                .map(FichaDoLead::de)
+                .map(this::ficha)
                 .orElseThrow(LeadController::naoEncontrado);
+    }
+
+    /**
+     * Gestao (docs/47): sem {@code resumo_ia.ver}, a ficha sai sem o resumo — a mesma permissao que
+     * fecha {@code GET /atendimentos/{id}/resumo-ia} fecha a outra porta de leitura do mesmo texto.
+     */
+    private FichaDoLead ficha(Lead lead) {
+        return FichaDoLead.de(lead, capacidades.permite("resumo_ia.ver"));
     }
 
     private static ResponseStatusException naoEncontrado() {
@@ -203,12 +215,13 @@ class LeadController {
             Instant criadoEm,
             Map<String, Object> dadosCustomizados) {
 
-        static FichaDoLead de(Lead lead) {
+        static FichaDoLead de(Lead lead, boolean veResumoIa) {
             return new FichaDoLead(
                     lead.id(), lead.nome(), fotoExibida(lead), lead.telefone(), lead.email(), lead.cpf(),
                     lead.empresa(), lead.codigo(), lead.localizacao(), lead.canalOrigemId(), lead.statusBasico(),
                     lead.etapaAtendimentoId(), lead.atendenteResponsavelId(), lead.notas(),
-                    lead.resumoIa(), lead.resumoIaAtualizadoEm(), lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
+                    veResumoIa ? lead.resumoIa() : null, veResumoIa ? lead.resumoIaAtualizadoEm() : null,
+                    lead.numAtendimentos(), lead.numMensagens(), lead.criadoEm(),
                     lead.dadosCustomizados());
         }
 

@@ -19,7 +19,7 @@ export const ITENS_MENU: readonly ItemDeMenuBase[] = [
 ];
 
 export const ITENS_GESTAO: readonly ItemDeMenuBase[] = [
-  { chave: "equipe", rota: "/equipe" },
+  { chave: "gestao", rota: "/gestao" },
   { chave: "campanhas", rota: "/campanhas", flag: "campanhas" },
   { chave: "automacao", rota: "/automacao" },
   { chave: "horarios", rota: "/horarios", flag: "horarios" },

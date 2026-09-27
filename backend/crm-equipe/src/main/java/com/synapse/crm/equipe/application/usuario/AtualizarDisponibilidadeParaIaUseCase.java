@@ -17,7 +17,7 @@ public class AtualizarDisponibilidadeParaIaUseCase {
         this.equipe = equipe;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR','SUBGESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR','SUBGESTOR','ADMINISTRADOR') and @capacidades.permite('equipe.disponibilidade_ia')")
     @Transactional
     public Optional<Boolean> executar(UUID atendenteId, boolean disponivel) {
         return equipe.atualizarDisponibilidadeParaIa(atendenteId, disponivel);

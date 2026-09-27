@@ -16,7 +16,7 @@ public class ExcluirTemplateWhatsAppUseCase {
         this.canal = canal;
     }
 
-    @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('templates.excluir')")
     public void executar(String id, String nome) {
         if (id == null || id.isBlank() || nome == null || nome.isBlank()) {
             throw new PedidoDeTemplateInvalidoException("template exige id e nome");

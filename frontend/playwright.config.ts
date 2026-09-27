@@ -10,6 +10,8 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
     permissions: ["microphone"],
     launchOptions: {
+      // Ambientes com Chromium pré-instalado em versão diferente do @playwright/test apontam aqui.
+      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined,
       args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
     },
   },

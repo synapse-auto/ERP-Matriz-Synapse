@@ -3,6 +3,7 @@ package com.synapse.crm.atendimento.infrastructure.tempo_real;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -24,6 +25,7 @@ class RedisConfig {
     RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory conexao,
             RedisSubscriberDeAtendimento assinante,
+            SubscriberDeAcessoAlterado assinanteDeAcesso,
             TempoRealProperties propriedades) {
 
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
@@ -31,6 +33,7 @@ class RedisConfig {
         container.setTaskExecutor(executorDoRedis(propriedades));
         container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO));
         container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO_CHAT));
+        container.addMessageListener(assinanteDeAcesso, new ChannelTopic(CanaisRedis.ACESSO));
         return container;
     }
 

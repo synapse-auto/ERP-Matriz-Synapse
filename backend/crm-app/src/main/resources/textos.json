@@ -32,7 +32,8 @@
       "automacao": "Automação",
       "horarios": "Horários",
       "relatorios": "Relatórios",
-      "administracao": "Administração"
+      "administracao": "Administração",
+      "gestao": "Gestão"
     }
   },
   "rodape": {
@@ -1571,5 +1572,318 @@
       }
     ],
     "novoTag": "NOVO"
+  },
+  "gestao": {
+    "titulo": "Gestão",
+    "selo": {
+      "gestao": "Gestão autorizada",
+      "administrador": "Administrador",
+      "delegado": "Acesso delegado",
+      "leitura": "Somente leitura"
+    },
+    "descricoes": {
+      "equipe": "Pessoas, funções e presença da equipe",
+      "permissoes": "Defina o que cada perfil pode ver e fazer em cada módulo do CRM",
+      "excecoes": "Ajustes individuais por cima do perfil · valem só para a pessoa selecionada"
+    },
+    "abas": {
+      "equipe": "Equipe",
+      "permissoes": "Permissões",
+      "excecoes": "Exceções por usuário",
+      "rotulo": "Áreas da Gestão"
+    },
+    "carregando": "Carregando…",
+    "erro": "Não foi possível carregar a Gestão.",
+    "semAcesso": "Você não tem acesso à Gestão.",
+    "papeis": {
+      "GESTOR": "Gestor",
+      "SUBGESTOR": "Subgestor",
+      "ATENDENTE": "Atendente",
+      "ADMINISTRADOR": "Administrador"
+    },
+    "papeisDescricao": {
+      "GESTOR": "Acesso total e fixo",
+      "SUBGESTOR": "Coordena a equipe e atende",
+      "ATENDENTE": "Atende e gerencia seus leads",
+      "ADMINISTRADOR": "Acesso técnico e fixo"
+    },
+    "resumoPerfil": {
+      "fixo": "Acesso total e fixo",
+      "permissoes": "{permitidas} de {total} permissões",
+      "editar": "editar perfil",
+      "ver": "ver perfil",
+      "usuario": "{n} usuário",
+      "usuarios": "{n} usuários",
+      "acessoTotal": "acesso total"
+    },
+    "equipe": {
+      "novo": "Novo usuário",
+      "colunas": {
+        "usuario": "Usuário",
+        "funcao": "Função",
+        "presenca": "Presença",
+        "ia": "IA",
+        "avaliacao": "Avaliação",
+        "permissoes": "Permissões",
+        "acoes": "Ações"
+      },
+      "permissoes": {
+        "acessoTotal": "Acesso total",
+        "padrao": "Padrão do perfil",
+        "excecao": "1 exceção",
+        "excecoes": "{n} exceções"
+      },
+      "desativado": "Desativado",
+      "presenca": {
+        "ONLINE": "Online",
+        "AUSENTE": "Ausente",
+        "OFFLINE": "Offline"
+      },
+      "ia": {
+        "disponivel": "No rodízio",
+        "indisponivel": "Fora do rodízio",
+        "naoAplicavel": "Não se aplica",
+        "rotulo": "Disponibilidade para a IA de {nome}"
+      },
+      "acoes": {
+        "permissoes": "Permissões de {nome}",
+        "editar": "Editar {nome}",
+        "senha": "Gerar senha provisória para {nome}",
+        "desativar": "Desativar {nome}"
+      },
+      "semAvaliacao": "Sem avaliações",
+      "vazio": "Nenhum integrante cadastrado.",
+      "indicadores": "Indicadores da equipe"
+    },
+    "formulario": {
+      "criarTitulo": "Novo usuário",
+      "criarDescricao": "Dados de acesso e função · permissões herdadas do perfil",
+      "editarTitulo": "Editar usuário",
+      "editarDescricao": "Nome, e-mail e função",
+      "nome": "Nome",
+      "nomePlaceholder": "Nome completo",
+      "email": "E-mail",
+      "emailPlaceholder": "nome@empresa.com.br",
+      "senha": "Senha inicial",
+      "senhaAjuda": "A pessoa troca a senha no primeiro acesso.",
+      "funcao": "Função",
+      "funcaoBloqueada": "Mudar a função é exclusivo de Gestor e Administrador.",
+      "iaAviso": "Novos logins entram fora do rodízio da IA. Ative na coluna IA quando a pessoa estiver pronta.",
+      "salvar": "Salvar usuário",
+      "cancelar": "Cancelar",
+      "fechar": "Fechar",
+      "erro": "Não foi possível salvar o usuário.",
+      "emailEmUso": "Este e-mail já está em uso."
+    },
+    "desativacao": {
+      "titulo": "Desativar usuário",
+      "descricao": "Deseja desativar {nome}? O acesso é cortado imediatamente, inclusive em sessões já abertas. Histórico, leads e atendimentos permanecem.",
+      "confirmar": "Desativar",
+      "cancelar": "Cancelar",
+      "erro": "Não foi possível desativar o usuário."
+    },
+    "permissoes": {
+      "busca": "Buscar permissão (ex.: resumo, templates)",
+      "legendaNivel": "nível mínimo do módulo",
+      "legendaSensivel": "expõe ou apaga dados",
+      "legendaBloqueado": "liberado ao subir o nível",
+      "perfil": "Perfil",
+      "notaHeranca": "Mudanças no perfil valem para todos os usuários dele, exceto onde houver exceção individual.",
+      "niveis": {
+        "SEM_ACESSO": "Sem acesso",
+        "VER": "Ver",
+        "EDITAR": "Editar",
+        "GERENCIAR": "Gerenciar"
+      },
+      "nivelRotulo": "Nível de {modulo}",
+      "alcance": {
+        "MEUS": "Meus",
+        "TODOS": "Todos"
+      },
+      "sensivel": "Sensível",
+      "motivos": {
+        "TETO_DO_PAPEL": "Não disponível para este perfil",
+        "FLAG_DESLIGADA": "Módulo desligado nesta instância",
+        "NIVEL_DO_MODULO": "Liberado ao subir o nível do módulo para {nivel}",
+        "DESLIGADO": "Desligado",
+        "DEPENDENCIA": "Depende de: {dependencias}",
+        "ESTRUTURAL_MEUS": "Regra fixa: só as próprias conversas e as da IA (Potenciais)",
+        "ESTRUTURAL_TODOS": "Regra fixa: toda a base"
+      },
+      "fixoAviso": "Gestor tem acesso total e fixo; este perfil não é configurável.",
+      "somenteLeitura": "Somente Gestor e Administrador editam perfis.",
+      "copiar": "Copiar permissões",
+      "copiarDe": "Copiar de {perfil}",
+      "copiarIndisponivel": "{perfil} tem acesso fixo e não pode ser copiado",
+      "vazio": "Nenhum módulo corresponde à busca."
+    },
+    "excecoes": {
+      "grupoFixo": "{papel} · fixo",
+      "perfilPadrao": "padrão do perfil",
+      "perfilComExcecoes": "perfil + exceções",
+      "desativado": "desativado",
+      "herdaDe": "Herda o perfil {papel} · altere só o que for diferente para esta pessoa",
+      "colunas": {
+        "permissao": "Permissão",
+        "padrao": "Padrão do perfil",
+        "usuario": "Este usuário"
+      },
+      "personalizado": "Personalizado",
+      "restaurar": "Restaurar o padrão de {acao}",
+      "voltarPadrao": "Voltar ao padrão do perfil",
+      "copiarDe": "Copiar de outro usuário…",
+      "copiaIndisponivel": "{nome} · acesso fixo, não copiável",
+      "copiaForaDaAlcada": "Fora da sua alçada",
+      "selecione": "Selecione um integrante para ver as permissões.",
+      "sim": "Sim",
+      "nao": "Não",
+      "excecao": "1 exceção",
+      "excecoes": "{n} exceções",
+      "rascunho": "rascunho",
+      "fixoAviso": "{papel} tem acesso fixo; exceções individuais não se aplicam.",
+      "somenteLeitura": "Você pode ver, mas não alterar as permissões desta pessoa.",
+      "proprio": "Suas permissões são definidas por Gestor ou Administrador.",
+      "nivelNaoDelegavel": "Nível de módulo só é alterado por Gestor ou Administrador.",
+      "semPermissaoPropria": "Você não pode conceder algo que você mesmo não tem.",
+      "naoDelegavel": "Fora do que foi delegado a você.",
+      "vazio": "Nenhum integrante visível."
+    },
+    "barra": {
+      "pendente": "1 alteração não salva",
+      "pendentes": "{n} alterações não salvas",
+      "descartar": "Descartar",
+      "salvar": "Salvar alterações",
+      "salvando": "Salvando…",
+      "impactoPerfil": "Vale para {n} usuários ativos deste perfil, exceto onde houver exceção.",
+      "impactoUsuario": "Vale só para {nome}.",
+      "restauracao": "Remove todas as exceções de {nome}.",
+      "sairTitulo": "Descartar alterações?",
+      "sairDescricao": "Há alterações não salvas. Se continuar, elas serão perdidas.",
+      "sairConfirmar": "Descartar e continuar",
+      "sairCancelar": "Continuar editando",
+      "sensivelTitulo": "Confirmar alteração sensível",
+      "sensivelDescricao": "Você está alterando permissões que expõem ou apagam dados. Revise antes de salvar.",
+      "sensivelConfirmar": "Salvar mesmo assim",
+      "cancelar": "Cancelar",
+      "conflito": "Outra pessoa salvou esta configuração depois que você a abriu. Suas alterações continuam aqui; recarregue a versão atual para revisar antes de salvar.",
+      "recarregar": "Recarregar versão atual",
+      "erro": "Não foi possível salvar. Suas alterações continuam aqui.",
+      "invalida": "Algumas alterações não são permitidas: {itens}",
+      "negada": "Você não tem alçada para esta alteração.",
+      "salvo": "Permissões salvas."
+    },
+    "copia": {
+      "titulo": "Copiar permissões",
+      "descricao": "Prévia calculada pelo servidor · nada é salvo até você aplicar ao rascunho e salvar",
+      "origem": "Origem",
+      "origemPlaceholder": "Selecione a origem",
+      "muda": "O que muda",
+      "impedido": "O que não será copiado",
+      "semMudancas": "Nenhuma diferença em relação ao atual.",
+      "motivos": {
+        "TETO_DO_PAPEL": "acima do limite do perfil de destino",
+        "FORA_DA_ALCADA": "fora da sua alçada"
+      },
+      "valores": {
+        "PERMITIDO": "Permitido",
+        "NEGADO": "Negado"
+      },
+      "aplicar": "Aplicar ao rascunho",
+      "cancelar": "Cancelar",
+      "carregando": "Calculando prévia…",
+      "erro": "Não foi possível calcular a prévia."
+    },
+    "sessao": {
+      "atualizada": "Seu acesso foi atualizado por um gestor."
+    },
+    "modulos": {
+      "atendimentos": {
+        "rotulo": "Atendimentos",
+        "descricao": "Conversas do WhatsApp com leads e clientes"
+      },
+      "contatos": {
+        "rotulo": "Contatos e leads",
+        "descricao": "Ficha e dados dos contatos"
+      },
+      "tags": {
+        "rotulo": "Tags",
+        "descricao": "Classificação de leads"
+      },
+      "mensagens_rapidas": {
+        "rotulo": "Mensagens rápidas",
+        "descricao": "Atalhos de resposta"
+      },
+      "templates": {
+        "rotulo": "Templates de mensagem",
+        "descricao": "Modelos aprovados pela Meta para disparo no WhatsApp"
+      },
+      "resumo_ia": {
+        "rotulo": "Resumo por IA",
+        "descricao": "Resumo automático da conversa"
+      },
+      "dashboard": {
+        "rotulo": "Dashboard",
+        "descricao": "Visão geral consolidada"
+      },
+      "mensagens_programadas": {
+        "rotulo": "Mensagens programadas",
+        "descricao": "Envios agendados"
+      },
+      "lembretes": {
+        "rotulo": "Lembretes",
+        "descricao": "Lembretes de retorno"
+      },
+      "automacao": {
+        "rotulo": "Automação",
+        "descricao": "Parâmetros e regras da automação"
+      },
+      "equipe": {
+        "rotulo": "Gestão da equipe",
+        "descricao": "Integrantes, delegações e permissões"
+      }
+    },
+    "capacidades": {
+      "atendimentos.ver": "Ver conversas",
+      "atendimentos.responder": "Responder mensagens",
+      "atendimentos.iniciar_conversa": "Iniciar nova conversa",
+      "atendimentos.abrir_para_contato": "Abrir atendimento para contato existente",
+      "atendimentos.transferir": "Transferir para outro atendente",
+      "atendimentos.devolver_ia": "Devolver conversa para a IA",
+      "atendimentos.finalizar": "Finalizar atendimento",
+      "atendimentos.colaborar": "Pedir entrada e convidar colegas para a conversa",
+      "atendimentos.finalizar_lote": "Finalizar atendimentos em lote",
+      "contatos.editar": "Editar ficha do contato",
+      "tags.aplicar": "Aplicar e remover tags nos leads",
+      "tags.criar": "Criar tag",
+      "tags.editar_excluir": "Editar e excluir tags",
+      "mensagens_rapidas.usar": "Usar mensagens rápidas",
+      "mensagens_rapidas.criar": "Criar mensagens rápidas",
+      "mensagens_rapidas.editar_excluir": "Editar e excluir mensagens rápidas",
+      "templates.ver": "Ver templates",
+      "templates.criar": "Criar template",
+      "templates.editar": "Editar template",
+      "templates.excluir": "Excluir template",
+      "resumo_ia.ver": "Visualizar resumo",
+      "resumo_ia.solicitar": "Gerar resumo",
+      "dashboard.ver": "Ver dashboard",
+      "mensagens_programadas.ver": "Ver mensagens programadas",
+      "mensagens_programadas.criar": "Programar mensagem",
+      "mensagens_programadas.editar_cancelar": "Editar e cancelar mensagens programadas",
+      "lembretes.ver": "Ver lembretes",
+      "lembretes.criar": "Criar lembrete",
+      "lembretes.editar_excluir": "Editar e excluir lembretes",
+      "automacao.ver": "Ver configurações da automação",
+      "automacao.editar_parametros": "Alterar parâmetros da automação",
+      "automacao.regras": "Gerenciar regras de follow-up e fidelização",
+      "equipe.ver": "Ver equipe e acessar Gestão",
+      "equipe.disponibilidade_ia": "Ligar e desligar disponibilidade para a IA",
+      "equipe.criar": "Criar usuário",
+      "equipe.editar": "Editar nome e e-mail de usuário",
+      "equipe.alterar_papel": "Alterar função de usuário",
+      "equipe.senha_provisoria": "Gerar senha provisória",
+      "equipe.desativar": "Desativar usuário",
+      "equipe.excecoes_atendentes": "Ajustar exceções de atendentes (delegação)",
+      "equipe.perfis": "Editar perfis de permissão"
+    }
   }
 }

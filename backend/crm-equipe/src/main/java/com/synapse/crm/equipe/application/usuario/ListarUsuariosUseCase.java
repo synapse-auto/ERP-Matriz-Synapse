@@ -25,7 +25,7 @@ public class ListarUsuariosUseCase {
         this.usuarios = usuarios;
     }
 
-    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and @capacidades.permite('equipe.ver')")
     public List<Usuario> executar() {
         return usuarios.listar(new FiltroEquipe(true));
     }

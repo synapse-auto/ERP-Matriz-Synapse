@@ -42,7 +42,7 @@ public class GestaoDeTagsUseCases {
         return tags.porId(id);
     }
 
-    @PreAuthorize(SO_GESTAO)
+    @PreAuthorize(SO_GESTAO + " and @capacidades.permite('tags.criar')")
     @Transactional
     @Auditable(acao = "CRIAR_TAG", entidadeTipo = "TAG")
     public Tag criar(String nome, String cor, String icone) {
@@ -50,7 +50,7 @@ public class GestaoDeTagsUseCases {
         return tags.salvar(Tag.nova(nome, cor, icone));
     }
 
-    @PreAuthorize(SO_GESTAO)
+    @PreAuthorize(SO_GESTAO + " and @capacidades.permite('tags.editar_excluir')")
     @Transactional
     @Auditable(acao = "ATUALIZAR_TAG", entidadeTipo = "TAG")
     public Optional<Tag> atualizar(UUID id, String nome, String cor, String icone) {
@@ -60,7 +60,7 @@ public class GestaoDeTagsUseCases {
         });
     }
 
-    @PreAuthorize(SO_GESTAO)
+    @PreAuthorize(SO_GESTAO + " and @capacidades.permite('tags.editar_excluir')")
     @Transactional
     @Auditable(acao = "REMOVER_TAG", entidadeTipo = "TAG")
     public boolean remover(UUID id) {
