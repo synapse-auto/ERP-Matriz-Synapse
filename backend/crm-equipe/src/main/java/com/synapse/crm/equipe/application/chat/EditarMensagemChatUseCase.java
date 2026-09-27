@@ -50,8 +50,7 @@ public class EditarMensagemChatUseCase {
         Instant editadoEm = Instant.now(relogio);
         ChatInternoRepositorio.MensagemResumo editada = repositorio.editarMensagem(
                 conversaId, mensagemId, remetente, normalizado, editadoEm);
-        var destinatarios = repositorio.participantes(conversaId).stream()
-                .filter(id -> !id.equals(remetente)).toList();
+        var destinatarios = repositorio.participantes(conversaId);
         eventos.publishEvent(new EventoDeChatInterno.MensagemEditada(
                 conversaId, editada.id(), remetente, destinatarios, editada.conteudo(),
                 editada.enviadoEm(), editadoEm, editada.remetenteNome(), editada.tipo(), editada.midiaMetadados()));

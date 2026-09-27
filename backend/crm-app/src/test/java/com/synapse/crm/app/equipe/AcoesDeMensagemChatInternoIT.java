@@ -37,6 +37,103 @@ class AcoesDeMensagemChatInternoIT extends PostgresIT {
     @Autowired TestRestTemplate http;
     @Autowired JdbcTemplate db;
     @Autowired ObjectMapper json;
+    @Autowired org.springframework.messaging.simp.user.SimpUserRegistry usuariosStomp;
+    @org.springframework.beans.factory.annotation.Value("${local.server.port}") int porta;
+
+    @Test
+    void duasSessoesDoRemetenteRecebemMensagemPersistidaSemEventoNoReplay() throws Exception {
+        Tokens ana = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE);
+        String origem = abrir(ana, idDo(EMAIL_BRUNO));
+        String destino = criarGrupo(ana, idDo(EMAIL_BRUNO));
+        String mensagem = enviar(ana, origem, "origem para duas abas");
+        var stomp = new org.springframework.web.socket.messaging.WebSocketStompClient(
+                new org.springframework.web.socket.client.standard.StandardWebSocketClient());
+        var sessoes = new java.util.ArrayList<org.springframework.messaging.simp.stomp.StompSession>();
+        var filas = new java.util.ArrayList<java.util.concurrent.BlockingQueue<String>>();
+        try {
+            for (int i = 0; i < 2; i++) {
+                var sessao = stomp.connectAsync("ws://localhost:" + porta + "/ws?access_token=" + ana.accessToken(),
+                        new org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter() {}).get(5, java.util.concurrent.TimeUnit.SECONDS);
+                sessoes.add(sessao);
+                var fila = new java.util.concurrent.LinkedBlockingQueue<String>();
+                filas.add(fila);
+                int antes = usuariosStomp.findSubscriptions(s -> s.getDestination().equals("/user/queue/notificacoes")).size();
+                sessao.subscribe("/user/queue/notificacoes", new org.springframework.messaging.simp.stomp.StompFrameHandler() {
+                    public java.lang.reflect.Type getPayloadType(org.springframework.messaging.simp.stomp.StompHeaders headers) { return byte[].class; }
+                    public void handleFrame(org.springframework.messaging.simp.stomp.StompHeaders headers, Object payload) {
+                        fila.add(new String((byte[]) payload, java.nio.charset.StandardCharsets.UTF_8));
+                    }
+                });
+                org.awaitility.Awaitility.await().atMost(java.time.Duration.ofSeconds(5)).until(() ->
+                        usuariosStomp.findSubscriptions(s -> s.getDestination().equals("/user/queue/notificacoes")).size() > antes);
+            }
+            UUID chave = UUID.randomUUID();
+            var resposta = encaminhar(ana, origem, mensagem, destino, chave);
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            String id = json.readTree(resposta.getBody()).path("id").asText();
+            for (var fila : filas) {
+                String evento = fila.poll(5, java.util.concurrent.TimeUnit.SECONDS);
+                assertThat(evento).contains("CHAT_INTERNO_MENSAGEM", id);
+                // Um observador externo já consegue ler o registro quando o evento chega.
+                assertThat(db.queryForObject("SELECT count(*) FROM chat_interno_mensagem WHERE id = ?", Long.class, UUID.fromString(id))).isEqualTo(1);
+            }
+            assertThat(json.readTree(encaminhar(ana, origem, mensagem, destino, chave).getBody()).path("id").asText()).isEqualTo(id);
+            for (var fila : filas) assertThat(fila.poll(1, java.util.concurrent.TimeUnit.SECONDS)).isNull();
+        } finally {
+            sessoes.forEach(org.springframework.messaging.simp.stomp.StompSession::disconnect);
+            stomp.stop();
+        }
+    }
+
+    @Test
+    void encaminhamentoIdempotentePreservaParticipacaoEConflitaComOutraOrigem() throws Exception {
+        Tokens ana = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE);
+        Tokens gestor = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR);
+        String origem = abrir(ana, idDo(EMAIL_BRUNO));
+        String destino = criarGrupo(ana, idDo(EMAIL_GESTOR));
+        String mensagem = enviar(ana, origem, "encaminhamento idempotente");
+        UUID chave = UUID.randomUUID();
+        long antes = quantidade(destino);
+        var primeira = encaminhar(ana, origem, mensagem, destino, chave);
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String id = json.readTree(primeira.getBody()).path("id").asText();
+        assertThat(json.readTree(encaminhar(ana, origem, mensagem, destino, chave).getBody()).path("id").asText()).isEqualTo(id);
+        assertThat(quantidade(destino)).isEqualTo(antes + 1);
+        String outra = enviar(ana, origem, "outra origem");
+        assertThat(encaminhar(ana, origem, outra, destino, chave).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        // Participar do destino e ter papel amplo não libera a conversa de origem, nem no replay.
+        assertThat(encaminhar(gestor, origem, mensagem, destino, chave).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(quantidade(destino)).isEqualTo(antes + 1);
+    }
+
+    @Test
+    void encaminhamentosConcorrentesComMesmaChavePersistemUmaCopia() throws Exception {
+        Tokens ana = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE);
+        String origem = abrir(ana, idDo(EMAIL_BRUNO));
+        String destino = criarGrupo(ana, idDo(EMAIL_BRUNO), idDo(EMAIL_GESTOR));
+        String mensagem = enviar(ana, origem, "origem concorrente");
+        UUID chave = UUID.randomUUID();
+        long antes = quantidade(destino);
+        var um = java.util.concurrent.CompletableFuture.supplyAsync(() -> encaminhar(ana, origem, mensagem, destino, chave));
+        var dois = java.util.concurrent.CompletableFuture.supplyAsync(() -> encaminhar(ana, origem, mensagem, destino, chave));
+        assertThat(um.join().getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(dois.join().getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(json.readTree(um.join().getBody()).path("id")).isEqualTo(json.readTree(dois.join().getBody()).path("id"));
+        assertThat(quantidade(destino)).isEqualTo(antes + 1);
+    }
+
+    private long quantidade(String conversa) {
+        return db.queryForObject("SELECT count(*) FROM chat_interno_mensagem WHERE conversa_id = ?", Long.class, UUID.fromString(conversa));
+    }
+
+    private ResponseEntity<String> encaminhar(Tokens quem, String origem, String mensagem, String destino, UUID chave) {
+        var headers = new HttpHeaders();
+        headers.setBearerAuth(quem.accessToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Idempotency-Key", chave.toString());
+        return http.exchange("/api/v1/chat-interno/conversas/" + origem + "/mensagens/" + mensagem + "/encaminhar",
+                HttpMethod.POST, new HttpEntity<>(Map.of("conversaDestinoId", destino), headers), String.class);
+    }
 
     @Test
     @DisplayName("responder, excluir e encaminhar preservam citação e isolamento em conversa interna")

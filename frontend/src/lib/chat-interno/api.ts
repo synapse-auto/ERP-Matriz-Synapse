@@ -68,9 +68,10 @@ export const responderMensagemChat = (conversaId: string, mensagemId: string, co
     method: "POST",
     body: JSON.stringify({ conteudo }),
   });
-export const encaminharMensagemChat = (conversaId: string, mensagemId: string, conversaDestinoId: string) =>
+export const encaminharMensagemChat = (conversaId: string, mensagemId: string, conversaDestinoId: string, chave?: string) =>
   apiFetch<ChatMensagem>(`/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/encaminhar`, {
     method: "POST",
+    headers: chave ? {"Idempotency-Key":chave} : undefined,
     body: JSON.stringify({ conversaDestinoId }),
   });
 export const excluirMensagemChat = (conversaId: string, mensagemId: string) =>

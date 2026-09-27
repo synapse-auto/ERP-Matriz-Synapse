@@ -95,19 +95,35 @@ export function DialogoEncaminharChatInterno({
   enviando?: boolean;
   erro?: boolean;
   onFechar: () => void;
-  onConfirmar: (conversaDestinoId: string) => Promise<unknown>;
+  onConfirmar: (conversaDestinoId: string, chave: string) => Promise<unknown>;
 }) {
   const [destinoId, setDestinoId] = useState("");
+  const chave = useRef<{ destino: string; id: string } | null>(null);
+  const emEnvio = useRef(false);
+  const [processando, setProcessando] = useState(false);
+  const envioPendente = Boolean(enviando || processando);
   const destinos = conversas.filter((conversa) => conversa.id !== conversaOrigemId);
   async function confirmar() {
-    if (!destinoId) return;
-    await onConfirmar(destinoId);
-    setDestinoId("");
+    if (!destinoId || emEnvio.current) return;
+    emEnvio.current = true;
+    setProcessando(true);
+    if (chave.current?.destino !== destinoId) chave.current = { destino: destinoId, id: crypto.randomUUID() };
+    try {
+      await onConfirmar(destinoId, chave.current.id);
+      setDestinoId("");
+      chave.current = null;
+    } catch {
+      // A mutation apresenta o erro; seleção e chave ficam para retry.
+    } finally {
+      emEnvio.current = false;
+      setProcessando(false);
+    }
   }
   return (
     <Dialog open={aberto} onOpenChange={(valor) => {
-      if (!valor) {
+      if (!valor && !envioPendente && !emEnvio.current) {
         setDestinoId("");
+        chave.current = null;
         onFechar();
       }
     }}>
@@ -118,9 +134,9 @@ export function DialogoEncaminharChatInterno({
         </DialogHeader>
         <label className="space-y-1 text-sm">
           <span className="font-medium">{textos.encaminharDestino}</span>
-          <Select value={destinoId} onValueChange={(valor) => setDestinoId(valor ?? "")} disabled={Boolean(carregando || enviando)}>
+          <Select value={destinoId} onValueChange={(valor) => setDestinoId(valor ?? "")} disabled={Boolean(carregando || envioPendente)}>
             <SelectTrigger className="w-full" aria-label={textos.encaminharDestino}>
-              <SelectValue placeholder={carregando ? textos.carregando : textos.selecioneConversa} />
+              <SelectValue placeholder={carregando ? textos.carregando : textos.selecioneConversa}>{destinos.find((conversa) => conversa.id === destinoId)?.participantes}</SelectValue>
             </SelectTrigger>
             <SelectContent>
             {destinos.map((conversa) => (
@@ -133,10 +149,10 @@ export function DialogoEncaminharChatInterno({
         </label>
         {erro && <p className="text-sm text-destructive" role="alert">{textos.encaminharErro}</p>}
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => { setDestinoId(""); onFechar(); }} disabled={Boolean(enviando)}>
+          <Button type="button" variant="ghost" onClick={() => { setDestinoId(""); chave.current = null; onFechar(); }} disabled={envioPendente}>
             {textos.encaminharCancelar}
           </Button>
-          <Button type="button" onClick={() => void confirmar()} disabled={!destinoId || Boolean(enviando || carregando)}>
+          <Button type="button" onClick={() => void confirmar()} disabled={!destinoId || Boolean(envioPendente || carregando)}>
             {textos.encaminharConfirmar}
           </Button>
         </DialogFooter>

@@ -60,7 +60,7 @@ public class EnviarContatoChatUseCase {
         if(!resultado.nova()) return repositorio.mensagem(conversaId,resultado.mensagemId()).orElseThrow(ChatSemAcessoException::new);
         var salva=repositorio.salvarMensagemDeMidia(conversaId,remetente,"CONTATO",null,null,json);
         idempotencia.concluir(reserva,salva.id());
-        var destinatarios=repositorio.participantes(conversaId).stream().filter(id->!id.equals(remetente)).toList();
+        var destinatarios=repositorio.participantes(conversaId);
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(conversaId,salva.id(),remetente,destinatarios,null,salva.enviadoEm(),salva.remetenteNome(),salva.tipo(),salva.midiaMetadados()));
         return salva;
     }

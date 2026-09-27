@@ -331,16 +331,18 @@ public class ChatInternoController {
         return MensagemResposta.de(responderMensagem.executar(mensagemId, id, requisicao.conteudo()), armazenamento);
     }
 
-    @Operation(summary = "Encaminhar mensagem interna", description = "Copia uma mensagem para uma única conversa interna da qual o usuário autenticado participa.", responses = {
+    @Operation(summary = "Encaminhar mensagem interna", description = "Copia uma mensagem para uma única conversa interna da qual o usuário autenticado participa. Idempotency-Key UUID opcional preserva compatibilidade; o CRM o envia e reutiliza no retry.", responses = {
             @ApiResponse(responseCode = "201", description = "Mensagem encaminhada."),
             @ApiResponse(responseCode = "400", description = "Mensagem incompatível para encaminhamento."),
-            @ApiResponse(responseCode = "403", description = "Origem ou destino sem participação do usuário.")})
+            @ApiResponse(responseCode = "403", description = "Origem ou destino sem participação do usuário."),
+            @ApiResponse(responseCode = "409", description = "Chave reutilizada para outra origem ou destino.")})
     @PostMapping("/conversas/{id}/mensagens/{mensagemId}/encaminhar")
     @ResponseStatus(HttpStatus.CREATED)
     public MensagemResposta encaminhar(@PathVariable UUID id, @PathVariable UUID mensagemId,
+            @RequestHeader(value="Idempotency-Key", required=false) UUID chave,
             @Valid @RequestBody EncaminharRequisicao requisicao) {
         return MensagemResposta.de(encaminharMensagem.executar(
-                mensagemId, id, requisicao.conversaDestinoId()), armazenamento);
+                mensagemId, id, requisicao.conversaDestinoId(), chave), armazenamento);
     }
 
     @Operation(summary = "Excluir mensagem interna", description = "Substitui a mensagem do autor por um tombstone, removendo conteúdo e mídia da leitura sem apagar o registro histórico.", responses = {

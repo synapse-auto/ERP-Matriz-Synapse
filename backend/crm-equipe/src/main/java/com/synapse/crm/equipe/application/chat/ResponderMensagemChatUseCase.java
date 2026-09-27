@@ -45,8 +45,7 @@ public class ResponderMensagemChatUseCase {
     }
 
     private void publicar(ChatInternoRepositorio.MensagemResumo salva, UUID remetente) {
-        var destinatarios = repositorio.participantes(salva.conversaId()).stream()
-                .filter(id -> !id.equals(remetente)).toList();
+        var destinatarios = repositorio.participantes(salva.conversaId());
         eventos.publishEvent(new EventoDeChatInterno.MensagemEnviada(
                 salva.conversaId(), salva.id(), remetente, destinatarios, salva.conteudo(), salva.enviadoEm(),
                 salva.remetenteNome(), salva.tipo(), salva.midiaMetadados()));

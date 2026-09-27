@@ -61,7 +61,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
-  useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
+  const { ciclo } = useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
       atualizar();
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" && evento.dados.conversaId === conversaId) {
@@ -79,6 +79,10 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
       );
     }
   });
+  useEffect(() => {
+    // Assinaturas já estão ativas ao anunciar CONNECTED: recuperar a lacuna sem polling.
+    if (ciclo > 0) atualizar();
+  }, [ciclo, atualizar]);
   useEffect(() => {
     definirConversaAtiva(conversaId ? { origem: "CHAT_INTERNO", id: conversaId } : null);
     if (conversaId) { void marcarChatComoLido(conversaId); }
@@ -100,7 +104,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
     onSuccess: () => { setRespostaAlvo(null); atualizar(); },
   });
   const encaminhar = useMutation({
-    mutationFn: ({ mensagemId, destinoId }: { mensagemId: string; destinoId: string }) => encaminharMensagemChat(conversaId!, mensagemId, destinoId),
+    mutationFn: ({ mensagemId, destinoId, chave }: { mensagemId: string; destinoId: string; chave:string }) => encaminharMensagemChat(conversaId!, mensagemId, destinoId,chave),
     onSuccess: () => { setEncaminharAlvo(null); atualizar(); },
   });
   const excluir = useMutation({
@@ -311,7 +315,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
         enviando={encaminhar.isPending}
         erro={encaminhar.isError}
         onFechar={() => setEncaminharAlvo(null)}
-        onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })}
+        onConfirmar={(destinoId,chave) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId,chave })}
       />
     </div>
   );

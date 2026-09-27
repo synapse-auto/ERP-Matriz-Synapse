@@ -66,3 +66,28 @@ Pendências deliberadas desta primeira capacidade: upload de vídeo, card de con
 PR #223: mídia/download, HEAD `d4f7193`, CI pull_request `36222861636` e push `36222859384` aprovadas. PR #224: upload e reprodução de vídeo, SHA `73beee3`, CI `36223500990` e `36223498307` aprovadas; `clean verify` local completo passou 757 integrações. Evidências e limites em [46 — vídeo](46-chat-interno-envio-video.md).
 
 PR #225 adiciona compartilhamento e card de contato externo/interno, sem inferência por telefone/nome; ver [47 — contato](47-chat-interno-contato-compartilhado.md). A task global ainda não está concluída: permanecem retry idempotente de encaminhamento, reconciliação das mensagens nas abas do remetente e prova conclusiva de reconexão. A falta de metadados reais de prévia de link continua documentada, sem imagem inventada.
+
+Continuação de 26/09: [48 — reconciliação e encaminhamento](48-chat-interno-reconciliacao-encaminhamento.md)
+implementa os três gaps acima. PostgreSQL/STOMP reais cobrem replay concorrente e autorização;
+Playwright headed comprova resposta perdida/retry sem duplicação, reações em duas abas,
+resposta persistida e recuperação após novo CONNECTED. Backend completo e frontend completo
+aprovados localmente. PR #225: CI `36246914257` e `36246912172` aprovadas no HEAD `a7dcb19`.
+Os PRs anteriores continuam abertos: validação local não significa merge ou deploy.
+
+Matriz final da implementação empilhada:
+
+| Capacidade | Resultado interno | Evidência / limite |
+|---|---|---|
+| Texto, imagem, áudio, documento | Fluxos existentes preservados; links seguros, overlay e download adicionados | #223; MinIO real, reload e SHA-256 dos arquivos |
+| Vídeo | Upload MP4/3GP validado; player e download | #224; MP4 real no navegador; 3GP somente integração |
+| Contato | Externo com vários números; interno por UUID explícito autorizado | #225; direta/grupo, persistência e duas contas reais locais |
+| Prévia de link | URL textual clicável; não existe imagem/destino de prévia no contrato | Sem OG automático nem imagem inventada |
+| Reações | Existentes; substituição/remoção e persistência confirmadas | Testes e duas abas reais; não reimplementadas |
+| Responder/citar | Existente; destinatário autor corrigido | HTTP/STOMP, grupo e resposta ao vídeo após reload |
+| Encaminhar | Mesmo objeto privado; chave opcional compatível, CRM sempre envia | Concorrência, replay, retry após resposta perdida e bytes iguais |
+| Editar/excluir | Regras existentes preservadas; edição alcança abas do autor | Integração com negativo de autoria e tombstone |
+| Reconexão | Histórico recuperado em cada ciclo conectado | Socket real fechado, mensagem durante interrupção, sem F5 |
+
+Limites remanescentes: ausência de metadados de prévia de link, preview vazio da lista para
+mídia/contato sem legenda e textarea comprimido em 390px. Não houve validação/deploy em cliente,
+transplante de regras WhatsApp nem envio externo automático.
