@@ -268,6 +268,10 @@ export const TextosSchema = z.object({
     }),
   }),
   chatInterno: z.object({
+    contatoCompartilhado: z.object({
+      compartilhar: z.string(), titulo: z.string(), descricao: z.string(), interno: z.string(), externo: z.string(),
+      nome: z.string(), telefones: z.string(), abrir: z.string(),
+    }).default({ compartilhar: "Compartilhar contato", titulo: "Compartilhar contato", descricao: "Escolha um usuário interno ou informe um contato externo.", interno: "Usuário interno", externo: "Contato externo", nome: "Nome", telefones: "Telefones (um por linha)", abrir: "Abrir conversa interna" }),
     titulo: z.string(),
     novaConversa: z.string(),
     novoGrupo: z.string(),

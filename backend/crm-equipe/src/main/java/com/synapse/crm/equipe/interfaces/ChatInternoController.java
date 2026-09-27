@@ -9,6 +9,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,6 +48,7 @@ import com.synapse.crm.equipe.application.chat.CriarGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.DefinirReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EditarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EncaminharMensagemChatUseCase;
+import com.synapse.crm.equipe.application.chat.EnviarContatoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ExcluirMensagemChatUseCase;
@@ -95,6 +97,7 @@ public class ChatInternoController {
     private final EditarMensagemChatUseCase editarMensagem;
     private final ArmazenamentoDeMidia armazenamento;
     private final LeitorDeArquivoChat leitorDeArquivo;
+    private final EnviarContatoChatUseCase enviarContato;
 
     ChatInternoController(
             ListarConversasChatUseCase listar,
@@ -116,7 +119,8 @@ public class ChatInternoController {
             EncaminharMensagemChatUseCase encaminharMensagem,
             ExcluirMensagemChatUseCase excluirMensagem,
             EditarMensagemChatUseCase editarMensagem,
-            ArmazenamentoDeMidia armazenamento, LeitorDeArquivoChat leitorDeArquivo) {
+            ArmazenamentoDeMidia armazenamento, LeitorDeArquivoChat leitorDeArquivo, EnviarContatoChatUseCase enviarContato) {
+        this.enviarContato = enviarContato;
         this.leitorDeArquivo = leitorDeArquivo;
         this.listar = listar;
         this.contatos = contatos;
@@ -145,6 +149,21 @@ public class ChatInternoController {
     List<ConversaResposta> listar() {
         return listar.executar().stream().map(ConversaResposta::de).toList();
     }
+
+    @Operation(summary="Compartilhar contato no chat interno", description="Exige participação. Contato externo contém somente dados informados; contato interno referencia UUID ativo do catálogo autorizado, sem inferência por telefone. Idempotency-Key UUID obrigatório.", responses={
+        @ApiResponse(responseCode="201",description="Contato persistido; replay devolve a mesma mensagem."),
+        @ApiResponse(responseCode="400",description="Contato/chave inválidos."),
+        @ApiResponse(responseCode="403",description="Não participante."),
+        @ApiResponse(responseCode="409",description="Chave usada com dados diferentes.")})
+    @PostMapping("/conversas/{id}/mensagens/contato")
+    @ResponseStatus(HttpStatus.CREATED)
+    MensagemResposta contato(@PathVariable UUID id, @RequestHeader("Idempotency-Key") UUID chave,
+            @Valid @RequestBody ContatoCompartilhadoRequisicao corpo) {
+        return MensagemResposta.de(enviarContato.executar(id,corpo.usuarioId(),corpo.nome(),corpo.telefones(),chave),armazenamento);
+    }
+
+    record ContatoCompartilhadoRequisicao(UUID usuarioId, @Size(max=255) String nome,
+            @Size(max=20) List<@Size(max=64) String> telefones) {}
 
     @Operation(summary = "Listar contatos do chat", description = "Lista integrantes ativos disponíveis para iniciar uma conversa direta, sem expor credenciais ou dados pessoais desnecessários.", responses = @ApiResponse(responseCode = "200", description = "Integrantes ativos, sem dados de contato pessoais."))
     @GetMapping("/contatos")
