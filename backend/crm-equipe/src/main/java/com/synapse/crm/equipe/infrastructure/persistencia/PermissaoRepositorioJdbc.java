@@ -46,6 +46,8 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
     private static final Logger log = LoggerFactory.getLogger(PermissaoRepositorioJdbc.class);
     private static final String NIVEL = "NIVEL";
     private static final String ACAO = "ACAO";
+    /** Nunca gravada pela V83 (comeca em 0): a revisao muda quando as tabelas aparecem. */
+    private static final long REVISAO_SEM_TABELAS = -1;
 
     private final JdbcTemplate jdbc;
     /**
@@ -57,6 +59,13 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
      */
     private final JdbcTemplate leitura;
     private final ObjectMapper json;
+    /**
+     * Banco novo sobe pausado antes da V73 (runner controlado, docs/41) e, portanto, sem as tabelas
+     * da V83. Nesse estado o cache usa o padrao de cada papel — o mesmo acesso de antes da Gestao; nao
+     * ha revogacao salva sem as tabelas. Uma vez vistas, as tabelas nao somem: a checagem para.
+     */
+    private volatile boolean tabelasPresentes;
+    private volatile boolean ausenciaAvisada;
 
     PermissaoRepositorioJdbc(JdbcTemplate jdbc, @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chat, ObjectMapper json) {
         this.jdbc = jdbc;
@@ -90,6 +99,12 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
      */
     @Override
     public Optional<ContextoDeAcesso> contextoDe(UUID usuarioId) {
+        if (!tabelasPresentes()) {
+            return leitura.query("SELECT papel::text, ativo FROM usuario WHERE id = ?",
+                    (r, i) -> new ContextoDeAcesso(usuarioId, PapelUsuario.valueOf(r.getString(1)), r.getBoolean(2),
+                            montar(List.of()), montar(List.of())),
+                    usuarioId).stream().findFirst();
+        }
         List<String[]> linhas = leitura.query("""
                 SELECT u.papel::text, u.ativo::text, 'P', i.tipo, i.alvo, i.valor
                   FROM usuario u LEFT JOIN permissao_perfil_item i ON i.papel = u.papel
@@ -135,6 +150,9 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
 
     @Override
     public long revisaoGlobal() {
+        if (!tabelasPresentes()) {
+            return REVISAO_SEM_TABELAS;
+        }
         Long revisao = leitura.queryForObject("SELECT revisao FROM permissao_politica WHERE id = 1", Long.class);
         return revisao == null ? 0 : revisao;
     }
@@ -268,6 +286,23 @@ class PermissaoRepositorioJdbc implements PermissaoRepositorio {
         if (!linhas.isEmpty()) {
             jdbc.batchUpdate(insert, linhas);
         }
+    }
+
+    private boolean tabelasPresentes() {
+        if (tabelasPresentes) {
+            return true;
+        }
+        Boolean presentes = leitura.queryForObject("SELECT to_regclass('permissao_politica') IS NOT NULL", Boolean.class);
+        if (Boolean.TRUE.equals(presentes)) {
+            tabelasPresentes = true;
+            return true;
+        }
+        if (!ausenciaAvisada) {
+            ausenciaAvisada = true;
+            log.warn("[PERMISSOES_SEM_V83] tabelas de permissao ausentes (migrations pendentes); "
+                    + "usando o padrao de cada papel ate a V83 ser aplicada");
+        }
+        return false;
     }
 
     private static ConfiguracaoDePermissoes montar(List<Item> itens) {

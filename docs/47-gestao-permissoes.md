@@ -225,6 +225,10 @@ SELECT 'USUARIO', u.email, e.alvo, e.valor
 ```
 
   e registre a decisão; a V83 não é revertida (as tabelas ficam, voltam a valer no redeploy).
+- **Banco sem a V83** (banco novo que sobe pausado antes da V73, docs/41): o cache de permissões
+  detecta a ausência das tabelas (`to_regclass`), registra `[PERMISSOES_SEM_V83]` uma vez e usa o
+  padrão de cada papel, que é o acesso anterior à Gestão. As telas de Gestão só funcionam depois da
+  V83. Quando as tabelas aparecem, a revisão muda (de `-1` para a real) e o cache se refaz sozinho.
 - Variável nova, opcional: `SYNAPSE_PERMISSOES_REVALIDACAO` (default `2s`), já declarada com
   default no `dokploy-stack.yml`. Nenhuma ação obrigatória no Dokploy.
 
