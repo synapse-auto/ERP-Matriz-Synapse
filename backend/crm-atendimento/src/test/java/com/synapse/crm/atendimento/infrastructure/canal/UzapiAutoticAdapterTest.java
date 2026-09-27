@@ -8,9 +8,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,11 +32,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaRemovidaNoProvedorException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
@@ -626,7 +630,7 @@ class UzapiAutoticAdapterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {400, 404, 410, 500, 502})
+    @ValueSource(ints = {400, 404, 500, 502})
     void erroHttpAoResolverMidiaEClassificadoComoIndisponibilidadeRetentavel(int status) {
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
                 .andExpect(method(HttpMethod.GET))
@@ -639,6 +643,59 @@ class UzapiAutoticAdapterTest {
                 .hasMessageNotContaining("etapa=download")
                 .hasMessageNotContaining("token-de-teste")
                 .hasMessageNotContaining(URL_BASE);
+
+        servidor.verify();
+    }
+
+    /**
+     * E218 (Bloco 1): 410 no resolvedor e sobre o proprio {@code mediaId} — a Uzapi declarou que o
+     * identificador nao existe mais. Repetir a mesma chamada nao muda o resultado, entao a falha e
+     * definitiva e nao entra no ciclo de retentativa.
+     */
+    @Test
+    void http410NoResolvedorEMidiaRemovidaNoProvedorENaoIndisponibilidadeTemporaria() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withStatus(HttpStatus.GONE));
+
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
+                .isInstanceOf(MidiaRecebidaRemovidaNoProvedorException.class)
+                .isNotInstanceOf(MidiaRecebidaTemporariamenteIndisponivelException.class)
+                .hasMessageContaining("etapa=resolvedor respondeu HTTP 410")
+                .hasMessageContaining("midiaId=media-inbound")
+                .hasMessageNotContaining("token-de-teste")
+                .hasMessageNotContaining(URL_BASE);
+
+        servidor.verify();
+    }
+
+    @Test
+    void timeoutNoResolvedorNaoEMidiaRemovida() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withException(new SocketTimeoutException("Read timed out")));
+
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
+                .isInstanceOf(ResourceAccessException.class)
+                .isNotInstanceOf(MidiaRecebidaRemovidaNoProvedorException.class);
+
+        servidor.verify();
+    }
+
+    @Test
+    void timeoutNoDownloadNaoEMidiaRemovida() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_RESOLVEDOR + "/media-inbound"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"id\":\"media-inbound\",\"url\":\"https://media.example.test/file.pdf\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("https://media.example.test/file.pdf"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withException(new SocketTimeoutException("Read timed out")));
+
+        assertThatThrownBy(() -> adapter.baixarMidiaRecebida("media-inbound"))
+                .isInstanceOf(ResourceAccessException.class)
+                .isNotInstanceOf(MidiaRecebidaRemovidaNoProvedorException.class);
 
         servidor.verify();
     }

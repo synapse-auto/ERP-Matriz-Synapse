@@ -13,9 +13,11 @@ todos os tipos. Qualquer 4xx/5xx é retentado por 10 min, e o `[MIDIA_NAO_RECEBI
 tentativa (~10,6 min), não a primeira. A mensagem recebida é datada no processamento, então uma bolha
 visível 31 min antes do log não pode ser a mesma entrada. Nem o `docs/38` nem o Swagger da Uzapi
 documentam retenção ou 410. Decisão: a proposta A (log por etapa: `etapa=resolvedor` ou
-`etapa=download` + host) foi implementada, sem mudar classificação, backoff ou prazo. A B (410
-terminal) depende de a consulta 4.1 rodar na FMNA; a C (executor próprio) só com a 4.4 mostrando
-trava do agendador.
+`etapa=download` + host) foi implementada, sem mudar classificação, backoff ou prazo. Em 27/09 a B
+entrou só para o resolvedor: 410 em `etapa=resolvedor` registra a mensagem sem arquivo na primeira
+tentativa. O 410 do download e os demais códigos seguem retentáveis. A consulta 4.1 segue pendente
+por falta de acesso à FMNA, sem bloquear a B; a C (executor próprio) só com a 4.4 mostrando trava
+do agendador.
 
 ### 20/09/2026 — Convite para atendimento
 

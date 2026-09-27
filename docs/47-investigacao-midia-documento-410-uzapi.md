@@ -29,8 +29,20 @@ no prompt não existe neste repositório nem em nenhuma branch; a Parte 2 não p
   `tentativa=N` e esse motivo. Classificação, backoff, prazo e disjuntor não mudaram. Linhas
   gravadas antes do deploy continuam com o texto antigo `resolvedor de midia uzapi-autotic
   respondeu HTTP …`, que não distingue as etapas.
-- **B — condicionada à 4.1** confirmar o padrão nos três casos; se confirmar, só o 410 vira
-  terminal e timeout/5xx/404 continuam com retentativa.
+- **B — implementada em 27/09/2026 (Bloco 1), só no resolvedor.** Por decisão explícita do
+  responsável, a 4.1 deixou de bloquear: a correção se justifica pela semântica do 410 sobre o
+  próprio `mediaId`. **A 4.1 continua pendente** como fechamento do registro do incidente; o
+  resultado dela não desfaz a mudança, mas se vier muito diferente do esperado (atraso bem maior,
+  poucas tentativas, casos inconsistentes) indica causa concorrente a investigar à parte.
+
+  | Etapa + resposta | Comportamento |
+  |---|---|
+  | `etapa=resolvedor` + 410 | **terminal**: `MidiaRecebidaRemovidaNoProvedorException`; a mensagem entra sem arquivo e sai `[MIDIA_NAO_RECEBIDA]` na mesma tentativa (~1 s), sem backoff |
+  | `etapa=download` + 410 | inalterado: retentável até `WEBHOOK_PRAZO_MIDIA`; a URL pode só ter vencido, e a próxima tentativa pede outra ao resolvedor |
+  | 404, 5xx ou outro código, em qualquer etapa | inalterado: retentável até `WEBHOOK_PRAZO_MIDIA` |
+  | timeout/erro de rede, em qualquer etapa | inalterado: caminho genérico de falha do processador |
+
+  O disjuntor da Uzapi continua registrando o 410 do resolvedor como falha, como antes.
 - **C — não fazer** sem a 4.4 mostrar trava do agendador.
 - **Breakers da Uzapi** (`CANAL_CB_*`): item separado, fora do escopo.
 

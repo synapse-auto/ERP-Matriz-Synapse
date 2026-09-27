@@ -371,8 +371,11 @@ class AnexoMidiaIT extends PostgresIT {
     @Test
     @DisplayName("E207: midia que o provedor nao entrega retenta e, vencido o prazo, entra na conversa sem arquivo")
     void webhookMidia_provedorNaoEntrega_entraNaConversaSemArquivoEmVezDeSumir() {
+        // 410 no download (URL temporaria) continua retentavel depois do E218 — so o 410 do
+        // resolvedor e definitivo (teste abaixo).
         canal.programarMidiaIndisponivel(
-                "resolvedor de midia uzapi-autotic respondeu HTTP 410; midiaId=385949128354419");
+                "midia recebida uzapi-autotic: etapa=download respondeu HTTP 410;"
+                        + " host=media.example.test; midiaId=385949128354419");
 
         http.postForEntity(
                 "/webhook/canal",
@@ -414,6 +417,46 @@ class AnexoMidiaIT extends PostgresIT {
         assertThat(corpo).contains("\"tipo\":\"DOCUMENTO\"");
         assertThat(corpo).contains("indisponivel");
         assertThat(corpo).doesNotContain("media-410");
+    }
+
+    @Test
+    @DisplayName("E218: 410 do resolvedor entra na conversa sem arquivo na primeira rodada, sem retentar")
+    void webhookMidia_resolvedorDeclaraRemovida_entraSemArquivoNaPrimeiraRodada() {
+        canal.programarMidiaRemovida(
+                "midia recebida uzapi-autotic: etapa=resolvedor respondeu HTTP 410; midiaId=385949128354420");
+
+        http.postForEntity(
+                "/webhook/canal",
+                new HttpEntity<>(
+                        payloadDeMidia("ext-midia-410-resolvedor", "DOCUMENTO", "media-410-r", "application/pdf"),
+                        cabecalhosWebhook(CanalFake.ASSINATURA_VALIDA)),
+                String.class);
+        // Uma rodada so, como o agendador faz no primeiro segundo: sem recuar recebido_em para
+        // vencer o prazo de midia, ao contrario do caso E207 acima.
+        processador.processarPendentes();
+
+        esperar().untilAsserted(() -> assertThat(mensagensDoLead()).isEqualTo(1));
+        assertThat(jdbc.queryForObject(
+                        """
+                        SELECT m.midia_url IS NULL FROM mensagem m
+                          JOIN atendimento a ON a.id = m.atendimento_id
+                         WHERE a.lead_id = ?
+                        """,
+                        Boolean.class,
+                        leadDaAna))
+                .isTrue();
+        assertThat(jdbc.queryForObject(
+                        """
+                        SELECT count(*) FROM webhook_entrada
+                         WHERE processado_em IS NOT NULL AND tentativas = 0 AND esgotado_em IS NULL
+                        """,
+                        Integer.class))
+                .isEqualTo(1);
+
+        String corpo = mensagensComo(EMAIL_ANA, atendimentoDoLead()).getBody();
+        assertThat(corpo).contains("\"tipo\":\"DOCUMENTO\"");
+        assertThat(corpo).contains("indisponivel");
+        assertThat(corpo).doesNotContain("media-410-r");
     }
 
     @Test

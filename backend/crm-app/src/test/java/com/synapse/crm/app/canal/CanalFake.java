@@ -88,6 +88,7 @@ public class CanalFake implements CanalGateway {
         enviados.clear();
         templates.clear();
         midiaIndisponivel.set(null);
+        midiaRemovida.set(null);
         religar();
         abrirJanela();
     }
@@ -136,17 +137,31 @@ public class CanalFake implements CanalGateway {
     }
 
     private final AtomicReference<String> midiaIndisponivel = new AtomicReference<>();
+    private final AtomicReference<String> midiaRemovida = new AtomicReference<>();
 
     /**
-     * Faz {@link #baixarMidiaRecebida} falhar como o resolvedor da Uzapi quando nao entrega o arquivo
-     * (404/410/5xx). Vale ate {@link #limpar()}.
+     * Faz {@link #baixarMidiaRecebida} falhar como a Uzapi quando ainda nao entrega o arquivo
+     * (404/5xx em qualquer etapa, 410 no download). Vale ate {@link #limpar()}.
      */
     public void programarMidiaIndisponivel(String motivo) {
         midiaIndisponivel.set(motivo);
     }
 
+    /**
+     * Faz {@link #baixarMidiaRecebida} falhar como o resolvedor da Uzapi quando declara o
+     * {@code mediaId} removido (HTTP 410, E218): falha definitiva. Vale ate {@link #limpar()}.
+     */
+    public void programarMidiaRemovida(String motivo) {
+        midiaRemovida.set(motivo);
+    }
+
     @Override
     public MidiaRecebida baixarMidiaRecebida(String midiaIdExterno) {
+        String removida = midiaRemovida.get();
+        if (removida != null) {
+            throw new com.synapse.crm.atendimento.domain.canal
+                    .MidiaRecebidaRemovidaNoProvedorException(removida);
+        }
         String indisponivel = midiaIndisponivel.get();
         if (indisponivel != null) {
             throw new com.synapse.crm.atendimento.domain.canal

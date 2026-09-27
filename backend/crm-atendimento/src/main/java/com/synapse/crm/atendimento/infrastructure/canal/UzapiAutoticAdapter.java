@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -33,6 +34,7 @@ import org.springframework.web.client.RestClientResponseException;
 import com.synapse.crm.atendimento.application.midia.FalhaNaConversaoDeAudioException;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
+import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaRemovidaNoProvedorException;
 import com.synapse.crm.atendimento.domain.canal.MidiaRecebidaTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ProvedorTemporariamenteIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
@@ -516,13 +518,19 @@ class UzapiAutoticAdapter implements CanalGateway {
                             + " sera retentada",
                     breakerAberto);
         } catch (EtapaDaMidiaRecebidaFalhou falha) {
+            String motivo = "midia recebida " + PROVEDOR + ": " + falha.getMessage()
+                    + "; midiaId=" + midiaIdExterno;
+            if (falha.removidaNoResolvedor()) {
+                // E218 (Bloco 1): 410 no resolvedor e sobre o proprio mediaId. Repetir a mesma
+                // consulta nao muda o resultado; o processador registra sem arquivo na hora.
+                throw new MidiaRecebidaRemovidaNoProvedorException(motivo);
+            }
             // A conta em producao responde 404 quando o arquivo ainda nao esta disponivel. Isso
             // nao e uma credencial invalida: a fila deve retentar com backoff, sem guardar o corpo
-            // da resposta (que pode conter URL temporaria ou outros dados do provedor). A etapa
-            // (E218) separa "a Uzapi nao tem o arquivo" de "a URL que ela entregou nao serve".
-            throw new MidiaRecebidaTemporariamenteIndisponivelException(
-                    "midia recebida " + PROVEDOR + ": " + falha.getMessage()
-                            + "; midiaId=" + midiaIdExterno);
+            // da resposta (que pode conter URL temporaria ou outros dados do provedor). O 410 do
+            // download tambem fica aqui: pode ser so a URL temporaria vencida, e a proxima
+            // tentativa pede uma URL nova ao resolvedor.
+            throw new MidiaRecebidaTemporariamenteIndisponivelException(motivo);
         }
     }
 
@@ -780,8 +788,7 @@ class UzapiAutoticAdapter implements CanalGateway {
                     .retrieve()
                     .body(String.class);
         } catch (RestClientResponseException falha) {
-            throw new EtapaDaMidiaRecebidaFalhou("etapa=resolvedor respondeu HTTP "
-                    + falha.getStatusCode().value());
+            throw EtapaDaMidiaRecebidaFalhou.noResolvedor(falha.getStatusCode().value());
         }
         JsonNode no = lerJson(resposta, "resposta da midia recebida");
         String url = no.path("url").asText("").trim();
@@ -798,8 +805,8 @@ class UzapiAutoticAdapter implements CanalGateway {
                     .toEntity(byte[].class);
         } catch (RestClientResponseException falha) {
             // So o host: caminho e query de URL temporaria podem carregar assinatura ou token.
-            throw new EtapaDaMidiaRecebidaFalhou("etapa=download respondeu HTTP "
-                    + falha.getStatusCode().value() + "; host=" + hostOuDesconhecido(destino));
+            throw EtapaDaMidiaRecebidaFalhou.noDownload(
+                    falha.getStatusCode().value(), hostOuDesconhecido(destino));
         }
         byte[] bytes = respostaDosBytes.getBody();
         if (bytes == null) {
@@ -824,8 +831,26 @@ class UzapiAutoticAdapter implements CanalGateway {
 
         private static final long serialVersionUID = 1L;
 
-        EtapaDaMidiaRecebidaFalhou(String descricao) {
+        private final boolean removidaNoResolvedor;
+
+        private EtapaDaMidiaRecebidaFalhou(String descricao, boolean removidaNoResolvedor) {
             super(descricao);
+            this.removidaNoResolvedor = removidaNoResolvedor;
+        }
+
+        static EtapaDaMidiaRecebidaFalhou noResolvedor(int status) {
+            return new EtapaDaMidiaRecebidaFalhou(
+                    "etapa=resolvedor respondeu HTTP " + status, status == HttpStatus.GONE.value());
+        }
+
+        /** O 410 aqui nunca e terminal: pode ser so a URL temporaria vencida (E218). */
+        static EtapaDaMidiaRecebidaFalhou noDownload(int status, String host) {
+            return new EtapaDaMidiaRecebidaFalhou(
+                    "etapa=download respondeu HTTP " + status + "; host=" + host, false);
+        }
+
+        boolean removidaNoResolvedor() {
+            return removidaNoResolvedor;
         }
     }
 
