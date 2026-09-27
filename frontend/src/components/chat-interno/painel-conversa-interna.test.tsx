@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/chat-interno/api", () => ({
   listarConversasChat: vi.fn(),
+  listarContatosChat: vi.fn().mockResolvedValue([]),
+  enviarContatoChat: vi.fn(),
   listarMensagensChat: vi.fn(),
   enviarMensagemChat: vi.fn(),
   enviarMidiaChat: vi.fn(),
