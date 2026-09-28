@@ -19,7 +19,6 @@ import {
   Megaphone,
   Menu,
   MessageSquarePlus,
-  MessageSquareText,
   FileText,
   Settings,
   Sparkles,
@@ -27,6 +26,7 @@ import {
   ShieldUser,
   Tag,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
@@ -61,7 +61,7 @@ const ICONES: Record<string, React.ComponentType<{ className?: string }>> = {
   dashboard: TrendingUp,
   agenda: BookUser,
   tags: Tag,
-  mensagensRapidas: MessageSquareText,
+  mensagensRapidas: Zap,
   templatesWhatsApp: FileText,
   bancoArquivos: Folder,
   mensagensProgramadas: Clock,
