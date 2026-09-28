@@ -32,6 +32,7 @@ import {
 import { ErroDeApi } from "@/lib/api/errors";
 import { estadoDaJanelaTextoLivre } from "@/lib/atendimento/janela-24h";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
+import { useChaveTemplatesWhatsApp } from "@/lib/atendimento/consulta-templates-whatsapp";
 import { arquivosDaAreaDeTransferencia, filtrarArquivos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
 import { citacaoDeResposta, origemDaMensagem } from "@/lib/atendimento/citacao";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
@@ -174,8 +175,9 @@ export function Composer({
   const exigeTemplateForaDaJanela = capacidadeDoCanal.data?.exigeTemplateForaDaJanela ?? true;
   const estadoDaJanela = estadoDaJanelaTextoLivre(conversa.ultimaMensagemDoLeadEm);
   const janelaAberta = !exigeTemplateForaDaJanela || estadoDaJanela === "aberta";
+  const chaveTemplates = useChaveTemplatesWhatsApp();
   const templates = useQuery({
-    queryKey: ["whatsapp-templates"],
+    queryKey: chaveTemplates,
     queryFn: listarTemplatesWhatsApp,
     enabled:
       podeVerTemplates &&

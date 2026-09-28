@@ -58,6 +58,7 @@ import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendime
 import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento;
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
+import com.synapse.crm.atendimento.application.template.TemplateRestritoException;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoAindaAbertoParaAvaliacaoException;
@@ -145,6 +146,7 @@ class AtendimentoAcoesController {
         description = "Cria ou reusa o lead deste telefone e abre a conversa. Contatos já presentes na Agenda são reutilizados mesmo quando pertencem a outro atendente; a abertura preserva o responsável e registra a participação de quem entrou. Texto livre só sai dentro da janela de 24h aberta pelo cliente; fora dela, use template aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Conversa aberta; mensagem enfileirada se o pedido trouxe texto ou template."),
+                @ApiResponse(responseCode = "403", description = "Template reservado a administradores; nenhum lead é criado."),
                 @ApiResponse(responseCode = "404", description = "Lead do telefone não existe ou não é visível."),
                 @ApiResponse(responseCode = "422", description = "Pedido inválido, telefone ilegível ou canal fora da janela de texto livre.")
             })
@@ -216,6 +218,7 @@ class AtendimentoAcoesController {
             description = "Envia um template já aprovado. Não exige janela de 24h; a ação humana transfere o atendimento elegível para quem enviou antes de enfileirar a entrega. O provedor recusa se o modelo não estiver aprovado.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Template aceito para entrega."),
+                @ApiResponse(responseCode = "403", description = "Template reservado a administradores; nada é gravado nem enfileirado."),
                 @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível."),
                 @ApiResponse(responseCode = "409", description = "O clique referencia um atendimento finalizado ou substituído.")
             })
@@ -566,6 +569,11 @@ class AtendimentoAcoesController {
                 ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
         problema.setTitle("Avaliacao recusada");
         return problema;
+    }
+
+    @ExceptionHandler(TemplateRestritoException.class)
+    ProblemDetail aoUsarTemplateRestrito(TemplateRestritoException e) {
+        return ProblemasDeTemplateRestrito.restrito(e);
     }
 
     @ExceptionHandler(ForaDaJanelaException.class)

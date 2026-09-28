@@ -20,6 +20,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepo
 import com.synapse.crm.atendimento.application.referencia.MontadorDeReferenciaDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagem;
 import com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio;
+import com.synapse.crm.atendimento.application.template.AutorizacaoDeTemplates;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
@@ -73,6 +74,7 @@ public class EnviarMensagemUseCase {
     private final MensagemReferenciaRepositorio referencias;
     private final ParticipacaoAtendimentoRepositorio participacoes;
     private final IdempotenciaDeMensagemEnvioRepositorio idempotencia;
+    private final AutorizacaoDeTemplates autorizacaoDeTemplates;
 
     /** Construtor usado pela aplicação: o índice de idempotência é persistente e transacional. */
     @Autowired
@@ -89,7 +91,8 @@ public class EnviarMensagemUseCase {
             MensagemIdExternoRepositorio idsExternos,
             MensagemReferenciaRepositorio referencias,
             ParticipacaoAtendimentoRepositorio participacoes,
-            IdempotenciaDeMensagemEnvioRepositorio idempotencia) {
+            IdempotenciaDeMensagemEnvioRepositorio idempotencia,
+            AutorizacaoDeTemplates autorizacaoDeTemplates) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.leads = leads;
@@ -105,6 +108,7 @@ public class EnviarMensagemUseCase {
         this.referencias = referencias;
         this.participacoes = participacoes;
         this.idempotencia = idempotencia;
+        this.autorizacaoDeTemplates = autorizacaoDeTemplates;
     }
 
     /** Compatibilidade para testes e consumidores que ainda não precisam de idempotência. */
@@ -120,7 +124,8 @@ public class EnviarMensagemUseCase {
             OrigemDeMensagemRepositorio origens,
             MensagemIdExternoRepositorio idsExternos,
             MensagemReferenciaRepositorio referencias,
-            ParticipacaoAtendimentoRepositorio participacoes) {
+            ParticipacaoAtendimentoRepositorio participacoes,
+            AutorizacaoDeTemplates autorizacaoDeTemplates) {
         this(
                 atendimentos,
                 mensagens,
@@ -134,7 +139,8 @@ public class EnviarMensagemUseCase {
                 idsExternos,
                 referencias,
                 participacoes,
-                new IdempotenciaDeMensagemEnvioRepositorio() {});
+                new IdempotenciaDeMensagemEnvioRepositorio() {},
+                autorizacaoDeTemplates);
     }
 
     /**
@@ -266,6 +272,11 @@ public class EnviarMensagemUseCase {
             String chaveIdempotencia,
             UUID atendimentoEsperadoId,
             boolean transfereResponsabilidade) {
+        // Primeiro de tudo, e sem rede: quem nao pode usar o template nao chega nem ao replay
+        // idempotente, nem ao lock do lead, nem a outbox. Decisao so pelo nome.
+        if (conteudo instanceof ConteudoDeEnvio.MensagemTemplate template) {
+            autorizacaoDeTemplates.exigirUso(template.nome());
+        }
         Instant agora = Instant.now(relogio);
 
         String chave = normalizarChave(chaveIdempotencia);

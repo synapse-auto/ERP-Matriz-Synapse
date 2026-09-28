@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.canal.CanalEntradaAtiva;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.template.AutorizacaoDeTemplates;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -54,6 +55,7 @@ public class IniciarNovoContatoUseCase {
     private final Clock relogio;
     private final ParticipacaoAtendimentoRepositorio participacoes;
     private final ApplicationEventPublisher eventos;
+    private final AutorizacaoDeTemplates autorizacaoDeTemplates;
 
     public IniciarNovoContatoUseCase(
             LeadNoCaminhoDeMensagem leads,
@@ -65,7 +67,8 @@ public class IniciarNovoContatoUseCase {
             UsuarioContext usuarioContext,
             Clock relogio,
             ParticipacaoAtendimentoRepositorio participacoes,
-            ApplicationEventPublisher eventos) {
+            ApplicationEventPublisher eventos,
+            AutorizacaoDeTemplates autorizacaoDeTemplates) {
         this.leads = leads;
         this.atendimentos = atendimentos;
         this.enviar = enviar;
@@ -76,6 +79,7 @@ public class IniciarNovoContatoUseCase {
         this.relogio = relogio;
         this.participacoes = participacoes;
         this.eventos = eventos;
+        this.autorizacaoDeTemplates = autorizacaoDeTemplates;
     }
 
     @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.iniciar_conversa')")
@@ -116,6 +120,10 @@ public class IniciarNovoContatoUseCase {
         }
         if (temTemplate && !preenchido(modelo.idioma())) {
             throw new PedidoDeNovoContatoInvalidoException("template exige idioma");
+        }
+        // Antes de criar ou reusar lead: template restrito nao pode deixar nem um contato aberto.
+        if (temTemplate) {
+            autorizacaoDeTemplates.exigirUso(modelo.nome());
         }
 
         Instant agora = Instant.now(relogio);

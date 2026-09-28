@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.template.AutorizacaoDeTemplatesDeTeste;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
@@ -390,7 +391,7 @@ class EnviarMensagemUseCaseTest {
                 mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class),
-                participacoes, idempotencia);
+                participacoes, idempotencia, AutorizacaoDeTemplatesDeTeste.com(contexto, canal));
 
         EnviarMensagemUseCase.Resultado primeiro = useCase.executar(
                 leadId, new com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemLivre("oi"), chave);
@@ -454,7 +455,8 @@ class EnviarMensagemUseCaseTest {
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class),
                 participacoes,
-                idempotencia);
+                idempotencia,
+                AutorizacaoDeTemplatesDeTeste.com(contexto, canal));
 
         EnviarMensagemUseCase.Resultado resultado = useCase.executar(
                 leadId,
@@ -520,7 +522,8 @@ class EnviarMensagemUseCaseTest {
                 origens,
                 idsExternos,
                 referencias,
-                mock(ParticipacaoAtendimentoRepositorio.class));
+                mock(ParticipacaoAtendimentoRepositorio.class),
+                AutorizacaoDeTemplatesDeTeste.com(contexto, canal));
 
         assertThatThrownBy(() -> useCase.executar(
                         leadId,
@@ -553,6 +556,31 @@ class EnviarMensagemUseCaseTest {
                 null);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = PapelUsuario.class, names = {"ATENDENTE", "SUBGESTOR", "GESTOR"})
+    void templateRestrito_paraNaoAdministrador_naoTocaLeadMensagemNemOutbox(PapelUsuario papel) {
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(UUID.randomUUID(), papel, false));
+        EnviarMensagemUseCase useCase = novoUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto,
+                mock(ApplicationEventPublisher.class), Instant.parse("2026-09-28T12:00:00Z"), participacoes);
+
+        assertThatThrownBy(() -> useCase.executar(
+                        UUID.randomUUID(),
+                        com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio.MensagemTemplate.de("Aviso_Interno_Cliente", "pt_BR"),
+                        "chave-restrita"))
+                .isInstanceOf(com.synapse.crm.atendimento.application.template.TemplateRestritoException.class);
+
+        org.mockito.Mockito.verifyNoInteractions(leads, mensagens, outbox, participacoes, canal);
+        verify(atendimentos, never()).salvar(any());
+    }
+
     private static EnviarMensagemUseCase novoUseCase(
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
@@ -576,6 +604,7 @@ class EnviarMensagemUseCaseTest {
                 mock(com.synapse.crm.atendimento.application.referencia.OrigemDeMensagemRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio.class),
                 mock(com.synapse.crm.atendimento.application.referencia.MensagemReferenciaRepositorio.class),
-                participacoes);
+                participacoes,
+                AutorizacaoDeTemplatesDeTeste.com(contexto, canal));
     }
 }

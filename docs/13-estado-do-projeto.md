@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 28/09/2026 — Templates internos restritos ao ADMINISTRADOR
+
+Template do WhatsApp cujo nome contém `interno` (configurável por `TEMPLATES_TERMO_RESTRITO`,
+sem diferenciar maiúsculas) só é listado, criado, enviado, usado em novo contato, editado ou
+excluído por `ADMINISTRADOR` — restrição de papel, não delegável pela Gestão. Detalhes, tabela de
+pontos de entrada e limitações em [`47-gestao-permissoes.md` §6.1](./47-gestao-permissoes.md).
+O envio decide só pelo nome (sem chamada ao provedor no caminho crítico). No frontend, a chave da
+consulta de templates inclui o usuário e o `QueryProvider` descarta o cache quando o usuário da
+sessão muda sem recarregar a página. Nada foi apagado na Meta e o histórico de mensagens não muda.
+
 ### 26/09/2026 — Investigação do HTTP 410 em documentos da Uzapi/Autotic (FMNA)
 
 Investigação sem acesso a produção, registrada em

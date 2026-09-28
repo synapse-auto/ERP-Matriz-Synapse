@@ -45,6 +45,8 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     private static final AtomicReference<String> corpoGraph = new AtomicReference<>(
             "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                     + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
+    /** Quando preenchido, responde o GET de /message_templates com este corpo e o resto com {@link #corpoGraph}. */
+    private static final AtomicReference<String> corpoListagemGraph = new AtomicReference<>();
     private static final AtomicInteger consultasCampoInvalido = new AtomicInteger();
     private static final AtomicReference<String> contentTypeGraph = new AtomicReference<>("application/json");
     private static HttpServer provedor;
@@ -77,6 +79,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         corpoGraph.set(
                 "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                         + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
+        corpoListagemGraph.set(null);
         consultasCampoInvalido.set(0);
         contentTypeGraph.set("application/json");
     }
@@ -206,6 +209,12 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     @Test
     @DisplayName("gestao edita pelo ID e exclui a variante com nome exigido pela Meta")
     void gestaoEditaEExcluiPeloContratoDaMeta() throws Exception {
+        // Nao administrador so alcanca variante que a listagem autorizada mostraria: o ID precisa
+        // estar na listagem da Meta (docs/47 secao 6.1).
+        corpoListagemGraph.set(
+                "{\"data\":[{\"id\":\"meta-1\",\"name\":\"boas_vindas\",\"language\":\"pt_BR\","
+                        + "\"status\":\"APPROVED\",\"category\":\"UTILITY\","
+                        + "\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}]}");
         corpoGraph.set(
                 "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}");
         ResponseEntity<String> editado = chamarComo(
@@ -250,7 +259,11 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 if (caminho.contains("whatsapp_business_account")) {
                     consultasCampoInvalido.incrementAndGet();
                 }
-                byte[] corpo = corpoGraph.get().getBytes(StandardCharsets.UTF_8);
+                String listagem = corpoListagemGraph.get();
+                String resposta = listagem != null && "GET".equals(troca.getRequestMethod()) && caminho.endsWith("/message_templates")
+                        ? listagem
+                        : corpoGraph.get();
+                byte[] corpo = resposta.getBytes(StandardCharsets.UTF_8);
                 int status = statusGraph.get();
                 troca.getResponseHeaders().set("Content-Type", contentTypeGraph.get());
                 troca.sendResponseHeaders(status, corpo.length);

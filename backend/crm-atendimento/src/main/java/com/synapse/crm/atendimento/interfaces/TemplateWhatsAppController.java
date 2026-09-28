@@ -32,6 +32,8 @@ import com.synapse.crm.atendimento.application.template.EditarTemplateWhatsAppUs
 import com.synapse.crm.atendimento.application.template.ExcluirTemplateWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.ListarTemplatesWhatsAppUseCase;
 import com.synapse.crm.atendimento.application.template.PedidoDeTemplateInvalidoException;
+import com.synapse.crm.atendimento.application.template.TemplateForaDoAlcanceException;
+import com.synapse.crm.atendimento.application.template.TemplateRestritoException;
 import com.synapse.crm.atendimento.domain.canal.CanalIndisponivelException;
 import com.synapse.crm.atendimento.domain.canal.TemplateDoCanal;
 
@@ -61,7 +63,7 @@ class TemplateWhatsAppController {
 
     @Operation(
             summary = "Listar templates do WhatsApp",
-            description = "Consulta o provedor ativo. Fora do caminho de envio e recebimento de mensagem.",
+            description = "Consulta o provedor ativo. Fora do caminho de envio e recebimento de mensagem. Templates cujo nome contem o termo restrito da instancia (padrao: interno) so aparecem para ADMINISTRADOR.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Templates do provedor."),
                 @ApiResponse(responseCode = "503", description = "Provedor indisponível.")
@@ -77,6 +79,7 @@ class TemplateWhatsAppController {
             responses = {
                 @ApiResponse(responseCode = "201", description = "Template aceito pelo provedor."),
                 @ApiResponse(responseCode = "400", description = "Pedido inválido."),
+                @ApiResponse(responseCode = "403", description = "Nome reservado a administradores."),
                 @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
                 @ApiResponse(responseCode = "503", description = "Provedor indisponível.")
             })
@@ -93,6 +96,7 @@ class TemplateWhatsAppController {
             responses = {
                 @ApiResponse(responseCode = "204", description = "Template enviado para nova analise."),
                 @ApiResponse(responseCode = "400", description = "Pedido invalido."),
+                @ApiResponse(responseCode = "404", description = "Template fora dos visiveis ao usuario (inclui restrito a administradores)."),
                 @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
                 @ApiResponse(responseCode = "503", description = "Provedor indisponivel.")
             })
@@ -110,6 +114,7 @@ class TemplateWhatsAppController {
             responses = {
                 @ApiResponse(responseCode = "204", description = "Template excluido."),
                 @ApiResponse(responseCode = "400", description = "Pedido invalido."),
+                @ApiResponse(responseCode = "404", description = "Template fora dos visiveis ao usuario (inclui restrito a administradores)."),
                 @ApiResponse(responseCode = "422", description = "Provedor recusou o pedido."),
                 @ApiResponse(responseCode = "503", description = "Provedor indisponivel.")
             })
@@ -119,6 +124,18 @@ class TemplateWhatsAppController {
             @PathVariable String id,
             @RequestParam("nome") @NotBlank String nome) {
         excluir.executar(id, nome);
+    }
+
+    @ExceptionHandler(TemplateRestritoException.class)
+    ProblemDetail restrito(TemplateRestritoException erro) {
+        return ProblemasDeTemplateRestrito.restrito(erro);
+    }
+
+    @ExceptionHandler(TemplateForaDoAlcanceException.class)
+    ProblemDetail foraDoAlcance(TemplateForaDoAlcanceException erro) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, erro.getMessage());
+        problema.setTitle("Template nao encontrado");
+        return problema;
     }
 
     @ExceptionHandler(PedidoDeTemplateInvalidoException.class)

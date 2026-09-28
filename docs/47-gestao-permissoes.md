@@ -164,6 +164,41 @@ O formulário comum não oferece GESTOR nem ADMINISTRADOR (contrato `PapelGerenc
   (`GestaoPermissoesIT.excecaoNaoAlcancaLeadDeColega`).
 - `/internal/v1` e `X-Synapse-Token`: intocados.
 
+### 6.1 Templates internos — restrição de papel, fora do catálogo
+
+Templates do WhatsApp cujo **nome** contém o termo restrito da instância são exclusivos do
+`ADMINISTRADOR`. Não é capacidade: nenhuma permissão da Gestão a concede ou revoga, e `GESTOR`
+não é exceção. As capacidades `templates.*` continuam sendo exigidas antes desta regra; ela só
+restringe mais.
+
+- **Regra exata:** `nome.toLowerCase(Locale.ROOT).contains(termo.toLowerCase(Locale.ROOT))`.
+  Termo padrão `interno` (`TEMPLATES_TERMO_RESTRITO`). Restritos: `aviso_interno_cliente`,
+  `INTERNO_x`, `subinterno`. Não restritos: `aviso_cliente`, `internacional`, `inter_no`. O
+  corpo nunca é consultado. Termo vazio falha no boot.
+- **Onde vive:** `RegraDeTemplateRestrito` (domínio) + `AutorizacaoDeTemplates` (aplicação). Todos
+  os pontos de entrada passam por ela:
+
+| Operação | Ponto de entrada | Não administrador | Consulta o provedor? |
+|---|---|---|---|
+| Listar | `ListarTemplatesWhatsAppUseCase` | item omitido da resposta | já consultava (a listagem é do provedor) |
+| Criar | `CriarTemplateWhatsAppUseCase` (nome já normalizado) | 403 | não |
+| Enviar | `EnviarMensagemUseCase` (todas as sobrecargas, antes do replay idempotente) | 403, sem mensagem/outbox/troca de dono | **não** — decisão só pelo nome |
+| Novo contato | `IniciarNovoContatoUseCase` (antes de criar/reusar lead) | 403, nenhum lead criado | não |
+| Editar | `EditarTemplateWhatsAppUseCase` | 404 se o ID não está entre os visíveis | sim, uma listagem — só para não administrador |
+| Excluir | `ExcluirTemplateWhatsAppUseCase` | 403 se o `nome` é restrito; 404 se o ID não está entre os visíveis ou o nome não é o da variante | idem |
+
+- **Por que editar/excluir consultam a listagem:** `PUT /{id}` só recebe o ID opaco da Meta, que
+  não carrega o nome; `DELETE` recebe o nome, mas ele é declarado pelo cliente. Sem a consulta, um
+  nome comum acobertaria um ID restrito. É gestão de template, fora do caminho de mensagem, atrás
+  do breaker `canal-meta-cloud-templates`. O administrador não paga essa consulta.
+- **404 e não 403 em editar/excluir:** a variante é tratada como inexistente para quem não a vê, o
+  mesmo critério de lead fora do recorte da RN-CRM-01.
+- **Histórico preservado:** mensagens já enviadas com template restrito continuam no atendimento
+  como foram gravadas; a regra só age em novas operações.
+- **Limitação conhecida:** a listagem da Meta traz até 100 templates (`limit=100`, sem paginação —
+  pré-existente). Um template além disso não aparece para ninguém e, para não administradores,
+  editar/excluir responde 404 (falha fechada).
+
 ## 7. Sessão, cache e tempo real
 
 | Mudança | Mesmo nó | Outro nó | JWT antigo | WebSocket |

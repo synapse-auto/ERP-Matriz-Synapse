@@ -154,6 +154,11 @@ synapse:
   atendimentos:
     tempo-notificacao-segundos: ${ATENDIMENTOS_TEMPO_NOTIFICACAO_SEGUNDOS:8}
 
+  templates:
+    # Template do WhatsApp cujo nome contem este termo (sem diferenciar maiusculas) so e visto e
+    # operado por ADMINISTRADOR. Vazio falha no boot: a regra nao pode ser desligada por engano.
+    termo-restrito: ${TEMPLATES_TERMO_RESTRITO:interno}
+
   leads:
     # Uma linha extra e buscada internamente para calcular `temMais`; nao ha COUNT global
     # aqui — quem precisa do total exato chama /api/v1/leads/filtrar/contagem.

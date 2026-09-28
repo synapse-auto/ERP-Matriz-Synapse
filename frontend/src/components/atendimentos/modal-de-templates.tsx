@@ -24,6 +24,7 @@ import {
 } from "@/lib/atendimento/variaveis-do-template";
 import type { Textos } from "@/lib/config/schema";
 import { editarTemplateWhatsApp, excluirTemplateWhatsApp } from "@/lib/atendimento/api";
+import { PREFIXO_TEMPLATES_WHATSAPP } from "@/lib/atendimento/consulta-templates-whatsapp";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { cn } from "@/lib/utils";
@@ -98,14 +99,14 @@ export function ModalDeTemplates({
     mutationFn: (pedido: { id: string; corpo: string }) =>
       editarTemplateWhatsApp(pedido.id, { corpo: pedido.corpo }),
     onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: PREFIXO_TEMPLATES_WHATSAPP });
       setEditando(null);
     },
   });
   const excluir = useMutation({
     mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
     onSuccess: (_resultado, template) => {
-      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: PREFIXO_TEMPLATES_WHATSAPP });
       if (chaveSelecionada === chaveDoTemplate(template)) {
         setChaveClicada(null);
         onTemplateExcluido?.(template);

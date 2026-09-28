@@ -427,6 +427,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `WHATSAPP_PROVEDOR` | `meta-cloud` | Somente ao instalar outro adapter de canal. |
 | `WHATSAPP_URL_BASE` | Graph API `v21.0` | Mudança versionada da API da Meta. |
 | `WHATSAPP_CONTA_NEGOCIO` | vazio | WABA ID, necessário para listar/criar templates. Não é o Phone Number ID; vazio desabilita somente a administração de templates. |
+| `TEMPLATES_TERMO_RESTRITO` | `interno` | Template cujo **nome** contém este termo (sem diferenciar maiúsculas/minúsculas) só é listado, criado, enviado, editado ou excluído por `ADMINISTRADOR`. Não é delegável por permissão da Gestão. Vazio falha no boot. |
 | `WHATSAPP_USUARIO_API` | vazio (legada) | Mantida por compatibilidade com E152; a Uzapi/Autotic atual não usa username, nem exige esta variável. |
 | `WHATSAPP_VERSAO_API` | vazio | `{version}` das rotas da Uzapi/Autotic (E152, provedor `uzapi-autotic`). Só esse adaptador usa; vazio não afeta `meta-cloud`. |
 | `CANAL_FOTO_PERFIL_HABILITADO` | `true` | Habilita a captura assíncrona de foto quando o adaptador do canal oferece essa capacidade; desligar não afeta mensagens. |
