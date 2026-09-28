@@ -1,5 +1,6 @@
 package com.synapse.crm.equipe.domain.permissao;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -72,7 +73,7 @@ class PoliticaDeConcessaoTest {
     }
 
     @Test
-    @DisplayName("ATENDENTE nao concede nada; GESTOR nao edita GESTOR nem ADMINISTRADOR; so superiores editam perfis")
+    @DisplayName("ATENDENTE nao concede nada; GESTOR nao edita GESTOR nem ADMINISTRADOR")
     void outrosPapeis() {
         codigo(() -> PoliticaDeConcessao.exigirAlcadaSobre(ator(PapelUsuario.ATENDENTE, VAZIA), ALVO, PapelUsuario.ATENDENTE),
                 Codigo.SEM_DELEGACAO);
@@ -82,9 +83,78 @@ class PoliticaDeConcessaoTest {
         assertThatCode(() -> PoliticaDeConcessao.exigirConcessao(gestor, ALVO, PapelUsuario.SUBGESTOR, VAZIA,
                 new ConfiguracaoDePermissoes(Map.of(Modulo.EQUIPE, NivelDeAcesso.GERENCIAR),
                         Map.of(Capacidade.EQUIPE_EXCECOES_ATENDENTES, true)))).doesNotThrowAnyException();
-        codigo(() -> PoliticaDeConcessao.exigirEdicaoDePerfil(ator(PapelUsuario.SUBGESTOR, DELEGADO)),
-                Codigo.PERFIL_SO_PARA_SUPERIORES);
-        assertThatCode(() -> PoliticaDeConcessao.exigirEdicaoDePerfil(gestor)).doesNotThrowAnyException();
+    }
+
+    // --- perfis ----------------------------------------------------------------------------------
+
+    private static final ConfiguracaoDePermissoes EDITA_PERFIS = new ConfiguracaoDePermissoes(
+            Map.of(Modulo.EQUIPE, NivelDeAcesso.GERENCIAR),
+            Map.of(Capacidade.EQUIPE_PERFIS, true));
+
+    private static ConfiguracaoDePermissoes perfilAtendente(ConfiguracaoDePermissoes armazenado) {
+        return PoliticaDePermissoes.perfilCompleto(PapelUsuario.ATENDENTE, armazenado);
+    }
+
+    @Test
+    @DisplayName("perfis: superiores editam os configuraveis; SUBGESTOR so com delegacao, e so o de ATENDENTE")
+    void alcadaSobrePerfis() {
+        PoliticaDeConcessao.Ator gestor = ator(PapelUsuario.GESTOR, VAZIA);
+        assertThat(PoliticaDeConcessao.podeEditarPerfil(gestor, PapelUsuario.SUBGESTOR)).isTrue();
+        assertThat(PoliticaDeConcessao.podeEditarPerfil(gestor, PapelUsuario.ATENDENTE)).isTrue();
+        assertThat(PoliticaDeConcessao.podeEditarPerfil(gestor, PapelUsuario.GESTOR)).isFalse();
+
+        // delegacao de excecoes nao e delegacao de perfis
+        codigo(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(ator(PapelUsuario.SUBGESTOR, DELEGADO), PapelUsuario.ATENDENTE),
+                Codigo.SEM_DELEGACAO);
+        codigo(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(ator(PapelUsuario.ATENDENTE, EDITA_PERFIS), PapelUsuario.ATENDENTE),
+                Codigo.SEM_DELEGACAO);
+
+        PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, EDITA_PERFIS);
+        assertThatCode(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(sub, PapelUsuario.ATENDENTE)).doesNotThrowAnyException();
+        codigo(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(sub, PapelUsuario.SUBGESTOR), Codigo.ALVO_FORA_DA_ALCADA);
+        codigo(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(sub, PapelUsuario.GESTOR), Codigo.ALVO_FORA_DA_ALCADA);
+        codigo(() -> PoliticaDeConcessao.exigirAlcadaSobrePerfil(sub, PapelUsuario.ADMINISTRADOR), Codigo.ALVO_FORA_DA_ALCADA);
+        assertThat(PoliticaDeConcessao.podeEditarPerfil(sub, PapelUsuario.ATENDENTE)).isTrue();
+        assertThat(PoliticaDeConcessao.podeEditarPerfil(sub, PapelUsuario.SUBGESTOR)).isFalse();
+    }
+
+    @Test
+    @DisplayName("perfil ATENDENTE pelo SUBGESTOR: nunca nivel, so o delegavel, nunca liga o que nao tem")
+    void conjuntoDelegavelNoPerfil() {
+        PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, EDITA_PERFIS);
+        ConfiguracaoDePermissoes atual = perfilAtendente(VAZIA);
+
+        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
+                perfilAtendente(acao(Capacidade.TAGS_APLICAR, false)))).doesNotThrowAnyException();
+        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
+                perfilAtendente(new ConfiguracaoDePermissoes(Map.of(Modulo.TAGS, NivelDeAcesso.VER), Map.of()))),
+                Codigo.NIVEL_NAO_DELEGAVEL);
+        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
+                perfilAtendente(acao(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false))), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+
+        ConfiguracaoDePermissoes subSemResumo = new ConfiguracaoDePermissoes(EDITA_PERFIS.niveis(),
+                Map.of(Capacidade.EQUIPE_PERFIS, true, Capacidade.RESUMO_IA_SOLICITAR, false));
+        PoliticaDeConcessao.Ator limitado = ator(PapelUsuario.SUBGESTOR, subSemResumo);
+        ConfiguracaoDePermissoes semResumo = perfilAtendente(acao(Capacidade.RESUMO_IA_SOLICITAR, false));
+        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(limitado, PapelUsuario.ATENDENTE, semResumo,
+                perfilAtendente(VAZIA)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
+        // desligar o que e delegavel continua permitido, mesmo sem te-lo
+        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(limitado, PapelUsuario.ATENDENTE,
+                perfilAtendente(VAZIA), semResumo)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("perfil pelo superior: sem recorte de delegacao; copia so de origem na alcada")
+    void superiorNoPerfilECopia() {
+        PoliticaDeConcessao.Ator gestor = ator(PapelUsuario.GESTOR, VAZIA);
+        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(gestor, PapelUsuario.ATENDENTE, perfilAtendente(VAZIA),
+                perfilAtendente(new ConfiguracaoDePermissoes(Map.of(Modulo.TAGS, NivelDeAcesso.VER),
+                        Map.of(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false))))).doesNotThrowAnyException();
+
+        PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, EDITA_PERFIS);
+        assertThat(PoliticaDeConcessao.origemDeCopiaNaAlcada(gestor, PapelUsuario.SUBGESTOR)).isTrue();
+        assertThat(PoliticaDeConcessao.origemDeCopiaNaAlcada(sub, PapelUsuario.ATENDENTE)).isTrue();
+        assertThat(PoliticaDeConcessao.origemDeCopiaNaAlcada(sub, PapelUsuario.SUBGESTOR)).isFalse();
     }
 
     private static void codigo(org.assertj.core.api.ThrowableAssert.ThrowingCallable chamada, Codigo esperado) {

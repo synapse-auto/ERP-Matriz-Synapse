@@ -28,8 +28,8 @@ function normalizarAba(valor: string | null): Aba {
 function selo(textos: TextosGestao, minhas: MinhasPermissoes): string {
   if (minhas.papel === "ADMINISTRADOR") return textos.selo.administrador;
   if (minhas.papel === "GESTOR") return textos.selo.gestao;
-  const delegado = minhas.editaExcecoes || ["equipe.criar", "equipe.editar", "equipe.desativar", "equipe.senha_provisoria"]
-    .some((c) => pode(minhas, c));
+  const delegado = minhas.editaPerfis || minhas.editaExcecoes
+    || ["equipe.criar", "equipe.editar", "equipe.desativar", "equipe.senha_provisoria"].some((c) => pode(minhas, c));
   return delegado ? textos.selo.delegado : textos.selo.leitura;
 }
 
@@ -145,6 +145,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
           <AbaPermissoes
             key={perfilDaUrl ?? "padrao"}
             textos={textos}
+            minhas={minhas}
             papelInicial={perfilDaUrl === "ATENDENTE" || perfilDaUrl === "SUBGESTOR" || perfilDaUrl === "GESTOR" ? perfilDaUrl : undefined}
             onSujoChange={setSujo}
           />

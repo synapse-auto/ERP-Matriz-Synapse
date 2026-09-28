@@ -9,20 +9,21 @@ package com.synapse.crm.equipe.domain.permissao;
 public class ConcessaoNegadaException extends RuntimeException {
 
     public enum Codigo {
-        /** SUBGESTOR sem {@link Capacidade#EQUIPE_EXCECOES_ATENDENTES}. */
+        /**
+         * Sem a delegacao que a operacao exige: {@link Capacidade#EQUIPE_EXCECOES_ATENDENTES} para
+         * excecoes, {@link Capacidade#EQUIPE_PERFIS} para perfis.
+         */
         SEM_DELEGACAO,
         /** Ninguem ajusta as proprias permissoes. */
         ALVO_PROPRIO,
-        /** SUBGESTOR so alcanca ATENDENTES; nunca outro subgestor ou superior. */
+        /** SUBGESTOR so alcanca ATENDENTES e o perfil deles; nunca outro subgestor, o proprio perfil ou superior. */
         ALVO_FORA_DA_ALCADA,
         /** Acao fora do conjunto delegavel. */
         FORA_DO_CONJUNTO_DELEGAVEL,
         /** Ninguem concede o que nao tem. */
         ACIMA_DA_PROPRIA_PERMISSAO,
         /** Nivel de modulo nao e delegavel; so interruptores. */
-        NIVEL_NAO_DELEGAVEL,
-        /** Somente GESTOR e ADMINISTRADOR editam perfis. */
-        PERFIL_SO_PARA_SUPERIORES
+        NIVEL_NAO_DELEGAVEL
     }
 
     private final Codigo codigo;

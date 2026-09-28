@@ -73,9 +73,7 @@ class GravadorDeExcecoes {
         ResolvedorDePermissoesEfetivas.Resolvido origem = resolvedor.de(origemId)
                 .orElseThrow(() -> new PermissaoInvalidaException(new Violacao("origem", Violacao.Codigo.ORIGEM_INVALIDA)));
         PoliticaDeCopia.exigirOrigemValida(origem.papel());
-        boolean origemForaDaAlcada = !PoliticaDePermissoes.perfilFixo(ator.papel())
-                && origem.papel() != com.synapse.crm.sharedkernel.identidade.PapelUsuario.ATENDENTE;
-        if (origemId.equals(alvo.id()) || origemForaDaAlcada) {
+        if (origemId.equals(alvo.id()) || !PoliticaDeConcessao.origemDeCopiaNaAlcada(ator, origem.papel())) {
             throw new PermissaoInvalidaException(new Violacao("origem", Violacao.Codigo.ORIGEM_INVALIDA));
         }
     }

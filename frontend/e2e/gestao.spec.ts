@@ -217,7 +217,7 @@ test("SUBGESTOR sem delegação: lê Gestão sem controles de edição; ATENDENT
   await expect(page.getByText("Somente leitura")).toBeVisible();
   await expect(page.getByRole("button", { name: "Novo usuário" })).toHaveCount(0);
   await page.getByRole("tab", { name: /Permissões/ }).click();
-  await expect(page.getByText("Somente Gestor e Administrador editam perfis.")).toBeVisible();
+  await expect(page.getByText("Suas permissões são definidas por Gestor ou Administrador.")).toBeVisible();
   await expect(page.getByRole("switch").first()).toBeDisabled();
 
   const outra = await browser.newPage();

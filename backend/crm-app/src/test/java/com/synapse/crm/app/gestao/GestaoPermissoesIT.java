@@ -354,6 +354,64 @@ class GestaoPermissoesIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("SUBGESTOR com equipe.perfis edita so o perfil ATENDENTE, so o delegavel, so o que tem; nunca o proprio")
+    void delegacaoDePerfis() {
+        String tokenGestor = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String tokenSub = token(EMAIL_SUBGESTOR, SENHA_SUBGESTOR);
+        // Ana herda do perfil; o subgestor fica sem resumo para provar que nao liga o que nao tem
+        salvarPerfilAtendente(tokenGestor, Map.of("resumo_ia.solicitar", false));
+        assertThat(chamar(tokenGestor, HttpMethod.PUT, BASE + "/usuarios/" + subgestor + "/excecoes",
+                corpoExcecoes(revisaoUsuario(subgestor), mapa("equipe", "GERENCIAR"),
+                        mapa("equipe.perfis", true, "resumo_ia.solicitar", false))).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        JsonNode minhas = ler(chamar(tokenSub, HttpMethod.GET, BASE + "/minhas", null));
+        assertThat(minhas.path("editaPerfis").asBoolean()).isTrue();
+        Map<String, JsonNode> perfis = new HashMap<>();
+        ler(chamar(tokenSub, HttpMethod.GET, BASE + "/perfis", null)).forEach(p -> perfis.put(p.path("papel").asText(), p));
+        assertThat(perfis.get("ATENDENTE").path("editavel").asBoolean()).isTrue();
+        assertThat(perfis.get("SUBGESTOR").path("editavel").asBoolean()).isFalse();
+        assertThat(perfis.get("GESTOR").path("editavel").asBoolean()).isFalse();
+
+        // o que ele alcanca: desligar acao delegavel no perfil ATENDENTE, com efeito real na Ana
+        assertThat(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisaoPerfil("ATENDENTE"),
+                Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false))).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(aplicarTag(token(EMAIL_ANA, SENHA_ATENDENTE), leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // o que ele nao alcanca, sem gravar nada
+        long revisao = revisaoPerfil("ATENDENTE");
+        assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/SUBGESTOR",
+                corpoPerfil(revisaoPerfil("SUBGESTOR"), mapa("equipe", "GERENCIAR"), mapa("equipe.criar", true)))))
+                .isEqualTo("ALVO_FORA_DA_ALCADA");
+        assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/GESTOR", corpoPerfil(0, Map.of(), Map.of()))))
+                .isEqualTo("ALVO_FORA_DA_ALCADA");
+        assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisao,
+                mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)))))
+                .isEqualTo("NIVEL_NAO_DELEGAVEL");
+        assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisao,
+                Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false, "atendimentos.finalizar_lote", false)))))
+                .isEqualTo("FORA_DO_CONJUNTO_DELEGAVEL");
+        assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisao,
+                Map.of(), mapa("tags.aplicar", false))))).isEqualTo("ACIMA_DA_PROPRIA_PERMISSAO");
+        ResponseEntity<String> copia = chamar(tokenSub, HttpMethod.POST, BASE + "/perfis/ATENDENTE/copia/previa",
+                Map.of("origem", "SUBGESTOR"));
+        assertThat(copia.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(copia.getBody()).contains("ORIGEM_INVALIDA");
+        assertThat(revisaoPerfil("ATENDENTE")).isEqualTo(revisao);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM permissao_perfil_item WHERE papel = 'SUBGESTOR'", Integer.class))
+                .isZero();
+
+        // tela desatualizada: o gestor baixou o nivel de Tags depois da leitura. Comparado ao salvo, o
+        // rascunho antigo "subiria" o nivel (403); o que o subgestor precisa ver e o conflito (409).
+        salvarPerfil(tokenGestor, "ATENDENTE", mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false));
+        ResponseEntity<String> desatualizada = chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE",
+                corpoPerfil(revisao, Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)));
+        assertThat(desatualizada.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(ler(desatualizada).path("revisaoAtual").asLong()).isEqualTo(revisao + 1);
+    }
+
+    @Test
     @DisplayName("SUBGESTOR delegado para usuarios: cria so ATENDENTE (IA OFF), nunca SUBGESTOR; nunca altera papel")
     void delegacaoDeCadastro() {
         String tokenGestor = token(EMAIL_GESTOR, SENHA_GESTOR);

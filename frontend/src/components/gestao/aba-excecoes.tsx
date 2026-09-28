@@ -43,8 +43,9 @@ import {
   SeloSensivel,
   SeletorDeNivel,
   motivoDoBloqueio,
+  motivoForaDaAlcada,
   perfilFixoDoAtor,
-  pode,
+  podeAlterarAcao,
   preencher,
   rotuloDaCapacidade,
   rotuloDoModulo,
@@ -481,11 +482,8 @@ function DetalheDoUsuario({
                   const motivo = motivoDoBloqueio(textos, { motivo: estado.motivo, alcance: null }, c.nivelMinimo, c.dependencias);
                   const bloqueado = estado.motivo === "TETO_DO_PAPEL" || estado.motivo === "FLAG_DESLIGADA"
                     || estado.motivo === "NIVEL_DO_MODULO" || estado.motivo === "DEPENDENCIA";
-                  const podeLigar = atorFixo || (c.delegavel && pode(minhas, c.id));
-                  const podeDesligar = atorFixo || c.delegavel;
-                  const alteravel = editavel && !bloqueado && (estado.permitido ? podeDesligar : podeLigar);
-                  const dica = !editavel || bloqueado ? motivo
-                    : !alteravel ? (c.delegavel ? textos.excecoes.semPermissaoPropria : textos.excecoes.naoDelegavel) : null;
+                  const alteravel = editavel && !bloqueado && podeAlterarAcao(minhas, c, !estado.permitido);
+                  const dica = !editavel || bloqueado ? motivo : !alteravel ? motivoForaDaAlcada(textos, c) : null;
                   return (
                     <tr key={c.id} className={cn("border-t border-border", personalizado && "bg-cor-atencao/[0.07]")}>
                       <td className="py-2.5 pr-3 pl-[3.75rem]">
