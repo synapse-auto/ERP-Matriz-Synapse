@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { LeadFicha, TagDoLead } from "./types";
+import type { LeadFicha, MidiaDoLead, TagDoLead } from "./types";
 
 vi.mock("./api", () => ({
   atualizarLead: vi.fn(),
@@ -13,6 +13,7 @@ vi.mock("./api", () => ({
   listarEtapas: vi.fn(),
   listarTagsDoLead: vi.fn(),
   listarTimeline: vi.fn(),
+  listarMidiasDoLead: vi.fn(),
   listarTodasAsTags: vi.fn(),
   obterLead: vi.fn(),
   obterLeadNaAgenda: vi.fn(),
@@ -20,7 +21,7 @@ vi.mock("./api", () => ({
 }));
 
 import * as api from "./api";
-import { useLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
+import { TIPOS_MIDIAS_DA_FICHA, useLead, useMidiasDoLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -157,5 +158,25 @@ describe("ficha aberta pela Agenda", () => {
     expect(api.obterLeadNaAgenda).toHaveBeenCalledWith("lead-1");
     expect(cache.getQueryData(["lead", "agenda", "lead-1"])).toEqual(ficha);
     expect(cache.getQueryData(["lead", "lead-1"])).toBeUndefined();
+  });
+});
+
+describe("mídias da ficha", () => {
+  it("passa os tipos ao endpoint e separa o cache filtrado do completo", async () => {
+    const imagem = { mensagemId: "imagem", tipo: "IMAGEM" } as MidiaDoLead;
+    const audio = { mensagemId: "audio", tipo: "AUDIO" } as MidiaDoLead;
+    vi.mocked(api.listarMidiasDoLead).mockImplementation(async (_id, _pagina, _tamanho, tipos) =>
+      tipos ? [imagem] : [audio, imagem],
+    );
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const filtrado = renderHook(() => useMidiasDoLead("lead-1", TIPOS_MIDIAS_DA_FICHA), { wrapper: wrapper(cache) });
+    await waitFor(() => expect(filtrado.result.current.data?.pages[0]).toEqual([imagem]));
+    const completo = renderHook(() => useMidiasDoLead("lead-1"), { wrapper: wrapper(cache) });
+    await waitFor(() => expect(completo.result.current.data?.pages[0]).toEqual([audio, imagem]));
+
+    expect(api.listarMidiasDoLead).toHaveBeenCalledWith("lead-1", 0, 20, TIPOS_MIDIAS_DA_FICHA);
+    expect(cache.getQueryData(["lead", "lead-1", "midias", "IMAGEM,VIDEO,DOCUMENTO"])).toBeDefined();
+    expect(cache.getQueryData(["lead", "lead-1", "midias", "todos"])).toBeDefined();
   });
 });

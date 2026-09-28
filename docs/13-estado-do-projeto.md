@@ -295,8 +295,9 @@ Confirmado pela árvore de `origin/main`:
   Meta e encaminhamento como novo envio com referência denormalizada. A origem de uma citação
   pode ser carregada pontualmente por ID, sempre ancorada no atendimento visível (ou na conversa
   interna participante); a resposta devolve somente metadados e URL assinada de curta duração.
-- **Mídia e anexos:** painel de mídias do lead, download autorizado, menu de anexos e envio
-  de vários arquivos/arrastar para o composer.
+- **Mídia e anexos:** painel de mídias do lead mostra imagens, vídeos e documentos (áudio permanece
+  no histórico da conversa e no download autorizado), menu de anexos e envio de vários
+  arquivos/arrastar para o composer. A listagem pública sem filtro ainda inclui áudio.
 - **Áudio gravado no composer para Meta Cloud e Uzapi/Autotic:** antes de persistir, FFmpeg
   normaliza a gravação para OGG/Opus mono a 48 kHz (perfil `voip`, timestamps contínuos). A
   validação exige páginas OGG completas, cabeçalho Opus e uma página EOS com `granule position`

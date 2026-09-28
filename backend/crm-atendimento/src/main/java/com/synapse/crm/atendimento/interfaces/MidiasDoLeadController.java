@@ -2,10 +2,12 @@ package com.synapse.crm.atendimento.interfaces;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.atendimento.application.midia.ListarMidiasDoLeadUseCase;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLead;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLeadNaoEncontradaException;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.atendimento.infrastructure.midia.MidiaProperties;
 import com.synapse.crm.sharedkernel.midia.ArmazenamentoDeMidia;
 
@@ -50,14 +53,22 @@ class MidiasDoLeadController {
     @Operation(
             summary = "Listar mídias do lead",
             description = "Lista metadados sem transferir bytes e sem URL de download. A URL assinada "
-                    + "é emitida sob demanda em GET .../url, para não gastar TTL com o painel aberto.",
-            responses = @ApiResponse(responseCode = "200", description = "Mídias paginadas."))
+                    + "é emitida sob demanda em GET .../url, para não gastar TTL com o painel aberto. "
+                    + "O filtro opcional tipos aceita IMAGEM, AUDIO, DOCUMENTO e VIDEO separados por vírgula; "
+                    + "sem filtro, os quatro tipos são listados.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Mídias paginadas."),
+                @ApiResponse(responseCode = "400", description = "Filtro de tipos inválido.")
+            })
     @GetMapping
     List<Resposta> listar(
             @PathVariable UUID leadId,
             @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "20") int tamanho) {
-        return listar.executar(leadId, pagina, tamanho).stream().map(Resposta::de).toList();
+            @RequestParam(defaultValue = "20") int tamanho,
+            @Parameter(description = "Tipos de mídia separados por vírgula; omitido inclui todos.",
+                    schema = @Schema(allowableValues = {"IMAGEM", "AUDIO", "DOCUMENTO", "VIDEO"}))
+                    @RequestParam(required = false) Set<TipoMensagem> tipos) {
+        return listar.executar(leadId, pagina, tamanho, tipos).stream().map(Resposta::de).toList();
     }
 
     @Operation(
@@ -106,6 +117,13 @@ class MidiasDoLeadController {
     ProblemDetail aoNaoEncontrar(MidiaDoLeadNaoEncontradaException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problema.setTitle("Nao encontrado");
+        return problema;
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail tiposInvalidos(IllegalArgumentException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Pedido invalido");
         return problema;
     }
 

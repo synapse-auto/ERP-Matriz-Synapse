@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
-import type { EtapaAtendimento } from "@/lib/lead/types";
+import type { EtapaAtendimento, MidiaDoLead } from "@/lib/lead/types";
 import type { Lembrete, MensagemProgramada } from "@/lib/suporte/types";
 
 type LeadTeste = {
@@ -62,6 +62,7 @@ const solicitarResumoState = vi.hoisted(() => ({
   isPending: false,
 }));
 const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
+const midiasState = vi.hoisted(() => ({ pages: [[]] as MidiaDoLead[][], hasNextPage: false }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (seletor: (estado: typeof authState) => unknown) => seletor(authState),
@@ -70,6 +71,7 @@ vi.mock("@/lib/auth/auth-store", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
+      media: { baixar: "Baixar", imagem: "Imagem", audio: "Áudio", visualizador: { abrirMidia: "Abrir {nome}" } },
       painel: {
         titulo: "Detalhes do lead",
         retrair: "Retrair detalhes do lead",
@@ -148,11 +150,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
+  TIPOS_MIDIAS_DA_FICHA: ["IMAGEM", "VIDEO", "DOCUMENTO"],
   useLead: () => leadState,
   useEtapas: () => etapasState,
   useEstadoResumoIa: () => ({ data: null, isLoading: false }),
   useSolicitarResumoIa: () => solicitarResumoState,
-  useMidiasDoLead: () => ({ data: { pages: [[]] }, isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
+  useMidiasDoLead: () => ({ data: { pages: midiasState.pages }, isLoading: false, isError: false, hasNextPage: midiasState.hasNextPage, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
   useTagsDoLead: () => ({
     data: [{ id: "tag-1", nome: "Prioridade", cor: "#dc2626", icone: null }],
   }),
@@ -207,6 +210,8 @@ describe("painel da conversa", () => {
     solicitarResumoState.isPending = false;
     suporteState.mensagens = [];
     suporteState.lembretes = [];
+    midiasState.pages = [[]];
+    midiasState.hasNextPage = false;
     leadState.data = {
       id: "lead-1",
       nome: "Marcos Vinícius",
@@ -261,6 +266,22 @@ describe("painel da conversa", () => {
     );
     fireEvent.click(controle);
     expect(onRetrair).toHaveBeenCalledOnce();
+  });
+
+  it("seção de mídias com apenas áudio exibe contagem zero e estado vazio", () => {
+    renderizarPainel("lead-1", "Jardel Lima", vi.fn());
+    const controle = obterControleDaSecao("Mídias e documentos");
+    expect(controle).toHaveTextContent("0");
+    fireEvent.click(controle);
+    expect(screen.getByText("Nenhuma mídia ou documento")).toBeInTheDocument();
+    expect(screen.queryByText("voz.m4a")).not.toBeInTheDocument();
+  });
+
+  it("não anuncia itens carregados como total enquanto existem páginas restantes", () => {
+    midiasState.pages = [[{ mensagemId: "imagem-1", tipo: "IMAGEM" } as MidiaDoLead]];
+    midiasState.hasNextPage = true;
+    renderizarPainel("lead-1", "Jardel Lima", vi.fn());
+    expect(obterControleDaSecao("Mídias e documentos")).not.toHaveTextContent("1");
   });
 
   it("mantém a ação no cabeçalho e desabilita enquanto o resumo é gerado", () => {

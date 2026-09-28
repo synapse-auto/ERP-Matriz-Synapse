@@ -20,7 +20,9 @@ import {
   obterLeadNaAgenda,
   vincularTagAoLead,
 } from "./api";
-import type { AtualizacaoLead, LeadFicha, TagDoLead } from "./types";
+import type { AtualizacaoLead, LeadFicha, MidiaDoLead, TagDoLead } from "./types";
+
+export const TIPOS_MIDIAS_DA_FICHA = ["IMAGEM", "VIDEO", "DOCUMENTO"] as const satisfies readonly MidiaDoLead["tipo"][];
 
 export function useLead(leadId: string | null, contexto: "padrao" | "agenda" = "padrao") {
   return useQuery({
@@ -83,10 +85,10 @@ export function useTimelineDoLead(leadId: string | null) {
   });
 }
 
-export function useMidiasDoLead(leadId: string | null) {
+export function useMidiasDoLead(leadId: string | null, tipos?: readonly MidiaDoLead["tipo"][]) {
   return useInfiniteQuery({
-    queryKey: ["lead", leadId, "midias"],
-    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam),
+    queryKey: ["lead", leadId, "midias", tipos?.join(",") ?? "todos"],
+    queryFn: ({ pageParam }) => listarMidiasDoLead(leadId!, pageParam, 20, tipos),
     initialPageParam: 0,
     getNextPageParam: (ultima, _paginas, pagina) => ultima.length === 20 ? pagina + 1 : undefined,
     enabled: Boolean(leadId),

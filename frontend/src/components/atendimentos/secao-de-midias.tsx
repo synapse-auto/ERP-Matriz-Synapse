@@ -6,7 +6,7 @@ import { Download, FileText, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { emitirUrlAssinadaDaMidia } from "@/lib/lead/api";
 import type { MidiaDoLead } from "@/lib/lead/types";
-import { useMidiasDoLead } from "@/lib/lead/use-painel-lead";
+import { TIPOS_MIDIAS_DA_FICHA, useMidiasDoLead } from "@/lib/lead/use-painel-lead";
 import { useTextos } from "@/lib/config/textos-provider";
 import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
 
@@ -17,7 +17,7 @@ export function ListaDeMidiasDoLead({ leadId }: { leadId: string }) {
   const catalogo = useTextos();
   const textos = catalogo.atendimentos.painel;
   const vis = catalogo.atendimentos.media.visualizador;
-  const midias = useMidiasDoLead(leadId);
+  const midias = useMidiasDoLead(leadId, TIPOS_MIDIAS_DA_FICHA);
   const itens = midias.data?.pages.flat() ?? [];
   const [indiceAberto, setIndiceAberto] = useState<number | null>(null);
 
