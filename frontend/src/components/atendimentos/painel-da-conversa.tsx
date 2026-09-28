@@ -42,6 +42,7 @@ import {
   useEstadoResumoIa,
   useLead,
   useMidiasDoLead,
+  TIPOS_MIDIAS_DA_FICHA,
   useSalvarFicha,
   useSolicitarResumoIa,
 } from "@/lib/lead/use-painel-lead";
@@ -452,13 +453,13 @@ function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
 
 function SecaoDeMidias({ leadId }: { leadId: string }) {
   const textos = useTextos().atendimentos.painel;
-  const midias = useMidiasDoLead(leadId);
+  const midias = useMidiasDoLead(leadId, TIPOS_MIDIAS_DA_FICHA);
   const itens = midias.data?.pages.flat() ?? [];
   return (
     <SecaoColapsavel
       icone={<FileText className="size-(--tamanho-icone-interface) text-primary" />}
       titulo={textos.secoes.midias ?? textos.secoes.resumo}
-      contagem={itens.length}
+      contagem={!midias.isLoading && !midias.isError && !midias.hasNextPage ? itens.length : undefined}
     >
       <ListaDeMidiasDoLead leadId={leadId} />
     </SecaoColapsavel>

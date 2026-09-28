@@ -4,7 +4,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.midia.MidiaDoLead;
 import com.synapse.crm.atendimento.application.midia.MidiasDoLeadRepositorio;
+import com.synapse.crm.atendimento.domain.mensagem.TipoMensagem;
 import com.synapse.crm.core.infrastructure.persistencia.TransacaoObrigatoria;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -36,9 +39,14 @@ class MidiasDoLeadRepositorioJdbc implements MidiasDoLeadRepositorio {
     }
 
     @Override
-    public List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento) {
+    public List<MidiaDoLead> listar(UUID leadId, int limite, int deslocamento, Set<TipoMensagem> tipos) {
         TransacaoObrigatoria.exigir("listar midias do lead");
-        return chat.query("SELECT " + COLUNAS + FROM + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ? OFFSET ?",
+        // Somente valores do enum validado entram no SQL; a restrição precede LIMIT/OFFSET.
+        String filtro = tipos == null ? "" : " AND m.tipo IN (" + tipos.stream()
+                .map(tipo -> "'" + tipo.name() + "'")
+                .collect(Collectors.joining(",")) + ")";
+        return chat.query("SELECT " + COLUNAS + FROM + filtro
+                        + " ORDER BY m.enviado_em DESC, m.id DESC LIMIT ? OFFSET ?",
                 this::mapear, leadId, limite, deslocamento);
     }
 

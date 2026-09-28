@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,6 +111,9 @@ class AnexoMidiaIT extends PostgresIT {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private ObjectMapper json;
 
     @Autowired
     private PublicadorDaOutbox publicador;
@@ -558,6 +563,73 @@ class AnexoMidiaIT extends PostgresIT {
         assertThat(resposta.getBody()).doesNotContain("/download");
         assertThat(resposta.getBody()).doesNotContain("urlDownload");
         assertThat(resposta.getBody()).doesNotContain("/api/v1/leads/" + leadDaAna + "/midias/");
+    }
+
+    @Test
+    @DisplayName("filtro de tipos ocorre antes da paginacao; sem filtro audio e download continuam acessiveis")
+    void listarMidias_filtroAntesDaPaginacao() throws Exception {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        jdbc.update("UPDATE atendimento SET atendente_id = ?, status = 'EM_ATENDIMENTO' WHERE id = ?", idAna, atendimentoId);
+        UUID primeiroAudio = null;
+        for (int i = 0; i < 20; i++) {
+            UUID id = inserirMidia(atendimentoId, "AUDIO", i);
+            if (i == 0) primeiroAudio = id;
+        }
+        UUID imagem = inserirMidia(atendimentoId, "IMAGEM", 21);
+        UUID video = inserirMidia(atendimentoId, "VIDEO", 22);
+        UUID documento = inserirMidia(atendimentoId, "DOCUMENTO", 23);
+        String rota = "/api/v1/leads/" + leadDaAna + "/midias";
+
+        JsonNode semFiltro = json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET, rota + "?tamanho=20").getBody());
+        assertThat(semFiltro).hasSize(20);
+        assertThat(semFiltro.findValuesAsText("tipo")).containsOnly("AUDIO");
+
+        JsonNode filtradas = json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=IMAGEM,VIDEO,DOCUMENTO&tamanho=20").getBody());
+        assertThat(filtradas).hasSize(3);
+        assertThat(filtradas.findValuesAsText("mensagemId"))
+                .containsExactly(imagem.toString(), video.toString(), documento.toString());
+        assertThat(filtradas.findValuesAsText("tipo")).containsExactly("IMAGEM", "VIDEO", "DOCUMENTO");
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=IMAGEM,VIDEO,DOCUMENTO&tamanho=1&pagina=1").getBody())
+                .get(0).get("mensagemId").asText()).isEqualTo(video.toString());
+
+        ResponseEntity<String> urlAudio = autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "/" + primeiroAudio + "/url");
+        assertThat(urlAudio.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(armazenamento.baixarPelaUrlAssinada(extrairUrlEmitida(urlAudio.getBody())))
+                .contains("audio".getBytes(StandardCharsets.UTF_8));
+        assertThat(autenticado(EMAIL_ANA, HttpMethod.GET, rota + "/" + primeiroAudio + "/download")
+                .getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(mensagensComo(EMAIL_ANA, atendimentoId).getBody())
+                .contains(primeiroAudio.toString(), "\"tipo\":\"AUDIO\"");
+
+        assertThat(autenticado(EMAIL_BRUNO, HttpMethod.GET, rota).getBody()).isEqualTo("[]");
+        assertThat(autenticado(EMAIL_BRUNO, HttpMethod.GET, rota + "?tipos=IMAGEM,VIDEO,DOCUMENTO")
+                .getBody()).isEqualTo("[]");
+        assertThat(autenticado(EMAIL_ANA, HttpMethod.GET, rota + "?tipos=TEXTO").getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("lead com apenas audio retorna secao filtrada vazia sem afetar API padrao")
+    void listarMidias_apenasAudio() throws Exception {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        inserirMidia(atendimentoId, "AUDIO", 0);
+        String rota = "/api/v1/leads/" + leadDaAna + "/midias";
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET, rota).getBody())).hasSize(1);
+        assertThat(json.readTree(autenticado(EMAIL_ANA, HttpMethod.GET,
+                rota + "?tipos=IMAGEM,VIDEO,DOCUMENTO").getBody())).isEmpty();
+    }
+
+    private UUID inserirMidia(UUID atendimentoId, String tipo, int segundosAtras) {
+        UUID id = UUID.randomUUID();
+        String referencia = armazenamento.salvar("audio".getBytes(StandardCharsets.UTF_8), "arquivo", "audio/mp4");
+        jdbc.update("""
+                INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, midia_url, enviado_em, status_entrega)
+                VALUES (?, ?, 'LEAD', ?::tipo_mensagem, ?, now() - (? * interval '1 second'), 'ENTREGUE')
+                """, id, atendimentoId, tipo, referencia, segundosAtras);
+        return id;
     }
 
     @Test
