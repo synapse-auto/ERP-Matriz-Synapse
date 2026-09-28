@@ -29,7 +29,6 @@ import {
   Zap,
 } from "lucide-react";
 
-import { apiFetch } from "@/lib/api/http-client";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -45,6 +44,7 @@ import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import {
   ITENS_GESTAO,
   ITENS_MENU,
@@ -89,13 +89,6 @@ async function encerrarSessao() {
   window.location.href = "/login";
 }
 
-function useFeaturesHabilitadas() {
-  return useQuery({
-    queryKey: ["config", "features"],
-    queryFn: () => apiFetch<string[]>("/api/v1/config/features"),
-  });
-}
-
 export function NavegacaoInferior() {
   const textos = useTextos();
   const pathname = usePathname();
@@ -103,7 +96,7 @@ export function NavegacaoInferior() {
   const sessaoPronta = useAuthStore((estado) => estado.status === "autenticado" && !estado.precisaTrocarSenha);
   // Gestão (docs/47): efetivas do backend; revalidadas no foco e no aviso ACESSO_ALTERADO.
   const minhasPermissoes = useMinhasPermissoes(sessaoPronta);
-  const { data: flags } = useFeaturesHabilitadas();
+  const { data: flags } = useFuncionalidadesHabilitadas();
   const { data: contagens } = useContagemDeAtendimentos();
   const { data: capacidadeDoCanal } = useQuery({
     queryKey: ["capacidade-do-canal"],

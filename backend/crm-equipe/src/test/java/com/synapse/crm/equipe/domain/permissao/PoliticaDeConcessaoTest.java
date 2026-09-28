@@ -33,13 +33,20 @@ class PoliticaDeConcessaoTest {
         return new ConfiguracaoDePermissoes(Map.of(), Map.of(c, v));
     }
 
+    private static ConfiguracaoDePermissoes nivel(Modulo m, NivelDeAcesso n) {
+        return new ConfiguracaoDePermissoes(Map.of(m, n), Map.of());
+    }
+
+    /** Excecoes de um ATENDENTE que herda o perfil padrao. */
+    private static void excecoes(PoliticaDeConcessao.Ator ator, ConfiguracaoDePermissoes atuais, ConfiguracaoDePermissoes novas) {
+        PoliticaDeConcessao.exigirConcessao(ator, ALVO, PapelUsuario.ATENDENTE, VAZIA, atuais, novas, FLAGS);
+    }
+
     @Test
     @DisplayName("SUBGESTOR sem delegacao explicita nao edita excecao de ninguem")
     void semDelegacao() {
-        assertThatThrownBy(() -> PoliticaDeConcessao.exigirConcessao(ator(PapelUsuario.SUBGESTOR, VAZIA), ALVO,
-                        PapelUsuario.ATENDENTE, VAZIA, acao(Capacidade.TAGS_APLICAR, false)))
-                .isInstanceOfSatisfying(ConcessaoNegadaException.class, e -> org.assertj.core.api.Assertions
-                        .assertThat(e.codigo()).isEqualTo(Codigo.SEM_DELEGACAO));
+        codigo(() -> excecoes(ator(PapelUsuario.SUBGESTOR, VAZIA), VAZIA, acao(Capacidade.TAGS_APLICAR, false)),
+                Codigo.SEM_DELEGACAO);
     }
 
     @Test
@@ -54,22 +61,28 @@ class PoliticaDeConcessaoTest {
     }
 
     @Test
-    @DisplayName("SUBGESTOR delegado nao mexe em nivel, em acao nao delegavel, nem liga o que nao tem")
+    @DisplayName("SUBGESTOR delegado: so o delegavel muda, e nunca liga o que nao tem — por interruptor, nivel ou dependencia")
     void conjuntoDelegavel() {
         PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, DELEGADO);
-        codigo(() -> PoliticaDeConcessao.exigirConcessao(sub, ALVO, PapelUsuario.ATENDENTE, VAZIA,
-                new ConfiguracaoDePermissoes(Map.of(Modulo.TAGS, NivelDeAcesso.VER), Map.of())), Codigo.NIVEL_NAO_DELEGAVEL);
-        codigo(() -> PoliticaDeConcessao.exigirConcessao(sub, ALVO, PapelUsuario.ATENDENTE, VAZIA,
-                acao(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false)), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+        codigo(() -> excecoes(sub, VAZIA, acao(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false)), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+        // nivel e livre quando o efeito e delegavel: Tags em Ver so desliga tags.aplicar
+        assertThatCode(() -> excecoes(sub, VAZIA, nivel(Modulo.TAGS, NivelDeAcesso.VER))).doesNotThrowAnyException();
+        // ...mas Atendimentos em Editar desligaria o lote, que nao e delegavel
+        codigo(() -> excecoes(sub, VAZIA, nivel(Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR)), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+        // ...e desligar "finalizar" derrubaria o lote pela dependencia
+        codigo(() -> excecoes(sub, VAZIA, acao(Capacidade.ATENDIMENTOS_FINALIZAR, false)), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
 
         ConfiguracaoDePermissoes subSemResumo = new ConfiguracaoDePermissoes(DELEGADO.niveis(),
                 Map.of(Capacidade.EQUIPE_EXCECOES_ATENDENTES, true, Capacidade.RESUMO_IA_SOLICITAR, false));
         PoliticaDeConcessao.Ator limitado = ator(PapelUsuario.SUBGESTOR, subSemResumo);
-        codigo(() -> PoliticaDeConcessao.exigirConcessao(limitado, ALVO, PapelUsuario.ATENDENTE, VAZIA,
-                acao(Capacidade.RESUMO_IA_SOLICITAR, true)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
-        // negar o que e delegavel continua permitido
-        assertThatCode(() -> PoliticaDeConcessao.exigirConcessao(limitado, ALVO, PapelUsuario.ATENDENTE, VAZIA,
-                acao(Capacidade.RESUMO_IA_SOLICITAR, false))).doesNotThrowAnyException();
+        codigo(() -> excecoes(limitado, VAZIA, acao(Capacidade.RESUMO_IA_SOLICITAR, true)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
+        // negar o que e delegavel continua permitido, mesmo sem te-lo
+        assertThatCode(() -> excecoes(limitado, VAZIA, acao(Capacidade.RESUMO_IA_SOLICITAR, false))).doesNotThrowAnyException();
+        // baixar o nivel de Resumo desliga "gerar resumo" (permitido); subir de volta o religaria pelo
+        // efeito, sem tocar no interruptor herdado — e isso ele nao tem
+        ConfiguracaoDePermissoes resumoSoLeitura = nivel(Modulo.RESUMO_IA, NivelDeAcesso.VER);
+        assertThatCode(() -> excecoes(limitado, VAZIA, resumoSoLeitura)).doesNotThrowAnyException();
+        codigo(() -> excecoes(limitado, resumoSoLeitura, VAZIA), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
     }
 
     @Test
@@ -80,9 +93,9 @@ class PoliticaDeConcessaoTest {
         PoliticaDeConcessao.Ator gestor = ator(PapelUsuario.GESTOR, VAZIA);
         codigo(() -> PoliticaDeConcessao.exigirAlcadaSobre(gestor, ALVO, PapelUsuario.GESTOR), Codigo.ALVO_FORA_DA_ALCADA);
         codigo(() -> PoliticaDeConcessao.exigirAlcadaSobre(gestor, ALVO, PapelUsuario.ADMINISTRADOR), Codigo.ALVO_FORA_DA_ALCADA);
-        assertThatCode(() -> PoliticaDeConcessao.exigirConcessao(gestor, ALVO, PapelUsuario.SUBGESTOR, VAZIA,
+        assertThatCode(() -> PoliticaDeConcessao.exigirConcessao(gestor, ALVO, PapelUsuario.SUBGESTOR, VAZIA, VAZIA,
                 new ConfiguracaoDePermissoes(Map.of(Modulo.EQUIPE, NivelDeAcesso.GERENCIAR),
-                        Map.of(Capacidade.EQUIPE_EXCECOES_ATENDENTES, true)))).doesNotThrowAnyException();
+                        Map.of(Capacidade.EQUIPE_EXCECOES_ATENDENTES, true)), FLAGS)).doesNotThrowAnyException();
     }
 
     // --- perfis ----------------------------------------------------------------------------------
@@ -93,6 +106,10 @@ class PoliticaDeConcessaoTest {
 
     private static ConfiguracaoDePermissoes perfilAtendente(ConfiguracaoDePermissoes armazenado) {
         return PoliticaDePermissoes.perfilCompleto(PapelUsuario.ATENDENTE, armazenado);
+    }
+
+    private static void noPerfil(PoliticaDeConcessao.Ator ator, ConfiguracaoDePermissoes atual, ConfiguracaoDePermissoes novo) {
+        PoliticaDeConcessao.exigirConcessaoNoPerfil(ator, PapelUsuario.ATENDENTE, atual, novo, FLAGS);
     }
 
     @Test
@@ -119,37 +136,42 @@ class PoliticaDeConcessaoTest {
     }
 
     @Test
-    @DisplayName("perfil ATENDENTE pelo SUBGESTOR: nunca nivel, so o delegavel, nunca liga o que nao tem")
+    @DisplayName("perfil ATENDENTE pelo SUBGESTOR: nivel pelo efeito, so o delegavel, nunca liga o que nao tem")
     void conjuntoDelegavelNoPerfil() {
         PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, EDITA_PERFIS);
         ConfiguracaoDePermissoes atual = perfilAtendente(VAZIA);
 
-        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
-                perfilAtendente(acao(Capacidade.TAGS_APLICAR, false)))).doesNotThrowAnyException();
-        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
-                perfilAtendente(new ConfiguracaoDePermissoes(Map.of(Modulo.TAGS, NivelDeAcesso.VER), Map.of()))),
-                Codigo.NIVEL_NAO_DELEGAVEL);
-        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(sub, PapelUsuario.ATENDENTE, atual,
-                perfilAtendente(acao(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false))), Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+        assertThatCode(() -> noPerfil(sub, atual, perfilAtendente(acao(Capacidade.TAGS_APLICAR, false))))
+                .doesNotThrowAnyException();
+        // preset de nivel como a tela envia: Tags em Ver desliga tags.aplicar (delegavel)
+        assertThatCode(() -> noPerfil(sub, atual, perfilAtendente(new ConfiguracaoDePermissoes(
+                Map.of(Modulo.TAGS, NivelDeAcesso.VER), Map.of(Capacidade.TAGS_APLICAR, false))))).doesNotThrowAnyException();
+        codigo(() -> noPerfil(sub, atual, perfilAtendente(new ConfiguracaoDePermissoes(
+                Map.of(Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR), Map.of(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false)))),
+                Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
+        codigo(() -> noPerfil(sub, atual, perfilAtendente(acao(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false))),
+                Codigo.FORA_DO_CONJUNTO_DELEGAVEL);
 
         ConfiguracaoDePermissoes subSemResumo = new ConfiguracaoDePermissoes(EDITA_PERFIS.niveis(),
                 Map.of(Capacidade.EQUIPE_PERFIS, true, Capacidade.RESUMO_IA_SOLICITAR, false));
         PoliticaDeConcessao.Ator limitado = ator(PapelUsuario.SUBGESTOR, subSemResumo);
         ConfiguracaoDePermissoes semResumo = perfilAtendente(acao(Capacidade.RESUMO_IA_SOLICITAR, false));
-        codigo(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(limitado, PapelUsuario.ATENDENTE, semResumo,
-                perfilAtendente(VAZIA)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
+        codigo(() -> noPerfil(limitado, semResumo, perfilAtendente(VAZIA)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
         // desligar o que e delegavel continua permitido, mesmo sem te-lo
-        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(limitado, PapelUsuario.ATENDENTE,
-                perfilAtendente(VAZIA), semResumo)).doesNotThrowAnyException();
+        assertThatCode(() -> noPerfil(limitado, perfilAtendente(VAZIA), semResumo)).doesNotThrowAnyException();
+        // subir o nivel de Resumo com o preset religaria "gerar resumo", que ele nao tem
+        ConfiguracaoDePermissoes resumoSoLeitura = perfilAtendente(new ConfiguracaoDePermissoes(
+                Map.of(Modulo.RESUMO_IA, NivelDeAcesso.VER), Map.of(Capacidade.RESUMO_IA_SOLICITAR, false)));
+        codigo(() -> noPerfil(limitado, resumoSoLeitura, perfilAtendente(VAZIA)), Codigo.ACIMA_DA_PROPRIA_PERMISSAO);
     }
 
     @Test
     @DisplayName("perfil pelo superior: sem recorte de delegacao; copia so de origem na alcada")
     void superiorNoPerfilECopia() {
         PoliticaDeConcessao.Ator gestor = ator(PapelUsuario.GESTOR, VAZIA);
-        assertThatCode(() -> PoliticaDeConcessao.exigirConcessaoNoPerfil(gestor, PapelUsuario.ATENDENTE, perfilAtendente(VAZIA),
-                perfilAtendente(new ConfiguracaoDePermissoes(Map.of(Modulo.TAGS, NivelDeAcesso.VER),
-                        Map.of(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false))))).doesNotThrowAnyException();
+        assertThatCode(() -> noPerfil(gestor, perfilAtendente(VAZIA), perfilAtendente(new ConfiguracaoDePermissoes(
+                Map.of(Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR), Map.of(Capacidade.ATENDIMENTOS_FINALIZAR_LOTE, false)))))
+                .doesNotThrowAnyException();
 
         PoliticaDeConcessao.Ator sub = ator(PapelUsuario.SUBGESTOR, EDITA_PERFIS);
         assertThat(PoliticaDeConcessao.origemDeCopiaNaAlcada(gestor, PapelUsuario.SUBGESTOR)).isTrue();

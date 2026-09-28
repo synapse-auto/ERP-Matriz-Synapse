@@ -8,10 +8,13 @@ import type { Catalogo, MinhasPermissoes, Perfil, PermissoesDeUsuario, ResumoDeU
 const TEXTOS = GestaoTextosSchema.parse(undefined);
 
 vi.mock("@/lib/config/textos-provider", () => ({ useTextos: () => ({ gestao: TEXTOS, equipe: {} }) }));
+let parametros = new URLSearchParams();
+let funcionalidades: string[] = [];
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => parametros,
 }));
+vi.mock("@/lib/config/use-funcionalidades", () => ({ useFuncionalidadesHabilitadas: () => ({ data: funcionalidades }) }));
 vi.mock("./aba-equipe", () => ({ AbaEquipe: () => <div>aba equipe</div> }));
 
 const salvarPerfil = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null as unknown };
@@ -35,7 +38,8 @@ const CATALOGO: Catalogo = {
   ],
   capacidades: [
     { id: "atendimentos.ver", modulo: "atendimentos", nivelMinimo: "VER", tipo: "ALCANCE_ESTRUTURAL", sensivel: false, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: [], alcancePorPapel: { ATENDENTE: "MEUS", SUBGESTOR: "TODOS", GESTOR: "TODOS", ADMINISTRADOR: "TODOS" } },
-    { id: "atendimentos.finalizar_lote", modulo: "atendimentos", nivelMinimo: "GERENCIAR", tipo: "ACAO", sensivel: true, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: [], alcancePorPapel: {} },
+    { id: "atendimentos.finalizar", modulo: "atendimentos", nivelMinimo: "EDITAR", tipo: "ACAO", sensivel: false, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: true, dependencias: [], alcancePorPapel: {} },
+    { id: "atendimentos.finalizar_lote", modulo: "atendimentos", nivelMinimo: "GERENCIAR", tipo: "ACAO", sensivel: true, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: ["atendimentos.finalizar"], alcancePorPapel: {} },
     { id: "tags.aplicar", modulo: "tags", nivelMinimo: "EDITAR", tipo: "ACAO", sensivel: false, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: true, dependencias: [], alcancePorPapel: {} },
     { id: "tags.criar", modulo: "tags", nivelMinimo: "GERENCIAR", tipo: "ACAO", sensivel: false, teto: ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: [], alcancePorPapel: {} },
   ],
@@ -103,6 +107,8 @@ beforeEach(() => {
   salvarExcecoes.error = null;
   minhas = minhasDe("GESTOR", true);
   perfis = [perfil("GESTOR", true), perfil("SUBGESTOR"), perfil("ATENDENTE")];
+  parametros = new URLSearchParams();
+  funcionalidades = [];
 });
 
 describe("Gestão", () => {
@@ -151,24 +157,34 @@ describe("Gestão", () => {
     expect(screen.getByRole("button", { name: TEXTOS.barra.recarregar })).toBeInTheDocument();
   });
 
-  it("Permissões: SUBGESTOR que edita perfis abre no de ATENDENTE, sem nível e sem cópia; só o delegável que ele tem", () => {
+  it("Permissões: SUBGESTOR que edita perfis abre no de ATENDENTE, sem cópia; nível e ação só dentro da alçada", () => {
     subgestorQueEditaPerfis(["tags.aplicar"]);
     render(<AbaPermissoes textos={TEXTOS} minhas={minhas} onSujoChange={vi.fn()} />);
 
     expect(screen.getByRole("radio", { name: new RegExp(TEXTOS.papeis.ATENDENTE) })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText(TEXTOS.excecoes.nivelNaoDelegavel)).toBeInTheDocument();
+    expect(screen.getByText(TEXTOS.permissoes.alcadaDelegada)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: new RegExp(TEXTOS.permissoes.copiar) })).not.toBeInTheDocument();
-    const niveis = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.tags.rotulo}` });
-    within(niveis).getAllByRole("radio").forEach((radio) => expect(radio).toBeDisabled());
+    // Tags em Ver só desliga "aplicar", que ele pode desligar; acima de Editar está fora do teto do atendente
+    const tags = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.tags.rotulo}` });
+    expect(within(tags).getByRole("radio", { name: TEXTOS.permissoes.niveis.VER })).toBeEnabled();
+    expect(within(tags).getByRole("radio", { name: TEXTOS.permissoes.niveis.GERENCIAR })).toBeDisabled();
+    // Atendimentos abaixo de Gerenciar desligaria o lote, que não é delegável
+    const atendimentos = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.atendimentos.rotulo}` });
+    expect(within(atendimentos).getByRole("radio", { name: TEXTOS.permissoes.niveis.EDITAR })).toBeDisabled();
 
     const lote = screen.getByRole("switch", { name: TEXTOS.capacidades["atendimentos.finalizar_lote"] });
     expect(lote).toHaveAttribute("aria-disabled", "true");
     expect(lote).toHaveAccessibleDescription(TEXTOS.excecoes.naoDelegavel);
+    // desligar "finalizar" derrubaria o lote pela dependência: o motivo diz qual ação responde
+    const finalizar = screen.getByRole("switch", { name: TEXTOS.capacidades["atendimentos.finalizar"] });
+    expect(finalizar).toHaveAttribute("aria-disabled", "true");
+    expect(finalizar).toHaveAccessibleDescription(
+      TEXTOS.permissoes.cascata.replace("{acao}", TEXTOS.capacidades["atendimentos.finalizar_lote"]),
+    );
 
-    const aplicar = screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] });
-    expect(aplicar).not.toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(aplicar);
-    expect(screen.getByText(TEXTOS.barra.pendente)).toBeInTheDocument();
+    fireEvent.click(within(tags).getByRole("radio", { name: TEXTOS.permissoes.niveis.VER }));
+    expect(screen.getByText(TEXTOS.barra.pendentes.replace("{n}", "2"))).toBeInTheDocument();
+
   });
 
   it("Permissões: SUBGESTOR delegado não liga no perfil o que ele mesmo não tem", () => {
@@ -191,6 +207,23 @@ describe("Gestão", () => {
     expect(screen.getByText(TEXTOS.excecoes.proprio)).toBeInTheDocument();
     expect(screen.queryByText(TEXTOS.permissoes.somenteLeitura)).not.toBeInTheDocument();
     expect(screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("Exceções desligada: aba 'Em breve' inativa, e nem o link direto abre", () => {
+    parametros = new URLSearchParams("aba=excecoes");
+    render(<PaginaGestao />);
+    const aba = screen.getByRole("tab", { name: new RegExp(TEXTOS.abas.excecoes) });
+    expect(aba).toHaveTextContent(TEXTOS.abas.emBreve);
+    expect(aba).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("aba equipe")).toBeInTheDocument();
+  });
+
+  it("Exceções ligada pela flag: aba normal, sem 'Em breve'", () => {
+    funcionalidades = ["gestao_excecoes"];
+    render(<PaginaGestao />);
+    const aba = screen.getByRole("tab", { name: new RegExp(TEXTOS.abas.excecoes) });
+    expect(aba).not.toHaveTextContent(TEXTOS.abas.emBreve);
+    expect(aba).not.toHaveAttribute("aria-disabled", "true");
   });
 
   it("Exceções: linha personalizada tem selo e restauração individual; voltar ao padrão vira rascunho", () => {

@@ -29,9 +29,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTextos } from "@/lib/config/textos-provider";
-import type { CapacidadeDoCatalogo, LinhaDeCapacidade, MinhasPermissoes, Nivel, Papel } from "@/lib/gestao/types";
+import type { Catalogo, LinhaDeCapacidade, MinhasPermissoes, Nivel, Papel } from "@/lib/gestao/types";
 import { NIVEIS } from "@/lib/gestao/types";
-import { ordem } from "@/lib/gestao/rascunho";
+import { ordem, violacaoDaDelegacao, type EstadoDaEdicao, type ViolacaoDaDelegacao } from "@/lib/gestao/rascunho";
 import { cn } from "@/lib/utils";
 
 export type TextosGestao = ReturnType<typeof useTextos>["gestao"];
@@ -80,18 +80,29 @@ export function perfilFixoDoAtor(minhas: MinhasPermissoes | undefined): boolean 
 }
 
 /**
- * Quem está logado pode virar este interruptor? Espelho de PoliticaDeConcessao.podeAlterar:
- * GESTOR/ADMINISTRADOR, sempre; SUBGESTOR delegado, só no conjunto delegável e só ligando o que
- * ele mesmo tem. Vale para exceções e para o perfil ATENDENTE; o backend revalida ao salvar.
+ * A mudança de `antes` para `depois` cabe na alçada de quem está logado? `null` = cabe.
+ * GESTOR/ADMINISTRADOR, sempre; SUBGESTOR delegado, pela regra de {@link violacaoDaDelegacao}.
+ * `depois` é preguiçoso: para quem é fixo nada é simulado. O backend revalida ao salvar.
  */
-export function podeAlterarAcao(minhas: MinhasPermissoes, capacidade: CapacidadeDoCatalogo, paraLigado: boolean): boolean {
-  if (perfilFixoDoAtor(minhas)) return true;
-  return capacidade.delegavel && (!paraLigado || pode(minhas, capacidade.id));
+export function foraDaAlcada(
+  minhas: MinhasPermissoes,
+  catalogo: Catalogo,
+  antes: EstadoDaEdicao,
+  depois: () => EstadoDaEdicao,
+): ViolacaoDaDelegacao | null {
+  if (perfilFixoDoAtor(minhas)) return null;
+  return violacaoDaDelegacao(catalogo, (id) => pode(minhas, id), antes, depois());
 }
 
-/** Por que {@link podeAlterarAcao} recusou: fora do delegado, ou acima do que o ator tem. */
-export function motivoForaDaAlcada(t: TextosGestao, capacidade: CapacidadeDoCatalogo): string {
-  return capacidade.delegavel ? t.excecoes.semPermissaoPropria : t.excecoes.naoDelegavel;
+/**
+ * Motivo legível de {@link foraDaAlcada}. Quando quem responde é outra ação (nível ou dependência
+ * a mudaria junto), o texto diz qual — senão o interruptor parece travado sem razão.
+ */
+export function motivoForaDaAlcada(t: TextosGestao, violacao: ViolacaoDaDelegacao, capacidadeAlterada?: string): string {
+  if (capacidadeAlterada && violacao.capacidade !== capacidadeAlterada) {
+    return preencher(t.permissoes.cascata, { acao: rotuloDaCapacidade(t, violacao.capacidade) });
+  }
+  return violacao.motivo === "ACIMA_DA_PROPRIA_PERMISSAO" ? t.excecoes.semPermissaoPropria : t.excecoes.naoDelegavel;
 }
 
 /** Motivo legível de um bloqueio — nunca "ligado mas não funciona" sem explicação. */
@@ -118,14 +129,16 @@ export function motivoDoBloqueio(
 }
 
 /**
- * Nível do módulo como grupo de rádio segmentado (teclado: setas). Níveis fora do limite do papel
- * ficam desabilitados — não somem, para a régua continuar legível.
+ * Nível do módulo como grupo de rádio segmentado (teclado: setas). Níveis fora do limite do papel,
+ * ou recusados por `nivelPermitido` (alçada de quem edita), ficam desabilitados — não somem, para a
+ * régua continuar legível. As setas pulam os desabilitados.
  */
 export function SeletorDeNivel({
   valor,
   minimo,
   maximo,
   desabilitado,
+  nivelPermitido,
   rotulo,
   onChange,
   textos,
@@ -134,17 +147,21 @@ export function SeletorDeNivel({
   minimo: Nivel;
   maximo: Nivel;
   desabilitado?: boolean;
+  nivelPermitido?: (nivel: Nivel) => boolean;
   rotulo: string;
   onChange: (nivel: Nivel) => void;
   textos: TextosGestao;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const habilitados = NIVEIS.filter((n) => ordem(n) >= ordem(minimo) && ordem(n) <= ordem(maximo));
+  const habilitados = desabilitado ? [] : NIVEIS.filter((n) => ordem(n) >= ordem(minimo) && ordem(n) <= ordem(maximo)
+    && (nivelPermitido?.(n) ?? true));
+  // O nível atual pode estar travado (reaplicar o preset sairia da alçada): o foco vai para um livre.
+  const focavel = habilitados.includes(valor) ? valor : habilitados[0];
 
   function mover(delta: number) {
-    const atual = habilitados.indexOf(valor);
-    const proximo = habilitados[Math.min(Math.max(atual + delta, 0), habilitados.length - 1)];
-    if (proximo && proximo !== valor) {
+    const adiante = habilitados.filter((n) => (delta > 0 ? ordem(n) > ordem(valor) : ordem(n) < ordem(valor)));
+    const proximo = delta > 0 ? adiante[0] : adiante[adiante.length - 1];
+    if (proximo) {
       onChange(proximo);
       refs.current[NIVEIS.indexOf(proximo)]?.focus();
     }
@@ -169,7 +186,7 @@ export function SeletorDeNivel({
     >
       {NIVEIS.map((nivel, i) => {
         const ativo = nivel === valor;
-        const indisponivel = desabilitado || !habilitados.includes(nivel);
+        const indisponivel = !habilitados.includes(nivel);
         return (
           <button
             key={nivel}
@@ -179,7 +196,7 @@ export function SeletorDeNivel({
             type="button"
             role="radio"
             aria-checked={ativo}
-            tabIndex={ativo ? 0 : -1}
+            tabIndex={nivel === focavel ? 0 : -1}
             disabled={indisponivel}
             onClick={() => onChange(nivel)}
             className={cn(

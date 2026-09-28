@@ -203,6 +203,21 @@ test("rascunho protegido ao trocar de contexto e teclado nos níveis", async ({ 
   await expect(page).toHaveURL(/\/gestao$/);
 });
 
+test("Exceções 'Em breve' com a flag desligada: aba inativa e link direto cai em Equipe", async ({ page }) => {
+  await entrar(page, GESTOR);
+  // A fixture liga gestao_excecoes para os fluxos acima; aqui a instância é a que ainda não ligou.
+  await page.route("**/api/v1/config/features", async (rota) => {
+    const resposta = await rota.fetch();
+    const ligadas = ((await resposta.json()) as string[]).filter((chave) => chave !== "gestao_excecoes");
+    await rota.fulfill({ response: resposta, json: ligadas });
+  });
+  await page.goto("/gestao?aba=excecoes");
+  const aba = page.getByRole("tab", { name: /Exceções/ });
+  await expect(aba).toContainText("Em breve");
+  await expect(aba).toBeDisabled();
+  await expect(page.getByText("carla@dev.local")).toBeVisible();
+});
+
 test("estado de erro: falha ao carregar perfis mostra erro com tentar novamente", async ({ page }) => {
   await entrar(page, GESTOR);
   await page.route("**/api/v1/gestao/permissoes/perfis", (rota) => rota.fulfill({ status: 500, body: "{}" }));

@@ -26,8 +26,9 @@ import {
   simular,
   tocaSensivel,
   type Simulacao,
+  type ViolacaoDaDelegacao,
 } from "@/lib/gestao/rascunho";
-import type { Catalogo, CapacidadeDoCatalogo, MinhasPermissoes, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
+import type { Catalogo, CapacidadeDoCatalogo, MinhasPermissoes, Nivel, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
 import { useCatalogo, usePerfis, useSalvarPerfil } from "@/lib/gestao/use-gestao";
 import { cn } from "@/lib/utils";
 
@@ -38,10 +39,10 @@ import {
   Legenda,
   SeloSensivel,
   SeletorDeNivel,
+  foraDaAlcada,
   motivoDoBloqueio,
   motivoForaDaAlcada,
   perfilFixoDoAtor,
-  podeAlterarAcao,
   preencher,
   rotuloDaCapacidade,
   rotuloDoModulo,
@@ -125,6 +126,13 @@ export function AbaPermissoes({
   });
   const origensDeCopia: Papel[] = (["SUBGESTOR", "ATENDENTE"] as Papel[]).filter((p) => p !== papel);
 
+  /** A troca do rascunho atual por `novo` cabe na alçada de quem edita? (fixo: sempre) */
+  function avaliar(novo: Rascunho): ViolacaoDaDelegacao | null {
+    if (!sim || !rascunho) return null;
+    return foraDaAlcada(minhas, cat, { acoes: rascunho.acoes, simulacao: sim },
+      () => ({ acoes: novo.acoes, simulacao: simular(cat, papel, novo) }));
+  }
+
   async function abrirCopia(origem: Papel) {
     setCopia({ origem, erro: false });
     try {
@@ -207,9 +215,9 @@ export function AbaPermissoes({
             </p>
           )}
           {editavel && !atorFixo && (
-            <p className="mb-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
-              <Info className="size-3.5" aria-hidden />
-              {textos.excecoes.nivelNaoDelegavel}
+            <p className="mb-3 flex items-start gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+              {textos.permissoes.alcadaDelegada}
             </p>
           )}
           {modulosVisiveis.length === 0 ? (
@@ -229,9 +237,10 @@ export function AbaPermissoes({
                     papel={papel}
                     simulacao={sim}
                     editavel={editavel}
-                    minhas={minhas}
                     termo={termo}
                     textos={textos}
+                    avaliarNivel={(nivel) => avaliar(aplicarNivel(rascunho, cat, papel, m.id, nivel))}
+                    avaliarAcao={(id, valor) => avaliar(alternarAcao(rascunho, id, valor))}
                     onNivel={(nivel) => atualizar(aplicarNivel(rascunho, cat, papel, m.id, nivel))}
                     onAcao={(id, valor) => atualizar(alternarAcao(rascunho, id, valor))}
                   />
@@ -355,9 +364,10 @@ function CartaoDeModulo({
   papel,
   simulacao,
   editavel,
-  minhas,
   termo,
   textos,
+  avaliarNivel,
+  avaliarAcao,
   onNivel,
   onAcao,
 }: {
@@ -366,10 +376,12 @@ function CartaoDeModulo({
   papel: Papel;
   simulacao: Simulacao;
   editavel: boolean;
-  minhas: MinhasPermissoes;
   termo: string;
   textos: TextosGestao;
-  onNivel: (nivel: Catalogo["modulos"][number]["nivelMinimoPermitido"]) => void;
+  /** O que a troca faria fora da alçada de quem edita; `null` = cabe. */
+  avaliarNivel: (nivel: Nivel) => ViolacaoDaDelegacao | null;
+  avaliarAcao: (id: string, valor: boolean) => ViolacaoDaDelegacao | null;
+  onNivel: (nivel: Nivel) => void;
   onAcao: (id: string, valor: boolean) => void;
 }) {
   const modulo = catalogo.modulos.find((m) => m.id === moduloId)!;
@@ -380,8 +392,6 @@ function CartaoDeModulo({
   const configuraveis = capacidades.filter((c) => configuravel(c, papel));
   const permitidas = configuraveis.filter((c) => simulacao.estados[c.id]?.permitido).length;
   const maximo = modulo.nivelMaximoPorPapel[papel];
-  // Nível de módulo não é delegável: o subgestor delegado mexe só nos interruptores.
-  const nivelEditavel = editavel && perfilFixoDoAtor(minhas);
 
   return (
     <section aria-labelledby={`modulo-${moduloId}`} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
@@ -401,7 +411,8 @@ function CartaoDeModulo({
         valor={simulacao.niveis[moduloId]}
         minimo={modulo.nivelMinimoPermitido}
         maximo={maximo}
-        desabilitado={!nivelEditavel}
+        desabilitado={!editavel}
+        nivelPermitido={(nivel) => avaliarNivel(nivel) === null}
         rotulo={preencher(textos.permissoes.nivelRotulo, { modulo: rotulo })}
         textos={textos}
         onChange={onNivel}
@@ -427,8 +438,9 @@ function CartaoDeModulo({
           const motivo = motivoDoBloqueio(textos, { motivo: estado.motivo, alcance: null }, c.nivelMinimo, c.dependencias);
           const bloqueado = estado.motivo === "TETO_DO_PAPEL" || estado.motivo === "FLAG_DESLIGADA"
             || estado.motivo === "NIVEL_DO_MODULO" || estado.motivo === "DEPENDENCIA";
-          const alteravel = editavel && !bloqueado && estado.origem !== "FIXO" && podeAlterarAcao(minhas, c, !estado.permitido);
-          const dica = !editavel || bloqueado ? motivo : !alteravel ? motivoForaDaAlcada(textos, c) : null;
+          const violacao = editavel && !bloqueado ? avaliarAcao(c.id, !estado.permitido) : null;
+          const alteravel = editavel && !bloqueado && estado.origem !== "FIXO" && violacao === null;
+          const dica = !editavel || bloqueado ? motivo : violacao ? motivoForaDaAlcada(textos, violacao, c.id) : null;
           return (
             <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">

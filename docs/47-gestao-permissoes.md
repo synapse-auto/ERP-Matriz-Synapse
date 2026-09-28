@@ -113,6 +113,9 @@ Ver seção 13 do relatório e a seção 13 deste documento.
   as exceções persistidas válidas e marca "rascunho" enquanto há alteração não salva.
 - **Mudança de papel** descarta todas as exceções do usuário (nenhum privilégio do papel anterior
   sobrevive) e grava `MUDANCA_DE_PAPEL` no histórico.
+- **Exceções por usuário são opcionais por instância** (flag `gestao_excecoes`, seção 10). Desligada
+  ou ausente — o padrão —, a aba aparece como "Em breve", o atalho de permissões da Equipe abre o
+  perfil da função e toda gravação de exceção é recusada. Exceções já salvas continuam valendo.
 
 ## 4. Quem concede o quê
 
@@ -120,8 +123,17 @@ Ver seção 13 do relatório e a seção 13 deste documento.
 |---|---|---|---|
 | ADMINISTRADOR, GESTOR | editam SUBGESTOR e ATENDENTE | de SUBGESTOR e ATENDENTE | criar/editar/mudar papel/senha/desativar ATENDENTE e SUBGESTOR |
 | SUBGESTOR sem delegação | lê | lê ATENDENTES e as próprias | alterna disponibilidade IA (como antes) |
-| SUBGESTOR delegado | com `equipe.perfis`: só o perfil ATENDENTE, nunca o próprio; mesmas regras das exceções; não copia perfil | só de ATENDENTE; só ações delegáveis; nunca nível; nunca liga o que ele mesmo não tem | só ATENDENTE, nunca a si; nunca cria/promove SUBGESTOR; nunca muda papel |
+| SUBGESTOR delegado | com `equipe.perfis`: só o perfil ATENDENTE, nunca o próprio; mesmas regras das exceções; não copia perfil | só de ATENDENTE; regra de efeito abaixo | só ATENDENTE, nunca a si; nunca cria/promove SUBGESTOR; nunca muda papel |
 | ATENDENTE | — | — | — |
+
+**Regra de efeito do SUBGESTOR delegado** (perfil ATENDENTE e exceções de ATENDENTE,
+`PoliticaDeConcessao.exigirDentroDaDelegacao`, espelhada na tela por `violacaoDaDelegacao`): toda
+ação cujo interruptor gravado **ou** efetivo muda precisa ser delegável e, para ir a ligado, ele
+precisa tê-la. Nível de módulo é livre (decisão de 28/09) justamente porque entra por essa regra:
+baixar Atendimentos para Editar desligaria o lote (não delegável) e é recusado; subir um nível ou
+religar uma dependência que reativaria algo que ele não tem também é recusado. A prévia de cópia
+para usuário continua sem transferir nível quando quem copia é o SUBGESTOR (mais restritiva que o
+salvamento, nunca menos).
 
 GESTOR e ADMINISTRADOR têm perfil **fixo** (tudo do teto) e não são alvo de exceção nem de edição
 pela gestão comum — o que também impede um GESTOR de receber operação exclusiva de ADMINISTRADOR.
@@ -195,7 +207,9 @@ O formulário comum não oferece GESTOR nem ADMINISTRADOR (contrato `PapelGerenc
 | POST | `/usuarios/{id}/copia/previa` `{origemUsuarioId}` | G/D; S delegado (origem ATENDENTE) |
 
 Erros RFC 7807: `permissao-invalida` (422, `violacoes[{chave,codigo}]`), `concessao-negada` (403,
-`codigo`), `revisao-desatualizada` (409, `revisaoAtual`), `sessao-desatualizada` (401). No perfil,
+`codigo`), `revisao-desatualizada` (409, `revisaoAtual`), `sessao-desatualizada` (401). Com
+`gestao_excecoes` desligada, gravar/restaurar exceções e a prévia de cópia para usuário respondem 422
+`FLAG_DESLIGADA` (chave `gestao_excecoes`); as leituras continuam, com `editavel=false`. No perfil,
 a revisão é conferida antes da alçada do SUBGESTOR: tela desatualizada recebe 409, não 403. Cópia é
 sempre prévia + salvamento normal (com revisão e histórico `COPIAR`); origem GESTOR/ADMINISTRADOR
 é recusada.
@@ -233,6 +247,17 @@ SELECT 'USUARIO', u.email, e.alvo, e.valor
   V83. Quando as tabelas aparecem, a revisão muda (de `-1` para a real) e o cache se refaz sozinho.
 - Variável nova, opcional: `SYNAPSE_PERMISSOES_REVALIDACAO` (default `2s`), já declarada com
   default no `dokploy-stack.yml`. Nenhuma ação obrigatória no Dokploy.
+- **Exceções por usuário** saem "Em breve" (flag `gestao_excecoes` ausente ou falsa). Para ligar numa
+  instância, sem deploy (vale em até `SYNAPSE_PERMISSOES_REVALIDACAO`):
+
+```sql
+INSERT INTO feature_flag (chave, habilitado, descricao)
+VALUES ('gestao_excecoes', TRUE, 'Aba Excecoes por usuario em Gestao e gravacao de excecoes.')
+ON CONFLICT (chave) DO UPDATE SET habilitado = TRUE;
+```
+
+  Desligar de novo não apaga nem ignora exceções salvas: elas seguem no cálculo, só deixam de ser
+  editáveis. Para saber se há alguma antes de desligar: `SELECT count(*) FROM permissao_usuario_excecao;`.
 
 ## 11. Divergências em relação ao protótipo
 
@@ -250,6 +275,8 @@ SELECT 'USUARIO', u.email, e.alvo, e.valor
 | Toggle ligado com nível abaixo do mínimo | bloqueado e explicado | coerência |
 | Botão reativar usuário | ausente | não existe endpoint de reativação |
 | Select nativo "Copiar de outro usuário…" | `Seletor` acessível do projeto | consistência e teclado |
+| Aba Exceções sempre disponível | "Em breve" atrás da flag `gestao_excecoes` | pedido do cliente em 28/09; é a única aba "Em breve" da Gestão (exceção deliberada à regra de 2.2) |
+| Cartões de módulo em duas colunas alinhadas por linha | colunas independentes (masonry), no máximo duas | pedido do cliente em 27–28/09: sem vãos entre cartões |
 
 ## 12. Desempenho medido
 
@@ -263,5 +290,5 @@ API (lote) e uma leitura de revisão por nó por intervalo.
 1. Ampliar alguma ação além do teto atual (ex.: atendente editar template)?
 2. Oferecer "Sem acesso" em Contatos/Tags exigiria cortar leituras hoje estruturais — manter?
 3. Reativação de usuário desativado: criar endpoint?
-4. Nível de módulo delegável ao SUBGESTOR (hoje não é)?
+4. ~~Nível de módulo delegável ao SUBGESTOR?~~ Decidido em 28/09: sim, pela regra de efeito (seção 4).
 5. Alcance configurável para SUBGESTOR (Meus em vez de Todos) exigiria mudar Specification e RLS.

@@ -52,7 +52,7 @@ public class ConsultarPermissoesDeUsuariosUseCase {
                 .sorted(Comparator.comparing(Usuario::papel).reversed()
                         .thenComparing(Usuario::ativo, Comparator.reverseOrder())
                         .thenComparing(Usuario::nome))
-                .map(u -> resumo(u, contarValidas(excecoes.get(u.id()), flags), ator))
+                .map(u -> resumo(u, contarValidas(excecoes.get(u.id()), flags), ator, flags))
                 .toList();
     }
 
@@ -74,11 +74,11 @@ public class ConsultarPermissoesDeUsuariosUseCase {
         PermissaoRepositorio.Armazenado excecoes = repositorio.excecoesDe(usuarioId);
         PermissoesEfetivas efetivas = PoliticaDePermissoes.calcular(
                 usuario.papel(), perfil.configuracao(), excecoes.configuracao(), flags);
-        boolean editavel = PoliticaDeConcessao.podeEditarExcecoesDe(ator, usuario.id(), usuario.papel());
+        boolean editavel = editavel(ator, usuario, flags);
         ConfiguracaoDePermissoes excecoesVisiveis = excecoes.configuracao()
                 .somente(m -> PoliticaDePermissoes.disponivel(m, flags));
         return new Visoes.Usuario(
-                resumo(usuario, excecoesVisiveis.quantidade(), ator),
+                resumo(usuario, excecoesVisiveis.quantidade(), ator, flags),
                 excecoes.revisao(), perfil.revisao(), fixo,
                 MontadorDeVisoes.modulos(usuario.papel(), perfil.configuracao(), excecoes.configuracao(), efetivas, flags),
                 MontadorDeVisoes.capacidades(usuario.papel(), perfil.configuracao(), excecoes.configuracao(),
@@ -97,8 +97,14 @@ public class ConsultarPermissoesDeUsuariosUseCase {
         return usuario.id().equals(ator.id()) || usuario.papel() == PapelUsuario.ATENDENTE;
     }
 
-    private static Visoes.ResumoDeUsuario resumo(Usuario u, int excecoes, PoliticaDeConcessao.Ator ator) {
+    private static Visoes.ResumoDeUsuario resumo(Usuario u, int excecoes, PoliticaDeConcessao.Ator ator,
+            Set<String> flags) {
         return new Visoes.ResumoDeUsuario(u.id(), u.nome(), u.email(), u.papel(), u.ativo(), u.fotoReferencia(),
-                excecoes, PoliticaDeConcessao.podeEditarExcecoesDe(ator, u.id(), u.papel()));
+                excecoes, editavel(ator, u, flags));
+    }
+
+    /** Com a funcionalidade desligada ninguem edita excecao: a leitura continua, a gravacao e recusada. */
+    private static boolean editavel(PoliticaDeConcessao.Ator ator, Usuario u, Set<String> flags) {
+        return FuncionalidadeDeExcecoes.habilitada(flags) && PoliticaDeConcessao.podeEditarExcecoesDe(ator, u.id(), u.papel());
     }
 }

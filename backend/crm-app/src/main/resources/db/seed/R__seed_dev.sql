@@ -124,7 +124,10 @@ INSERT INTO feature_flag (chave, habilitado, descricao) VALUES
     ('automacao_regras', FALSE, 'CRUD de regras de follow-up/fidelizacao/festivas e telemetria dentro de Automacao.'),
     -- E15b §2: horario_trabalho e rotina_disponibilidade so tem migration, zero codigo
     -- de aplicacao. Disponibilidade do atendente e manual (presenca) na 1a entrega.
-    ('horarios',         FALSE, 'Aba de horarios de atendimento por dia da semana.')
+    ('horarios',         FALSE, 'Aba de horarios de atendimento por dia da semana.'),
+    -- docs/47 secao 10: Excecoes por usuario em Gestao aparecem como "Em breve" e a gravacao e
+    -- recusada ate a flag ligar. Excecoes ja salvas continuam valendo no calculo.
+    ('gestao_excecoes',  FALSE, 'Aba Excecoes por usuario em Gestao e gravacao de excecoes.')
 ON CONFLICT (chave) DO UPDATE
     SET habilitado = EXCLUDED.habilitado, descricao = EXCLUDED.descricao;
 

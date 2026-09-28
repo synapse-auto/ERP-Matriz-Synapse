@@ -42,10 +42,10 @@ import {
   Legenda,
   SeloSensivel,
   SeletorDeNivel,
+  foraDaAlcada,
   motivoDoBloqueio,
   motivoForaDaAlcada,
   perfilFixoDoAtor,
-  podeAlterarAcao,
   preencher,
   rotuloDaCapacidade,
   rotuloDoModulo,
@@ -343,16 +343,19 @@ function DetalheDoUsuario({
   const simPerfil = simular(catalogo, papel, perfil);
   const n = quantidade(rascunho);
   const proprio = u.id === minhas.usuarioId;
+  /** A troca do rascunho atual por `novo` cabe na alçada de quem edita? (fixo: sempre) */
+  const avaliar = (novo: Rascunho) => foraDaAlcada(minhas, catalogo, { acoes: rascunho.acoes, simulacao: simUsuario },
+    () => ({ acoes: novo.acoes, simulacao: simular(catalogo, papel, perfil, novo) }));
 
   const opcoesDeCopia = equipe
     .filter((o) => o.id !== u.id)
     .map((o) => {
       const fixo = perfilFixo(o.papel);
-      const foraDaAlcada = !atorFixo && o.papel !== "ATENDENTE";
+      const origemForaDaAlcada = !atorFixo && o.papel !== "ATENDENTE";
       const sufixo = fixo
         ? preencher(textos.excecoes.copiaIndisponivel, { nome: o.nome })
-        : foraDaAlcada ? textos.excecoes.copiaForaDaAlcada : `${o.nome} · ${textos.papeis[o.papel]}`;
-      return { valor: o.id, rotulo: sufixo, desabilitada: fixo || foraDaAlcada };
+        : origemForaDaAlcada ? textos.excecoes.copiaForaDaAlcada : `${o.nome} · ${textos.papeis[o.papel]}`;
+      return { valor: o.id, rotulo: sufixo, desabilitada: fixo || origemForaDaAlcada };
     });
 
   const modulos = catalogo.modulos.filter((m) => {
@@ -396,7 +399,7 @@ function DetalheDoUsuario({
                 if (origem) onCopiar(origem);
               }}
             />
-            <Button type="button" variant="outline" className="h-9" disabled={n === 0} onClick={onVoltarAoPadrao}>
+            <Button type="button" variant="outline" className="h-9" disabled={n === 0 || avaliar(RASCUNHO_VAZIO) !== null} onClick={onVoltarAoPadrao}>
               <Undo2 className="size-(--tamanho-icone-interface)" aria-hidden />
               {textos.excecoes.voltarPadrao}
             </Button>
@@ -410,9 +413,9 @@ function DetalheDoUsuario({
         </p>
       )}
       {editavel && !atorFixo && (
-        <p className="flex items-center gap-2 border-b border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-          <Info className="size-3.5" aria-hidden />
-          {textos.excecoes.nivelNaoDelegavel}
+        <p className="flex items-start gap-2 border-b border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+          <Info className="mt-px size-3.5 shrink-0" aria-hidden />
+          {textos.permissoes.alcadaDelegada}
         </p>
       )}
 
@@ -452,14 +455,15 @@ function DetalheDoUsuario({
                       valor={simUsuario.niveis[m.id]}
                       minimo={m.nivelMinimoPermitido}
                       maximo={m.nivelMaximoPorPapel[papel]}
-                      desabilitado={!editavel || !atorFixo}
+                      desabilitado={!editavel}
+                      nivelPermitido={(nivel) => avaliar(aplicarNivel(rascunho, catalogo, papel, m.id, nivel, perfil)) === null}
                       rotulo={preencher(textos.permissoes.nivelRotulo, { modulo: r.rotulo })}
                       textos={textos}
                       onChange={(nivel) => onNivel(m.id, nivel)}
                     />
                   </td>
                   <td className="px-2 py-2.5 text-center">
-                    {nivelExcecao && editavel && atorFixo && (
+                    {nivelExcecao && editavel && avaliar(restaurarNivel(rascunho, m.id)) === null && (
                       <BotaoRestaurar rotulo={preencher(textos.excecoes.restaurar, { acao: r.rotulo })} onClick={() => onRestaurarNivel(m.id)} />
                     )}
                   </td>
@@ -482,8 +486,9 @@ function DetalheDoUsuario({
                   const motivo = motivoDoBloqueio(textos, { motivo: estado.motivo, alcance: null }, c.nivelMinimo, c.dependencias);
                   const bloqueado = estado.motivo === "TETO_DO_PAPEL" || estado.motivo === "FLAG_DESLIGADA"
                     || estado.motivo === "NIVEL_DO_MODULO" || estado.motivo === "DEPENDENCIA";
-                  const alteravel = editavel && !bloqueado && podeAlterarAcao(minhas, c, !estado.permitido);
-                  const dica = !editavel || bloqueado ? motivo : !alteravel ? motivoForaDaAlcada(textos, c) : null;
+                  const violacao = editavel && !bloqueado ? avaliar(alternarAcao(rascunho, c.id, !estado.permitido, perfil)) : null;
+                  const alteravel = editavel && !bloqueado && violacao === null;
+                  const dica = !editavel || bloqueado ? motivo : violacao ? motivoForaDaAlcada(textos, violacao, c.id) : null;
                   return (
                     <tr key={c.id} className={cn("border-t border-border", personalizado && "bg-cor-atencao/[0.07]")}>
                       <td className="py-2.5 pr-3 pl-[3.75rem]">
@@ -512,7 +517,7 @@ function DetalheDoUsuario({
                         />
                       </td>
                       <td className="px-2 py-2.5 text-center">
-                        {personalizado && editavel && (atorFixo || c.delegavel) && (
+                        {personalizado && editavel && avaliar(restaurarAcao(rascunho, c.id)) === null && (
                           <BotaoRestaurar rotulo={preencher(textos.excecoes.restaurar, { acao: nome })} onClick={() => onRestaurarAcao(c.id)} />
                         )}
                       </td>
