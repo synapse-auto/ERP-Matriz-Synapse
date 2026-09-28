@@ -1575,6 +1575,14 @@
   },
   "gestao": {
     "titulo": "Gestão",
+    "acesso": {
+      "verificando": "Verificando suas permissões…",
+      "erro": "Não foi possível confirmar suas permissões.",
+      "semAcessoTitulo": "Sem acesso a esta área",
+      "semAcessoDescricao": "Seu perfil não inclui esta área. Se precisar dela, fale com a gestão.",
+      "voltar": "Voltar para Atendimentos",
+      "responderIndisponivel": "Seu perfil não permite responder atendimentos."
+    },
     "selo": {
       "gestao": "Gestão autorizada",
       "administrador": "Administrador",

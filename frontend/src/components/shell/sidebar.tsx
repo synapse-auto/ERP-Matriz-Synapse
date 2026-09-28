@@ -188,7 +188,7 @@ export function Sidebar({
       flags,
       item.flag,
       capacidadeDoCanal?.gerenciaTemplates !== false,
-      minhasPermissoes.data,
+      minhasPermissoes.data ?? null,
     );
   }
 

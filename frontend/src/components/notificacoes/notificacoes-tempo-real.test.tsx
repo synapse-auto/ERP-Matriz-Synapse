@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -61,6 +61,9 @@ vi.mock("@/lib/auth/auth-store", () => {
   });
   return { useAuthStore };
 });
+
+const httpMock = vi.hoisted(() => ({ renovarAccessToken: vi.fn(() => Promise.resolve()) }));
+vi.mock("@/lib/api/http-client", () => httpMock);
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
@@ -209,5 +212,42 @@ describe("NotificacoesTempoReal", () => {
     });
 
     expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+});
+
+describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
+  function renderizarCom(cliente: QueryClient) {
+    return render(
+      <QueryClientProvider client={cliente}>
+        <NotificacoesTempoReal />
+      </QueryClientProvider>,
+    );
+  }
+
+  function aviso(sessaoInvalidada: boolean): NotificacaoTempoReal {
+    return { tipo: "ACESSO_ALTERADO", eventoId: "acesso-1", dados: { sessaoInvalidada, revisao: 7 } } as unknown as NotificacaoTempoReal;
+  }
+
+  it("revalida as permissões efetivas sem F5 e sem mostrar aviso ao usuário", async () => {
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarCom(cliente);
+
+    act(() => mocks.callback?.(aviso(false)));
+
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["permissoes"] });
+    expect(httpMock.renovarAccessToken).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("com a sessão invalidada, renova o token antes de revalidar", async () => {
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarCom(cliente);
+
+    act(() => mocks.callback?.(aviso(true)));
+
+    expect(httpMock.renovarAccessToken).toHaveBeenCalled();
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["permissoes"] }));
   });
 });

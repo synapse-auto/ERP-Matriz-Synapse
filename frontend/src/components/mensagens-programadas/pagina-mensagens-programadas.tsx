@@ -17,6 +17,8 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { cancelarMensagemProgramada, listarMensagensProgramadas } from "@/lib/suporte/api";
 import type { MensagemProgramada, StatusMensagemProgramada } from "@/lib/suporte/types";
 
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
+
 import { FormularioMensagemProgramada } from "./formulario-mensagem-programada";
 
 const TOM_DO_STATUS: Record<StatusMensagemProgramada, TomDePill> = {
@@ -27,7 +29,11 @@ const TOM_DO_STATUS: Record<StatusMensagemProgramada, TomDePill> = {
 
 export function PaginaMensagensProgramadas() {
   const t = useTextos().mensagensProgramadas;
+  // Só apresentação: coluna de atendente para quem enxerga as mensagens da equipe.
   const gestor = useAuthStore((s) => s.papel) !== "ATENDENTE";
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("mensagens_programadas.criar");
+  const podeEditarCancelar = capacidades.pode("mensagens_programadas.editar_cancelar");
   const cache = useQueryClient();
   const [novo, setNovo] = useState(false);
   const [edicao, setEdicao] = useState<MensagemProgramada | null>(null);
@@ -63,7 +69,7 @@ export function PaginaMensagensProgramadas() {
           <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
-        <Button onClick={() => setNovo(true)}>{t.nova}</Button>
+        {podeCriar && <Button onClick={() => setNovo(true)}>{t.nova}</Button>}
       </header>
 
       <div className="flex flex-wrap gap-3 rounded-lg border p-3">
@@ -112,8 +118,8 @@ export function PaginaMensagensProgramadas() {
           itens={consulta.data.mensagens}
           mostrarAtendente={gestor}
           textos={t}
-          onEditar={setEdicao}
-          onCancelar={(id) => cancelar.mutate(id)}
+          onEditar={podeEditarCancelar ? setEdicao : undefined}
+          onCancelar={podeEditarCancelar ? (id) => cancelar.mutate(id) : undefined}
         />
       )}
 
@@ -132,10 +138,10 @@ export function PaginaMensagensProgramadas() {
 
       <FormularioMensagemProgramada
         key={novo ? "novo-aberto" : "novo-fechado"}
-        aberto={novo}
+        aberto={novo && podeCriar}
         onFechar={() => setNovo(false)}
       />
-      {edicao && (
+      {edicao && podeEditarCancelar && (
         <FormularioMensagemProgramada
           key={edicao.id}
           aberto
@@ -159,8 +165,8 @@ function TabelaDeMensagensProgramadas({
   itens: MensagemProgramada[];
   mostrarAtendente: boolean;
   textos: TextosMensagensProgramadas;
-  onEditar: (mensagem: MensagemProgramada) => void;
-  onCancelar: (id: string) => void;
+  onEditar?: (mensagem: MensagemProgramada) => void;
+  onCancelar?: (id: string) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -236,7 +242,7 @@ function TabelaDeMensagensProgramadas({
                   </td>
                 )}
                 <td className="px-4 py-3 text-right">
-                  {editavel && (
+                  {editavel && onEditar && onCancelar && (
                     <div className="flex justify-end gap-1">
                       <Button size="sm" variant="outline" onClick={() => onEditar(mensagem)}>
                         {textos.editar}

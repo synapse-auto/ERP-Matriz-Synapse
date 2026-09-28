@@ -33,6 +33,7 @@ import type {
   MensagemFestiva,
 } from "@/lib/automacao/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import type { Textos } from "@/lib/config/schema";
 import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
 import { recebeAtendimento } from "@/lib/equipe/papel";
@@ -49,8 +50,6 @@ const ABAS: readonly Aba[] = ["geral", "followUp", "fidelizacao"];
 export function PaginaAutomacao() {
   const textos = useTextos();
   const t = textos.automacao;
-  const papel = useAuthStore((estado) => estado.papel);
-  const podeAcessar = papel === "GESTOR" || papel === "SUBGESTOR" || papel === "ADMINISTRADOR";
   const router = useRouter();
   const parametrosDaUrl = useSearchParams();
   const [aba, setAba] = useState<Aba>(() => normalizarAba(parametrosDaUrl.get("aba")));
@@ -62,15 +61,6 @@ export function PaginaAutomacao() {
     else parametros.set("aba", novaAba);
     const query = parametros.toString();
     router.replace(query ? `/automacao?${query}` : "/automacao", { scroll: false });
-  }
-
-  if (!podeAcessar) {
-    return (
-      <section className="m-6 rounded-xl border border-destructive/30 bg-destructive/5 p-6" role="alert">
-        <h1 className="text-lg font-semibold">{t.titulo}</h1>
-        <p className="mt-2 text-sm text-destructive">{t.semPermissao}</p>
-      </section>
-    );
   }
 
   return (
@@ -109,13 +99,15 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
   const recursos = useRecursosIa();
   const atualizarResumo = useAtualizarResumoIa();
   const atualizarParametro = useAtualizarParametroAutomacao();
+  const capacidades = useCapacidades();
+  const podeEditarParametros = capacidades.pode("automacao.editar_parametros");
   const preenchimento = parametros.data?.find((p) => p.chave === "ia.preenchimento_automatico");
 
   return (
     <div className="space-y-6">
       <CardsDeTelemetria dados={telemetria.data} carregando={telemetria.isLoading} comErro={telemetria.isError} onTentarNovamente={() => telemetria.refetch()} />
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_26.25rem]">
-        <AtendentesDisponiveis textos={textos} />
+        {capacidades.pode("equipe.ver") && <AtendentesDisponiveis textos={textos} />}
         <section className="rounded-xl border bg-card p-6">
           <div className="flex items-center gap-2.5">
             <Sparkles className="size-[calc(var(--tamanho-icone-interface)*1.25)] text-primary" />
@@ -125,8 +117,8 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
             <div className="mt-4"><ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => recursos.refetch()} /></div>
           ) : (
             <div className="mt-4 divide-y">
-              <LinhaRecurso titulo={t.recursosIa.resumo} descricao={t.recursosIa.resumoDescricao} ativo={recursos.data.resumo.ativo} onChange={(ativo) => atualizarResumo.mutate({ ...recursos.data!.resumo, ativo })} />
-              {preenchimento && <LinhaRecurso titulo={t.recursosIa.preenchimento} descricao={t.recursosIa.preenchimentoDescricao} ativo={recursos.data.preenchimentoAutomatico} onChange={(ativo) => atualizarParametro.mutate({ chave: preenchimento.chave, valor: String(ativo) })} />}
+              <LinhaRecurso titulo={t.recursosIa.resumo} descricao={t.recursosIa.resumoDescricao} ativo={recursos.data.resumo.ativo} editavel={podeEditarParametros} onChange={(ativo) => atualizarResumo.mutate({ ...recursos.data!.resumo, ativo })} />
+              {preenchimento && <LinhaRecurso titulo={t.recursosIa.preenchimento} descricao={t.recursosIa.preenchimentoDescricao} ativo={recursos.data.preenchimentoAutomatico} editavel={podeEditarParametros} onChange={(ativo) => atualizarParametro.mutate({ chave: preenchimento.chave, valor: String(ativo) })} />}
             </div>
           )}
         </section>
@@ -146,7 +138,9 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
           {parametros.isLoading ? <p>{t.carregando}</p> : parametros.isError ? (
             <ErroDeCarregamento mensagem={t.erro} onTentarNovamente={() => parametros.refetch()} />
           ) : !parametros.data?.length ? <p className="py-5 text-center text-sm text-muted-foreground">{t.vazio}</p> : (
-            parametros.data.map((parametro) => <LinhaParametro key={parametro.chave} parametro={parametro} />)
+            <fieldset disabled={!podeEditarParametros} className="space-y-3">
+              {parametros.data.map((parametro) => <LinhaParametro key={parametro.chave} parametro={parametro} editavel={podeEditarParametros} />)}
+            </fieldset>
           )}
         </div>
       </details>
@@ -157,6 +151,8 @@ function GeralAutomacao({ textos }: { textos: Textos }) {
 function AtendentesDisponiveis({ textos }: { textos: Textos }) {
   const equipe = useEquipe();
   const atualizar = useAtualizarDisponibilidadeParaIa();
+  // O switch também informa o estado; sem a capacidade ele fica visível e inoperante.
+  const podeAlterar = useCapacidades().pode("equipe.disponibilidade_ia");
   const t = textos.automacao.disponibilidade;
   const atendentes = (equipe.data ?? []).filter((usuario) => usuario.ativo && recebeAtendimento(usuario.papel));
   const disponiveis = atendentes.filter((usuario) => usuario.disponivelParaIa).length;
@@ -190,7 +186,7 @@ function AtendentesDisponiveis({ textos }: { textos: Textos }) {
                   <p className="truncate text-sm font-bold">{usuario.nome}</p>
                   <p className="truncate text-xs text-muted-foreground">{usuario.cargo || textos.equipe.papeis.atendente}</p>
                 </div>
-                <Switch checked={ativo} disabled={atualizar.isPending} aria-label={`${textos.equipe.disponibilidadeIa.rotulo}: ${usuario.nome}`} onCheckedChange={(disponivelParaIa) => atualizar.mutate({ id: usuario.id, disponivelParaIa })} />
+                <Switch checked={ativo} disabled={atualizar.isPending || !podeAlterar} aria-label={`${textos.equipe.disponibilidadeIa.rotulo}: ${usuario.nome}`} onCheckedChange={(disponivelParaIa) => atualizar.mutate({ id: usuario.id, disponivelParaIa })} />
               </div>
             );
           })}
@@ -202,11 +198,11 @@ function AtendentesDisponiveis({ textos }: { textos: Textos }) {
 
 const COR_PRESENCA: Record<StatusPresenca, string> = { ONLINE: "bg-cor-sucesso", AUSENTE: "bg-cor-atencao", OFFLINE: "bg-muted-foreground" };
 
-function LinhaRecurso({ titulo, descricao, ativo, onChange }: { titulo: string; descricao: string; ativo: boolean; onChange: (ativo: boolean) => void }) {
+function LinhaRecurso({ titulo, descricao, ativo, editavel, onChange }: { titulo: string; descricao: string; ativo: boolean; editavel: boolean; onChange: (ativo: boolean) => void }) {
   return (
     <div className="flex items-center gap-4 py-4 first:pt-1 last:pb-1">
       <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{titulo}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{descricao}</p></div>
-      <Switch checked={ativo} aria-label={titulo} onCheckedChange={onChange} />
+      <Switch checked={ativo} disabled={!editavel} aria-label={titulo} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -217,6 +213,7 @@ function PainelFollowUp({ textos }: { textos: Textos }) {
   const mutacao = useMutacaoRegraFollowUp();
   const alternar = useAlternarRegraFollowUp();
   const excluir = useExcluirRegraFollowUp();
+  const podeEditarRegras = useCapacidades().pode("automacao.regras");
   const [ativoId, setAtivoId] = useState<string | null>(null);
   const [novoId, setNovoId] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -231,16 +228,18 @@ function PainelFollowUp({ textos }: { textos: Textos }) {
     <>
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,45rem)_23.75rem]">
         <section className="min-w-0 space-y-4">
-          <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.followUpContagemSingular : t.regras.followUpsContagem, { quantidade: String(dados.length) })} botao={t.regras.novoFollowUp} pendente={mutacao.isPending} onNovo={() => mutacao.mutate(
+          <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.followUpContagemSingular : t.regras.followUpsContagem, { quantidade: String(dados.length) })} botao={t.regras.novoFollowUp} pendente={mutacao.isPending} onNovo={!podeEditarRegras ? undefined : () => mutacao.mutate(
             { dados: { tempoMinutos: 60, texto: t.regras.mensagemNovaFollowUp, ativo: false } },
             { onSuccess: (criada) => { setNovoId(criada.id); setAtivoId(criada.id); setPreview(previewFollowUp(criada, t)); } },
           )} />
-          {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFollowUp} /> : dados.map((regra) => (
-            <CardFollowUp key={regra.id} regra={regra} ativo={regra.id === (ativoId ?? dados[0]?.id)} autoFocus={regra.id === novoId} t={t}
-              onAtivar={(proximoPreview) => { setAtivoId(regra.id); setPreview(proximoPreview); }}
-              onSalvar={(dadosAtualizados, callbacks) => mutacao.mutate({ id: regra.id, dados: dadosAtualizados }, callbacks)}
-              onAlternar={() => alternar.mutate({ id: regra.id, ativo: !regra.ativo })} onExcluir={() => setRemover(regra)} />
-          ))}
+          <fieldset disabled={!podeEditarRegras} className="min-w-0 space-y-4">
+            {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFollowUp} /> : dados.map((regra) => (
+              <CardFollowUp key={regra.id} regra={regra} ativo={regra.id === (ativoId ?? dados[0]?.id)} autoFocus={regra.id === novoId} t={t}
+                onAtivar={(proximoPreview) => { setAtivoId(regra.id); setPreview(proximoPreview); }}
+                onSalvar={(dadosAtualizados, callbacks) => mutacao.mutate({ id: regra.id, dados: dadosAtualizados }, callbacks)}
+                onAlternar={podeEditarRegras ? () => alternar.mutate({ id: regra.id, ativo: !regra.ativo }) : undefined} onExcluir={podeEditarRegras ? () => setRemover(regra) : undefined} />
+            ))}
+          </fieldset>
         </section>
         <PreviewWhatsApp textos={textos} preview={previewAtual} />
       </div>
@@ -259,6 +258,7 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
   const mutacao = useMutacaoRegraFidelizacao();
   const alternar = useAlternarRegraFidelizacao();
   const excluir = useExcluirRegraFidelizacao();
+  const podeEditarRegras = useCapacidades().pode("automacao.regras");
   const [ativoId, setAtivoId] = useState<string | null>(null);
   const [novoId, setNovoId] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -282,16 +282,18 @@ function PainelFidelizacao({ textos }: { textos: Textos }) {
       />
       <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,45rem)_23.75rem]">
         <section className="min-w-0 space-y-4">
-          <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.mensagemContagemSingular : t.regras.mensagensContagem, { quantidade: String(dados.length) })} botao={t.regras.novaMensagem} pendente={mutacao.isPending} onNovo={() => mutacao.mutate(
+          <CabecalhoLista contagem={interpolar(dados.length === 1 ? t.regras.mensagemContagemSingular : t.regras.mensagensContagem, { quantidade: String(dados.length) })} botao={t.regras.novaMensagem} pendente={mutacao.isPending} onNovo={!podeEditarRegras ? undefined : () => mutacao.mutate(
             { dados: { diasSemContato: 30, mensagem: t.regras.mensagemNovaFidelizacao, ativo: false } },
             { onSuccess: (criada) => { setNovoId(criada.id); setAtivoId(criada.id); setPreview(previewFidelizacao(criada, t)); } },
           )} />
-          {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFidelizacao} /> : dados.map((regra) => (
-            <CardFidelizacao key={regra.id} regra={regra} ativo={regra.id === (ativoId ?? dados[0]?.id)} autoFocus={regra.id === novoId} t={t}
-              onAtivar={(proximoPreview) => { setAtivoId(regra.id); setPreview(proximoPreview); }}
-              onSalvar={(dadosAtualizados, callbacks) => mutacao.mutate({ id: regra.id, dados: dadosAtualizados }, callbacks)}
-              onAlternar={() => alternar.mutate({ id: regra.id, ativo: !regra.ativo })} onExcluir={() => setRemover(regra)} />
-          ))}
+          <fieldset disabled={!podeEditarRegras} className="min-w-0 space-y-4">
+            {dados.length === 0 ? <EstadoVazio texto={t.regras.vazioFidelizacao} /> : dados.map((regra) => (
+              <CardFidelizacao key={regra.id} regra={regra} ativo={regra.id === (ativoId ?? dados[0]?.id)} autoFocus={regra.id === novoId} t={t}
+                onAtivar={(proximoPreview) => { setAtivoId(regra.id); setPreview(proximoPreview); }}
+                onSalvar={(dadosAtualizados, callbacks) => mutacao.mutate({ id: regra.id, dados: dadosAtualizados }, callbacks)}
+                onAlternar={podeEditarRegras ? () => alternar.mutate({ id: regra.id, ativo: !regra.ativo }) : undefined} onExcluir={podeEditarRegras ? () => setRemover(regra) : undefined} />
+            ))}
+          </fieldset>
         </section>
         <PreviewWhatsApp textos={textos} preview={previewAtual} />
       </div>
@@ -451,14 +453,14 @@ function FeedbackConfiguracao({ t, mutacao }: { t: Textos["automacao"]["fideliza
   return null;
 }
 
-function CabecalhoLista({ contagem, botao, pendente, onNovo }: { contagem: string; botao: string; pendente: boolean; onNovo: () => void }) {
-  return <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-muted-foreground">{contagem}</span><Button variant="outline" size="sm" disabled={pendente} onClick={onNovo}><Plus className="size-(--tamanho-icone-interface)" />{botao}</Button></div>;
+function CabecalhoLista({ contagem, botao, pendente, onNovo }: { contagem: string; botao: string; pendente: boolean; onNovo?: () => void }) {
+  return <div className="flex items-center justify-between gap-4"><span className="text-sm font-bold text-muted-foreground">{contagem}</span>{onNovo && <Button variant="outline" size="sm" disabled={pendente} onClick={onNovo}><Plus className="size-(--tamanho-icone-interface)" />{botao}</Button>}</div>;
 }
 
 function CardFollowUp({ regra, ativo, autoFocus, t, onAtivar, onSalvar, onAlternar, onExcluir }: {
   regra: RegraFollowUp; ativo: boolean; autoFocus: boolean; t: Textos["automacao"];
   onAtivar: (preview: Preview) => void; onSalvar: (dados: FollowUpPayload, callbacks: { onError: () => void }) => void;
-  onAlternar: () => void; onExcluir: () => void;
+  onAlternar?: () => void; onExcluir?: () => void;
 }) {
   const inicial = decomporTempo(regra.tempoMinutos);
   const [valor, setValor] = useState(String(inicial.valor));
@@ -507,7 +509,7 @@ function CardFollowUp({ regra, ativo, autoFocus, t, onAtivar, onSalvar, onAltern
 function CardFidelizacao({ regra, ativo, autoFocus, t, onAtivar, onSalvar, onAlternar, onExcluir }: {
   regra: RegraFidelizacao; ativo: boolean; autoFocus: boolean; t: Textos["automacao"];
   onAtivar: (preview: Preview) => void; onSalvar: (dados: FidelizacaoPayload, callbacks: { onError: () => void }) => void;
-  onAlternar: () => void; onExcluir: () => void;
+  onAlternar?: () => void; onExcluir?: () => void;
 }) {
   const [dias, setDias] = useState(String(regra.diasSemContato));
   const [mensagem, setMensagem] = useState(regra.mensagem);
@@ -540,14 +542,14 @@ function CardFidelizacao({ regra, ativo, autoFocus, t, onAtivar, onSalvar, onAlt
   );
 }
 
-function TopoCard({ gatilho, ativo, t, onAlternar, onExcluir }: { gatilho: string; ativo: boolean; t: Textos["automacao"]; onAlternar: () => void; onExcluir: () => void }) {
+function TopoCard({ gatilho, ativo, t, onAlternar, onExcluir }: { gatilho: string; ativo: boolean; t: Textos["automacao"]; onAlternar?: () => void; onExcluir?: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span className="rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">{gatilho}</span>
       <div className="ml-auto flex items-center gap-2.5">
         <span className={cn("text-xs font-bold", ativo ? "text-cor-sucesso" : "text-muted-foreground")}>{ativo ? t.regras.ativo : t.regras.inativo}</span>
-        <Switch checked={ativo} aria-label={ativo ? t.regras.desativar : t.regras.ativar} onCheckedChange={onAlternar} />
-        <Button variant="ghost" size="icon-sm" aria-label={t.regras.excluir} onClick={onExcluir}><Trash2 className="size-(--tamanho-icone-interface)" /></Button>
+        <Switch checked={ativo} disabled={!onAlternar} aria-label={ativo ? t.regras.desativar : t.regras.ativar} onCheckedChange={() => onAlternar?.()} />
+        {onExcluir && <Button variant="ghost" size="icon-sm" aria-label={t.regras.excluir} onClick={onExcluir}><Trash2 className="size-(--tamanho-icone-interface)" /></Button>}
       </div>
     </div>
   );
@@ -645,7 +647,7 @@ function CardDeTelemetria({ icone, tom, rotulo, valor, status, rotuloAtivo, rotu
   );
 }
 
-function LinhaParametro({ parametro }: { parametro: ParametroAutomacao }) {
+function LinhaParametro({ parametro, editavel }: { parametro: ParametroAutomacao; editavel: boolean }) {
   const t = useTextos().automacao;
   const atualizar = useAtualizarParametroAutomacao();
   const [valor, setValor] = useState(parametro.valor);
@@ -654,7 +656,7 @@ function LinhaParametro({ parametro }: { parametro: ParametroAutomacao }) {
   const podeSalvar = alterado && !foraDaFaixa && !atualizar.isPending;
   const temFaixa = parametro.valorMin != null || parametro.valorMax != null;
   return (
-    <div className="rounded-lg border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-medium">{parametro.descricao ?? parametro.chave}</p><p className="font-mono text-xs text-muted-foreground">{parametro.chave}</p></div>{parametro.tipo !== "BOOLEAN" && temFaixa && <p className="shrink-0 text-xs text-muted-foreground">{t.faixaLabel}: {parametro.valorMin ?? "—"}–{parametro.valorMax ?? "—"}{parametro.unidade ? ` ${parametro.unidade}` : ""}</p>}</div><div className="mt-3 flex flex-wrap items-center gap-3"><CampoValor parametro={parametro} valor={valor} onChange={setValor} />{foraDaFaixa && <ErroCampo texto={t.erroFaixa} />}{atualizar.isError && <ErroCampo texto={t.erroSalvar} />}<Button size="sm" disabled={!podeSalvar} onClick={() => atualizar.mutate({ chave: parametro.chave, valor })} className="ml-auto">{atualizar.isPending ? t.salvando : t.salvar}</Button></div></div>
+    <div className="rounded-lg border p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-medium">{parametro.descricao ?? parametro.chave}</p><p className="font-mono text-xs text-muted-foreground">{parametro.chave}</p></div>{parametro.tipo !== "BOOLEAN" && temFaixa && <p className="shrink-0 text-xs text-muted-foreground">{t.faixaLabel}: {parametro.valorMin ?? "—"}–{parametro.valorMax ?? "—"}{parametro.unidade ? ` ${parametro.unidade}` : ""}</p>}</div><div className="mt-3 flex flex-wrap items-center gap-3"><CampoValor parametro={parametro} valor={valor} onChange={setValor} />{foraDaFaixa && <ErroCampo texto={t.erroFaixa} />}{atualizar.isError && <ErroCampo texto={t.erroSalvar} />}{editavel && <Button size="sm" disabled={!podeSalvar} onClick={() => atualizar.mutate({ chave: parametro.chave, valor })} className="ml-auto">{atualizar.isPending ? t.salvando : t.salvar}</Button>}</div></div>
   );
 }
 

@@ -44,6 +44,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   useAgregacaoDeTags,
   useAtualizarTag,
@@ -143,6 +144,9 @@ export function PaginaTags() {
   const tags = useTags();
   const agregacao = useAgregacaoDeTags();
   const remover = useRemoverTag();
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("tags.criar");
+  const podeEditarExcluir = capacidades.pode("tags.editar_excluir");
   const [busca, setBusca] = useState("");
   const [novaAberta, setNovaAberta] = useState(false);
   const [edicao, setEdicao] = useState<Tag | null>(null);
@@ -172,7 +176,7 @@ export function PaginaTags() {
             placeholder={t.busca}
             className="w-56"
           />
-          <Button onClick={() => setNovaAberta(true)}>{t.nova}</Button>
+          {podeCriar && <Button onClick={() => setNovaAberta(true)}>{t.nova}</Button>}
         </div>
       </header>
 
@@ -207,8 +211,8 @@ export function PaginaTags() {
                     maiorContagem={maiorContagem}
                     totalVisivel={totalVisivel}
                     textos={t}
-                    onEditar={() => setEdicao(tag)}
-                    onRemover={() => remover.mutate(tag.id)}
+                    onEditar={podeEditarExcluir ? () => setEdicao(tag) : undefined}
+                    onRemover={podeEditarExcluir ? () => remover.mutate(tag.id) : undefined}
                   />
                 ))}
               </div>
@@ -217,8 +221,8 @@ export function PaginaTags() {
         </>
       )}
 
-      <Formulario aberto={novaAberta} onFechar={() => setNovaAberta(false)} />
-      {edicao && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+      <Formulario aberto={novaAberta && podeCriar} onFechar={() => setNovaAberta(false)} />
+      {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
     </div>
   );
 }
@@ -316,8 +320,8 @@ function CartaoDeTag({
   maiorContagem: number;
   totalVisivel: number;
   textos: TextosTags;
-  onEditar: () => void;
-  onRemover: () => void;
+  onEditar?: () => void;
+  onRemover?: () => void;
 }) {
   const percentualDaBase = totalVisivel > 0 ? Math.round((contagem / totalVisivel) * 100) : 0;
   const larguraDaBarra = Math.round((contagem / maiorContagem) * 100);
@@ -340,24 +344,28 @@ function CartaoDeTag({
           </p>
         </div>
         <div className="flex gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8"
-            aria-label={`${textos.editar} ${tag.nome}`}
-            onClick={onEditar}
-          >
-            <Pencil className="size-(--tamanho-icone-interface)" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8 text-destructive hover:text-destructive"
-            aria-label={`${textos.remover} ${tag.nome}`}
-            onClick={onRemover}
-          >
-            <Trash2 className="size-(--tamanho-icone-interface)" />
-          </Button>
+          {onEditar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={`${textos.editar} ${tag.nome}`}
+              onClick={onEditar}
+            >
+              <Pencil className="size-(--tamanho-icone-interface)" />
+            </Button>
+          )}
+          {onRemover && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 text-destructive hover:text-destructive"
+              aria-label={`${textos.remover} ${tag.nome}`}
+              onClick={onRemover}
+            >
+              <Trash2 className="size-(--tamanho-icone-interface)" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">

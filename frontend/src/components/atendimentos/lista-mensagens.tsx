@@ -32,6 +32,8 @@ type Props = {
   leadId?: string;
   atendimentoId?: string;
   janelaTextoLivreAberta?: boolean;
+  /** Falso quando o usuário não pode responder (Gestão): reações ficam só para leitura. */
+  reacoesHabilitadas?: boolean;
   onResponder?: (mensagem: MensagemResposta) => void;
   onEncaminhar?: (mensagem: MensagemResposta) => void;
 };
@@ -59,6 +61,7 @@ export function ListaMensagens({
   leadId,
   atendimentoId,
   janelaTextoLivreAberta = true,
+  reacoesHabilitadas,
   onResponder,
   onEncaminhar,
 }: Props) {
@@ -283,6 +286,7 @@ export function ListaMensagens({
                       }
                       onDefinirReacao={(emoji) => onDefinirReacao(mensagem, emoji)}
                       onRemoverReacao={() => onRemoverReacao(mensagem)}
+                      reacoesHabilitadas={reacoesHabilitadas}
                       onResponder={onResponder ? () => onResponder(mensagem) : undefined}
                       onEncaminhar={onEncaminhar ? () => onEncaminhar(mensagem) : undefined}
                     />

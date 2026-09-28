@@ -42,10 +42,18 @@ describe("visibilidade do menu e das áreas de feedback", () => {
     });
     expect(itemDeMenuVisivel("gestao", "SUBGESTOR", [], undefined, true, efetivas({}, false))).toBe(false);
     expect(itemDeMenuVisivel("gestao", "SUBGESTOR", [], undefined, true, efetivas({}, true))).toBe(true);
-    expect(itemDeMenuVisivel("gestao", "GESTOR", [], undefined, true, efetivas({}, false))).toBe(true);
+    expect(itemDeMenuVisivel("gestao", "GESTOR", [], undefined, true, efetivas({}, true))).toBe(true);
     expect(itemDeMenuVisivel("automacao", "SUBGESTOR", [], undefined, true, efetivas({ "automacao.ver": false }))).toBe(false);
     expect(itemDeMenuVisivel("mensagensRapidas", "ATENDENTE", [], undefined, true, efetivas({ "mensagens_rapidas.usar": false }))).toBe(false);
     expect(itemDeMenuVisivel("mensagensRapidas", "ATENDENTE", [], undefined, true, efetivas({ "mensagens_rapidas.usar": true }))).toBe(true);
     expect(itemDeMenuVisivel("atendimentos", "ATENDENTE", [], undefined, true, efetivas({}))).toBe(true);
+  });
+
+  it("com permissões ainda desconhecidas, esconde todo item condicionado em vez de cair na regra do papel", () => {
+    expect(itemDeMenuVisivel("templatesWhatsApp", "GESTOR", [], undefined, true, null)).toBe(false);
+    expect(itemDeMenuVisivel("dashboard", "GESTOR", ["dashboard"], "dashboard", true, null)).toBe(false);
+    expect(itemDeMenuVisivel("gestao", "ADMINISTRADOR", [], undefined, true, null)).toBe(false);
+    expect(itemDeMenuVisivel("atendimentos", "ATENDENTE", [], undefined, true, null)).toBe(true);
+    expect(itemDeMenuVisivel("tags", "ATENDENTE", [], undefined, true, null)).toBe(true);
   });
 });

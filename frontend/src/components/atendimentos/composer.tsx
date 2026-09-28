@@ -41,6 +41,7 @@ import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { listarMensagensRapidas } from "@/lib/suporte/api";
 import { useLead } from "@/lib/lead/use-painel-lead";
 import { resolverMensagemRapida } from "@/lib/suporte/resolver-mensagem-rapida";
@@ -154,9 +155,14 @@ export function Composer({
   const enviarMidia = useEnviarMidia();
   const configuracaoComposer = useConfiguracaoComposer();
   const gravador = useGravadorAudio(configuracaoComposer.data);
+  const capacidades = useCapacidades();
+  const podeUsarRapidas = capacidades.pode("mensagens_rapidas.usar");
+  const podeVerTemplates = capacidades.pode("templates.ver");
+  const podeAgendar = capacidades.pode("mensagens_programadas.criar");
   const rapidas = useQuery({
     queryKey: ["mensagens-rapidas", "minhas"],
     queryFn: () => listarMensagensRapidas(true),
+    enabled: podeUsarRapidas,
   });
   const lead = useLead(conversa.leadId);
   const [variaveisPendentes, setVariaveisPendentes] = useState<string[]>([]);
@@ -172,6 +178,7 @@ export function Composer({
     queryKey: ["whatsapp-templates"],
     queryFn: listarTemplatesWhatsApp,
     enabled:
+      podeVerTemplates &&
       conversa.status !== "FINALIZADO" &&
       capacidadeDoCanal.data?.gerenciaTemplates !== false &&
       (!janelaAberta || painelTemplateAberto),
@@ -549,7 +556,7 @@ export function Composer({
       ? texto.slice(1).toLowerCase()
       : null;
   const sugestoes =
-    termoAtalho === null
+    termoAtalho === null || !podeUsarRapidas
       ? []
       : (rapidas.data ?? []).filter((m) =>
           m.palavraChave.toLowerCase().includes(termoAtalho),
@@ -577,7 +584,7 @@ export function Composer({
 
   const modalDeTemplates = (
     <ModalDeTemplates
-      aberto={painelTemplateAberto}
+      aberto={painelTemplateAberto && podeVerTemplates}
       onAbertoChange={setPainelTemplateAberto}
       textos={textos}
       rotulosDeCategoria={catalogo.templatesWhatsApp.categorias}
@@ -611,9 +618,11 @@ export function Composer({
               </p>
             </div>
           </div>
-          <Button type="button" className="mt-4" onClick={() => setPainelTemplateAberto(true)} disabled={!podeEnviar}>
-            {textos.novaMensagem}
-          </Button>
+          {podeVerTemplates && (
+            <Button type="button" className="mt-4" onClick={() => setPainelTemplateAberto(true)} disabled={!podeEnviar}>
+              {textos.novaMensagem}
+            </Button>
+          )}
         </div>
         {modalDeTemplates}
       </div>
@@ -807,7 +816,7 @@ export function Composer({
                       }}
                       disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                     />
-                    {capacidadeDoCanal.data?.gerenciaTemplates !== false && (
+                    {podeVerTemplates && capacidadeDoCanal.data?.gerenciaTemplates !== false && (
                       <AcaoMenuAnexo
                         label={textos.anexoMenuTemplates}
                         icone={LayoutTemplate}
@@ -815,7 +824,7 @@ export function Composer({
                         disabled={!podeEnviar || gravador.fase !== "INATIVO"}
                       />
                     )}
-                    {!rapidas.isError && (
+                    {podeUsarRapidas && !rapidas.isError && (
                       <AcaoMenuAnexo
                         label={textos.mensagensRapidas}
                         icone={Zap}
@@ -847,17 +856,19 @@ export function Composer({
               </PopoverContent>
             </Popover>
 
-            <Tooltip>
-              <TooltipTrigger
-                className={buttonVariants({ variant: "ghost", size: "icon" })}
-                aria-label={textos.agendar}
-                onClick={() => setAgendamentoAberto(true)}
-                disabled={!podeEnviar || gravador.fase !== "INATIVO"}
-              >
-                <Clock className="size-(--tamanho-icone-interface)" />
-              </TooltipTrigger>
-              <TooltipContent>{textos.agendar}</TooltipContent>
-            </Tooltip>
+            {podeAgendar && (
+              <Tooltip>
+                <TooltipTrigger
+                  className={buttonVariants({ variant: "ghost", size: "icon" })}
+                  aria-label={textos.agendar}
+                  onClick={() => setAgendamentoAberto(true)}
+                  disabled={!podeEnviar || gravador.fase !== "INATIVO"}
+                >
+                  <Clock className="size-(--tamanho-icone-interface)" />
+                </TooltipTrigger>
+                <TooltipContent>{textos.agendar}</TooltipContent>
+              </Tooltip>
+            )}
 
             <PainelEmojiComposer
               rotulo={textos.emoji}
@@ -981,7 +992,7 @@ export function Composer({
         {modalDeTemplates}
         <FormularioMensagemProgramada
           key={agendamentoAberto ? "agendamento-aberto" : "agendamento-fechado"}
-          aberto={agendamentoAberto}
+          aberto={agendamentoAberto && podeAgendar}
           leadId={conversa.leadId}
           leadNome={conversa.leadNome}
           conteudoInicial={texto}

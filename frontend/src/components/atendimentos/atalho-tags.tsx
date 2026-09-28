@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   useDesvincularTag,
   useTagsDoLead,
@@ -29,6 +30,7 @@ export function AtalhoTags({
 }) {
   const textos = useTextos().painelLead.tags;
   const tags = useTagsDoLead(leadId);
+  const podeAplicar = useCapacidades().pode("tags.aplicar");
 
   return (
     <div
@@ -56,28 +58,30 @@ export function AtalhoTags({
           </Badge>
         ))}
       </div>
-      <Popover>
-        <PopoverTrigger
-          className={buttonVariants({
-            variant: modo === "painel" ? "outline" : "ghost",
-            size: modo === "painel" ? "sm" : "icon",
-          })}
-          aria-label={textos.titulo}
-        >
-          {modo === "painel" ? (
-            <>
-              <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
-              {textos.botao}
-            </>
-          ) : (
-            <Tag className="size-(--tamanho-icone-interface)" />
-          )}
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-72 space-y-2">
-          <p className="text-sm font-medium text-foreground">{textos.titulo}</p>
-          <SeletorDeTagsDoLead leadId={leadId} />
-        </PopoverContent>
-      </Popover>
+      {podeAplicar && (
+        <Popover>
+          <PopoverTrigger
+            className={buttonVariants({
+              variant: modo === "painel" ? "outline" : "ghost",
+              size: modo === "painel" ? "sm" : "icon",
+            })}
+            aria-label={textos.titulo}
+          >
+            {modo === "painel" ? (
+              <>
+                <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" />
+                {textos.botao}
+              </>
+            ) : (
+              <Tag className="size-(--tamanho-icone-interface)" />
+            )}
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 space-y-2">
+            <p className="text-sm font-medium text-foreground">{textos.titulo}</p>
+            <SeletorDeTagsDoLead leadId={leadId} />
+          </PopoverContent>
+        </Popover>
+      )}
     </div>
   );
 }
@@ -96,11 +100,12 @@ export function DialogoTagsDoLead({
   onFechar: () => void;
 }) {
   const textos = useTextos().painelLead.tags;
+  const podeAplicar = useCapacidades().pode("tags.aplicar");
   return (
-    <Dialog open={aberto} onOpenChange={(proximo) => { if (!proximo) onFechar(); }}>
+    <Dialog open={aberto && podeAplicar} onOpenChange={(proximo) => { if (!proximo) onFechar(); }}>
       <DialogContent className="max-w-sm space-y-2">
         <DialogTitle>{textos.titulo}</DialogTitle>
-        {aberto && <SeletorDeTagsDoLead leadId={leadId} />}
+        {aberto && podeAplicar && <SeletorDeTagsDoLead leadId={leadId} />}
       </DialogContent>
     </Dialog>
   );

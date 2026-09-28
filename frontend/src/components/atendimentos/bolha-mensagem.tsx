@@ -70,6 +70,7 @@ type Props = {
   nomeDoRemetente?: string | null;
   onDefinirReacao: (emoji: string) => Promise<void>;
   onRemoverReacao: () => Promise<void>;
+  reacoesHabilitadas?: boolean;
   onResponder?: () => void;
   onEncaminhar?: () => void;
   origemDaCitacao?: OrigemDaCitacao | null;
@@ -114,6 +115,7 @@ export function BolhaMensagem({
   nomeDoRemetente,
   onDefinirReacao,
   onRemoverReacao,
+  reacoesHabilitadas,
   onResponder,
   onEncaminhar,
   origemDaCitacao,
@@ -149,6 +151,7 @@ export function BolhaMensagem({
       textos={catalogo.mensagem.acoes}
       onDefinirReacao={onDefinirReacao}
       onRemoverReacao={onRemoverReacao}
+      reacoesHabilitadas={reacoesHabilitadas}
       onResponder={onResponder}
       onEncaminhar={onEncaminhar}
     >

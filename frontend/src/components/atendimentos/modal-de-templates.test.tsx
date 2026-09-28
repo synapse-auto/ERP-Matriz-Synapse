@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const authMock = vi.hoisted(() => ({ papel: "ATENDENTE" }));
 const apiMock = vi.hoisted(() => ({
@@ -121,8 +123,11 @@ const pendente: TemplateWhatsApp = {
   status: "PENDENTE",
 };
 
+beforeEach(() => {
+  comoPapel("ATENDENTE");
+});
+
 afterEach(() => {
-  authMock.papel = "ATENDENTE";
   apiMock.editar.mockReset();
   apiMock.excluir.mockReset();
 });
@@ -181,9 +186,17 @@ function ModalControlado(
   );
 }
 
+/** Permissões efetivas do padrão de cada papel (docs/47): editar/excluir templates é da gestão. */
+function comoPapel(papel: string) {
+  authMock.papel = papel;
+  definirCapacidadesDeTeste({
+    negadas: papel === "ATENDENTE" ? ["templates.editar", "templates.excluir"] : [],
+  });
+}
+
 describe("ModalDeTemplates", () => {
   it("esconde editar e excluir para atendente", () => {
-    authMock.papel = "ATENDENTE";
+    comoPapel("ATENDENTE");
     renderizar();
 
     expect(screen.queryByRole("button", { name: "Editar: boas_vindas" })).not.toBeInTheDocument();
@@ -192,7 +205,7 @@ describe("ModalDeTemplates", () => {
   });
 
   it("mostra acoes de gestao sem selecionar o card e abre os dialogos compartilhados", () => {
-    authMock.papel = "GESTOR";
+    comoPapel("GESTOR");
     renderizar();
 
     fireEvent.click(screen.getByRole("button", { name: "Editar: boas_vindas" }));
@@ -208,7 +221,7 @@ describe("ModalDeTemplates", () => {
   });
 
   it("edita pelo modal e reflete o corpo atualizado na previa após a revalidacao", async () => {
-    authMock.papel = "SUBGESTOR";
+    comoPapel("SUBGESTOR");
     apiMock.editar.mockResolvedValue(undefined);
     const { rerender } = renderizar({
       templates: { data: [comVariaveis], isError: false, isLoading: false },
@@ -251,7 +264,7 @@ describe("ModalDeTemplates", () => {
   });
 
   it("limpa a selecao quando exclui o template selecionado", async () => {
-    authMock.papel = "ADMINISTRADOR";
+    comoPapel("ADMINISTRADOR");
     apiMock.excluir.mockResolvedValue(undefined);
     const onTemplateExcluido = vi.fn();
     const { rerender } = renderizar({

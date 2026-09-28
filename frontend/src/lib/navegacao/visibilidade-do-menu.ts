@@ -15,9 +15,13 @@ const CAPACIDADE_DO_ITEM: Record<string, string> = {
 };
 
 /**
- * Regras do menu lateral, reutilizadas na escolha de área do feedback. Com `permissoes` (efetivas do
- * backend), o menu reflete revogações sem F5; sem elas (carregando ou primeiro acesso), vale a regra
- * por papel de antes.
+ * Regras do menu lateral, reutilizadas na escolha de área do feedback.
+ *
+ * `permissoes` define a fonte da decisão:
+ * - objeto: efetivas do backend (perfil, exceção, teto e flags) — o menu reflete revogações sem F5;
+ * - `null`: permissões ainda desconhecidas (carregando ou erro) — itens condicionados ficam ocultos,
+ *   para nenhum item privilegiado aparecer e sumir em seguida;
+ * - ausente: sem contexto de sessão (formulário de feedback), vale a regra por papel.
  */
 export function itemDeMenuVisivel(
   chave: string,
@@ -25,43 +29,38 @@ export function itemDeMenuVisivel(
   flagsHabilitadas: string[] | undefined,
   flag?: string,
   gerenciaTemplates = true,
-  permissoes?: MinhasPermissoes,
+  permissoes?: MinhasPermissoes | null,
 ): boolean {
   if (chave === "templatesWhatsApp" && !gerenciaTemplates) return false;
-  if (chave === "gestao") {
-    if (papel === "GESTOR" || papel === "ADMINISTRADOR") return true;
-    if (papel !== "SUBGESTOR") return false;
-    if (permissoes && !permissoes.acessaGestao) return false;
-  }
-  const capacidade = CAPACIDADE_DO_ITEM[chave];
-  if (permissoes && capacidade && permissoes.capacidades[capacidade]?.permitido !== true) return false;
+  // Administração é exclusiva do ADMINISTRADOR e fica fora do catálogo da Gestão (docs/47 §2.2).
   if (chave === "administracao" && papel !== "ADMINISTRADOR") return false;
-  if (
-    chave === "automacao" &&
-    papel !== "GESTOR" &&
-    papel !== "SUBGESTOR" &&
-    papel !== "ADMINISTRADOR"
-  ) {
-    return false;
-  }
-  if (
-    chave === "dashboard" &&
-    papel !== "GESTOR" &&
-    papel !== "SUBGESTOR" &&
-    papel !== "ADMINISTRADOR"
-  ) {
-    return false;
-  }
+  const visivel = permissoes === undefined
+    ? visivelPeloPapel(chave, papel)
+    : visivelPelasPermissoes(chave, permissoes);
+  if (!visivel) return false;
   if (!flag) return true;
   return (flagsHabilitadas ?? []).includes(flag);
 }
 
-export function podeGerenciarTemplates(papel: string | null): boolean {
-  return papel === "SUBGESTOR" || papel === "GESTOR" || papel === "ADMINISTRADOR";
+function visivelPelasPermissoes(chave: string, permissoes: MinhasPermissoes | null): boolean {
+  if (chave === "gestao") return permissoes?.acessaGestao === true;
+  const capacidade = CAPACIDADE_DO_ITEM[chave];
+  if (!capacidade) return true;
+  return permissoes?.capacidades[capacidade]?.permitido === true;
 }
 
-export function podeCriarTemplates(papel: string | null): boolean {
-  return podeGerenciarTemplates(papel) || papel === "ATENDENTE";
+function visivelPeloPapel(chave: string, papel: string | null): boolean {
+  const gestao = papel === "GESTOR" || papel === "SUBGESTOR" || papel === "ADMINISTRADOR";
+  if (chave === "gestao" || chave === "automacao" || chave === "dashboard") return gestao;
+  return true;
+}
+
+/**
+ * Importação e exportação de leads ficaram fora do catálogo da Gestão (docs/47 §2.2) e continuam
+ * com a regra de papel do backend (`SO_GESTAO`).
+ */
+export function gerenciaImportacaoDeLeads(papel: string | null): boolean {
+  return papel === "SUBGESTOR" || papel === "GESTOR" || papel === "ADMINISTRADOR";
 }
 
 const MENU_DA_AREA: Record<AreaFeedback, { chave: string; flag?: string } | null> = {

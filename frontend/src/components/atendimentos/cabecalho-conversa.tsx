@@ -21,7 +21,6 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ErroDeApi } from "@/lib/api/errors";
-import { useAuthStore } from "@/lib/auth/auth-store";
 import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
 import type {
   AtendimentoResumo,
@@ -29,6 +28,7 @@ import type {
   EstadoAtendimentoSelecionado,
 } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useLead } from "@/lib/lead/use-painel-lead";
 import {
   aprovarPedido,
@@ -130,7 +130,12 @@ export function CabecalhoConversa({
   const [tagsAberto, setTagsAberto] = useState(false);
   const cabecalhoRef = useRef<HTMLDivElement>(null);
   const finalizar = useFinalizarAtendimento(onAtendimentoFinalizado);
-  const papel = useAuthStore((estado) => estado.papel);
+  const capacidades = useCapacidades();
+  const podeColaborar = capacidades.pode("atendimentos.colaborar");
+  const podeTransferirOuDevolver = capacidades.pode("atendimentos.transferir") || capacidades.pode("atendimentos.devolver_ia");
+  const podeFinalizar = capacidades.pode("atendimentos.finalizar");
+  const podeReabrir = capacidades.pode("atendimentos.abrir_para_contato");
+  const podeAplicarTags = capacidades.pode("tags.aplicar");
   const lead = useLead(conversa.leadId);
   const participantes = estado.participantes;
   const meuPedido = useMeuPedido(conversa.atendimentoId);
@@ -155,12 +160,13 @@ export function CabecalhoConversa({
       : meuPedido?.status === "RECUSADO"
         ? "RECUSADO"
         : estadoLocal;
-  const podeEntrarDireto = papel !== "ATENDENTE" && !estaDentro && !ehResponsavel;
+  // Entrar sem pedido exige alcançar todos os leads (RN-CRM-01): o recorte vem do backend, não do papel.
+  const podeEntrarDireto = capacidades.alcancaTodos && !estaDentro && !ehResponsavel;
   const acoesDoCabecalho = [
     {
       id: "convidar",
       texto: textos.convidar,
-      visivel: !finalizado && (ehResponsavel || estaDentro || papel !== "ATENDENTE"),
+      visivel: podeColaborar && !finalizado && (ehResponsavel || estaDentro || capacidades.alcancaTodos),
       abrir: () => setConvidarAberto(true),
     },
   ];
@@ -208,9 +214,9 @@ export function CabecalhoConversa({
   const iconeUtilitario = "size-(--tamanho-icone-interface)";
   const rotuloTelefone = telefone ? `${catalogo.painelLead.dados.telefone}: ${telefone}` : "";
   const hrefTelefone = telefone ? `tel:${telefone.replace(/[^+\d]/g, "")}` : "";
-  const mostrarParticipacao = (!finalizado && !ehResponsavel)
+  const mostrarParticipacao = podeColaborar && ((!finalizado && !ehResponsavel)
     || (!finalizado && ehResponsavel && pedidosPendentes.length > 0)
-    || feedbackParticipacao !== null;
+    || feedbackParticipacao !== null);
 
   // Ordem visual preservada. Fixos nunca saem; os demais saem para o "⋯" do menor para o maior
   // `prioridade` quando o espaço real não comporta (E210). Botão e item de menu nascem da mesma
@@ -289,13 +295,17 @@ export function CabecalhoConversa({
         aoSelecionar: acao.abrir,
       }));
     }
-    acoes.push(acaoDeBotao({
-      id: "transferir",
-      prioridade: PRIORIDADE_TRANSFERIR,
-      rotulo: textos.transferir,
-      icone: <ArrowLeftRight className={iconeDeAcao} aria-hidden />,
-      aoSelecionar: () => setTransferirAberto(true),
-    }));
+    if (podeTransferirOuDevolver) {
+      acoes.push(acaoDeBotao({
+        id: "transferir",
+        prioridade: PRIORIDADE_TRANSFERIR,
+        rotulo: textos.transferir,
+        icone: <ArrowLeftRight className={iconeDeAcao} aria-hidden />,
+        aoSelecionar: () => setTransferirAberto(true),
+      }));
+    }
+  }
+  if (!finalizado && podeFinalizar) {
     acoes.push({
       id: "finalizar",
       fixo: true,
@@ -314,7 +324,7 @@ export function CabecalhoConversa({
       ),
     });
   }
-  if (finalizado && onAbrirNovoAtendimento) {
+  if (finalizado && onAbrirNovoAtendimento && podeReabrir) {
     acoes.push({
       id: "novo-atendimento",
       fixo: true,
@@ -359,12 +369,12 @@ export function CabecalhoConversa({
     id: "tags",
     prioridade: PRIORIDADE_TAGS,
     inline: <AtalhoTags leadId={conversa.leadId} />,
-    itemDeMenu: (
+    itemDeMenu: podeAplicarTags ? (
       <DropdownMenuItem onClick={() => setTagsAberto(true)}>
         <Tag className={iconeUtilitario} aria-hidden />
         {catalogo.painelLead.tags.titulo}
       </DropdownMenuItem>
-    ),
+    ) : undefined,
   });
   if (telefone) {
     acoes.push({
@@ -491,7 +501,7 @@ export function CabecalhoConversa({
       <DialogoConvidar
         atendimentoId={conversa.atendimentoId}
         participantes={participantes}
-        aberto={convidarAberto}
+        aberto={convidarAberto && podeColaborar}
         onFechar={() => setConvidarAberto(false)}
         onSucesso={() => setFeedbackParticipacao({ tipo: "sucesso", texto: textos.convidarSucesso })}
       />

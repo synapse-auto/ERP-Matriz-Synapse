@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useTextos } from "@/lib/config/textos-provider";
 import {
   criarMensagemRapida,
@@ -29,7 +30,11 @@ import type { MensagemRapida } from "@/lib/suporte/types";
 
 export function PaginaMensagensRapidas() {
   const t = useTextos().mensagensRapidas;
+  // Só apresentação: agrupa por autor para quem enxerga as mensagens de toda a equipe.
   const gestor = useAuthStore((s) => s.papel) !== "ATENDENTE";
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("mensagens_rapidas.criar");
+  const podeEditarExcluir = capacidades.pode("mensagens_rapidas.editar_excluir");
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [edicao, setEdicao] = useState<MensagemRapida | null>(null);
@@ -52,7 +57,7 @@ export function PaginaMensagensRapidas() {
           <h1 className="text-xl font-bold">{t.titulo}</h1>
           <p className="text-sm text-muted-foreground">{t.descricao}</p>
         </div>
-        <Button onClick={() => setAberto(true)}>{t.nova}</Button>
+        {podeCriar && <Button onClick={() => setAberto(true)}>{t.nova}</Button>}
       </header>
 
       <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
@@ -89,8 +94,8 @@ export function PaginaMensagensRapidas() {
                     key={mensagem.id}
                     mensagem={mensagem}
                     textos={t}
-                    onEditar={() => setEdicao(mensagem)}
-                    onRemover={() => remover.mutate(mensagem.id)}
+                    onEditar={podeEditarExcluir ? () => setEdicao(mensagem) : undefined}
+                    onRemover={podeEditarExcluir ? () => remover.mutate(mensagem.id) : undefined}
                   />
                 ))}
               </div>
@@ -99,8 +104,8 @@ export function PaginaMensagensRapidas() {
         </div>
       )}
 
-      <Formulario aberto={aberto} onFechar={() => setAberto(false)} />
-      {edicao && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
+      <Formulario aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
+      {edicao && podeEditarExcluir && <Formulario aberto existente={edicao} onFechar={() => setEdicao(null)} />}
     </div>
   );
 }
@@ -134,8 +139,8 @@ function CardDeMensagemRapida({
 }: {
   mensagem: MensagemRapida;
   textos: TextosMensagensRapidas;
-  onEditar: () => void;
-  onRemover: () => void;
+  onEditar?: () => void;
+  onRemover?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-2.5 rounded-lg border bg-card p-4">
@@ -144,24 +149,28 @@ function CardDeMensagemRapida({
           /{mensagem.palavraChave}
         </span>
         <div className="ml-auto flex gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8"
-            aria-label={`${textos.editar} /${mensagem.palavraChave}`}
-            onClick={onEditar}
-          >
-            <Pencil className="size-(--tamanho-icone-interface)" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-8 text-destructive hover:text-destructive"
-            aria-label={`${textos.remover} /${mensagem.palavraChave}`}
-            onClick={onRemover}
-          >
-            <Trash2 className="size-(--tamanho-icone-interface)" />
-          </Button>
+          {onEditar && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={`${textos.editar} /${mensagem.palavraChave}`}
+              onClick={onEditar}
+            >
+              <Pencil className="size-(--tamanho-icone-interface)" />
+            </Button>
+          )}
+          {onRemover && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8 text-destructive hover:text-destructive"
+              aria-label={`${textos.remover} /${mensagem.palavraChave}`}
+              onClick={onRemover}
+            >
+              <Trash2 className="size-(--tamanho-icone-interface)" />
+            </Button>
+          )}
         </div>
       </div>
       <p className="text-sm text-muted-foreground">{mensagem.conteudo}</p>

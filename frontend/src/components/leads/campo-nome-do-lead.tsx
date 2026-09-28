@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useSalvarFicha } from "@/lib/lead/use-painel-lead";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ type Props = {
 export function CampoNomeDoLead({ leadId, valorAtual, className }: Props) {
   const textos = useTextos().painelLead.dados;
   const salvar = useSalvarFicha(leadId);
+  const podeEditar = useCapacidades().pode("contatos.editar");
   const idCampo = useId();
   const [valor, setValor] = useState(valorAtual);
   const [erro, setErro] = useState(false);
@@ -44,6 +46,14 @@ export function CampoNomeDoLead({ leadId, valorAtual, className }: Props) {
         onError: () => setErro(true),
         onSuccess: () => setErro(false),
       },
+    );
+  }
+
+  if (!podeEditar) {
+    return (
+      <p className={cn("min-w-0 w-full truncate px-1 py-0.5 text-center font-bold md:text-base", className)}>
+        {valorAtual}
+      </p>
     );
   }
 

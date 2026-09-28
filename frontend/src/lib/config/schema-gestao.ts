@@ -100,6 +100,14 @@ const CAPACIDADES_PADRAO: Record<string, string> = {
 
 export const GestaoTextosSchema = z.object({
     "titulo": z.string().default("Gestão"),
+    "acesso": z.object({
+      "verificando": z.string().default("Verificando suas permissões…"),
+      "erro": z.string().default("Não foi possível confirmar suas permissões."),
+      "semAcessoTitulo": z.string().default("Sem acesso a esta área"),
+      "semAcessoDescricao": z.string().default("Seu perfil não inclui esta área. Se precisar dela, fale com a gestão."),
+      "voltar": z.string().default("Voltar para Atendimentos"),
+      "responderIndisponivel": z.string().default("Seu perfil não permite responder atendimentos."),
+    }).default({}),
     "selo": z.object({
       "gestao": z.string().default("Gestão autorizada"),
       "administrador": z.string().default("Administrador"),
