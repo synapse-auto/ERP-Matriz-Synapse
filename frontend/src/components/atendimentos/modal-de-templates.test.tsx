@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ErroDeApi } from "@/lib/api/errors";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const authMock = vi.hoisted(() => ({ papel: "ATENDENTE" }));
@@ -34,6 +35,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
         descricao: "A exclusão de {nome} afeta a conta compartilhada.",
         confirmar: "Excluir na Meta",
         cancelar: "Cancelar exclusão",
+      },
+      erros: {
+        semPermissao: "Sem permissão para templates.",
+        naoEncontrado: "Template não existe mais.",
+        invalido: "Pedido inválido: {motivo}",
+        recusado: "A Meta recusou: {motivo}",
+        recusadoSemMotivo: "A Meta recusou.",
+        indisponivel: "Provedor indisponível.",
+        generico: "Não foi possível.",
       },
     },
   }),
@@ -417,5 +427,50 @@ describe("ModalDeTemplates", () => {
       "/templates-whatsapp",
     );
     expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+  });
+});
+
+describe("ModalDeTemplates — falhas e repetição na exclusão", () => {
+  it("recusa da Meta mostra o motivo, mantém a confirmação aberta e não trata como excluído", async () => {
+    comoPapel("ADMINISTRADOR");
+    apiMock.excluir.mockRejectedValue(new ErroDeApi(422, { status: 422, detail: "Nome em uso" }, "Erro 422"));
+    const onTemplateExcluido = vi.fn();
+    renderizar({ onTemplateExcluido });
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir na Meta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("A Meta recusou: Nome em uso");
+    expect(screen.getByRole("button", { name: "Excluir na Meta" })).toBeEnabled();
+    expect(onTemplateExcluido).not.toHaveBeenCalled();
+  });
+
+  it("dois cliques antes do próximo render chamam a API uma única vez", async () => {
+    comoPapel("ADMINISTRADOR");
+    apiMock.excluir.mockReturnValue(new Promise(() => undefined));
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
+    const confirmar = screen.getByRole("button", { name: "Excluir na Meta" });
+    act(() => {
+      confirmar.click();
+      confirmar.click();
+    });
+
+    await waitFor(() => expect(apiMock.excluir).toHaveBeenCalledTimes(1));
+  });
+
+  it("com o DELETE em voo a confirmação não fecha: Cancelar desabilitado e Esc sem efeito", async () => {
+    comoPapel("ADMINISTRADOR");
+    apiMock.excluir.mockReturnValue(new Promise(() => undefined));
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir: boas_vindas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir na Meta" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Cancelar exclusão" })).toBeDisabled());
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Excluir na Meta" })).toBeInTheDocument();
+    expect(apiMock.excluir).toHaveBeenCalledTimes(1);
   });
 });

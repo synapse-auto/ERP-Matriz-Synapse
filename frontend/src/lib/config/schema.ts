@@ -934,6 +934,27 @@ export const TextosSchema = z.object({
       confirmar: z.string(),
       cancelar: z.string(),
     }),
+    // Default: frontend novo com textos.json anterior (imagens publicadas separadamente) não pode
+    // derrubar o catálogo inteiro. O valor canônico vive no textos.json.
+    erros: z
+      .object({
+        semPermissao: z.string(),
+        naoEncontrado: z.string(),
+        invalido: z.string(),
+        recusado: z.string(),
+        recusadoSemMotivo: z.string(),
+        indisponivel: z.string(),
+        generico: z.string(),
+      })
+      .default({
+        semPermissao: "Você não tem permissão para esta ação em templates. Peça acesso à gestão.",
+        naoEncontrado: "Este template não existe mais na conta WhatsApp. Atualize a lista.",
+        invalido: "Pedido inválido: {motivo}",
+        recusado: "A Meta recusou a operação: {motivo}",
+        recusadoSemMotivo: "A Meta recusou a operação. Confira o template e tente novamente.",
+        indisponivel: "O provedor de templates está indisponível agora. Tente novamente em instantes.",
+        generico: "Não foi possível concluir a operação. Verifique a conexão e tente novamente.",
+      }),
   }),
   equipe: z.object({
     titulo: z.string(),
