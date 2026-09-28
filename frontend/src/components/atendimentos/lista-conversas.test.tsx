@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 import type { CartaoAtendimento, ItemInbox } from "@/lib/atendimento/types";
 
 const finalizarTodos = vi.fn();
@@ -410,6 +412,15 @@ describe("ListaConversas", () => {
     expect(screen.getByRole("menuitem", { name: "Finalizar Todos" })).toBeInTheDocument();
   });
 
+  it("sem finalizar em lote (sensível), Finalizar Todos some e Finalizados continua", () => {
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.finalizar_lote"] });
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+
+    expect(screen.queryByRole("menuitem", { name: "Finalizar Todos" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Finalizados" })).toBeInTheDocument();
+  });
+
   it("coloca o menu global ao lado do título da lista", () => {
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
 
@@ -484,7 +495,7 @@ describe("ListaConversas", () => {
     rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} chatInternoHabilitado />);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
-    rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+    rerender(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} onNovoContato={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Opções de chat interno" })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Novo atendimento" })).toBeInTheDocument();

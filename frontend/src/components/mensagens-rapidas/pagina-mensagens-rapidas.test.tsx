@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const removerMutate = vi.fn();
 
 const MENSAGENS = [
@@ -80,5 +82,15 @@ describe("pagina de mensagens rapidas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remover /orcamento" }));
 
     await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("m1", expect.anything()));
+  });
+
+  it("sem criar e editar/excluir, mantém a lista e retira as ações", async () => {
+    definirCapacidadesDeTeste({ negadas: ["mensagens_rapidas.criar", "mensagens_rapidas.editar_excluir"] });
+    renderComQuery();
+
+    expect(await screen.findByText("/orcamento")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nova mensagem rápida" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar /orcamento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover /orcamento" })).not.toBeInTheDocument();
   });
 });

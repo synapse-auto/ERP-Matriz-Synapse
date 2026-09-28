@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { useCallback, useEffect, useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
@@ -296,7 +298,7 @@ vi.mock("./lista-mensagens", async () => {
         </button>
         <button
           type="button"
-          onClick={() => abertura?.iniciarNovoContato({ nome: "Contato Compartilhado", telefone: "61988880000" })}
+          onClick={() => abertura?.iniciarNovoContato?.({ nome: "Contato Compartilhado", telefone: "61988880000" })}
         >
           novo pelo contato
         </button>
@@ -439,6 +441,7 @@ vi.mock("@/lib/navegacao/tela-estreita", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     estados: { vazio: "Nenhuma conversa" },
+    gestao: { acesso: { responderIndisponivel: "Seu perfil não permite responder atendimentos." } },
     atendimentos: {
       cabecalho: { voltar: "Voltar para a lista" },
       composer: {
@@ -623,6 +626,23 @@ describe("PaginaAtendimentosCliente", () => {
       expect(screen.getByTestId("responsavel-cabecalho")).toHaveTextContent("Bruno Atendente");
       expect(screen.getByTestId("responsavel-painel")).toHaveTextContent("Bruno Atendente");
     });
+  });
+
+  it("sem responder atendimentos, o composer dá lugar a um aviso e a leitura continua", async () => {
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.responder"] });
+    renderPagina("atendimento-1");
+
+    expect(await screen.findByText("Seu perfil não permite responder atendimentos.")).toBeInTheDocument();
+    expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+  });
+
+  it("enquanto as permissões carregam, o composer fica montado porém sem envio", async () => {
+    definirCapacidadesDeTeste({ estado: "carregando" });
+    renderPagina("atendimento-1");
+
+    const composer = await screen.findByTestId("composer");
+    expect(composer).toHaveAttribute("data-pode-enviar", "false");
   });
 
   it("abre pelo atendimento retornado mesmo quando ele não pertence à visão atual", async () => {

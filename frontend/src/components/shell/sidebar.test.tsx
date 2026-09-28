@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CHAVE_MINHAS_PERMISSOES } from "@/lib/gestao/use-gestao";
+import type { Papel } from "@/lib/gestao/types";
+import { permissoesEfetivasDeTeste } from "@/test/permissoes-de-teste";
+
 import { EXPANSAO_DA_SIDEBAR, estiloDaLarguraDoSlot, useExpansaoDaSidebar } from "./expansao-da-sidebar";
 
 const authMock = vi.hoisted(() => ({
@@ -98,6 +102,7 @@ import { Sidebar } from "./sidebar";
 
 function renderSidebar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  cliente.setQueryData(CHAVE_MINHAS_PERMISSOES, permissoesEfetivasDeTeste(authMock.papel as Papel));
   function SidebarControlada() {
     const expansao = useExpansaoDaSidebar();
     return (

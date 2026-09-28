@@ -234,6 +234,29 @@ describe("InteracaoMensagem", () => {
     await waitFor(() => expect(remover).toHaveBeenCalled());
   });
 
+  it("com reações desabilitadas, só copiar fica no menu e as reações existentes são só leitura", async () => {
+    const definir = vi.fn();
+    render(
+      <InteracaoMensagem
+        alinhadaADireita
+        textoCopiavel="Olá"
+        reacoes={[{ emoji: "👍", quantidade: 1, reagi: true }]}
+        textos={textos}
+        onDefinirReacao={definir}
+        onRemoverReacao={vi.fn()}
+        reacoesHabilitadas={false}
+      >
+        <p>Olá</p>
+      </InteracaoMensagem>,
+    );
+    expect(screen.getByRole("button", { name: "👍, 1, sua reação" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    expect(await screen.findByRole("button", { name: "Copiar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reagir com 👍" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mais emojis" })).not.toBeInTheDocument();
+    expect(definir).not.toHaveBeenCalled();
+  });
+
   it("copia com sucesso e anuncia pelo catálogo", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });

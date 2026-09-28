@@ -37,8 +37,7 @@ import type {
   TemplateWhatsApp,
 } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
-import { podeCriarTemplates, podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   DialogoConfirmacaoExclusaoTemplate,
   FormularioEdicaoTemplate,
@@ -60,7 +59,7 @@ const ORDEM_DAS_CATEGORIAS: CategoriaTemplateWhatsApp[] = [
 
 export function PaginaTemplatesWhatsApp() {
   const t = useTextos().templatesWhatsApp;
-  const papel = useAuthStore((estado) => estado.papel);
+  const capacidades = useCapacidades();
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -111,8 +110,9 @@ export function PaginaTemplatesWhatsApp() {
   if (capacidade.data && !capacidade.data.gerenciaTemplates) {
     return null;
   }
-  const podeGerenciar = podeGerenciarTemplates(papel);
-  const podeCriar = podeCriarTemplates(papel);
+  const podeCriar = capacidades.pode("templates.criar");
+  const podeEditar = capacidades.pode("templates.editar");
+  const podeExcluir = capacidades.pode("templates.excluir");
 
   const todos = consulta.data ?? [];
   const filtrados = filtrarTemplates(todos, busca, t.categorias, t.status);
@@ -191,29 +191,29 @@ export function PaginaTemplatesWhatsApp() {
                         <PillDeStatus tom={TOM_DO_STATUS[template.status]}>
                           {t.status[template.status]}
                         </PillDeStatus>
-                        {podeGerenciar && template.id && (
-                          <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              aria-label={`${t.editar}: ${template.nome}`}
-                              title={t.editar}
-                              onClick={() => setEditando(template)}
-                            >
-                              <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              aria-label={`${t.excluir}: ${template.nome}`}
-                              title={t.excluir}
-                              onClick={() => setExcluindo(template)}
-                            >
-                              <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
-                            </Button>
-                          </>
+                        {podeEditar && template.id && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label={`${t.editar}: ${template.nome}`}
+                            title={t.editar}
+                            onClick={() => setEditando(template)}
+                          >
+                            <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
+                          </Button>
+                        )}
+                        {podeExcluir && template.id && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label={`${t.excluir}: ${template.nome}`}
+                            title={t.excluir}
+                            onClick={() => setExcluindo(template)}
+                          >
+                            <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -227,7 +227,7 @@ export function PaginaTemplatesWhatsApp() {
       )}
 
       <FormularioTemplate
-        aberto={aberto}
+        aberto={aberto && podeCriar}
         salvando={criar.isPending}
         erro={
           criar.isError
@@ -242,7 +242,7 @@ export function PaginaTemplatesWhatsApp() {
       />
       <FormularioEdicaoTemplate
         key={editando?.id ?? "sem-template"}
-        template={editando}
+        template={podeEditar ? editando : null}
         salvando={editarTemplate.isPending}
         erro={editarTemplate.isError ? t.formulario.erroEdicao : null}
         textos={t}
@@ -250,7 +250,7 @@ export function PaginaTemplatesWhatsApp() {
         onSalvar={(corpo) => editando && editarTemplate.mutate({ id: editando.id, corpo })}
       />
       <DialogoConfirmacaoExclusaoTemplate
-        template={excluindo}
+        template={podeExcluir ? excluindo : null}
         excluindo={excluirTemplate.isPending}
         textos={t}
         onFechar={() => setExcluindo(null)}

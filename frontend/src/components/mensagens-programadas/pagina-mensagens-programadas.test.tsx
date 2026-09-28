@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const cancelarMutate = vi.fn();
 
 const MENSAGENS = {
@@ -140,5 +142,16 @@ describe("pagina de mensagens programadas", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Programar mensagem" })).toBeInTheDocument();
+  });
+
+  it("sem criar e editar/cancelar, a lista continua e as ações somem", async () => {
+    definirCapacidadesDeTeste({
+      negadas: ["mensagens_programadas.criar", "mensagens_programadas.editar_cancelar"],
+    });
+    renderComQuery();
+
+    expect(await screen.findByText("Marcos Vinícius")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Programar mensagem" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar Marcos Vinícius" })).not.toBeInTheDocument();
   });
 });

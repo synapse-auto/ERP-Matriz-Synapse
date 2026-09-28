@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 import type { EtapaAtendimento } from "@/lib/lead/types";
 import type { Lembrete, MensagemProgramada } from "@/lib/suporte/types";
 
@@ -484,6 +486,42 @@ describe("painel da conversa", () => {
     expect(cancelada).toHaveClass("border-border", "bg-muted/30");
     expect(within(cancelada as HTMLElement).getByText("Cancelada")).toBeInTheDocument();
     expect(within(cancelada as HTMLElement).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("resumo por IA: sem solicitar some o Regerar; sem ver some a seção inteira", () => {
+    definirCapacidadesDeTeste({ negadas: ["resumo_ia.solicitar"] });
+    const { unmount } = renderizarPainel("lead-1", "Jardel Lima");
+    expect(obterControleDaSecao("Resumo por IA")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Regerar" })).not.toBeInTheDocument();
+    unmount();
+
+    definirCapacidadesDeTeste({ negadas: ["resumo_ia.ver"] });
+    renderizarPainel("lead-1", "Jardel Lima");
+    expect(screen.queryByText("Resumo por IA", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cliente pediu orçamento de box.")).not.toBeInTheDocument();
+  });
+
+  it("sem editar contato: nome e código viram texto e as notas ficam só para leitura", () => {
+    definirCapacidadesDeTeste({ negadas: ["contatos.editar"] });
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    expect(screen.queryByRole("textbox", { name: "Nome" })).not.toBeInTheDocument();
+    expect(screen.getByText("Marcos Vinícius")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Código" })).not.toBeInTheDocument();
+    fireEvent.click(obterControleDaSecao("Notas internas"));
+    const campo = screen.getByPlaceholderText("Observações compartilhadas");
+    expect(campo).toHaveAttribute("readonly");
+    expect(screen.queryByRole("button", { name: "Salvar nota" })).not.toBeInTheDocument();
+  });
+
+  it("programadas e lembretes: sem ver a seção some; sem criar some o Adicionar", () => {
+    definirCapacidadesDeTeste({ negadas: ["mensagens_programadas.ver", "lembretes.criar"] });
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    expect(screen.queryByText("Mensagens programadas", { exact: true })).not.toBeInTheDocument();
+    fireEvent.click(obterControleDaSecao("Lembretes"));
+    expect(screen.getByText("Nenhum lembrete")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Adicionar" })).not.toBeInTheDocument();
   });
 
   it("grava o nome ao sair do campo", () => {

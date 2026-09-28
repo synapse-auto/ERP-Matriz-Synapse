@@ -234,7 +234,7 @@ test("revogação reflete sem F5: menu da atendente perde Mensagens Rápidas qua
   await expect(item).toBeVisible();
   await salvarPerfilViaApi(request, await tokenDe(request, GESTOR), "ATENDENTE", { "mensagens_rapidas.usar": false });
   await expect(item).toHaveCount(0, { timeout: 15_000 });
-  // O backend recusa de fato, não só a tela: a própria página de mensagens rápidas cai em erro.
+  // URL direta cai na guarda de rota; o backend continua recusando a consulta (ver permissoes-na-interface.spec.ts).
   await page.goto("/mensagens-rapidas");
-  await expect(page.getByText(/não foi possível|erro/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sem acesso a esta área" })).toBeVisible();
 });

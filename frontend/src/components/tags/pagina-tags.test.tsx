@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const criarMutate = vi.fn();
 const atualizarMutate = vi.fn();
 const removerMutate = vi.fn();
@@ -150,5 +152,23 @@ describe("pagina de tags", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remover Prioridade" }));
 
     expect(removerMutate).toHaveBeenCalledWith("tag-1");
+  });
+
+  it("sem criar e sem editar/excluir (sensível), a lista fica e as ações somem", () => {
+    definirCapacidadesDeTeste({ negadas: ["tags.criar", "tags.editar_excluir"] });
+    render(<PaginaTags />);
+
+    expect(screen.getAllByText("Prioridade").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Nova tag" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar Prioridade" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Prioridade" })).not.toBeInTheDocument();
+  });
+
+  it("com só criar permitido, oferece Nova tag e mantém editar/excluir fora", () => {
+    definirCapacidadesDeTeste({ negadas: ["tags.editar_excluir"] });
+    render(<PaginaTags />);
+
+    expect(screen.getByRole("button", { name: "Nova tag" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Prioridade" })).not.toBeInTheDocument();
   });
 });

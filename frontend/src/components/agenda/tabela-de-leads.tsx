@@ -31,7 +31,8 @@ interface Props {
   equipe: UsuarioEquipe[];
   textos: TextosAgenda;
   onAbrirFicha: (lead: LeadDaAgenda) => void;
-  onAbrirAtendimento: (lead: LeadDaAgenda) => void;
+  /** Ausente quando o usuário não pode abrir atendimento (Gestão): a coluna fica sem o botão. */
+  onAbrirAtendimento?: (lead: LeadDaAgenda) => void;
   abrindoLeadId?: string | null;
 }
 
@@ -191,21 +192,23 @@ export function TabelaDeLeads({
                     : "—"}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="rounded-lg"
-                    disabled={abrindoLeadId != null}
-                    aria-busy={abrindo}
-                    onClick={(evento) => {
-                      evento.stopPropagation();
-                      onAbrirAtendimento(lead);
-                    }}
-                  >
-                    <MessageSquare className="mr-1.5 size-(--tamanho-icone-interface)" aria-hidden />
-                    {abrindo ? textos.abrindoAtendimento : textos.abrirAtendimento}
-                  </Button>
+                  {onAbrirAtendimento && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      disabled={abrindoLeadId != null}
+                      aria-busy={abrindo}
+                      onClick={(evento) => {
+                        evento.stopPropagation();
+                        onAbrirAtendimento(lead);
+                      }}
+                    >
+                      <MessageSquare className="mr-1.5 size-(--tamanho-icone-interface)" aria-hidden />
+                      {abrindo ? textos.abrindoAtendimento : textos.abrirAtendimento}
+                    </Button>
+                  )}
                 </td>
               </tr>
             );

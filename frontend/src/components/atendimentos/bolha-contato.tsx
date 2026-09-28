@@ -167,7 +167,7 @@ function LinhaDeTelefone({
   }
 
   function iniciarNovoContato() {
-    abertura?.iniciarNovoContato({
+    abertura?.iniciarNovoContato?.({
       nome: nomeDoContato,
       telefone: telefoneParaNovoContato(telefone.numero),
     });
@@ -222,7 +222,7 @@ function LinhaDeTelefone({
               ? textos.tentarAbrirConversaDeNovo
               : textos.abrirConversa}
           </button>
-          {estado === "semConversa" && textos.iniciarNovoContato && (
+          {estado === "semConversa" && textos.iniciarNovoContato && abertura?.iniciarNovoContato && (
             <button
               type="button"
               onClick={iniciarNovoContato}

@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CHAVE_MINHAS_PERMISSOES } from "@/lib/gestao/use-gestao";
+import type { Papel } from "@/lib/gestao/types";
+import { permissoesEfetivasDeTeste } from "@/test/permissoes-de-teste";
+
 const authMock = vi.hoisted(() => ({
   papel: "ATENDENTE",
   accessToken: "token-de-teste",
@@ -77,6 +81,7 @@ import { NavegacaoInferior } from "./navegacao-inferior";
 
 function renderizar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  cliente.setQueryData(CHAVE_MINHAS_PERMISSOES, permissoesEfetivasDeTeste(authMock.papel as Papel));
   return render(
     <QueryClientProvider client={cliente}>
       <NavegacaoInferior />

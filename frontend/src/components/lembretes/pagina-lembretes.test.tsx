@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const atualizarMutate = vi.fn();
 const removerMutate = vi.fn();
 const listarLembretesMock = vi.fn();
@@ -138,5 +140,15 @@ describe("pagina de lembretes", () => {
     );
 
     await waitFor(() => expect(removerMutate).toHaveBeenCalledWith("r1", expect.anything()));
+  });
+
+  it("sem criar e editar/excluir, mostra os lembretes sem concluir, remover nem criar", async () => {
+    definirCapacidadesDeTeste({ negadas: ["lembretes.criar", "lembretes.editar_excluir"] });
+    renderComQuery();
+
+    expect(await screen.findByText("Retomar atendimento transferido")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Novo lembrete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Concluir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remover Retomar atendimento transferido" })).not.toBeInTheDocument();
   });
 });

@@ -14,7 +14,8 @@ import type { CartaoAtendimento } from "./types";
  */
 export interface AberturaDeConversaDoContato {
   abrirCartao: (cartao: CartaoAtendimento) => void;
-  iniciarNovoContato: (dados: { nome: string; telefone: string }) => void;
+  /** Ausente quando o usuário não pode iniciar conversa (Gestão): o card não oferece o botão. */
+  iniciarNovoContato?: (dados: { nome: string; telefone: string }) => void;
 }
 
 const Contexto = createContext<AberturaDeConversaDoContato | null>(null);

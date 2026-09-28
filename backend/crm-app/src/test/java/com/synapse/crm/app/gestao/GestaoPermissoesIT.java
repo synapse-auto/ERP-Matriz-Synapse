@@ -40,6 +40,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -169,6 +170,38 @@ class GestaoPermissoesIT extends PostgresIT {
                 BASE + "/usuarios/" + ana + "/excecoes?revisaoEsperada=" + revisaoUsuario(ana), null);
         assertThat(restaurar.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(aplicarTag(tokenAna, leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("Criar template revogado (perfil e excecao): POST direto negado no MESMO token, listar continua; restaurar libera")
+    void criarTemplateRevogadoComSessaoAnterior() {
+        String tokenAna = token(EMAIL_ANA, SENHA_ATENDENTE);
+        String tokenBruno = token(EMAIL_BRUNO, SENHA_ATENDENTE);
+        String tokenGestor = token(EMAIL_GESTOR, SENHA_GESTOR);
+        assertThat(criarTemplate(tokenAna)).isNotIn(HttpStatus.FORBIDDEN, HttpStatus.UNAUTHORIZED);
+
+        salvarPerfilAtendente(tokenGestor, Map.of("templates.criar", false));
+        assertThat(criarTemplate(tokenAna)).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(criarTemplate(tokenBruno)).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(tokenAna, HttpMethod.GET, "/api/v1/whatsapp/templates", null).getStatusCode())
+                .isNotIn(HttpStatus.FORBIDDEN, HttpStatus.UNAUTHORIZED);
+        JsonNode minhas = ler(chamar(tokenAna, HttpMethod.GET, BASE + "/minhas", null));
+        assertThat(minhas.at("/capacidades/templates.criar/permitido").asBoolean(true)).isFalse();
+        assertThat(minhas.at("/capacidades/templates.ver/permitido").asBoolean(false)).isTrue();
+
+        salvarPerfilAtendente(tokenGestor, Map.of());
+        assertThat(criarTemplate(tokenAna)).isNotIn(HttpStatus.FORBIDDEN, HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<String> excecao = chamar(tokenGestor, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("templates.criar", false)));
+        assertThat(excecao.getStatusCode()).as(excecao.getBody()).isEqualTo(HttpStatus.OK);
+        assertThat(criarTemplate(tokenAna)).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(criarTemplate(tokenBruno)).isNotIn(HttpStatus.FORBIDDEN, HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<String> restaurar = chamar(tokenGestor, HttpMethod.DELETE,
+                BASE + "/usuarios/" + ana + "/excecoes?revisaoEsperada=" + revisaoUsuario(ana), null);
+        assertThat(restaurar.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(criarTemplate(tokenAna)).isNotIn(HttpStatus.FORBIDDEN, HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -608,6 +641,16 @@ class GestaoPermissoesIT extends PostgresIT {
             jdbc.update("DELETE FROM lead_tag WHERE lead_id = ? AND tag_id = ?", lead, tag);
         }
         return (HttpStatus) r.getStatusCode();
+    }
+
+    /**
+     * POST de template como faria um cliente fora da tela. Autorizado, o caso de uso roda e, sem conta
+     * WABA no ambiente de teste, responde 503 sem chamar a Graph; negado, o 403 vem antes do caso de uso.
+     */
+    private HttpStatusCode criarTemplate(String token) {
+        return chamar(token, HttpMethod.POST, "/api/v1/whatsapp/templates",
+                Map.of("nome", "retorno_orcamento", "idioma", "pt_BR", "categoria", "UTILIDADE", "corpo", "Ola {{1}}"))
+                .getStatusCode();
     }
 
     private void salvarPerfilAtendente(String token, Map<String, Boolean> acoes) {

@@ -34,6 +34,8 @@ type Props = {
   textos: TextosAcoes;
   onDefinirReacao: (emoji: string) => Promise<void>;
   onRemoverReacao: () => Promise<void>;
+  /** Falso quando o usuário não pode reagir (Gestão): reações ficam só para leitura. */
+  reacoesHabilitadas?: boolean;
   onResponder?: () => void;
   onEncaminhar?: () => void;
   onExcluir?: () => void;
@@ -55,6 +57,7 @@ export function InteracaoMensagem({
   textos,
   onDefinirReacao,
   onRemoverReacao,
+  reacoesHabilitadas = true,
   onResponder,
   onEncaminhar,
   onExcluir,
@@ -143,7 +146,7 @@ export function InteracaoMensagem({
                       type="button"
                       aria-pressed={reacao.reagi}
                       aria-label={rotuloDaReacao(textos, reacao)}
-                      disabled={pendente}
+                      disabled={pendente || !reacoesHabilitadas}
                       onClick={() => void escolher(reacao.emoji)}
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
@@ -167,34 +170,36 @@ export function InteracaoMensagem({
               className="w-auto min-w-0 max-w-[min(20rem,calc(100vw-1.5rem))] p-2"
             >
               <p className="sr-only">{textos.titulo}</p>
-              <div className="flex items-center gap-1">
-                {textos.rapidas.map((emoji) => (
+              {reacoesHabilitadas && (
+                <div className="flex items-center gap-1">
+                  {textos.rapidas.map((emoji) => (
+                    <Button
+                      key={emoji}
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={textos.reagir.replace("{emoji}", emoji)}
+                      disabled={pendente}
+                      onClick={() => void escolher(emoji)}
+                    >
+                      <span aria-hidden>{emoji}</span>
+                    </Button>
+                  ))}
                   <Button
-                    key={emoji}
                     type="button"
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={textos.reagir.replace("{emoji}", emoji)}
+                    aria-label={textos.maisEmojis}
                     disabled={pendente}
-                    onClick={() => void escolher(emoji)}
+                    onClick={() => {
+                      setMenuAberto(false);
+                      setSeletorAberto(true);
+                    }}
                   >
-                    <span aria-hidden>{emoji}</span>
+                    <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
-                ))}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={textos.maisEmojis}
-                  disabled={pendente}
-                  onClick={() => {
-                    setMenuAberto(false);
-                    setSeletorAberto(true);
-                  }}
-                >
-                  <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-                </Button>
-              </div>
+                </div>
+              )}
               {textoCopiavel && (
                 <Button
                   type="button"
@@ -271,7 +276,7 @@ export function InteracaoMensagem({
           </Popover>
         </div>
       </div>
-      <Dialog open={seletorAberto} onOpenChange={setSeletorAberto}>
+      <Dialog open={seletorAberto && reacoesHabilitadas} onOpenChange={setSeletorAberto}>
         <DialogContent showCloseButton={false} className="sm:max-w-[22rem] p-3">
           <DialogHeader className="flex-row items-center justify-between gap-2">
             <DialogTitle>{textos.seletorTitulo}</DialogTitle>
