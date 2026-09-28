@@ -14,8 +14,9 @@ template, hoje exclusivo de SUBGESTOR+) é decisão de produto, não um interrup
 seção 13.
 
 Exceção única, pedida explicitamente: **delegação ao SUBGESTOR** (criar/editar/desativar
-atendente, senha provisória de atendente, exceções de atendentes). Essas capacidades estão no
-teto do SUBGESTOR, mas nascem **negadas**; só um GESTOR ou ADMINISTRADOR as concede.
+atendente, senha provisória de atendente, exceções de atendentes e o perfil ATENDENTE). Essas
+capacidades estão no teto do SUBGESTOR, mas nascem **negadas**; só um GESTOR ou ADMINISTRADOR as
+concede.
 
 Consequência: uma instância que nunca abriu a tela de Gestão tem exatamente o acesso operacional
 de antes. A V83 não semeia valores; o padrão vem do catálogo em código
@@ -70,7 +71,7 @@ Legenda de papéis: A = ATENDENTE, S = SUBGESTOR, G = GESTOR, D = ADMINISTRADOR.
 | `equipe.senha_provisoria` | Gestão da equipe | Gerenciar | `POST /usuarios/{id}/senha-provisoria` | `DefinirSenhaProvisoriaUseCase` (S: só ATENDENTE) | G D **+ S delegado** | G D | não | sim |
 | `equipe.desativar` | Gestão da equipe | Gerenciar | `PATCH /usuarios/{id}/desativar` | `DesativarUsuarioUseCase` (S: só ATENDENTE) | G D **+ S delegado** | G D | não | sim |
 | `equipe.excecoes_atendentes` | Gestão da equipe | Gerenciar | `PUT/DELETE /gestao/permissoes/usuarios/{id}/excecoes`, prévia de cópia | `SalvarExcecoes`, `RestaurarPadrao`, `PreverCopia.paraUsuario` | G D **+ S delegado** | G D | não | sim |
-| `equipe.perfis` | Gestão da equipe | Gerenciar | `PUT /gestao/permissoes/perfis/{papel}`, prévia de cópia de perfil | `SalvarPerfilDePermissao`, `PreverCopia.paraPerfil` | G D | G D | não | sim |
+| `equipe.perfis` | Gestão da equipe | Gerenciar | `PUT /gestao/permissoes/perfis/{papel}`, prévia de cópia de perfil | `SalvarPerfilDePermissao` (S: só perfil ATENDENTE), `PreverCopia.paraPerfil` | G D **+ S delegado** | G D | não | sim |
 
 `CapacidadesReferenciadasTest` reprova o build se um `@PreAuthorize` citar um id fora do catálogo
 e se uma capacidade configurável não tiver nenhum ponto de aplicação.
@@ -119,7 +120,7 @@ Ver seção 13 do relatório e a seção 13 deste documento.
 |---|---|---|---|
 | ADMINISTRADOR, GESTOR | editam SUBGESTOR e ATENDENTE | de SUBGESTOR e ATENDENTE | criar/editar/mudar papel/senha/desativar ATENDENTE e SUBGESTOR |
 | SUBGESTOR sem delegação | lê | lê ATENDENTES e as próprias | alterna disponibilidade IA (como antes) |
-| SUBGESTOR delegado | lê | só de ATENDENTE; só ações delegáveis; nunca nível; nunca liga o que ele mesmo não tem | só ATENDENTE, nunca a si; nunca cria/promove SUBGESTOR; nunca muda papel |
+| SUBGESTOR delegado | com `equipe.perfis`: só o perfil ATENDENTE, nunca o próprio; mesmas regras das exceções; não copia perfil | só de ATENDENTE; só ações delegáveis; nunca nível; nunca liga o que ele mesmo não tem | só ATENDENTE, nunca a si; nunca cria/promove SUBGESTOR; nunca muda papel |
 | ATENDENTE | — | — | — |
 
 GESTOR e ADMINISTRADOR têm perfil **fixo** (tudo do teto) e não são alvo de exceção nem de edição
@@ -187,14 +188,15 @@ O formulário comum não oferece GESTOR nem ADMINISTRADOR (contrato `PapelGerenc
 |---|---|---|
 | GET | `/minhas` | autenticado |
 | GET | `/catalogo`, `/perfis`, `/usuarios`, `/usuarios/{id}` | G/D; S com `equipe.ver` (S vê ATENDENTES e a si) |
-| PUT | `/perfis/{papel}` `{revisaoEsperada, niveis, acoes, copiadoDe?}` | G/D |
-| POST | `/perfis/{papel}/copia/previa` `{origem}` | G/D |
+| PUT | `/perfis/{papel}` `{revisaoEsperada, niveis, acoes, copiadoDe?}` | G/D; S delegado (só `ATENDENTE`) |
+| POST | `/perfis/{papel}/copia/previa` `{origem}` | G/D (S delegado: origem sempre fora da alçada, 422) |
 | PUT | `/usuarios/{id}/excecoes` `{revisaoEsperada, niveis, acoes, copiadoDe?}` | G/D; S delegado |
 | DELETE | `/usuarios/{id}/excecoes?revisaoEsperada=` | G/D; S delegado |
 | POST | `/usuarios/{id}/copia/previa` `{origemUsuarioId}` | G/D; S delegado (origem ATENDENTE) |
 
 Erros RFC 7807: `permissao-invalida` (422, `violacoes[{chave,codigo}]`), `concessao-negada` (403,
-`codigo`), `revisao-desatualizada` (409, `revisaoAtual`), `sessao-desatualizada` (401). Cópia é
+`codigo`), `revisao-desatualizada` (409, `revisaoAtual`), `sessao-desatualizada` (401). No perfil,
+a revisão é conferida antes da alçada do SUBGESTOR: tela desatualizada recebe 409, não 403. Cópia é
 sempre prévia + salvamento normal (com revisão e histórico `COPIAR`); origem GESTOR/ADMINISTRADOR
 é recusada.
 

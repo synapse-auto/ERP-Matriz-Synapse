@@ -25,6 +25,11 @@ import com.synapse.crm.sharedkernel.permissao.AcessoDeUsuariosAlterado;
  * <p>Tudo e validado antes de qualquer escrita; a escrita confere a revisao lida e grava o
  * historico junto. Herdeiros passam a valer o perfil novo imediatamente; as excecoes explicitas
  * deles ficam intactas.
+ *
+ * <p>O SUBGESTOR delegado so chega aqui para o perfil ATENDENTE, e a diferenca que ele envia passa
+ * pelas regras da delegacao (docs/47, secao 4). A revisao e conferida antes dessa diferenca: com
+ * a tela desatualizada, o que ele ve e o conflito (409), nao uma recusa de alcada sobre valores que
+ * outra pessoa mudou.
  */
 @Service
 public class SalvarPerfilDePermissaoUseCase {
@@ -50,18 +55,24 @@ public class SalvarPerfilDePermissaoUseCase {
     public Visoes.Gravacao executar(PapelUsuario papel, long revisaoEsperada, Map<String, String> niveis,
             Map<String, Boolean> acoes, PapelUsuario copiadoDe) {
         PoliticaDeConcessao.Ator ator = atores.atual();
-        PoliticaDeConcessao.exigirEdicaoDePerfil(ator);
+        PoliticaDeConcessao.exigirAlcadaSobrePerfil(ator, papel);
         Set<String> flags = resolvedor.flagsHabilitadas();
         ConfiguracaoDePermissoes novo = ConfiguracaoDePermissoes.interpretar(niveis, acoes);
         PoliticaDePermissoes.validarPerfil(papel, novo, flags);
         if (copiadoDe != null) {
             PoliticaDeCopia.exigirOrigemValida(copiadoDe);
-            if (copiadoDe == papel) {
+            if (copiadoDe == papel || !PoliticaDeConcessao.origemDeCopiaNaAlcada(ator, copiadoDe)) {
                 throw new PermissaoInvalidaException(new Violacao("origem", Violacao.Codigo.ORIGEM_INVALIDA));
             }
         }
 
         PermissaoRepositorio.Armazenado antes = repositorio.perfil(papel);
+        if (antes.revisao() != revisaoEsperada) {
+            throw new RevisaoDesatualizadaException(antes.revisao());
+        }
+        PoliticaDeConcessao.exigirConcessaoNoPerfil(ator, papel,
+                completoNosModulosDisponiveis(papel, antes.configuracao(), flags),
+                completoNosModulosDisponiveis(papel, novo, flags));
         long revisao = repositorio.substituirPerfil(
                 papel, revisaoEsperada, novo, ModulosDisponiveis.com(flags), ator.id());
         long global = repositorio.incrementarRevisaoGlobal();
@@ -73,5 +84,15 @@ public class SalvarPerfilDePermissaoUseCase {
                 relogio.instant()));
         eventos.publishEvent(new AcessoDeUsuariosAlterado(repositorio.usuariosAtivosComPapel(papel), false, global));
         return new Visoes.Gravacao(papel, null, operacao, antes.revisao(), revisao, novo.quantidade());
+    }
+
+    /**
+     * Base comparavel entre o salvo e o enviado: chave ausente vale o padrao do catalogo, e modulo
+     * com flag desligada fica fora — a gravacao preserva as linhas dele sem que ninguem as envie.
+     */
+    private static ConfiguracaoDePermissoes completoNosModulosDisponiveis(
+            PapelUsuario papel, ConfiguracaoDePermissoes configuracao, Set<String> flags) {
+        return PoliticaDePermissoes.perfilCompleto(papel, configuracao)
+                .somente(m -> PoliticaDePermissoes.disponivel(m, flags));
     }
 }

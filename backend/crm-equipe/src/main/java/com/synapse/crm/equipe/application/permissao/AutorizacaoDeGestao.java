@@ -8,7 +8,7 @@ public final class AutorizacaoDeGestao {
 
     public static final String LER = "hasAnyRole('GESTOR','ADMINISTRADOR') or (hasRole('SUBGESTOR') and @capacidades.permite('equipe.ver'))";
 
-    public static final String EDITAR_PERFIS = "hasAnyRole('GESTOR','ADMINISTRADOR') and @capacidades.permite('equipe.perfis')";
+    public static final String EDITAR_PERFIS = "hasAnyRole('GESTOR','ADMINISTRADOR') or (hasRole('SUBGESTOR') and @capacidades.permite('equipe.perfis'))";
 
     public static final String EDITAR_EXCECOES = "hasAnyRole('GESTOR','ADMINISTRADOR') or (hasRole('SUBGESTOR') and @capacidades.permite('equipe.excecoes_atendentes'))";
 

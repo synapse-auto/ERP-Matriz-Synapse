@@ -15,9 +15,11 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  *   <li>GESTOR e ADMINISTRADOR editam perfis e excecoes de SUBGESTOR e ATENDENTE. Perfis fixos
  *       (GESTOR/ADMINISTRADOR) nao sao alvo de ninguem — o que tambem impede um GESTOR de receber
  *       operacao exclusiva de ADMINISTRADOR por esta via.
- *   <li>SUBGESTOR so edita excecoes de ATENDENTE, e so com {@link Capacidade#EQUIPE_EXCECOES_ATENDENTES}
- *       concedida por um superior. Nunca a si mesmo, a outro subgestor ou a superior; nunca nivel de
- *       modulo; nunca acao fora do conjunto delegavel; e nunca liga o que ele mesmo nao tem.
+ *   <li>SUBGESTOR so alcanca ATENDENTE, e so com a delegacao concedida por um superior:
+ *       {@link Capacidade#EQUIPE_EXCECOES_ATENDENTES} para as excecoes de cada atendente e
+ *       {@link Capacidade#EQUIPE_PERFIS} para o perfil ATENDENTE. Nunca a si mesmo, ao proprio perfil,
+ *       a outro subgestor ou a superior; nunca nivel de modulo; nunca acao fora do conjunto delegavel;
+ *       e nunca liga o que ele mesmo nao tem.
  *   <li>ATENDENTE nao concede nada.
  * </ul>
  */
@@ -36,10 +38,44 @@ public final class PoliticaDeConcessao {
         }
     }
 
-    public static void exigirEdicaoDePerfil(Ator ator) {
-        if (!PoliticaDePermissoes.perfilFixo(ator.papel()) || !ator.efetivas().permite(Capacidade.EQUIPE_PERFIS)) {
-            throw new ConcessaoNegadaException(Codigo.PERFIL_SO_PARA_SUPERIORES);
+    /** Pode ao menos abrir este perfil para editar? Perfil fixo nunca e editavel. */
+    public static boolean podeEditarPerfil(Ator ator, PapelUsuario perfil) {
+        if (PoliticaDePermissoes.perfilFixo(perfil)) {
+            return false;
         }
+        try {
+            exigirAlcadaSobrePerfil(ator, perfil);
+            return true;
+        } catch (ConcessaoNegadaException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Superiores alcancam qualquer perfil (o fixo e recusado adiante como payload invalido). O
+     * SUBGESTOR delegado alcanca so o perfil ATENDENTE: editar o proprio perfil seria autoelevacao.
+     */
+    public static void exigirAlcadaSobrePerfil(Ator ator, PapelUsuario perfil) {
+        if (!ator.efetivas().permite(Capacidade.EQUIPE_PERFIS)) {
+            throw new ConcessaoNegadaException(Codigo.SEM_DELEGACAO);
+        }
+        if (!PoliticaDePermissoes.perfilFixo(ator.papel()) && perfil != PapelUsuario.ATENDENTE) {
+            throw new ConcessaoNegadaException(Codigo.ALVO_FORA_DA_ALCADA);
+        }
+    }
+
+    /**
+     * Confere a diferenca entre o perfil atual e o novo, ambos completos (chave nao salva vale o
+     * padrao). Superiores so passam pela alcada; o SUBGESTOR passa pelas mesmas regras das excecoes
+     * que ele concede — o perfil e um alvo maior, nao uma alcada maior.
+     */
+    public static void exigirConcessaoNoPerfil(
+            Ator ator, PapelUsuario perfil, ConfiguracaoDePermissoes atual, ConfiguracaoDePermissoes novo) {
+        exigirAlcadaSobrePerfil(ator, perfil);
+        if (PoliticaDePermissoes.perfilFixo(ator.papel())) {
+            return;
+        }
+        exigirDentroDaDelegacao(ator, atual, novo);
     }
 
     /** Pode ao menos abrir as excecoes deste alvo para editar? */
@@ -84,6 +120,12 @@ public final class PoliticaDeConcessao {
         if (PoliticaDePermissoes.perfilFixo(ator.papel())) {
             return;
         }
+        exigirDentroDaDelegacao(ator, atuais, novas);
+    }
+
+    /** Nunca nivel de modulo; so o conjunto delegavel; e nunca liga o que o proprio ator nao tem. */
+    private static void exigirDentroDaDelegacao(
+            Ator ator, ConfiguracaoDePermissoes atuais, ConfiguracaoDePermissoes novas) {
         for (Modulo m : Modulo.values()) {
             if (!Objects.equals(atuais.nivel(m).orElse(null), novas.nivel(m).orElse(null))) {
                 throw new ConcessaoNegadaException(Codigo.NIVEL_NAO_DELEGAVEL, ConfiguracaoDePermissoes.chaveDeNivel(m));
@@ -104,11 +146,22 @@ public final class PoliticaDeConcessao {
         }
     }
 
-    /** O que o ator pode mexer numa excecao de ATENDENTE (a tela usa para travar interruptores). */
+    /**
+     * O que o ator pode mexer numa excecao ou no perfil de ATENDENTE (a tela usa para travar
+     * interruptores).
+     */
     public static boolean podeAlterar(Ator ator, Capacidade c, boolean paraLigado) {
         if (PoliticaDePermissoes.perfilFixo(ator.papel())) {
             return true;
         }
         return c.delegavel() && (!paraLigado || ator.efetivas().permite(c));
+    }
+
+    /**
+     * Copiar de outro papel transmitiria ao destino o que o SUBGESTOR delegado nao alcanca: ele so
+     * copia de ATENDENTE. Superiores copiam de qualquer origem configuravel.
+     */
+    public static boolean origemDeCopiaNaAlcada(Ator ator, PapelUsuario papelDaOrigem) {
+        return PoliticaDePermissoes.perfilFixo(ator.papel()) || papelDaOrigem == PapelUsuario.ATENDENTE;
     }
 }

@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTextos } from "@/lib/config/textos-provider";
-import type { LinhaDeCapacidade, MinhasPermissoes, Nivel, Papel } from "@/lib/gestao/types";
+import type { CapacidadeDoCatalogo, LinhaDeCapacidade, MinhasPermissoes, Nivel, Papel } from "@/lib/gestao/types";
 import { NIVEIS } from "@/lib/gestao/types";
 import { ordem } from "@/lib/gestao/rascunho";
 import { cn } from "@/lib/utils";
@@ -77,6 +77,21 @@ export function pode(minhas: MinhasPermissoes | undefined, capacidade: string): 
 
 export function perfilFixoDoAtor(minhas: MinhasPermissoes | undefined): boolean {
   return minhas?.papel === "GESTOR" || minhas?.papel === "ADMINISTRADOR";
+}
+
+/**
+ * Quem está logado pode virar este interruptor? Espelho de PoliticaDeConcessao.podeAlterar:
+ * GESTOR/ADMINISTRADOR, sempre; SUBGESTOR delegado, só no conjunto delegável e só ligando o que
+ * ele mesmo tem. Vale para exceções e para o perfil ATENDENTE; o backend revalida ao salvar.
+ */
+export function podeAlterarAcao(minhas: MinhasPermissoes, capacidade: CapacidadeDoCatalogo, paraLigado: boolean): boolean {
+  if (perfilFixoDoAtor(minhas)) return true;
+  return capacidade.delegavel && (!paraLigado || pode(minhas, capacidade.id));
+}
+
+/** Por que {@link podeAlterarAcao} recusou: fora do delegado, ou acima do que o ator tem. */
+export function motivoForaDaAlcada(t: TextosGestao, capacidade: CapacidadeDoCatalogo): string {
+  return capacidade.delegavel ? t.excecoes.semPermissaoPropria : t.excecoes.naoDelegavel;
 }
 
 /** Motivo legível de um bloqueio — nunca "ligado mas não funciona" sem explicação. */

@@ -236,7 +236,7 @@ export const GestaoTextosSchema = z.object({
         "ESTRUTURAL_TODOS": z.string().default("Regra fixa: toda a base"),
       }).default({}),
       "fixoAviso": z.string().default("Gestor tem acesso total e fixo; este perfil não é configurável."),
-      "somenteLeitura": z.string().default("Somente Gestor e Administrador editam perfis."),
+      "somenteLeitura": z.string().default("Você pode ver, mas não alterar este perfil."),
       "copiar": z.string().default("Copiar permissões"),
       "copiarDe": z.string().default("Copiar de {perfil}"),
       "copiarIndisponivel": z.string().default("{perfil} tem acesso fixo e não pode ser copiado"),

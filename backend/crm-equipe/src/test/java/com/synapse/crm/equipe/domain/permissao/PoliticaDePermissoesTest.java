@@ -41,14 +41,27 @@ class PoliticaDePermissoesTest {
     void delegacoesNascemDesligadas() {
         PermissoesEfetivas sub = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, VAZIA, VAZIA, FLAGS);
         PermissoesEfetivas gestor = PoliticaDePermissoes.calcular(PapelUsuario.GESTOR, VAZIA, VAZIA, FLAGS);
-        for (Capacidade c : Set.of(Capacidade.EQUIPE_CRIAR, Capacidade.EQUIPE_DESATIVAR,
-                Capacidade.EQUIPE_SENHA_PROVISORIA, Capacidade.EQUIPE_EXCECOES_ATENDENTES, Capacidade.EQUIPE_EDITAR)) {
+        for (Capacidade c : Set.of(Capacidade.EQUIPE_CRIAR, Capacidade.EQUIPE_DESATIVAR, Capacidade.EQUIPE_SENHA_PROVISORIA,
+                Capacidade.EQUIPE_EXCECOES_ATENDENTES, Capacidade.EQUIPE_EDITAR, Capacidade.EQUIPE_PERFIS)) {
             assertThat(sub.permite(c)).as(c.id()).isFalse();
+            assertThat(sub.estado(c).motivo()).as(c.id()).isNotEqualTo(Motivo.TETO_DO_PAPEL);
             assertThat(gestor.permite(c)).as(c.id()).isTrue();
         }
         assertThat(sub.permite(Capacidade.EQUIPE_VER)).isTrue();
-        assertThat(sub.permite(Capacidade.EQUIPE_PERFIS)).isFalse();
-        assertThat(sub.estado(Capacidade.EQUIPE_PERFIS).motivo()).isEqualTo(Motivo.TETO_DO_PAPEL);
+    }
+
+    @Test
+    @DisplayName("editar perfis e concedivel ao SUBGESTOR: sobe o nivel de equipe e liga o interruptor")
+    void editarPerfisConcedivelAoSubgestor() {
+        ConfiguracaoDePermissoes delegado = new ConfiguracaoDePermissoes(
+                Map.of(Modulo.EQUIPE, NivelDeAcesso.GERENCIAR), Map.of(Capacidade.EQUIPE_PERFIS, true));
+        PoliticaDePermissoes.validarPerfil(PapelUsuario.SUBGESTOR, delegado, FLAGS);
+        assertThat(PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, delegado, VAZIA, FLAGS)
+                .permite(Capacidade.EQUIPE_PERFIS)).isTrue();
+        // o nivel continua sendo limite: ligado com equipe em Editar fica bloqueado
+        ConfiguracaoDePermissoes semNivel = acoes(Map.of(Capacidade.EQUIPE_PERFIS, true));
+        assertThat(PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, VAZIA, semNivel, FLAGS)
+                .estado(Capacidade.EQUIPE_PERFIS).motivo()).isEqualTo(Motivo.NIVEL_DO_MODULO);
     }
 
     @Test

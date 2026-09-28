@@ -40,9 +40,11 @@ public class PreverCopiaDePermissoesUseCase {
     @PreAuthorize(AutorizacaoDeGestao.EDITAR_PERFIS)
     @Transactional(readOnly = true)
     public Visoes.PreviaDeCopia paraPerfil(PapelUsuario destino, PapelUsuario origem) {
-        PoliticaDeConcessao.exigirEdicaoDePerfil(atores.atual());
+        PoliticaDeConcessao.Ator ator = atores.atual();
+        PoliticaDeConcessao.exigirAlcadaSobrePerfil(ator, destino);
         PoliticaDeCopia.exigirOrigemValida(origem);
-        if (origem == destino || PoliticaDePermissoes.perfilFixo(destino)) {
+        if (origem == destino || PoliticaDePermissoes.perfilFixo(destino)
+                || !PoliticaDeConcessao.origemDeCopiaNaAlcada(ator, origem)) {
             throw new PermissaoInvalidaException(new Violacao("origem", Violacao.Codigo.ORIGEM_INVALIDA));
         }
         Set<String> flags = resolvedor.flagsHabilitadas();
