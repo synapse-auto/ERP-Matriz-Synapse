@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const atualizarParametro = vi.fn();
 const atualizarDisponibilidade = vi.fn();
 const atualizarFollowUp = vi.fn();
@@ -89,11 +91,25 @@ describe("pagina de automacao", () => {
     vi.clearAllMocks();
   });
 
-  it("nega a rota diretamente para ATENDENTE", () => {
-    authMock.papel = "ATENDENTE";
+  // A leitura (automacao.ver) é guardada na rota por ExigeCapacidade — ver exige-capacidade.test.tsx.
+  it("sem as capacidades de edição, mantém a leitura e retira criar, excluir, salvar e alternar", () => {
+    definirCapacidadesDeTeste({
+      negadas: ["automacao.editar_parametros", "automacao.regras", "equipe.disponibilidade_ia"],
+    });
+    const { unmount } = render(<PaginaAutomacao />);
+    expect(screen.getByText("Mensagens Enviadas")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Resumo automático por IA" })).toHaveAttribute("data-disabled");
+    expect(screen.getByRole("switch", { name: "Disponibilidade IA: Ana Atendente" })).toHaveAttribute("data-disabled");
+    fireEvent.click(screen.getByText("Parâmetros avançados"));
+    expect(screen.queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+
+    unmount();
+    window.history.replaceState(null, "", "/automacao?aba=followUp");
     render(<PaginaAutomacao />);
-    expect(screen.getByRole("alert")).toHaveTextContent("Você não tem permissão");
-    expect(screen.queryByText("Mensagens Enviadas")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "MENSAGEM" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Novo follow-up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir" })).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Desativar regra" })).toHaveAttribute("data-disabled");
   });
 
   it("mostra telemetria real sem inventar valores", () => {

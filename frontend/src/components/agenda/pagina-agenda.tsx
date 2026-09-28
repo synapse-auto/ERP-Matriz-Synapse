@@ -33,7 +33,8 @@ import {
 } from "@/lib/atendimento/abertura-atendimento";
 import { exportarLeadsCsv } from "@/lib/agenda/api";
 import { useAuthStore } from "@/lib/auth/auth-store";
-import { podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
+import { gerenciaImportacaoDeLeads } from "@/lib/navegacao/visibilidade-do-menu";
 
 import { BarraDeFiltros } from "./barra-de-filtros";
 import { ListaDeLeadsMobile } from "./lista-de-leads-mobile";
@@ -63,7 +64,10 @@ export function PaginaAgenda() {
   const router = useRouter();
   const papel = useAuthStore((estado) => estado.papel);
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
-  const podeGerenciar = podeGerenciarTemplates(papel);
+  const podeGerenciar = gerenciaImportacaoDeLeads(papel);
+  const capacidades = useCapacidades();
+  const podeAbrirAtendimento = capacidades.pode("atendimentos.abrir_para_contato");
+  const podeColaborar = capacidades.pode("atendimentos.colaborar");
 
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltroAtivo[]>([]);
   const [filtrosRapidos, setFiltrosRapidos] = useState<FiltrosRapidosAgenda>({
@@ -261,7 +265,7 @@ export function PaginaAgenda() {
       </header>
 
       <div className="flex-none">
-        {!telaEstreita && (
+        {!telaEstreita && podeColaborar && (
           <div className="mb-3 flex items-center gap-2">
             <Input value={buscaEntrada} onChange={(evento) => setBuscaEntrada(evento.target.value)} placeholder={entrada.placeholder} aria-label={entrada.placeholder} />
             {buscaColega.data?.map((lead) => <div key={lead.id} className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs"><span>{lead.nome}{lead.empresa ? ` · ${lead.empresa}` : ""}</span><span className="text-muted-foreground">{entrada.responsavel.replace("{nome}", lead.responsavelNome)}</span><Button size="sm" variant="outline" onClick={() => pedirEntrada(lead.id)} disabled={pedidoEmAndamento === lead.id}>{entrada.pedir}</Button></div>)}
@@ -334,7 +338,7 @@ export function PaginaAgenda() {
             equipe={equipe.data ?? []}
             textos={t}
             onAbrirFicha={abrirFicha}
-            onAbrirAtendimento={solicitarAbrirAtendimento}
+            onAbrirAtendimento={podeAbrirAtendimento ? solicitarAbrirAtendimento : undefined}
             abrindoLeadId={abrirAtendimento.isPending ? (abrirAtendimento.variables ?? null) : null}
           />
         )}
@@ -368,9 +372,11 @@ export function PaginaAgenda() {
             setLeadNoPainel(null);
             abrirAtendimento.reset();
           }}
-          onAbrirAtendimento={() => {
-            solicitarAbrirAtendimento(leadNoPainel);
-          }}
+          onAbrirAtendimento={podeAbrirAtendimento
+            ? () => {
+                solicitarAbrirAtendimento(leadNoPainel);
+              }
+            : undefined}
           abrindoAtendimento={abrirAtendimento.isPending}
           erroAbrirAtendimento={erroAbrir}
         />

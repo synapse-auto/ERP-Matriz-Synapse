@@ -24,9 +24,8 @@ import {
 } from "@/lib/atendimento/variaveis-do-template";
 import type { Textos } from "@/lib/config/schema";
 import { editarTemplateWhatsApp, excluirTemplateWhatsApp } from "@/lib/atendimento/api";
-import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
-import { podeGerenciarTemplates } from "@/lib/navegacao/visibilidade-do-menu";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { cn } from "@/lib/utils";
 
 import {
@@ -88,10 +87,11 @@ export function ModalDeTemplates({
   const [chaveClicada, setChaveClicada] = useState<string | null | undefined>(undefined);
   const [editando, setEditando] = useState<TemplateWhatsApp | null>(null);
   const [excluindo, setExcluindo] = useState<TemplateWhatsApp | null>(null);
-  const papel = useAuthStore((estado) => estado.papel);
+  const capacidades = useCapacidades();
   const catalogo = useTextos();
   const textosTemplates = catalogo.templatesWhatsApp;
-  const podeGerenciar = podeGerenciarTemplates(papel);
+  const podeEditar = capacidades.pode("templates.editar");
+  const podeExcluir = capacidades.pode("templates.excluir");
   const cache = useQueryClient();
 
   const editar = useMutation({
@@ -209,28 +209,32 @@ export function ModalDeTemplates({
                                       {template.idioma} · {categoria}
                                     </p>
                                   </button>
-                                  {podeGerenciar && template.id && (
+                                  {(podeEditar || podeExcluir) && template.id && (
                                     <div className="flex shrink-0 items-start gap-1 p-2">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        aria-label={`${textosTemplates.editar}: ${template.nome}`}
-                                        title={textosTemplates.editar}
-                                        onClick={() => setEditando(template)}
-                                      >
-                                        <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        aria-label={`${textosTemplates.excluir}: ${template.nome}`}
-                                        title={textosTemplates.excluir}
-                                        onClick={() => setExcluindo(template)}
-                                      >
-                                        <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
-                                      </Button>
+                                      {podeEditar && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          aria-label={`${textosTemplates.editar}: ${template.nome}`}
+                                          title={textosTemplates.editar}
+                                          onClick={() => setEditando(template)}
+                                        >
+                                          <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
+                                        </Button>
+                                      )}
+                                      {podeExcluir && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="icon"
+                                          aria-label={`${textosTemplates.excluir}: ${template.nome}`}
+                                          title={textosTemplates.excluir}
+                                          onClick={() => setExcluindo(template)}
+                                        >
+                                          <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
+                                        </Button>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -244,12 +248,14 @@ export function ModalDeTemplates({
                 )}
               </>
             )}
-            <Link
-              href="/templates-whatsapp"
-              className="inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
-            >
-              {textos.criarTemplate}
-            </Link>
+            {capacidades.pode("templates.criar") && (
+              <Link
+                href="/templates-whatsapp"
+                className="inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {textos.criarTemplate}
+              </Link>
+            )}
           </section>
           <section className="flex min-h-0 flex-col gap-3 border-b border-border p-4 lg:border-r lg:border-b-0 lg:overflow-y-auto">
             <h3 className="text-[0.65rem] font-bold tracking-wide text-muted-foreground uppercase">
@@ -325,7 +331,7 @@ export function ModalDeTemplates({
       </DialogContent>
       <FormularioEdicaoTemplate
         key={editando?.id ?? "sem-template"}
-        template={editando}
+        template={podeEditar ? editando : null}
         salvando={editar.isPending}
         erro={editar.isError ? textosTemplates.formulario.erroEdicao : null}
         textos={textosTemplates}
@@ -333,7 +339,7 @@ export function ModalDeTemplates({
         onSalvar={(corpo) => editando && editar.mutate({ id: editando.id, corpo })}
       />
       <DialogoConfirmacaoExclusaoTemplate
-        template={excluindo}
+        template={podeExcluir ? excluindo : null}
         excluindo={excluir.isPending}
         textos={textosTemplates}
         onFechar={() => setExcluindo(null)}

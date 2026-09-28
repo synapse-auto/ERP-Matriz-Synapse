@@ -16,12 +16,18 @@ import { useTextos } from "@/lib/config/textos-provider";
 import { atualizarLembrete, listarLembretes, removerLembrete } from "@/lib/suporte/api";
 import type { Lembrete, StatusLembrete } from "@/lib/suporte/types";
 
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
+
 import { FormularioLembrete } from "./formulario-lembrete";
 
 export function PaginaLembretes() {
   const textos = useTextos().lembretes;
   const papel = useAuthStore((s) => s.papel);
+  // Só apresentação: coluna de atendente para quem enxerga os lembretes da equipe.
   const gestor = papel !== "ATENDENTE";
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("lembretes.criar");
+  const podeEditarExcluir = capacidades.pode("lembretes.editar_excluir");
   const cache = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [inicio, setInicio] = useState("");
@@ -61,7 +67,7 @@ export function PaginaLembretes() {
           <h1 className="text-xl font-bold">{textos.titulo}</h1>
           <p className="text-sm text-muted-foreground">{textos.descricao}</p>
         </div>
-        <Button onClick={() => setAberto(true)}>{textos.novo}</Button>
+        {podeCriar && <Button onClick={() => setAberto(true)}>{textos.novo}</Button>}
       </header>
 
       <div className="flex flex-wrap gap-3 rounded-lg border p-3">
@@ -110,8 +116,8 @@ export function PaginaLembretes() {
           itens={consulta.data.lembretes}
           mostrarAtendente={gestor}
           textos={textos}
-          onConcluir={(item) => atualizar.mutate({ item, novo: "CONCLUIDO" })}
-          onRemover={(id) => remover.mutate(id)}
+          onConcluir={podeEditarExcluir ? (item) => atualizar.mutate({ item, novo: "CONCLUIDO" }) : undefined}
+          onRemover={podeEditarExcluir ? (id) => remover.mutate(id) : undefined}
         />
       )}
 
@@ -128,7 +134,7 @@ export function PaginaLembretes() {
         </Button>
       </div>
 
-      <FormularioLembrete aberto={aberto} onFechar={() => setAberto(false)} />
+      <FormularioLembrete aberto={aberto && podeCriar} onFechar={() => setAberto(false)} />
     </div>
   );
 }
@@ -145,8 +151,8 @@ function TabelaDeLembretes({
   itens: Lembrete[];
   mostrarAtendente: boolean;
   textos: TextosLembretes;
-  onConcluir: (item: Lembrete) => void;
-  onRemover: (id: string) => void;
+  onConcluir?: (item: Lembrete) => void;
+  onRemover?: (id: string) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -182,17 +188,28 @@ function TabelaDeLembretes({
             return (
               <tr key={item.id} className="border-t border-border">
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    aria-label={textos.concluir}
-                    disabled={concluido}
-                    onClick={() => onConcluir(item)}
-                    className={`flex size-6 items-center justify-center rounded-full border-2 ${
-                      concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
-                    }`}
-                  >
-                    {concluido && <Check className="size-[calc(var(--tamanho-icone-interface)*0.875)] text-white" />}
-                  </button>
+                  {onConcluir ? (
+                    <button
+                      type="button"
+                      aria-label={textos.concluir}
+                      disabled={concluido}
+                      onClick={() => onConcluir(item)}
+                      className={`flex size-6 items-center justify-center rounded-full border-2 ${
+                        concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/40"
+                      }`}
+                    >
+                      {concluido && <Check className="size-[calc(var(--tamanho-icone-interface)*0.875)] text-white" />}
+                    </button>
+                  ) : (
+                    <span
+                      aria-hidden
+                      className={`flex size-6 items-center justify-center rounded-full border-2 ${
+                        concluido ? "border-cor-sucesso bg-cor-sucesso" : "border-muted-foreground/20"
+                      }`}
+                    >
+                      {concluido && <Check className="size-[calc(var(--tamanho-icone-interface)*0.875)] text-white" />}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -243,15 +260,17 @@ function TabelaDeLembretes({
                   </td>
                 )}
                 <td className="px-4 py-3 text-right">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-8 text-destructive hover:text-destructive"
-                    aria-label={`${textos.remover} ${item.texto}`}
-                    onClick={() => onRemover(item.id)}
-                  >
-                    <Trash2 className="size-(--tamanho-icone-interface)" />
-                  </Button>
+                  {onRemover && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-destructive hover:text-destructive"
+                      aria-label={`${textos.remover} ${item.texto}`}
+                      onClick={() => onRemover(item.id)}
+                    >
+                      <Trash2 className="size-(--tamanho-icone-interface)" />
+                    </Button>
+                  )}
                 </td>
               </tr>
             );

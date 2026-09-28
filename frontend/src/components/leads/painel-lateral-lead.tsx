@@ -30,6 +30,7 @@ import { FormularioMensagemProgramada } from "@/components/mensagens-programadas
 import { CampoNomeDoLead } from "@/components/leads/campo-nome-do-lead";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   useCanais,
   useCamposCustomizados,
@@ -123,6 +124,8 @@ export function PainelLateralLead({
   const tagsDoLead = useTagsDoLead(leadId);
   const timeline = useTimelineDoLead(leadId);
   const salvar = useSalvarFicha(leadId ?? "");
+  const capacidades = useCapacidades();
+  const podeEditarFicha = capacidades.pode("contatos.editar");
   const vincular = useVincularTag(leadId ?? "");
   const desvincular = useDesvincularTag(leadId ?? "");
   const [notas, setNotas] = useState("");
@@ -254,12 +257,16 @@ export function PainelLateralLead({
               <Contador valor={lead.data.numMensagens} rotulo={textos.contadores.mensagens} />
             </div>
 
-            <Button type="button" variant="outline" onClick={() => setLembreteAberto(true)}>
-              <Bell className="size-(--tamanho-icone-interface)" /> {textos.acoes.lembrete}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setProgramadaAberta(true)}>
-              <Clock className="size-(--tamanho-icone-interface)" /> {textos.acoes.mensagemProgramada}
-            </Button>
+            {capacidades.pode("lembretes.criar") && (
+              <Button type="button" variant="outline" onClick={() => setLembreteAberto(true)}>
+                <Bell className="size-(--tamanho-icone-interface)" /> {textos.acoes.lembrete}
+              </Button>
+            )}
+            {capacidades.pode("mensagens_programadas.criar") && (
+              <Button type="button" variant="outline" onClick={() => setProgramadaAberta(true)}>
+                <Clock className="size-(--tamanho-icone-interface)" /> {textos.acoes.mensagemProgramada}
+              </Button>
+            )}
 
             <TagsDaFicha
               tags={tagsDoLead.data ?? []}
@@ -270,63 +277,70 @@ export function PainelLateralLead({
               onSelecionar={setTagSelecionada}
               onAdicionar={adicionarTag}
               onRemover={removerTag}
+              podeAplicar={capacidades.pode("tags.aplicar")}
             />
 
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">{textos.resumoIa.titulo}</h3>
-              <p className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-muted-foreground">
-                {lead.data.resumoIa || textos.resumoIa.vazio}
-              </p>
-            </section>
+            {capacidades.pode("resumo_ia.ver") && (
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">{textos.resumoIa.titulo}</h3>
+                <p className="whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                  {lead.data.resumoIa || textos.resumoIa.vazio}
+                </p>
+              </section>
+            )}
 
             <form className="space-y-4" onSubmit={salvarFicha} noValidate>
-              <div className="space-y-2">
-                <label htmlFor="notas-lead" className="text-sm font-semibold text-foreground">
-                  {textos.edicao.notas}
-                </label>
-                <Textarea
-                  id="notas-lead"
-                  value={notas}
-                  placeholder={textos.edicao.notasPlaceholder}
-                  onChange={(evento) => setNotas(evento.target.value)}
-                />
-              </div>
+              <fieldset disabled={!podeEditarFicha} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="notas-lead" className="text-sm font-semibold text-foreground">
+                    {textos.edicao.notas}
+                  </label>
+                  <Textarea
+                    id="notas-lead"
+                    value={notas}
+                    placeholder={textos.edicao.notasPlaceholder}
+                    onChange={(evento) => setNotas(evento.target.value)}
+                  />
+                </div>
 
-              {(campos.data?.length ?? 0) > 0 && (
-                <section className="space-y-3">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {textos.edicao.camposCustomizados}
-                  </h3>
-                  {campos.data?.map((campo) => (
-                    <CampoDaFicha
-                      key={campo.chave}
-                      campo={campo}
-                      valor={valores[campo.chave]}
-                      onChange={(valor) => setValores((atuais) => ({ ...atuais, [campo.chave]: valor }))}
-                    />
-                  ))}
-                </section>
-              )}
+                {(campos.data?.length ?? 0) > 0 && (
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {textos.edicao.camposCustomizados}
+                    </h3>
+                    {campos.data?.map((campo) => (
+                      <CampoDaFicha
+                        key={campo.chave}
+                        campo={campo}
+                        valor={valores[campo.chave]}
+                        onChange={(valor) => setValores((atuais) => ({ ...atuais, [campo.chave]: valor }))}
+                      />
+                    ))}
+                  </section>
+                )}
 
-              {avisoEdicao && (
-                <p
-                  role="alert"
-                  className={
-                    avisoEdicao === "salvo"
-                      ? "text-sm text-cor-sucesso"
-                      : "text-sm text-destructive"
-                  }
-                >
-                  {avisoEdicao === "salvo"
-                    ? textos.edicao.salvo
-                    : avisoEdicao === "obrigatorio"
-                      ? textos.edicao.campoObrigatorio
-                      : textos.edicao.erroReversao}
-                </p>
+                {avisoEdicao && (
+                  <p
+                    role="alert"
+                    className={
+                      avisoEdicao === "salvo"
+                        ? "text-sm text-cor-sucesso"
+                        : "text-sm text-destructive"
+                    }
+                  >
+                    {avisoEdicao === "salvo"
+                      ? textos.edicao.salvo
+                      : avisoEdicao === "obrigatorio"
+                        ? textos.edicao.campoObrigatorio
+                        : textos.edicao.erroReversao}
+                  </p>
+                )}
+              </fieldset>
+              {podeEditarFicha && (
+                <Button type="submit" disabled={salvar.isPending}>
+                  {salvar.isPending ? textos.edicao.salvando : textos.edicao.salvar}
+                </Button>
               )}
-              <Button type="submit" disabled={salvar.isPending}>
-                {salvar.isPending ? textos.edicao.salvando : textos.edicao.salvar}
-              </Button>
             </form>
 
             <Separator />
@@ -334,8 +348,8 @@ export function PainelLateralLead({
           </div>
         )}
       </div>
-      {lead.data && <FormularioLembrete aberto={lembreteAberto} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
-      {lead.data && <FormularioMensagemProgramada aberto={programadaAberta} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setProgramadaAberta(false)} />}
+      {lead.data && <FormularioLembrete aberto={lembreteAberto && capacidades.pode("lembretes.criar")} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setLembreteAberto(false)} />}
+      {lead.data && <FormularioMensagemProgramada aberto={programadaAberta && capacidades.pode("mensagens_programadas.criar")} leadId={lead.data.id} leadNome={lead.data.nome} onFechar={() => setProgramadaAberta(false)} />}
       <div className="flex-none flex flex-col gap-2 border-t border-border p-5">
         {erroAbrirAtendimento && (
           <p role="alert" className="text-sm text-destructive">
@@ -474,6 +488,7 @@ interface TagsProps {
   onSelecionar: (id: string) => void;
   onAdicionar: () => void;
   onRemover: (tag: TagDoLead) => void;
+  podeAplicar: boolean;
 }
 
 function TagsDaFicha({
@@ -485,6 +500,7 @@ function TagsDaFicha({
   onSelecionar,
   onAdicionar,
   onRemover,
+  podeAplicar,
 }: TagsProps) {
   const textos = useTextos().painelLead.tags;
   return (
@@ -501,20 +517,22 @@ function TagsDaFicha({
             >
               <Icone className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
               {tag.nome}
-              <button
-                type="button"
-                className="rounded-full hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive p-0.5"
-                aria-label={textos.remover.replace("{nome}", tag.nome)}
-                disabled={pendente}
-                onClick={() => onRemover(tag)}
-              >
-                <X className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
-              </button>
+              {podeAplicar && (
+                <button
+                  type="button"
+                  className="rounded-full hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive p-0.5"
+                  aria-label={textos.remover.replace("{nome}", tag.nome)}
+                  disabled={pendente}
+                  onClick={() => onRemover(tag)}
+                >
+                  <X className="size-[calc(var(--tamanho-icone-interface)*0.75)]" />
+                </button>
+              )}
             </span>
           );
         })}
       </div>
-      {disponiveis.length > 0 && (
+      {podeAplicar && disponiveis.length > 0 && (
         <div className="flex gap-2">
           <Seletor
             className="min-w-0 flex-1"

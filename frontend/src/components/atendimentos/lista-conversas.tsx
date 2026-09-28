@@ -39,6 +39,7 @@ import {
   ehAbaDeAtendimento,
 } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useAuthStore } from "@/lib/auth/auth-store";
 
 import { cn } from "@/lib/utils";
@@ -159,7 +160,8 @@ export function ListaConversas({
     recusados: number;
   } | null>(null);
   const finalizarTodos = useFinalizarAtendimentosVisiveis();
-  const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis();
+  const podeFinalizarEmLote = useCapacidades().pode("atendimentos.finalizar_lote");
+  const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis(podeFinalizarEmLote);
   const porAtendente = quantidadeFinalizavel.data?.porAtendente ?? [];
   const quantidadeSelecionada =
     selecaoFinalizacao === SELECAO_TODOS
@@ -293,31 +295,35 @@ export function ListaConversas({
                 <DropdownMenuItem onClick={() => escolherVisao("FINALIZADOS")}>
                   {textos.lista.finalizados}
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setResultadoFinalizacao(null);
-                    setSelecaoFinalizacao(SELECAO_TODOS);
-                    setFinalizarTodosAberto(true);
-                  }}
-                  disabled={
-                    quantidadeFinalizavel.isLoading ||
-                    quantidadeFinalizavel.data?.quantidade === 0
-                  }
-                >
-                  {textos.finalizar.todos}
-                </DropdownMenuItem>
+                {podeFinalizarEmLote && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setResultadoFinalizacao(null);
+                      setSelecaoFinalizacao(SELECAO_TODOS);
+                      setFinalizarTodosAberto(true);
+                    }}
+                    disabled={
+                      quantidadeFinalizavel.isLoading ||
+                      quantidadeFinalizavel.data?.quantidade === 0
+                    }
+                  >
+                    {textos.finalizar.todos}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              className="min-h-10 min-w-10"
-              aria-label={textos.novoContato.botao}
-              onClick={onNovoContato}
-            >
-              <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
-            </Button>
+            {onNovoContato && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                className="min-h-10 min-w-10"
+                aria-label={textos.novoContato.botao}
+                onClick={onNovoContato}
+              >
+                <UserPlus className="size-(--tamanho-icone-interface)" aria-hidden />
+              </Button>
+            )}
             {chatInternoHabilitado && (
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -497,7 +503,7 @@ export function ListaConversas({
       )}
 
       <Dialog
-        open={finalizarTodosAberto}
+        open={finalizarTodosAberto && podeFinalizarEmLote}
         onOpenChange={(novo) => !novo && setFinalizarTodosAberto(false)}
       >
         <DialogContent>

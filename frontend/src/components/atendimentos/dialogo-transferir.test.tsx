@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 type DestinoMock = { id: string; nome: string; papel?: "ATENDENTE" | "SUBGESTOR" };
 type AuthEstado = {
   papel: string;
@@ -156,5 +158,36 @@ describe("DialogoTransferir", () => {
     render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
 
     expect(screen.getByText(/destino .* recusado: inativo/)).toBeInTheDocument();
+  });
+
+  it("sem transferir, oferece só a devolução para a IA (nem assumir nem colegas)", () => {
+    estado.papel = "ATENDENTE";
+    estado.usuarioId = "ana-1";
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir"] });
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Devolver para IA" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bruno Atendente" })).not.toBeInTheDocument();
+  });
+
+  it("sem devolver para a IA, mantém os destinos e retira a devolução", () => {
+    estado.papel = "ATENDENTE";
+    estado.usuarioId = "ana-1";
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.devolver_ia"] });
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Devolver para IA" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+  });
+
+  it("sem transferir nem devolver, o diálogo não abre", () => {
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir", "atendimentos.devolver_ia"] });
+
+    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

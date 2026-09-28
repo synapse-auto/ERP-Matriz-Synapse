@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 const apiMocks = vi.hoisted(() => ({
   obterCapacidadeDoCanal: vi.fn(),
   listarTemplatesWhatsApp: vi.fn(),
@@ -91,6 +93,8 @@ function preencherContato() {
 }
 
 beforeEach(() => {
+  // Quem inicia contato não precisa editar templates: o modal só oferece a escolha.
+  definirCapacidadesDeTeste({ negadas: ["templates.editar", "templates.excluir"] });
   apiMocks.obterCapacidadeDoCanal.mockResolvedValue({ exigeTemplateForaDaJanela: false, gerenciaTemplates: true });
   apiMocks.listarTemplatesWhatsApp.mockResolvedValue([]);
 });

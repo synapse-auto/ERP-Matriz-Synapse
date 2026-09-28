@@ -3,6 +3,8 @@ import { createEvent, fireEvent, render, screen, waitFor, act } from "@testing-l
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -716,6 +718,36 @@ describe("Composer — anexo", () => {
     fireEvent.click(screen.getByRole("button", { name: "👍🏽" }));
     expect(campo).toHaveValue("👍🏽");
     expect(mutateTexto).not.toHaveBeenCalled();
+  });
+
+  it("com respostas rápidas permitidas, o atalho / sugere pela palavra-chave", async () => {
+    renderizar();
+
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "/sau" } });
+    expect(await screen.findByRole("listbox", { name: "Mensagens rápidas" })).toHaveTextContent("/saudacao");
+  });
+
+  it("sem usar respostas rápidas, some do menu e o atalho / do teclado não sugere nada", async () => {
+    definirCapacidadesDeTeste({ negadas: ["mensagens_rapidas.usar"] });
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    expect(await screen.findByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Mensagens rápidas" })).not.toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "/sau" } });
+    expect(screen.queryByRole("listbox", { name: "Mensagens rápidas" })).not.toBeInTheDocument();
+  });
+
+  it("sem ver templates e sem programar, o menu não oferece Templates e o agendar some", async () => {
+    definirCapacidadesDeTeste({ negadas: ["templates.ver", "mensagens_programadas.criar"] });
+    renderizar();
+
+    expect(screen.queryByRole("button", { name: "Agendar mensagem" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    expect(await screen.findByRole("menuitem", { name: "Mensagens rápidas" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Templates" })).not.toBeInTheDocument();
   });
 
   it("abre respostas rápidas reais e preenche o textarea sem enviar", async () => {

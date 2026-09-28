@@ -58,6 +58,7 @@ import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { invalidarParticipacao } from "@/lib/atendimento/use-participacao";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { apiFetch } from "@/lib/api/http-client";
 import { listarContatosChat, abrirConversaDireta, criarGrupoChat } from "@/lib/chat-interno/api";
 import { useConversaEmTelaCheia } from "@/lib/navegacao/conversa-em-tela-cheia";
@@ -158,6 +159,9 @@ export function PaginaAtendimentosCliente({
     },
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
+  const capacidades = useCapacidades();
+  const podeResponder = capacidades.pode("atendimentos.responder");
+  const podeIniciarConversa = capacidades.pode("atendimentos.iniciar_conversa");
   const [novoContatoInicial, setNovoContatoInicial] = useState<{ nome: string; telefone: string } | null>(null);
   const sessao = useAuthStore.getState();
   const marcarLeituraDaConversa = useCallback(
@@ -251,12 +255,14 @@ export function PaginaAtendimentosCliente({
   // da lista, ou só abre o diálogo de novo contato preenchido — confirmar continua com o usuário.
   const aberturaDeConversaDoContato = useMemo<AberturaDeConversaDoContato>(() => ({
     abrirCartao: (cartao) => selecionarAtendimento(cartao),
-    iniciarNovoContato: (dados) => {
-      iniciarContato.reset();
-      setNovoContatoInicial(dados);
-      setNovoContatoAberto(true);
-    },
-  }), [iniciarContato, selecionarAtendimento]);
+    iniciarNovoContato: podeIniciarConversa
+      ? (dados) => {
+          iniciarContato.reset();
+          setNovoContatoInicial(dados);
+          setNovoContatoAberto(true);
+        }
+      : undefined,
+  }), [iniciarContato, podeIniciarConversa, selecionarAtendimento]);
   const abrirNovoAtendimento = useMutation({
     mutationFn: abrirAtendimentoParaLead,
     onSuccess: (resposta) => {
@@ -811,11 +817,13 @@ export function PaginaAtendimentosCliente({
         onRecarregarContatos={() => void contatosInternos.refetch()}
         onCriarConversaInterna={(usuarioId) => abrirConversaInterna.mutateAsync(usuarioId)}
         onCriarGrupoInterno={(nome, participantes) => criarGrupoInterno.mutateAsync({ nome, participantes })}
-        onNovoContato={() => {
-          iniciarContato.reset();
-          setNovoContatoInicial(null);
-          setNovoContatoAberto(true);
-        }}
+        onNovoContato={podeIniciarConversa
+          ? () => {
+              iniciarContato.reset();
+              setNovoContatoInicial(null);
+              setNovoContatoAberto(true);
+            }
+          : undefined}
         className={cn(telaEstreita && conversaAberta && "hidden")}
       />
 
@@ -900,19 +908,26 @@ export function PaginaAtendimentosCliente({
                 canalTipo={conversa.canalTipo}
                 atendenteId={conversa.atendenteId}
                 atendenteNome={conversa.atendenteNome}
-                onResponder={(mensagem) =>
-                  setRespostaAlvo({ leadId: conversa.leadId, mensagem })
-                }
-                onEncaminhar={(mensagem) =>
-                  setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
-                }
+                reacoesHabilitadas={podeResponder}
+                onResponder={podeResponder
+                  ? (mensagem) => setRespostaAlvo({ leadId: conversa.leadId, mensagem })
+                  : undefined}
+                onEncaminhar={podeResponder
+                  ? (mensagem) => setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
+                  : undefined}
                 leadId={conversa.leadId}
                 atendimentoId={conversa.atendimentoId}
                 janelaTextoLivreAberta={janelaTextoLivreAberta(
                   conversa.ultimaMensagemDoLeadEm,
                 )}
               />
-              {atendimentoAtivo ? (
+              {atendimentoAtivo && capacidades.estado === "pronto" && !podeResponder ? (
+                <div className="shrink-0 bg-background px-4 pb-4 pt-3">
+                  <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
+                    {textosGerais.gestao.acesso.responderIndisponivel}
+                  </div>
+                </div>
+              ) : atendimentoAtivo ? (
                 <Composer
                   ref={composerRef}
                   conversa={atendimentoAtivo}
@@ -920,7 +935,7 @@ export function PaginaAtendimentosCliente({
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}
                   onFalhasDeMidia={registrarFalhasDeMidia}
-                  podeEnviar={Boolean(estadoSelecionado?.podeEnviar)}
+                  podeEnviar={podeResponder && Boolean(estadoSelecionado?.podeEnviar)}
                   onRevalidarEnvio={revalidarEnvio}
                 />
               ) : (
@@ -951,7 +966,7 @@ export function PaginaAtendimentosCliente({
       )}
 
       <DialogoNovoContato
-        aberto={novoContatoAberto}
+        aberto={novoContatoAberto && podeIniciarConversa}
         onFechar={() => setNovoContatoAberto(false)}
         onConfirmar={(pedido) => iniciarContato.mutate(pedido)}
         valoresIniciais={novoContatoInicial}

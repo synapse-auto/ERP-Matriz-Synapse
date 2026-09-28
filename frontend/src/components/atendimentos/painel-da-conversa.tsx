@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
   useEtapas,
   useEstadoResumoIa,
@@ -92,6 +93,7 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
   const textosLead = useTextos().painelLead;
   const lead = useLead(leadId);
   const etapas = useEtapas();
+  const capacidades = useCapacidades();
 
   if (!lead.data) return null;
 
@@ -249,24 +251,30 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
           <AtalhoTags leadId={leadId} modo="painel" />
         </div>
 
-        <ResumoPersistidoDoLead
-          lead={lead.data}
-          atendimentoId={atendimentoId}
-          titulo={textos.secoes.resumo}
-        />
+        {capacidades.pode("resumo_ia.ver") && (
+          <ResumoPersistidoDoLead
+            lead={lead.data}
+            atendimentoId={atendimentoId}
+            titulo={textos.secoes.resumo}
+          />
+        )}
 
-        <SecaoDeProgramadas
-          leadId={leadId}
-          leadNome={lead.data.nome}
-          titulo={textos.secoes.programadas}
-          vazio={textos.vazioProgramadas}
-        />
-        <SecaoDeLembretes
-          leadId={leadId}
-          leadNome={lead.data.nome}
-          titulo={textos.secoes.lembretes}
-          vazio={textos.vazioLembretes}
-        />
+        {capacidades.pode("mensagens_programadas.ver") && (
+          <SecaoDeProgramadas
+            leadId={leadId}
+            leadNome={lead.data.nome}
+            titulo={textos.secoes.programadas}
+            vazio={textos.vazioProgramadas}
+          />
+        )}
+        {capacidades.pode("lembretes.ver") && (
+          <SecaoDeLembretes
+            leadId={leadId}
+            leadNome={lead.data.nome}
+            titulo={textos.secoes.lembretes}
+            vazio={textos.vazioLembretes}
+          />
+        )}
         <SecaoDeNotasInternas key={lead.data.id} lead={lead.data} />
         <SecaoDeMidias leadId={leadId} />
       </div>
@@ -286,6 +294,7 @@ function ResumoPersistidoDoLead({
   const textos = useTextos();
   const estado = useEstadoResumoIa(atendimentoId);
   const solicitar = useSolicitarResumoIa(atendimentoId);
+  const podeSolicitar = useCapacidades().pode("resumo_ia.solicitar");
   const [erroLocal, setErroLocal] = useState(false);
   const resumo = lead.resumoIa?.trim() || textos.atendimentos.painel.resumoIa.vazio;
   const atualizadoEm = lead.resumoIaAtualizadoEm
@@ -316,19 +325,21 @@ function ResumoPersistidoDoLead({
       icone={<Sparkles className="size-(--tamanho-icone-interface) text-primary" />}
       titulo={titulo}
       acao={
-        <Button
-          type="button"
-          size="sm"
-          variant={temResumo ? "outline" : "default"}
-          onClick={gerar}
-          disabled={processando}
-        >
-          {processando
-            ? textos.atendimentos.painel.resumoIa.processando
-            : temResumo
-              ? textos.atendimentos.painel.resumoIa.regerar
-              : textos.atendimentos.painel.resumoIa.gerar}
-        </Button>
+        podeSolicitar ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={temResumo ? "outline" : "default"}
+            onClick={gerar}
+            disabled={processando}
+          >
+            {processando
+              ? textos.atendimentos.painel.resumoIa.processando
+              : temResumo
+                ? textos.atendimentos.painel.resumoIa.regerar
+                : textos.atendimentos.painel.resumoIa.gerar}
+          </Button>
+        ) : undefined
       }
     >
       <div className="space-y-2">
@@ -371,6 +382,7 @@ function ResumoPersistidoDoLead({
 function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
   const textos = useTextos().atendimentos.painel;
   const salvar = useSalvarFicha(lead.id);
+  const podeEditar = useCapacidades().pode("contatos.editar");
   const [valor, setValor] = useState(lead.notas ?? "");
   const [confirmado, setConfirmado] = useState(lead.notas ?? "");
   const [feedback, setFeedback] = useState<"salvo" | "erro" | null>(null);
@@ -408,6 +420,7 @@ function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
           className="min-h-24 w-full resize-y rounded-md border border-input bg-background p-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           placeholder={textos.notas.placeholder}
           value={valor}
+          readOnly={!podeEditar}
           disabled={salvar.isPending}
           onChange={(evento) => {
             setFeedback(null);
@@ -421,14 +434,16 @@ function SecaoDeNotasInternas({ lead }: { lead: LeadFicha }) {
           >
             {feedback === "salvo" ? textos.notas.salvo : feedback === "erro" ? textos.notas.erro : ""}
           </p>
-          <Button
-            type="button"
-            size="sm"
-            onClick={salvarNota}
-            disabled={salvar.isPending || valor === confirmado}
-          >
-            {salvar.isPending ? textos.notas.salvando : textos.notas.salvar}
-          </Button>
+          {podeEditar && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={salvarNota}
+              disabled={salvar.isPending || valor === confirmado}
+            >
+              {salvar.isPending ? textos.notas.salvando : textos.notas.salvar}
+            </Button>
+          )}
         </div>
       </div>
     </SecaoColapsavel>
@@ -483,6 +498,7 @@ function CampoCodigoDoLead({
 }) {
   const textos = useTextos().painelLead.dados;
   const salvar = useSalvarFicha(leadId);
+  const podeEditar = useCapacidades().pode("contatos.editar");
   const idCampo = useId();
   const [valor, setValor] = useState(valorAtual ?? "");
   const [erro, setErro] = useState(false);
@@ -497,6 +513,18 @@ function CampoCodigoDoLead({
         onError: () => setErro(true),
         onSuccess: () => setErro(false),
       },
+    );
+  }
+
+  if (!podeEditar) {
+    if (!valorAtual) return null;
+    return (
+      <div className="flex items-center gap-2.5 text-primary">
+        <Hash className="size-(--tamanho-icone-interface) shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1 font-mono text-sm tabular-nums" aria-label={textos.codigo}>
+          {valorAtual}
+        </p>
+      </div>
     );
   }
 
@@ -634,6 +662,9 @@ function SecaoDeProgramadas({
   const textos = useTextos();
   const cache = useQueryClient();
   const programadas = useMensagensProgramadasDoLead(leadId);
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("mensagens_programadas.criar");
+  const podeEditarCancelar = capacidades.pode("mensagens_programadas.editar_cancelar");
   const [formulario, setFormulario] = useState<"novo" | MensagemProgramada | null>(null);
   const [itemParaRemover, setItemParaRemover] = useState<MensagemProgramada | null>(null);
   const [erro, setErro] = useState(false);
@@ -668,16 +699,18 @@ function SecaoDeProgramadas({
       contagem={itens.length}
     >
       <div className="space-y-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full"
-          onClick={() => setFormulario("novo")}
-        >
-          <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-          {textos.atendimentos.painel.adicionar}
-        </Button>
+        {podeCriar && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() => setFormulario("novo")}
+          >
+            <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+            {textos.atendimentos.painel.adicionar}
+          </Button>
+        )}
         {itens.length === 0 ? (
           <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
         ) : (
@@ -687,17 +720,20 @@ function SecaoDeProgramadas({
                 key={item.id}
                 item={item}
                 textos={textos}
-                onEditar={() => setFormulario(item)}
-                onRemover={() => {
-                  setErro(false);
-                  setItemParaRemover(item);
-                }}
+                onEditar={podeEditarCancelar ? () => setFormulario(item) : undefined}
+                onRemover={podeEditarCancelar
+                  ? () => {
+                      setErro(false);
+                      setItemParaRemover(item);
+                    }
+                  : undefined}
               />
             ))}
           </div>
         )}
       </div>
       {formulario !== null && (
+        (formulario === "novo" ? podeCriar : podeEditarCancelar) && (
         <FormularioMensagemProgramada
           key={formulario === "novo" ? "nova" : formulario.id}
           aberto
@@ -706,9 +742,10 @@ function SecaoDeProgramadas({
           existente={formulario === "novo" ? undefined : formulario}
           onFechar={() => setFormulario(null)}
         />
+        )
       )}
       <DialogConfirmarRemocao
-        aberto={Boolean(itemParaRemover)}
+        aberto={Boolean(itemParaRemover) && podeEditarCancelar}
         item={itemParaRemover?.conteudo ?? ""}
         textos={textos.atendimentos.painel}
         processando={remover.isPending}
@@ -728,8 +765,8 @@ function MensagemProgramadaDoPainel({
 }: {
   item: MensagemProgramada;
   textos: ReturnType<typeof useTextos>;
-  onEditar: () => void;
-  onRemover: () => void;
+  onEditar?: () => void;
+  onRemover?: () => void;
 }) {
   const enviada = item.status === "ENVIADA";
   const cancelada = item.status === "CANCELADA";
@@ -768,6 +805,7 @@ function MensagemProgramadaDoPainel({
         }).format(new Date(item.dataEnvio))}
       </p>
       {item.status === "AGENDADA" ? (
+        onEditar && onRemover && (
         <div className="mt-2 flex justify-end gap-1">
           <Button
             type="button"
@@ -789,6 +827,7 @@ function MensagemProgramadaDoPainel({
             <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
           </Button>
         </div>
+        )
       ) : (
         <div className="mt-2">
           <PillDeStatus tom={enviada ? "sucesso" : "neutro"}>
@@ -816,6 +855,9 @@ function SecaoDeLembretes({
   const textos = useTextos();
   const cache = useQueryClient();
   const lembretes = useLembretesDoLead(leadId);
+  const capacidades = useCapacidades();
+  const podeCriar = capacidades.pode("lembretes.criar");
+  const podeEditarExcluir = capacidades.pode("lembretes.editar_excluir");
   const itens = lembretes.data?.lembretes ?? [];
   const [formulario, setFormulario] = useState<"novo" | Lembrete | null>(null);
   const [itemParaRemover, setItemParaRemover] = useState<Lembrete | null>(null);
@@ -850,16 +892,18 @@ function SecaoDeLembretes({
       contagem={itens.length}
     >
       <div className="space-y-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="w-full"
-          onClick={() => setFormulario("novo")}
-        >
-          <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
-          {textos.atendimentos.painel.adicionar}
-        </Button>
+        {podeCriar && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={() => setFormulario("novo")}
+          >
+            <Plus className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+            {textos.atendimentos.painel.adicionar}
+          </Button>
+        )}
         {itens.length === 0 ? (
           <p className="p-2 text-center text-xs text-muted-foreground">{vazio}</p>
         ) : (
@@ -902,6 +946,7 @@ function SecaoDeLembretes({
                     <PillDeStatus tom="sucesso">{textos.lembretes.status.concluido}</PillDeStatus>
                   </div>
                 )}
+                {podeEditarExcluir && (
                 <div className="mt-2 flex justify-end gap-1">
                   <Button
                     type="button"
@@ -926,12 +971,14 @@ function SecaoDeLembretes({
                     <Trash2 className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   </Button>
                 </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
       {formulario !== null && (
+        (formulario === "novo" ? podeCriar : podeEditarExcluir) && (
         <FormularioLembrete
           key={formulario === "novo" ? "novo" : formulario.id}
           aberto
@@ -940,9 +987,10 @@ function SecaoDeLembretes({
           existente={formulario === "novo" ? undefined : formulario}
           onFechar={() => setFormulario(null)}
         />
+        )
       )}
       <DialogConfirmarRemocao
-        aberto={Boolean(itemParaRemover)}
+        aberto={Boolean(itemParaRemover) && podeEditarExcluir}
         item={itemParaRemover?.texto ?? ""}
         textos={textos.atendimentos.painel}
         processando={remover.isPending}

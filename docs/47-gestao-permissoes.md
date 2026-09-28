@@ -292,3 +292,65 @@ API (lote) e uma leitura de revisão por nó por intervalo.
 3. Reativação de usuário desativado: criar endpoint?
 4. ~~Nível de módulo delegável ao SUBGESTOR?~~ Decidido em 28/09: sim, pela regra de efeito (seção 4).
 5. Alcance configurável para SUBGESTOR (Meus em vez de Todos) exigiria mudar Specification e RLS.
+
+## 14. Permissões na interface
+
+A tela pergunta ao backend, nunca ao papel. `useCapacidades()` (`frontend/src/lib/gestao/use-capacidades.ts`)
+lê `/gestao/permissoes/minhas`, que já traz o efetivo de perfil + exceção + teto do papel + flags, e
+expõe `pode(id)` e `alcancaTodos` (recorte estrutural de `atendimentos.ver`).
+
+- **Estado seguro.** Sem resposta (carregando ou erro), `pode` é `false`: nenhuma ação privilegiada
+  aparece para sumir depois. Com uma resposta já obtida, uma revalidação que falhe mantém a última.
+- **Controle negado sai da tela.** Botão, item de menu, item do "⋯", atalho de teclado (`/` das
+  respostas rápidas) e diálogo aberto fecham junto (os diálogos recebem `aberto && pode`). Campos de
+  leitura permanecem: revogar criar template não esconde a lista.
+- **Rota.** `ExigeCapacidade` protege a URL direta das páginas cuja leitura é configurável
+  (templates, mensagens rápidas, programadas, lembretes, dashboard, automação): verificando →
+  erro com "tentar novamente" → "Sem acesso" com volta para Atendimentos. O menu esconde os mesmos
+  itens e, com permissão desconhecida, não cai mais na regra por papel.
+- **Sem F5.** `ACESSO_ALTERADO` invalida `["permissoes"]`; cada aba tem a própria assinatura STOMP e
+  revalida sozinha. O backend continua sendo a fonte final (POST direto com sessão antiga → 403).
+- **Testes.** `vitest.setup.ts` controla `useCapacidades` (`src/test/capacidades-de-teste.ts`,
+  padrão "tudo permitido"); testes de permissão declaram o cenário ou usam o hook real
+  (`usarCapacidadesReais()`), e o E2E `permissoes-na-interface.spec.ts` roda contra o backend real.
+
+### 14.1 Matriz auditada (capacidade → controle → ponto de entrada)
+
+"Antes" é o que decidia o controle até esta correção.
+
+| Capacidade | Controles na UI | Endpoint / caso de uso | Antes | Agora |
+|---|---|---|---|---|
+| `templates.ver` | menu; rota `/templates-whatsapp`; item "Templates" do clipe; "Nova mensagem" com janela fechada | `GET /whatsapp/templates` | menu ok; resto sem checagem | capacidade |
+| `templates.criar` | "Novo template" (página); link "Criar template" (modal do composer) | `POST /whatsapp/templates` | `podeCriarTemplates(papel)` (todos) | capacidade |
+| `templates.editar` / `templates.excluir` | lápis / lixeira (página e modal) | `PUT`/`DELETE /whatsapp/templates/{id}` | `podeGerenciarTemplates(papel)` | capacidade, cada uma separada |
+| `mensagens_rapidas.usar` | menu; rota; item do clipe; sugestões do atalho `/` | `GET /mensagens-rapidas` | menu ok; atalho só sumia com erro 403 | capacidade |
+| `mensagens_rapidas.criar` / `editar_excluir` | "Nova mensagem rápida"; lápis/lixeira | `POST`/`PUT`/`DELETE /mensagens-rapidas` | sem checagem | capacidade |
+| `mensagens_programadas.ver` | menu; rota; seção do painel da conversa | `GET /mensagens-programadas` | menu ok | capacidade |
+| `mensagens_programadas.criar` | "Programar mensagem"; relógio do composer; "Adicionar" no painel; botão na ficha da agenda | `POST /mensagens-programadas` | sem checagem | capacidade |
+| `mensagens_programadas.editar_cancelar` | editar/cancelar (página e painel) | `PUT /{id}`, `POST /{id}/cancelar` | sem checagem | capacidade |
+| `lembretes.ver` / `criar` / `editar_excluir` | menu; rota; seção do painel; "Novo lembrete", "Adicionar", botão da ficha; concluir, lápis, lixeira | `/lembretes` | menu ok; ações sem checagem | capacidade |
+| `tags.criar` / `tags.editar_excluir` | "Nova tag"; lápis/lixeira em `/tags` | `POST`/`PUT`/`DELETE /tags` | **sem checagem (atendente via os botões)** | capacidade |
+| `tags.aplicar` | seletor de tags do cabeçalho/painel; "⋯ Tags"; tags da ficha da agenda | `PUT`/`DELETE /leads/{id}/tags/{tag}` | sem checagem | capacidade (chips seguem visíveis) |
+| `contatos.editar` | nome, código e notas no painel; formulário da ficha da agenda | `PUT /leads/{id}` | sem checagem | capacidade (vira leitura) |
+| `resumo_ia.ver` / `resumo_ia.solicitar` | seção de resumo (painel e ficha); "Gerar/Regerar" | `GET`/`POST /atendimentos/{id}/resumo-ia` | sem checagem | capacidade |
+| `atendimentos.responder` | composer; responder/encaminhar/reagir no menu da mensagem | `POST /atendimentos/mensagens` etc. | estado da conversa | capacidade **e** estado da conversa; negado → aviso no lugar do composer, reações só leitura |
+| `atendimentos.iniciar_conversa` | botão de novo atendimento da lista; "Iniciar conversa" do cartão de contato | `POST /atendimentos/novo-contato` | sem checagem | capacidade |
+| `atendimentos.abrir_para_contato` | "Reativar atendimento" (finalizado); "Abrir atendimento" na agenda e na ficha | `POST /atendimentos/leads/{id}/novo` | sem checagem | capacidade |
+| `atendimentos.transferir` / `devolver_ia` | "Transferir"; opções do diálogo (assumir/colegas × devolver) | `POST /atendimentos/{id}/transferir` | sem checagem | capacidade, por opção |
+| `atendimentos.finalizar` | "Finalizar" | `POST /atendimentos/{id}/finalizar` | sem checagem | capacidade |
+| `atendimentos.finalizar_lote` | "Finalizar Todos" (⋯ da lista) e a contagem | `GET`/`POST /atendimentos/finalizar-lote` | sem checagem (a contagem dava 403) | capacidade |
+| `atendimentos.colaborar` | pedir entrada, entrar, convidar, aceitar/recusar; "pedir entrada" da agenda | `pedir-entrada`, `entrar`, `convidar` | `papel !== "ATENDENTE"` | capacidade; "entrar direto" usa `alcancaTodos` |
+| `dashboard.ver` | menu; rota `/dashboard` | `GET /dashboard/visao-geral` | papel + menu | capacidade |
+| `automacao.ver` | menu; rota `/automacao` | `GET /automacao/**` | papel (dentro da página) | capacidade (rota) |
+| `automacao.editar_parametros` | switches de recursos de IA; parâmetros avançados + salvar | `PUT /automacao/config/**` | sem checagem | capacidade (fieldset + switches) |
+| `automacao.regras` | novo, alternar, excluir e editar regras de follow-up/fidelização | `/automacao/follow-ups*`, `/fidelizacao*` | sem checagem | capacidade |
+| `equipe.ver` / `equipe.disponibilidade_ia` | card de disponibilidade na automação; switch | `GET /usuarios`; `PATCH .../disponibilidade-ia` | sem checagem | capacidade (switch inoperante, pois também mostra o estado) |
+| `equipe.*`, `equipe.perfis`, `equipe.excecoes_atendentes` | aba Equipe e demais abas da Gestão | `/usuarios/**`, `/gestao/permissoes/**` | já por capacidade (docs/47 §9) | sem mudança |
+| `atendimentos.ver` | abas Meus/Todos, filtro de atendente | Specification + RLS | papel (estrutural) | sem mudança (RN-CRM-01) |
+
+**Fora da matriz, de propósito:**
+- configuração de fidelização e datas festivas (G/D, fora do catálogo) e importação/exportação
+  (`gerenciaImportacaoDeLeads`, §2.2) seguem por papel;
+- colunas "atendente" e agrupamento por autor em lembretes, programadas e mensagens rápidas são
+  só apresentação;
+- a alçada da aba Equipe (quem administra quem) espelha a do backend, que continua decidindo.

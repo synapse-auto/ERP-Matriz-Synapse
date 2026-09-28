@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
 import type { CartaoAtendimento, EstadoAtendimentoSelecionado } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
 
@@ -521,6 +523,33 @@ describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
   }
 
+  it("sem transferir, devolver, finalizar e colaborar, essas ações somem da barra e do ⋯; buscar continua", () => {
+    definirCapacidadesDeTeste({
+      negadas: ["atendimentos.transferir", "atendimentos.devolver_ia", "atendimentos.finalizar", "atendimentos.colaborar"],
+    });
+    renderizar();
+
+    for (const nome of ["Convidar", "Transferir", "Finalizar", "Entrar no atendimento", "Pedir para entrar"]) {
+      expect(screen.queryByRole("button", { name: new RegExp(nome) })).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: "Buscar na conversa" })).toBeInTheDocument();
+  });
+
+  it("só devolver para a IA permitido: Transferir continua na barra e abre o diálogo", () => {
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir"] });
+    renderizar();
+
+    fireEvent.click(screen.getByRole("button", { name: /Transferir/ }));
+    expect(screen.getByText("dialogo-transferir")).toBeInTheDocument();
+  });
+
+  it("finalizado sem abrir atendimento para o contato: não oferece Reativar", () => {
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.abrir_para_contato"] });
+    renderizar({ conversa: { ...conversa, status: "FINALIZADO" }, onAbrirNovoAtendimento: vi.fn() });
+
+    expect(screen.queryByRole("button", { name: /Reativar atendimento/ })).not.toBeInTheDocument();
+  });
+
   it("desktop grande: todas as ações na barra e nenhum ⋯", () => {
     renderizar();
 
@@ -618,6 +647,8 @@ describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
 
   it("atendente fora do atendimento: pedir entrada nunca vai para o menu e convidar não existe", async () => {
     participacao.papel = "ATENDENTE";
+    // Recorte estrutural do backend para ATENDENTE (RN-CRM-01): só os próprios leads.
+    definirCapacidadesDeTeste({ alcancaTodos: false });
     renderizar();
     redimensionar(500);
 

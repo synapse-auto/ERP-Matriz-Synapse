@@ -49,9 +49,10 @@ export function useFinalizarAtendimentosVisiveis() {
   });
 }
 
-export function useQuantidadeAtendimentosFinalizaveis() {
+export function useQuantidadeAtendimentosFinalizaveis(habilitado = true) {
   return useQuery({
     queryKey: ["atendimentos", "finalizar-lote"],
     queryFn: contarAtendimentosFinalizaveis,
+    enabled: habilitado,
   });
 }
