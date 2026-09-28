@@ -4,6 +4,11 @@
 de WhatsApp e sua credencial ativa, etapas, tags, a feature flag da Dashboard e
 configuracoes da Automacao. Ele nao cria dados de um cliente especifico.
 
+`habilitar-data-nascimento.sql` e uma **operacao pontual por instancia**, nao parte do
+provisionamento padrao nem do Flyway. Para a Estrutural, siga a verificacao
+previa, aplicacao controlada e validacao em
+[`docs/48-habilitar-data-nascimento-estrutural.md`](../../docs/48-habilitar-data-nascimento-estrutural.md).
+
 O canal usa `WHATSAPP_NUMERO` (Phone Number ID numerico, nao o telefone exibido
 nem o WABA ID) e `WHATSAPP_PROVEDOR`, as mesmas variaveis do deploy. O executor
 e o SQL recusam valor ausente, vazio ou nao numerico. O token nao e copiado:

@@ -2,6 +2,7 @@ package com.synapse.crm.core.application.lead;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -71,7 +72,13 @@ public class AtualizarLeadUseCase {
             if (dados.dadosCustomizados() != null) {
                 Map<String, Object> validado = ValidadorDeDadosCustomizados.validar(
                         dados.dadosCustomizados(), camposCustomizados.listarTodos());
-                atualizado = atualizado.comDadosCustomizados(validado);
+                // Campo opcional vazio vem como null da ficha: omite a chave no JSONB em vez de
+                // passar null para Lead, cujo mapa imutavel nao aceita valores nulos.
+                Map<String, Object> preenchidos = new LinkedHashMap<>();
+                validado.forEach((chave, valor) -> {
+                    if (valor != null) preenchidos.put(chave, valor);
+                });
+                atualizado = atualizado.comDadosCustomizados(preenchidos);
             }
             EtapaAtendimento etapaAnterior = etapa(atual.etapaAtendimentoId());
             EtapaAtendimento etapaNova = etapa(atualizado.etapaAtendimentoId());
