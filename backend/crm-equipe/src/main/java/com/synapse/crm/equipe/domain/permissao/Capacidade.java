@@ -27,7 +27,8 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  * ADMINISTRADOR conceder.
  *
  * <p><b>Delegavel</b> e o que um SUBGESTOR com {@link #EQUIPE_EXCECOES_ATENDENTES} pode ajustar nas
- * excecoes de um ATENDENTE — e so ate o que ele mesmo tem.
+ * excecoes de um ATENDENTE, ou com {@link #EQUIPE_PERFIS} no perfil ATENDENTE — e so ate o que ele
+ * mesmo tem.
  */
 public enum Capacidade {
 
@@ -126,7 +127,7 @@ public enum Capacidade {
     EQUIPE_EXCECOES_ATENDENTES("equipe.excecoes_atendentes", Modulo.EQUIPE, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
             true, gestao(), EnumSet.of(SUBGESTOR), false, "equipe.ver"),
     EQUIPE_PERFIS("equipe.perfis", Modulo.EQUIPE, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
-            true, superiores(), nenhum(), false, "equipe.ver");
+            true, gestao(), EnumSet.of(SUBGESTOR), false, "equipe.ver");
 
     /** Acao liga/desliga, ou recorte estrutural apenas exibido. */
     public enum Tipo {

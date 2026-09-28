@@ -1719,7 +1719,7 @@
         "ESTRUTURAL_TODOS": "Regra fixa: toda a base"
       },
       "fixoAviso": "Gestor tem acesso total e fixo; este perfil não é configurável.",
-      "somenteLeitura": "Somente Gestor e Administrador editam perfis.",
+      "somenteLeitura": "Você pode ver, mas não alterar este perfil.",
       "copiar": "Copiar permissões",
       "copiarDe": "Copiar de {perfil}",
       "copiarIndisponivel": "{perfil} tem acesso fixo e não pode ser copiado",

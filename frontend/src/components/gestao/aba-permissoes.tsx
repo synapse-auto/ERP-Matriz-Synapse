@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GradeEmColunas } from "@/components/ui/grade-em-colunas";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { preverCopiaDePerfil } from "@/lib/gestao/api";
@@ -26,7 +27,7 @@ import {
   tocaSensivel,
   type Simulacao,
 } from "@/lib/gestao/rascunho";
-import type { Catalogo, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
+import type { Catalogo, CapacidadeDoCatalogo, MinhasPermissoes, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
 import { useCatalogo, usePerfis, useSalvarPerfil } from "@/lib/gestao/use-gestao";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,9 @@ import {
   SeloSensivel,
   SeletorDeNivel,
   motivoDoBloqueio,
+  motivoForaDaAlcada,
+  perfilFixoDoAtor,
+  podeAlterarAcao,
   preencher,
   rotuloDaCapacidade,
   rotuloDoModulo,
@@ -48,6 +52,12 @@ import {
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
 import { DialogoDeCopia } from "./dialogo-de-copia";
 
+/**
+ * Peso de um cartão na grade, em "linhas de ação": cabeçalho e seletor de nível ocupam cerca de
+ * três. Conta só o que a busca lista — nunca o estado dos interruptores, que muda a cada clique.
+ */
+const LINHAS_DO_CABECALHO = 3;
+
 interface EstadoDoRascunho {
   papel: Papel;
   revisao: number;
@@ -57,21 +67,25 @@ interface EstadoDoRascunho {
 
 export function AbaPermissoes({
   textos,
+  minhas,
   papelInicial,
   onSujoChange,
 }: {
   textos: TextosGestao;
+  minhas: MinhasPermissoes;
   papelInicial?: Papel;
   onSujoChange: (sujo: boolean) => void;
 }) {
   const catalogo = useCatalogo();
   const perfis = usePerfis();
   const salvar = useSalvarPerfil();
-  const [papel, setPapel] = useState<Papel>(papelInicial ?? "SUBGESTOR");
+  const [selecionado, setSelecionado] = useState<Papel | null>(papelInicial ?? null);
   const [busca, setBusca] = useState("");
   const [estado, setEstado] = useState<EstadoDoRascunho | null>(null);
   const [copia, setCopia] = useState<{ origem: Papel; previa?: PreviaDeCopia; erro: boolean } | null>(null);
 
+  // Sem escolha explícita, abre no primeiro perfil que quem está logado pode editar.
+  const papel: Papel = selecionado ?? perfis.data?.find((p) => p.editavel)?.papel ?? "SUBGESTOR";
   const perfil = perfis.data?.find((p) => p.papel === papel);
   const base = useMemo(() => (perfil ? rascunhoDoPerfil(perfil.modulos, perfil.capacidades) : null), [perfil]);
   const rascunho = estado && estado.papel === papel ? estado.rascunho : base;
@@ -101,6 +115,7 @@ export function AbaPermissoes({
   const cat = catalogo.data;
   const sim = perfil && rascunho ? simular(cat, papel, rascunho) : null;
   const editavel = perfil?.editavel === true;
+  const atorFixo = perfilFixoDoAtor(minhas);
   const termo = normalizar(busca);
   const modulosVisiveis = cat.modulos.filter((m) => {
     if (!termo) return true;
@@ -129,7 +144,8 @@ export function AbaPermissoes({
           <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={textos.permissoes.busca} className="h-10 bg-card pl-9" />
         </label>
         <Legenda textos={textos} />
-        {editavel && (
+        {/* Cópia de perfil é de superior: a única origem para o perfil ATENDENTE está fora da alçada do subgestor. */}
+        {editavel && atorFixo && (
           <div className="ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="outline" className="h-10 gap-2 bg-card" />}>
@@ -166,7 +182,7 @@ export function AbaPermissoes({
                 textos={textos}
                 onSelecionar={() => confirmacao.executar(() => {
                   descartar();
-                  setPapel(p.papel);
+                  setSelecionado(p.papel);
                 })}
               />
             ))}
@@ -178,7 +194,7 @@ export function AbaPermissoes({
           {!editavel && perfil && !perfil.fixo && (
             <p className="flex gap-2 rounded-xl bg-muted p-3 text-xs text-muted-foreground">
               <Lock className="mt-px size-3.5 shrink-0" aria-hidden />
-              {textos.permissoes.somenteLeitura}
+              {perfil.papel === minhas.papel ? textos.excecoes.proprio : textos.permissoes.somenteLeitura}
             </p>
           )}
         </aside>
@@ -190,26 +206,36 @@ export function AbaPermissoes({
               {textos.permissoes.fixoAviso}
             </p>
           )}
+          {editavel && !atorFixo && (
+            <p className="mb-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              <Info className="size-3.5" aria-hidden />
+              {textos.excecoes.nivelNaoDelegavel}
+            </p>
+          )}
           {modulosVisiveis.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{textos.permissoes.vazio}</p>
           ) : (
             sim && rascunho && (
-              <div className="grid items-start gap-4 xl:grid-cols-2">
-                {modulosVisiveis.map((m) => (
+              <GradeEmColunas
+                itens={modulosVisiveis}
+                chave={(m) => m.id}
+                peso={(m) => LINHAS_DO_CABECALHO + capacidadesListadas(cat, m.id, termo, textos).length}
+              >
+                {(m) => (
                   <CartaoDeModulo
-                    key={m.id}
                     moduloId={m.id}
                     catalogo={cat}
                     papel={papel}
                     simulacao={sim}
                     editavel={editavel}
+                    minhas={minhas}
                     termo={termo}
                     textos={textos}
                     onNivel={(nivel) => atualizar(aplicarNivel(rascunho, cat, papel, m.id, nivel))}
                     onAcao={(id, valor) => atualizar(alternarAcao(rascunho, id, valor))}
                   />
-                ))}
-              </div>
+                )}
+              </GradeEmColunas>
             )
           )}
           {perfil && editavel && (
@@ -314,12 +340,21 @@ function CartaoDePerfil({
   );
 }
 
+/** Linhas do cartão: as ações que casam com a busca; nenhuma casou, o módulo casou pelo nome e vai inteiro. */
+function capacidadesListadas(catalogo: Catalogo, moduloId: string, termo: string, textos: TextosGestao): CapacidadeDoCatalogo[] {
+  const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
+  if (!termo) return capacidades;
+  const visiveis = capacidades.filter((c) => normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
+  return visiveis.length > 0 ? visiveis : capacidades;
+}
+
 function CartaoDeModulo({
   moduloId,
   catalogo,
   papel,
   simulacao,
   editavel,
+  minhas,
   termo,
   textos,
   onNivel,
@@ -330,6 +365,7 @@ function CartaoDeModulo({
   papel: Papel;
   simulacao: Simulacao;
   editavel: boolean;
+  minhas: MinhasPermissoes;
   termo: string;
   textos: TextosGestao;
   onNivel: (nivel: Catalogo["modulos"][number]["nivelMinimoPermitido"]) => void;
@@ -339,13 +375,12 @@ function CartaoDeModulo({
   const { rotulo, descricao } = rotuloDoModulo(textos, moduloId);
   const Icone = ICONE_DO_MODULO[moduloId] ?? Info;
   const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
-  const visiveis = termo
-    ? capacidades.filter((c) => normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo))
-    : capacidades;
-  const lista = visiveis.length > 0 ? visiveis : capacidades;
+  const lista = capacidadesListadas(catalogo, moduloId, termo, textos);
   const configuraveis = capacidades.filter((c) => configuravel(c, papel));
   const permitidas = configuraveis.filter((c) => simulacao.estados[c.id]?.permitido).length;
   const maximo = modulo.nivelMaximoPorPapel[papel];
+  // Nível de módulo não é delegável: o subgestor delegado mexe só nos interruptores.
+  const nivelEditavel = editavel && perfilFixoDoAtor(minhas);
 
   return (
     <section aria-labelledby={`modulo-${moduloId}`} className="rounded-2xl border border-border bg-card p-4 shadow-xs">
@@ -365,7 +400,7 @@ function CartaoDeModulo({
         valor={simulacao.niveis[moduloId]}
         minimo={modulo.nivelMinimoPermitido}
         maximo={maximo}
-        desabilitado={!editavel}
+        desabilitado={!nivelEditavel}
         rotulo={preencher(textos.permissoes.nivelRotulo, { modulo: rotulo })}
         textos={textos}
         onChange={onNivel}
@@ -391,6 +426,8 @@ function CartaoDeModulo({
           const motivo = motivoDoBloqueio(textos, { motivo: estado.motivo, alcance: null }, c.nivelMinimo, c.dependencias);
           const bloqueado = estado.motivo === "TETO_DO_PAPEL" || estado.motivo === "FLAG_DESLIGADA"
             || estado.motivo === "NIVEL_DO_MODULO" || estado.motivo === "DEPENDENCIA";
+          const alteravel = editavel && !bloqueado && estado.origem !== "FIXO" && podeAlterarAcao(minhas, c, !estado.permitido);
+          const dica = !editavel || bloqueado ? motivo : !alteravel ? motivoForaDaAlcada(textos, c) : null;
           return (
             <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
@@ -398,18 +435,18 @@ function CartaoDeModulo({
                   {nome}
                   {c.sensivel && <SeloSensivel textos={textos} />}
                 </p>
-                {motivo && (
+                {dica && (
                   <p id={`motivo-${papel}-${c.id}`} className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Lock className="size-3" aria-hidden />
-                    {motivo}
+                    {dica}
                   </p>
                 )}
               </div>
               <Switch
                 checked={estado.permitido}
-                disabled={!editavel || bloqueado || estado.origem === "FIXO"}
+                disabled={!alteravel}
                 aria-label={nome}
-                aria-describedby={motivo ? `motivo-${papel}-${c.id}` : undefined}
+                aria-describedby={dica ? `motivo-${papel}-${c.id}` : undefined}
                 onCheckedChange={(valor) => onAcao(c.id, valor)}
               />
             </li>

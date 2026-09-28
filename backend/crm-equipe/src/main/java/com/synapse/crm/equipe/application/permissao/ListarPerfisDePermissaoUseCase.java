@@ -65,20 +65,16 @@ public class ListarPerfisDePermissaoUseCase {
                 : repositorio.perfil(papel);
         PermissoesEfetivas efetivas = PoliticaDePermissoes.calcular(
                 papel, armazenado.configuracao(), ConfiguracaoDePermissoes.vazia(), flags);
-        boolean editavel = !fixo && editaPerfis(ator);
+        boolean editavel = PoliticaDeConcessao.podeEditarPerfil(ator, papel);
         return new Visoes.Perfil(papel, fixo, armazenado.revisao(), usuarios,
                 efetivas.totalPermitido(), efetivas.totalConfiguravel(), editavel,
                 MontadorDeVisoes.modulos(papel, armazenado.configuracao(), ConfiguracaoDePermissoes.vazia(), efetivas, flags),
                 MontadorDeVisoes.capacidades(papel, armazenado.configuracao(), ConfiguracaoDePermissoes.vazia(),
-                        efetivas, flags, null, editavel));
+                        efetivas, flags, ator, editavel));
     }
 
+    /** Edita ao menos um dos perfis exibidos (SUBGESTOR delegado: so o de ATENDENTE). */
     static boolean editaPerfis(PoliticaDeConcessao.Ator ator) {
-        try {
-            PoliticaDeConcessao.exigirEdicaoDePerfil(ator);
-            return true;
-        } catch (com.synapse.crm.equipe.domain.permissao.ConcessaoNegadaException e) {
-            return false;
-        }
+        return PAPEIS_EXIBIDOS.stream().anyMatch(papel -> PoliticaDeConcessao.podeEditarPerfil(ator, papel));
     }
 }

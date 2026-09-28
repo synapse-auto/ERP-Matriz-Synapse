@@ -22,7 +22,8 @@ def zod(valor, ind=2):
 
 
 def main():
-    gestao = json.loads(TEXTOS.read_text(), object_pairs_hook=collections.OrderedDict)["gestao"]
+    # Encoding e fim de linha explicitos: o padrao do Windows (cp1252, CRLF) corrompe o catalogo.
+    gestao = json.loads(TEXTOS.read_text(encoding="utf-8"), object_pairs_hook=collections.OrderedDict)["gestao"]
     fixos = collections.OrderedDict((k, v) for k, v in gestao.items() if k not in ("capacidades", "modulos"))
     corpo = zod(fixos)[: -len(".default({})")]
     modulos = json.dumps(gestao["modulos"], ensure_ascii=False, indent=2)
@@ -44,7 +45,7 @@ export const GestaoTextosSchema = {corpo}.extend({{
   modulos: z.record(z.string(), z.object({{ rotulo: z.string(), descricao: z.string() }})).default(MODULOS_PADRAO),
   capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO),
 }}).default({{}});
-''')
+''', encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

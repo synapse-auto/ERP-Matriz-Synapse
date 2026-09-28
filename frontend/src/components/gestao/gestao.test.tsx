@@ -18,6 +18,7 @@ const salvarPerfil = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error:
 const salvarExcecoes = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null as unknown };
 const restaurar = { mutate: vi.fn(), reset: vi.fn(), isPending: false, error: null as unknown };
 let minhas: MinhasPermissoes;
+let perfis: Perfil[];
 
 const CATALOGO: Catalogo = {
   modulos: [
@@ -40,10 +41,10 @@ const CATALOGO: Catalogo = {
   ],
 };
 
-function perfil(papel: Perfil["papel"], fixo = false): Perfil {
+function perfil(papel: Perfil["papel"], fixo = false, editavel = !fixo): Perfil {
   const noTeto = (id: string) => CATALOGO.capacidades.find((c) => c.id === id)!.teto.includes(papel);
   return {
-    papel, fixo, revisao: 3, usuarios: papel === "ATENDENTE" ? 6 : 1, permitidas: 2, total: 2, editavel: !fixo,
+    papel, fixo, revisao: 3, usuarios: papel === "ATENDENTE" ? 6 : 1, permitidas: 2, total: 2, editavel,
     modulos: CATALOGO.modulos.map((m) => ({ id: m.id, doPerfil: m.nivelPadraoPorPapel[papel], excecao: null, efetivo: m.nivelPadraoPorPapel[papel], minimo: m.nivelMinimoPermitido, maximo: m.nivelMaximoPorPapel[papel] })),
     capacidades: CATALOGO.capacidades.map((c) => ({
       id: c.id, doPerfil: c.tipo === "ACAO" && noTeto(c.id) ? true : null, excecao: null, permitido: noTeto(c.id),
@@ -69,7 +70,7 @@ vi.mock("@/lib/gestao/use-gestao", () => ({
   CHAVE_GESTAO: ["gestao"],
   useMinhasPermissoes: () => ({ isLoading: false, isError: false, data: minhas, refetch: vi.fn() }),
   useCatalogo: () => ({ isLoading: false, isError: false, data: CATALOGO, refetch: vi.fn() }),
-  usePerfis: () => ({ isLoading: false, isError: false, data: [perfil("GESTOR", true), perfil("SUBGESTOR"), perfil("ATENDENTE")], refetch: vi.fn() }),
+  usePerfis: () => ({ isLoading: false, isError: false, data: perfis, refetch: vi.fn() }),
   usePermissoesDaEquipe: () => ({ isLoading: false, isError: false, data: EQUIPE, refetch: vi.fn() }),
   usePermissoesDeUsuario: () => ({ isLoading: false, isError: false, data: detalheDaAna(), refetch: vi.fn() }),
   useSalvarPerfil: () => salvarPerfil,
@@ -86,11 +87,22 @@ function minhasDe(papel: MinhasPermissoes["papel"], acessaGestao: boolean): Minh
   return { usuarioId: "eu", papel, revisao: 1, acessaGestao, editaPerfis: papel === "GESTOR", editaExcecoes: papel === "GESTOR", capacidades: {} };
 }
 
+/** SUBGESTOR com `equipe.perfis`: o backend devolve só o perfil ATENDENTE como editável. */
+function subgestorQueEditaPerfis(permitidas: string[]): void {
+  minhas = {
+    ...minhasDe("SUBGESTOR", true),
+    editaPerfis: true,
+    capacidades: Object.fromEntries(permitidas.map((id) => [id, { permitido: true, motivo: "PERMITIDO" as const, alcance: null }])),
+  };
+  perfis = [perfil("GESTOR", true), perfil("SUBGESTOR", false, false), perfil("ATENDENTE", false, true)];
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   salvarPerfil.error = null;
   salvarExcecoes.error = null;
   minhas = minhasDe("GESTOR", true);
+  perfis = [perfil("GESTOR", true), perfil("SUBGESTOR"), perfil("ATENDENTE")];
 });
 
 describe("Gestão", () => {
@@ -109,7 +121,7 @@ describe("Gestão", () => {
   });
 
   it("Permissões: estrutural aparece travado em Meus; fora do teto aparece bloqueado com motivo", () => {
-    render(<AbaPermissoes textos={TEXTOS} papelInicial="ATENDENTE" onSujoChange={vi.fn()} />);
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="ATENDENTE" onSujoChange={vi.fn()} />);
     expect(screen.getByText(TEXTOS.permissoes.motivos.ESTRUTURAL_MEUS)).toBeInTheDocument();
     const criar = screen.getByRole("switch", { name: TEXTOS.capacidades["tags.criar"] });
     expect(criar).toHaveAttribute("aria-disabled", "true");
@@ -118,7 +130,7 @@ describe("Gestão", () => {
 
   it("Permissões: mudar o nível gera rascunho; alteração sensível pede confirmação antes de salvar", () => {
     const onSujo = vi.fn();
-    render(<AbaPermissoes textos={TEXTOS} papelInicial="SUBGESTOR" onSujoChange={onSujo} />);
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="SUBGESTOR" onSujoChange={onSujo} />);
     const niveis = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.atendimentos.rotulo}` });
     fireEvent.click(within(niveis).getByRole("radio", { name: TEXTOS.permissoes.niveis.EDITAR }));
     expect(onSujo).toHaveBeenCalledWith(true);
@@ -134,9 +146,51 @@ describe("Gestão", () => {
 
   it("Permissões: conflito 409 mantém o rascunho e oferece recarregar", () => {
     salvarPerfil.error = new ErroDeApi(409, { status: 409 }, "conflito");
-    render(<AbaPermissoes textos={TEXTOS} papelInicial="SUBGESTOR" onSujoChange={vi.fn()} />);
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="SUBGESTOR" onSujoChange={vi.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent(TEXTOS.barra.conflito);
     expect(screen.getByRole("button", { name: TEXTOS.barra.recarregar })).toBeInTheDocument();
+  });
+
+  it("Permissões: SUBGESTOR que edita perfis abre no de ATENDENTE, sem nível e sem cópia; só o delegável que ele tem", () => {
+    subgestorQueEditaPerfis(["tags.aplicar"]);
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} onSujoChange={vi.fn()} />);
+
+    expect(screen.getByRole("radio", { name: new RegExp(TEXTOS.papeis.ATENDENTE) })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(TEXTOS.excecoes.nivelNaoDelegavel)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: new RegExp(TEXTOS.permissoes.copiar) })).not.toBeInTheDocument();
+    const niveis = screen.getByRole("radiogroup", { name: `Nível de ${TEXTOS.modulos.tags.rotulo}` });
+    within(niveis).getAllByRole("radio").forEach((radio) => expect(radio).toBeDisabled());
+
+    const lote = screen.getByRole("switch", { name: TEXTOS.capacidades["atendimentos.finalizar_lote"] });
+    expect(lote).toHaveAttribute("aria-disabled", "true");
+    expect(lote).toHaveAccessibleDescription(TEXTOS.excecoes.naoDelegavel);
+
+    const aplicar = screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] });
+    expect(aplicar).not.toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(aplicar);
+    expect(screen.getByText(TEXTOS.barra.pendente)).toBeInTheDocument();
+  });
+
+  it("Permissões: SUBGESTOR delegado não liga no perfil o que ele mesmo não tem", () => {
+    subgestorQueEditaPerfis([]);
+    const atendente = perfis[2];
+    perfis[2] = {
+      ...atendente,
+      capacidades: atendente.capacidades.map((c) => (c.id === "tags.aplicar" ? { ...c, doPerfil: false, permitido: false, motivo: "DESLIGADO" } : c)),
+    };
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} onSujoChange={vi.fn()} />);
+
+    const aplicar = screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] });
+    expect(aplicar).toHaveAttribute("aria-disabled", "true");
+    expect(aplicar).toHaveAccessibleDescription(TEXTOS.excecoes.semPermissaoPropria);
+  });
+
+  it("Permissões: SUBGESTOR no próprio perfil lê o motivo certo, não 'somente leitura' genérico", () => {
+    subgestorQueEditaPerfis([]);
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="SUBGESTOR" onSujoChange={vi.fn()} />);
+    expect(screen.getByText(TEXTOS.excecoes.proprio)).toBeInTheDocument();
+    expect(screen.queryByText(TEXTOS.permissoes.somenteLeitura)).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: TEXTOS.capacidades["tags.aplicar"] })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("Exceções: linha personalizada tem selo e restauração individual; voltar ao padrão vira rascunho", () => {
