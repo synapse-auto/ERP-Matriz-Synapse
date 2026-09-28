@@ -29,6 +29,21 @@ export function contarColunas(trilhasComputadas: string): number {
   return trilhas.every((trilha) => /^\d+(\.\d+)?px$/.test(trilha)) ? trilhas.length : 1;
 }
 
+/** Vão entre colunas e entre cartões; entra também na conta do limite de colunas. */
+const ESPACAMENTO = "1rem";
+
+/**
+ * Trilhas da grade: `auto-fill` pela largura mínima; com `colunasMaximas`, a largura mínima de cada
+ * trilha também nunca fica abaixo da fração que caberia nesse número de colunas — então o CSS nunca
+ * resolve mais trilhas que o limite. `min(100%, …)` mantém uma coluna inteira em tela estreita.
+ */
+function trilhas(larguraMinima: string, colunasMaximas?: number): string {
+  const minimo = colunasMaximas
+    ? `max(${larguraMinima}, calc((100% - ${colunasMaximas - 1} * ${ESPACAMENTO}) / ${colunasMaximas}))`
+    : larguraMinima;
+  return `repeat(auto-fill, minmax(min(100%, ${minimo}), 1fr))`;
+}
+
 /**
  * Grade de cartões com altura livre (masonry): cada coluna empilha os seus cartões, sem o vão que
  * uma grade por linhas deixa embaixo do cartão mais baixo de cada linha.
@@ -43,6 +58,7 @@ export function GradeEmColunas<T>({
   chave,
   peso,
   larguraMinima = "22rem",
+  colunasMaximas,
   className,
   children,
 }: {
@@ -52,6 +68,8 @@ export function GradeEmColunas<T>({
   peso: (item: T) => number;
   /** Largura mínima de cada coluna (comprimento CSS). */
   larguraMinima?: string;
+  /** Teto de colunas mesmo em tela larga; sem ele, cabem quantas a largura permitir. */
+  colunasMaximas?: number;
   className?: string;
   children: (item: T) => ReactNode;
 }) {
@@ -74,11 +92,11 @@ export function GradeEmColunas<T>({
     <div
       ref={ref}
       data-slot="grade-em-colunas"
-      className={cn("grid items-start gap-4", className)}
-      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${larguraMinima}), 1fr))` }}
+      className={cn("grid items-start", className)}
+      style={{ gap: ESPACAMENTO, gridTemplateColumns: trilhas(larguraMinima, colunasMaximas) }}
     >
       {distribuirEmColunas(itens, colunas, peso).map((coluna, indice) => (
-        <div key={indice} data-slot="coluna" className="flex min-w-0 flex-col gap-4">
+        <div key={indice} data-slot="coluna" className="flex min-w-0 flex-col" style={{ gap: ESPACAMENTO }}>
           {coluna.map((item) => (
             <Fragment key={chave(item)}>{children(item)}</Fragment>
           ))}

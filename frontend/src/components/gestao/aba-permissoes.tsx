@@ -218,6 +218,7 @@ export function AbaPermissoes({
             sim && rascunho && (
               <GradeEmColunas
                 itens={modulosVisiveis}
+                colunasMaximas={2}
                 chave={(m) => m.id}
                 peso={(m) => LINHAS_DO_CABECALHO + capacidadesListadas(cat, m.id, termo, textos).length}
               >
