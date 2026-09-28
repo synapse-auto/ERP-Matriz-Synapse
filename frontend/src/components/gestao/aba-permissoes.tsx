@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GradeEmColunas } from "@/components/ui/grade-em-colunas";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { preverCopiaDePerfil } from "@/lib/gestao/api";
@@ -26,7 +27,7 @@ import {
   tocaSensivel,
   type Simulacao,
 } from "@/lib/gestao/rascunho";
-import type { Catalogo, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
+import type { Catalogo, CapacidadeDoCatalogo, Papel, Perfil, PreviaDeCopia, Rascunho } from "@/lib/gestao/types";
 import { useCatalogo, usePerfis, useSalvarPerfil } from "@/lib/gestao/use-gestao";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,12 @@ import {
 } from "./apoio";
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
 import { DialogoDeCopia } from "./dialogo-de-copia";
+
+/**
+ * Peso de um cartão na grade, em "linhas de ação": cabeçalho e seletor de nível ocupam cerca de
+ * três. Conta só o que a busca lista — nunca o estado dos interruptores, que muda a cada clique.
+ */
+const LINHAS_DO_CABECALHO = 3;
 
 interface EstadoDoRascunho {
   papel: Papel;
@@ -194,10 +201,13 @@ export function AbaPermissoes({
             <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{textos.permissoes.vazio}</p>
           ) : (
             sim && rascunho && (
-              <div className="grid items-start gap-4 xl:grid-cols-2">
-                {modulosVisiveis.map((m) => (
+              <GradeEmColunas
+                itens={modulosVisiveis}
+                chave={(m) => m.id}
+                peso={(m) => LINHAS_DO_CABECALHO + capacidadesListadas(cat, m.id, termo, textos).length}
+              >
+                {(m) => (
                   <CartaoDeModulo
-                    key={m.id}
                     moduloId={m.id}
                     catalogo={cat}
                     papel={papel}
@@ -208,8 +218,8 @@ export function AbaPermissoes({
                     onNivel={(nivel) => atualizar(aplicarNivel(rascunho, cat, papel, m.id, nivel))}
                     onAcao={(id, valor) => atualizar(alternarAcao(rascunho, id, valor))}
                   />
-                ))}
-              </div>
+                )}
+              </GradeEmColunas>
             )
           )}
           {perfil && editavel && (
@@ -314,6 +324,14 @@ function CartaoDePerfil({
   );
 }
 
+/** Linhas do cartão: as ações que casam com a busca; nenhuma casou, o módulo casou pelo nome e vai inteiro. */
+function capacidadesListadas(catalogo: Catalogo, moduloId: string, termo: string, textos: TextosGestao): CapacidadeDoCatalogo[] {
+  const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
+  if (!termo) return capacidades;
+  const visiveis = capacidades.filter((c) => normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
+  return visiveis.length > 0 ? visiveis : capacidades;
+}
+
 function CartaoDeModulo({
   moduloId,
   catalogo,
@@ -339,10 +357,7 @@ function CartaoDeModulo({
   const { rotulo, descricao } = rotuloDoModulo(textos, moduloId);
   const Icone = ICONE_DO_MODULO[moduloId] ?? Info;
   const capacidades = catalogo.capacidades.filter((c) => c.modulo === moduloId);
-  const visiveis = termo
-    ? capacidades.filter((c) => normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo))
-    : capacidades;
-  const lista = visiveis.length > 0 ? visiveis : capacidades;
+  const lista = capacidadesListadas(catalogo, moduloId, termo, textos);
   const configuraveis = capacidades.filter((c) => configuravel(c, papel));
   const permitidas = configuraveis.filter((c) => simulacao.estados[c.id]?.permitido).length;
   const maximo = modulo.nivelMaximoPorPapel[papel];
