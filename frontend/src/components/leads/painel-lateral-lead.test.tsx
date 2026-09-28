@@ -42,13 +42,15 @@ painelLead: {
 }));
 
 let mockLeadData: Record<string, unknown> = { id: "1", nome: "Lead 1", telefone: "11999999999" };
+const camposState = vi.hoisted(() => ({ data: [] as CampoCustomizado[] }));
+const permissoesState = vi.hoisted(() => ({ editar: true }));
 const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useEtapas: () => ({ data: [] }),
-  useCamposCustomizados: () => ({ data: [] }),
+  useCamposCustomizados: () => camposState,
   useCanais: () => ({ data: [] }),
   useTodasAsTags: () => ({ data: [] }),
   useTagsDoLead: () => ({ data: [] }),
@@ -57,6 +59,14 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useVincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useDesvincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useLead: () => ({ data: mockLeadData, isLoading: false, isError: false }),
+}));
+vi.mock("@/lib/gestao/use-capacidades", () => ({
+  useCapacidades: () => ({ pode: (chave: string) => chave === "contatos.editar" && permissoesState.editar }),
+}));
+vi.mock("@/components/ui/seletor-data", () => ({
+  SeletorData: ({ id, valor, onChange }: { id: string; valor: string; onChange: (valor: string) => void }) => (
+    <input id={id} type="text" value={valor} onChange={(evento) => onChange(evento.target.value)} />
+  ),
 }));
 
 import { PainelLateralLead } from "./painel-lateral-lead";
@@ -126,5 +136,71 @@ describe("PainelLateralLead telefones", () => {
       { nome: "Maria Silva" },
       expect.any(Object),
     );
+  });
+});
+
+describe("PainelLateralLead data de nascimento por instancia", () => {
+  const renderFicha = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <PainelLateralLead leadId="1" onFechar={() => {}} />
+      </QueryClientProvider>,
+    );
+  };
+
+  const nascimento: CampoCustomizado = {
+    chave: "data_nascimento",
+    rotulo: "Data de nascimento",
+    tipo: "DATA",
+    opcoes: [],
+    obrigatorio: false,
+    filtravel: false,
+    ordem: 2,
+  };
+
+  it("sem metadado nao inventa o campo na ficha", () => {
+    camposState.data = [];
+    permissoesState.editar = true;
+    mockLeadData = { id: "1", nome: "Lead 1", dadosCustomizados: {} };
+
+    renderFicha();
+
+    expect(screen.queryByLabelText(/Data de nascimento/)).not.toBeInTheDocument();
+  });
+
+  it("com metadado mostra DATA e envia aniversario junto dos demais campos", () => {
+    camposState.data = [
+      { ...campoObrigatorio, obrigatorio: false, ordem: 1 },
+      nascimento,
+    ];
+    permissoesState.editar = true;
+    mockLeadData = { id: "1", nome: "Lead 1", dadosCustomizados: { codigo_obra: "OBRA-12" } };
+    salvarFichaState.mutate.mockClear();
+
+    renderFicha();
+    fireEvent.change(screen.getByLabelText(/Data de nascimento/), { target: { value: "1990-05-21" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    expect(salvarFichaState.mutate).toHaveBeenCalledWith(
+      { notas: "", dadosCustomizados: { codigo_obra: "OBRA-12", data_nascimento: "1990-05-21" } },
+      expect.any(Object),
+    );
+  });
+
+  it("sem permissao de edicao exibe o valor mas nao permite salvar", () => {
+    camposState.data = [nascimento];
+    permissoesState.editar = false;
+    mockLeadData = {
+      id: "1",
+      nome: "Lead 1",
+      dadosCustomizados: { data_nascimento: "1990-05-21T00:00:00Z" },
+    };
+
+    renderFicha();
+
+    expect(screen.getByLabelText(/Data de nascimento/)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Salvar" })).not.toBeInTheDocument();
+    permissoesState.editar = true;
   });
 });

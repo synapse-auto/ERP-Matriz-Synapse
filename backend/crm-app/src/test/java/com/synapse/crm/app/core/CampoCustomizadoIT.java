@@ -1,6 +1,7 @@
 package com.synapse.crm.app.core;
 
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_ANA;
+import static com.synapse.crm.app.seguranca.ApoioAutenticacao.EMAIL_BRUNO;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -85,6 +87,11 @@ class CampoCustomizadoIT extends PostgresIT {
                 idAna);
     }
 
+    @AfterEach
+    void limparDataNascimento() {
+        jdbc.update("DELETE FROM campo_customizado WHERE chave = 'data_nascimento'");
+    }
+
     @Test
     @DisplayName("campo cadastrado aparece na listagem de campos customizados")
     void listagemDeCampos_campoCadastrado_aparece() {
@@ -110,6 +117,70 @@ class CampoCustomizadoIT extends PostgresIT {
 
         String corpoFicha = comoAna(HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getBody();
         assertThat(corpoFicha).contains("OBRA-4521");
+    }
+
+    @Test
+    @DisplayName("data de nascimento cadastrada aparece no contrato e e salva sem perder outro campo")
+    void ficha_salvaNascimentoEPreservaOutroCampo() {
+        cadastrarDataNascimento();
+        String campos = comoAna(HttpMethod.GET, "/api/v1/campos-customizados", null).getBody();
+        assertThat(campos).contains("data_nascimento").contains("Data de nascimento").contains("DATA");
+
+        Map<String, Object> valores = new HashMap<>();
+        valores.put(CAMPO_TEXTO_FILTRAVEL, "OBRA-4521");
+        valores.put(CAMPO_NUMERO_NAO_FILTRAVEL, null); // outro opcional vazio na ficha
+        valores.put("data_nascimento", "1990-05-21");
+        var resposta = comoAna(
+                HttpMethod.PUT, "/api/v1/leads/" + leadDaAna, Map.of("dadosCustomizados", valores));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String corpo = comoAna(HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getBody();
+        assertThat(corpo).contains("1990-05-21T00:00:00Z").contains("OBRA-4521");
+        Map<String, Object> persistido = jdbc.queryForMap(
+                "SELECT dados_customizados ->> 'data_nascimento' AS nascimento, "
+                        + "dados_customizados ->> ? AS obra FROM lead WHERE id = ?",
+                CAMPO_TEXTO_FILTRAVEL,
+                leadDaAna);
+        assertThat(persistido)
+                .containsEntry("nascimento", "1990-05-21T00:00:00Z")
+                .containsEntry("obra", "OBRA-4521");
+    }
+
+    @Test
+    @DisplayName("sem metadado, aniversario nao aparece nem e cadastrado automaticamente")
+    void semNascimentoCadastradoPermaneceNeutro() {
+        String campos = comoAna(HttpMethod.GET, "/api/v1/campos-customizados", null).getBody();
+        assertThat(campos).doesNotContain("data_nascimento");
+
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("dadosCustomizados", Map.of("data_nascimento", "1990-05-21")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM campo_customizado WHERE chave = 'data_nascimento'",
+                        Integer.class))
+                .isZero();
+    }
+
+    @Test
+    @DisplayName("atendente sem visibilidade nao grava a data de nascimento do lead de outra pessoa")
+    void outroAtendenteNaoEditaNascimento() {
+        cadastrarDataNascimento();
+
+        var resposta = comoUsuario(
+                EMAIL_BRUNO,
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("dadosCustomizados", Map.of("data_nascimento", "1990-05-21")));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject(
+                        "SELECT dados_customizados ->> 'data_nascimento' FROM lead WHERE id = ?",
+                        String.class,
+                        leadDaAna))
+                .isNull();
     }
 
     @Test
@@ -251,7 +322,18 @@ class CampoCustomizadoIT extends PostgresIT {
     }
 
     private ResponseEntity<String> comoAna(HttpMethod metodo, String url, Object corpo) {
-        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        return comoUsuario(EMAIL_ANA, metodo, url, corpo);
+    }
+
+    private void cadastrarDataNascimento() {
+        jdbc.update("""
+                INSERT INTO campo_customizado (chave, rotulo, tipo, obrigatorio, filtravel, ordem)
+                VALUES ('data_nascimento', 'Data de nascimento', 'DATA', false, false, 3)
+                """);
+    }
+
+    private ResponseEntity<String> comoUsuario(String email, HttpMethod metodo, String url, Object corpo) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
