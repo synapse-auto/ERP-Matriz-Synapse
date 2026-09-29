@@ -31,3 +31,9 @@ INSERT INTO lead_tag (lead_id, tag_id)
 SELECT 'e2100000-0000-4000-8000-000000000001', t.id FROM tag t
  WHERE t.id::text LIKE '7a000000-0000-4000-8000-00000000000%'
 ON CONFLICT DO NOTHING;
+
+-- Participante ativo: a linha "Participantes" aumenta a identificação (caso relatado pela equipe).
+INSERT INTO atendimento_participante (atendimento_id, usuario_id)
+SELECT 'e2100000-0000-4000-8000-0000000000a1', u.id FROM usuario u
+ WHERE u.email = 'bruno@dev.local'
+ON CONFLICT DO NOTHING;
