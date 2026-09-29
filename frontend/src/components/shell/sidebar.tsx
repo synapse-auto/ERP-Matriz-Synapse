@@ -18,7 +18,6 @@ import {
   LogOut,
   Megaphone,
   MessageSquarePlus,
-  MessageSquareText,
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,6 +27,7 @@ import {
   ShieldUser,
   Tag,
   TrendingUp,
+  Zap,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api/http-client";
@@ -41,6 +41,7 @@ import { useMeuUsuario } from "@/lib/equipe/use-equipe";
 import { useMinhasPermissoes } from "@/lib/gestao/use-gestao";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 import {
   ITENS_GESTAO as ITENS_GESTAO_BASE,
@@ -65,7 +66,7 @@ const ICONES_MENU: Record<string, React.ComponentType<{ className?: string }>> =
   dashboard: TrendingUp,
   agenda: BookUser,
   tags: Tag,
-  mensagensRapidas: MessageSquareText,
+  mensagensRapidas: Zap,
   templatesWhatsApp: FileText,
   bancoArquivos: Folder,
   mensagensProgramadas: Clock,
@@ -105,19 +106,6 @@ const COR_PRESENCA: Record<StatusPresenca, string> = {
   OFFLINE: "var(--texto-fraco)",
 };
 
-/**
- * Único consumidor — inline por convenção (hooks.md: não extrair hook de um caller só).
- * `GET /api/v1/config/features` só devolve as chaves HABILITADAS (FeatureService.habilitadas):
- * uma flag desligada nunca aparece na resposta, então "item.flag está na lista" já é a checagem
- * completa — não existe um `{flag: false}` para filtrar.
- */
-function useFeaturesHabilitadas() {
-  return useQuery({
-    queryKey: ["config", "features"],
-    queryFn: () => apiFetch<string[]>("/api/v1/config/features"),
-  });
-}
-
 function useTemaConfig() {
   return useQuery({
     queryKey: ["config", "tema"],
@@ -152,7 +140,7 @@ export function Sidebar({
 }: SidebarProps) {
   const textos = useTextos();
   const pathname = usePathname();
-  const { data: flags, isLoading, isError, refetch } = useFeaturesHabilitadas();
+  const { data: flags, isLoading, isError, refetch } = useFuncionalidadesHabilitadas();
   const { data: tema } = useTemaConfig();
   const [novidadesAberto, setNovidadesAberto] = useState(false);
   const papel = useAuthStore((estado) => estado.papel);

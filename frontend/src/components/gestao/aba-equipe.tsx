@@ -64,7 +64,8 @@ export function AbaEquipe({
   novoAberto: boolean;
   onFecharNovo: () => void;
   onAbrirPerfil: (papel: Papel) => void;
-  onAbrirExcecoes: (usuarioId: string) => void;
+  /** Ausente com Exceções "Em breve": o atalho da linha abre o perfil da função. */
+  onAbrirExcecoes?: (usuarioId: string) => void;
 }) {
   const textosEquipe = useTextos().equipe;
   const cache = useQueryClient();
@@ -202,7 +203,7 @@ export function AbaEquipe({
                   <td className="px-5 py-3.5">
                     <div className="ml-auto flex max-w-[4.75rem] flex-wrap justify-end gap-1.5 sm:max-w-none sm:flex-nowrap">
                       {visiveisNasExcecoes.has(u.id) && (
-                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => onAbrirExcecoes(u.id)}>
+                        <AcaoDaLinha rotulo={preencher(textos.equipe.acoes.permissoes, { nome: u.nome })} onClick={() => (onAbrirExcecoes ? onAbrirExcecoes(u.id) : onAbrirPerfil(u.papel))}>
                           <ShieldCheck className="size-4" />
                         </AcaoDaLinha>
                       )}

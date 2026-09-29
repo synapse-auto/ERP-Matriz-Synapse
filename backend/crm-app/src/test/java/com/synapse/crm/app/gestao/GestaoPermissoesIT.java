@@ -62,6 +62,7 @@ class GestaoPermissoesIT extends PostgresIT {
 
     private static final String BASE = "/api/v1/gestao/permissoes";
     private static final String PREFIXO = "Gestao IT ";
+    private static final String FLAG_EXCECOES = "gestao_excecoes";
 
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
@@ -86,6 +87,7 @@ class GestaoPermissoesIT extends PostgresIT {
         subgestor = id(EMAIL_SUBGESTOR);
         admin = id(EMAIL_ADMINISTRADOR);
         limparPermissoes();
+        ligarExcecoes(true);
         leadDaAna = criarLead("Ana", ana);
         leadDoBruno = criarLead("Bruno", bruno);
         tag = UUID.randomUUID();
@@ -96,6 +98,8 @@ class GestaoPermissoesIT extends PostgresIT {
     void limpar() {
         limparPermissoes();
         jdbc.update("UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'dashboard'");
+        // valor do seed; sem esperar o cache: o proximo teste liga de novo e espera por condicao
+        jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = ?", FLAG_EXCECOES);
         jdbc.update("DELETE FROM lead_tag WHERE tag_id = ?", tag);
         jdbc.update("DELETE FROM tag WHERE id = ?", tag);
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
@@ -374,9 +378,14 @@ class GestaoPermissoesIT extends PostgresIT {
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
                 corpoExcecoes(revisaoUsuario(ana), Map.of(), mapa("tags.aplicar", false, "atendimentos.finalizar_lote", false)))))
                 .isEqualTo("FORA_DO_CONJUNTO_DELEGAVEL");
+        // nivel e delegavel pelo efeito: baixar Atendimentos para Editar desligaria o lote (nao delegavel)
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
-                corpoExcecoes(revisaoUsuario(ana), mapa("tags", "VER"), Map.of("tags.aplicar", false)))))
-                .isEqualTo("NIVEL_NAO_DELEGAVEL");
+                corpoExcecoes(revisaoUsuario(ana), mapa("atendimentos", "EDITAR"), Map.of("tags.aplicar", false)))))
+                .isEqualTo("FORA_DO_CONJUNTO_DELEGAVEL");
+        // ja baixar Tags para Ver so mantem desligado o que ele pode desligar
+        assertThat(chamar(tokenSub, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                corpoExcecoes(revisaoUsuario(ana), mapa("tags", "VER"), Map.of("tags.aplicar", false))).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
         // Ana herda resumo_ia.solicitar=true; o subgestor nao tem e nao pode ligar explicitamente
         salvarPerfilAtendente(tokenGestor, Map.of("resumo_ia.solicitar", false));
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
@@ -384,6 +393,37 @@ class GestaoPermissoesIT extends PostgresIT {
                 .isEqualTo("ACIMA_DA_PROPRIA_PERMISSAO");
         assertThat(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE",
                 corpoPerfil(revisaoPerfil("ATENDENTE"), Map.of(), Map.of())).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("excecoes desligadas: gravar, restaurar e copiar sao 422; ninguem edita; o que ja estava salvo continua valendo")
+    void excecoesDesligadas() {
+        String tokenGestor = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String tokenAna = token(EMAIL_ANA, SENHA_ATENDENTE);
+        assertThat(chamar(tokenGestor, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                corpoExcecoes(revisaoUsuario(ana), Map.of(), Map.of("tags.aplicar", false))).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(aplicarTag(tokenAna, leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ligarExcecoes(false);
+        long revisao = revisaoUsuario(ana);
+        ResponseEntity<String> salvar = chamar(tokenGestor, HttpMethod.PUT, BASE + "/usuarios/" + ana + "/excecoes",
+                corpoExcecoes(revisao, Map.of(), Map.of()));
+        assertThat(salvar.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(salvar.getBody()).contains("FLAG_DESLIGADA", FLAG_EXCECOES);
+        assertThat(chamar(tokenGestor, HttpMethod.DELETE,
+                BASE + "/usuarios/" + ana + "/excecoes?revisaoEsperada=" + revisao, null).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(chamar(tokenGestor, HttpMethod.POST, BASE + "/usuarios/" + ana + "/copia/previa",
+                Map.of("origemUsuarioId", bruno.toString())).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(revisaoUsuario(ana)).isEqualTo(revisao);
+
+        assertThat(ler(chamar(tokenGestor, HttpMethod.GET, BASE + "/minhas", null)).path("editaExcecoes").asBoolean(true))
+                .isFalse();
+        ler(chamar(tokenGestor, HttpMethod.GET, BASE + "/usuarios", null))
+                .forEach(u -> assertThat(u.path("editavel").asBoolean(true)).as(u.path("nome").asText()).isFalse());
+        // desligar a edicao nao abre nada: a excecao salva continua negando
+        assertThat(aplicarTag(tokenAna, leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -411,6 +451,10 @@ class GestaoPermissoesIT extends PostgresIT {
                 Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false))).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
         assertThat(aplicarTag(token(EMAIL_ANA, SENHA_ATENDENTE), leadDaAna)).isEqualTo(HttpStatus.FORBIDDEN);
+        // nivel e delegavel pelo efeito: Tags em Ver so mantem desligado o que ele pode desligar
+        assertThat(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisaoPerfil("ATENDENTE"),
+                mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false))).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
 
         // o que ele nao alcanca, sem gravar nada
         long revisao = revisaoPerfil("ATENDENTE");
@@ -419,9 +463,10 @@ class GestaoPermissoesIT extends PostgresIT {
                 .isEqualTo("ALVO_FORA_DA_ALCADA");
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/GESTOR", corpoPerfil(0, Map.of(), Map.of()))))
                 .isEqualTo("ALVO_FORA_DA_ALCADA");
+        // baixar Atendimentos para Editar desligaria o lote, que nao e delegavel
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisao,
-                mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)))))
-                .isEqualTo("NIVEL_NAO_DELEGAVEL");
+                mapa("tags", "VER", "atendimentos", "EDITAR"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)))))
+                .isEqualTo("FORA_DO_CONJUNTO_DELEGAVEL");
         assertThat(codigo(chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE", corpoPerfil(revisao,
                 Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false, "atendimentos.finalizar_lote", false)))))
                 .isEqualTo("FORA_DO_CONJUNTO_DELEGAVEL");
@@ -435,11 +480,12 @@ class GestaoPermissoesIT extends PostgresIT {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM permissao_perfil_item WHERE papel = 'SUBGESTOR'", Integer.class))
                 .isZero();
 
-        // tela desatualizada: o gestor baixou o nivel de Tags depois da leitura. Comparado ao salvo, o
-        // rascunho antigo "subiria" o nivel (403); o que o subgestor precisa ver e o conflito (409).
-        salvarPerfil(tokenGestor, "ATENDENTE", mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false));
+        // tela desatualizada: o gestor desligou o lote depois da leitura. Comparado ao salvo, o rascunho
+        // antigo o religaria (403); o que o subgestor precisa ver e o conflito (409).
+        salvarPerfil(tokenGestor, "ATENDENTE", mapa("tags", "VER"),
+                mapa("resumo_ia.solicitar", false, "tags.aplicar", false, "atendimentos.finalizar_lote", false));
         ResponseEntity<String> desatualizada = chamar(tokenSub, HttpMethod.PUT, BASE + "/perfis/ATENDENTE",
-                corpoPerfil(revisao, Map.of(), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)));
+                corpoPerfil(revisao, mapa("tags", "VER"), mapa("resumo_ia.solicitar", false, "tags.aplicar", false)));
         assertThat(desatualizada.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(ler(desatualizada).path("revisaoAtual").asLong()).isEqualTo(revisao + 1);
     }
@@ -655,6 +701,17 @@ class GestaoPermissoesIT extends PostgresIT {
     }
 
     // --- apoio -------------------------------------------------------------------------------------
+
+    /**
+     * Liga ou desliga Excecoes por usuario e espera o cache de permissoes enxergar: as flags sao
+     * relidas a cada intervalo de revalidacao, nao a cada chamada.
+     */
+    private void ligarExcecoes(boolean ligada) {
+        jdbc.update("INSERT INTO feature_flag (chave, habilitado) VALUES (?, ?)"
+                + " ON CONFLICT (chave) DO UPDATE SET habilitado = EXCLUDED.habilitado", FLAG_EXCECOES, ligada);
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .until(() -> resolvedor.flagsHabilitadas().contains(FLAG_EXCECOES) == ligada);
+    }
 
     private void limparPermissoes() {
         jdbc.update("DELETE FROM permissao_perfil_item");

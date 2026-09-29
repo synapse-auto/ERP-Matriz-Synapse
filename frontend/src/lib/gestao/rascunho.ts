@@ -174,6 +174,45 @@ export function simular(catalogo: Catalogo, papel: Papel, perfil: Rascunho, exce
   return { niveis, estados };
 }
 
+/** Um lado da comparação de alçada: o que vai gravado e o efetivo que isso produz. */
+export interface EstadoDaEdicao {
+  acoes: Record<string, boolean>;
+  simulacao: Simulacao;
+}
+
+export interface ViolacaoDaDelegacao {
+  capacidade: string;
+  motivo: "FORA_DO_CONJUNTO_DELEGAVEL" | "ACIMA_DA_PROPRIA_PERMISSAO";
+}
+
+/**
+ * Espelho de PoliticaDeConcessao.exigirDentroDaDelegacao para o SUBGESTOR delegado — o backend
+ * revalida ao salvar. Toda ação cujo interruptor gravado OU efetivo muda precisa ser delegável e não
+ * pode ir para ligado se o ator não a tem. Nível de módulo e dependência entram pelo efetivo: é isso
+ * que deixa o nível editável sem virar atalho para liberar o que o interruptor não liberaria.
+ */
+export function violacaoDaDelegacao(
+  catalogo: Catalogo,
+  atorTem: (capacidade: string) => boolean,
+  antes: EstadoDaEdicao,
+  depois: EstadoDaEdicao,
+): ViolacaoDaDelegacao | null {
+  for (const c of catalogo.capacidades) {
+    if (c.tipo !== "ACAO") continue;
+    const exigir = (paraLigado: boolean): ViolacaoDaDelegacao | null => {
+      if (!c.delegavel) return { capacidade: c.id, motivo: "FORA_DO_CONJUNTO_DELEGAVEL" };
+      if (paraLigado && !atorTem(c.id)) return { capacidade: c.id, motivo: "ACIMA_DA_PROPRIA_PERMISSAO" };
+      return null;
+    };
+    const gravado = antes.acoes[c.id] !== depois.acoes[c.id] ? exigir(depois.acoes[c.id] === true) : null;
+    if (gravado) return gravado;
+    const efetivoDepois = depois.simulacao.estados[c.id]?.permitido ?? false;
+    const efetivo = (antes.simulacao.estados[c.id]?.permitido ?? false) !== efetivoDepois ? exigir(efetivoDepois) : null;
+    if (efetivo) return efetivo;
+  }
+  return null;
+}
+
 /** "N de M": só ações configuráveis no teto do papel. */
 export function contagem(catalogo: Catalogo, papel: Papel, simulacao: Simulacao): { permitidas: number; total: number } {
   const configuraveis = catalogo.capacidades.filter((c) => configuravel(c, papel));

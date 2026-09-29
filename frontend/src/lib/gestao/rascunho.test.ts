@@ -8,6 +8,8 @@ import {
   restaurarAcao,
   simular,
   tocaSensivel,
+  violacaoDaDelegacao,
+  type EstadoDaEdicao,
 } from "./rascunho";
 import type { Catalogo, Rascunho } from "./types";
 
@@ -71,6 +73,54 @@ describe("rascunho de permissões", () => {
   it("GESTOR é fixo: tudo do teto permitido", () => {
     const sim = simular(catalogo, "GESTOR", { niveis: {}, acoes: {} });
     expect(Object.values(sim.estados).every((e) => e.permitido && e.origem === "FIXO")).toBe(true);
+  });
+
+  describe("alçada do SUBGESTOR delegado (espelho de PoliticaDeConcessao)", () => {
+    // Ação não delegável que depende de criar: o nível e a dependência também a desligam.
+    const comLote: Catalogo = {
+      ...catalogo,
+      capacidades: [
+        ...catalogo.capacidades,
+        { id: "mensagens_rapidas.lote", modulo: "mensagens_rapidas", nivelMinimo: "EDITAR", tipo: "ACAO", sensivel: true, teto: ["ATENDENTE", "SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: ["mensagens_rapidas.criar"], alcancePorPapel: {} },
+      ],
+    };
+    const perfil: Rascunho = { ...perfilAtendente, acoes: { ...perfilAtendente.acoes, "mensagens_rapidas.lote": true } };
+    const edicao = (r: Rascunho): EstadoDaEdicao => ({ acoes: r.acoes, simulacao: simular(comLote, "ATENDENTE", r) });
+    const julgar = (antes: Rascunho, depois: Rascunho, tem: string[]) =>
+      violacaoDaDelegacao(comLote, (id) => tem.includes(id), edicao(antes), edicao(depois));
+
+    it("nível que só desliga o delegável passa; que desliga o não delegável, não", () => {
+      const tagsEmVer = aplicarNivel(perfil, comLote, "ATENDENTE", "tags", "VER");
+      expect(julgar(perfil, tagsEmVer, [])).toBeNull();
+      const mensagensEmVer = aplicarNivel(perfil, comLote, "ATENDENTE", "mensagens_rapidas", "VER");
+      expect(julgar(perfil, mensagensEmVer, [])).toEqual({ capacidade: "mensagens_rapidas.lote", motivo: "FORA_DO_CONJUNTO_DELEGAVEL" });
+    });
+
+    it("subir o nível com o preset liga ações: só passa se o ator as tem", () => {
+      const soVer: Rascunho = { niveis: { ...perfilAtendente.niveis, mensagens_rapidas: "VER" }, acoes: { ...perfilAtendente.acoes, "mensagens_rapidas.criar": false } };
+      const editar = aplicarNivel(soVer, catalogo, "ATENDENTE", "mensagens_rapidas", "EDITAR");
+      const julgarSemLote = (tem: string[]) => violacaoDaDelegacao(catalogo, (id) => tem.includes(id),
+        { acoes: soVer.acoes, simulacao: simular(catalogo, "ATENDENTE", soVer) },
+        { acoes: editar.acoes, simulacao: simular(catalogo, "ATENDENTE", editar) });
+      expect(julgarSemLote([])).toEqual({ capacidade: "mensagens_rapidas.criar", motivo: "ACIMA_DA_PROPRIA_PERMISSAO" });
+      expect(julgarSemLote(["mensagens_rapidas.criar"])).toBeNull();
+    });
+
+    it("dependência também liga e desliga: a ação afetada é a que responde", () => {
+      // desligar criar derruba o lote (não delegável) pela dependência
+      expect(julgar(perfil, alternarAcao(perfil, "mensagens_rapidas.criar", false), [])).toEqual({
+        capacidade: "mensagens_rapidas.lote",
+        motivo: "FORA_DO_CONJUNTO_DELEGAVEL",
+      });
+      // religar "usar" reativa criar, que estava ligado mas bloqueado — e o ator não tem criar
+      const semUsar = { niveis: perfilAtendente.niveis, acoes: { ...perfilAtendente.acoes, "mensagens_rapidas.usar": false } };
+      const deVolta = alternarAcao(semUsar, "mensagens_rapidas.usar", true);
+      const julgarSemLote = (tem: string[]) => violacaoDaDelegacao(catalogo, (id) => tem.includes(id),
+        { acoes: semUsar.acoes, simulacao: simular(catalogo, "ATENDENTE", semUsar) },
+        { acoes: deVolta.acoes, simulacao: simular(catalogo, "ATENDENTE", deVolta) });
+      expect(julgarSemLote(["mensagens_rapidas.usar"])).toEqual({ capacidade: "mensagens_rapidas.criar", motivo: "ACIMA_DA_PROPRIA_PERMISSAO" });
+      expect(julgarSemLote(["mensagens_rapidas.usar", "mensagens_rapidas.criar"])).toBeNull();
+    });
   });
 
   it("diff e sensibilidade das alterações pendentes", () => {

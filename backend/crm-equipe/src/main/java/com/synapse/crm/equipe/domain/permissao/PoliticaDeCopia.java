@@ -59,7 +59,9 @@ public final class PoliticaDeCopia {
 
     /**
      * Copia para um usuario: devolve so as excecoes necessarias sobre o perfil do destino. Com
-     * {@code ator} SUBGESTOR, o que ele nao pode conceder fica como estava e vira impedimento.
+     * {@code ator} SUBGESTOR, o que ele nao pode conceder fica como estava e vira impedimento — e a
+     * previa nao transfere nivel de modulo: e mais restritiva que o salvamento (que aceita nivel pela
+     * regra de efeito de {@link PoliticaDeConcessao}), nunca menos.
      */
     public static Resultado paraUsuario(
             PermissoesEfetivas origem,
@@ -103,7 +105,7 @@ public final class PoliticaDeCopia {
             }
             NivelDeAcesso nivelResultante = niveis.getOrDefault(c.modulo(), perfil.niveis().get(c.modulo()));
             if (Boolean.TRUE.equals(novo) && !nivelResultante.alcanca(c.nivelMinimo())) {
-                // So acontece quando o nivel ficou onde estava (SUBGESTOR nao mexe em nivel):
+                // So acontece quando o nivel ficou onde estava (a previa do SUBGESTOR nao copia nivel):
                 // ligar a acao deixaria um interruptor "ligado" e bloqueado.
                 impedidos.add(new Impedimento(c.id(), Motivo.FORA_DA_ALCADA));
                 novo = Boolean.TRUE.equals(atual) ? null : atual;

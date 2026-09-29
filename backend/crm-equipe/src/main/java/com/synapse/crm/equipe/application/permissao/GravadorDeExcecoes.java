@@ -47,12 +47,13 @@ class GravadorDeExcecoes {
         PoliticaDeConcessao.exigirAlcadaSobre(ator, alvo.id(), alvo.papel());
 
         Set<String> flags = resolvedor.flagsHabilitadas();
+        FuncionalidadeDeExcecoes.exigirHabilitada(flags);
         PermissaoRepositorio.Armazenado perfil = repositorio.perfil(alvo.papel());
         PoliticaDePermissoes.validarExcecoes(alvo.papel(), perfil.configuracao(), novas, flags);
 
         PermissaoRepositorio.Armazenado atuais = repositorio.excecoesDe(usuarioId);
-        PoliticaDeConcessao.exigirConcessao(ator, alvo.id(), alvo.papel(),
-                atuais.configuracao().somente(m -> PoliticaDePermissoes.disponivel(m, flags)), novas);
+        PoliticaDeConcessao.exigirConcessao(ator, alvo.id(), alvo.papel(), perfil.configuracao(),
+                atuais.configuracao().somente(m -> PoliticaDePermissoes.disponivel(m, flags)), novas, flags);
         if (copiadoDe != null) {
             exigirOrigemDeCopia(ator, alvo, copiadoDe);
         }

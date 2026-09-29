@@ -109,7 +109,8 @@ class SeedDesenvolvimentoIT extends PostgresIT {
                         "relatorios",
                         "dashboard",
                         "automacao_regras",
-                        "horarios");
+                        "horarios",
+                        "gestao_excecoes");
     }
 
     @Test

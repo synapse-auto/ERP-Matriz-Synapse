@@ -6,6 +6,12 @@ export type Origem = "FIXO" | "ESTRUTURAL" | "PERFIL" | "EXCECAO";
 
 export const NIVEIS: readonly Nivel[] = ["SEM_ACESSO", "VER", "EDITAR", "GERENCIAR"];
 
+/**
+ * Feature flag de Exceções por usuário (FuncionalidadeDeExcecoes.java). Desligada ou ausente, a aba
+ * aparece como "Em breve" e o backend recusa toda gravação de exceção.
+ */
+export const FLAG_EXCECOES = "gestao_excecoes";
+
 export interface ModuloDoCatalogo {
   id: string;
   nivelMinimoPermitido: Nivel;

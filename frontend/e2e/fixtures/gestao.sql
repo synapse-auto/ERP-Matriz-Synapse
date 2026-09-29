@@ -27,3 +27,9 @@ DELETE FROM usuario WHERE email LIKE 'nova-%@dev.local';
 
 DELETE FROM permissao_perfil_item;
 DELETE FROM permissao_usuario_excecao;
+
+-- Exceções por usuário nasce "Em breve" (flag gestao_excecoes desligada no seed); os fluxos de
+-- exceção deste spec exercitam a funcionalidade ligada. O estado "Em breve" tem teste próprio.
+INSERT INTO feature_flag (chave, habilitado, descricao)
+VALUES ('gestao_excecoes', TRUE, 'Aba Excecoes por usuario em Gestao e gravacao de excecoes.')
+ON CONFLICT (chave) DO UPDATE SET habilitado = TRUE;

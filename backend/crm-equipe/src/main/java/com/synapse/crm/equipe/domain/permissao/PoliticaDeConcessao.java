@@ -18,8 +18,8 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  *   <li>SUBGESTOR so alcanca ATENDENTE, e so com a delegacao concedida por um superior:
  *       {@link Capacidade#EQUIPE_EXCECOES_ATENDENTES} para as excecoes de cada atendente e
  *       {@link Capacidade#EQUIPE_PERFIS} para o perfil ATENDENTE. Nunca a si mesmo, ao proprio perfil,
- *       a outro subgestor ou a superior; nunca nivel de modulo; nunca acao fora do conjunto delegavel;
- *       e nunca liga o que ele mesmo nao tem.
+ *       a outro subgestor ou a superior; nunca mexe em acao fora do conjunto delegavel; e nunca liga o
+ *       que ele mesmo nao tem. Nivel de modulo e livre desde que o efeito dele respeite essas regras.
  *   <li>ATENDENTE nao concede nada.
  * </ul>
  */
@@ -69,13 +69,16 @@ public final class PoliticaDeConcessao {
      * padrao). Superiores so passam pela alcada; o SUBGESTOR passa pelas mesmas regras das excecoes
      * que ele concede — o perfil e um alvo maior, nao uma alcada maior.
      */
-    public static void exigirConcessaoNoPerfil(
-            Ator ator, PapelUsuario perfil, ConfiguracaoDePermissoes atual, ConfiguracaoDePermissoes novo) {
+    public static void exigirConcessaoNoPerfil(Ator ator, PapelUsuario perfil, ConfiguracaoDePermissoes atual,
+            ConfiguracaoDePermissoes novo, Set<String> flags) {
         exigirAlcadaSobrePerfil(ator, perfil);
         if (PoliticaDePermissoes.perfilFixo(ator.papel())) {
             return;
         }
-        exigirDentroDaDelegacao(ator, atual, novo);
+        ConfiguracaoDePermissoes semExcecoes = ConfiguracaoDePermissoes.vazia();
+        exigirDentroDaDelegacao(ator, atual, novo,
+                PoliticaDePermissoes.calcular(perfil, atual, semExcecoes, flags),
+                PoliticaDePermissoes.calcular(perfil, novo, semExcecoes, flags));
     }
 
     /** Pode ao menos abrir as excecoes deste alvo para editar? */
@@ -110,39 +113,51 @@ public final class PoliticaDeConcessao {
     }
 
     /**
-     * Confere a diferenca entre as excecoes atuais e as novas. Superiores so passam pela alcada; o
-     * SUBGESTOR passa tambem pelo conjunto delegavel e pelo proprio efetivo.
+     * Confere a diferenca entre as excecoes atuais e as novas, sobre o perfil armazenado do alvo.
+     * Superiores so passam pela alcada; o SUBGESTOR passa tambem pelo conjunto delegavel e pelo
+     * proprio efetivo.
      */
-    public static void exigirConcessao(
-            Ator ator, UUID alvoId, PapelUsuario papelDoAlvo,
-            ConfiguracaoDePermissoes atuais, ConfiguracaoDePermissoes novas) {
+    public static void exigirConcessao(Ator ator, UUID alvoId, PapelUsuario papelDoAlvo,
+            ConfiguracaoDePermissoes perfilDoAlvo, ConfiguracaoDePermissoes atuais, ConfiguracaoDePermissoes novas,
+            Set<String> flags) {
         exigirAlcadaSobre(ator, alvoId, papelDoAlvo);
         if (PoliticaDePermissoes.perfilFixo(ator.papel())) {
             return;
         }
-        exigirDentroDaDelegacao(ator, atuais, novas);
+        exigirDentroDaDelegacao(ator, atuais, novas,
+                PoliticaDePermissoes.calcular(papelDoAlvo, perfilDoAlvo, atuais, flags),
+                PoliticaDePermissoes.calcular(papelDoAlvo, perfilDoAlvo, novas, flags));
     }
 
-    /** Nunca nivel de modulo; so o conjunto delegavel; e nunca liga o que o proprio ator nao tem. */
-    private static void exigirDentroDaDelegacao(
-            Ator ator, ConfiguracaoDePermissoes atuais, ConfiguracaoDePermissoes novas) {
-        for (Modulo m : Modulo.values()) {
-            if (!Objects.equals(atuais.nivel(m).orElse(null), novas.nivel(m).orElse(null))) {
-                throw new ConcessaoNegadaException(Codigo.NIVEL_NAO_DELEGAVEL, ConfiguracaoDePermissoes.chaveDeNivel(m));
-            }
-        }
+    /**
+     * So o conjunto delegavel muda, e nunca para ligado o que o proprio ator nao tem. Vale para o
+     * interruptor gravado e para o efeito: nivel de modulo e dependencia tambem ligam e desligam
+     * acoes, entao toda acao cujo efetivo muda passa pela mesma regra — e e isso que deixa o nivel
+     * delegavel sem virar atalho para conceder o que o interruptor nao concederia.
+     */
+    private static void exigirDentroDaDelegacao(Ator ator, ConfiguracaoDePermissoes atuais,
+            ConfiguracaoDePermissoes novas, PermissoesEfetivas antes, PermissoesEfetivas depois) {
         for (Capacidade c : Capacidade.values()) {
-            Boolean antes = atuais.acao(c).orElse(null);
-            Boolean depois = novas.acao(c).orElse(null);
-            if (Objects.equals(antes, depois)) {
+            if (c.estrutural()) {
                 continue;
             }
-            if (!c.delegavel()) {
-                throw new ConcessaoNegadaException(Codigo.FORA_DO_CONJUNTO_DELEGAVEL, c.id());
+            Boolean gravadoAntes = atuais.acao(c).orElse(null);
+            Boolean gravadoDepois = novas.acao(c).orElse(null);
+            if (!Objects.equals(gravadoAntes, gravadoDepois)) {
+                exigirAlteravel(ator, c, Boolean.TRUE.equals(gravadoDepois));
             }
-            if (Boolean.TRUE.equals(depois) && !ator.efetivas().permite(c)) {
-                throw new ConcessaoNegadaException(Codigo.ACIMA_DA_PROPRIA_PERMISSAO, c.id());
+            if (antes.permite(c) != depois.permite(c)) {
+                exigirAlteravel(ator, c, depois.permite(c));
             }
+        }
+    }
+
+    private static void exigirAlteravel(Ator ator, Capacidade c, boolean paraLigado) {
+        if (!c.delegavel()) {
+            throw new ConcessaoNegadaException(Codigo.FORA_DO_CONJUNTO_DELEGAVEL, c.id());
+        }
+        if (paraLigado && !ator.efetivas().permite(c)) {
+            throw new ConcessaoNegadaException(Codigo.ACIMA_DA_PROPRIA_PERMISSAO, c.id());
         }
     }
 

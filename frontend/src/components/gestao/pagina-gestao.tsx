@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTextos } from "@/lib/config/textos-provider";
+import { useFuncionalidadesHabilitadas } from "@/lib/config/use-funcionalidades";
 import { visivelNaEquipe } from "@/lib/equipe/papel";
 import { useEquipe } from "@/lib/equipe/use-equipe";
-import type { MinhasPermissoes, Papel } from "@/lib/gestao/types";
+import { FLAG_EXCECOES, type MinhasPermissoes, type Papel } from "@/lib/gestao/types";
 import { useMinhasPermissoes, usePerfis, usePermissoesDaEquipe } from "@/lib/gestao/use-gestao";
 
 import { AbaEquipe } from "./aba-equipe";
@@ -21,7 +22,9 @@ import { pode, useConfirmacaoDeDescarte, type TextosGestao } from "./apoio";
 type Aba = "equipe" | "permissoes" | "excecoes";
 const ABAS: readonly Aba[] = ["equipe", "permissoes", "excecoes"];
 
-function normalizarAba(valor: string | null): Aba {
+/** Aba pedida na URL; Exceções desligada ("Em breve") não abre nem por link direto. */
+function normalizarAba(valor: string | null, excecoesHabilitadas: boolean): Aba {
+  if (valor === "excecoes" && !excecoesHabilitadas) return "equipe";
   return ABAS.includes(valor as Aba) ? (valor as Aba) : "equipe";
 }
 
@@ -63,7 +66,9 @@ export function PaginaGestao() {
 function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPermissoes }) {
   const router = useRouter();
   const parametros = useSearchParams();
-  const aba = normalizarAba(parametros.get("aba"));
+  const funcionalidades = useFuncionalidadesHabilitadas();
+  const excecoesHabilitadas = funcionalidades.data?.includes(FLAG_EXCECOES) === true;
+  const aba = normalizarAba(parametros.get("aba"), excecoesHabilitadas);
   const perfilDaUrl = parametros.get("perfil") as Papel | null;
   const usuarioDaUrl = parametros.get("usuario");
   const [sujo, setSujo] = useState(false);
@@ -111,15 +116,20 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
             </Button>
           )}
         </div>
-        <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor)))} className="mt-4">
+        <Tabs value={aba} onValueChange={(valor) => navegar(normalizarAba(String(valor), excecoesHabilitadas))} className="mt-4">
           <TabsList variant="line" aria-label={textos.abas.rotulo} className="h-auto max-w-full justify-start gap-4 overflow-x-auto p-0">
             {ABAS.map((a) => {
               const Icone = icones[a];
+              const emBreve = a === "excecoes" && !excecoesHabilitadas;
               return (
-                <TabsTrigger key={a} value={a} className="h-11 flex-none px-3 data-active:text-primary after:bg-primary">
+                <TabsTrigger key={a} value={a} disabled={emBreve} className="h-11 flex-none px-3 data-active:text-primary after:bg-primary">
                   <Icone className="size-4" aria-hidden />
                   {textos.abas[a]}
-                  {contadores[a] != null && (
+                  {emBreve ? (
+                    <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground">
+                      {textos.abas.emBreve}
+                    </span>
+                  ) : contadores[a] != null && (
                     <span className="rounded-md bg-muted px-1.5 py-px text-[10px] font-bold text-muted-foreground tabular-nums">
                       {contadores[a]}
                     </span>
@@ -138,7 +148,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
             novoAberto={novoAberto}
             onFecharNovo={() => setNovoAberto(false)}
             onAbrirPerfil={(papel) => navegar("permissoes", { perfil: papel })}
-            onAbrirExcecoes={(id) => navegar("excecoes", { usuario: id })}
+            onAbrirExcecoes={excecoesHabilitadas ? (id) => navegar("excecoes", { usuario: id }) : undefined}
           />
         )}
         {aba === "permissoes" && (

@@ -1598,7 +1598,8 @@
       "equipe": "Equipe",
       "permissoes": "Permissões",
       "excecoes": "Exceções por usuário",
-      "rotulo": "Áreas da Gestão"
+      "rotulo": "Áreas da Gestão",
+      "emBreve": "Em breve"
     },
     "carregando": "Carregando…",
     "erro": "Não foi possível carregar a Gestão.",
@@ -1723,7 +1724,9 @@
       "copiar": "Copiar permissões",
       "copiarDe": "Copiar de {perfil}",
       "copiarIndisponivel": "{perfil} tem acesso fixo e não pode ser copiado",
-      "vazio": "Nenhum módulo corresponde à busca."
+      "vazio": "Nenhum módulo corresponde à busca.",
+      "alcadaDelegada": "Você ajusta níveis e ações dentro do que foi delegado a você. O que liberaria algo que você não tem, ou sairia da delegação, fica travado.",
+      "cascata": "Mudaria também {acao}, que está fora da sua alçada."
     },
     "excecoes": {
       "grupoFixo": "{papel} · fixo",
@@ -1751,7 +1754,6 @@
       "fixoAviso": "{papel} tem acesso fixo; exceções individuais não se aplicam.",
       "somenteLeitura": "Você pode ver, mas não alterar as permissões desta pessoa.",
       "proprio": "Suas permissões são definidas por Gestor ou Administrador.",
-      "nivelNaoDelegavel": "Nível de módulo só é alterado por Gestor ou Administrador.",
       "semPermissaoPropria": "Você não pode conceder algo que você mesmo não tem.",
       "naoDelegavel": "Fora do que foi delegado a você.",
       "vazio": "Nenhum integrante visível."

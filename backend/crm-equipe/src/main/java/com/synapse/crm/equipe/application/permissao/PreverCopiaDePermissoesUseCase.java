@@ -65,9 +65,10 @@ public class PreverCopiaDePermissoesUseCase {
         PermissaoRepositorio.AlvoTravado destino = repositorio.alvo(destinoId)
                 .orElseThrow(AlvoDePermissaoNaoEncontradoException::new);
         PoliticaDeConcessao.exigirAlcadaSobre(ator, destino.id(), destino.papel());
+        Set<String> flags = resolvedor.flagsHabilitadas();
+        FuncionalidadeDeExcecoes.exigirHabilitada(flags);
         gravador.exigirOrigemDeCopia(ator, destino, origemId);
 
-        Set<String> flags = resolvedor.flagsHabilitadas();
         PermissoesEfetivas daOrigem = resolvedor.de(origemId).orElseThrow().efetivas();
         ConfiguracaoDePermissoes perfil = repositorio.perfil(destino.papel()).configuracao();
         ConfiguracaoDePermissoes atuais = repositorio.excecoesDe(destinoId).configuracao()

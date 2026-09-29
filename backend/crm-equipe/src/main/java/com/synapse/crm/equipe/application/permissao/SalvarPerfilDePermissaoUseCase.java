@@ -72,7 +72,7 @@ public class SalvarPerfilDePermissaoUseCase {
         }
         PoliticaDeConcessao.exigirConcessaoNoPerfil(ator, papel,
                 completoNosModulosDisponiveis(papel, antes.configuracao(), flags),
-                completoNosModulosDisponiveis(papel, novo, flags));
+                completoNosModulosDisponiveis(papel, novo, flags), flags);
         long revisao = repositorio.substituirPerfil(
                 papel, revisaoEsperada, novo, ModulosDisponiveis.com(flags), ator.id());
         long global = repositorio.incrementarRevisaoGlobal();

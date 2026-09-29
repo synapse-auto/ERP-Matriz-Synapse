@@ -12,7 +12,7 @@ public record Violacao(String chave, Codigo codigo) {
         ESTRUTURAL,
         /** O papel alvo nunca teve esta acao; conceder seria ampliar alem do teto. */
         FORA_DO_TETO,
-        /** O modulo esta desligado por feature flag. */
+        /** O modulo, ou a funcionalidade inteira (ex.: excecoes por usuario), esta desligado por feature flag. */
         FLAG_DESLIGADA,
         /** Nivel abaixo do minimo do modulo ou acima do maximo do papel. */
         NIVEL_FORA_DO_LIMITE,

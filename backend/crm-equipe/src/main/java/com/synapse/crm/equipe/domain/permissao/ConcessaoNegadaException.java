@@ -20,10 +20,8 @@ public class ConcessaoNegadaException extends RuntimeException {
         ALVO_FORA_DA_ALCADA,
         /** Acao fora do conjunto delegavel. */
         FORA_DO_CONJUNTO_DELEGAVEL,
-        /** Ninguem concede o que nao tem. */
-        ACIMA_DA_PROPRIA_PERMISSAO,
-        /** Nivel de modulo nao e delegavel; so interruptores. */
-        NIVEL_NAO_DELEGAVEL
+        /** Ninguem concede o que nao tem — nem pelo interruptor, nem pelo nivel ou pela dependencia. */
+        ACIMA_DA_PROPRIA_PERMISSAO
     }
 
     private final Codigo codigo;
