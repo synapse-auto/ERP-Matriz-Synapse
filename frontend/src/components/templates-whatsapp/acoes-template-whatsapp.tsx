@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,8 +41,10 @@ export function FormularioEdicaoTemplate({
   if (!template) return null;
 
   return (
-    <Dialog open={Boolean(template)} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
-      <DialogContent>
+    // Com o PUT em voo o diálogo não fecha: fechar e reabrir permitiria uma segunda edição
+    // concorrente e o erro da primeira sumiria junto com o diálogo.
+    <Dialog open={Boolean(template)} onOpenChange={(abertoAgora) => !abertoAgora && !salvando && onFechar()}>
+      <DialogContent showCloseButton={!salvando}>
         <DialogHeader>
           <DialogTitle>{textos.formulario.editarTitulo}</DialogTitle>
         </DialogHeader>
@@ -64,7 +66,7 @@ export function FormularioEdicaoTemplate({
             </p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onFechar}>
+            <Button type="button" variant="outline" disabled={salvando} onClick={onFechar}>
               {textos.formulario.cancelar}
             </Button>
             <Button
@@ -83,36 +85,60 @@ export function FormularioEdicaoTemplate({
 export function DialogoConfirmacaoExclusaoTemplate({
   template,
   excluindo,
+  erro,
   textos,
   onFechar,
   onConfirmar,
 }: {
   template: TemplateWhatsApp | null;
   excluindo: boolean;
+  /** Falha da última tentativa; o diálogo continua aberto para o usuário tentar de novo. */
+  erro: string | null;
   textos: TextosTemplatesWhatsApp;
   onFechar: () => void;
   onConfirmar: () => void;
 }) {
+  // `disabled={excluindo}` só vale depois do próximo render: cliques no mesmo intervalo chegavam
+  // a disparar dois ou três DELETE na conta compartilhada. A trava é síncrona e só se solta
+  // quando a tentativa termina, permitindo tentar de novo depois de um erro.
+  const confirmacaoEmCurso = useRef(false);
+  useEffect(() => {
+    if (!excluindo) confirmacaoEmCurso.current = false;
+  }, [excluindo]);
+
   if (!template) return null;
 
+  function confirmarUmaVez() {
+    if (confirmacaoEmCurso.current) return;
+    confirmacaoEmCurso.current = true;
+    onConfirmar();
+  }
+
   return (
-    <Dialog open={Boolean(template)} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
-      <DialogContent>
+    // Com o DELETE em voo a confirmação não fecha (Cancelar, X, Esc ou clique fora): reabrir para
+    // outro template permitiria um segundo DELETE concorrente e esconderia o erro do primeiro.
+    <Dialog open={Boolean(template)} onOpenChange={(abertoAgora) => !abertoAgora && !excluindo && onFechar()}>
+      <DialogContent showCloseButton={!excluindo}>
         <DialogHeader>
           <DialogTitle>{textos.confirmacaoExclusao.titulo}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           {interpolarCatalogo(textos.confirmacaoExclusao.descricao, { nome: template.nome })}
         </p>
+        {erro && (
+          <p role="alert" className="text-sm text-destructive">
+            {erro}
+          </p>
+        )}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onFechar}>
+          <Button type="button" variant="outline" disabled={excluindo} onClick={onFechar}>
             {textos.confirmacaoExclusao.cancelar}
           </Button>
           <Button
             type="button"
             variant="destructive"
             disabled={excluindo || !template}
-            onClick={onConfirmar}
+            onClick={confirmarUmaVez}
           >
             {textos.confirmacaoExclusao.confirmar}
           </Button>

@@ -22,8 +22,15 @@ export function obterLeadNaAgenda(id: string): Promise<LeadFicha> {
   return apiFetch<LeadFicha>(`/api/v1/leads/${id}/agenda`);
 }
 
-export function listarMidiasDoLead(id: string, pagina = 0, tamanho = 20): Promise<MidiaDoLead[]> {
-  return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?pagina=${pagina}&tamanho=${tamanho}`);
+export function listarMidiasDoLead(
+  id: string,
+  pagina = 0,
+  tamanho = 20,
+  tipos?: readonly MidiaDoLead["tipo"][],
+): Promise<MidiaDoLead[]> {
+  const parametros = new URLSearchParams({ pagina: String(pagina), tamanho: String(tamanho) });
+  if (tipos) parametros.set("tipos", tipos.join(","));
+  return apiFetch<MidiaDoLead[]>(`/api/v1/leads/${id}/midias?${parametros}`);
 }
 
 export function emitirUrlAssinadaDaMidia(leadId: string, mensagemId: string): Promise<UrlAssinadaDaMidia> {

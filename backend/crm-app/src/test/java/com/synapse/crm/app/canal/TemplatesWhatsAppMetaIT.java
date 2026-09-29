@@ -9,7 +9,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -47,7 +49,14 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                     + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
     /** Quando preenchido, responde o GET de /message_templates com este corpo e o resto com {@link #corpoGraph}. */
     private static final AtomicReference<String> corpoListagemGraph = new AtomicReference<>();
+    /** Listagem com a variante meta-1: nao administrador so edita/exclui o que a listagem mostra. */
+    private static final String LISTAGEM_COM_META_1 =
+            "{\"data\":[{\"id\":\"meta-1\",\"name\":\"boas_vindas\",\"language\":\"pt_BR\","
+                    + "\"status\":\"APPROVED\",\"category\":\"UTILITY\","
+                    + "\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}]}";
     private static final AtomicInteger consultasCampoInvalido = new AtomicInteger();
+    /** "METODO caminho?query" de cada chamada recebida — nunca o cabecalho de autorizacao. */
+    private static final List<String> requisicoes = new CopyOnWriteArrayList<>();
     private static final AtomicReference<String> contentTypeGraph = new AtomicReference<>("application/json");
     private static HttpServer provedor;
 
@@ -81,6 +90,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                         + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
         corpoListagemGraph.set(null);
         consultasCampoInvalido.set(0);
+        requisicoes.clear();
         contentTypeGraph.set("application/json");
     }
 
@@ -211,10 +221,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     void gestaoEditaEExcluiPeloContratoDaMeta() throws Exception {
         // Nao administrador so alcanca variante que a listagem autorizada mostraria: o ID precisa
         // estar na listagem da Meta (docs/47 secao 6.1).
-        corpoListagemGraph.set(
-                "{\"data\":[{\"id\":\"meta-1\",\"name\":\"boas_vindas\",\"language\":\"pt_BR\","
-                        + "\"status\":\"APPROVED\",\"category\":\"UTILITY\","
-                        + "\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}]}");
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
         corpoGraph.set(
                 "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}");
         ResponseEntity<String> editado = chamarComo(
@@ -233,6 +240,61 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
                 null);
         assertThat(excluido.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(excluido.getBody()).isNull();
+        assertThat(requisicoes).contains("POST /meta-1");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE ")))
+                .containsExactly("DELETE /waba-teste/message_templates?hsm_id=meta-1&name=boas_vindas");
+    }
+
+    @Test
+    @DisplayName("exclusao recusada pela Meta devolve 422 RFC 7807 com o motivo para o usuario")
+    void exclusaoRecusadaDevolve422() throws Exception {
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
+        statusGraph.set(400);
+        corpoGraph.set("{\"error\":{\"code\":100,\"error_user_msg\":\"Template em uso por outro sistema\"}}");
+
+        ResponseEntity<String> resposta = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        JsonNode problema = json.readTree(resposta.getBody());
+        assertThat(problema.path("status").asInt()).isEqualTo(422);
+        assertThat(problema.path("detail").asText()).isEqualTo("Template em uso por outro sistema");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("exclusao com a Meta fora do ar devolve 503 RFC 7807, nao 500")
+    void exclusaoComMetaForaDoArDevolve503() throws Exception {
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
+        statusGraph.set(500);
+        corpoGraph.set("{\"error\":{\"message\":\"upstream\"}}");
+
+        ResponseEntity<String> resposta = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(json.readTree(resposta.getBody()).path("status").asInt()).isEqualTo(503);
+    }
+
+    @Test
+    @DisplayName("atendente nao exclui: 403 e nenhuma chamada chega a Meta")
+    void atendenteNaoExcluiNemChegaNaMeta() {
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.DELETE, "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(requisicoes).noneMatch(r -> r.startsWith("DELETE "));
     }
 
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
@@ -256,15 +318,19 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
             provedor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             provedor.createContext("/", troca -> {
                 String caminho = troca.getRequestURI().getPath();
+                String query = troca.getRequestURI().getRawQuery();
+                requisicoes.add(troca.getRequestMethod() + " " + caminho + (query == null ? "" : "?" + query));
                 if (caminho.contains("whatsapp_business_account")) {
                     consultasCampoInvalido.incrementAndGet();
                 }
                 String listagem = corpoListagemGraph.get();
-                String resposta = listagem != null && "GET".equals(troca.getRequestMethod()) && caminho.endsWith("/message_templates")
-                        ? listagem
-                        : corpoGraph.get();
+                boolean ehListagem = listagem != null
+                        && "GET".equals(troca.getRequestMethod())
+                        && caminho.endsWith("/message_templates");
+                // A listagem sobrescrita responde sempre 200: a falha simulada vale so para a operacao.
+                String resposta = ehListagem ? listagem : corpoGraph.get();
                 byte[] corpo = resposta.getBytes(StandardCharsets.UTF_8);
-                int status = statusGraph.get();
+                int status = ehListagem ? 200 : statusGraph.get();
                 troca.getResponseHeaders().set("Content-Type", contentTypeGraph.get());
                 troca.sendResponseHeaders(status, corpo.length);
                 troca.getResponseBody().write(corpo);

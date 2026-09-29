@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ErroDeApi } from "@/lib/api/errors";
 import type { MinhasPermissoes } from "@/lib/gestao/types";
 import { usarCapacidadesReais } from "@/test/capacidades-de-teste";
 
@@ -95,6 +96,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
           "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
         confirmar: "Excluir na Meta",
         cancelar: "Cancelar",
+      },
+      erros: {
+        semPermissao: "Sem permissão para templates.",
+        naoEncontrado: "Template não existe mais.",
+        invalido: "Pedido inválido: {motivo}",
+        recusado: "A Meta recusou: {motivo}",
+        recusadoSemMotivo: "A Meta recusou.",
+        indisponivel: "Provedor indisponível.",
+        generico: "Não foi possível.",
       },
     },
   }),
@@ -355,5 +365,34 @@ describe("pagina de templates WhatsApp — resposta autorizada por sessão", () 
 
     await waitFor(() => expect(screen.queryByText("aviso_interno_cliente")).not.toBeInTheDocument());
     expect(await screen.findByText("aviso_cliente")).toBeInTheDocument();
+  });
+});
+
+describe("pagina de templates WhatsApp — falhas ao excluir e editar", () => {
+  it("403 na exclusão mostra falta de permissão e mantém o diálogo", async () => {
+    vi.mocked(excluirTemplateWhatsApp).mockRejectedValueOnce(
+      new ErroDeApi(403, { status: 403, detail: "Access Denied" }, "Erro 403"),
+    );
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir: retorno_orcamento" }));
+    const confirmacao = await screen.findByRole("dialog");
+    fireEvent.click(within(confirmacao).getByRole("button", { name: "Excluir na Meta" }));
+
+    expect(await within(confirmacao).findByRole("alert")).toHaveTextContent("Sem permissão para templates.");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("503 na edição não expõe o diagnóstico cru do provedor", async () => {
+    vi.mocked(editarTemplateWhatsApp).mockRejectedValueOnce(
+      new ErroDeApi(503, { status: 503, detail: "provedor recusou: HTTP 200 text/html <html>" }, "Erro 503"),
+    );
+    renderizar();
+    fireEvent.click(await screen.findByRole("button", { name: "Editar: retorno_orcamento" }));
+    const formulario = await screen.findByRole("dialog");
+    fireEvent.click(within(formulario).getByRole("button", { name: "Salvar alteração" }));
+
+    const alerta = await within(formulario).findByRole("alert");
+    expect(alerta).toHaveTextContent("Provedor indisponível.");
+    expect(alerta).not.toHaveTextContent("html");
   });
 });

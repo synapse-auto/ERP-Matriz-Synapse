@@ -98,7 +98,7 @@ export interface PaginaTimeline {
 export interface MidiaDoLead {
   mensagemId: string;
   atendimentoId: string;
-  tipo: "IMAGEM" | "AUDIO" | "DOCUMENTO";
+  tipo: "IMAGEM" | "AUDIO" | "DOCUMENTO" | "VIDEO";
   nome: string | null;
   mimetype: string | null;
   tamanho: number;
