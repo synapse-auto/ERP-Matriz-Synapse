@@ -74,6 +74,8 @@ class VerificadorBancoChat extends VerificadorBase {
 @Component
 class VerificadorFilaOutbox extends VerificadorBase {
 
+    static final String SQL_ACESSO_A_FILA = "SELECT 1 FROM outbox_evento LIMIT 0";
+
     private final SaudeDoConsumidorDaOutbox saude;
     private final JdbcTemplate chat;
     private final SaudeCriticaProperties propriedades;
@@ -103,7 +105,10 @@ class VerificadorFilaOutbox extends VerificadorBase {
     @Override
     public ComponenteDaSaude verificar() {
         try {
-            chat.queryForObject("SELECT count(*) FROM outbox_evento", Long.class);
+            // Prova acesso à fila pelo pool do chat (conexão, tabela, permissão e lock de leitura)
+            // sem ler páginas: o count(*) anterior tinha o resultado descartado e varria a tabela
+            // inteira, que cresce sem limpeza (docs/49). Tabela ausente ou inacessível continua DOWN.
+            chat.queryForList(SQL_ACESSO_A_FILA);
             Instant ultimo = saude.ultimoConsumoBemSucedido();
             Instant limite = Instant.now(relogio).minus(propriedades.filaSemConsumoMaximo());
             if (ultimo.isBefore(limite)) {

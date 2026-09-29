@@ -63,7 +63,8 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
-      atualizar();
+      // A lista e as mensagens já são invalidadas pelo ouvinte global (NotificacoesTempoReal, no
+      // layout). Invalidar de novo aqui dobrava a consulta cara da lista a cada mensagem (docs/49).
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" && evento.dados.conversaId === conversaId) {
         void marcarChatComoLido(conversaId);
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
@@ -53,12 +53,10 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
     mutationFn: ({ mensagemId, conteudo }: { mensagemId: string; conteudo: string }) => editarMensagemChat(conversaId, mensagemId, conteudo),
     onSuccess: () => { setEdicaoAlvo(null); void cache.invalidateQueries({ queryKey: ["chat-interno"] }); },
   });
-  const atualizar = useCallback(() => {
-    void cache.invalidateQueries({ queryKey: ["chat-interno"] });
-  }, [cache]);
   useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
-      atualizar();
+      // A lista e as mensagens já são invalidadas pelo ouvinte global (NotificacoesTempoReal, no
+      // layout). Invalidar de novo aqui dobrava a consulta cara da lista a cada mensagem (docs/49).
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarChatComoLido(conversaId);
     }
     if (evento.tipo === "CHAT_INTERNO_REACAO" && evento.dados.conversaId === conversaId) {
