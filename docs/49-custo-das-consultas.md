@@ -136,3 +136,20 @@ bem menor. Não alterado: é risco de crescimento, não causa comprovada do cust
 - Para medir o efeito em produção: repetir a coleta de deltas de `pg_stat_statements` (mesma duração)
   para os Query IDs `2248583991785613236` e `-7564574167221481291` depois do deploy. Não use
   `pg_stat_statements_reset()`.
+
+## 7. Como reproduzir
+
+Scripts em [`49-anexos/`](./49-anexos/). Banco **descartável** no Postgres do `docker-compose`
+(nunca em produção; `EXPLAIN ANALYZE` executa a consulta):
+
+1. Criar `synapse_crm_perf` e migrar até a V83 como em `48-templates-gestao-auditoria.md` §1
+   (boot sem perfil até a V72, `--synapse.migrations.run-once` para a V73, boot `dev` para o resto e
+   a seed).
+2. `01-dados-sinteticos.sql` — volumes da §1 (leva alguns minutos; ~1 GB).
+3. `02`…`05` — planos citados na §3. Rodar com
+   `MSYS_NO_PATHCONV=1 docker exec synapse-postgres psql -U synapse -d synapse_crm_perf -f /tmp/<script>`
+   depois de `docker cp`. Os scripts `05-*` recebem a SQL de `ChatInternoRepositorioJdbc` já
+   expandida com o usuário `ana@dev.local`.
+4. Frequência do chat: `frontend/e2e/chat-interno-refetch.spec.ts` com backend dev e
+   `NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws` (sem essa variável o navegador tenta o WebSocket no
+   host do Next e nenhum evento chega — a medição dá 0 e não significa nada).
