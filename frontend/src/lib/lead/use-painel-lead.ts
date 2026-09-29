@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
+import { INTERVALO_REVALIDACAO_CACHE_MS } from "@/lib/query/tempos";
 
 import {
   atualizarLead,
@@ -37,11 +39,30 @@ export function useEtapas() {
 }
 
 export function useEstadoResumoIa(atendimentoId: string | null) {
-  return useQuery({
+  const cache = useQueryClient();
+  const estado = useQuery({
     queryKey: ["resumo-ia", atendimentoId],
     queryFn: () => obterEstadoResumoIa(atendimentoId!),
     enabled: Boolean(atendimentoId),
+    // O WebSocket é o caminho principal. Se o evento se perder, consulte apenas o ciclo
+    // aberto enquanto esta ficha estiver montada; estado terminal interrompe o intervalo.
+    refetchInterval: (query) =>
+      query.state.data?.status === "PENDENTE" || query.state.data?.status === "PROCESSANDO"
+        ? INTERVALO_REVALIDACAO_CACHE_MS
+        : false,
+    refetchOnReconnect: "always",
   });
+  const solicitacaoId = estado.data?.solicitacaoId;
+  const leadId = estado.data?.leadId;
+  const status = estado.data?.status;
+
+  useEffect(() => {
+    if (solicitacaoId && leadId && (status === "CONCLUIDO" || status === "FALHOU")) {
+      void cache.invalidateQueries({ queryKey: ["lead", leadId] });
+    }
+  }, [cache, solicitacaoId, leadId, status]);
+
+  return estado;
 }
 
 export function useSolicitarResumoIa(atendimentoId: string) {

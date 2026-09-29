@@ -262,12 +262,19 @@ public class Ev05LeadUseCase {
             AtendimentosEmAndamentoRepositorio.Item atendimento,
             Instant contextoGeradoEm) {
         UUID atendimentoId = atendimento.atendimentoId();
-        UUID solicitacaoId;
+        UUID solicitacaoId = null;
         try {
             solicitacaoId = UUID.fromString(chave);
         } catch (IllegalArgumentException erro) {
-            return null;
+            // Chaves legadas não são UUID; ainda são aceitas fora de um ciclo sob demanda.
         }
+        var cicloAtivo = solicitacoes.ultimaDoAtendimento(atendimentoId)
+                .filter(item -> item.status() == SolicitacaoResumoIaRepositorio.Status.PENDENTE
+                        || item.status() == SolicitacaoResumoIaRepositorio.Status.PROCESSANDO);
+        if (cicloAtivo.isPresent() && !cicloAtivo.get().solicitacaoId().equals(solicitacaoId)) {
+            throw new EscritaEv05ObsoletaException(leadId);
+        }
+        if (solicitacaoId == null) return null;
         var ciclo = solicitacoes.porId(solicitacaoId).orElse(null);
         if (ciclo == null) return null;
         if (!ciclo.leadId().equals(leadId)

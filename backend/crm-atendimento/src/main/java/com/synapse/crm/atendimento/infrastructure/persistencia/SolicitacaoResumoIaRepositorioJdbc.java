@@ -73,9 +73,16 @@ class SolicitacaoResumoIaRepositorioJdbc implements SolicitacaoResumoIaRepositor
             String erroMensagem,
             Instant atualizadoEm) {
         TransacaoObrigatoria.exigir("atualizar status de resumo por IA");
+        // A leitura anterior pelo caso de uso pode envelhecer entre callbacks concorrentes.
+        // O predicado no próprio UPDATE impede PROCESSANDO/FALHOU tardio de reabrir CONCLUIDO.
+        String estadoAnterior = switch (status) {
+            case PROCESSANDO -> " AND status = 'PENDENTE'";
+            case CONCLUIDO, FALHOU -> " AND status IN ('PENDENTE', 'PROCESSANDO')";
+            case PENDENTE -> " AND FALSE";
+        };
         return chat.update(
                         "UPDATE solicitacao_resumo_ia SET status = ?, atualizado_em = ?, erro_codigo = ?, erro_mensagem = ? "
-                                + "WHERE solicitacao_id = ? AND lead_id = ? AND atendimento_id = ?",
+                                + "WHERE solicitacao_id = ? AND lead_id = ? AND atendimento_id = ?" + estadoAnterior,
                         status.name(),
                         Timestamp.from(atualizadoEm),
                         erroCodigo,

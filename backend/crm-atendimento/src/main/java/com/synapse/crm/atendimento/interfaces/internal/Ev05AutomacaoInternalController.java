@@ -141,7 +141,8 @@ class Ev05AutomacaoInternalController {
 
     @Operation(
             summary = "Atualizar estado da solicitação de resumo",
-            description = "Recebe somente o estado do ciclo idempotente. O texto do resumo é gravado na rota /resumo.",
+            description = "Recebe PROCESSANDO ou FALHOU. A rota /resumo grava o texto e marca CONCLUIDO "
+                    + "na mesma transação; CONCLUIDO aqui é aceito somente como replay após a escrita confirmada.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Estado aplicado ou repetição idempotente."),
                 @ApiResponse(responseCode = "400", description = "Payload inválido."),

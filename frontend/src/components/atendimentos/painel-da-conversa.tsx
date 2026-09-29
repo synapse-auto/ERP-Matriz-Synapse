@@ -313,7 +313,8 @@ function ResumoPersistidoDoLead({
     || estado.data?.status === "PENDENTE"
     || estado.data?.status === "PROCESSANDO";
   const temResumo = Boolean(lead.resumoIa?.trim());
-  const erro = erroLocal || estado.data?.status === "FALHOU";
+  const erro = estado.data?.status === "FALHOU"
+    || (erroLocal && estado.data?.status !== "CONCLUIDO");
 
   function gerar() {
     if (processando) return;

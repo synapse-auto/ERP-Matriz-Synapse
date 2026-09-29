@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LeadFicha, MidiaDoLead, TagDoLead } from "./types";
+import type { LeadFicha, MidiaDoLead, SolicitacaoResumoIa, TagDoLead } from "./types";
 
 vi.mock("./api", () => ({
   atualizarLead: vi.fn(),
@@ -17,11 +17,14 @@ vi.mock("./api", () => ({
   listarTodasAsTags: vi.fn(),
   obterLead: vi.fn(),
   obterLeadNaAgenda: vi.fn(),
+  obterEstadoResumoIa: vi.fn(),
+  solicitarResumoIa: vi.fn(),
   vincularTagAoLead: vi.fn(),
 }));
+vi.mock("@/lib/query/tempos", () => ({ INTERVALO_REVALIDACAO_CACHE_MS: 25 }));
 
 import * as api from "./api";
-import { TIPOS_MIDIAS_DA_FICHA, useLead, useMidiasDoLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
+import { TIPOS_MIDIAS_DA_FICHA, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -178,5 +181,97 @@ describe("mídias da ficha", () => {
     expect(api.listarMidiasDoLead).toHaveBeenCalledWith("lead-1", 0, 20, TIPOS_MIDIAS_DA_FICHA);
     expect(cache.getQueryData(["lead", "lead-1", "midias", "IMAGEM,VIDEO,DOCUMENTO"])).toBeDefined();
     expect(cache.getQueryData(["lead", "lead-1", "midias", "todos"])).toBeDefined();
+  });
+});
+
+const solicitacao: SolicitacaoResumoIa = {
+  solicitacaoId: "solicitacao-1",
+  leadId: "lead-1",
+  atendimentoId: "atendimento-1",
+  status: "PENDENTE",
+  solicitadoEm: "2026-09-29T10:00:00Z",
+  atualizadoEm: "2026-09-29T10:00:00Z",
+  erroCodigo: null,
+  erroMensagem: null,
+};
+
+describe("convergência do resumo por IA", () => {
+  beforeEach(() => vi.mocked(api.obterEstadoResumoIa).mockReset());
+
+  it.each(["PENDENTE", "PROCESSANDO"] as const)(
+    "revalida %s enquanto a ficha está aberta e para em estado terminal",
+    async (status) => {
+      vi.mocked(api.obterEstadoResumoIa).mockResolvedValue({ ...solicitacao, status });
+      const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const painel = renderHook(() => useEstadoResumoIa("atendimento-1"), { wrapper: wrapper(cache) });
+      await waitFor(() => expect(painel.result.current.data?.status).toBe(status));
+      const query = cache.getQueryCache().find({ queryKey: ["resumo-ia", "atendimento-1"] });
+      const intervalo = (query?.options as { refetchInterval?: (query: unknown) => number | false }).refetchInterval;
+      expect(typeof intervalo).toBe("function");
+      if (!query || typeof intervalo !== "function") throw new Error("intervalo do resumo ausente");
+      expect(intervalo(query)).toBe(25);
+
+      act(() => cache.setQueryData(["resumo-ia", "atendimento-1"], { ...solicitacao, status: "CONCLUIDO" }));
+      expect(intervalo(query)).toBe(false);
+      painel.unmount();
+      cache.clear();
+    },
+  );
+
+  it.each(["CONCLUIDO", "FALHOU"] as const)(
+    "atualiza a ficha após %s persistido, mesmo sem evento WebSocket",
+    async (status) => {
+      vi.mocked(api.obterEstadoResumoIa).mockResolvedValue({ ...solicitacao, status });
+      const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      cache.setQueryData(["lead", "lead-1"], ficha);
+      const painel = renderHook(() => useEstadoResumoIa("atendimento-1"), { wrapper: wrapper(cache) });
+
+      await waitFor(() => expect(painel.result.current.data?.status).toBe(status));
+      await waitFor(() => expect(cache.getQueryState(["lead", "lead-1"])?.isInvalidated).toBe(true));
+      const query = cache.getQueryCache().find({ queryKey: ["resumo-ia", "atendimento-1"] });
+      const intervalo = (query?.options as { refetchInterval?: (query: unknown) => number | false }).refetchInterval;
+      if (!query || typeof intervalo !== "function") throw new Error("intervalo do resumo ausente");
+      expect(intervalo(query)).toBe(false);
+      painel.unmount();
+      cache.clear();
+    },
+  );
+
+  it("recupera o estado terminal sem WebSocket após perder o evento", async () => {
+    vi.mocked(api.obterEstadoResumoIa)
+      .mockResolvedValueOnce(solicitacao)
+      .mockResolvedValueOnce({ ...solicitacao, status: "CONCLUIDO" });
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    cache.setQueryData(["lead", "lead-1"], ficha);
+    const painel = renderHook(() => useEstadoResumoIa("atendimento-1"), { wrapper: wrapper(cache) });
+
+    await waitFor(() => expect(painel.result.current.data?.status).toBe("CONCLUIDO"));
+    expect(api.obterEstadoResumoIa).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(cache.getQueryState(["lead", "lead-1"])?.isInvalidated).toBe(true));
+    painel.unmount();
+    cache.clear();
+  });
+
+  it("não consulta nem mistura estados ao trocar para outro atendimento", async () => {
+    vi.mocked(api.obterEstadoResumoIa).mockImplementation(async (id) =>
+      id === "atendimento-1" ? solicitacao : { ...solicitacao, atendimentoId: id, status: "FALHOU" },
+    );
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const painel = renderHook(({ id }) => useEstadoResumoIa(id), {
+      initialProps: { id: "atendimento-1" as string | null },
+      wrapper: wrapper(cache),
+    });
+    await waitFor(() => expect(painel.result.current.data?.status).toBe("PENDENTE"));
+    painel.rerender({ id: "atendimento-2" });
+    await waitFor(() => expect(painel.result.current.data?.atendimentoId).toBe("atendimento-2"));
+    expect(painel.result.current.data?.status).toBe("FALHOU");
+    const consultasAntesDeDesmontar = vi.mocked(api.obterEstadoResumoIa).mock.calls.length;
+    painel.rerender({ id: null });
+    expect(painel.result.current.data).toBeUndefined();
+    expect(api.obterEstadoResumoIa).toHaveBeenCalledWith("atendimento-1");
+    expect(api.obterEstadoResumoIa).toHaveBeenCalledWith("atendimento-2");
+    expect(api.obterEstadoResumoIa).toHaveBeenCalledTimes(consultasAntesDeDesmontar);
+    painel.unmount();
+    cache.clear();
   });
 });
