@@ -451,7 +451,7 @@ export function CabecalhoConversa({
         />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="truncate font-bold text-foreground" title={nomeDoLead}>
+            <p className="truncate font-bold text-foreground" title={nomeDoLead} data-slot="nome-do-lead">
               {nomeDoLead}
             </p>
             {canal && (
@@ -461,7 +461,7 @@ export function CabecalhoConversa({
               </span>
             )}
           </div>
-          <p className="truncate text-xs text-muted-foreground">{subtitulo}</p>
+          <p className="truncate text-xs text-muted-foreground" title={subtitulo} data-slot="subtitulo-do-lead">{subtitulo}</p>
           {participantes.length > 0 && (
             <div className="mt-1 flex min-w-0 items-center gap-1 text-[0.65rem] text-muted-foreground" aria-label={textos.participantes}>
               <span className="shrink-0 font-medium">{textos.participantes}:</span>
