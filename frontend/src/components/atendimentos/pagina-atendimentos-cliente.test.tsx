@@ -475,6 +475,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
         erroConflito: "Atendimento mudou.",
         erroGenerico: "Falha ao abrir atendimento.",
       },
+      transferir: {
+        sucesso: "Atendimento transferido.",
+        sucessoPara: "Atendimento transferido para {nome}.",
+      },
       tempoReal: {
         transferenciaRecebida: "Transferência recebida",
         transferenciaRecebidaDescricao: "{nome}",
@@ -635,6 +639,40 @@ describe("PaginaAtendimentosCliente", () => {
     expect(await screen.findByText("Seu perfil não permite responder atendimentos.")).toBeInTheDocument();
     expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
     expect(screen.getByTestId("responsavel-cabecalho")).toBeInTheDocument();
+  });
+
+  it("perder o acesso pela transferência que eu mesma fiz confirma o destino, sem o aviso de revogação", async () => {
+    const pagina = renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await screen.findByTestId("responsavel-cabecalho");
+    pagina.queryClient.setQueryData(["transferencia-propria", "atendimento-1"], {
+      paraAtendenteId: "bruno-id",
+      destinoNome: "Bruno Atendente",
+    });
+
+    // Depois da transferência o evento canônico chega e a reconciliação já não alcança a conversa.
+    backendEstado.versao = 2;
+    obterCartao.mockRejectedValue(new ErroDeApi(404, null, "indisponivel"));
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
+
+    expect(await screen.findByText("Atendimento transferido para Bruno Atendente.")).toBeInTheDocument();
+    expect(screen.queryByText("Conversa encerrada")).not.toBeInTheDocument();
+  });
+
+  it("perda de acesso que não veio de uma transferência minha continua avisando que a conversa saiu", async () => {
+    renderPagina();
+    act(() => callbacks.atualizarLista?.([cartaoInicial]));
+    act(() => callbacks.abrir?.(cartaoInicial));
+    await screen.findByTestId("responsavel-cabecalho");
+
+    // Depois da transferência o evento canônico chega e a reconciliação já não alcança a conversa.
+    backendEstado.versao = 2;
+    obterCartao.mockRejectedValue(new ErroDeApi(404, null, "indisponivel"));
+    act(() => callbacks.eventoEstado?.(eventoCanonico("atendimento-1")));
+
+    expect(await screen.findByText("Conversa encerrada")).toBeInTheDocument();
+    expect(screen.queryByText(/Atendimento transferido/)).not.toBeInTheDocument();
   });
 
   it("enquanto as permissões carregam, o composer fica montado porém sem envio", async () => {

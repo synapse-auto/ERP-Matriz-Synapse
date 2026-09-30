@@ -1,30 +1,36 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ErroDeApi } from "@/lib/api/errors";
+import type { StatusAtendimento } from "@/lib/atendimento/types";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 type DestinoMock = { id: string; nome: string; papel?: "ATENDENTE" | "SUBGESTOR" };
 type AuthEstado = {
   papel: string;
   usuarioId: string;
-  destinos: DestinoMock[];
-  erro: Error | null;
-  transferir: ReturnType<typeof vi.fn>;
 };
 
 const estado = vi.hoisted(() => ({
   papel: "GESTOR",
   usuarioId: "gestor-1",
-  destinos: [
-    { id: "ana-1", nome: "Ana Atendente" },
-    { id: "bruno-1", nome: "Bruno Atendente" },
-  ] as DestinoMock[],
+  destinos: {
+    data: undefined as DestinoMock[] | undefined,
+    isPending: false,
+    isError: false,
+    isSuccess: true,
+    refetch: vi.fn(),
+  },
+  habilitada: undefined as boolean | undefined,
   erro: null as Error | null,
   transferir: vi.fn(),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({ data: estado.destinos, isLoading: false, isError: false }),
+  useQuery: (opcoes: { enabled?: boolean }) => {
+    estado.habilitada = opcoes.enabled;
+    return estado.destinos;
+  },
 }));
 
 vi.mock("@/lib/atendimento/api", () => ({ listarDestinosDeTransferencia: vi.fn() }));
@@ -46,10 +52,19 @@ vi.mock("@/lib/config/textos-provider", () => ({
       transferir: {
         titulo: "Transferir atendimento",
         descricao: "Escolha o destino",
+        descricaoPotencial: "Potenciais são distribuídos pela IA ou pela gestão.",
         devolverParaIa: "Devolver para IA",
         assumirParaMim: "Assumir para mim",
         cancelar: "Cancelar",
         erro: "Não foi possível transferir",
+        carregandoDestinos: "Carregando atendentes...",
+        erroDestinos: "Não foi possível carregar os atendentes.",
+        tentarNovamente: "Tentar novamente",
+        semDestinos: "Nenhum atendente disponível.",
+        erroPermissao: "Seu perfil não permite esta transferência.",
+        erroDestino: "Este atendente não pode receber.",
+        erroFinalizado: "Este atendimento já foi finalizado.",
+        erroIndisponivel: "Esta conversa não está mais disponível.",
       },
     },
   }),
@@ -57,127 +72,175 @@ vi.mock("@/lib/config/textos-provider", () => ({
 
 import { DialogoTransferir } from "./dialogo-transferir";
 
+const COLEGAS: DestinoMock[] = [
+  { id: "ana-1", nome: "Ana Atendente" },
+  { id: "bruno-1", nome: "Bruno Atendente" },
+];
+
+function abrir({
+  status = "EM_ATENDIMENTO",
+  responsavelId = "ana-1",
+}: { status?: StatusAtendimento; responsavelId?: string | null } = {}) {
+  return render(
+    <DialogoTransferir
+      atendimentoId="atendimento-1"
+      status={status}
+      responsavelId={responsavelId}
+      aberto
+      onFechar={vi.fn()}
+    />,
+  );
+}
+
+function comoAtendente(usuarioId = "ana-1") {
+  estado.papel = "ATENDENTE";
+  estado.usuarioId = usuarioId;
+  definirCapacidadesDeTeste({ alcancaTodos: false });
+}
+
 describe("DialogoTransferir", () => {
   beforeEach(() => {
     estado.papel = "GESTOR";
     estado.usuarioId = "gestor-1";
-    estado.destinos = [
-      { id: "ana-1", nome: "Ana Atendente" },
-      { id: "bruno-1", nome: "Bruno Atendente" },
-    ];
+    estado.destinos = { data: COLEGAS, isPending: false, isError: false, isSuccess: true, refetch: vi.fn() };
+    estado.habilitada = undefined;
     estado.erro = null;
     estado.transferir.mockReset();
   });
 
-  it("nao oferece assumir para mim a gestor", () => {
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
-
-    expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ana Atendente" })).toBeInTheDocument();
-  });
-
-  it("oferece assumir para mim a subgestora autenticada", () => {
-    estado.papel = "SUBGESTOR";
-    estado.usuarioId = "michele-1";
-    estado.destinos = [{ id: "michele-1", nome: "Michele Subgestora" }];
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
-    expect(estado.transferir).toHaveBeenCalledWith(
-      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
-  });
-
-  it("oferece assumir para mim somente a atendente autenticada", () => {
-    estado.papel = "ATENDENTE";
-    estado.usuarioId = "ana-1";
-    estado.destinos = [];
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
-    expect(estado.transferir).toHaveBeenCalledWith(
-      { atendimentoId: "atendimento-1", paraAtendenteId: "ana-1" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
-  });
-
-  it("lista colegas para atendente e mantem devolver para a IA", () => {
-    estado.papel = "ATENDENTE";
-    estado.usuarioId = "ana-1";
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+  it("atendente transfere a própria conversa para um colega, sem se oferecer a si mesma", () => {
+    comoAtendente();
+    abrir();
 
     expect(screen.getByRole("button", { name: "Devolver para IA" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Assumir para mim" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ana Atendente" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Bruno Atendente" }));
     expect(estado.transferir).toHaveBeenCalledWith(
-      { atendimentoId: "atendimento-1", paraAtendenteId: "bruno-1" },
+      { atendimentoId: "atendimento-1", paraAtendenteId: "bruno-1", destinoNome: "Bruno Atendente" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("em um Potencial, atendente só assume para si: nenhum colega que o backend recusaria", () => {
+    comoAtendente();
+    abrir({ status: "EM_IA", responsavelId: null });
+
+    expect(screen.getByText("Potenciais são distribuídos pela IA ou pela gestão.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bruno Atendente" })).not.toBeInTheDocument();
+    // Já está com a IA: devolver não mudaria nada.
+    expect(screen.queryByRole("button", { name: "Devolver para IA" })).not.toBeInTheDocument();
+    expect(estado.habilitada).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "ana-1", destinoNome: null },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
+  it("gestão distribui um Potencial para qualquer colega", () => {
+    definirCapacidadesDeTeste({ alcancaTodos: true });
+    abrir({ status: "EM_IA", responsavelId: null });
+
+    expect(screen.getByRole("button", { name: "Ana Atendente" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
+  });
+
+  it("não oferece o responsável atual como destino", () => {
+    abrir({ responsavelId: "ana-1" });
+
+    expect(screen.queryByRole("button", { name: "Ana Atendente" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+  });
+
+  it("subgestora que não é a responsável pode assumir para si", () => {
+    estado.papel = "SUBGESTOR";
+    estado.usuarioId = "michele-1";
+    abrir({ responsavelId: "ana-1" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1", destinoNome: null },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
   it("agrupa subgestora em Outros e usa seu UUID ao selecionar", () => {
-    estado.destinos = [
-      { id: "ana-1", nome: "Ana Atendente", papel: "ATENDENTE" },
+    estado.destinos.data = [
+      { id: "bruno-1", nome: "Bruno Atendente", papel: "ATENDENTE" },
       { id: "michele-1", nome: "Michele Subgestora", papel: "SUBGESTOR" },
     ];
+    abrir();
 
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
-
-    expect(screen.getByRole("button", { name: "Outros" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Michele Subgestora" })).not.toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: "Outros" }));
-    expect(screen.getByRole("button", { name: "Michele Subgestora" })).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole("button", { name: "Michele Subgestora" }));
     expect(estado.transferir).toHaveBeenCalledWith(
-      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1" },
+      { atendimentoId: "atendimento-1", paraAtendenteId: "michele-1", destinoNome: "Michele Subgestora" },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });
 
   it("mantem destino sem papel na lista principal para clientes antigos", () => {
-    estado.destinos = [{ id: "legado-1", nome: "Destino legado" }];
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+    estado.destinos.data = [{ id: "legado-1", nome: "Destino legado" }];
+    abrir();
 
     expect(screen.getByRole("button", { name: "Destino legado" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Outros" })).not.toBeInTheDocument();
   });
 
-  it("exibe o detalhe RFC 7807 da recusa do backend", () => {
-    estado.erro = new Error("destino 00000000-0000-0000-0000-000000000001 recusado: inativo");
+  it("mostra carregamento, erro com nova tentativa e lista vazia dos destinos", () => {
+    estado.destinos = { data: undefined, isPending: true, isError: false, isSuccess: false, refetch: vi.fn() };
+    const { rerender } = abrir();
+    expect(screen.getByRole("status")).toHaveTextContent("Carregando atendentes...");
 
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+    estado.destinos = { data: undefined, isPending: false, isError: true, isSuccess: false, refetch: vi.fn() };
+    rerender(
+      <DialogoTransferir atendimentoId="atendimento-1" status="EM_ATENDIMENTO" responsavelId="ana-1" aberto onFechar={vi.fn()} />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar os atendentes.");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(estado.destinos.refetch).toHaveBeenCalledOnce();
 
-    expect(screen.getByText(/destino .* recusado: inativo/)).toBeInTheDocument();
+    estado.destinos = { data: [{ id: "ana-1", nome: "Ana Atendente" }], isPending: false, isError: false, isSuccess: true, refetch: vi.fn() };
+    rerender(
+      <DialogoTransferir atendimentoId="atendimento-1" status="EM_ATENDIMENTO" responsavelId="ana-1" aberto onFechar={vi.fn()} />,
+    );
+    expect(screen.getByText("Nenhum atendente disponível.")).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, "Seu perfil não permite esta transferência."],
+    [422, "Este atendente não pode receber."],
+    [409, "Este atendimento já foi finalizado."],
+    [404, "Esta conversa não está mais disponível."],
+    [500, "Não foi possível transferir"],
+  ])("recusa HTTP %i aparece em linguagem de operação, nunca o detalhe técnico", (status, texto) => {
+    estado.erro = new ErroDeApi(status, { detail: "atendente nao pode escolher o destino de um potencial" }, "x");
+    abrir();
+
+    expect(screen.getByRole("alert")).toHaveTextContent(texto);
+    expect(screen.queryByText(/nao pode escolher/)).not.toBeInTheDocument();
   });
 
   it("sem transferir, oferece só a devolução para a IA (nem assumir nem colegas)", () => {
-    estado.papel = "ATENDENTE";
-    estado.usuarioId = "ana-1";
-    definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir"] });
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+    comoAtendente();
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir"], alcancaTodos: false });
+    abrir({ responsavelId: "bruno-1" });
 
     expect(screen.getByRole("button", { name: "Devolver para IA" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bruno Atendente" })).not.toBeInTheDocument();
+    expect(estado.habilitada).toBe(false);
   });
 
   it("sem devolver para a IA, mantém os destinos e retira a devolução", () => {
-    estado.papel = "ATENDENTE";
-    estado.usuarioId = "ana-1";
-    definirCapacidadesDeTeste({ negadas: ["atendimentos.devolver_ia"] });
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+    comoAtendente();
+    definirCapacidadesDeTeste({ negadas: ["atendimentos.devolver_ia"], alcancaTodos: false });
+    abrir();
 
     expect(screen.queryByRole("button", { name: "Devolver para IA" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
@@ -185,8 +248,7 @@ describe("DialogoTransferir", () => {
 
   it("sem transferir nem devolver, o diálogo não abre", () => {
     definirCapacidadesDeTeste({ negadas: ["atendimentos.transferir", "atendimentos.devolver_ia"] });
-
-    render(<DialogoTransferir atendimentoId="atendimento-1" aberto onFechar={vi.fn()} />);
+    abrir();
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

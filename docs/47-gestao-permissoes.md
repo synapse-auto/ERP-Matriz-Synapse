@@ -354,3 +354,52 @@ expõe `pode(id)` e `alcancaTodos` (recorte estrutural de `atendimentos.ver`).
 - colunas "atendente" e agrupamento por autor em lembretes, programadas e mensagens rápidas são
   só apresentação;
 - a alçada da aba Equipe (quem administra quem) espelha a do backend, que continua decidindo.
+
+### 14.2 Auditoria de Atendimentos e Resumo por IA (cadeia completa)
+
+Cadeia conferida: efetivo de `/minhas` → controle na tela → `@PreAuthorize` do caso de uso →
+revogação com a sessão aberta (`ACESSO_ALTERADO`, §7). A proteção contra regressão é
+`CapacidadesDeAtendimentoIT` (parametrizado): para cada linha, revogar no perfil com o token já
+emitido → 403 **e** estado intacto; perfil padrão → a atendente executa na própria conversa.
+
+| Capacidade | Controle na UI | Endpoint / caso de uso | Teste positivo | Teste negativo | Lacuna encontrada |
+|---|---|---|---|---|---|
+| `atendimentos.transferir` | "Transferir" (cabeçalho/⋯); colegas e "Assumir para mim" no diálogo | `POST /atendimentos/{id}/transferir` com destino — `TransferirAtendimentoUseCase` | `CapacidadesDeAtendimentoIT`, `AtendimentoAcoesControllerIT.transferir_atendenteParaColegaAtivo_retorna200`, `dialogo-transferir.test` | IT: revogada → 403 sem mudar dono; colega → 404; Potencial para colega → 403; finalizado → 409; destino inativo/inexistente → 422 | **Diálogo oferecia colegas num Potencial (EM_IA) a quem não alcança todos: todo clique voltava 403 com o detalhe técnico.** Corrigido na tela (§14.2.1). |
+| `atendimentos.devolver_ia` | "Devolver para a IA" no diálogo | mesmo endpoint, destino nulo | `CapacidadesDeAtendimentoIT` | revogada → 403, segue `EM_ATENDIMENTO` | Opção aparecia em conversa já `EM_IA` (no-op). Corrigido. |
+| `atendimentos.finalizar` | "Finalizar" | `POST /atendimentos/{id}/finalizar` | `CapacidadesDeAtendimentoIT` | revogada → 403, segue `EM_ATENDIMENTO` | nenhuma |
+| `resumo_ia.ver` | seção "Resumo por IA" no painel do chat e na ficha | `GET /atendimentos/{id}/resumo-ia`; `resumoIa` em `GET /leads/{id}` e `/leads/{id}/agenda` | `CapacidadesDeAtendimentoIT`, `painel-da-conversa.test`, `painel-lateral-lead.test` | revogada → 403 no estado e `resumoIa: null` na ficha; seção some no chat e na ficha | **A ficha não tinha teste**: o mock local nunca liberava a capacidade. Teste acrescentado. |
+| `resumo_ia.solicitar` | "Gerar"/"Regerar" | `POST /atendimentos/{id}/resumo-ia` | `CapacidadesDeAtendimentoIT` (sem webhook no IT: 503 depois da autorização) | revogada → 403 e nenhuma solicitação criada; leitura continua (estado 200, ficha com texto) | nenhuma |
+
+Fora desta etapa, registrado para uma próxima: `atendimentos.responder`, `iniciar_conversa`,
+`abrir_para_contato`, `colaborar` e `finalizar_lote` têm controle e `@PreAuthorize` conferidos na
+§14.1, mas ainda não entram na matriz parametrizada (exigem janela de 24 h, canal ou participantes
+no fixture). Mesma proposta para Tags, Templates e Mensagens rápidas/programadas.
+
+#### 14.2.1 Transferência — o que o relato "não consigo transferir" era
+
+Reproduzido como atendente (backend e banco de dev, navegador): a capacidade estava permitida e o
+`POST` da conversa própria respondia 200. As duas falhas visíveis eram da tela:
+
+1. **Potencial (EM_IA):** o diálogo listava todos os colegas; qualquer clique → `403 Transferencia
+   de potencial proibida` com o detalhe técnico na tela. A regra está certa (RN-CRM-01/02: atendente
+   não escolhe destino de Potencial; gestão distribui). Agora quem não tem `alcancaTodos` vê só
+   "Assumir para mim" e a explicação; a gestão segue vendo os colegas.
+2. **Conversa própria:** a transferência funcionava, mas a perda de acesso que vem dela acendia em
+   vermelho "Esta conversa não está mais disponível para você". Agora aparece "Atendimento
+   transferido para {nome}."; revogação alheia continua com o aviso vermelho.
+
+Recusas 403/404/409/422 viram textos do catálogo. A diferença entre a lista de destinos
+(subgestor só quando ONLINE e disponível para a IA) e a validação da transferência explícita
+(qualquer ATENDENTE/SUBGESTOR ativo) é intencional e está documentada em
+`AtendenteParaTransferenciaRepositorioJdbc`; não explica o relato e não foi alterada.
+
+### 14.3 Os três controles do Resumo por IA
+
+| Controle | Onde | Efeito |
+|---|---|---|
+| `resumo_ia.ver` (Gestão) | perfil ou exceção | Sem ele: seção some no chat e na ficha; a API não devolve o texto (`resumoIa: null`) e o estado do ciclo responde 403. |
+| `resumo_ia.solicitar` (Gestão) | perfil ou exceção; depende de `ver` | Sem ele: some "Gerar/Regerar" e o `POST` responde 403. **A leitura do resumo pronto continua** (regra do catálogo: são ações separadas). |
+| "Resumo automático por IA" (Automação) | `configuracao_resumo_ia.ativo` | Liga/desliga a **geração automática** pelo gatilho do n8n. Não esconde a seção, não bloqueia leitura nem o botão manual. |
+
+Mudar o terceiro para "esconde o recurso inteiro" é decisão de produto pendente (§13): o relato
+não permitiu saber qual controle foi desligado.

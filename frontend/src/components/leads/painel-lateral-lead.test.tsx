@@ -43,7 +43,7 @@ painelLead: {
 
 let mockLeadData: Record<string, unknown> = { id: "1", nome: "Lead 1", telefone: "11999999999" };
 const camposState = vi.hoisted(() => ({ data: [] as CampoCustomizado[] }));
-const permissoesState = vi.hoisted(() => ({ editar: true }));
+const permissoesState = vi.hoisted(() => ({ editar: true, liberadas: new Set<string>() }));
 const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
@@ -61,7 +61,10 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useLead: () => ({ data: mockLeadData, isLoading: false, isError: false }),
 }));
 vi.mock("@/lib/gestao/use-capacidades", () => ({
-  useCapacidades: () => ({ pode: (chave: string) => chave === "contatos.editar" && permissoesState.editar }),
+  useCapacidades: () => ({
+    pode: (chave: string) =>
+      (chave === "contatos.editar" && permissoesState.editar) || permissoesState.liberadas.has(chave),
+  }),
 }));
 vi.mock("@/components/ui/seletor-data", () => ({
   SeletorData: ({ id, valor, onChange }: { id: string; valor: string; onChange: (valor: string) => void }) => (
@@ -136,6 +139,38 @@ describe("PainelLateralLead telefones", () => {
       { nome: "Maria Silva" },
       expect.any(Object),
     );
+  });
+});
+
+describe("PainelLateralLead resumo por IA", () => {
+  const renderFicha = () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <PainelLateralLead leadId="1" onFechar={() => {}} />
+      </QueryClientProvider>,
+    );
+  };
+
+  it("com resumo_ia.ver mostra a seção e o texto", () => {
+    permissoesState.liberadas = new Set(["resumo_ia.ver"]);
+    mockLeadData = { id: "1", nome: "Lead 1", resumoIa: "Cliente pediu orçamento de box." };
+
+    renderFicha();
+
+    expect(screen.getByText("IA", { exact: true })).toBeInTheDocument();
+    expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
+    permissoesState.liberadas = new Set();
+  });
+
+  it("sem resumo_ia.ver não mostra a seção nem um texto que tenha ficado em cache", () => {
+    permissoesState.liberadas = new Set();
+    mockLeadData = { id: "1", nome: "Lead 1", resumoIa: "Cliente pediu orçamento de box." };
+
+    renderFicha();
+
+    expect(screen.queryByText("IA", { exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByText("Cliente pediu orçamento de box.")).not.toBeInTheDocument();
   });
 });
 
