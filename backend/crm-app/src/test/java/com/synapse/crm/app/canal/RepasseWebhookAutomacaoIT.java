@@ -30,6 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +57,8 @@ import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEn
             "synapse.canal.outbox.maximo-de-tentativas=3",
             "synapse.canal.outbox.backoff-inicial=0s",
             // Curto para o teste de timeout; o servidor de teste responde na hora nos demais.
-            "synapse.automacao.repasse-webhook.timeout=1s"
+            "synapse.automacao.repasse-webhook.timeout=1s",
+            "synapse.seguranca.token-interno=repasse-token"
         })
 class RepasseWebhookAutomacaoIT extends PostgresIT {
 
@@ -203,6 +205,41 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
         });
     }
 
+    @Test
+    @DisplayName("corrida: o n8n consulta antes de o CRM registrar a entrada -> 404 com Retry-After; depois, o atendimento do lead certo")
+    void corridaComOProcessamento_consultaLimitadaResolveOAtendimentoDaEntrada() {
+        String idDaEntrada = "wamid.E25-corrida";
+        String payload = payload(idDaEntrada, "oi, quero um orcamento");
+        postar(payload, assinatura(payload));
+
+        ResponseEntity<String> antes = atendimentoDaEntrada(idDaEntrada);
+        assertThat(antes.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(antes.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("2");
+
+        processador.processarPendentes();
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            ResponseEntity<String> depois = atendimentoDaEntrada(idDaEntrada);
+            assertThat(depois.getStatusCode()).isEqualTo(HttpStatus.OK);
+            UUID atendimentoDoLead = jdbc.queryForObject(
+                    "SELECT id FROM atendimento WHERE lead_id = ?", UUID.class, leadId);
+            assertThat(depois.getBody())
+                    .contains("\"atendimentoId\":\"" + atendimentoDoLead + "\"")
+                    .contains("\"leadId\":\"" + leadId + "\"")
+                    .contains("\"ativo\":true");
+        });
+    }
+
+    private ResponseEntity<String> atendimentoDaEntrada(String idExterno) {
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.set("X-Synapse-Token", "repasse-token");
+        return http.exchange(
+                "/internal/v1/mensagens-recebidas/atendimento?idExterno=" + idExterno,
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhos),
+                String.class);
+    }
+
     private ResponseEntity<Void> postar(String payload, String assinatura) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
@@ -261,6 +298,9 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
 
     private void limpar() {
         jdbc.update("DELETE FROM outbox_evento WHERE tipo='automacao.webhook.repassar'");
+        jdbc.update(
+                "DELETE FROM mensagem_id_externo WHERE atendimento_id IN (SELECT a.id FROM atendimento a JOIN lead l ON l.id=a.lead_id WHERE l.nome LIKE ?)",
+                PREFIXO + "%");
         jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE 'wamid.E25-%'");
         jdbc.update(
                 "DELETE FROM mensagem WHERE atendimento_id IN (SELECT a.id FROM atendimento a JOIN lead l ON l.id=a.lead_id WHERE l.nome LIKE ?)",
