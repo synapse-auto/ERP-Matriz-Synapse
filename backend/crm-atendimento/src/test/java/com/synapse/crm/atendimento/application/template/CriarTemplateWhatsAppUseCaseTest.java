@@ -17,7 +17,7 @@ class CriarTemplateWhatsAppUseCaseTest {
 
     @Test
     void rejeitaNomeComEspacoAlemDoPermitidoPelaMeta() {
-        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class));
+        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class), AutorizacaoDeTemplatesDeTeste.administrador(mock(CanalGateway.class)));
 
         assertThatThrownBy(() -> useCase.executar(
                         "Oi Cliente!", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola"))
@@ -26,7 +26,7 @@ class CriarTemplateWhatsAppUseCaseTest {
 
     @Test
     void rejeitaVariaveisForaDeOrdem() {
-        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class));
+        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class), AutorizacaoDeTemplatesDeTeste.administrador(mock(CanalGateway.class)));
 
         assertThatThrownBy(() -> useCase.executar(
                         "retorno", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}} e {{3}}"))
@@ -37,7 +37,7 @@ class CriarTemplateWhatsAppUseCaseTest {
 
     @Test
     void rejeitaIndiceZero() {
-        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class));
+        CriarTemplateWhatsAppUseCase useCase = new CriarTemplateWhatsAppUseCase(mock(CanalGateway.class), AutorizacaoDeTemplatesDeTeste.administrador(mock(CanalGateway.class)));
 
         assertThatThrownBy(() -> useCase.executar(
                         "retorno", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{0}}"))
@@ -60,7 +60,7 @@ class CriarTemplateWhatsAppUseCaseTest {
         when(canal.criarTemplate(any(PedidoDeTemplate.class)))
                 .thenReturn(new ResultadoDeTemplate.Aceito(criado));
 
-        TemplateDoCanal resultado = new CriarTemplateWhatsAppUseCase(canal)
+        TemplateDoCanal resultado = new CriarTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal))
                 .executar(
                         "retorno",
                         "pt_BR",
@@ -84,7 +84,7 @@ class CriarTemplateWhatsAppUseCaseTest {
         when(canal.criarTemplate(any(PedidoDeTemplate.class)))
                 .thenReturn(new ResultadoDeTemplate.Aceito(criado));
 
-        TemplateDoCanal resultado = new CriarTemplateWhatsAppUseCase(canal)
+        TemplateDoCanal resultado = new CriarTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal))
                 .executar("Retorno", "pt_BR", TemplateDoCanal.Categoria.UTILIDADE, "Ola {{1}}");
 
         assertThat(resultado.status()).isEqualTo(TemplateDoCanal.Status.PENDENTE);

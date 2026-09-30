@@ -22,15 +22,19 @@ public class CriarTemplateWhatsAppUseCase {
     static final Pattern IDIOMA = Pattern.compile("[a-z]{2}(_[A-Z]{2})?");
 
     private final CanalGateway canal;
+    private final AutorizacaoDeTemplates autorizacao;
 
-    public CriarTemplateWhatsAppUseCase(CanalGateway canal) {
+    public CriarTemplateWhatsAppUseCase(CanalGateway canal, AutorizacaoDeTemplates autorizacao) {
         this.canal = canal;
+        this.autorizacao = autorizacao;
     }
 
     @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('templates.criar')")
     public TemplateDoCanal executar(
             String nome, String idioma, TemplateDoCanal.Categoria categoria, String corpo) {
         PedidoDeTemplate pedido = validar(nome, idioma, categoria, corpo);
+        // Depois da normalizacao: o nome que chegaria a Meta e o que precisa ser autorizado.
+        autorizacao.exigirUso(pedido.nome());
         ResultadoDeTemplate resultado = canal.criarTemplate(pedido);
         if (resultado instanceof ResultadoDeTemplate.Aceito aceito) {
             return aceito.template();

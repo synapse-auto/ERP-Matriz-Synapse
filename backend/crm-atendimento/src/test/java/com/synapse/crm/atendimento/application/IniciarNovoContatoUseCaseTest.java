@@ -25,6 +25,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.canal.CanalCredencialAtivaRepositorio;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.template.AutorizacaoDeTemplatesDeTeste;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
@@ -80,7 +81,20 @@ class IniciarNovoContatoUseCaseTest {
                 usuarioContext,
                 Clock.fixed(AGORA, ZoneOffset.UTC),
                 participacoes,
-                eventos);
+                eventos,
+                AutorizacaoDeTemplatesDeTeste.com(usuarioContext, canal));
+    }
+
+    @Test
+    void templateRestrito_paraAtendente_recusaAntesDeTocarLeadOuEnvio() {
+        var pedido = new IniciarNovoContatoUseCase.Pedido(
+                "Maria", "61999990000", null,
+                new IniciarNovoContatoUseCase.Pedido.Template("Aviso_INTERNO_cliente", "pt_BR", List.of()));
+
+        assertThatThrownBy(() -> useCase.executar(pedido))
+                .isInstanceOf(com.synapse.crm.atendimento.application.template.TemplateRestritoException.class);
+
+        org.mockito.Mockito.verifyNoInteractions(leads, atendimentos, enviar, participacoes, eventos);
     }
 
     @Test

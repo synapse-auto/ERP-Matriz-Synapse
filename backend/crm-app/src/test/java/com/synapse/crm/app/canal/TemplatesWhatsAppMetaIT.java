@@ -47,6 +47,13 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     private static final AtomicReference<String> corpoGraph = new AtomicReference<>(
             "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                     + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
+    /** Quando preenchido, responde o GET de /message_templates com este corpo e o resto com {@link #corpoGraph}. */
+    private static final AtomicReference<String> corpoListagemGraph = new AtomicReference<>();
+    /** Listagem com a variante meta-1: nao administrador so edita/exclui o que a listagem mostra. */
+    private static final String LISTAGEM_COM_META_1 =
+            "{\"data\":[{\"id\":\"meta-1\",\"name\":\"boas_vindas\",\"language\":\"pt_BR\","
+                    + "\"status\":\"APPROVED\",\"category\":\"UTILITY\","
+                    + "\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}]}";
     private static final AtomicInteger consultasCampoInvalido = new AtomicInteger();
     /** "METODO caminho?query" de cada chamada recebida — nunca o cabecalho de autorizacao. */
     private static final List<String> requisicoes = new CopyOnWriteArrayList<>();
@@ -81,6 +88,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
         corpoGraph.set(
                 "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                         + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
+        corpoListagemGraph.set(null);
         consultasCampoInvalido.set(0);
         requisicoes.clear();
         contentTypeGraph.set("application/json");
@@ -211,6 +219,9 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     @Test
     @DisplayName("gestao edita pelo ID e exclui a variante com nome exigido pela Meta")
     void gestaoEditaEExcluiPeloContratoDaMeta() throws Exception {
+        // Nao administrador so alcanca variante que a listagem autorizada mostraria: o ID precisa
+        // estar na listagem da Meta (docs/47 secao 6.1).
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
         corpoGraph.set(
                 "{\"status\":\"APPROVED\",\"components\":[{\"type\":\"BODY\",\"text\":\"Antigo\"}]}");
         ResponseEntity<String> editado = chamarComo(
@@ -238,6 +249,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     @Test
     @DisplayName("exclusao recusada pela Meta devolve 422 RFC 7807 com o motivo para o usuario")
     void exclusaoRecusadaDevolve422() throws Exception {
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
         statusGraph.set(400);
         corpoGraph.set("{\"error\":{\"code\":100,\"error_user_msg\":\"Template em uso por outro sistema\"}}");
 
@@ -259,6 +271,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
     @Test
     @DisplayName("exclusao com a Meta fora do ar devolve 503 RFC 7807, nao 500")
     void exclusaoComMetaForaDoArDevolve503() throws Exception {
+        corpoListagemGraph.set(LISTAGEM_COM_META_1);
         statusGraph.set(500);
         corpoGraph.set("{\"error\":{\"message\":\"upstream\"}}");
 
@@ -310,8 +323,14 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 if (caminho.contains("whatsapp_business_account")) {
                     consultasCampoInvalido.incrementAndGet();
                 }
-                byte[] corpo = corpoGraph.get().getBytes(StandardCharsets.UTF_8);
-                int status = statusGraph.get();
+                String listagem = corpoListagemGraph.get();
+                boolean ehListagem = listagem != null
+                        && "GET".equals(troca.getRequestMethod())
+                        && caminho.endsWith("/message_templates");
+                // A listagem sobrescrita responde sempre 200: a falha simulada vale so para a operacao.
+                String resposta = ehListagem ? listagem : corpoGraph.get();
+                byte[] corpo = resposta.getBytes(StandardCharsets.UTF_8);
+                int status = ehListagem ? 200 : statusGraph.get();
                 troca.getResponseHeaders().set("Content-Type", contentTypeGraph.get());
                 troca.sendResponseHeaders(status, corpo.length);
                 troca.getResponseBody().write(corpo);

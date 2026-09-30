@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { listarTemplatesWhatsApp, obterCapacidadeDoCanal } from "@/lib/atendimento/api";
+import { useChaveTemplatesWhatsApp } from "@/lib/atendimento/consulta-templates-whatsapp";
 import type { TemplateWhatsApp } from "@/lib/atendimento/types";
 import { interpolarCorpoDoTemplate } from "@/lib/atendimento/variaveis-do-template";
 import type { PedidoDeNovoContato } from "@/lib/atendimento/types";
@@ -93,8 +94,9 @@ function FormularioNovoContato({
     queryFn: obterCapacidadeDoCanal,
   });
   const exigeTemplate = capacidade.data?.exigeTemplateForaDaJanela === true;
+  const chaveTemplates = useChaveTemplatesWhatsApp();
   const templates = useQuery({
-    queryKey: ["whatsapp-templates"],
+    queryKey: chaveTemplates,
     queryFn: listarTemplatesWhatsApp,
     enabled: exigeTemplate,
   });

@@ -26,6 +26,7 @@ import {
   listarTemplatesWhatsApp,
   obterCapacidadeDoCanal,
 } from "@/lib/atendimento/api";
+import { PREFIXO_TEMPLATES_WHATSAPP, useChaveTemplatesWhatsApp } from "@/lib/atendimento/consulta-templates-whatsapp";
 import {
   analisarVariaveisDoCorpo,
   interpolarCatalogo,
@@ -75,15 +76,16 @@ export function PaginaTemplatesWhatsApp() {
     retry: 1,
   });
 
+  const chaveTemplates = useChaveTemplatesWhatsApp();
   const consulta = useQuery({
-    queryKey: ["whatsapp-templates"],
+    queryKey: chaveTemplates,
     queryFn: listarTemplatesWhatsApp,
     retry: 1,
   });
   const criar = useMutation({
     mutationFn: criarTemplateWhatsApp,
     onSuccess: (criado) => {
-      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: PREFIXO_TEMPLATES_WHATSAPP });
       setAberto(false);
       if (criado.status !== "APROVADO") {
         setAviso(t.avisoPendente);
@@ -93,14 +95,14 @@ export function PaginaTemplatesWhatsApp() {
   const editarTemplate = useMutation({
     mutationFn: (pedido: { id: string; corpo: string }) => editarTemplateWhatsApp(pedido.id, { corpo: pedido.corpo }),
     onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: PREFIXO_TEMPLATES_WHATSAPP });
       setEditando(null);
     },
   });
   const excluirTemplate = useMutation({
     mutationFn: (template: TemplateWhatsApp) => excluirTemplateWhatsApp(template.id, template.nome),
     onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["whatsapp-templates"] });
+      void cache.invalidateQueries({ queryKey: PREFIXO_TEMPLATES_WHATSAPP });
       setExcluindo(null);
     },
   });

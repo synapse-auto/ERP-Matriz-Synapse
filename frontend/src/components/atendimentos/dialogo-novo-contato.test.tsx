@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 const apiMocks = vi.hoisted(() => ({
   obterCapacidadeDoCanal: vi.fn(),
@@ -286,5 +287,49 @@ describe("DialogoNovoContato — pré-preenchido pelo contato compartilhado (E21
 
     fireEvent.click(screen.getByRole("button", { name: "Iniciar atendimento" }));
     expect(confirmar).toHaveBeenCalledWith(expect.objectContaining({ nome: "Maria Silva", telefone: "(61) 98888-0000" }));
+  });
+});
+
+const TEMPLATE_COMUM = {
+  id: "template-comum",
+  nome: "aviso_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso ao cliente.",
+  quantidadeDeParametros: 0,
+};
+const TEMPLATE_RESTRITO = {
+  id: "template-restrito",
+  nome: "aviso_interno_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso interno.",
+  quantidadeDeParametros: 0,
+};
+
+describe("DialogoNovoContato — templates por sessão", () => {
+  afterEach(() => {
+    useAuthStore.setState({ usuarioId: null });
+  });
+
+  it("lista só o que a API autorizada devolve e refaz a consulta na troca de sessão", async () => {
+    useAuthStore.setState({ usuarioId: "admin-1" });
+    apiMocks.listarTemplatesWhatsApp.mockResolvedValue([TEMPLATE_COMUM, TEMPLATE_RESTRITO]);
+    renderDialog(<DialogoNovoContato aberto onFechar={vi.fn()} onConfirmar={vi.fn()} />, true);
+    fireEvent.click(await screen.findByRole("button", { name: "Escolher template" }));
+    const modal = await screen.findByRole("dialog", { name: "Escolher template" });
+    expect(await within(modal).findByText("aviso_interno_cliente")).toBeInTheDocument();
+
+    const chamadasDaSessaoAnterior = apiMocks.listarTemplatesWhatsApp.mock.calls.length;
+    apiMocks.listarTemplatesWhatsApp.mockResolvedValue([TEMPLATE_COMUM]);
+    act(() => {
+      useAuthStore.setState({ usuarioId: "atendente-1" });
+    });
+
+    await waitFor(() => expect(screen.queryByText("aviso_interno_cliente")).not.toBeInTheDocument());
+    expect(await screen.findByText("aviso_cliente")).toBeInTheDocument();
+    expect(apiMocks.listarTemplatesWhatsApp.mock.calls.length).toBeGreaterThan(chamadasDaSessaoAnterior);
   });
 });

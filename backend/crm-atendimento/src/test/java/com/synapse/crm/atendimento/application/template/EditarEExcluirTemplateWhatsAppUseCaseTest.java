@@ -18,10 +18,10 @@ class EditarEExcluirTemplateWhatsAppUseCaseTest {
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.editarTemplate(any())).thenReturn(new ResultadoDeTemplate.Aceito(null));
 
-        new EditarTemplateWhatsAppUseCase(canal).executar("meta-1", "Ola {{1}}");
+        new EditarTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal)).executar("meta-1", "Ola {{1}}");
 
         verify(canal).editarTemplate(any());
-        assertThatThrownBy(() -> new EditarTemplateWhatsAppUseCase(canal)
+        assertThatThrownBy(() -> new EditarTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal))
                         .executar("meta-1", "Ola {{2}}"))
                 .isInstanceOf(PedidoDeTemplateInvalidoException.class);
     }
@@ -32,10 +32,10 @@ class EditarEExcluirTemplateWhatsAppUseCaseTest {
         when(canal.excluirTemplate("meta-1", "boas_vindas"))
                 .thenReturn(new ResultadoDeTemplate.Aceito(null));
 
-        new ExcluirTemplateWhatsAppUseCase(canal).executar("meta-1", "boas_vindas");
+        new ExcluirTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal)).executar("meta-1", "boas_vindas");
         verify(canal).excluirTemplate("meta-1", "boas_vindas");
 
-        assertThatThrownBy(() -> new ExcluirTemplateWhatsAppUseCase(canal)
+        assertThatThrownBy(() -> new ExcluirTemplateWhatsAppUseCase(canal, AutorizacaoDeTemplatesDeTeste.administrador(canal))
                         .executar("meta-1", ""))
                 .isInstanceOf(PedidoDeTemplateInvalidoException.class);
     }

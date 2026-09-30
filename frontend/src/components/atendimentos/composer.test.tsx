@@ -1,9 +1,10 @@
 import { createRef } from "react";
 import { createEvent, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+import { useAuthStore } from "@/lib/auth/auth-store";
 
 import type { CartaoAtendimento, MensagemResposta } from "@/lib/atendimento/types";
 import { ErroDeApi } from "@/lib/api/errors";
@@ -56,10 +57,12 @@ vi.mock("@/lib/atendimento/janela-24h", () => ({
   estadoDaJanelaTextoLivre: () => "aberta",
 }));
 
+const templatesDoServidor = vi.hoisted(() => ({ lista: null as unknown[] | null }));
+
 vi.mock("@/lib/atendimento/api", () => ({
   obterCapacidadeDoCanal: () => Promise.resolve(capacidadeDoCanal),
   listarTemplatesWhatsApp: () =>
-    Promise.resolve([
+    Promise.resolve(templatesDoServidor.lista ?? [
         {
           id: "template-1",
           nome: "boas_vindas",
@@ -1051,3 +1054,46 @@ function habilitarGravacao(
     value: { getUserMedia },
   });
 }
+
+const TEMPLATE_COMUM = {
+  id: "template-comum",
+  nome: "aviso_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso ao cliente.",
+  quantidadeDeParametros: 0,
+};
+const TEMPLATE_RESTRITO = {
+  id: "template-restrito",
+  nome: "aviso_interno_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso interno.",
+  quantidadeDeParametros: 0,
+};
+
+describe("Composer — seletor de templates por sessão", () => {
+  afterEach(() => {
+    templatesDoServidor.lista = null;
+    useAuthStore.setState({ usuarioId: null });
+  });
+
+  it("troca de sessão não reaproveita a lista autorizada da sessão anterior", async () => {
+    useAuthStore.setState({ usuarioId: "admin-1" });
+    templatesDoServidor.lista = [TEMPLATE_COMUM, TEMPLATE_RESTRITO];
+    renderizar();
+    fireEvent.click(screen.getByRole("button", { name: "Anexo" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Templates" }));
+    expect(await screen.findByText("aviso_interno_cliente")).toBeInTheDocument();
+
+    templatesDoServidor.lista = [TEMPLATE_COMUM];
+    act(() => {
+      useAuthStore.setState({ usuarioId: "atendente-1" });
+    });
+
+    await waitFor(() => expect(screen.queryByText("aviso_interno_cliente")).not.toBeInTheDocument());
+    expect(await screen.findByText("aviso_cliente")).toBeInTheDocument();
+  });
+});

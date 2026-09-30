@@ -40,6 +40,8 @@ public class CanalFake implements CanalGateway {
     private final AtomicReference<ResultadoDeEnvio> proximaResposta =
             new AtomicReference<>(new ResultadoDeEnvio.Aceito("fake-id"));
     private final AtomicBoolean janelaAberta = new AtomicBoolean(true);
+    private final java.util.concurrent.atomic.AtomicInteger mutacoesDeTemplate =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     @Override
     public String provedor() {
@@ -80,6 +82,16 @@ public class CanalFake implements CanalGateway {
         janelaAberta.set(true);
     }
 
+    /** Quantas vezes criar/editar/excluir template chegou ao provedor desde o ultimo limpar. */
+    public int mutacoesDeTemplate() {
+        return mutacoesDeTemplate.get();
+    }
+
+    /** Poe um template no provedor sem passar pelo CRM — como um criado direto na Meta. */
+    public void semearTemplate(TemplateDoCanal template) {
+        templates.add(template);
+    }
+
     public List<Envio> enviados() {
         return List.copyOf(enviados);
     }
@@ -87,6 +99,7 @@ public class CanalFake implements CanalGateway {
     public void limpar() {
         enviados.clear();
         templates.clear();
+        mutacoesDeTemplate.set(0);
         midiaIndisponivel.set(null);
         midiaRemovida.set(null);
         religar();
@@ -182,6 +195,7 @@ public class CanalFake implements CanalGateway {
 
     @Override
     public ResultadoDeTemplate criarTemplate(PedidoDeTemplate pedido) {
+        mutacoesDeTemplate.incrementAndGet();
         TemplateDoCanal template = new TemplateDoCanal(
                 "fake-template-" + pedido.nome() + "-" + pedido.idioma(),
                 pedido.nome(),
@@ -198,6 +212,7 @@ public class CanalFake implements CanalGateway {
 
     @Override
     public ResultadoDeTemplate editarTemplate(PedidoDeEdicaoDeTemplate pedido) {
+        mutacoesDeTemplate.incrementAndGet();
         for (int indice = 0; indice < templates.size(); indice++) {
             TemplateDoCanal atual = templates.get(indice);
             if (!atual.id().equals(pedido.id())) {
@@ -219,6 +234,7 @@ public class CanalFake implements CanalGateway {
 
     @Override
     public ResultadoDeTemplate excluirTemplate(String id, String nome) {
+        mutacoesDeTemplate.incrementAndGet();
         boolean removido = templates.removeIf(template -> template.id().equals(id)
                 && template.nome().equals(nome));
         return removido

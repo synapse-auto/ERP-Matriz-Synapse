@@ -12,9 +12,11 @@ import com.synapse.crm.atendimento.domain.canal.ResultadoDeTemplate;
 public class EditarTemplateWhatsAppUseCase {
 
     private final CanalGateway canal;
+    private final AutorizacaoDeTemplates autorizacao;
 
-    public EditarTemplateWhatsAppUseCase(CanalGateway canal) {
+    public EditarTemplateWhatsAppUseCase(CanalGateway canal, AutorizacaoDeTemplates autorizacao) {
         this.canal = canal;
+        this.autorizacao = autorizacao;
     }
 
     @PreAuthorize("hasAnyRole('SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('templates.editar')")
@@ -22,8 +24,10 @@ public class EditarTemplateWhatsAppUseCase {
         if (id == null || id.isBlank()) {
             throw new PedidoDeTemplateInvalidoException("template exige um id");
         }
-        ResultadoDeTemplate resultado = canal.editarTemplate(
-                new PedidoDeEdicaoDeTemplate(id.trim(), CriarTemplateWhatsAppUseCase.validarCorpo(corpo)));
+        String corpoValidado = CriarTemplateWhatsAppUseCase.validarCorpo(corpo);
+        autorizacao.exigirVarianteVisivel(id.trim(), null);
+        ResultadoDeTemplate resultado =
+                canal.editarTemplate(new PedidoDeEdicaoDeTemplate(id.trim(), corpoValidado));
         if (resultado instanceof ResultadoDeTemplate.Recusado recusado) {
             throw new CanalRecusouTemplateException(recusado.motivo());
         }

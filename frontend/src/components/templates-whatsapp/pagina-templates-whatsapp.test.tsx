@@ -1,13 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
 import type { MinhasPermissoes } from "@/lib/gestao/types";
 import { usarCapacidadesReais } from "@/test/capacidades-de-teste";
 
 const capacidadeMock = vi.hoisted(() => ({ gerenciaTemplates: true }));
+const servidor = vi.hoisted(() => ({ lista: null as unknown[] | null, usuarioId: "gestor-1" }));
 const gestaoApi = vi.hoisted(() => ({ obterMinhasPermissoes: vi.fn() }));
 
 vi.mock("@/lib/gestao/api", () => gestaoApi);
@@ -16,7 +17,7 @@ vi.mock("@/lib/atendimento/api", () => ({
   obterCapacidadeDoCanal: () =>
     Promise.resolve({ exigeTemplateForaDaJanela: true, gerenciaTemplates: capacidadeMock.gerenciaTemplates }),
   listarTemplatesWhatsApp: () =>
-    Promise.resolve([
+    Promise.resolve(servidor.lista ?? [
       {
         id: "template-1",
         nome: "retorno_orcamento",
@@ -42,8 +43,9 @@ vi.mock("@/lib/atendimento/api", () => ({
 }));
 
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: (seletor: (estado: { papel: string; status: string; precisaTrocarSenha: boolean }) => unknown) =>
-    seletor({ papel: "GESTOR", status: "autenticado", precisaTrocarSenha: false }),
+  useAuthStore: (
+    seletor: (estado: { papel: string; status: string; precisaTrocarSenha: boolean; usuarioId: string }) => unknown,
+  ) => seletor({ papel: "GESTOR", status: "autenticado", precisaTrocarSenha: false, usuarioId: servidor.usuarioId }),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -309,6 +311,62 @@ function renderizar() {
     </QueryClientProvider>,
   );
 }
+
+const TEMPLATE_COMUM = {
+  id: "template-comum",
+  nome: "aviso_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso ao cliente.",
+  quantidadeDeParametros: 0,
+};
+const TEMPLATE_RESTRITO = {
+  id: "template-restrito",
+  nome: "aviso_interno_cliente",
+  idioma: "pt_BR",
+  categoria: "UTILIDADE",
+  status: "APROVADO",
+  corpo: "Aviso interno.",
+  quantidadeDeParametros: 0,
+};
+
+describe("pagina de templates WhatsApp — resposta autorizada por sessão", () => {
+  afterEach(() => {
+    servidor.lista = null;
+    servidor.usuarioId = "gestor-1";
+  });
+
+  it("mostra e busca o template restrito quando a API autorizada o devolve (administrador)", async () => {
+    servidor.lista = [TEMPLATE_COMUM, TEMPLATE_RESTRITO];
+    renderizar();
+
+    expect(await screen.findByText("aviso_interno_cliente")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar template"), { target: { value: "INTERNO" } });
+    expect(screen.getByText("aviso_interno_cliente")).toBeInTheDocument();
+    expect(screen.queryByText("aviso_cliente")).not.toBeInTheDocument();
+  });
+
+  it("troca de sessão refaz a consulta e não exibe item preservado no cache", async () => {
+    servidor.usuarioId = "admin-1";
+    servidor.lista = [TEMPLATE_COMUM, TEMPLATE_RESTRITO];
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    const montar = () => (
+      <QueryClientProvider client={cliente}>
+        <PaginaTemplatesWhatsApp />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(montar());
+    expect(await screen.findByText("aviso_interno_cliente")).toBeInTheDocument();
+
+    servidor.usuarioId = "atendente-1";
+    servidor.lista = [TEMPLATE_COMUM];
+    rerender(montar());
+
+    await waitFor(() => expect(screen.queryByText("aviso_interno_cliente")).not.toBeInTheDocument());
+    expect(await screen.findByText("aviso_cliente")).toBeInTheDocument();
+  });
+});
 
 describe("pagina de templates WhatsApp — falhas ao excluir e editar", () => {
   it("403 na exclusão mostra falta de permissão e mantém o diálogo", async () => {
