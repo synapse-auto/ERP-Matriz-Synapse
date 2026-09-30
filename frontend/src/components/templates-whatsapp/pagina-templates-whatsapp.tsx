@@ -36,6 +36,7 @@ import type {
   StatusTemplateWhatsApp,
   TemplateWhatsApp,
 } from "@/lib/atendimento/types";
+import { mensagemDeErroDeTemplate } from "@/lib/atendimento/erro-de-template";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import {
@@ -138,7 +139,16 @@ export function PaginaTemplatesWhatsApp() {
               />
             </div>
           )}
-          {podeCriar && <Button onClick={() => setAberto(true)}>{t.novo}</Button>}
+          {podeCriar && (
+            <Button
+              onClick={() => {
+                if (!criar.isPending) criar.reset();
+                setAberto(true);
+              }}
+            >
+              {t.novo}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -198,7 +208,10 @@ export function PaginaTemplatesWhatsApp() {
                             size="icon"
                             aria-label={`${t.editar}: ${template.nome}`}
                             title={t.editar}
-                            onClick={() => setEditando(template)}
+                            onClick={() => {
+                              if (!editarTemplate.isPending) editarTemplate.reset();
+                              setEditando(template);
+                            }}
                           >
                             <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
                           </Button>
@@ -210,7 +223,10 @@ export function PaginaTemplatesWhatsApp() {
                             size="icon"
                             aria-label={`${t.excluir}: ${template.nome}`}
                             title={t.excluir}
-                            onClick={() => setExcluindo(template)}
+                            onClick={() => {
+                              if (!excluirTemplate.isPending) excluirTemplate.reset();
+                              setExcluindo(template);
+                            }}
                           >
                             <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
                           </Button>
@@ -229,13 +245,7 @@ export function PaginaTemplatesWhatsApp() {
       <FormularioTemplate
         aberto={aberto && podeCriar}
         salvando={criar.isPending}
-        erro={
-          criar.isError
-            ? criar.error instanceof Error && criar.error.message
-              ? criar.error.message
-              : t.formulario.erro
-            : null
-        }
+        erro={criar.isError ? mensagemDeErroDeTemplate(criar.error, t.erros) : null}
         textos={t}
         onFechar={() => setAberto(false)}
         onSalvar={(pedido) => criar.mutate(pedido)}
@@ -244,7 +254,7 @@ export function PaginaTemplatesWhatsApp() {
         key={editando?.id ?? "sem-template"}
         template={podeEditar ? editando : null}
         salvando={editarTemplate.isPending}
-        erro={editarTemplate.isError ? t.formulario.erroEdicao : null}
+        erro={editarTemplate.isError ? mensagemDeErroDeTemplate(editarTemplate.error, t.erros) : null}
         textos={t}
         onFechar={() => setEditando(null)}
         onSalvar={(corpo) => editando && editarTemplate.mutate({ id: editando.id, corpo })}
@@ -252,6 +262,7 @@ export function PaginaTemplatesWhatsApp() {
       <DialogoConfirmacaoExclusaoTemplate
         template={podeExcluir ? excluindo : null}
         excluindo={excluirTemplate.isPending}
+        erro={excluirTemplate.isError ? mensagemDeErroDeTemplate(excluirTemplate.error, t.erros) : null}
         textos={t}
         onFechar={() => setExcluindo(null)}
         onConfirmar={() => excluindo && excluirTemplate.mutate(excluindo)}
@@ -334,8 +345,9 @@ function FormularioTemplate({
       : null;
 
   return (
-    <Dialog open={aberto} onOpenChange={(abertoAgora) => !abertoAgora && onFechar()}>
-      <DialogContent>
+    // Com o POST em voo o formulário não fecha: reabrir "Novo" criaria um segundo template.
+    <Dialog open={aberto} onOpenChange={(abertoAgora) => !abertoAgora && !salvando && onFechar()}>
+      <DialogContent showCloseButton={!salvando}>
         <DialogHeader>
           <DialogTitle>{textos.formulario.criarTitulo}</DialogTitle>
         </DialogHeader>
@@ -412,7 +424,7 @@ function FormularioTemplate({
             </p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onFechar}>
+            <Button type="button" variant="outline" disabled={salvando} onClick={onFechar}>
               {textos.formulario.cancelar}
             </Button>
             <Button type="submit" disabled={salvando || Boolean(analise.erro)}>

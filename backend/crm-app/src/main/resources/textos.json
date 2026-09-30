@@ -906,6 +906,15 @@
       "descricao": "A exclusão de {nome} acontece na conta WhatsApp Business compartilhada e pode afetar outros sistemas. Mensagens pendentes que usam este template podem falhar. Templates aprovados podem não aceitar o mesmo nome por 30 dias.",
       "confirmar": "Excluir na Meta",
       "cancelar": "Cancelar"
+    },
+    "erros": {
+      "semPermissao": "Você não tem permissão para esta ação em templates. Peça acesso à gestão.",
+      "naoEncontrado": "Este template não existe mais na conta WhatsApp. Atualize a lista.",
+      "invalido": "Pedido inválido: {motivo}",
+      "recusado": "A Meta recusou a operação: {motivo}",
+      "recusadoSemMotivo": "A Meta recusou a operação. Confira o template e tente novamente.",
+      "indisponivel": "O provedor de templates está indisponível agora. Tente novamente em instantes.",
+      "generico": "Não foi possível concluir a operação. Verifique a conexão e tente novamente."
     }
   },
   "equipe": {

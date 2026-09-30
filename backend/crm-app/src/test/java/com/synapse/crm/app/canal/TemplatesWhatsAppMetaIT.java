@@ -9,7 +9,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -46,6 +48,8 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
             "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                     + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
     private static final AtomicInteger consultasCampoInvalido = new AtomicInteger();
+    /** "METODO caminho?query" de cada chamada recebida — nunca o cabecalho de autorizacao. */
+    private static final List<String> requisicoes = new CopyOnWriteArrayList<>();
     private static final AtomicReference<String> contentTypeGraph = new AtomicReference<>("application/json");
     private static HttpServer provedor;
 
@@ -78,6 +82,7 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 "{\"data\":[{\"name\":\"boas_vindas\",\"language\":\"pt_BR\",\"status\":\"APPROVED\","
                         + "\"category\":\"UTILITY\",\"components\":[{\"type\":\"BODY\",\"text\":\"Ola {{1}}\"}]}]}");
         consultasCampoInvalido.set(0);
+        requisicoes.clear();
         contentTypeGraph.set("application/json");
     }
 
@@ -224,6 +229,59 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
                 "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
                 null);
         assertThat(excluido.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(excluido.getBody()).isNull();
+        assertThat(requisicoes).contains("POST /meta-1");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE ")))
+                .containsExactly("DELETE /waba-teste/message_templates?hsm_id=meta-1&name=boas_vindas");
+    }
+
+    @Test
+    @DisplayName("exclusao recusada pela Meta devolve 422 RFC 7807 com o motivo para o usuario")
+    void exclusaoRecusadaDevolve422() throws Exception {
+        statusGraph.set(400);
+        corpoGraph.set("{\"error\":{\"code\":100,\"error_user_msg\":\"Template em uso por outro sistema\"}}");
+
+        ResponseEntity<String> resposta = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        JsonNode problema = json.readTree(resposta.getBody());
+        assertThat(problema.path("status").asInt()).isEqualTo(422);
+        assertThat(problema.path("detail").asText()).isEqualTo("Template em uso por outro sistema");
+        assertThat(requisicoes.stream().filter(r -> r.startsWith("DELETE "))).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("exclusao com a Meta fora do ar devolve 503 RFC 7807, nao 500")
+    void exclusaoComMetaForaDoArDevolve503() throws Exception {
+        statusGraph.set(500);
+        corpoGraph.set("{\"error\":{\"message\":\"upstream\"}}");
+
+        ResponseEntity<String> resposta = chamarComo(
+                EMAIL_GESTOR,
+                SENHA_GESTOR,
+                HttpMethod.DELETE,
+                "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas",
+                null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(json.readTree(resposta.getBody()).path("status").asInt()).isEqualTo(503);
+    }
+
+    @Test
+    @DisplayName("atendente nao exclui: 403 e nenhuma chamada chega a Meta")
+    void atendenteNaoExcluiNemChegaNaMeta() {
+        ResponseEntity<String> resposta = chamar(
+                HttpMethod.DELETE, "/api/v1/whatsapp/templates/meta-1?nome=boas_vindas", null);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(requisicoes).noneMatch(r -> r.startsWith("DELETE "));
     }
 
     private ResponseEntity<String> chamar(HttpMethod metodo, String url, Object corpo) {
@@ -247,6 +305,8 @@ class TemplatesWhatsAppMetaIT extends PostgresIT {
             provedor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             provedor.createContext("/", troca -> {
                 String caminho = troca.getRequestURI().getPath();
+                String query = troca.getRequestURI().getRawQuery();
+                requisicoes.add(troca.getRequestMethod() + " " + caminho + (query == null ? "" : "?" + query));
                 if (caminho.contains("whatsapp_business_account")) {
                     consultasCampoInvalido.incrementAndGet();
                 }

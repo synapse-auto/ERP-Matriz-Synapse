@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 28/09/2026 — Auditoria da gestão de templates (criar, editar, excluir)
+
+Relato: "não consigo clicar no botão que confirma a exclusão". Em navegador real, com o adaptador
+`meta-cloud` apontado para um stub da Graph API, o clique chega nas duas superfícies (página e modal
+do atendimento) e envia exatamente um `DELETE` com `hsm_id`/`name` corretos — o bloqueio de clique
+não foi reproduzido. Comprovado e corrigido: falha da exclusão (403/422/503) não mostrava nada e o
+botão apenas reabilitava; cliques repetidos enquanto pendente enviavam 2–3 `DELETE`; edição e
+criação mostravam erro genérico ou texto cru. Matriz, evidências, procedimento do E2E e o bug do
+runner da V73 em banco dev em [`48-templates-gestao-auditoria.md`](./48-templates-gestao-auditoria.md).
+
 ### 26/09/2026 — Investigação do HTTP 410 em documentos da Uzapi/Autotic (FMNA)
 
 Investigação sem acesso a produção, registrada em

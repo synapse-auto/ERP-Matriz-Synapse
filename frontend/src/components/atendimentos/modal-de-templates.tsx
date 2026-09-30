@@ -24,6 +24,7 @@ import {
 } from "@/lib/atendimento/variaveis-do-template";
 import type { Textos } from "@/lib/config/schema";
 import { editarTemplateWhatsApp, excluirTemplateWhatsApp } from "@/lib/atendimento/api";
+import { mensagemDeErroDeTemplate } from "@/lib/atendimento/erro-de-template";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { cn } from "@/lib/utils";
@@ -218,7 +219,10 @@ export function ModalDeTemplates({
                                           size="icon"
                                           aria-label={`${textosTemplates.editar}: ${template.nome}`}
                                           title={textosTemplates.editar}
-                                          onClick={() => setEditando(template)}
+                                          onClick={() => {
+                                            if (!editar.isPending) editar.reset();
+                                            setEditando(template);
+                                          }}
                                         >
                                           <Pencil className="size-(--tamanho-icone-interface)" aria-hidden />
                                         </Button>
@@ -230,7 +234,10 @@ export function ModalDeTemplates({
                                           size="icon"
                                           aria-label={`${textosTemplates.excluir}: ${template.nome}`}
                                           title={textosTemplates.excluir}
-                                          onClick={() => setExcluindo(template)}
+                                          onClick={() => {
+                                            if (!excluir.isPending) excluir.reset();
+                                            setExcluindo(template);
+                                          }}
                                         >
                                           <Trash2 className="size-(--tamanho-icone-interface)" aria-hidden />
                                         </Button>
@@ -333,7 +340,7 @@ export function ModalDeTemplates({
         key={editando?.id ?? "sem-template"}
         template={podeEditar ? editando : null}
         salvando={editar.isPending}
-        erro={editar.isError ? textosTemplates.formulario.erroEdicao : null}
+        erro={editar.isError ? mensagemDeErroDeTemplate(editar.error, textosTemplates.erros) : null}
         textos={textosTemplates}
         onFechar={() => setEditando(null)}
         onSalvar={(corpo) => editando && editar.mutate({ id: editando.id, corpo })}
@@ -341,6 +348,7 @@ export function ModalDeTemplates({
       <DialogoConfirmacaoExclusaoTemplate
         template={podeExcluir ? excluindo : null}
         excluindo={excluir.isPending}
+        erro={excluir.isError ? mensagemDeErroDeTemplate(excluir.error, textosTemplates.erros) : null}
         textos={textosTemplates}
         onFechar={() => setExcluindo(null)}
         onConfirmar={() => excluindo && excluir.mutate(excluindo)}
