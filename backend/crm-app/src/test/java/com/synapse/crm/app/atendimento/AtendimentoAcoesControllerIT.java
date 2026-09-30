@@ -425,6 +425,34 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("transferir: atendimento finalizado nao e transferido e nada muda")
+    void transferir_atendimentoFinalizado_retorna409SemEscritas() {
+        UUID lead = criarLead("lead finalizado " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em, finalizado_em)"
+                        + " VALUES (?, ?, ?, 'FINALIZADO'::status_atendimento, now() - interval '1 hour', now())",
+                atendimentoId,
+                lead,
+                idAna);
+
+        var resposta = chamar(
+                EMAIL_ANA,
+                SENHA_ATENDENTE,
+                HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/transferir",
+                Map.of("paraAtendenteId", idBruno.toString()));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId))
+                .isEqualTo(idAna);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, lead))
+                .isEqualTo(idAna);
+    }
+
+    @Test
     @DisplayName("transferir: atendente pode assumir um Potencial para si mesmo")
     void transferir_atendentePotencialParaSiMesmo_retorna200() {
         UUID atendimentoId = criarAtendimentoPotencial("lead potencial " + sufixo());
