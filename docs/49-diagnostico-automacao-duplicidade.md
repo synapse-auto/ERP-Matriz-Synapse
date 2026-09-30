@@ -68,11 +68,26 @@ prompt, o contrato não será alterado com base nessa suposição.
 ## Como obter os fatos — script somente leitura
 
 ```bash
-bash docker/operacoes/diagnostico-automacao-duplicidade.sh 14
+bash docker/operacoes/diagnostico-automacao-duplicidade.sh --stack <nome-da-stack> [--dias 14]
 ```
 
-Toda sessão abre com `default_transaction_read_only=on`. O script não imprime telefone e mostra
-os textos truncados em 60 caracteres. Seções:
+A VPS hospeda mais de uma stack, então **nada é escolhido por padrão**:
+
+- `--stack` é obrigatório. Sem ele, o script lista as stacks em execução e para.
+- Postgres, backend e n8n são resolvidos pelos labels do Swarm da stack informada
+  (`com.docker.stack.namespace` e `com.docker.swarm.service.name=<stack>_<serviço>`). Exige
+  **exatamente um** container em execução de cada; zero ou mais de um interrompe.
+- Os bancos saem do ambiente dos próprios containers (`POSTGRES_DB`/`POSTGRES_USER` do Postgres,
+  `SYNAPSE_DB_URL`/`SYNAPSE_DB_USER` do backend, `DB_POSTGRESDB_HOST`/`DATABASE` do n8n), nunca de
+  nome fixo. Interrompe se o backend ou o n8n apontarem para outro host que não o `postgres` da
+  própria stack, se o banco do backend divergir do `POSTGRES_DB`, se o usuário divergir ou se um
+  banco não existir.
+- Exibe os três containers e os dois bancos **antes** da primeira consulta e pede confirmação
+  (`--sim` dispensa; sem terminal e sem `--sim`, para sem consultar).
+
+Toda sessão abre com `default_transaction_read_only=on` e o script só executa `SELECT`. Não lê
+variáveis de segredo e não imprime token, senha ou telefone: e-mails e números com 8+ dígitos
+(mesmo formatados) são mascarados **antes** de o texto ser truncado em 60 caracteres. Seções:
 
 | Seção | Responde | Hipótese |
 |---|---|---|
@@ -83,9 +98,25 @@ os textos truncados em 60 caracteres. Seções:
 | E | atendimentos ativos agora versus página de 20 | H2 |
 | E2 | mensagens registradas pela Automação por dia | ausência de registro |
 
-Validação: com dados sintéticos no banco de desenvolvimento, A/A2 e D/D2 acusam o repasse
-publicado após falha e a repetição plantados; sem eles, acusam zero. As seções C/C2 (banco do
-n8n) não foram executadas fora da produção.
+### O que foi validado — e o que não foi
+
+- **Resolução de alvos e modos de falha:** `bash docker/verificacao/testar-diagnostico-automacao.sh`
+  roda o script contra um `docker` falso que simula duas stacks na mesma VPS. São 22 verificações:
+  - 13 modos de falha, todos sem nenhuma consulta de dados;
+  - caminho feliz: só o Postgres, o usuário e os bancos da stack alvo são tocados, toda sessão é
+    somente leitura, nenhum token aparece e a outra stack não é tocada.
+  
+  Removendo de propósito a checagem de host do backend, ou o modo somente leitura, o teste
+  correspondente reprova.
+- **Consultas do CRM (A, A2, D, D2, E, E2):** executadas num Postgres 15 de desenvolvimento em
+  sessão somente leitura. Com dados sintéticos plantados, acusam o repasse publicado após falha e a
+  repetição da IA (com o telefone do texto mascarado); sem eles, acusam zero. A máscara também foi
+  conferida com telefone formatado, internacional e e-mail na borda do corte.
+- **Não validado:** as consultas ao banco do n8n (C, C2) **nunca foram executadas** — não há banco
+  do n8n no ambiente de desenvolvimento. Os nomes de tabela e coluna (`execution_entity`,
+  `execution_data`, `workflow_entity`, `"startedAt"`, `"retryOf"`) seguem o schema do n8n 1.x e
+  podem divergir na versão instalada; se falharem, o script para ali (`ON_ERROR_STOP`) sem alterar
+  nada. A seção B (log do backend) também só foi testada com uma linha de exemplo.
 
 ## Como ler o resultado
 
@@ -99,7 +130,8 @@ n8n) não foram executadas fora da produção.
 
 ## O que é necessário para seguir
 
-1. Saída do script acima (ou acesso SSH de leitura a partir desta máquina).
+1. Saída do script acima para a stack da instância afetada, conferindo os alvos exibidos antes de
+   confirmar (ou acesso SSH de leitura a partir desta máquina).
 2. Export JSON do workflow do n8n que recebe o webhook do CRM, sem credenciais. É ele que diz qual
    endpoint busca o lead e como o nó Webhook responde.
 3. Pelo menos dois casos relatados pela equipe: lead/telefone, horário aproximado e texto da
