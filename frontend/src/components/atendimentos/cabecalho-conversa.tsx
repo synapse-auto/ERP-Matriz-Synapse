@@ -495,6 +495,8 @@ export function CabecalhoConversa({
 
       <DialogoTransferir
         atendimentoId={conversa.atendimentoId}
+        status={conversa.status}
+        responsavelId={conversa.atendenteId}
         aberto={transferirAberto}
         onFechar={() => setTransferirAberto(false)}
       />

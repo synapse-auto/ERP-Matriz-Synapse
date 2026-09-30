@@ -55,6 +55,7 @@ import { useEnviarMensagem } from "@/lib/atendimento/use-enviar-mensagem";
 import { useEnviarMidia } from "@/lib/atendimento/use-enviar-midia";
 import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-composer";
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
+import { chaveDaTransferenciaPropria, type TransferenciaPropria } from "@/lib/atendimento/use-transferir-finalizar";
 import { invalidarParticipacao } from "@/lib/atendimento/use-participacao";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -137,6 +138,8 @@ export function PaginaAtendimentosCliente({
     mensagem: MensagemResposta;
   } | null>(null);
   const [avisoRevogacao, setAvisoRevogacao] = useState(false);
+  // Perda de acesso causada pela transferência que o próprio usuário fez: confirmação, não alerta.
+  const [avisoTransferencia, setAvisoTransferencia] = useState<string | null>(null);
   const telaEstreita = useTelaEstreita();
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
@@ -198,11 +201,13 @@ export function PaginaAtendimentosCliente({
         setAtendimentoSelecionadoId(null);
         setSincronizacaoLiberada(null);
         setAvisoRevogacao(false);
+        setAvisoTransferencia(null);
         setBuscaAberta(false);
         return;
       }
       const idParaAbrir = cartao.atendimentoAtivoId ?? cartao.atendimentoId;
       setAvisoRevogacao(false);
+      setAvisoTransferencia(null);
       setConversaInternaId(null);
       setBuscaAberta(false);
       setErroDeAbertura(null);
@@ -230,6 +235,7 @@ export function PaginaAtendimentosCliente({
   const focarAtendimentoIniciado = useCallback(
     (resposta: { leadId: string; atendimentoId: string }) => {
       setAvisoRevogacao(false);
+      setAvisoTransferencia(null);
       setConversaInternaId(null);
       setVisaoAtendimento("ATIVOS");
       setAtendimentoSelecionadoId(null);
@@ -373,14 +379,24 @@ export function PaginaAtendimentosCliente({
     }
   }, [estadoSelecionadoQuery.data, reconciliador]);
 
+  const textoTransferido = textos.transferir.sucesso;
+  const textoTransferidoPara = textos.transferir.sucessoPara;
   const indisponibilizarAtendimento = useCallback(
     (atendimentoId: string) => {
       if (atendimentoSelecionadoId !== atendimentoId) return;
-      setAvisoRevogacao(true);
+      const propria = cache.getQueryData<TransferenciaPropria>(chaveDaTransferenciaPropria(atendimentoId));
+      if (propria) {
+        cache.removeQueries({ queryKey: chaveDaTransferenciaPropria(atendimentoId), exact: true });
+        setAvisoTransferencia(
+          propria.destinoNome ? textoTransferidoPara.replace("{nome}", propria.destinoNome) : textoTransferido,
+        );
+      } else {
+        setAvisoRevogacao(true);
+      }
       setSincronizacaoLiberada(null);
       setAtendimentoSelecionadoId(null);
     },
-    [atendimentoSelecionadoId],
+    [atendimentoSelecionadoId, cache, textoTransferido, textoTransferidoPara],
   );
 
   const processarEventoCanonico = useCallback(
@@ -836,6 +852,11 @@ export function PaginaAtendimentosCliente({
         {avisoRevogacao && (
           <div className="bg-destructive/10 px-3 py-1 text-center text-xs text-destructive">
             {textos.tempoReal.conversaEncerrada}
+          </div>
+        )}
+        {avisoTransferencia && !avisoRevogacao && (
+          <div className="bg-cor-sucesso/10 px-3 py-1 text-center text-xs text-cor-sucesso" role="status">
+            {avisoTransferencia}
           </div>
         )}
 

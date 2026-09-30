@@ -374,7 +374,17 @@
       "confirmar": "Transferir",
       "cancelar": "Cancelar",
       "sucesso": "Atendimento transferido.",
-      "erro": "Não foi possível transferir."
+      "erro": "Não foi possível transferir.",
+      "descricaoPotencial": "Potenciais são distribuídos pela IA ou pela gestão. Você pode assumir este atendimento para você.",
+      "carregandoDestinos": "Carregando atendentes...",
+      "erroDestinos": "Não foi possível carregar os atendentes.",
+      "tentarNovamente": "Tentar novamente",
+      "semDestinos": "Nenhum atendente disponível para receber agora.",
+      "erroPermissao": "Seu perfil não permite esta transferência.",
+      "erroDestino": "Este atendente não pode receber atendimentos agora. Escolha outro.",
+      "erroFinalizado": "Este atendimento já foi finalizado.",
+      "erroIndisponivel": "Esta conversa não está mais disponível para você.",
+      "sucessoPara": "Atendimento transferido para {nome}."
     },
     "finalizar": {
       "titulo": "Finalizar atendimento",
