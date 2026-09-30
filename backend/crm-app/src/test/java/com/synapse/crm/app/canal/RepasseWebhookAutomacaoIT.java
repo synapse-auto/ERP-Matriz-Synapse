@@ -8,9 +8,12 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -51,7 +54,9 @@ import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEn
             "synapse.canal.outbox.intervalo-ms=3600000",
             "synapse.automacao.repasse-webhook.intervalo-ms=3600000",
             "synapse.canal.outbox.maximo-de-tentativas=3",
-            "synapse.canal.outbox.backoff-inicial=0s"
+            "synapse.canal.outbox.backoff-inicial=0s",
+            // Curto para o teste de timeout; o servidor de teste responde na hora nos demais.
+            "synapse.automacao.repasse-webhook.timeout=1s"
         })
 class RepasseWebhookAutomacaoIT extends PostgresIT {
 
@@ -120,8 +125,61 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
             RequisicaoRecebida recebida = SERVIDOR.requisicoes().get(0);
             assertThat(recebida.corpo()).containsExactly(payload.getBytes(StandardCharsets.UTF_8));
             assertThat(recebida.assinatura()).isEqualTo(assinatura);
+            assertThat(recebida.eventoId()).isEqualTo(idDoRepasse().toString());
+            assertThat(recebida.tentativa()).isEqualTo("1");
             assertThat(repassesPendentes()).isZero();
         });
+    }
+
+    @Test
+    @DisplayName("falha antes da aceitacao: o retry entrega o MESMO evento (mesmo id, corpo e assinatura) e nada se perde")
+    void falhaAntesDaAceitacao_retryEntregaOMesmoEvento() {
+        SERVIDOR.responderCom(503);
+        String payload = payload("wamid.E25-retry", "chegou quando a Automacao estava fora");
+        String assinatura = assinatura(payload);
+        postar(payload, assinatura);
+
+        publicador.publicarPendentes();
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(tentativasDoRepasse()).isEqualTo(1));
+        SERVIDOR.responderCom(204);
+        publicador.publicarPendentes();
+
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(SERVIDOR.requisicoes()).hasSize(2);
+            assertThat(repassesPendentes()).isZero();
+        });
+        RequisicaoRecebida primeira = SERVIDOR.requisicoes().get(0);
+        RequisicaoRecebida segunda = SERVIDOR.requisicoes().get(1);
+        assertThat(segunda.corpo()).containsExactly(payload.getBytes(StandardCharsets.UTF_8));
+        assertThat(segunda.assinatura()).isEqualTo(assinatura);
+        assertThat(segunda.eventoId()).isEqualTo(primeira.eventoId()).isEqualTo(idDoRepasse().toString());
+        assertThat(List.of(primeira.tentativa(), segunda.tentativa())).containsExactly("1", "2");
+    }
+
+    @Test
+    @DisplayName("timeout depois de o destino receber: entrega incerta fica registrada e a reentrega leva o mesmo id do evento")
+    void timeoutDepoisDeReceber_reentregaComOMesmoEventoIdEMarcaIncerta() {
+        SERVIDOR.atrasarResposta(Duration.ofMillis(2_500));
+        String payload = payload("wamid.E25-lento", "a Automacao demorou para responder");
+        postar(payload, assinatura(payload));
+
+        publicador.publicarPendentes();
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertThat(SERVIDOR.requisicoes()).hasSize(1);
+            assertThat(tentativasDoRepasse()).isEqualTo(1);
+            assertThat(repassesPendentes()).isEqualTo(1);
+            assertThat(ultimoErroDoRepasse()).contains("incerta");
+        });
+
+        SERVIDOR.atrasarResposta(Duration.ZERO);
+        publicador.publicarPendentes();
+
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertThat(SERVIDOR.requisicoes()).hasSize(2);
+            assertThat(repassesPendentes()).isZero();
+        });
+        // O consumidor deduplica por este id: a reentrega nao pode parecer um evento novo.
+        assertThat(SERVIDOR.requisicoes().get(1).eventoId()).isEqualTo(SERVIDOR.requisicoes().get(0).eventoId());
     }
 
     @Test
@@ -184,6 +242,17 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
                 Integer.class);
     }
 
+    private UUID idDoRepasse() {
+        return jdbc.queryForObject(
+                "SELECT id FROM outbox_evento WHERE tipo='automacao.webhook.repassar'", UUID.class);
+    }
+
+    private String ultimoErroDoRepasse() {
+        return jdbc.queryForObject(
+                "SELECT coalesce(max(ultimo_erro), '') FROM outbox_evento WHERE tipo='automacao.webhook.repassar'",
+                String.class);
+    }
+
     private int tentativasDoRepasse() {
         return jdbc.queryForObject(
                 "SELECT coalesce(max(tentativas), 0) FROM outbox_evento WHERE tipo='automacao.webhook.repassar'",
@@ -202,13 +271,14 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
     }
 
-    private record RequisicaoRecebida(byte[] corpo, String assinatura) {}
+    private record RequisicaoRecebida(byte[] corpo, String assinatura, String eventoId, String tentativa) {}
 
     private static final class ServidorAutomacao {
         private final HttpServer servidor;
         private final CopyOnWriteArrayList<RequisicaoRecebida> requisicoes =
                 new CopyOnWriteArrayList<>();
         private final AtomicInteger status = new AtomicInteger(204);
+        private final AtomicLong atrasoMs = new AtomicLong();
 
         private ServidorAutomacao(HttpServer servidor) {
             this.servidor = servidor;
@@ -219,6 +289,8 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
                 HttpServer servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
                 ServidorAutomacao automacao = new ServidorAutomacao(servidor);
                 servidor.createContext("/webhook/eventos", automacao::receber);
+                // Uma thread por requisicao: a resposta lenta de uma entrega nao atrasa a seguinte.
+                servidor.setExecutor(Executors.newCachedThreadPool());
                 servidor.start();
                 return automacao;
             } catch (IOException e) {
@@ -233,13 +305,24 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
         void receber(HttpExchange troca) throws IOException {
             requisicoes.add(new RequisicaoRecebida(
                     troca.getRequestBody().readAllBytes(),
-                    troca.getRequestHeaders().getFirst("X-Hub-Signature-256")));
+                    troca.getRequestHeaders().getFirst("X-Hub-Signature-256"),
+                    troca.getRequestHeaders().getFirst("X-Synapse-Evento-Id"),
+                    troca.getRequestHeaders().getFirst("X-Synapse-Tentativa")));
+            try {
+                Thread.sleep(atrasoMs.get());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             troca.sendResponseHeaders(status.get(), -1);
             troca.close();
         }
 
         void responderCom(int novoStatus) {
             status.set(novoStatus);
+        }
+
+        void atrasarResposta(Duration atraso) {
+            atrasoMs.set(atraso.toMillis());
         }
 
         CopyOnWriteArrayList<RequisicaoRecebida> requisicoes() {
@@ -249,6 +332,7 @@ class RepasseWebhookAutomacaoIT extends PostgresIT {
         void limpar() {
             requisicoes.clear();
             status.set(204);
+            atrasoMs.set(0);
         }
 
         void parar() {
