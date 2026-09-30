@@ -195,21 +195,33 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
         {/* FASE 2: trava temporária de teste para etapas e controles de preenchimento automático. */}
         <SomenteAdministrador>
           {etapaAtual && (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+            <div data-slot="etapa-do-atendimento">
+              {/* Etapa atual ao lado do título: é a informação principal da seção. */}
+              <div data-slot="etapa-cabecalho" className="flex min-w-0 items-center justify-between gap-2">
+                <p className="shrink-0 text-xs font-bold tracking-wide text-muted-foreground uppercase">
                   {textosLead.etapa.titulo}
                 </p>
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {textosLead.etapa.posicao
-                    .replace("{atual}", String(posicaoEtapa))
-                    .replace("{total}", String(etapasOrdenadas.length))}
+                <span
+                  className="min-w-0 truncate rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
+                  title={etapaAtual.nome}
+                  style={
+                    etapaAtual.corVisual
+                      ? {
+                          backgroundColor: `${etapaAtual.corVisual}22`,
+                          color: etapaAtual.corVisual,
+                        }
+                      : undefined
+                  }
+                >
+                  {etapaAtual.nome}
                 </span>
               </div>
               <div className="mt-2 flex gap-1" aria-hidden>
                 {etapasOrdenadas.map((etapa, indice) => (
                   <span
                     key={etapa.id}
+                    data-slot="etapa-segmento"
+                    data-preenchido={indice < posicaoEtapa}
                     className="h-1.5 flex-1 rounded-full bg-muted"
                     style={
                       indice < posicaoEtapa
@@ -222,25 +234,23 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
                   />
                 ))}
               </div>
-              <div className="mt-1 flex justify-between gap-2 text-[0.65rem] text-muted-foreground">
-                <span>{etapasOrdenadas[0]?.nome ?? textosLead.etapa.semEtapa}</span>
-                {etapasOrdenadas.length > 1 && (
-                  <span>{etapasOrdenadas.at(-1)?.nome}</span>
-                )}
-              </div>
-              <span
-                className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-foreground"
-                style={
-                  etapaAtual.corVisual
-                    ? {
-                        backgroundColor: `${etapaAtual.corVisual}22`,
-                        color: etapaAtual.corVisual,
-                      }
-                    : undefined
-                }
+              {/* Colunas laterais encolhem e truncam; a posição do meio nunca quebra nem é empurrada. */}
+              <div
+                data-slot="etapa-rodape"
+                className="mt-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-baseline gap-2 text-[0.65rem] text-muted-foreground"
               >
-                {etapaAtual.nome}
-              </span>
+                <span className="truncate text-left" title={etapasOrdenadas[0]?.nome}>
+                  {etapasOrdenadas[0]?.nome ?? textosLead.etapa.semEtapa}
+                </span>
+                <span className="text-center font-semibold whitespace-nowrap text-foreground">
+                  {textosLead.etapa.posicao
+                    .replace("{atual}", String(posicaoEtapa))
+                    .replace("{total}", String(etapasOrdenadas.length))}
+                </span>
+                <span className="truncate text-right" title={etapasOrdenadas.length > 1 ? etapasOrdenadas.at(-1)?.nome : undefined}>
+                  {etapasOrdenadas.length > 1 ? etapasOrdenadas.at(-1)?.nome : null}
+                </span>
+              </div>
             </div>
           )}
         </SomenteAdministrador>

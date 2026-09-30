@@ -689,6 +689,97 @@ describe("painel da conversa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remover Ligar" }));
     expect(screen.getByText("Remover Ligar?")).toBeInTheDocument();
   });
+
+  describe("seção de etapa", () => {
+    function secao() {
+      const raiz = document.querySelector<HTMLElement>('[data-slot="etapa-do-atendimento"]');
+      if (!raiz) throw new Error("seção de etapa ausente");
+      const cabecalho = raiz.querySelector<HTMLElement>('[data-slot="etapa-cabecalho"]')!;
+      const rodape = raiz.querySelector<HTMLElement>('[data-slot="etapa-rodape"]')!;
+      const segmentos = [...raiz.querySelectorAll<HTMLElement>('[data-slot="etapa-segmento"]')];
+      return {
+        cabecalho,
+        rodape,
+        colunasDoRodape: [...rodape.children].map((filho) => filho.textContent),
+        preenchidos: segmentos.filter((segmento) => segmento.dataset.preenchido === "true").length,
+        total: segmentos.length,
+      };
+    }
+
+    it("etapa intermediária: selo na linha do título e posição centralizada entre as extremidades", () => {
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      const { cabecalho, rodape, colunasDoRodape, preenchidos, total } = secao();
+      expect(within(cabecalho).getByText("Etapa")).toBeInTheDocument();
+      expect(within(cabecalho).getByText("Orçamento")).toBeInTheDocument();
+      expect(within(cabecalho).queryByText("2 de 3")).not.toBeInTheDocument();
+      expect(colunasDoRodape).toEqual(["Novo contato", "2 de 3", "Negociação"]);
+      expect(within(rodape).getByText("2 de 3")).toHaveClass("text-center");
+      expect([preenchidos, total]).toEqual([2, 3]);
+    });
+
+    it.each([
+      ["etapa-0", "Novo contato", "1 de 3", 1],
+      ["etapa-2", "Negociação", "3 de 3", 3],
+    ])("extremidade %s: posição e segmentos corretos", (etapaId, nome, posicao, esperados) => {
+      leadState.data = { ...leadState.data, etapaAtendimentoId: etapaId };
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      const { cabecalho, colunasDoRodape, preenchidos } = secao();
+      expect(within(cabecalho).getByText(nome)).toBeInTheDocument();
+      expect(colunasDoRodape).toEqual(["Novo contato", posicao, "Negociação"]);
+      expect(preenchidos).toBe(esperados);
+    });
+
+    it("usa nome, ordem e quantidade do catálogo, sem strings fixas", () => {
+      etapasState.data = [
+        { id: "e-c", nome: "Medição", ordem: 3, corVisual: null },
+        { id: "e-a", nome: "Primeiro contato", ordem: 1, corVisual: null },
+        { id: "e-e", nome: "Instalado", ordem: 5, corVisual: null },
+        { id: "e-b", nome: "Visita", ordem: 2, corVisual: null },
+        { id: "e-d", nome: "Produção", ordem: 4, corVisual: null },
+      ] as EtapaAtendimento[];
+      leadState.data = { ...leadState.data, etapaAtendimentoId: "e-d" };
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      const { cabecalho, colunasDoRodape, preenchidos, total } = secao();
+      expect(within(cabecalho).getByText("Produção")).toBeInTheDocument();
+      expect(colunasDoRodape).toEqual(["Primeiro contato", "4 de 5", "Instalado"]);
+      expect([preenchidos, total]).toEqual([4, 5]);
+    });
+
+    it("nomes longos truncam com o nome completo acessível, sem empurrar a posição", () => {
+      const longo = "Aguardando aprovação do projeto executivo pelo cliente final";
+      const primeiro = "Primeiro contato comercial com o cliente";
+      const ultimo = "Pós-venda e acompanhamento da garantia";
+      etapasState.data = [
+        { id: "a", nome: primeiro, ordem: 1, corVisual: null },
+        { id: "b", nome: longo, ordem: 2, corVisual: null },
+        { id: "c", nome: ultimo, ordem: 3, corVisual: null },
+      ] as EtapaAtendimento[];
+      leadState.data = { ...leadState.data, etapaAtendimentoId: "b" };
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      const { cabecalho, rodape } = secao();
+      const selo = within(cabecalho).getByText(longo);
+      expect(selo).toHaveClass("truncate");
+      expect(selo).toHaveAttribute("title", longo);
+      expect(rodape).toHaveClass("grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]");
+      for (const nome of [primeiro, ultimo]) {
+        expect(within(rodape).getByText(nome)).toHaveClass("truncate");
+        expect(within(rodape).getByText(nome)).toHaveAttribute("title", nome);
+      }
+      expect(within(rodape).getByText("2 de 3")).toHaveClass("whitespace-nowrap");
+    });
+
+    it("etapa do lead fora do catálogo: nenhum selo nem posição", () => {
+      leadState.data = { ...leadState.data, etapaAtendimentoId: "etapa-inexistente" };
+      renderizarPainel("lead-1", "Jardel Lima");
+
+      expect(document.querySelector('[data-slot="etapa-do-atendimento"]')).toBeNull();
+      expect(screen.queryByText(/de 3$/)).not.toBeInTheDocument();
+    });
+  });
 });
 
 function renderizarPainel(
