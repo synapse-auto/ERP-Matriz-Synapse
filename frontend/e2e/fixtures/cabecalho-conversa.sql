@@ -6,7 +6,7 @@
 INSERT INTO lead (id, nome, telefone, empresa, status_basico, atendente_responsavel_id, criado_em)
 SELECT 'e2100000-0000-4000-8000-000000000001',
        'Maria Aparecida dos Santos Vasconcelos Albuquerque de Oliveira',
-       '5561999990000', 'Construtora Horizonte Planalto Central', 'EM_ATENDIMENTO', u.id, now()
+       '5561999990999', 'Construtora Horizonte Planalto Central', 'EM_ATENDIMENTO', u.id, now()
   FROM usuario u WHERE u.email = 'ana@dev.local'
 ON CONFLICT (id) DO NOTHING;
 

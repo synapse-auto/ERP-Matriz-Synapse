@@ -206,6 +206,17 @@ describe("BarraDeAcoesComTransbordo", () => {
     expect(barra).not.toHaveAttribute("data-linha-propria");
   });
 
+  it.each([320, 380])("mantém fixos e ⋯ acessíveis com conversa de %ipx", (largura) => {
+    const { container } = render(<Cenario acoes={acoesPadrao()} />);
+
+    redimensionar(largura);
+
+    expect(container.querySelector('[data-slot="acoes-cabecalho"]')).toHaveAttribute("data-linha-propria", "true");
+    expect(botaoVisivel("finalizar")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mais ações" })).toBeInTheDocument();
+    expect(botaoVisivel("convidar")).not.toBeInTheDocument();
+  });
+
   it("sem largura medida (oculto ou antes do layout), não esconde nenhuma ação", () => {
     render(<Cenario acoes={acoesPadrao()} />);
     redimensionar(0);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ArrowLeft, X } from "lucide-react";
 
@@ -40,6 +40,7 @@ import {
   statusHttpDoErro,
 } from "@/lib/atendimento/abertura-atendimento";
 import { TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO } from "@/lib/atendimento/arquivos-do-composer";
+import { modoDaGrade, type ModoDaGrade } from "@/lib/atendimento/modo-da-grade";
 import { motivoDaFalhaDeMidia, type FalhaDeEnvioMidia } from "@/lib/atendimento/falhas-de-midia";
 import { janelaTextoLivreAberta } from "@/lib/atendimento/janela-24h";
 import { ReconciliadorEstadoAtendimento } from "@/lib/atendimento/reconciliar-estado-atendimento";
@@ -129,6 +130,8 @@ export function PaginaAtendimentosCliente({
   const composerRef = useRef<ComposerHandle>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
+  const gradeRef = useRef<HTMLDivElement>(null);
+  const [modoGrade, setModoGrade] = useState<ModoDaGrade>("ampla");
   const [respostaAlvo, setRespostaAlvo] = useState<{
     leadId: string;
     mensagem: MensagemResposta;
@@ -141,6 +144,22 @@ export function PaginaAtendimentosCliente({
   // Perda de acesso causada pela transferência que o próprio usuário fez: confirmação, não alerta.
   const [avisoTransferencia, setAvisoTransferencia] = useState<string | null>(null);
   const telaEstreita = useTelaEstreita();
+  useLayoutEffect(() => {
+    const grade = gradeRef.current;
+    if (!grade) return;
+    const atualizar = () => {
+      const largura = grade.getBoundingClientRect().width;
+      if (largura > 0) setModoGrade(modoDaGrade(largura));
+    };
+    atualizar();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", atualizar);
+      return () => window.removeEventListener("resize", atualizar);
+    }
+    const observador = new ResizeObserver(atualizar);
+    observador.observe(grade);
+    return () => observador.disconnect();
+  }, []);
   const { definir: definirConversaEmTelaCheia } = useConversaEmTelaCheia();
   const { data: configuracao } = useConfiguracaoComposer();
   const { data: flags } = useQuery({ queryKey: ["config", "features"], queryFn: () => apiFetch<string[]>("/api/v1/config/features") });
@@ -555,7 +574,10 @@ export function PaginaAtendimentosCliente({
     conversa && respostaAlvo?.leadId === conversa.leadId ? respostaAlvo.mensagem : null;
   const encaminharDaTela =
     conversa && encaminharAlvo?.leadId === conversa.leadId ? encaminharAlvo.mensagem : null;
-  const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !telaEstreita);
+  const conversaEmColunaUnica = telaEstreita || modoGrade === "unica";
+  const painelVisivel = Boolean(conversa) && (painelDetalhesAberto ?? !conversaEmColunaUnica);
+  const listaOcultaComPainel = modoGrade === "dupla" && painelVisivel;
+  const listaOculta = conversaAberta && (conversaEmColunaUnica || listaOcultaComPainel);
   useEffect(() => {
     definirConversaEmTelaCheia(telaEstreita && conversaAberta);
     return () => definirConversaEmTelaCheia(false);
@@ -701,8 +723,10 @@ export function PaginaAtendimentosCliente({
     substituirReacoesDoHistorico(cache, ["mensagens", historicoId], mensagem.id, resposta.reacoes);
   }
 
-  const colunasDoPainel = telaEstreita
+  const colunasDoPainel = conversaEmColunaUnica
     ? "grid-cols-1"
+    : listaOcultaComPainel
+      ? "grid-cols-[minmax(0,1fr)_344px]"
     : conversa && painelVisivel
       ? "grid-cols-[346px_minmax(0,1fr)_344px]"
       : "grid-cols-[346px_minmax(0,1fr)]";
@@ -710,6 +734,7 @@ export function PaginaAtendimentosCliente({
   return (
     <ProvedorDeAberturaDeConversa valor={aberturaDeConversaDoContato}>
     <div
+      ref={gradeRef}
       className={`relative grid h-full min-h-0 flex-1 ${colunasDoPainel} grid-rows-[minmax(0,1fr)] overflow-hidden`}
     >
       {(falhasDeMidia.length > 0 || notificacao || erroDeAbertura) && (
@@ -840,10 +865,10 @@ export function PaginaAtendimentosCliente({
               setNovoContatoAberto(true);
             }
           : undefined}
-        className={cn(telaEstreita && conversaAberta && "hidden")}
+        className={cn(listaOculta && "hidden")}
       />
 
-      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", telaEstreita && !conversaAberta && "hidden")}>
+      <div className={cn("flex h-full min-h-0 min-w-0 flex-col overflow-hidden", conversaEmColunaUnica && !conversaAberta && "hidden")}>
         {estado === "reconectando" && (
           <div className="bg-cor-atencao/10 px-3 py-1 text-center text-xs text-cor-atencao">
             {textos.tempoReal.reconectando}
@@ -862,7 +887,7 @@ export function PaginaAtendimentosCliente({
 
         {conversaInternaId ? (
           <>
-            {telaEstreita && (
+            {conversaEmColunaUnica && (
               <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
                 <button
                   type="button"
@@ -886,7 +911,7 @@ export function PaginaAtendimentosCliente({
               onAlternarBusca={() => setBuscaAberta((aberta) => !aberta)}
               painelDetalhesAberto={painelVisivel}
               onAlternarPainelDetalhes={() =>
-                setPainelDetalhesAberto(!(painelDetalhesAberto ?? !telaEstreita))
+                setPainelDetalhesAberto(!(painelDetalhesAberto ?? !conversaEmColunaUnica))
               }
               onAbrirNovoAtendimento={
                 atendimentoAtivo
@@ -896,7 +921,7 @@ export function PaginaAtendimentosCliente({
               abrindoNovoAtendimento={abrirNovoAtendimento.isPending}
               onAtendimentoFinalizado={aposAtendimentoFinalizado}
               onVoltar={
-                telaEstreita
+                listaOculta
                   ? () => {
                       setAtendimentoSelecionadoId(null);
                       setSincronizacaoLiberada(null);
@@ -976,7 +1001,7 @@ export function PaginaAtendimentosCliente({
       </div>
 
       {conversa && painelVisivel && (
-        <div className={cn("h-full min-h-0 overflow-hidden", telaEstreita && "absolute inset-0 z-20 bg-background")}>
+        <div className={cn("h-full min-h-0 overflow-hidden", conversaEmColunaUnica && "absolute inset-0 z-20 bg-background")}>
           <PainelDaConversa
             leadId={conversa.leadId}
             atendimentoId={conversa.atendimentoId}

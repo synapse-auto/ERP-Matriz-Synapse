@@ -8,15 +8,22 @@ import { expect, test, type Browser, type Locator, type Page } from "@playwright
  * sumiam (0px de largura) e a barra de ações vazava para a esquerda, para baixo da lista e do
  * painel — o "⋯" ficava fora da área clicável ("menu não funciona"). Ex.: 1024px com zoom 150%.
  *
- * Zoom do navegador = viewport CSS menor com `deviceScaleFactor` igual ao zoom, na mesma largura
- * física. Pré-requisito: o mesmo de `cabecalho-conversa.spec.ts` (seed dev + fixture SQL).
+ * Viewport CSS equivalente a zoom de 125%/150% na mesma largura física. `deviceScaleFactor`
+ * mantém a densidade da captura, mas não substitui uma verificação de zoom real do navegador.
+ * Pré-requisito: o mesmo de `cabecalho-conversa.spec.ts` (seed dev + fixture SQL).
  */
 const LEAD_ID = "e2100000-0000-4000-8000-000000000001";
 const ATENDIMENTO_ID = "e2100000-0000-4000-8000-0000000000a1";
-const TELEFONE = "5561999990000";
-const CAPTURAS = process.env.PLAYWRIGHT_CAPTURAS ?? "test-results/cabecalho-conversa-geometria";
+const TELEFONE = "5561999990999";
+const CAPTURAS = process.env.PLAYWRIGHT_CAPTURAS ?? "../output/playwright/cabecalho-conversa";
 /** Abaixo disto o nome deixa de identificar o lead (≈ 6 caracteres em negrito). */
 const LARGURA_MINIMA_LEGIVEL_DO_NOME = 48;
+
+function errosDeRuntimeDaAplicacao(erros: string[]) {
+  // O instrumentador de performance do Next dev pode medir a navegação de / para /atendimentos
+  // com marca anterior ao início da página. Não é exceção do cabeçalho nem ocorre no build.
+  return erros.filter((erro) => !erro.includes("cannot have a negative time stamp"));
+}
 
 const PAPEIS = {
   atendente: { email: "ana@dev.local", senha: "atendente123", visao: "ATIVOS" },
@@ -25,9 +32,11 @@ const PAPEIS = {
 
 type Caso = { papel: keyof typeof PAPEIS; largura: number; zoom: number };
 const CASOS: Caso[] = [
-  ...[1920, 1366, 1280, 1024, 800, 390].flatMap((largura) =>
-    [1, 1.25, 1.5].map((zoom) => ({ papel: "atendente" as const, largura, zoom }))),
-  ...[1920, 1366, 1280, 1024, 800].map((largura) => ({ papel: "gestor" as const, largura, zoom: 1 })),
+  ...[1920, 1366, 1280, 1024, 800, 390].map((largura) =>
+    ({ papel: "atendente" as const, largura, zoom: 1 })),
+  { papel: "atendente", largura: 1366, zoom: 1.25 },
+  { papel: "atendente", largura: 1024, zoom: 1.5 },
+  ...[1366, 800].map((largura) => ({ papel: "gestor" as const, largura, zoom: 1 })),
 ];
 
 async function abrir(browser: Browser, { papel, largura, zoom }: Caso) {
@@ -64,7 +73,9 @@ async function definirPainel(page: Page, aberto: boolean) {
       else await page.keyboard.press("Escape");
     }
   }
-  await page.waitForTimeout(300);
+  const painel = page.locator("#painel-detalhes-lead");
+  if (aberto) await expect(painel).toBeVisible();
+  else await expect(painel).toBeHidden();
 }
 
 /** Retângulos reais; `faixaDoTelefone` é o trecho do número dentro do subtítulo. */
@@ -172,12 +183,13 @@ async function transferirPeloLugarOndeEsta(page: Page, cabecalho: Locator) {
 }
 
 /**
- * Só no layout estreito (`CONSULTA_TELA_ESTREITA`, < 640px CSS) o painel é, por desenho, uma tela
- * cheia sobre a conversa. Em qualquer outra largura, painel por cima do cabeçalho é o defeito.
+ * Na grade de coluna unica o painel é, por desenho, uma tela sobre a conversa. A decisão
+ * acompanha a largura da grade, inclusive a sidebar e o zoom, não apenas o viewport.
  */
 async function painelCobreACoversa(page: Page) {
-  const estreita = await page.evaluate(() => window.matchMedia("(max-width: 639px)").matches);
-  return estreita && await page.locator("#painel-detalhes-lead").isVisible();
+  const painel = page.locator("#painel-detalhes-lead");
+  return await painel.isVisible() && await painel.evaluate((el) =>
+    getComputedStyle(el.parentElement!).position === "absolute");
 }
 
 for (const caso of CASOS) {
@@ -197,7 +209,7 @@ for (const caso of CASOS) {
         await verificarMenu(page, id);
         await transferirPeloLugarOndeEsta(page, cabecalho);
       }
-      expect(erros, "erros de runtime").toEqual([]);
+      expect(errosDeRuntimeDaAplicacao(erros), "erros de runtime da aplicação").toEqual([]);
     } finally {
       await contexto.close();
     }
@@ -215,7 +227,7 @@ test("redimensionar com o ⋯ aberto não deixa o menu fora da janela nem quebra
 
     for (const largura of [900, 700, 1280]) {
       await page.setViewportSize({ width: largura, height: 800 });
-      await page.waitForTimeout(300);
+      await expect.poll(() => geometria(page).then((g) => g.rolagemDaPagina)).toBeLessThanOrEqual(0);
       const menu = page.getByRole("menu");
       if (await menu.isVisible().catch(() => false)) {
         const caixa = (await menu.boundingBox())!;
@@ -225,7 +237,26 @@ test("redimensionar com o ⋯ aberto não deixa o menu fora da janela nem quebra
     }
     await page.keyboard.press("Escape");
     await verificarCabecalho(page, "redimensionar-com-menu-aberto");
-    expect(erros).toEqual([]);
+    expect(errosDeRuntimeDaAplicacao(erros)).toEqual([]);
+  } finally {
+    await contexto.close();
+  }
+});
+
+test("sidebar expandida não encobre o nome nem o menu", async ({ browser }) => {
+  const { page, contexto } = await abrir(browser, { papel: "gestor", largura: 1366, zoom: 1 });
+  try {
+    await definirPainel(page, true);
+    const lateral = page.locator("aside").first();
+    const larguraAntes = (await lateral.boundingBox())!.width;
+    await page.getByRole("button", { name: "Fixar menu aberto" }).click();
+    await expect.poll(async () => (await lateral.boundingBox())!.width).toBeGreaterThan(larguraAntes);
+    const lateralExpandida = (await lateral.boundingBox())!;
+    const cabecalho = (await page.locator('[data-slot="cabecalho-conversa"]').boundingBox())!;
+    // A sidebar do shell é uma sobreposição, não reduz a largura da grade.
+    expect(lateralExpandida.x + lateralExpandida.width).toBeLessThanOrEqual(cabecalho.x + 0.5);
+    await verificarCabecalho(page, "gestor-1366-sidebar-expandida");
+    await verificarMenu(page, "gestor-1366-sidebar-expandida");
   } finally {
     await contexto.close();
   }

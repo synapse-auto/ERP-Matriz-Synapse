@@ -430,7 +430,7 @@ export function CabecalhoConversa({
       className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-background px-3 py-2 sm:px-5"
       data-slot="cabecalho-conversa"
     >
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-[min(100%,14rem)] flex-1 items-center gap-3">
         {onVoltar && (
           <Button
             type="button"
@@ -449,9 +449,9 @@ export function CabecalhoConversa({
           fotoAlt={nomeDoLead}
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
         />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="truncate font-bold text-foreground" title={nomeDoLead} data-slot="nome-do-lead">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="min-w-[min(100%,12ch)] max-w-full flex-1 truncate font-bold text-foreground" title={nomeDoLead} data-slot="nome-do-lead">
               {nomeDoLead}
             </p>
             {canal && (
