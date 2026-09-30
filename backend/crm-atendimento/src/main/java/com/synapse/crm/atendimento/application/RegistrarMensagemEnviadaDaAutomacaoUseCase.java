@@ -2,8 +2,11 @@ package com.synapse.crm.atendimento.application;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -24,9 +27,13 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Service
 public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(RegistrarMensagemEnviadaDaAutomacaoUseCase.class);
+    private static final int TAMANHO_MAXIMO_DA_CHAVE_DE_ENVIO = 200;
+
     private final AtendimentoRepositorio atendimentos;
     private final MensagemRepositorio mensagens;
     private final IdempotenciaDeMensagemAutomacaoRepositorio idempotencia;
+    private final ReservaDeEnvioDaAutomacaoRepositorio reservasDeEnvio;
     private final MensagemIdExternoRepositorio idsExternos;
     private final LeadNoCaminhoDeMensagem leads;
     private final ApplicationEventPublisher eventos;
@@ -36,6 +43,7 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             AtendimentoRepositorio atendimentos,
             MensagemRepositorio mensagens,
             IdempotenciaDeMensagemAutomacaoRepositorio idempotencia,
+            ReservaDeEnvioDaAutomacaoRepositorio reservasDeEnvio,
             MensagemIdExternoRepositorio idsExternos,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
@@ -43,6 +51,7 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
         this.idempotencia = idempotencia;
+        this.reservasDeEnvio = reservasDeEnvio;
         this.idsExternos = idsExternos;
         this.leads = leads;
         this.eventos = eventos;
@@ -56,6 +65,10 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
         Atendimento atendimento = atendimentos.porId(atendimentoId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
         Instant agora = Instant.now(relogio);
+        // Antes de qualquer escrita: um conflito aborta a transacao sem registrar a mensagem.
+        if (requisicao.chaveDeEnvio() != null) {
+            concluirReservaDeEnvio(atendimentoId, requisicao, agora);
+        }
         UUID mensagemId = UUID.randomUUID();
         IdempotenciaDeMensagemAutomacaoRepositorio.Reserva reserva = idempotencia.reservar(
                 requisicao.wamid(), atendimentoId, mensagemId, agora);
@@ -94,9 +107,41 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
         return new Resultado(atendimentoId, mensagem.id(), mensagem.statusEntrega(), mensagem.enviadoEm(), false);
     }
 
+    /**
+     * Fecha a reserva feita antes do envio (docs/50). E tambem o caminho de recuperacao quando o
+     * provedor aceitou mas o registro falhou: repetir esta chamada com o mesmo wamid e a mesma chave
+     * registra a saida sem que nada seja reenviado.
+     */
+    private void concluirReservaDeEnvio(UUID atendimentoId, Requisicao requisicao, Instant agora) {
+        String chave = requisicao.chaveDeEnvio();
+        if (reservasDeEnvio.concluir(chave, atendimentoId, requisicao.wamid(), agora)) {
+            return;
+        }
+        Optional<ReservaDeEnvioDaAutomacaoRepositorio.Reserva> existente = reservasDeEnvio.buscar(chave);
+        if (existente.isEmpty()) {
+            // A mensagem ja saiu: perder o historico seria pior. Fica o alerta para o fluxo corrigir.
+            log.warn("Saida da Automacao registrada com chaveDeEnvio sem reserva: {} (atendimento {}).", chave, atendimentoId);
+            return;
+        }
+        ReservaDeEnvioDaAutomacaoRepositorio.Reserva reserva = existente.get();
+        if (!reserva.atendimentoId().equals(atendimentoId)) {
+            throw new ReservaDeEnvioConflitanteException("a chave de envio pertence a outro atendimento");
+        }
+        if (!requisicao.wamid().equals(reserva.wamidSaida())) {
+            throw new ReservaDeEnvioConflitanteException(
+                    "a reserva desta chave ja foi concluida com outro wamid: houve um segundo envio");
+        }
+        // Mesma chave e mesmo wamid: repeticao idempotente do registro.
+    }
+
     private static void validar(Requisicao requisicao) {
         if (requisicao == null || requisicao.wamid() == null || requisicao.wamid().isBlank()) {
             throw new MensagemAutomacaoInvalidaException("wamid e obrigatorio");
+        }
+        if (requisicao.chaveDeEnvio() != null
+                && (requisicao.chaveDeEnvio().isBlank()
+                        || requisicao.chaveDeEnvio().length() > TAMANHO_MAXIMO_DA_CHAVE_DE_ENVIO)) {
+            throw new MensagemAutomacaoInvalidaException("chaveDeEnvio vazia ou maior que 200 caracteres");
         }
         if (requisicao.tipo() == null) {
             throw new MensagemAutomacaoInvalidaException("tipo e obrigatorio");
@@ -141,13 +186,21 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
                 agora);
     }
 
+    /** {@code chaveDeEnvio}: a chave reservada antes do envio (opcional; nula = fluxo antigo). */
     public record Requisicao(
             String wamid,
             TipoMensagem tipo,
             String conteudo,
             String midiaUrl,
             String midiaMetadados,
-            String opcoes) {}
+            String opcoes,
+            String chaveDeEnvio) {
+
+        public Requisicao(
+                String wamid, TipoMensagem tipo, String conteudo, String midiaUrl, String midiaMetadados, String opcoes) {
+            this(wamid, tipo, conteudo, midiaUrl, midiaMetadados, opcoes, null);
+        }
+    }
 
     public record Resultado(
             UUID atendimentoId,
