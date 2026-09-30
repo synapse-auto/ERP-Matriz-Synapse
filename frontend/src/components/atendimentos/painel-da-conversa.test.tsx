@@ -61,6 +61,9 @@ const solicitarResumoState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
+const estadoResumoState = vi.hoisted(() => ({
+  data: null as null | { status: "PENDENTE" | "PROCESSANDO" | "CONCLUIDO" | "FALHOU" },
+}));
 const authState = vi.hoisted(() => ({ papel: "ADMINISTRADOR" as string | null }));
 const midiasState = vi.hoisted(() => ({ pages: [[]] as MidiaDoLead[][], hasNextPage: false }));
 
@@ -153,7 +156,7 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   TIPOS_MIDIAS_DA_FICHA: ["IMAGEM", "VIDEO", "DOCUMENTO"],
   useLead: () => leadState,
   useEtapas: () => etapasState,
-  useEstadoResumoIa: () => ({ data: null, isLoading: false }),
+  useEstadoResumoIa: () => ({ ...estadoResumoState, isLoading: false }),
   useSolicitarResumoIa: () => solicitarResumoState,
   useMidiasDoLead: () => ({ data: { pages: midiasState.pages }, isLoading: false, isError: false, hasNextPage: midiasState.hasNextPage, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
   useTagsDoLead: () => ({
@@ -208,6 +211,7 @@ describe("painel da conversa", () => {
     salvarFichaState.mutate.mockClear();
     solicitarResumoState.mutate.mockClear();
     solicitarResumoState.isPending = false;
+    estadoResumoState.data = null;
     suporteState.mensagens = [];
     suporteState.lembretes = [];
     midiasState.pages = [[]];
@@ -295,6 +299,27 @@ describe("painel da conversa", () => {
     expect(resumo).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(resumo);
     expect(screen.getByLabelText("Gerando resumo...")).toBeInTheDocument();
+  });
+
+  it("sai de gerando ao receber CONCLUIDO e mostra o resumo persistido", () => {
+    estadoResumoState.data = { status: "CONCLUIDO" };
+    leadState.data = { ...leadState.data, resumoIa: "Resumo confirmado pelo CRM." };
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    expect(screen.getByRole("button", { name: "Regerar" })).toBeEnabled();
+    fireEvent.click(obterControleDaSecao("Resumo por IA"));
+    expect(screen.getByText("Resumo confirmado pelo CRM.")).toBeInTheDocument();
+    expect(screen.queryByText("Gerando resumo...")).not.toBeInTheDocument();
+  });
+
+  it("FALHOU libera nova tentativa sem apagar o resumo anterior", () => {
+    estadoResumoState.data = { status: "FALHOU" };
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    expect(screen.getByRole("button", { name: "Regerar" })).toBeEnabled();
+    fireEvent.click(obterControleDaSecao("Resumo por IA"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível gerar o resumo.");
+    expect(screen.getByText("Cliente pediu orçamento de box.")).toBeInTheDocument();
   });
 
   it("mantém um card único, com a ação antes do chevron e sem botões aninhados", () => {

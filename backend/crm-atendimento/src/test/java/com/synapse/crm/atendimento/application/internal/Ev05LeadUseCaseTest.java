@@ -156,6 +156,34 @@ class Ev05LeadUseCaseTest {
     }
 
     @Test
+    void chaveDiferenteNaoSobrescreveResumoEnquantoHaSolicitacaoAtiva() {
+        String chaveErrada = UUID.randomUUID().toString();
+        when(idempotencia.buscar(chaveErrada)).thenReturn(Optional.empty());
+        when(atendimentos.porLeadEmAtendimento(LEAD))
+                .thenReturn(Optional.of(new AtendimentosEmAndamentoRepositorio.Item(
+                        ATENDIMENTO,
+                        LEAD,
+                        com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento.EM_ATENDIMENTO,
+                        null,
+                        ULTIMA_MENSAGEM)));
+        when(solicitacoes.ultimaDoAtendimento(ATENDIMENTO))
+                .thenReturn(Optional.of(new SolicitacaoResumoIaRepositorio.Solicitacao(
+                        SOLICITACAO,
+                        LEAD,
+                        ATENDIMENTO,
+                        SolicitacaoResumoIaRepositorio.Status.PROCESSANDO,
+                        AGORA,
+                        AGORA,
+                        null,
+                        null)));
+
+        assertThatThrownBy(() -> caso.gravarResumo(LEAD, "resumo sem chave correta", ULTIMA_MENSAGEM, chaveErrada))
+                .isInstanceOf(EscritaEv05ObsoletaException.class);
+        verify(leads, never()).gravarResumo(any(), any(), any(), any());
+        verify(idempotencia, never()).reservar(any(), any(), any(), any());
+    }
+
+    @Test
     void estadoResumoVerificaSomenteExistenciaDoAtendimentoElegivel() {
         when(atendimentos.existeAtendimentoEmAndamento(LEAD)).thenReturn(true);
         when(leads.resumo(LEAD)).thenReturn(new AutomacaoEv05LeadRepositorio.EstadoResumo(LEAD, true, AGORA, AGORA));

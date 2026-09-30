@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
@@ -25,9 +26,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.synapse.crm.app.PostgresIT;
 import com.synapse.crm.app.seguranca.ApoioAutenticacao;
+import com.synapse.crm.atendimento.application.resumo.SolicitacaoResumoIaRepositorio;
+import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /** Ponta a ponta dos contratos E51, incluindo os negativos de seguranca e catalogo. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -36,7 +41,9 @@ import com.synapse.crm.app.seguranca.ApoioAutenticacao;
         properties = {
             "synapse.seguranca.token-interno=e51-token",
             "synapse.suporte.tamanho-pagina=2",
-            "synapse.automacao.resumo-ia-tamanho-maximo=24"
+            "synapse.automacao.resumo-ia-tamanho-maximo=24",
+            "synapse.automacao.resumo-ia.url=http://127.0.0.1:1/webhook-de-teste",
+            "synapse.automacao.resumo-ia.token=token-apenas-de-teste"
         })
 class ContratosInternosAutomacaoIT extends PostgresIT {
 
@@ -47,9 +54,15 @@ class ContratosInternosAutomacaoIT extends PostgresIT {
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ObjectMapper json;
+    @Autowired private SolicitacaoResumoIaRepositorio solicitacoes;
+    @Autowired @Qualifier(Pools.CHAT_TRANSACTION_MANAGER) private PlatformTransactionManager transacoesDoChat;
 
     @AfterEach
     void limpar() {
+        jdbc.update(
+                "DELETE FROM outbox_evento WHERE tipo = 'automacao.resumo_ia.solicitar' "
+                        + "AND payload->>'leadId' IN (SELECT id::text FROM lead WHERE nome LIKE ?)",
+                PREFIXO + "%");
         jdbc.update(
                 "DELETE FROM comando_automacao_idempotencia WHERE atendimento_id IN "
                         + "(SELECT id FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?))",
@@ -199,6 +212,102 @@ class ContratosInternosAutomacaoIT extends PostgresIT {
         assertThat(longo.getBody()).contains("limite de 24 caracteres");
         assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, lead))
                 .isEqualTo("Resumo final");
+    }
+
+    @Test
+    void cicloSobDemandaSoConcluiDepoisDaEscritaConfirmadaPeloEndpointReal() throws Exception {
+        UUID responsavel = usuario("ana@dev.local");
+        UUID atendimento = criarAtendimento("RESUMO-CICLO", "EM_ATENDIMENTO", responsavel, INICIO);
+        UUID lead = leadDo(atendimento);
+        UUID solicitacao = UUID.randomUUID();
+        inserirMensagem(atendimento, "mensagem de teste", INICIO.plusSeconds(5));
+        String tokenGestor = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+        HttpHeaders publico = new HttpHeaders();
+        publico.setBearerAuth(tokenGestor);
+        publico.set("Idempotency-Key", solicitacao.toString());
+
+        ResponseEntity<String> pedido = http.exchange(
+                "/api/v1/atendimentos/" + atendimento + "/resumo-ia",
+                HttpMethod.POST,
+                new HttpEntity<>(publico),
+                String.class);
+        assertThat(pedido.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(pedido.getBody()).contains(solicitacao.toString(), "PENDENTE");
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM outbox_evento WHERE id = ? AND tipo = 'automacao.resumo_ia.solicitar'",
+                        Integer.class,
+                        solicitacao))
+                .isEqualTo(1);
+
+        String rotaStatus = "/internal/v1/ev05/leads/" + lead + "/resumo-status";
+        Map<String, Object> processando = Map.of(
+                "solicitacaoId", solicitacao.toString(),
+                "atendimentoId", atendimento.toString(),
+                "status", "PROCESSANDO");
+        assertThat(chamar(HttpMethod.POST, rotaStatus, null, processando).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        Map<String, Object> concluido = Map.of(
+                "solicitacaoId", solicitacao.toString(),
+                "atendimentoId", atendimento.toString(),
+                "status", "CONCLUIDO");
+        assertThat(chamar(HttpMethod.POST, rotaStatus, null, concluido).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, lead))
+                .isNull();
+
+        ResponseEntity<String> contexto = chamar(
+                HttpMethod.GET, "/internal/v1/ev05/atendimentos/" + atendimento + "/contexto", null, null);
+        assertThat(contexto.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String contextoAte = json.readTree(contexto.getBody()).path("contextoAte").asText();
+        assertThat(contextoAte).isNotBlank();
+        ResponseEntity<String> chaveErrada = chamar(
+                HttpMethod.POST,
+                "/internal/v1/ev05/leads/" + lead + "/resumo",
+                UUID.randomUUID().toString(),
+                Map.of("leadId", lead.toString(), "resumo", "Texto indevido", "contextoGeradoEm", contextoAte));
+        assertThat(chaveErrada.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(jdbc.queryForObject("SELECT resumo_ia FROM lead WHERE id = ?", String.class, lead))
+                .isNull();
+        ResponseEntity<String> escrita = chamar(
+                HttpMethod.POST,
+                "/internal/v1/ev05/leads/" + lead + "/resumo",
+                solicitacao.toString(),
+                Map.of("leadId", lead.toString(), "resumo", "Resumo confirmado", "contextoGeradoEm", contextoAte));
+        assertThat(escrita.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(HttpMethod.POST, rotaStatus, null, concluido).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        // Emula um callback atrasado que leu o estado antes da escrita: o UPDATE JDBC
+        // precisa recusar o retrocesso mesmo quando a validação anterior envelheceu.
+        var transacao = new TransactionTemplate(transacoesDoChat);
+        boolean voltouAProcessar = Boolean.TRUE.equals(transacao.execute(estadoAtual -> solicitacoes.atualizarStatus(
+                        solicitacao,
+                        lead,
+                        atendimento,
+                        SolicitacaoResumoIaRepositorio.Status.PROCESSANDO,
+                        null,
+                        null,
+                        Instant.now())));
+        boolean falhouDepoisDeConcluir = Boolean.TRUE.equals(transacao.execute(estadoAtual -> solicitacoes.atualizarStatus(
+                        solicitacao,
+                        lead,
+                        atendimento,
+                        SolicitacaoResumoIaRepositorio.Status.FALHOU,
+                        "CALLBACK_TARDIO",
+                        "callback tardio",
+                        Instant.now())));
+        assertThat(voltouAProcessar).isFalse();
+        assertThat(falhouDepoisDeConcluir).isFalse();
+        ResponseEntity<String> estado = http.exchange(
+                "/api/v1/atendimentos/" + atendimento + "/resumo-ia",
+                HttpMethod.GET,
+                new HttpEntity<>(publico),
+                String.class);
+        assertThat(estado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(estado.getBody()).contains("CONCLUIDO", solicitacao.toString());
+        ResponseEntity<String> ficha = http.exchange(
+                "/api/v1/leads/" + lead, HttpMethod.GET, new HttpEntity<>(publico), String.class);
+        assertThat(ficha.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(ficha.getBody()).contains("\"resumoIa\":\"Resumo confirmado\"");
     }
 
     @Test

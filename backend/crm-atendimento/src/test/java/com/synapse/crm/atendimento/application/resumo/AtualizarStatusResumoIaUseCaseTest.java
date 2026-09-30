@@ -93,13 +93,13 @@ class AtualizarStatusResumoIaUseCaseTest {
                         atendimento.iniciadoEm(),
                         AGORA)));
         when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(solicitacao(
-                SolicitacaoResumoIaRepositorio.Status.PROCESSANDO)));
+                SolicitacaoResumoIaRepositorio.Status.PENDENTE)));
 
         assertThatThrownBy(() -> caso.executar(
                         LEAD,
                         SOLICITACAO,
                         ATENDIMENTO,
-                        SolicitacaoResumoIaRepositorio.Status.CONCLUIDO,
+                        SolicitacaoResumoIaRepositorio.Status.PROCESSANDO,
                         null,
                         null))
                 .isInstanceOf(AtualizarStatusResumoIaUseCase.ResumoIaCicloObsoletoException.class);
@@ -119,6 +119,23 @@ class AtualizarStatusResumoIaUseCaseTest {
                         null))
                 .isEqualTo(concluido);
         verify(solicitacoes, never()).atualizarStatus(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void callbackDeConclusaoNaoPodeConfirmarResumoQueNaoFoiGravado() {
+        when(solicitacoes.porId(SOLICITACAO)).thenReturn(Optional.of(solicitacao(
+                SolicitacaoResumoIaRepositorio.Status.PROCESSANDO)));
+
+        assertThatThrownBy(() -> caso.executar(
+                        LEAD,
+                        SOLICITACAO,
+                        ATENDIMENTO,
+                        SolicitacaoResumoIaRepositorio.Status.CONCLUIDO,
+                        null,
+                        null))
+                .isInstanceOf(AtualizarStatusResumoIaUseCase.ResumoIaCicloObsoletoException.class);
+        verify(solicitacoes, never()).atualizarStatus(any(), any(), any(), any(), any(), any(), any());
+        verify(eventos, never()).publishEvent(any(Object.class));
     }
 
     private static SolicitacaoResumoIaRepositorio.Solicitacao solicitacao(

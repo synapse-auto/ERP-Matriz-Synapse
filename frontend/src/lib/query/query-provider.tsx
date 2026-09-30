@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { INTERVALO_REVALIDACAO_CACHE_MS } from "./tempos";
+
 /**
  * QueryClient criado dentro do componente (não em module scope): em SSR, um client no escopo do
  * módulo seria compartilhado entre requisições concorrentes de usuários diferentes — cache de um
@@ -17,7 +19,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             // ErroDeApi já chega com mensagem pronta pro usuário — uma tentativa extra antes de
             // desistir cobre falha de rede transitória sem mascarar erro de verdade.
             retry: 1,
-            staleTime: 30_000,
+            staleTime: INTERVALO_REVALIDACAO_CACHE_MS,
           },
         },
       }),

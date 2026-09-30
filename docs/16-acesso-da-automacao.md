@@ -325,14 +325,19 @@ com `X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>` e os campos `solicitacaoId`, `ate
 
 Após consultar `GET /internal/v1/ev05/atendimentos/{atendimentoId}/contexto`, o workflow usa o
 `contextoAte` exatamente na escrita `POST /internal/v1/ev05/leads/{leadId}/resumo` e marca
-`CONCLUIDO`. Falha definitiva marca `FALHOU` com código/mensagem sanitizados. O CRM rejeita ciclo
+`CONCLUIDO` na mesma transação. O callback `/resumo-status` com `CONCLUIDO` só confirma
+idempotentemente a escrita já concluída; sozinho ele recebe `409`. Falha definitiva marca
+`FALHOU` com código/mensagem sanitizados. O CRM rejeita ciclo
 de atendimento finalizado, transferido ou substituído (`409`) e conserva o resumo anterior.
 Somente erros de rede/5xx entram em retry limitado; 4xx não entram em retry automático.
 
-O template versionado sem credenciais está em `docs/n8n/resumo-ia-sob-demanda.json`. Importe-o no
-n8n, configure Header Auth para o CRM com `SYNAPSE_TOKEN_INTERNO` e valide o webhook recebido com
-`AUTOMACAO_RESUMO_IA_TOKEN`. A chave de idempotência deve ficar numa Data Table persistida no banco interno
-do n8n, nunca em memória do processo ou no banco do CRM.
+O template versionado sem credenciais está em `docs/n8n/resumo-ia-sob-demanda.json` e permanece
+inativo. Não o publique sem validar os status HTTP de cada nó: ele usa `neverError: true` e não
+implementa todos os caminhos de `FALHOU`, então uma execução `Succeeded` pode não ter gravado o
+resumo. Compare primeiro com o workflow ativo, configure Header Auth para o CRM com
+`SYNAPSE_TOKEN_INTERNO` e valide o webhook recebido com `AUTOMACAO_RESUMO_IA_TOKEN`. A chave de
+idempotência deve ficar numa Data Table persistida no banco interno do n8n, nunca em memória do
+processo ou no banco do CRM. Veja o diagnóstico em `docs/25-runbook-ev05.md`.
 
 ## 4. Por que não acessar o banco direto
 
