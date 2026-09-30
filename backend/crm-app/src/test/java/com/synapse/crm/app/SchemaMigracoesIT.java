@@ -79,6 +79,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "configuracao_automacao",
                     "configuracao_resumo_ia",
                     "disponibilidade_atendente_ia",
+                    // V84 (docs/50): reserva atomica antes de a Automacao enviar ao provedor.
+                    "envio_automacao_reserva",
                     "etapa_atendimento",
                     "evento_timeline",
                     "feature_flag",

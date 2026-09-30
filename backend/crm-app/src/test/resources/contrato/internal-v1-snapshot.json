@@ -155,6 +155,54 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/envios-automacao/reservas" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReservaRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReservaResposta"
+                }
+              }
+            }
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReservaResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/finalizar" : {
       "post" : {
         "parameters" : [ {
@@ -564,6 +612,36 @@
           "401" : { },
           "403" : { },
           "404" : { }
+        }
+      }
+    },
+    "/internal/v1/envios-automacao/pendentes" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "reservadosAntesDe",
+          "required" : true,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReservaResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { }
         }
       }
     },
@@ -989,6 +1067,33 @@
         }
       }
     },
+    "/internal/v1/leads/{leadId}/atendimento-ativo" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AtendimentoResolvido"
+                }
+              }
+            }
+          },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      }
+    },
     "/internal/v1/leads/{leadId}/data-nascimento" : {
       "post" : {
         "parameters" : [ {
@@ -1103,6 +1208,33 @@
         }
       }
     },
+    "/internal/v1/mensagens-recebidas/atendimento" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "idExterno",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AtendimentoResolvido"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { }
+        }
+      }
+    },
     "/internal/v1/regras/fidelizacao" : {
       "get" : {
         "responses" : {
@@ -1202,6 +1334,25 @@
         },
         "usuarioId" : {
           "format" : "uuid",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "AtendimentoResolvido" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "ativo" : {
+          "type" : "boolean"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "status" : {
           "type" : "string"
         }
       },
@@ -1648,6 +1799,9 @@
     },
     "MensagemEnviadaRequisicao" : {
       "properties" : {
+        "chaveDeEnvio" : {
+          "type" : "string"
+        },
         "conteudo" : {
           "type" : "string"
         },
@@ -1836,6 +1990,44 @@
           "type" : "integer"
         },
         "texto" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "ReservaRequisicao" : {
+      "properties" : {
+        "chave" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "chave" ],
+      "type" : "object"
+    },
+    "ReservaResposta" : {
+      "properties" : {
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "chave" : {
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "estado" : {
+          "type" : "string"
+        },
+        "novaReserva" : {
+          "type" : "boolean"
+        },
+        "reservadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "wamidSaida" : {
           "type" : "string"
         }
       },

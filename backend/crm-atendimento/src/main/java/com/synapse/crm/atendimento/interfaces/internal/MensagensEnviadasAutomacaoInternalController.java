@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.synapse.crm.atendimento.application.MensagemAutomacaoInvalidaException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarMensagemEnviadaDaAutomacaoUseCase;
+import com.synapse.crm.atendimento.application.ReservaDeEnvioConflitanteException;
 import com.synapse.crm.atendimento.application.WamidJaRegistradoEmOutroAtendimentoException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 
@@ -49,7 +50,7 @@ class MensagensEnviadasAutomacaoInternalController {
                 @ApiResponse(responseCode = "400", description = "Mensagem normalizada inválida."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
-                @ApiResponse(responseCode = "409", description = "wamid já pertence a outro atendimento.")
+                @ApiResponse(responseCode = "409", description = "wamid já pertence a outro atendimento, ou chaveDeEnvio de outro atendimento / já concluída com outro wamid.")
             })
     @PostMapping("/{id}/mensagens-enviadas")
     MensagemEnviadaResposta registrar(
@@ -61,7 +62,8 @@ class MensagensEnviadasAutomacaoInternalController {
                 requisicao.conteudo(),
                 requisicao.midiaUrl(),
                 requisicao.midiaMetadados(),
-                requisicao.opcoes());
+                requisicao.opcoes(),
+                requisicao.chaveDeEnvio());
         var resultado = ContextoDeServico.buscarComo("registro-mensagem-automacao", () -> registrar.executar(id, entrada));
         return MensagemEnviadaResposta.de(resultado);
     }
@@ -74,6 +76,11 @@ class MensagensEnviadasAutomacaoInternalController {
     @ExceptionHandler(MensagemAutomacaoInvalidaException.class)
     ProblemDetail aoReceberMensagemInvalida(MensagemAutomacaoInvalidaException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Mensagem invalida", erro.getMessage());
+    }
+
+    @ExceptionHandler(ReservaDeEnvioConflitanteException.class)
+    ProblemDetail aoConflitarComReserva(ReservaDeEnvioConflitanteException erro) {
+        return problema(HttpStatus.CONFLICT, "Chave de envio conflitante", erro.getMessage());
     }
 
     @ExceptionHandler(WamidJaRegistradoEmOutroAtendimentoException.class)
@@ -95,7 +102,10 @@ class MensagensEnviadasAutomacaoInternalController {
             @Schema(description = "Texto quando tipo=TEXTO.") String conteudo,
             @Schema(description = "Referência opaca de mídia já armazenada no CRM.") String midiaUrl,
             @Schema(description = "Metadados normalizados da mídia.") String midiaMetadados,
-            @Schema(description = "Opções normalizadas para BOTOES/LISTA.") String opcoes) {}
+            @Schema(description = "Opções normalizadas para BOTOES/LISTA.") String opcoes,
+            @Schema(description = "Chave reservada em POST /envios-automacao/reservas antes do envio; conclui a reserva. "
+                            + "Repetir com o mesmo wamid e a mesma chave registra sem reenviar.")
+                    String chaveDeEnvio) {}
 
     record MensagemEnviadaResposta(
             UUID atendimentoId,
