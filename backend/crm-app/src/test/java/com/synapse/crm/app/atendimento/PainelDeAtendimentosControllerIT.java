@@ -541,7 +541,7 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                                     atendimentoPendenteDaAna)
                             .path("naoLidas")
                             .asLong())
-                    .isZero();
+                    .isEqualTo(1);
             assertThat(cartao(
                                     listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
                                     atendimentoPendenteDaAna)
@@ -601,10 +601,22 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                             .path("naoLidas")
                             .asLong())
                     .isZero();
+            assertThat(cartao(
+                                    listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
 
             inserirMensagem(atendimentoPendenteDaAna, "LEAD", null, "nova pergunta depois da leitura");
             assertThat(cartao(
                                     listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
+                                    atendimentoPendenteDaAna)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(1);
+            assertThat(cartao(
+                                    listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"),
                                     atendimentoPendenteDaAna)
                             .path("naoLidas")
                             .asLong())
@@ -631,6 +643,67 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                             .path("naoLidas")
                             .asLong())
                     .isZero();
+        }
+
+        @Test
+        @DisplayName("troca de responsavel nao herda leitura do anterior, inclusive no historico")
+        void transferencia_naoHerdaLeituraAnterior() throws Exception {
+            UUID lead = criarLead("Transferencia leitura " + UUID.randomUUID(), idAna, "EM_ATENDIMENTO");
+            UUID encerrado = criarAtendimento(lead, idAna, "FINALIZADO");
+            UUID aberto = criarAtendimento(lead, idAna, "EM_ATENDIMENTO");
+            inserirMensagem(encerrado, "LEAD", null, "pergunta antiga");
+            inserirMensagem(aberto, "LEAD", null, "pergunta atual");
+            assertThat(marcarComoLidoComo(EMAIL_ANA, SENHA_ATENDENTE, aberto).getStatusCode())
+                    .isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"), aberto)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
+
+            jdbc.update("UPDATE atendimento SET atendente_id = ? WHERE id = ?", idBruno, aberto);
+            jdbc.update("UPDATE lead SET atendente_responsavel_id = ? WHERE id = ?", idBruno, lead);
+            assertThat(cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"), aberto)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(2);
+            assertThat(cartao(listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "ATIVOS"), aberto)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(2);
+            assertThat(marcarComoLidoComo(EMAIL_BRUNO, SENHA_ATENDENTE, aberto).getStatusCode())
+                    .isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "TODOS"), aberto)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
+        }
+
+        @Test
+        @DisplayName("sem dono a leitura e pessoal, e colega sem acesso nao ve lead humano")
+        void semDonoLeituraPessoalEColegaBloqueado() throws Exception {
+            inserirMensagem(atendimentoPotencial, "LEAD", null, "pergunta em IA");
+            assertThat(cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "POTENCIAIS"), atendimentoPotencial)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(1);
+            assertThat(marcarComoLidoComo(EMAIL_GESTOR, SENHA_GESTOR, atendimentoPotencial).getStatusCode())
+                    .isEqualTo(HttpStatus.NO_CONTENT);
+            assertThat(cartao(listarComo(EMAIL_GESTOR, SENHA_GESTOR, "POTENCIAIS"), atendimentoPotencial)
+                            .path("naoLidas")
+                            .asLong())
+                    .isZero();
+            assertThat(cartao(listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "POTENCIAIS"), atendimentoPotencial)
+                            .path("naoLidas")
+                            .asLong())
+                    .isEqualTo(1);
+            assertThat(listarComo(EMAIL_BRUNO, SENHA_ATENDENTE, "ATIVOS"))
+                    .doesNotContain(atendimentoPendenteDaAna.toString());
+            assertThat(respostaComo(
+                                    EMAIL_BRUNO,
+                                    SENHA_ATENDENTE,
+                                    "/api/v1/atendimentos/" + atendimentoPendenteDaAna + "/estado")
+                            .getStatusCode())
+                    .isEqualTo(HttpStatus.NOT_FOUND);
         }
     }
 
