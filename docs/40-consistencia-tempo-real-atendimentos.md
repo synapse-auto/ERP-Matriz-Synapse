@@ -64,12 +64,20 @@ Regras do contrato:
 - `atendimentoId` é a âncora do ciclo. Um novo ciclo do mesmo lead tem outro identificador e outra
   sequência;
 - `eventoTipo` informa a causa técnica: início, mensagem recebida/enviada, ação da automação,
-  transferência, retorno à IA, finalização e mudanças de participação;
+  transferência, retorno à IA, finalização, mudanças de participação e
+  `LEITURA_DO_RESPONSAVEL`;
 - o envelope não contém nome, telefone, conteúdo de mensagem, mídia, URL, token, audiência ou segredo.
 
 O mesmo evento pode chegar pela fila pessoal e pela assinatura da conversa selecionada. Isso é
 intencional: a fila pessoal atualiza a inbox mesmo quando a conversa não está aberta; a assinatura
 selecionada reduz latência na conversa ativa. O navegador processa o mesmo `eventoId` uma vez.
+
+Ao marcar uma conversa como lida, somente a leitura feita pelo responsável atual emite
+`LEITURA_DO_RESPONSAVEL`. A gravação pessoal de gestor ou participante não emite esse sinal nem
+zera a contagem operacional do gestor. O evento segue a outbox transacional acima, sem conteúdo de
+mensagem, e solicita a reconciliação da lista autorizada no navegador. Não produz toast ou som.
+Enquanto a leitura local está em andamento, a lista evita sobrepor o zero otimista com um snapshot
+anterior; falha na API restaura a contagem e solicita nova leitura. Não há polling adicional.
 
 ## Audiência e RLS
 

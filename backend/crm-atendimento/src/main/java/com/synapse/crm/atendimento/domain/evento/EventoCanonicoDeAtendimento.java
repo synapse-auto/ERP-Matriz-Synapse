@@ -51,6 +51,7 @@ public record EventoCanonicoDeAtendimento(
         PEDIDO_ENTRADA_APROVADO,
         PEDIDO_ENTRADA_RECUSADO,
         PARTICIPANTE_ENTROU,
-        PARTICIPANTE_SAIU
+        PARTICIPANTE_SAIU,
+        LEITURA_DO_RESPONSAVEL
     }
 }

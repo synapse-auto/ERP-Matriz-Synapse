@@ -536,6 +536,13 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                             Boolean.class,
                             atendimentoPendenteDaAna))
                     .isTrue();
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
+                                    + " AND payload->>'eventoTipo' = 'LEITURA_DO_RESPONSAVEL'"
+                                    + " AND payload->>'atendimentoId' = ?",
+                            Integer.class,
+                            atendimentoPendenteDaAna.toString()))
+                    .isZero();
             assertThat(cartao(
                                     listarComo(EMAIL_GESTOR, SENHA_GESTOR, "PENDENTES"),
                                     atendimentoPendenteDaAna)
@@ -594,6 +601,13 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
                             Integer.class,
                             atendimentoPendenteDaAna,
                             idAna))
+                    .isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT count(*) FROM outbox_evento WHERE tipo = 'tempo-real.atendimento.estado.v1'"
+                                    + " AND payload->>'eventoTipo' = 'LEITURA_DO_RESPONSAVEL'"
+                                    + " AND payload->>'atendimentoId' = ?",
+                            Integer.class,
+                            atendimentoPendenteDaAna.toString()))
                     .isEqualTo(1);
             assertThat(cartao(
                                     listarComo(EMAIL_ANA, SENHA_ATENDENTE, "PENDENTES"),
