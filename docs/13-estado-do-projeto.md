@@ -4,6 +4,18 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 01/10/2026 — Mensagens automáticas em excesso e sem origem (E219)
+
+Card "mensagens não identificadas para vários clientes muitas vezes": é volume de proativas (follow-up,
+fidelização, festiva, aniversário), não duplicidade. Auditoria no código: nenhum caminho gravava origem
+(`remetente_id` nulo), e follow-up, fidelização, festivas e aniversário não tinham limite nenhum no CRM
+(o executor é o n8n). Entregue (V85): origem em tabela lateral `mensagem_origem_automacao` (sem alterar a
+`mensagem` particionada), campos opcionais de origem em `/mensagens-enviadas` e `/responder`, visão por
+origem/dia, e reserva proativa por lead com chave, ocorrência, liga/desliga, cooldown e teto
+(`configuracao_automacao`, padrões que não mudam nada). **A causa do excesso não foi provada** e a
+política só vale depois que o n8n reservar. Detalhe e especificação do n8n em
+[`51-origem-e-frequencia-das-mensagens-automaticas.md`](./51-origem-e-frequencia-das-mensagens-automaticas.md).
+
 ### 28/09/2026 — Auditoria da gestão de templates (criar, editar, excluir)
 
 Relato: "não consigo clicar no botão que confirma a exclusão". Em navegador real, com o adaptador

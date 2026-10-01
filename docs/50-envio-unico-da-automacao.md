@@ -101,6 +101,14 @@ Sem acesso ao workflow, os nós são descritos pela função, não pelo nome:
 Até esses itens entrarem, a duplicidade **não** está resolvida: o CRM oferece a proteção, mas é o
 workflow que decide chamar o provedor.
 
+## Mensagens proativas (E219)
+
+A reserva desta página deduplica **reentregas do mesmo evento** num atendimento. Mensagens que a
+Automação manda por iniciativa própria (follow-up, fidelização, festiva, aniversário…) usam a reserva
+proativa por lead, que também aplica cooldown, teto diário e liga/desliga:
+[`51-origem-e-frequencia-das-mensagens-automaticas.md`](./51-origem-e-frequencia-das-mensagens-automaticas.md).
+As duas fecham pelo mesmo `chaveDeEnvio` de `/mensagens-enviadas`.
+
 ## Variáveis
 
 Nenhuma variável nova. `AUTOMACAO_WEBHOOK_TIMEOUT` (existente, padrão 5s) continua valendo.

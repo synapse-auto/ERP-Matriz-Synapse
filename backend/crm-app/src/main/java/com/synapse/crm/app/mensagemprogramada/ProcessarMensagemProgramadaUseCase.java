@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.EnviarMensagemUseCase;
+import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
+import com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.core.application.mensagemprogramada.MensagemProgramadaRepositorio;
 import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
@@ -24,12 +26,17 @@ public class ProcessarMensagemProgramadaUseCase {
 
     private final MensagemProgramadaRepositorio mensagens;
     private final EnviarMensagemUseCase enviar;
+    private final RegistroDeOrigemDaMensagem origens;
     private final Clock relogio;
 
     public ProcessarMensagemProgramadaUseCase(
-            MensagemProgramadaRepositorio mensagens, EnviarMensagemUseCase enviar, Clock relogio) {
+            MensagemProgramadaRepositorio mensagens,
+            EnviarMensagemUseCase enviar,
+            RegistroDeOrigemDaMensagem origens,
+            Clock relogio) {
         this.mensagens = mensagens;
         this.enviar = enviar;
+        this.origens = origens;
         this.relogio = relogio;
     }
 
@@ -47,11 +54,18 @@ public class ProcessarMensagemProgramadaUseCase {
             return;
         }
         try {
-            enviar.executarComoServico(
+            EnviarMensagemUseCase.Resultado enviado = enviar.executarComoServico(
                     programada.leadId(),
                     programada.atendenteId(),
                     new ConteudoDeEnvio.MensagemLivre(programada.conteudo()),
                     programada.id());
+            origens.registrar(
+                    "job de mensagens programadas",
+                    enviado.mensagem().id(),
+                    enviado.atendimento().id(),
+                    enviado.atendimento().leadId(),
+                    enviado.mensagem().enviadoEm(),
+                    OrigemDaMensagem.programada(programada.id()));
         } catch (RuntimeException erro) {
             // A transação faz rollback e mantém AGENDADA; a outbox já possui o retry/backoff para a
             // entrega posterior. O aviso evita que uma falha de dados/estado desapareça em silêncio.

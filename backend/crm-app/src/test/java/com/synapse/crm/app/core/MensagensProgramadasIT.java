@@ -75,6 +75,8 @@ class MensagensProgramadasIT extends PostgresIT {
 
         agendador.processarPendentes();
         assertThat(jdbc.queryForObject("SELECT status::text FROM mensagem_programada WHERE id=?", String.class, id)).isEqualTo("ENVIADA");
+        // E219: o job grava a origem PROGRAMADA, ligada ao agendamento que a gerou.
+        assertThat(jdbc.queryForObject("SELECT tipo FROM mensagem_origem_automacao WHERE lead_id=? AND regra_id=?", String.class, lead, id.toString())).isEqualTo("PROGRAMADA");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_evento WHERE payload->>'mensagemProgramadaId'=?", Integer.class, id.toString())).isOne();
 
         publicador.publicarPendentes();

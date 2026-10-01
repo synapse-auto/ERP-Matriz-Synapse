@@ -81,6 +81,9 @@ class SchemaMigracoesIT extends PostgresIT {
                     "disponibilidade_atendente_ia",
                     // V84 (docs/50): reserva atomica antes de a Automacao enviar ao provedor.
                     "envio_automacao_reserva",
+                    // V85 (E219): reserva proativa com politica de frequencia e origem das automaticas.
+                    "envio_proativo_reserva",
+                    "mensagem_origem_automacao",
                     "etapa_atendimento",
                     "evento_timeline",
                     "feature_flag",

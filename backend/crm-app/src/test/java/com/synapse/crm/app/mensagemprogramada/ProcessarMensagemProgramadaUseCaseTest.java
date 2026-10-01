@@ -46,6 +46,7 @@ class ProcessarMensagemProgramadaUseCaseTest {
         ProcessarMensagemProgramadaUseCase casoDeUso = new ProcessarMensagemProgramadaUseCase(
                 mensagens,
                 enviar,
+                org.mockito.Mockito.mock(com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem.class),
                 Clock.fixed(Instant.parse("2026-08-26T15:00:00Z"), ZoneOffset.UTC));
 
         assertThatThrownBy(() -> casoDeUso.processar(id))

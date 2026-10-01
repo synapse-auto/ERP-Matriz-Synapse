@@ -496,6 +496,78 @@ O `+55 61 3199 1947` é **número de teste** da Meta: só envia para destinatár
 
 **Os dois sentidos.** O bug do `@Scheduled` da E07 quebrou as duas direções com o build verde; só mensagem real prova.
 
+### 4.9 — Mensagens automáticas em excesso: origem, frequência e contenção (E219)
+
+Contexto completo e especificação do n8n em
+[`51-origem-e-frequencia-das-mensagens-automaticas.md`](./51-origem-e-frequencia-das-mensagens-automaticas.md).
+Todas as consultas abaixo são **somente leitura**: abra a sessão com
+`SET default_transaction_read_only = on;`. Troque o período e o fuso (`America/Sao_Paulo` é o padrão de
+`SYNAPSE_TIMEZONE`).
+
+**Por origem e por dia (a partir da V85).** Mesmo resultado de
+`GET /internal/v1/envios-automacao/resumo-por-origem?de=...&ate=...`:
+
+```sql
+SELECT dia, origem, count(*) AS mensagens, count(DISTINCT lead_id) AS leads
+  FROM (SELECT (o.enviado_em AT TIME ZONE 'America/Sao_Paulo')::date AS dia, o.tipo AS origem, o.lead_id
+          FROM mensagem_origem_automacao o
+         WHERE o.enviado_em >= '2026-10-01 00:00-03' AND o.enviado_em < '2026-10-08 00:00-03'
+        UNION ALL
+        SELECT (m.enviado_em AT TIME ZONE 'America/Sao_Paulo')::date, 'SEM_ORIGEM_REGISTRADA', a.lead_id
+          FROM mensagem m JOIN atendimento a ON a.id = m.atendimento_id
+         WHERE m.remetente_tipo = 'IA'
+           AND m.enviado_em >= '2026-10-01 00:00-03' AND m.enviado_em < '2026-10-08 00:00-03'
+           AND NOT EXISTS (SELECT 1 FROM mensagem_origem_automacao o WHERE o.mensagem_id = m.id)) x
+ GROUP BY dia, origem
+ ORDER BY dia, origem;
+```
+
+`NAO_INFORMADA` = gravada depois da V85 por fluxo do n8n que não manda `origemTipo` (procure
+`[ORIGEM_NAO_INFORMADA]` no log do backend para achar o caminho e o `execucao`).
+
+**Disparos proativos por texto, para qualquer período (inclusive antes da V85).** Mensagem da IA sem
+mensagem do lead nos 30 minutos anteriores, no mesmo atendimento, agrupada por dia e texto. O texto que
+mais aparece aponta a regra que está estourando:
+
+```sql
+SELECT (m.enviado_em AT TIME ZONE 'America/Sao_Paulo')::date AS dia,
+       left(m.conteudo, 60)                                   AS texto,
+       count(*)                                               AS mensagens,
+       count(DISTINCT a.lead_id)                              AS leads,
+       max(por_lead.qtd)                                      AS maximo_para_um_lead
+  FROM mensagem m
+  JOIN atendimento a ON a.id = m.atendimento_id
+  JOIN LATERAL (SELECT count(*) AS qtd
+                  FROM mensagem m2 JOIN atendimento a2 ON a2.id = m2.atendimento_id
+                 WHERE a2.lead_id = a.lead_id AND m2.remetente_tipo = 'IA'
+                   AND m2.enviado_em >= m.enviado_em - interval '24 hours' AND m2.enviado_em <= m.enviado_em) por_lead ON TRUE
+ WHERE m.remetente_tipo = 'IA'
+   AND m.enviado_em >= now() - interval '7 days'
+   AND NOT EXISTS (SELECT 1 FROM mensagem l
+                    WHERE l.atendimento_id = m.atendimento_id AND l.remetente_tipo = 'LEAD'
+                      AND l.enviado_em BETWEEN m.enviado_em - interval '30 minutes' AND m.enviado_em)
+ GROUP BY 1, 2
+ ORDER BY 1 DESC, mensagens DESC
+ LIMIT 50;
+```
+
+O texto sai truncado em 60 caracteres e pode conter dado de cliente (nome): não cole o resultado em
+canal aberto.
+
+**Reservas proativas sem resultado (conferência, nunca reenvio):**
+`GET /internal/v1/envios-proativos/pendentes?reservadosAntesDe=<agora − 5 min>`. Para cada item, confira
+no provedor/execução do n8n; se saiu, registre com `POST /mensagens-enviadas` e a mesma `chaveDeEnvio`.
+
+**Política de frequência** (tela de Automação → parâmetros, ou `configuracao_automacao`):
+`automacao_proativa.habilitada`, `automacao_proativa.<tipo>.habilitada`,
+`automacao_proativa.cooldown_horas` e `automacao_proativa.teto_diario_por_lead`. Os padrões (ligado, 0, 0)
+não mudam nada. Sugestão para o responsável confirmar: cooldown 24 h e teto 2 por lead/dia. **Só vale
+para o que o n8n reservar**; enquanto o workflow não chamar a reserva, a política não bloqueia nada.
+
+**Contenção antes do deploy** (proposta, decidir caso a caso, ver tabela do `docs/51`, Bloco 3):
+`fidelizacao.aniversario.habilitado=false`; desativar a data em `mensagem_festiva`; desativar regras de
+follow-up/fidelização. **Os follow-ups que já estão em `follow_ups_temporary` só param no n8n.**
+
 ---
 
 ## Fase 5 — Backup (40 minutos)

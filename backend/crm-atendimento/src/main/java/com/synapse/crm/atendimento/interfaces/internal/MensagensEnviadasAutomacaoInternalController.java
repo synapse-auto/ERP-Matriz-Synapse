@@ -63,7 +63,10 @@ class MensagensEnviadasAutomacaoInternalController {
                 requisicao.midiaUrl(),
                 requisicao.midiaMetadados(),
                 requisicao.opcoes(),
-                requisicao.chaveDeEnvio());
+                requisicao.chaveDeEnvio(),
+                requisicao.origemTipo(),
+                requisicao.origemRegraId(),
+                requisicao.origemExecucaoId());
         var resultado = ContextoDeServico.buscarComo("registro-mensagem-automacao", () -> registrar.executar(id, entrada));
         return MensagemEnviadaResposta.de(resultado);
     }
@@ -105,7 +108,16 @@ class MensagensEnviadasAutomacaoInternalController {
             @Schema(description = "Opções normalizadas para BOTOES/LISTA.") String opcoes,
             @Schema(description = "Chave reservada em POST /envios-automacao/reservas antes do envio; conclui a reserva. "
                             + "Repetir com o mesmo wamid e a mesma chave registra sem reenviar.")
-                    String chaveDeEnvio) {}
+                    String chaveDeEnvio,
+            @Schema(description = "Origem da mensagem (E219): RESPOSTA_IA, FOLLOW_UP, FIDELIZACAO, FESTIVA, ANIVERSARIO, "
+                            + "AVALIACAO, LEMBRETE ou OUTRO. Opcional por compatibilidade; ausente ou desconhecido grava NAO_INFORMADA "
+                            + "e gera aviso [ORIGEM_NAO_INFORMADA] no log. Com chaveDeEnvio de reserva proativa, vale a origem da reserva.",
+                    example = "FOLLOW_UP")
+                    String origemTipo,
+            @Schema(description = "Id da regra que gerou o envio (regra de follow-up, mensagem festiva...). Opcional, até 100 caracteres.")
+                    String origemRegraId,
+            @Schema(description = "Id da execução do n8n que enviou. Opcional, até 200 caracteres.")
+                    String origemExecucaoId) {}
 
     record MensagemEnviadaResposta(
             UUID atendimentoId,
