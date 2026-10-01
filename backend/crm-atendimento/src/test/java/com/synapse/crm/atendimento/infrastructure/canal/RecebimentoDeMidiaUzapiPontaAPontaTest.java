@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -322,6 +323,29 @@ class RecebimentoDeMidiaUzapiPontaAPontaTest {
         verify(entrada).marcarProcessado(ID_ENTRADA, AGORA, List.of());
         verify(entrada, never()).reagendar(anyString(), any(), anyString());
         assertThat(log.getOut()).contains(ProcessadorDeWebhookEntradaOperacoes.MARCADOR_MIDIA_NAO_RECEBIDA);
+    }
+
+    /**
+     * Caracterizacao, nao endosso: timeout/erro de rede nao e {@code MidiaRecebidaTemporariamente...}
+     * (E218 manteve o caminho generico de proposito). Na ultima tentativa do teto a linha esgota e o
+     * anexo nao chega ao atendente, nem como aviso. Mudar isso e decisao de produto (docs/52).
+     */
+    @Test
+    void timeoutNoDownloadNaUltimaTentativaDoTetoEsgotaALinhaSemAvisoAoAtendente() {
+        pendenteComPayload(
+                payloadDeMidia("image", MEDIA_ID, "image/jpeg", "foto.jpg"), 4, AGORA.minusSeconds(75));
+        provedor.expect(once(), requestTo(URL_BASE + "/v1/" + MEDIA_ID))
+                .andRespond(withSuccess(
+                        "{\"id\":\"" + MEDIA_ID + "\",\"url\":\"" + URL_DA_MIDIA + "\"}",
+                        MediaType.APPLICATION_JSON));
+        provedor.expect(once(), requestTo(URL_DA_MIDIA))
+                .andRespond(withException(new java.net.SocketTimeoutException("Read timed out")));
+
+        processador.rodada();
+
+        verify(entrada).esgotar(eq(ID_ENTRADA), eq(AGORA), anyString());
+        verify(registrar, never()).executar(any());
+        verify(armazenamento, never()).salvar(any(), any(), any());
     }
 
     @Test
