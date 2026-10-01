@@ -2,10 +2,10 @@
 
 ## Fontes e limites de confirmação
 
-- O comunicado de vigência usado nesta análise é a [documentação de mensagens não-template da Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/non-template-messages) indicada pela operação. O endereço respondeu com limite de acesso (HTTP 429) durante esta auditoria; por isso **a data, a abrangência por categoria e eventuais franquias gratuitas ainda exigem conferência no WhatsApp Manager da conta** antes de se afirmar um valor devido.
+- A [documentação de mensagens não-template da Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/non-template-messages) confirma a cobrança de mensagens de serviço entregues a partir de 01/10/2026 e mostra `pricing.billable`, `pricing.pricing_model`, `pricing.type` e `pricing.category` no webhook. A [página geral de preços da Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/) acrescenta uma **franquia mensal de mil mensagens de serviço entregues por número comercial**. O prompt original não mencionava essa franquia; não se deve afirmar que toda resposta entregue gerará cobrança efetiva.
 - A [página pública de preços da WhatsApp Business Platform](https://whatsappbusiness.com/products/platform-pricing/) descreve preço por mensagem entregue e exceção de janela gratuita de entrada, mas no momento da auditoria ainda descreve respostas de serviço como gratuitas. Há divergência temporal entre essa página e o comunicado de 01/10. Não usar uma delas isoladamente como fonte de conciliação.
 - A [coleção oficial da Meta no Postman para notificações de status](https://www.postman.com/meta/whatsapp-business-platform/request/rgtfq23/message-status-update-notifications) confirma que `sent`, `delivered` e `read` podem chegar fora de ordem. Seu exemplo público não traz `pricing`.
-- O contrato de preços associado a `statuses[].pricing` deve ser conferido com amostra **assinada** da conta operada: `billable`, `pricing_model`, `type` e `category` são campos conhecidos do contrato, mas o CRM não deve inferir cobrança quando o bloco estiver ausente nem interpretar valor monetário a partir deles. `pricing_analytics` da conta é a fonte para confronto agregado, níveis e cobranças; o webhook não contém tarifa em reais.
+- O contrato de preços associado a `statuses[].pricing` deve ser conferido com amostra **assinada** da conta operada: `billable`, `pricing_model`, `type` e `category` constam no exemplo oficial, mas o CRM não deve inferir cobrança quando o bloco estiver ausente nem interpretar valor monetário a partir deles. `pricing_analytics` da conta é a fonte para confronto agregado, franquia, níveis e cobranças; o webhook não contém tarifa em reais.
 - Nenhum acesso autenticado ao WhatsApp Manager, à forma de pagamento ou ao Pricing Analytics da conta foi disponibilizado nesta auditoria. Não foi verificado saldo, crédito, instrumento de pagamento nem se a entrega seria interrompida. Essa checagem permanece com a operação, somente leitura.
 
 ## Matriz de fluxos
@@ -34,3 +34,31 @@
 1. Em acesso **somente leitura**, conferir no WhatsApp Manager a conta/WABA e número efetivamente usados por cada instância, billing ativo, método de pagamento e comunicados de vigência. Não copiar identificadores financeiros, tokens ou dados de cartão para tickets/logs.
 2. Conferir no Pricing Analytics do mesmo WABA, data e fuso o volume e categorias de mensagens entregues; comparar com a classificação observada no CRM, identificando mensagens externas e sem `pricing`.
 3. Antes de qualquer deploy, confirmar que a migration desta etapa (se houver) executa fora do fluxo de chat e que o backend usa a imagem da run verde. **Este documento e a PR não autorizam deploy.**
+
+## Observação técnica introduzida nesta PR
+
+`statuses[]` da Meta com `delivered` ou `read` são traduzidos pela ACL para um evento mínimo: `wamid`, instante do status e campos opcionais de `pricing`. `sent` e `failed` não confirmam cobrança. Uma inserção idempotente curta em `meta_precificacao_entrada` é o único passo de durabilidade no request; ela usa o pool **geral**, transação independente e falha fechada para a apuração (a entrega do webhook permanece aceita). Não há consulta à Meta/Analytics, cálculo de tarifa, bloqueio de envio ou consulta pesada nesse request. Esta inserção é a exceção necessária à exigência de manter *toda* persistência fora do request: sem ela, o POST apenas de status não teria retenção durável e poderia perder a única evidência de preço.
+
+O job `ProcessadorDePrecificacaoMeta` consome lotes limitados, com `FOR UPDATE SKIP LOCKED`, backoff e até cinco tentativas. A tabela `meta_precificacao_observada` mantém **uma linha por wamid**, mesmo quando o status se repete. Um status sem `pricing.billable` fica não classificado (`NULL`) e não apaga classificação anterior. Um status posterior com classificação pode atualizá-la; o timestamp mais antigo confirmado continua em `entregue_em`. Não há chave estrangeira para `mensagem_id_externo` porque o webhook pode chegar antes da gravação do `wamid` ou o envio pode ter sido feito diretamente pela Automação. A associação operacional é por `wamid`, nunca por telefone ou texto.
+
+Consulta inicial, agregada e **não financeira**, somente após aplicar a migration:
+
+```sql
+SELECT COALESCE(categoria, 'SEM_CLASSIFICACAO') AS categoria,
+       cobravel,
+       count(*) AS entregas_observadas
+  FROM meta_precificacao_observada
+ WHERE entregue_em >= :inicio_utc AND entregue_em < :fim_utc
+ GROUP BY categoria, cobravel
+ ORDER BY categoria, cobravel;
+```
+
+`cobravel=TRUE` significa informação recebida da Meta, não custo em reais. `FALSE` significa classificação gratuita recebida, não isenção calculada pelo CRM. `NULL` significa que não veio `pricing.billable` válido. A consulta não cobre envios sem webhook, nem substitui a conciliação com a fatura/Pricing Analytics. Para investigar trabalho pendente/esgotado sem ver telefones ou payload:
+
+```sql
+SELECT count(*) FILTER (WHERE processado_em IS NULL AND esgotado_em IS NULL) AS pendentes,
+       count(*) FILTER (WHERE esgotado_em IS NOT NULL) AS esgotados
+  FROM meta_precificacao_entrada;
+```
+
+Não há variável **obrigatória** nova no Dokploy. `META_PRECIFICACAO_INTERVALO_MS=30000` é um override opcional do intervalo do job (padrão 30 s); quem não a definir mantém o default. Nenhuma credencial Meta adicional é usada. Antes de deploy, é necessário conferir a conta/forma de pagamento em leitura, executar a migration V85 com o fluxo de upgrade normal e validar um webhook de entrega novo; esta PR não autoriza deploy.

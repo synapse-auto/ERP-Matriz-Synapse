@@ -435,6 +435,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CANAL_FOTO_PERFIL_LIMITE_BYTES` | `5242880` | Limite de bytes aceito na resposta da foto; o processador de imagens mantém suas validações. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
+| `META_PRECIFICACAO_INTERVALO_MS` | `30000` | Intervalo opcional do job de classificação de preço observado em `statuses[].pricing`; não calcula tarifa nem participa do envio. |
 | `WEBHOOK_BACKOFF_INICIAL` | `5s` | Espera da primeira retentativa de webhook; dobra a cada falha até o teto. |
 | `WEBHOOK_BACKOFF_MAXIMO` | `30m` | Teto da espera entre retentativas de webhook; persistido em `webhook_entrada`. |
 | `WEBHOOK_PRAZO_ABSOLUTO` | `2h` | Esgota a linha de `webhook_entrada` mesmo com o disjuntor aberto, a partir de `recebido_em`. |

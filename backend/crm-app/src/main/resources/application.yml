@@ -243,6 +243,10 @@ synapse:
       # arquivo, marcada como nao recebida, em vez de sumir (E207).
       prazo-midia: ${WEBHOOK_PRAZO_MIDIA:10m}
 
+    # Apuracao observacional no pool geral; nunca consulta a Meta no webhook.
+    meta-precificacao:
+      intervalo-ms: ${META_PRECIFICACAO_INTERVALO_MS:30000}
+
   # Bulkhead do WebSocket (E06): executores proprios, nunca o pool HTTP nem o
   # do publisher da outbox. Ver DataSourceConfig para a mesma logica aplicada
   # a conexao de banco em vez de thread.
