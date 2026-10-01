@@ -29,6 +29,12 @@
 - `mensagem_id_externo` é o índice por `wamid` para mensagens conhecidas. O webhook pode chegar antes de o mapeamento ser gravado, repetido, ou com `pricing` ausente. Uma classificação durável não pode depender da ordem dos status nem sobrescrever status de entrega.
 - Não foi encontrada decisão de produto para teto de gasto, substituição automática por template ou bloqueio de resposta. Nenhum desses mecanismos será introduzido sem aprovação explícita.
 
+## Auditoria de política de envio (bloco 3)
+
+`EnviarMensagemUseCase` (manual, mídia/encaminhamento e programada) e `ResponderAtendimentoDaAutomacaoUseCase` (IA via CRM) consultam o mesmo `CanalGateway.aceitaTextoLivre`, cuja implementação Meta usa a última interação do lead e `janelaTextoLivre`. Assim, para esses caminhos, **a janela de permissão é centralizada no adaptador**: dentro dela o texto livre continua permitido; fora, é recusado antes da outbox e exige template. O envio direto feito por n8n/outro sistema, quando registrado depois em `/mensagens-enviadas`, não passa por essa checagem do CRM; sem acesso ao workflow externo não é possível afirmar que ele aplica política equivalente. Não se introduziu novo motor de política, orçamento, opt-in ou substituição automática.
+
+A [documentação oficial de Pricing Analytics](https://developers.facebook.com/documentation/business-messaging/whatsapp/analytics/#pricing-analytics) descreve filtros por período, granularidade, números, país, tipo e categoria; a métrica de custo é aproximada e depende da moeda da conta. O acesso real ao campo `pricing_analytics` do WABA operado não foi testado por falta de sessão/credencial de leitura. Sem esse confronto, os totais abaixo são telemetria de webhook, não faturamento.
+
 ## Procedimento operacional pendente
 
 1. Em acesso **somente leitura**, conferir no WhatsApp Manager a conta/WABA e número efetivamente usados por cada instância, billing ativo, método de pagamento e comunicados de vigência. Não copiar identificadores financeiros, tokens ou dados de cartão para tickets/logs.
