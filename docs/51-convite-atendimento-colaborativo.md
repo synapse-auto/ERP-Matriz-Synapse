@@ -121,3 +121,29 @@ Capturas depois da correção: `evidencias/convite-colaborativo/depois-modal-*.p
 - **Pedido de entrada (`SOLICITACAO`) expirado também trava um pedido novo**: `app_registrar_pedido_entrada`
   devolve o pedido vencido, como acontecia com o convite. Não corrigido aqui.
 - O convidado com convite pendente lê o histórico completo antes de aceitar (decisão da V78, mantida).
+
+## 6. Defeitos de tempo real e de tela achados no E2E de duas sessões
+
+O E2E (`frontend/e2e/convite-colaborativo.spec.ts`, navegador real, backend e PostgreSQL reais)
+expôs quatro defeitos pré-existentes no frontend que impediam a colaboração mesmo com o backend certo:
+
+| Defeito | Causa | Correção |
+|---|---|---|
+| A recebia o frame `MENSAGEM` de B pelo WebSocket, mas a bolha só aparecia ao recarregar | `processarEventoCanonico` religava os incrementais com `ciclo: cicloJaSincronizado ?? -1`; com dois eventos canônicos em sequência (convite, aceite, ou o mesmo evento por `/notificacoes` e pela conversa) o segundo via a liberação nula e gravava ciclo `-1`, que nunca casa — todo frame seguinte era descartado | O snapshot que responde ao evento é liberado com o ciclo de conexão vigente (`cicloAtualRef`) |
+| Aceitar o convite gravava a participação, mas a tela mostrava "Não foi possível atualizar sua participação" | `POST /aprovar` responde 200 sem corpo e `apiFetch` só tolerava corpo vazio em 204; `response.json()` lançava | `apiFetch` devolve `null` para 200 sem corpo (também corrige `Optional` vazio de `pedido-entrada/meu` e `resumo-ia`, que viravam erro) |
+| `GET /pedido-entrada/meu` disparado a cada render do cabeçalho (centenas por minuto com a conversa aberta) e `GET /pedidos-entrada` em 404 repetido para quem não é responsável | `useRemoteParticipation` chamava `carregar` em todo render | Uma busca por chave; nova busca só via `invalidarParticipacao`; pendentes só para o responsável |
+| A resposta do convidado chegava sem autor na tela de A (parecia da responsável) | O frame de tempo real não traz `remetenteNome` e o fallback só conhecia o responsável | `nomeDaAutoria` também procura nos participantes ativos do snapshot |
+
+Medido no navegador após as correções: aceite mostra sucesso; `pedido-entrada/meu` caiu de centenas
+de chamadas para 4 em 8 s (carga inicial e invalidações por evento).
+
+Capturas: `evidencias/convite-colaborativo/depois-duas-sessoes-{ana,bruno}.png` e
+`depois-e2e-modal-390.png`.
+
+### Ainda aberto
+
+- **O convidado não carrega a ficha do lead** (`GET /api/v1/leads/{id}` e `/tags` respondem 404): a
+  `VisibilidadeLeadSpecification` não considera participação, só a RLS do caminho de mensagem
+  considera. B lê e responde a conversa, mas o painel de detalhes do lead fica indisponível.
+  Mudar isso altera a RN-CRM-01 da Specification; não foi feito.
+- O cartão da conversa não aparece nas visões Ativos/Pendentes de quem é só participante.

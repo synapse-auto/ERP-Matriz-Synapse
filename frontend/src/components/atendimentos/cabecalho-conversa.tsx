@@ -139,7 +139,7 @@ export function CabecalhoConversa({
   const lead = useLead(conversa.leadId);
   const participantes = estado.participantes;
   const meuPedido = useMeuPedido(conversa.atendimentoId);
-  const pedidosPendentes = usePedidosPendentes(conversa.atendimentoId);
+  const pedidosPendentes = usePedidosPendentes(conversa.atendimentoId, estado.usuarioAtualEhResponsavel);
   const [estadoLocal, setEstadoLocal] = useState<"SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO">("SEM_PEDIDO");
   const [processandoParticipacao, setProcessandoParticipacao] = useState(false);
   const [feedbackParticipacao, setFeedbackParticipacao] = useState<{ tipo: "erro" | "sucesso"; texto: string } | null>(null);
