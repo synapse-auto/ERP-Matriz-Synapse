@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
+import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.PrecificacaoObservada;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.ReacaoRecebidaDoCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 
@@ -151,6 +152,71 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             }
         }
         return List.copyOf(resultado);
+    }
+
+    @Override
+    public List<PrecificacaoObservada> precificacoesObservadas(String payloadCru) {
+        List<PrecificacaoObservada> resultado = new ArrayList<>();
+        for (JsonNode entrada : entradas(payloadCru)) {
+            for (JsonNode mudanca : entrada.path("changes")) {
+                JsonNode statuses = mudanca.path("value").path("statuses");
+                if (!statuses.isArray()) {
+                    continue;
+                }
+                for (JsonNode status : statuses) {
+                    // Nem "sent" nem "failed" sao uma entrega cobrada. "read" pode chegar
+                    // antes de "delivered"; ambos confirmam que houve entrega.
+                    String estado = status.path("status").asText();
+                    if (!"delivered".equals(estado) && !"read".equals(estado)) {
+                        continue;
+                    }
+                    String wamid = status.path("id").asText(null);
+                    String timestamp = status.path("timestamp").asText(null);
+                    if (wamid == null || wamid.isBlank() || timestamp == null) {
+                        continue;
+                    }
+                    Instant ocorridoEm;
+                    try {
+                        ocorridoEm = Instant.ofEpochSecond(Long.parseLong(timestamp));
+                    } catch (RuntimeException e) {
+                        continue;
+                    }
+                    JsonNode pricing = status.path("pricing");
+                    Boolean cobravel = pricing.path("billable").isBoolean()
+                            ? pricing.path("billable").asBoolean()
+                            : null;
+                    String identidade = wamid + '|' + estado + '|' + timestamp + '|' + pricing;
+                    String idEvento = HexFormat.of().formatHex(
+                            sha256(identidade.getBytes(StandardCharsets.UTF_8)));
+                    resultado.add(new PrecificacaoObservada(
+                            idEvento,
+                            wamid,
+                            ocorridoEm,
+                            cobravel,
+                            campoDePreco(pricing, "category"),
+                            campoDePreco(pricing, "type"),
+                            campoDePreco(pricing, "pricing_model")));
+                }
+            }
+        }
+        return List.copyOf(resultado);
+    }
+
+    private static byte[] sha256(byte[] valor) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(valor);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponivel", e);
+        }
+    }
+
+    private static String campoDePreco(JsonNode pricing, String nome) {
+        JsonNode campo = pricing.path(nome);
+        if (!campo.isTextual()) {
+            return null;
+        }
+        String valor = campo.asText();
+        return valor.length() <= 80 && !valor.isBlank() ? valor : null;
     }
 
     private static final Map<String, String> STATUS_META_PARA_CRM =

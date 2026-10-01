@@ -29,6 +29,7 @@ import com.synapse.crm.atendimento.application.AplicarStatusDeEntregaDoCanalUseC
 import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase;
 import com.synapse.crm.atendimento.application.ValidarDestinoWebhookUseCase.Decisao;
 import com.synapse.crm.atendimento.application.WebhookEntrada;
+import com.synapse.crm.atendimento.application.precificacao.RegistrarPrecificacaoMetaUseCase;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -62,6 +63,7 @@ public class WebhookCanalController {
     private final AgendarRepasseWebhookAutomacaoUseCase agendarRepasse;
     private final ValidarDestinoWebhookUseCase validarDestino;
     private final AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
+    private final RegistrarPrecificacaoMetaUseCase registrarPrecificacao;
     private final Clock relogio;
 
     public WebhookCanalController(
@@ -70,12 +72,14 @@ public class WebhookCanalController {
             AgendarRepasseWebhookAutomacaoUseCase agendarRepasse,
             ValidarDestinoWebhookUseCase validarDestino,
             AplicarStatusDeEntregaDoCanalUseCase aplicarStatus,
+            RegistrarPrecificacaoMetaUseCase registrarPrecificacao,
             Clock relogio) {
         this.tradutor = tradutor;
         this.entrada = entrada;
         this.agendarRepasse = agendarRepasse;
         this.validarDestino = validarDestino;
         this.aplicarStatus = aplicarStatus;
+        this.registrarPrecificacao = registrarPrecificacao;
         this.relogio = relogio;
     }
 
@@ -190,6 +194,21 @@ public class WebhookCanalController {
                 // desativar o webhook. A mensagem continua ENVIADO ate o proximo status.
                 log.error("Falha ao aplicar statuses[] do webhook; payload aceito mesmo assim.", e);
             }
+        }
+
+        // O custo nao participa do ciclo de entrega. So enfileiramos uma observacao pequena;
+        // a classificacao por wamid roda em job separado. A transacao nova impede uma falha
+        // desse caminho de marcar o recebimento do webhook para rollback.
+        try {
+            var observacoes = tradutor.precificacoesObservadas(payloadCru);
+            if (!observacoes.isEmpty()) {
+                ContextoDeServico.executarComo(
+                        "webhook-precificacao-meta", () -> registrarPrecificacao.executar(observacoes));
+            }
+        } catch (RuntimeException e) {
+            log.error(
+                    "Falha ao enfileirar classificacao Meta; webhook aceito sem bloquear atendimento (tipo={}).",
+                    e.getClass().getSimpleName());
         }
 
         List<String> idsExternos = tradutor.idsExternos(payloadCru);

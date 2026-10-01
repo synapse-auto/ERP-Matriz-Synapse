@@ -38,6 +38,7 @@ import com.synapse.crm.atendimento.application.AplicarStatusDeEntregaDoCanalUseC
 import com.synapse.crm.atendimento.application.MensagemRepositorio;
 import com.synapse.crm.atendimento.domain.canal.TradutorDeCanal.StatusDeEntregaDoCanal;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
+import com.synapse.crm.atendimento.infrastructure.precificacao.ProcessadorDePrecificacaoMeta;
 import com.synapse.crm.atendimento.infrastructure.webhook.ProcessadorDeWebhookEntrada;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -52,6 +53,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
             "synapse.canal.whatsapp.webhook-verify-token=verify-e118",
             "synapse.automacao.repasse-webhook.url=http://127.0.0.1:1/nao-sera-chamado",
             "synapse.canal.webhook.intervalo-ms=3600000",
+            "synapse.canal.meta-precificacao.intervalo-ms=3600000",
             "synapse.automacao.repasse-webhook.intervalo-ms=3600000"
         })
 class StatusDeEntregaWebhookIT extends PostgresIT {
@@ -70,6 +72,9 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
 
     @Autowired
     private ProcessadorDeWebhookEntrada processador;
+
+    @Autowired
+    private ProcessadorDePrecificacaoMeta processadorPrecificacao;
 
     @Autowired
     private AplicarStatusDeEntregaDoCanalUseCase aplicarStatus;
@@ -163,6 +168,82 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
         assertThat(postar(payloadDeStatus(wamid, "delivered")).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(postar(payloadDeStatus(wamid, "delivered")).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(statusDaMensagem()).isEqualTo("ENTREGUE");
+    }
+
+    @Test
+    void entregaDeServicoECobravelSoAposStatusEntregue() {
+        String preco = "\"pricing\":{\"billable\":true,\"pricing_model\":\"PMP\","
+                + "\"type\":\"regular\",\"category\":\"service\"}";
+        assertThat(postar(payloadComPreco(wamid, "sent", "1786842000", preco)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(quantidadeClassificada()).isZero();
+
+        assertThat(postar(payloadComPreco(wamid, "delivered", "1786842001", preco)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(statusDaMensagem()).isEqualTo("ENTREGUE");
+        assertThat(jdbc.queryForObject(
+                        "SELECT categoria FROM meta_precificacao_observada WHERE wamid = ?",
+                        String.class,
+                        wamid))
+                .isEqualTo("service");
+        assertThat(jdbc.queryForObject(
+                        "SELECT cobravel FROM meta_precificacao_observada WHERE wamid = ?",
+                        Boolean.class,
+                        wamid))
+                .isTrue();
+    }
+
+    @Test
+    void utilityGratuitaEReclassificacaoPosteriorPreservamUmaLinha() {
+        String utility = "\"pricing\":{\"billable\":true,\"pricing_model\":\"PMP\","
+                + "\"type\":\"regular\",\"category\":\"utility\"}";
+        String gratuita = "\"pricing\":{\"billable\":false,\"pricing_model\":\"PMP\","
+                + "\"type\":\"free_entry_point\",\"category\":\"utility\"}";
+        String primeira = payloadComPreco(wamid, "read", "1786842002", utility);
+        assertThat(postar(primeira).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(postar(primeira).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(quantidadeClassificada()).isEqualTo(1);
+
+        // Um delivered atrasado e sem pricing nao apaga o valor ja informado.
+        assertThat(postar(payloadDeStatus(wamid, "delivered")).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(statusDaMensagem()).isEqualTo("LIDO");
+        assertThat(jdbc.queryForObject(
+                        "SELECT cobravel FROM meta_precificacao_observada WHERE wamid = ?",
+                        Boolean.class,
+                        wamid))
+                .isTrue();
+
+        assertThat(postar(payloadComPreco(wamid, "read", "1786842003", gratuita)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(quantidadeClassificada()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT cobravel FROM meta_precificacao_observada WHERE wamid = ?",
+                        Boolean.class,
+                        wamid))
+                .isFalse();
+    }
+
+    @Test
+    void statusSemPricingFicaNaoClassificadoEFalhaNaoConta() {
+        assertThat(postar(payloadDeStatusComErro(wamid, 131053, "Media upload error"))
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(quantidadeClassificada()).isZero();
+
+        assertThat(postar(payloadDeStatus(wamid, "delivered")).getStatusCode()).isEqualTo(HttpStatus.OK);
+        processadorPrecificacao.processarPendentes();
+        assertThat(quantidadeClassificada()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT cobravel FROM meta_precificacao_observada WHERE wamid = ?",
+                        Boolean.class,
+                        wamid))
+                .isNull();
     }
 
     @Test
@@ -275,6 +356,19 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
                 "SELECT status_entrega::text FROM mensagem WHERE id = ?", String.class, mensagemId);
     }
 
+    private int quantidadeClassificada() {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM meta_precificacao_observada WHERE wamid = ?",
+                Integer.class,
+                wamid);
+    }
+
+    private static String payloadComPreco(String wamidAlvo, String estado, String instante, String preco) {
+        String status = "{\"id\":\"%s\",\"status\":\"%s\",\"timestamp\":\"%s\",%s}"
+                .formatted(wamidAlvo, estado, instante, preco);
+        return payload(mudancaDeStatus(PHONE_NUMBER_ID, status));
+    }
+
     private org.springframework.http.ResponseEntity<Void> postar(String payload) {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
@@ -343,6 +437,8 @@ class StatusDeEntregaWebhookIT extends PostgresIT {
     }
 
     private void limpar() {
+        jdbc.update("DELETE FROM meta_precificacao_entrada WHERE wamid LIKE ?", PREFIXO_WAMID + "%");
+        jdbc.update("DELETE FROM meta_precificacao_observada WHERE wamid LIKE ?", PREFIXO_WAMID + "%");
         jdbc.update("DELETE FROM mensagem_id_externo WHERE wamid LIKE ?", PREFIXO_WAMID + "%");
         jdbc.update("DELETE FROM mensagem_recebida_idempotencia WHERE wamid LIKE ?", PREFIXO_WAMID + "%");
         jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE ?", PREFIXO_WAMID + "%");

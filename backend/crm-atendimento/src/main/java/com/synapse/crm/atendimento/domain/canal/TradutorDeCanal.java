@@ -63,6 +63,11 @@ public interface TradutorDeCanal {
      */
     List<StatusDeEntregaDoCanal> statusDeEntrega(String payloadCru);
 
+    /** Classificacoes observadas em entregas, sem valores monetarios nem JSON do provedor. */
+    default List<PrecificacaoObservada> precificacoesObservadas(String payloadCru) {
+        return List.of();
+    }
+
     /**
      * Traduz todas as mensagens, na ordem do payload, e declara cada item de cliente que ficou para
      * tras.
@@ -203,6 +208,22 @@ public interface TradutorDeCanal {
         public StatusDeEntregaDoCanal {
             Objects.requireNonNull(wamid, "wamid e obrigatorio");
             Objects.requireNonNull(statusEntrega, "status de entrega e obrigatorio");
+        }
+    }
+
+    /** O identificador de evento deduplica reentregas; wamid liga a observacao a mensagem. */
+    record PrecificacaoObservada(
+            String idEvento,
+            String wamid,
+            Instant ocorridoEm,
+            Boolean cobravel,
+            String categoria,
+            String tipo,
+            String modelo) {
+        public PrecificacaoObservada {
+            Objects.requireNonNull(idEvento, "evento e obrigatorio");
+            Objects.requireNonNull(wamid, "wamid e obrigatorio");
+            Objects.requireNonNull(ocorridoEm, "instante do status e obrigatorio");
         }
     }
 
