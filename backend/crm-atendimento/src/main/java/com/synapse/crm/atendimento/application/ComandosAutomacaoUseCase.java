@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.internal.CriarLembreteDaAutomacaoUseCase;
+import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.core.domain.lembrete.Lembrete;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -50,13 +51,24 @@ public class ComandosAutomacaoUseCase {
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public RespostaComandoAutomacao resposta(UUID atendimentoId, String chave, String conteudo) {
+        return resposta(atendimentoId, chave, conteudo, OrigemDaMensagem.declaradaPelaAutomacao(null, null, null));
+    }
+
+    /**
+     * A origem nao entra no hash da Idempotency-Key: a mesma resposta repetida por outra execucao do
+     * n8n (outro execucaoId) continua sendo a mesma operacao.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public RespostaComandoAutomacao resposta(
+            UUID atendimentoId, String chave, String conteudo, OrigemDaMensagem origem) {
         return executar(
                 chave,
                 "RESPONDER",
                 atendimentoId,
                 conteudo,
                 RespostaComandoAutomacao.class,
-                () -> RespostaComandoAutomacao.de(responder.executar(atendimentoId, conteudo)));
+                () -> RespostaComandoAutomacao.de(responder.executar(atendimentoId, conteudo, origem)));
     }
 
     @PreAuthorize("hasRole('SERVICO')")

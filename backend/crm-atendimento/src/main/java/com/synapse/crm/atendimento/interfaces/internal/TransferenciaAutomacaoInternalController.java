@@ -39,6 +39,7 @@ import com.synapse.crm.atendimento.application.NenhumAtendenteDisponivelExceptio
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RespostaAutomacaoInvalidaException;
 import com.synapse.crm.atendimento.application.TransferenciaDaAutomacaoInvalidaException;
+import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
 import com.synapse.crm.atendimento.domain.canal.ForaDaJanelaException;
 import com.synapse.crm.sharedkernel.identidade.ContextoDeServico;
@@ -102,7 +103,7 @@ class TransferenciaAutomacaoInternalController {
                     @RequestHeader("Idempotency-Key") String chave,
             @Valid @RequestBody ResponderRequisicao requisicao) {
         return ContextoDeServico.buscarComo(
-                "responder-automacao", () -> comandos.resposta(id, chave, requisicao.conteudo()));
+                "responder-automacao", () -> comandos.resposta(id, chave, requisicao.conteudo(), requisicao.origem()));
     }
 
     @Operation(
@@ -227,7 +228,18 @@ class TransferenciaAutomacaoInternalController {
 
     record ResponderRequisicao(
             @Schema(description = "Texto enviado pela IA.", example = "Posso ajudar com seu orçamento?", requiredMode = Schema.RequiredMode.REQUIRED)
-                    @NotBlank String conteudo) {}
+                    @NotBlank String conteudo,
+            @Schema(description = "Origem da resposta (E219): RESPOSTA_IA, FOLLOW_UP, FIDELIZACAO, FESTIVA, ANIVERSARIO, "
+                            + "AVALIACAO, LEMBRETE ou OUTRO. Opcional; ausente grava NAO_INFORMADA e gera aviso [ORIGEM_NAO_INFORMADA] no log.",
+                    example = "RESPOSTA_IA")
+                    String origemTipo,
+            @Schema(description = "Id da regra que gerou o envio. Opcional, até 100 caracteres.") String origemRegraId,
+            @Schema(description = "Id da execução do n8n. Opcional, até 200 caracteres.") String origemExecucaoId) {
+
+        OrigemDaMensagem origem() {
+            return OrigemDaMensagem.declaradaPelaAutomacao(origemTipo, origemRegraId, origemExecucaoId);
+        }
+    }
 
     record TransferirRequisicao(
                     @Schema(description = "UUID de um usuário ativo com papel ATENDENTE ou SUBGESTOR.", requiredMode = Schema.RequiredMode.REQUIRED)

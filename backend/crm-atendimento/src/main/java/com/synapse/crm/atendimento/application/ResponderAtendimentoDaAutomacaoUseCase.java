@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
+import com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
@@ -34,6 +36,7 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
     private final Outbox outbox;
     private final CanalGateway canal;
     private final ApplicationEventPublisher eventos;
+    private final RegistroDeOrigemDaMensagem origens;
     private final Clock relogio;
 
     public ResponderAtendimentoDaAutomacaoUseCase(
@@ -43,6 +46,7 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
             Outbox outbox,
             CanalGateway canal,
             ApplicationEventPublisher eventos,
+            RegistroDeOrigemDaMensagem origens,
             Clock relogio) {
         this.atendimentos = atendimentos;
         this.mensagens = mensagens;
@@ -50,12 +54,20 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
         this.outbox = outbox;
         this.canal = canal;
         this.eventos = eventos;
+        this.origens = origens;
         this.relogio = relogio;
     }
 
     @PreAuthorize("hasRole('SERVICO')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Resultado executar(UUID atendimentoId, String conteudo) {
+        return executar(atendimentoId, conteudo, OrigemDaMensagem.declaradaPelaAutomacao(null, null, null));
+    }
+
+    /** @param origem de onde veio a resposta (E219); NAO_INFORMADA gera aviso no log */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executar(UUID atendimentoId, String conteudo, OrigemDaMensagem origem) {
         if (conteudo == null || conteudo.isBlank()) {
             throw new MensagemAutomacaoInvalidaException("conteudo e obrigatorio");
         }
@@ -84,6 +96,8 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
                 null,
                 StatusEntrega.PENDENTE,
                 agora));
+        origens.registrar(
+                "POST /responder", gravada.id(), atendimento.id(), atendimento.leadId(), gravada.enviadoEm(), origem);
         outbox.enfileirarEnvio(
                 gravada.id(),
                 agora,

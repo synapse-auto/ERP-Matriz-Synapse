@@ -12,6 +12,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
+import com.synapse.crm.atendimento.application.origem.RegistroDeOrigemDaMensagem;
+import com.synapse.crm.atendimento.application.proativo.ReservaDeEnvioProativoRepositorio;
+import com.synapse.crm.atendimento.application.proativo.ReservaDeEnvioProativoRepositorio.ReservaProativa;
 import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
@@ -34,6 +38,8 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
     private final MensagemRepositorio mensagens;
     private final IdempotenciaDeMensagemAutomacaoRepositorio idempotencia;
     private final ReservaDeEnvioDaAutomacaoRepositorio reservasDeEnvio;
+    private final ReservaDeEnvioProativoRepositorio reservasProativas;
+    private final RegistroDeOrigemDaMensagem origens;
     private final MensagemIdExternoRepositorio idsExternos;
     private final LeadNoCaminhoDeMensagem leads;
     private final ApplicationEventPublisher eventos;
@@ -44,6 +50,8 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             MensagemRepositorio mensagens,
             IdempotenciaDeMensagemAutomacaoRepositorio idempotencia,
             ReservaDeEnvioDaAutomacaoRepositorio reservasDeEnvio,
+            ReservaDeEnvioProativoRepositorio reservasProativas,
+            RegistroDeOrigemDaMensagem origens,
             MensagemIdExternoRepositorio idsExternos,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
@@ -52,6 +60,8 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
         this.mensagens = mensagens;
         this.idempotencia = idempotencia;
         this.reservasDeEnvio = reservasDeEnvio;
+        this.reservasProativas = reservasProativas;
+        this.origens = origens;
         this.idsExternos = idsExternos;
         this.leads = leads;
         this.eventos = eventos;
@@ -66,9 +76,9 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
         Instant agora = Instant.now(relogio);
         // Antes de qualquer escrita: um conflito aborta a transacao sem registrar a mensagem.
-        if (requisicao.chaveDeEnvio() != null) {
-            concluirReservaDeEnvio(atendimentoId, requisicao, agora);
-        }
+        Optional<ReservaProativa> proativaAberta = requisicao.chaveDeEnvio() == null
+                ? Optional.empty()
+                : conferirReservas(atendimento, requisicao, agora);
         UUID mensagemId = UUID.randomUUID();
         IdempotenciaDeMensagemAutomacaoRepositorio.Reserva reserva = idempotencia.reservar(
                 requisicao.wamid(), atendimentoId, mensagemId, agora);
@@ -77,12 +87,26 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             if (!reserva.atendimentoId().equals(atendimentoId)) {
                 throw new WamidJaRegistradoEmOutroAtendimentoException(requisicao.wamid(), atendimentoId);
             }
+            // Registro feito antes sem a chave: a repeticao com a chave ainda fecha a reserva.
+            proativaAberta.ifPresent(proativa ->
+                    reservasProativas.concluir(proativa.chave(), reserva.mensagemId(), requisicao.wamid(), agora));
             return new Resultado(atendimentoId, reserva.mensagemId(), StatusEntrega.ENVIADO, reserva.enviadoEm(), true);
         }
 
         Mensagem mensagem = criarMensagem(atendimento, requisicao, mensagemId, agora);
         mensagens.registrar(mensagem);
         idsExternos.gravar(requisicao.wamid(), mensagem.id(), mensagem.enviadoEm(), atendimento.id());
+        origens.registrar(
+                "POST /mensagens-enviadas",
+                mensagem.id(),
+                atendimento.id(),
+                atendimento.leadId(),
+                mensagem.enviadoEm(),
+                proativaAberta.map(RegistrarMensagemEnviadaDaAutomacaoUseCase::origemDaReserva)
+                        .orElseGet(requisicao::origem));
+        // Mesma transacao do registro: ou os dois ficam, ou nenhum (E219, Bloco 2).
+        proativaAberta.ifPresent(proativa ->
+                reservasProativas.concluir(proativa.chave(), mensagem.id(), requisicao.wamid(), agora));
         leads.registrarInteracao(atendimento.leadId(), agora, 0, 1);
         EventosCanonicosDeAtendimento.publicar(
                 atendimentos,
@@ -105,6 +129,43 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
                 mensagem.statusEntrega().name(),
                 mensagem.enviadoEm()));
         return new Resultado(atendimentoId, mensagem.id(), mensagem.statusEntrega(), mensagem.enviadoEm(), false);
+    }
+
+    /**
+     * A chave pode ser de uma reserva por atendimento (V84) ou de uma reserva proativa (V85). Devolve
+     * a proativa ainda RESERVADO, que so e fechada depois de a mensagem existir.
+     */
+    private Optional<ReservaProativa> conferirReservas(Atendimento atendimento, Requisicao requisicao, Instant agora) {
+        if (reservasDeEnvio.buscar(requisicao.chaveDeEnvio()).isPresent()) {
+            concluirReservaDeEnvio(atendimento.id(), requisicao, agora);
+            return Optional.empty();
+        }
+        Optional<ReservaProativa> proativa = reservasProativas.porChave(requisicao.chaveDeEnvio());
+        if (proativa.isEmpty()) {
+            // A mensagem ja saiu: perder o historico seria pior. Fica o alerta para o fluxo corrigir.
+            log.warn(
+                    "Saida da Automacao registrada com chaveDeEnvio sem reserva: {} (atendimento {}).",
+                    requisicao.chaveDeEnvio(),
+                    atendimento.id());
+            return Optional.empty();
+        }
+        ReservaProativa reserva = proativa.get();
+        if (!reserva.leadId().equals(atendimento.leadId())) {
+            throw new ReservaDeEnvioConflitanteException("a chave de envio proativo pertence a outro lead");
+        }
+        if (reserva.estado() == ReservaDeEnvioProativoRepositorio.Estado.RESERVADO) {
+            return proativa;
+        }
+        if (!requisicao.wamid().equals(reserva.wamidSaida())) {
+            throw new ReservaDeEnvioConflitanteException(
+                    "a reserva proativa desta chave ja foi concluida com outro wamid: houve um segundo envio");
+        }
+        return Optional.empty();
+    }
+
+    /** A reserva e a fonte da origem: foi ela que a politica autorizou. */
+    private static OrigemDaMensagem origemDaReserva(ReservaProativa reserva) {
+        return OrigemDaMensagem.deReservaProativa(reserva.tipo(), reserva.regraId(), reserva.execucaoId());
     }
 
     /**
@@ -186,7 +247,10 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
                 agora);
     }
 
-    /** {@code chaveDeEnvio}: a chave reservada antes do envio (opcional; nula = fluxo antigo). */
+    /**
+     * {@code chaveDeEnvio}: a chave reservada antes do envio (opcional; nula = fluxo antigo).
+     * {@code origem*}: de onde veio a mensagem (E219), opcionais; ausentes geram aviso no log.
+     */
     public record Requisicao(
             String wamid,
             TipoMensagem tipo,
@@ -194,11 +258,29 @@ public class RegistrarMensagemEnviadaDaAutomacaoUseCase {
             String midiaUrl,
             String midiaMetadados,
             String opcoes,
-            String chaveDeEnvio) {
+            String chaveDeEnvio,
+            String origemTipo,
+            String origemRegraId,
+            String origemExecucaoId) {
 
         public Requisicao(
                 String wamid, TipoMensagem tipo, String conteudo, String midiaUrl, String midiaMetadados, String opcoes) {
             this(wamid, tipo, conteudo, midiaUrl, midiaMetadados, opcoes, null);
+        }
+
+        public Requisicao(
+                String wamid,
+                TipoMensagem tipo,
+                String conteudo,
+                String midiaUrl,
+                String midiaMetadados,
+                String opcoes,
+                String chaveDeEnvio) {
+            this(wamid, tipo, conteudo, midiaUrl, midiaMetadados, opcoes, chaveDeEnvio, null, null, null);
+        }
+
+        OrigemDaMensagem origem() {
+            return OrigemDaMensagem.declaradaPelaAutomacao(origemTipo, origemRegraId, origemExecucaoId);
         }
     }
 

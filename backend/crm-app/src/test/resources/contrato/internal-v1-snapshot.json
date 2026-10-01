@@ -645,6 +645,71 @@
         }
       }
     },
+    "/internal/v1/envios-automacao/resumo-por-origem" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "de",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "ate",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ResumoPorOrigemResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
+    "/internal/v1/envios-proativos/pendentes" : {
+      "get" : {
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "reservadosAntesDe",
+          "required" : true,
+          "schema" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReservaProativaResposta"
+                  },
+                  "type" : "array"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { }
+        }
+      }
+    },
     "/internal/v1/etapas" : {
       "get" : {
         "responses" : {
@@ -1141,6 +1206,54 @@
         }
       }
     },
+    "/internal/v1/leads/{leadId}/envios-proativos/reservas" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "leadId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReservaProativaRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecisaoResposta"
+                }
+              }
+            }
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DecisaoResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/leads/{leadId}/etapa" : {
       "post" : {
         "parameters" : [ {
@@ -1520,6 +1633,24 @@
       "required" : [ "dataNascimento" ],
       "type" : "object"
     },
+    "DecisaoResposta" : {
+      "properties" : {
+        "liberadoApos" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "motivo" : {
+          "type" : "string"
+        },
+        "podeEnviar" : {
+          "type" : "boolean"
+        },
+        "reserva" : {
+          "$ref" : "#/components/schemas/ReservaProativaResposta"
+        }
+      },
+      "type" : "object"
+    },
     "Destino" : {
       "properties" : {
         "id" : {
@@ -1814,6 +1945,16 @@
         "opcoes" : {
           "type" : "string"
         },
+        "origemExecucaoId" : {
+          "type" : "string"
+        },
+        "origemRegraId" : {
+          "type" : "string"
+        },
+        "origemTipo" : {
+          "example" : "FOLLOW_UP",
+          "type" : "string"
+        },
         "tipo" : {
           "enum" : [ "TEXTO", "AUDIO", "IMAGEM", "DOCUMENTO", "VIDEO", "BOTOES", "LISTA", "LOCALIZACAO" ],
           "type" : "string"
@@ -1995,6 +2136,71 @@
       },
       "type" : "object"
     },
+    "ReservaProativaRequisicao" : {
+      "properties" : {
+        "chave" : {
+          "type" : "string"
+        },
+        "execucaoId" : {
+          "type" : "string"
+        },
+        "ocorrencia" : {
+          "example" : "2026-10-01",
+          "type" : "string"
+        },
+        "regraId" : {
+          "type" : "string"
+        },
+        "tipo" : {
+          "example" : "FOLLOW_UP",
+          "type" : "string"
+        }
+      },
+      "required" : [ "chave", "ocorrencia", "tipo" ],
+      "type" : "object"
+    },
+    "ReservaProativaResposta" : {
+      "properties" : {
+        "chave" : {
+          "type" : "string"
+        },
+        "enviadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "estado" : {
+          "type" : "string"
+        },
+        "execucaoId" : {
+          "type" : "string"
+        },
+        "leadId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "mensagemId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "ocorrencia" : {
+          "type" : "string"
+        },
+        "regraId" : {
+          "type" : "string"
+        },
+        "reservadoEm" : {
+          "format" : "date-time",
+          "type" : "string"
+        },
+        "tipo" : {
+          "type" : "string"
+        },
+        "wamidSaida" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
     "ReservaRequisicao" : {
       "properties" : {
         "chave" : {
@@ -2038,6 +2244,16 @@
         "conteudo" : {
           "example" : "Posso ajudar com seu orçamento?",
           "minLength" : 1,
+          "type" : "string"
+        },
+        "origemExecucaoId" : {
+          "type" : "string"
+        },
+        "origemRegraId" : {
+          "type" : "string"
+        },
+        "origemTipo" : {
+          "example" : "RESPOSTA_IA",
           "type" : "string"
         }
       },
@@ -2185,6 +2401,20 @@
       },
       "type" : "object"
     },
+    "ResumoPorOrigemResposta" : {
+      "properties" : {
+        "fuso" : {
+          "type" : "string"
+        },
+        "linhas" : {
+          "items" : {
+            "$ref" : "#/components/schemas/TotalPorOrigem"
+          },
+          "type" : "array"
+        }
+      },
+      "type" : "object"
+    },
     "ResumoRequisicao" : {
       "properties" : {
         "contextoGeradoEm" : {
@@ -2287,6 +2517,26 @@
           "type" : "string"
         },
         "nome" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "TotalPorOrigem" : {
+      "properties" : {
+        "dia" : {
+          "format" : "date",
+          "type" : "string"
+        },
+        "leads" : {
+          "format" : "int64",
+          "type" : "integer"
+        },
+        "mensagens" : {
+          "format" : "int64",
+          "type" : "integer"
+        },
+        "origem" : {
           "type" : "string"
         }
       },
