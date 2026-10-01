@@ -790,10 +790,17 @@ class UzapiAutoticAdapter implements CanalGateway {
         } catch (RestClientResponseException falha) {
             throw EtapaDaMidiaRecebidaFalhou.noResolvedor(falha.getStatusCode().value());
         }
-        JsonNode no = lerJson(resposta, "resposta da midia recebida");
-        String url = no.path("url").asText("").trim();
+        // 200 sem `url` utilizavel (corpo vazio, ilegivel ou sem o campo) e o provedor ainda nao ter
+        // o arquivo, como o 404: segue o ciclo de retentativa e, vencido o prazo, o anexo entra na
+        // conversa como indisponivel. Na falha generica a linha esgotava em ~75 s e o anexo sumia.
+        String url;
+        try {
+            url = lerJson(resposta, "resposta da midia recebida").path("url").asText("").trim();
+        } catch (RespostaInvalidaException invalida) {
+            throw EtapaDaMidiaRecebidaFalhou.semConteudoNoResolvedor();
+        }
         if (url.isBlank()) {
-            throw new IllegalStateException("resposta da midia recebida sem url");
+            throw EtapaDaMidiaRecebidaFalhou.semConteudoNoResolvedor();
         }
 
         URI destino = URI.create(url);
@@ -809,8 +816,9 @@ class UzapiAutoticAdapter implements CanalGateway {
                     falha.getStatusCode().value(), hostOuDesconhecido(destino));
         }
         byte[] bytes = respostaDosBytes.getBody();
-        if (bytes == null) {
-            throw new IllegalStateException("resposta da midia recebida sem bytes");
+        if (bytes == null || bytes.length == 0) {
+            // Nunca grava objeto vazio no storage: a mensagem ficaria "com arquivo" que nao abre.
+            throw EtapaDaMidiaRecebidaFalhou.semBytesNoDownload(hostOuDesconhecido(destino));
         }
         MediaType contentType = respostaDosBytes.getHeaders().getContentType();
         String mimetype = contentType == null ? "application/octet-stream" : contentType.toString();
@@ -847,6 +855,17 @@ class UzapiAutoticAdapter implements CanalGateway {
         static EtapaDaMidiaRecebidaFalhou noDownload(int status, String host) {
             return new EtapaDaMidiaRecebidaFalhou(
                     "etapa=download respondeu HTTP " + status + "; host=" + host, false);
+        }
+
+        /** 200 do resolvedor sem {@code url} utilizavel; nunca carrega o corpo da resposta. */
+        static EtapaDaMidiaRecebidaFalhou semConteudoNoResolvedor() {
+            return new EtapaDaMidiaRecebidaFalhou("etapa=resolvedor respondeu sem url utilizavel", false);
+        }
+
+        /** 200 do download sem nenhum byte; so o host, como nas demais falhas do download. */
+        static EtapaDaMidiaRecebidaFalhou semBytesNoDownload(String host) {
+            return new EtapaDaMidiaRecebidaFalhou(
+                    "etapa=download respondeu sem bytes; host=" + host, false);
         }
 
         boolean removidaNoResolvedor() {
