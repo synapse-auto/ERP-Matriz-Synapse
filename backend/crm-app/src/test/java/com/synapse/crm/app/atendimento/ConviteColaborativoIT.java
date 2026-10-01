@@ -135,7 +135,8 @@ class ConviteColaborativoIT extends PostgresIT {
                 .isTrue();
         assertResponsavelAna();
         assertThat(chamar(EMAIL_ANA, HttpMethod.GET, "/api/v1/atendimentos/" + atendimento + "/participantes", null).getBody())
-                .contains(idBruno.toString());
+                .contains(idBruno.toString())
+                .contains("\"origem\":\"CONVITE\"");
         assertThat(origemDaParticipacao(idBruno)).isEqualTo("CONVITE");
 
         assertThat(historico(EMAIL_ANA).getStatusCode()).isEqualTo(HttpStatus.OK);

@@ -27,6 +27,7 @@ import type {
   CartaoAtendimento,
   EstadoAtendimentoSelecionado,
 } from "@/lib/atendimento/types";
+import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useLead } from "@/lib/lead/use-painel-lead";
@@ -138,6 +139,7 @@ export function CabecalhoConversa({
   const podeAplicarTags = capacidades.pode("tags.aplicar");
   const lead = useLead(conversa.leadId);
   const participantes = estado.participantes;
+  const usuarioId = useAuthStore((sessao) => sessao.usuarioId);
   const meuPedido = useMeuPedido(conversa.atendimentoId);
   const pedidosPendentes = usePedidosPendentes(conversa.atendimentoId, estado.usuarioAtualEhResponsavel);
   const [estadoLocal, setEstadoLocal] = useState<"SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO">("SEM_PEDIDO");
@@ -153,6 +155,11 @@ export function CabecalhoConversa({
 
   const estaDentro = estado.usuarioAtualParticipa;
   const ehResponsavel = estado.usuarioAtualEhResponsavel;
+  // Só convite aceito ou pedido aprovado responde sem assumir (docs/51). Quem entrou direto ou pela
+  // Agenda participa, mas ainda assume ao enviar — e continua vendo esse aviso.
+  const minhaOrigem = participantes.find((participante) => participante.usuarioId === usuarioId)?.origem;
+  const colaboraSemAssumir = estaDentro && !ehResponsavel
+    && (minhaOrigem === "CONVITE" || minhaOrigem === "PEDIDO_APROVADO");
   const estadoPersistido = estaDentro
     ? "DENTRO"
     : meuPedido?.status === "PENDENTE"
@@ -478,12 +485,12 @@ export function CabecalhoConversa({
           {estaDentro && (
             <span
               className="mt-1 inline-flex w-fit max-w-full truncate rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-medium text-primary"
-              title={ehResponsavel ? undefined : textos.participanteRespondeSemAssumir}
+              title={colaboraSemAssumir ? textos.participanteRespondeSemAssumir : undefined}
             >
-              {ehResponsavel ? textos.participando : textos.participanteRespondeSemAssumir}
+              {colaboraSemAssumir ? textos.participanteRespondeSemAssumir : textos.participando}
             </span>
           )}
-          {!estaDentro && !ehResponsavel && !finalizado && (
+          {!colaboraSemAssumir && !ehResponsavel && !finalizado && (
             <p className="mt-1 truncate text-[0.65rem] text-muted-foreground">{textos.avisoEnviarAssume}</p>
           )}
         </div>

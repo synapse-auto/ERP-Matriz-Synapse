@@ -242,6 +242,8 @@ export interface ParticipanteAtendimento {
   nome: string;
   entrouEm: string;
   fotoUrl?: string | null;
+  /** CONVITE e PEDIDO_APROVADO respondem sem assumir; ENTRADA_DIRETA (gestor, Agenda) assume ao enviar. */
+  origem?: "ENTRADA_DIRETA" | "CONVITE" | "PEDIDO_APROVADO";
 }
 
 /** Snapshot REST que governa toda a conversa selecionada. */
