@@ -52,6 +52,15 @@ conexão bastam para `AutenticacaoDoCanal.recusada(...)`).
 `to` é só dígitos, sem `+` nem máscara — confirmado no exemplo do Swagger
 (`"example": 5543996254177`). `context.message_id` opcional referencia a mensagem anterior.
 
+**Envio feito pelo n8n direto na Uzapi (E219).** Esta chamada não passa pelo CRM, então o CRM não tem
+como limitar nem identificar a mensagem sozinho. Para mensagem **proativa** (follow-up, fidelização,
+festiva, aniversário, avaliação, lembrete), o fluxo antes deste `POST` reserva o envio em
+`POST /internal/v1/leads/{leadId}/envios-proativos/reservas` e só chama a Uzapi com `podeEnviar=true`.
+Depois, o `wamid` devolvido aqui vai para `POST /internal/v1/atendimentos/{id}/mensagens-enviadas` com
+`chaveDeEnvio` e `origemTipo`/`origemRegraId`/`origemExecucaoId`. Sem retry automático no nó desta
+chamada: timeout sem resposta deixa a reserva pendente para conferência
+([`docs/51`](./51-origem-e-frequencia-das-mensagens-automaticas.md)).
+
 ## 4. Envio de mídia — upload em duas etapas
 
 Confirmado nos doze variantes do `oneOf` de `POST .../messages` (Text, Image, Audio, Video,

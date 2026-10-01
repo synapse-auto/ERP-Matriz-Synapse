@@ -376,3 +376,32 @@ configure a Header Auth `SYNAPSE_TOKEN_INTERNO` para o CRM e a validação do we
       alguém", nunca como "crie a tag".
 - [ ] Conferir se alguma chamada ainda usa `/api/v1/...` com credencial de pessoa.
 - [ ] Exportar e versionar os workflows.
+
+---
+
+## 9. E219 — origem das mensagens e reserva proativa (01/10/2026)
+
+Detalhe, motivos e tabela de chaves em
+[`51-origem-e-frequencia-das-mensagens-automaticas.md`](./51-origem-e-frequencia-das-mensagens-automaticas.md).
+Tudo é **aditivo**: quem não mandar os campos novos continua funcionando.
+
+| Contrato | Mudança |
+|---|---|
+| `POST /internal/v1/atendimentos/{id}/mensagens-enviadas` | Campos opcionais `origemTipo`, `origemRegraId`, `origemExecucaoId`. `chaveDeEnvio` passa a aceitar também a chave de uma reserva proativa e fecha a reserva na mesma transação. |
+| `POST /internal/v1/atendimentos/{id}/responder` | Os mesmos três campos opcionais no corpo. Não entram no hash da `Idempotency-Key`. |
+| `POST /internal/v1/leads/{leadId}/envios-proativos/reservas` | **Novo.** Antes de toda mensagem proativa: `201 podeEnviar=true` envia; `200 podeEnviar=false` + `motivo` não envia; `409` chave reutilizada com outro conteúdo. |
+| `GET /internal/v1/envios-proativos/pendentes?reservadosAntesDe=` | **Novo.** Reservas sem resultado, para conferência. Nunca reenviar a partir dela. |
+| `GET /internal/v1/envios-automacao/resumo-por-origem?de=&ate=` | **Novo**, somente leitura. Mensagens e leads por origem e dia. |
+
+`origemTipo`: `RESPOSTA_IA`, `FOLLOW_UP`, `FIDELIZACAO`, `FESTIVA`, `ANIVERSARIO`, `AVALIACAO`,
+`LEMBRETE` ou `OUTRO`. Ausente ou desconhecido grava `NAO_INFORMADA` e o backend registra
+`[ORIGEM_NAO_INFORMADA]` no log.
+
+Checklist do n8n para esta etapa:
+
+- [ ] Reserva proativa antes de cada envio proativo, com `chave` e `ocorrencia` estáveis (`docs/51`).
+- [ ] Não enviar quando `podeEnviar=false`; registrar o `motivo` na execução.
+- [ ] `chaveDeEnvio` em `/mensagens-enviadas` depois do envio.
+- [ ] `origemTipo`/`origemRegraId`/`origemExecucaoId` em toda mensagem, inclusive `RESPOSTA_IA`.
+- [ ] Nó que consome `follow_ups_temporary` também reserva antes de enviar.
+- [ ] Conferir `/envios-proativos/pendentes` periodicamente, sem reenvio automático.
