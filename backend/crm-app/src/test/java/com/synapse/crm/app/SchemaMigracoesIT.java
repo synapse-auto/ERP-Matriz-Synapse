@@ -91,6 +91,9 @@ class SchemaMigracoesIT extends PostgresIT {
                     "lead_tag",
                     "lembrete",
                     "marca_da_instancia",
+                    // V85: classificacao observada nos statuses entregues da Meta e fila independente.
+                    "meta_precificacao_entrada",
+                    "meta_precificacao_observada",
                     "mensagem",
                     "mensagem_automacao_idempotencia",
                     "mensagem_envio_idempotencia",
