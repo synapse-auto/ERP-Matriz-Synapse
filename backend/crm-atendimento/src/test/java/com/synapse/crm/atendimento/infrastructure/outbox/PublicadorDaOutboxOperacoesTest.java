@@ -51,6 +51,7 @@ class PublicadorDaOutboxOperacoesTest {
         CountDownLatch liberaLenta = new CountDownLatch(1);
 
         when(transacoes.reservar(AGORA)).thenReturn(List.of(lenta, rapida));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
         when(canal.provedor()).thenReturn("teste");
         when(compositor.montar(any())).thenAnswer(invocacao -> {
             Outbox.EnvioPendente pendente = invocacao.getArgument(0);
@@ -107,6 +108,7 @@ class PublicadorDaOutboxOperacoesTest {
         CountDownLatch segundaIniciou = new CountDownLatch(1);
 
         when(transacoes.reservar(AGORA)).thenReturn(List.of(primeira, segunda));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
         when(compositor.montar(any())).thenAnswer(invocacao -> {
             Outbox.EnvioPendente pendente = invocacao.getArgument(0);
             return new CanalGateway.Envio(
@@ -170,6 +172,7 @@ class PublicadorDaOutboxOperacoesTest {
         List<UUID> ordemDeDespacho = new ArrayList<>();
 
         when(transacoes.reservar(AGORA)).thenReturn(List.of(maisNovo, maisAntigo));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
         when(compositor.montar(any())).thenAnswer(invocacao -> {
             Outbox.EnvioPendente pendente = invocacao.getArgument(0);
             return new CanalGateway.Envio(
@@ -191,6 +194,45 @@ class PublicadorDaOutboxOperacoesTest {
         assertThat(operacoes.rodada()).isEqualTo(2);
         assertThat(ordemDeDespacho)
                 .containsExactly(maisAntigo.mensagemId(), maisNovo.mensagemId());
+    }
+
+    /** E209: se a marca de despacho nao foi gravada, nada foi enviado e nada pode ser enviado agora. */
+    @Test
+    void semMarcaDeDespachoNaoChamaOProvedor() {
+        PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        Outbox.EnvioPendente pendente = pendente();
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(false);
+        PublicadorDaOutboxOperacoes operacoes =
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run);
+
+        operacoes.rodada();
+
+        verify(canal, org.mockito.Mockito.never()).enviar(any());
+        verify(transacoes, org.mockito.Mockito.never()).registrarResultado(any(), any(), any());
+    }
+
+    /** E209: a marca precede a chamada ao provedor, que precede o registro do resultado. */
+    @Test
+    void marcaDeDespachoPrecedeAChamadaEOResultado() {
+        PublicadorDaOutboxTransacoes transacoes = mock(PublicadorDaOutboxTransacoes.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        var compositor = mock(com.synapse.crm.atendimento.application.CompositorDeEnvioParaCanal.class);
+        Outbox.EnvioPendente pendente = pendente();
+        when(transacoes.reservar(AGORA)).thenReturn(List.of(pendente));
+        when(transacoes.marcarDespachando(any(), any())).thenReturn(true);
+        when(canal.enviar(any())).thenReturn(new ResultadoDeEnvio.Aceito("externo"));
+        PublicadorDaOutboxOperacoes operacoes =
+                new PublicadorDaOutboxOperacoes(transacoes, canal, compositor, RELOGIO, Runnable::run);
+
+        operacoes.rodada();
+
+        org.mockito.InOrder ordem = org.mockito.Mockito.inOrder(transacoes, canal);
+        ordem.verify(transacoes).marcarDespachando(any(), any());
+        ordem.verify(canal).enviar(any());
+        ordem.verify(transacoes).registrarResultado(any(), any(), any());
     }
 
     @Test

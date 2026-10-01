@@ -815,6 +815,36 @@ uma mensagem nova em homologação.
 
 ---
 
+## Despacho sem resultado na outbox de envio (E209)
+
+**O que mudou.** Antes de chamar o provedor, o worker grava `outbox_evento.despachado_em` numa transação
+curta. Se o processo morrer (deploy) ou a gravação do resultado falhar depois de a Meta aceitar, a linha
+volta a ser elegível quando o lease (`OUTBOX_RESERVA_EXPIRACAO`, 30 s) vence. Com a marca preenchida e sem
+`publicado_em`, a conciliação **não reenvia**: preenche `esgotado_em` e `despacho_ambiguo_em`, grava
+`ultimo_erro = DESPACHO_SEM_RESULTADO...` e marca a mensagem como `FALHOU` ("Não foi possível confirmar o
+envio"). Reservar um lote e morrer *antes* de chamar o provedor não deixa marca, e esse caso continua
+reenviando normalmente (nada saiu).
+
+**Alarme.** O log `[ALERTA_OUTBOX_ESGOTADA] despacho sem resultado: mensagem ...` e o job de 15 min já
+existentes. Uma linha assim conta como "esgotada".
+
+**Conferência (somente leitura).**
+
+```sql
+SELECT id, despachado_em, despacho_ambiguo_em, ultimo_erro, payload->>'mensagemId' AS mensagem_id
+  FROM outbox_evento
+ WHERE despacho_ambiguo_em IS NOT NULL
+ ORDER BY despacho_ambiguo_em DESC;
+```
+
+**O que fazer.** Para cada linha, abrir a conversa no WhatsApp do número da instância e ver se a mensagem
+saiu. Se saiu, nada a fazer (o status de entrega da Meta pode atualizar a bolha se o `wamid` chegar).
+Se não saiu, reenviar pelo botão "Reenviar" da bolha. A decisão é humana; o sistema nunca reenvia sozinho.
+
+**Limite conhecido.** Uma recusa temporária conhecida (timeout de leitura, 5xx) limpa a marca e é
+retentada como antes: o provedor pode ter aceitado a primeira chamada. A E209 cobre morte do processo e falha
+da transação de resultado, não timeouts do provedor.
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

@@ -102,6 +102,27 @@ public interface Outbox {
      */
     boolean marcarPublicado(UUID outboxId, Instant quando);
 
+    /**
+     * Grava que a linha esta prestes a ser entregue ao provedor (E209), numa transacao propria e
+     * curta, imediatamente antes da chamada.
+     *
+     * <p>E esta marca que impede o reenvio: se o processo morrer depois da chamada e antes do
+     * resultado, a linha volta a ser elegivel com a marca preenchida e a conciliacao a desvia para
+     * conferencia em vez de enviar de novo.
+     *
+     * @return {@code false} quando a linha ja foi publicada ou esgotada; nesse caso nao se envia
+     */
+    boolean marcarDespachando(UUID outboxId, Instant quando);
+
+    /**
+     * Despachos cuja reserva expirou sem resultado registrado (E209): o provedor pode ou nao ter
+     * aceitado, e nao ha como saber. A linha sai da fila de envio (fica esgotada, para conferencia) e
+     * <b>nunca</b> e reenviada sozinha.
+     *
+     * @return as linhas desviadas, para quem chamou atualizar a mensagem e alarmar
+     */
+    List<EnvioPendente> conciliarDespachosSemResultado(int limite, Instant agora);
+
     /** Falhou, mas ainda ha esperanca: incrementa tentativas e agenda a proxima com backoff. */
     boolean reagendar(UUID outboxId, Instant proximaTentativa, String erro);
 
