@@ -502,6 +502,8 @@ export function CabecalhoConversa({
       />
       <DialogoConvidar
         atendimentoId={conversa.atendimentoId}
+        responsavelId={conversa.atendenteId}
+        responsavelNome={conversa.atendenteNome}
         participantes={participantes}
         aberto={convidarAberto && podeColaborar}
         onFechar={() => setConvidarAberto(false)}

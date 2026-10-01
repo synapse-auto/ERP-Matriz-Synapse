@@ -420,6 +420,20 @@ export const TextosSchema = z.object({
       convidarVazio: z.string(),
       convidarSucesso: z.string(),
       convidarErro: z.string(),
+      // Convite com seleção e confirmação: opcionais com default para catálogos já publicados.
+      convidarResponsavel: z.string().default("Responsável"),
+      convidarParticipantesAtuais: z.string().default("Já participam"),
+      convidarSemParticipantes: z.string().default("Ninguém mais participa ainda."),
+      convidarEscolha: z.string().default("Quem você quer convidar?"),
+      convidarConfirmar: z.string().default("Enviar convite"),
+      convidarEnviando: z.string().default("Enviando convite…"),
+      convidarErroCarregar: z.string().default("Não foi possível carregar os atendentes."),
+      convidarSemTransferencia: z
+        .string()
+        .default("O convidado acompanha e responde sem se tornar responsável. Para mudar o responsável, use Transferir."),
+      participanteRespondeSemAssumir: z
+        .string()
+        .default("Você participa: suas mensagens não transferem o atendimento."),
       convitePendente: z.string(),
       aceitarConvite: z.string(),
       recusarConvite: z.string(),
