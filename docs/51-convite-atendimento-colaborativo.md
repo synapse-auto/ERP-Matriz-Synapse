@@ -58,6 +58,10 @@ Conclusão, separando as três hipóteses do prompt:
 - **Convite expirado nunca é substituído.** O pedido expirado continua `PENDENTE` no banco; o índice
   `ux_pedido_convite_pendente` impede um novo e `POST /convidar` devolve o pedido velho com
   `jaExistia=true`. O destinatário não consegue mais ser convidado para aquele atendimento.
+- **Convidado com convite apenas pendente consegue enviar e herdar o lead.** A V78 pôs o convite
+  pendente dentro das políticas `FOR ALL`, então a RLS liberava também o `SELECT … FOR UPDATE` e o
+  `UPDATE` do envio. Reproduzido: B, sem aceitar, enviou (200, `transferiuOLead=true`) e virou dono
+  do lead e do atendimento de A.
 
 ### Defeito visual
 
@@ -71,3 +75,49 @@ convite aberto pelo cabeçalho, lista com três candidatos, um com nome de 62 ca
   da transferência — o que alimenta a leitura de que "Convidar" transfere.
 
 Com nomes curtos o layout não quebra; nenhum outro defeito de geometria foi observado.
+## 3. Decisão sobre a RN-CRM-06
+
+Requisito desta etapa: convidar e aceitar não transferem; responsável e participante atuam no
+mesmo atendimento. "Atuar" inclui responder, então a RN-CRM-06 ganha **uma exceção explícita**:
+
+| Quem envia | Efeito do envio manual |
+|---|---|
+| Responsável | Nenhuma troca (já é dono) |
+| Participante por **convite aceito** (`origem = CONVITE`) | **Não transfere.** Lead, atendimento e comissão continuam do responsável |
+| Participante por **pedido aprovado pelo responsável** (`origem = PEDIDO_APROVADO`) | **Não transfere** |
+| Participante por **entrada direta** de gestor/subgestor ou **abertura pela Agenda** (`origem = ENTRADA_DIRETA`) | Transfere, como antes |
+| Gestor/subgestor que não participa | Transfere, como antes |
+| Convidado com convite **pendente** | Não envia (404): o convite só dá leitura |
+| Quem saiu, foi recusado ou tem convite expirado | Sem acesso (404) |
+| Lead sem dono (IA) | Quem fala assume, inclusive participante — não há responsável a preservar |
+
+Por que a exceção é pela **origem** e não por "qualquer participante ativo": o fluxo da Agenda
+(`POST /novo-contato` e `/leads/{id}/novo`) registra participação automaticamente para quem abre o
+contato de um colega, sem consentimento do responsável. Estender a exceção a essa participação
+permitiria a qualquer atendente entrar e responder em conversa alheia sem assumir — a "colaboração
+silenciosa" que o requisito proíbe. Consentimento existe quando o convidado aceita um convite
+(emitido por responsável, participante ou gestor) ou quando o responsável aprova um pedido.
+
+Mudar o responsável de um atendimento colaborativo é só pela ação explícita **Transferir**.
+
+## 4. O que mudou
+
+| Camada | Mudança |
+|---|---|
+| `V85` | Convite pendente sai das políticas `FOR ALL` de `lead`/`atendimento` e volta como política `FOR SELECT` própria, limitada à validade (`app_validade_pedido_entrada()`) |
+| `V86` | `atendimento_participante.origem` (`ENTRADA_DIRETA`, `CONVITE`, `PEDIDO_APROVADO`), com backfill das participações ativas a partir dos pedidos aprovados |
+| `EnviarMensagemUseCase` | Participante consentido segue o caminho que preserva o responsável (só retira da IA); evento `MensagemEnviada` com `participante=true`, `transferiu=false` |
+| Participação | Convite vencido é marcado `EXPIRADO` antes de criar outro; aceitar/recusar expirado ou já respondido responde **409** (antes 500); pedido inexistente 404 |
+| Pendentes | Convite vencido sai da visão Pendentes |
+| Modal | Seleção + "Enviar convite", responsável e participantes separados, nomes longos com reticências e `title`, erro de carga distinto de lista vazia |
+| Cabeçalho | Participante vê "suas mensagens não transferem o atendimento" |
+
+Capturas depois da correção: `evidencias/convite-colaborativo/depois-modal-*.png`.
+
+## 5. Fora do escopo, registrado
+
+- **Não existe revogação de convite** pelo convidador: o convite pendente só deixa de valer por
+  recusa ou expiração. O responsável também não remove um participante; o participante sai sozinho.
+- **Pedido de entrada (`SOLICITACAO`) expirado também trava um pedido novo**: `app_registrar_pedido_entrada`
+  devolve o pedido vencido, como acontecia com o convite. Não corrigido aqui.
+- O convidado com convite pendente lê o histórico completo antes de aceitar (decisão da V78, mantida).

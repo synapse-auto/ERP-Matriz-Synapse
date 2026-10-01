@@ -476,8 +476,11 @@ export function CabecalhoConversa({
             </div>
           )}
           {estaDentro && (
-            <span className="mt-1 inline-flex w-fit rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-medium text-primary">
-              {textos.participando}
+            <span
+              className="mt-1 inline-flex w-fit max-w-full truncate rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-medium text-primary"
+              title={ehResponsavel ? undefined : textos.participanteRespondeSemAssumir}
+            >
+              {ehResponsavel ? textos.participando : textos.participanteRespondeSemAssumir}
             </span>
           )}
           {!estaDentro && !ehResponsavel && !finalizado && (

@@ -183,7 +183,7 @@ Skill lida depois do código pronto serve para justificar o que já foi feito �
 
 - `RN-CRM-01` — Atendente vê **apenas** seus leads (Ativos, Pendentes) mais os em status `IA` (Potenciais). Gestor/subgestor veem todos.
 - `RN-CRM-02` — Lead atribuído a um atendente pertence a ele.
-- `RN-CRM-06` — Enviar mensagem manual **transfere** o lead para quem enviou. **Sem exceção de papel** — vale para gestor e subgestor.
+- `RN-CRM-06` — Enviar mensagem manual **transfere** o lead para quem enviou. **Sem exceção de papel** — vale para gestor e subgestor. **Única exceção: participação consentida** — quem entrou no atendimento aberto por convite aceito ou pedido aprovado responde sem herdar o lead nem o atendimento (`atendimento_participante.origem` em `CONVITE`/`PEDIDO_APROVADO`, docs/51). Entrada direta de gestor e abertura pela Agenda não são consentidas e continuam assumindo. Mudar o responsável de um atendimento colaborativo é só pela ação "Transferir".
 
 > `RN-CRM-01` e `RN-CRM-06` **compõem**: a transferência só acontece dentro do recorte de visibilidade. Atendente não rouba lead de colega porque não o alcança — ele assume lead sem dono. Quem alcança lead de terceiros é gestor/subgestor, e para esses a transferência é intencional.
 
