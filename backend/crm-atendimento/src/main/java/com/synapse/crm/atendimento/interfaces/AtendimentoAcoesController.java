@@ -57,6 +57,7 @@ import com.synapse.crm.atendimento.application.participacao.GerenciarParticipaca
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio.ConviteResultado;
 import com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento;
 import com.synapse.crm.atendimento.application.participacao.PedidoEntradaAtendimento;
+import com.synapse.crm.atendimento.application.participacao.PedidoEntradaIndisponivelException;
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
@@ -179,7 +180,7 @@ class AtendimentoAcoesController {
 
     @Operation(
             summary = "Enviar mensagem de texto",
-            description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o atendimento elegível para quem enviou. atendimentoId ancora o clique à conversa aberta e evita que uma resposta tardia entre em outro ciclo do mesmo lead.",
+            description = "Persiste a mensagem e a outbox sem bloquear no provedor; enviar manualmente transfere o atendimento elegível para quem enviou, exceto quando quem envia participa por convite aceito ou pedido aprovado (transferiuOLead=false). atendimentoId ancora o clique à conversa aberta e evita que uma resposta tardia entre em outro ciclo do mesmo lead.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Mensagem aceita para entrega."),
                 @ApiResponse(responseCode = "404", description = "Lead ou atendimento inexistente ou não visível."),
@@ -451,14 +452,16 @@ class AtendimentoAcoesController {
     @Operation(summary = "Aprovar pedido de entrada", description = "O responsável aprova o pedido e adiciona o solicitante como participante, sem transferir a propriedade do atendimento.", responses = {
             @ApiResponse(responseCode = "204", description = "Pedido aprovado."),
             @ApiResponse(responseCode = "403", description = "Somente o responsável pode aprovar."),
-            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou expirado.")})
+            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou não visível."),
+            @ApiResponse(responseCode = "409", description = "Pedido ou convite expirado, já respondido ou atendimento finalizado.")})
     @PostMapping("/pedidos-entrada/{pedidoId}/aprovar")
     void aprovar(@PathVariable UUID pedidoId) { participacao.aprovar(pedidoId); }
 
     @Operation(summary = "Recusar pedido de entrada", description = "O responsável recusa o pedido sem alterar o responsável nem conceder acesso ao atendimento.", responses = {
             @ApiResponse(responseCode = "204", description = "Pedido recusado."),
             @ApiResponse(responseCode = "403", description = "Somente o responsável pode recusar."),
-            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou expirado.")})
+            @ApiResponse(responseCode = "404", description = "Pedido inexistente ou não visível."),
+            @ApiResponse(responseCode = "409", description = "Pedido ou convite expirado, já respondido ou atendimento finalizado.")})
     @PostMapping("/pedidos-entrada/{pedidoId}/recusar")
     void recusar(@PathVariable UUID pedidoId) { participacao.recusar(pedidoId); }
 
@@ -516,6 +519,13 @@ class AtendimentoAcoesController {
     ProblemDetail aoRecusarConvite(ConviteAtendimentoInvalidoException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
         problema.setTitle("Convite invalido");
+        return problema;
+    }
+
+    @ExceptionHandler(PedidoEntradaIndisponivelException.class)
+    ProblemDetail aoRecusarRespostaDePedido(PedidoEntradaIndisponivelException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problema.setTitle("Pedido indisponivel");
         return problema;
     }
 

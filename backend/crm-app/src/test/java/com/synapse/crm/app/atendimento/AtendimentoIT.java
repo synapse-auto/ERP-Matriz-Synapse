@@ -282,7 +282,7 @@ class AtendimentoIT extends PostgresIT {
     }
 
     @Nested
-    @DisplayName("envio manual por participante assume o atendimento")
+    @DisplayName("envio manual por participante: so convite aceito ou pedido aprovado preserva o responsavel")
     class ParticipanteAssumeAoEnviar {
 
         @Test
@@ -340,7 +340,29 @@ class AtendimentoIT extends PostgresIT {
         }
 
         @Test
-        @DisplayName("atendente convidado fala e assume o lead do atendimento em que participa")
+        @DisplayName("atendente convidado (convite aceito) fala sem herdar o lead — excecao da RN-CRM-06")
+        void atendenteConvidado_enviaSemTransferir() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();
+            ApoioRls.sair();
+            jdbc.update(
+                    "INSERT INTO atendimento_participante (atendimento_id, usuario_id, origem) VALUES (?, ?, 'CONVITE')",
+                    atendimentoId,
+                    idBruno);
+
+            ApoioRls.entrarComo(idBruno, PapelUsuario.ATENDENTE);
+            var resultado = enviar.executar(leadDaAna, "Bruno ajudando");
+
+            assertThat(resultado.transferiuOLead()).isFalse();
+            assertThat(resultado.mensagem().remetente().id()).isEqualTo(idBruno);
+            assertThat(donoDoLead(leadDaAna)).isEqualTo(idAna);
+            assertThat(atendenteDoAtendimento(atendimentoId)).isEqualTo(idAna);
+            assertThat(contarAuditoria(leadDaAna, "MENSAGEM_ENVIADA_POR_PARTICIPANTE")).isEqualTo(1);
+            assertThat(contarAuditoria(leadDaAna, "ENVIO_COM_TRANSFERENCIA_DE_LEAD")).isZero();
+        }
+
+        @Test
+        @DisplayName("atendente que entrou sem consentimento (Agenda) fala e assume o lead")
         void atendenteParticipante_enviaETransfere() {
             ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
             UUID atendimentoId = enviar.executar(leadDaAna, CONTEUDO).atendimento().id();

@@ -66,8 +66,9 @@ public record Atendimento(
     /**
      * Retira a conversa da IA sem alterar o responsável que já estava registrado.
      *
-     * <p>É usado por fluxos de serviço que apenas retomam o atendimento. O envio manual humano usa
-     * {@link #transferirPara(UUID)} para aplicar a RN-CRM-06; participação não é exceção a essa regra.
+     * <p>É usado por fluxos de serviço e pelo envio de um participante consentido, que retomam o
+     * atendimento sem trocar o dono. O envio manual de quem não participa usa
+     * {@link #transferirPara(UUID)} para aplicar a RN-CRM-06.
      */
     public Atendimento retirarDaIa() {
         exigirAberto("retirada da IA");

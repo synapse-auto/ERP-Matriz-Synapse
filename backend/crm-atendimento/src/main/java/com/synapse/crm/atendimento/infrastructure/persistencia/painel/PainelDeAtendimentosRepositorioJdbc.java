@@ -176,7 +176,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " OR EXISTS (SELECT 1 FROM pedido_entrada_atendimento convite"
             + " WHERE convite.atendimento_id = visivel.id"
             + " AND convite.solicitante_id = ? AND convite.tipo = 'CONVITE'"
-            + " AND convite.status = 'PENDENTE')) )";
+            + " AND convite.status = 'PENDENTE'"
+            + " AND convite.solicitado_em > now() - app_validade_pedido_entrada())) )";
 
     private static final String WHERE_PENDENTES_TODOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"

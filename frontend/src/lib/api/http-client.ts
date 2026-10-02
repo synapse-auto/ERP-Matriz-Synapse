@@ -87,7 +87,11 @@ export async function apiFetch<T>(caminho: string, opcoes: OpcoesRequisicao = {}
   if (resposta.status === 204) {
     return undefined as T;
   }
-  return (await resposta.json()) as T;
+  // O Spring responde 200 sem corpo para endpoints `void` (aprovar/recusar pedido, sair) e para
+  // `Optional` vazio (meu pedido, estado do resumo). Tratar isso como JSON inválido transformava
+  // uma ação concluída em erro na tela; a ausência é `null`.
+  const corpo = await resposta.text();
+  return (corpo ? JSON.parse(corpo) : null) as T;
 }
 
 /** Mesmo fluxo de autorização/refresh para respostas binárias (fotos e outros arquivos). */

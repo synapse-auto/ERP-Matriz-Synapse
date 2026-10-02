@@ -46,9 +46,11 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
  * transação grava lead, atendimento, mensagem e outbox; não existe intervalo em que a conversa e
  * a comissão pertençam a pessoas diferentes.
  *
- * <p>A participação continua sendo a forma de alcançar uma conversa colaborativa, mas não é uma
- * exceção à RN-CRM-06: se o participante envia manualmente, assume a responsabilidade. A
- * RN-CRM-01 continua impedindo o alcance fora do recorte de visibilidade.
+ * <p><b>Exceção à RN-CRM-06: participação consentida.</b> Quem entrou no atendimento aberto por
+ * convite aceito ou pedido aprovado responde sem herdar o lead nem o atendimento — é o que permite
+ * dois atendentes na mesma conversa. Todo outro envio manual continua transferindo, inclusive de
+ * gestor e subgestor e de quem entrou direto ou pela Agenda. A RN-CRM-01 continua impedindo o
+ * alcance fora do recorte de visibilidade.
  *
  * <p><b>Quem o remetente alcança continua sendo decidido pela RN-CRM-01.</b> Para um atendente, um
  * lead de colega só chega a este caso de uso depois de a participação colaborativa ser registrada;
@@ -352,10 +354,16 @@ public class EnviarMensagemUseCase {
         }
         boolean participanteAtivo =
                 aberto != null && participacoes.eParticipanteAtivo(aberto.id(), remetenteId);
+        boolean colaboraSemAssumir =
+                participanteAtivo && participacoes.colaboraSemAssumir(aberto.id(), remetenteId);
 
         Optional<UUID> donoAnterior;
         boolean trocouDeDono;
-        if (transfereResponsabilidade) {
+        // Exceção explícita à RN-CRM-06 (docs/51): quem entrou DESTE atendimento por convite aceito ou
+        // pedido aprovado colabora sem herdar o lead. Entrada direta de gestor e abertura pela Agenda
+        // não são consentidas pelo responsável e continuam assumindo. Para mudar o responsável existe
+        // a ação explícita "Transferir".
+        if (transfereResponsabilidade && !colaboraSemAssumir) {
             // A transferência roda ainda com a identidade humana da requisição. Só depois de a
             // RLS confirmar que ela alcança o lead elevamos o papel técnico para gravar a troca de
             // dono do atendimento; elevar antes criaria uma porta lateral à RN-CRM-01.
@@ -381,8 +389,9 @@ public class EnviarMensagemUseCase {
                 aberto = atendimentos.salvar(aberto);
             }
         } else {
-            // Agendamento de serviço não é envio manual e preserva a semântica anterior: só
-            // atribui quando o lead não tem dono. Isso evita um job antigo alterar a comissão.
+            // Participante ativo e agendamento de serviço preservam o responsável: só atribuem
+            // quando o lead não tem dono. Assim a colaboração e um job antigo não alteram a
+            // comissão; a fala humana ainda tira a conversa da IA.
             LeadNoCaminhoDeMensagem.Assuncao assuncao =
                     leads.assumirSeSemDono(leadId, remetenteId);
             if (!assuncao.alcancavel()) {
