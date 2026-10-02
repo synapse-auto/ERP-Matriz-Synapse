@@ -188,7 +188,7 @@ class CampanhaRepositorioJdbc implements CampanhaRepositorio {
     public Optional<Campanha> bloquearParaEnvio(UUID id) {
         TransacaoObrigatoria.exigir("travar campanha para envio");
         return primeira(chat.query(
-                "SELECT " + COLUNAS + " FROM campanha_template WHERE id = ? FOR SHARE", this::mapear, id));
+                "SELECT " + COLUNAS + " FROM campanha_template WHERE id = ? FOR NO KEY UPDATE", this::mapear, id));
     }
 
     @Override

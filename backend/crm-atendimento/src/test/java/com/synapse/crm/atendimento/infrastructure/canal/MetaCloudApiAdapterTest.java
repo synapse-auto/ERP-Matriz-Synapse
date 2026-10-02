@@ -380,6 +380,56 @@ class MetaCloudApiAdapterTest {
         assertThat(templates.getFirst().quantidadeDeParametros()).isEqualTo(1);
     }
 
+    /**
+     * E220: campanha so sabe preencher variavel do corpo. Midia ou variavel no cabecalho, botao com parametro
+     * dinamico e componente desconhecido marcam o template como nao suportado; texto fixo e botao estatico nao.
+     */
+    @Test
+    void marcaOsRecursosQueUmDisparoEmMassaNaoSabePreencher() {
+        servidor.expect(
+                        once(),
+                        requestTo(URL_BASE
+                                + "/waba-teste/message_templates?limit=100&fields=id,name,language,status,category,components"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        """
+                        {"data":[
+                         {"id":"1","name":"simples","language":"pt_BR","status":"APPROVED","category":"MARKETING",
+                          "components":[{"type":"HEADER","format":"TEXT","text":"Promo"},
+                                        {"type":"BODY","text":"Ola {{1}}"},{"type":"FOOTER","text":"Obrigado"},
+                                        {"type":"BUTTONS","buttons":[{"type":"QUICK_REPLY","text":"Sim"},
+                                          {"type":"URL","text":"Site","url":"https://x.com"},
+                                          {"type":"PHONE_NUMBER","text":"Ligar","phone_number":"+556133334444"}]}]},
+                         {"id":"2","name":"midia","language":"pt_BR","status":"APPROVED","category":"MARKETING",
+                          "components":[{"type":"HEADER","format":"IMAGE"},{"type":"BODY","text":"Oi"}]},
+                         {"id":"3","name":"var_cabecalho","language":"pt_BR","status":"APPROVED","category":"MARKETING",
+                          "components":[{"type":"HEADER","format":"TEXT","text":"Oi {{1}}"},{"type":"BODY","text":"Texto"}]},
+                         {"id":"4","name":"url_dinamica","language":"pt_BR","status":"APPROVED","category":"UTILITY",
+                          "components":[{"type":"BODY","text":"Oi"},
+                                        {"type":"BUTTONS","buttons":[{"type":"URL","text":"Ver","url":"https://x.com/{{1}}"}]}]},
+                         {"id":"5","name":"copiar_codigo","language":"pt_BR","status":"APPROVED","category":"MARKETING",
+                          "components":[{"type":"BODY","text":"Oi"},
+                                        {"type":"BUTTONS","buttons":[{"type":"COPY_CODE","example":"X"}]}]},
+                         {"id":"6","name":"carrossel","language":"pt_BR","status":"APPROVED","category":"MARKETING",
+                          "components":[{"type":"BODY","text":"Oi"},{"type":"CAROUSEL","cards":[]}]}
+                        ]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        var porNome = new java.util.HashMap<String, TemplateDoCanal>();
+        adapter.listarTemplates().forEach(template -> porNome.put(template.nome(), template));
+
+        servidor.verify();
+        assertThat(porNome.get("simples").recursos().suportadoEmCampanha()).isTrue();
+        assertThat(porNome.get("midia").recursos().cabecalhoDeMidia()).isTrue();
+        assertThat(porNome.get("var_cabecalho").recursos().cabecalhoComVariavel()).isTrue();
+        assertThat(porNome.get("url_dinamica").recursos().botaoComParametro()).isTrue();
+        assertThat(porNome.get("copiar_codigo").recursos().botaoComParametro()).isTrue();
+        assertThat(porNome.get("carrossel").recursos().outroComponente()).isTrue();
+        assertThat(porNome.values().stream().filter(template -> !template.recursos().suportadoEmCampanha()))
+                .hasSize(5);
+    }
+
     @Test
     void contaNegocioAusenteFalhaSemConsultarGraphNemAbrirCircuitBreaker() {
         RestClient.Builder builder = RestClient.builder();

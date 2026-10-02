@@ -29,8 +29,10 @@ public interface CampanhaRepositorio {
     Optional<Campanha> bloquearPorId(UUID id);
 
     /**
-     * Le com {@code FOR SHARE}: o envio de cada destinatario trava a campanha em modo compartilhado, entao
-     * "pausar agora" espera no maximo uma transacao curta e depois nada mais e enviado.
+     * Le com {@code FOR NO KEY UPDATE}: o envio de cada destinatario trava a campanha por uma transacao curta, e
+     * "pausar agora" (que le com {@code FOR UPDATE}) espera no maximo ela; depois nada mais e enviado. Nao pode ser
+     * {@code FOR SHARE}: o envio logo em seguida atualiza os contadores da campanha, e duas transacoes que seguram
+     * o lock compartilhado e tentam escalar para escrita entram em deadlock (achado pelo teste de quatro threads).
      */
     Optional<Campanha> bloquearParaEnvio(UUID id);
 
