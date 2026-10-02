@@ -57,3 +57,22 @@ describe("visibilidade do menu e das áreas de feedback", () => {
     expect(itemDeMenuVisivel("tags", "ATENDENTE", [], undefined, true, null)).toBe(true);
   });
 });
+
+describe("menu de campanhas", () => {
+  it("aparece só para gestão e só com a flag ligada", () => {
+    const flags = ["campanhas"];
+    expect(itemDeMenuVisivel("campanhas", "ADMINISTRADOR", flags, "campanhas")).toBe(true);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", flags, "campanhas")).toBe(true);
+    expect(itemDeMenuVisivel("campanhas", "SUBGESTOR", flags, "campanhas")).toBe(true);
+    expect(itemDeMenuVisivel("campanhas", "ATENDENTE", flags, "campanhas")).toBe(false);
+    expect(itemDeMenuVisivel("campanhas", "ADMINISTRADOR", [], "campanhas")).toBe(false);
+  });
+
+  it("com permissões efetivas carregadas, o atendente continua sem o item (papel, não capacidade)", () => {
+    const efetivas = (papel: string) =>
+      ({ papel, acessaGestao: papel !== "ATENDENTE", capacidades: {} }) as never;
+    expect(itemDeMenuVisivel("campanhas", "ATENDENTE", ["campanhas"], "campanhas", true, efetivas("ATENDENTE"))).toBe(false);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, efetivas("GESTOR"))).toBe(true);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, null)).toBe(false);
+  });
+});

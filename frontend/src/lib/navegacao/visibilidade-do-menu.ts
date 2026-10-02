@@ -44,14 +44,20 @@ export function itemDeMenuVisivel(
 
 function visivelPelasPermissoes(chave: string, permissoes: MinhasPermissoes | null): boolean {
   if (chave === "gestao") return permissoes?.acessaGestao === true;
+  // Campanhas seguem o papel (backend: GESTOR, SUBGESTOR, ADMINISTRADOR), não uma capacidade da Gestão.
+  if (chave === "campanhas") return permissoes !== null && papelDeGestao(permissoes.papel);
   const capacidade = CAPACIDADE_DO_ITEM[chave];
   if (!capacidade) return true;
   return permissoes?.capacidades[capacidade]?.permitido === true;
 }
 
+function papelDeGestao(papel: string | null | undefined): boolean {
+  return papel === "GESTOR" || papel === "SUBGESTOR" || papel === "ADMINISTRADOR";
+}
+
 function visivelPeloPapel(chave: string, papel: string | null): boolean {
-  const gestao = papel === "GESTOR" || papel === "SUBGESTOR" || papel === "ADMINISTRADOR";
-  if (chave === "gestao" || chave === "automacao" || chave === "dashboard") return gestao;
+  const gestao = papelDeGestao(papel);
+  if (chave === "gestao" || chave === "automacao" || chave === "dashboard" || chave === "campanhas") return gestao;
   return true;
 }
 
