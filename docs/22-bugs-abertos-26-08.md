@@ -246,7 +246,7 @@ transação, o resultado entra numa segunda transação curta, e o lote vai em p
 configurável (`OUTBOX_CONCORRENCIA`, padrão 4; `OUTBOX_RESERVA_EXPIRACAO`, padrão 30s contra timeout
 de 10s do provedor).
 
-**Fechado na E209 (V87, outubro/2026): `despachado_em` + conciliação, ver `docs/18`.** O texto abaixo
+**Fechado na E209 (V90, outubro/2026): `despachado_em` + conciliação, ver `docs/18`.** O texto abaixo
 descreve o risco como estava antes.
 
 **Risco residual (antes da E209):** se o processo morrer ou a transação de resultado falhar **depois**
