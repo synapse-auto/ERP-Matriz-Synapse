@@ -28,6 +28,7 @@ import javax.sql.DataSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import com.zaxxer.hikari.HikariDataSource;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -387,11 +388,14 @@ class WebhookAvaliacaoIT extends PostgresIT {
         publicador.publicarPendentes(); // ponto @Scheduled real, nao operacao interna
         assertThat(SERVIDOR.entrou.await(5, TimeUnit.SECONDS)).isTrue();
         assertThat(ContextoDeServico.ativo()).isFalse();
-        // Nenhuma conexao do banco fica em transacao enquanto o fake segura o HTTP.
-        assertThat(jdbc.queryForObject("""
-                SELECT count(*) FROM pg_stat_activity
-                WHERE datname = current_database() AND state = 'idle in transaction'
-                """, Integer.class)).isZero();
+        // O worker de avaliacao usa o pool do chat. Enquanto o HTTP esta bloqueado,
+        // nenhuma conexao desse pool pode permanecer emprestada; consultas de outros
+        // pools/rotinas do mesmo banco nao fazem parte desta garantia.
+        var poolChat = ((HikariDataSource) chatDs).getHikariPoolMXBean();
+        await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
+            assertThat(publicador.emAndamento()).isPositive();
+            assertThat(poolChat.getActiveConnections()).isZero();
+        });
         UUID outro = criar(bruno, "5561988882102");
         var enviado = post("/api/v1/atendimentos/mensagens", tokenBruno,
                 Map.of("leadId", leads.getLast().toString(), "conteudo", "Mensagem independente"));
