@@ -67,4 +67,4 @@ SELECT count(*) FILTER (WHERE processado_em IS NULL AND esgotado_em IS NULL) AS 
   FROM meta_precificacao_entrada;
 ```
 
-Não há variável **obrigatória** nova no Dokploy. `META_PRECIFICACAO_INTERVALO_MS=30000` é um override opcional do intervalo do job (padrão 30 s); quem não a definir mantém o default. Nenhuma credencial Meta adicional é usada. Antes de deploy, é necessário conferir a conta/forma de pagamento em leitura, executar a migration V85 com o fluxo de upgrade normal e validar um webhook de entrega novo; esta PR não autoriza deploy.
+Não há variável **obrigatória** nova no Dokploy. `META_PRECIFICACAO_INTERVALO_MS=30000` é um override opcional do intervalo do job (padrão 30 s); quem não a definir mantém o default. Nenhuma credencial Meta adicional é usada. Antes de deploy, é necessário conferir a conta/forma de pagamento em leitura, executar a migration V88 com o fluxo de upgrade normal e validar um webhook de entrega novo; esta PR não autoriza deploy.

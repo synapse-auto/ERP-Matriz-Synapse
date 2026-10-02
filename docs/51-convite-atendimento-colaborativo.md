@@ -104,7 +104,7 @@ Mudar o responsável de um atendimento colaborativo é só pela ação explícit
 
 | Camada | Mudança |
 |---|---|
-| `V85` | Convite pendente sai das políticas `FOR ALL` de `lead`/`atendimento` e volta como política `FOR SELECT` própria, limitada à validade (`app_validade_pedido_entrada()`) |
+| `V87` | Convite pendente sai das políticas `FOR ALL` de `lead`/`atendimento` e volta como política `FOR SELECT` própria, limitada à validade (`app_validade_pedido_entrada()`) |
 | `V86` | `atendimento_participante.origem` (`ENTRADA_DIRETA`, `CONVITE`, `PEDIDO_APROVADO`), com backfill das participações ativas a partir dos pedidos aprovados |
 | `EnviarMensagemUseCase` | Participante consentido segue o caminho que preserva o responsável (só retira da IA); evento `MensagemEnviada` com `participante=true`, `transferiu=false` |
 | Participação | Convite vencido é marcado `EXPIRADO` antes de criar outro; aceitar/recusar expirado ou já respondido responde **409** (antes 500); pedido inexistente 404 |
