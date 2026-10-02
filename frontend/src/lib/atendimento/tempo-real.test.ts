@@ -430,6 +430,38 @@ describe("ConexaoTempoReal", () => {
     expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "CONVITE_ATENDIMENTO" }));
   });
 
+  it("encaminha leitura do responsavel como evento canonico pela fila pessoal", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const ouvinte = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onNotificacao,
+      criarCliente: () => cliente,
+    });
+    conexao.adicionarOuvinteDeNotificacao(ouvinte);
+    conexao.conectar();
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+    callback?.({ body: JSON.stringify({
+      tipo: "ATENDIMENTO_ESTADO",
+      contrato: "atendimento.estado.v1",
+      eventoId: "evento-leitura-1",
+      versaoContrato: 1,
+      dados: {
+        atendimentoId: "atendimento-1",
+        leadId: "lead-1",
+        eventoTipo: "LEITURA_DO_RESPONSAVEL",
+        versao: 2,
+        ocorridoEm: "2026-10-01T12:00:00Z",
+      },
+    }) });
+    expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "ATENDIMENTO_ESTADO" }));
+    expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "ATENDIMENTO_ESTADO" }));
+  });
+
   it("encaminha nova mensagem para todos os ouvintes da fila pessoal", () => {
     const { cliente } = clienteStompFalso();
     const ouvinte = vi.fn();

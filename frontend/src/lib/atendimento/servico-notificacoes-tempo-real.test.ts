@@ -63,6 +63,29 @@ function dadosDaMensagemInterna() {
 }
 
 describe("ServicoDeNotificacoesTempoReal", () => {
+  it("atualiza o painel na leitura do responsavel sem toast ou som", () => {
+    const aviso: NotificacaoTempoReal = {
+      tipo: "ATENDIMENTO_ESTADO",
+      contrato: "atendimento.estado.v1",
+      eventoId: "evento-leitura-1",
+      versaoContrato: 1,
+      dados: {
+        atendimentoId: "atendimento-1",
+        leadId: "lead-1",
+        eventoTipo: "LEITURA_DO_RESPONSAVEL",
+        versao: 2,
+        ocorridoEm: "2026-10-01T12:00:00Z",
+      },
+    };
+    const servico = new ServicoDeNotificacoesTempoReal();
+    expect(servico.decidir(aviso, contexto)).toMatchObject({
+      exibir: false,
+      tocar: false,
+      atualizarAtendimentos: true,
+    });
+    expect(servico.decidir(aviso, contexto)).toBeNull();
+  });
+
   it("exibe e toca para nova mensagem externa fora da conversa ativa", () => {
     const decisao = new ServicoDeNotificacoesTempoReal().decidir(mensagemExterna(), contexto);
 
