@@ -21,6 +21,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.atendimento.domain.mensagem.Mensagem;
@@ -34,7 +35,141 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 class EnviarMensagemUseCaseTest {
 
     @Test
-    void participanteAtivoQueEnviaManualAssumeLeadEAtendimento() {
+    void convidadoQueEnviaManualPreservaResponsavelDoLeadEDoAtendimento() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID dono = UUID.randomUUID();
+        UUID convidado = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+
+        Atendimento aberto = atendimentoAberto(atendimentoId, leadId, dono, agora);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(convidado, PapelUsuario.ATENDENTE, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(leads.assumirSeSemDono(leadId, convidado)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(dono));
+        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
+        when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(participacoes.eParticipanteAtivo(atendimentoId, convidado)).thenReturn(true);
+        when(participacoes.colaboraSemAssumir(atendimentoId, convidado)).thenReturn(true);
+
+        EnviarMensagemUseCase useCase = novoUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
+
+        EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "oi");
+
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isEqualTo(dono);
+        assertThat(resultado.mensagem().remetente()).isEqualTo(Remetente.atendente(convidado));
+        verify(leads).bloquearParaAtendimento(leadId);
+        verify(leads, never()).transferirPara(any(), any());
+        verify(atendimentos, never()).elevarRlsParaEscritaDeNovoDono();
+        verify(atendimentos, never()).salvar(any());
+
+        ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventos, times(3)).publishEvent(eventoCaptor.capture());
+        assertThat(eventoCaptor.getAllValues()).anySatisfy(evento -> {
+            assertThat(evento).isInstanceOf(EventoDeAtendimento.MensagemEnviada.class);
+            EventoDeAtendimento.MensagemEnviada mensagem = (EventoDeAtendimento.MensagemEnviada) evento;
+            assertThat(mensagem.transferiu()).isFalse();
+            assertThat(mensagem.participante()).isTrue();
+            assertThat(mensagem.donoAnterior()).contains(dono);
+            assertThat(mensagem.remetenteId()).isEqualTo(convidado);
+        });
+    }
+
+    @Test
+    void subgestorConvidadoQueEnviaManualTambemPreservaOResponsavel() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID dono = UUID.randomUUID();
+        UUID participante = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+
+        Atendimento aberto = atendimentoAberto(atendimentoId, leadId, dono, agora);
+        when(contexto.atual())
+                .thenReturn(new UsuarioAutenticado(participante, PapelUsuario.SUBGESTOR, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(leads.assumirSeSemDono(leadId, participante)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(dono));
+        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
+        when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(true);
+        when(participacoes.colaboraSemAssumir(atendimentoId, participante)).thenReturn(true);
+
+        EnviarMensagemUseCase useCase = novoUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
+
+        EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "vou te ajudar");
+
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isEqualTo(dono);
+        assertThat(resultado.mensagem().remetente()).isEqualTo(Remetente.atendente(participante));
+        verify(leads, never()).transferirPara(any(), any());
+        verify(leads, never()).marcarStatus(any(), any());
+        verify(atendimentos, never()).elevarRlsParaEscritaDeNovoDono();
+    }
+
+    @Test
+    void convidadoQueFalaEmAtendimentoEmIaTiraDaIaSemHerdarOLead() {
+        UUID leadId = UUID.randomUUID();
+        UUID atendimentoId = UUID.randomUUID();
+        UUID dono = UUID.randomUUID();
+        UUID participante = UUID.randomUUID();
+        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
+
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        Outbox outbox = mock(Outbox.class);
+        CanalGateway canal = mock(CanalGateway.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
+
+        Atendimento comDonoNaIa = new Atendimento(
+                atendimentoId, leadId, null, null, dono, StatusAtendimento.EM_IA, agora, null);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(participante, PapelUsuario.ATENDENTE, false));
+        prepararEnvioLivre(leads, canal, leadId, agora);
+        when(leads.assumirSeSemDono(leadId, participante)).thenReturn(LeadNoCaminhoDeMensagem.Assuncao.preservado(dono));
+        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
+        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(comDonoNaIa));
+        when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(true);
+        when(participacoes.colaboraSemAssumir(atendimentoId, participante)).thenReturn(true);
+
+        EnviarMensagemUseCase useCase = novoUseCase(
+                atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
+
+        EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "humano na conversa");
+
+        assertThat(resultado.transferiuOLead()).isFalse();
+        assertThat(resultado.atendimento().atendenteId()).isEqualTo(dono);
+        assertThat(resultado.atendimento().status()).isEqualTo(StatusAtendimento.EM_ATENDIMENTO);
+        verify(leads).marcarStatus(leadId, StatusBasicoLead.EM_ATENDIMENTO);
+        verify(leads, never()).transferirPara(any(), any());
+    }
+
+    @Test
+    void participanteDeEntradaDiretaQueEnviaManualAssumeLeadEAtendimento() {
         UUID leadId = UUID.randomUUID();
         UUID atendimentoId = UUID.randomUUID();
         UUID donoAnterior = UUID.randomUUID();
@@ -60,6 +195,8 @@ class EnviarMensagemUseCaseTest {
         when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
         when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
         when(participacoes.eParticipanteAtivo(atendimentoId, convidado)).thenReturn(true);
+        // Entrada direta ou pela Agenda: participa, mas sem consentimento do responsável.
+        when(participacoes.colaboraSemAssumir(atendimentoId, convidado)).thenReturn(false);
 
         EnviarMensagemUseCase useCase = novoUseCase(
                 atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
@@ -86,62 +223,7 @@ class EnviarMensagemUseCaseTest {
     }
 
     @Test
-    void subgestorParticipanteQueEnviaManualTambemAssume() {
-        UUID leadId = UUID.randomUUID();
-        UUID atendimentoId = UUID.randomUUID();
-        UUID dono = UUID.randomUUID();
-        UUID participante = UUID.randomUUID();
-        Instant agora = Instant.parse("2026-08-24T12:00:00Z");
-
-        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
-        MensagemRepositorio mensagens = mock(MensagemRepositorio.class);
-        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
-        Outbox outbox = mock(Outbox.class);
-        CanalGateway canal = mock(CanalGateway.class);
-        UsuarioContext contexto = mock(UsuarioContext.class);
-        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
-        ParticipacaoAtendimentoRepositorio participacoes = mock(ParticipacaoAtendimentoRepositorio.class);
-
-        Atendimento aberto = atendimentoAberto(atendimentoId, leadId, dono, agora);
-        when(contexto.atual())
-                .thenReturn(new UsuarioAutenticado(participante, PapelUsuario.SUBGESTOR, false));
-        prepararEnvioLivre(leads, canal, leadId, agora);
-        when(leads.transferirPara(leadId, participante))
-                .thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(dono));
-        when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Cliente"));
-        when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
-        when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
-        when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
-        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(true);
-
-        EnviarMensagemUseCase useCase = novoUseCase(
-                atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);
-
-        EnviarMensagemUseCase.Resultado resultado = useCase.executar(leadId, "vou te ajudar");
-
-        assertThat(resultado.transferiuOLead()).isTrue();
-        assertThat(resultado.atendimento().atendenteId()).isEqualTo(participante);
-        assertThat(resultado.mensagem().remetente()).isEqualTo(Remetente.atendente(participante));
-        verify(leads).transferirPara(leadId, participante);
-        verify(leads).bloquearParaAtendimento(leadId);
-        verify(leads, never()).marcarStatus(any(), any());
-        verify(atendimentos).elevarRlsParaEscritaDeNovoDono();
-        verify(atendimentos).salvar(any());
-
-        ArgumentCaptor<Object> eventoCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(eventos, times(3)).publishEvent(eventoCaptor.capture());
-        assertThat(eventoCaptor.getAllValues()).anySatisfy(evento -> {
-            assertThat(evento).isInstanceOf(EventoDeAtendimento.MensagemEnviada.class);
-            EventoDeAtendimento.MensagemEnviada mensagem = (EventoDeAtendimento.MensagemEnviada) evento;
-            assertThat(mensagem.transferiu()).isTrue();
-            assertThat(mensagem.participante()).isTrue();
-            assertThat(mensagem.donoAnterior()).contains(dono);
-            assertThat(mensagem.remetenteId()).isEqualTo(participante);
-        });
-    }
-
-    @Test
-    void envioManualEmAtendimentoEmIaAssumeResponsabilidadeEReabreOsDoisEstados() {
+    void envioManualDeQuemNaoParticipaEmAtendimentoEmIaAssumeEReabreOsDoisEstados() {
         UUID leadId = UUID.randomUUID();
         UUID atendimentoId = UUID.randomUUID();
         UUID participante = UUID.randomUUID();
@@ -167,7 +249,7 @@ class EnviarMensagemUseCaseTest {
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(emIa));
         when(atendimentos.salvar(any(Atendimento.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
         when(mensagens.registrar(any(Mensagem.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
-        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(true);
+        when(participacoes.eParticipanteAtivo(atendimentoId, participante)).thenReturn(false);
 
         EnviarMensagemUseCase useCase = novoUseCase(
                 atendimentos, mensagens, leads, outbox, canal, contexto, eventos, agora, participacoes);

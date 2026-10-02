@@ -62,8 +62,13 @@ public class GerenciarParticipacaoAtendimentoUseCase {
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public void recusar(UUID pedidoId) { responder(pedidoId,false); }
     private void responder(UUID pedidoId, boolean aprovado) {
-        UUID dono=usuarios.atual().id(); PedidoEntradaAtendimento pedido=participacoes.pedido(pedidoId).orElseThrow();
-        Instant agora=agora(); if (pedido.solicitadoEm().plus(participacoes.validadeConfigurada()).isBefore(agora)) throw new IllegalStateException("pedido expirado");
+        UUID dono=usuarios.atual().id();
+        PedidoEntradaAtendimento pedido=participacoes.pedido(pedidoId)
+                .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("pedido", pedidoId));
+        Instant agora=agora();
+        if (pedido.solicitadoEm().plus(participacoes.validadeConfigurada()).isBefore(agora)) {
+            throw new PedidoEntradaIndisponivelException("pedido expirado");
+        }
         if (aprovado) participacoes.aprovar(pedidoId,dono,agora); else participacoes.recusar(pedidoId,dono,agora);
         UUID lead=participacoes.leadId(pedido.atendimentoId()).orElseThrow();
         eventos.publishEvent(new EventoDeAtendimento.PedidoEntradaRespondido(lead,pedido.atendimentoId(),pedido.solicitanteId(),dono,aprovado,agora));
@@ -100,6 +105,8 @@ public class GerenciarParticipacaoAtendimentoUseCase {
             throw new ConviteAtendimentoInvalidoException("o usuario ja participa deste atendimento");
         }
         Instant agora = agora();
+        // Convite vencido não pode bloquear um convite novo para a mesma pessoa.
+        participacoes.expirarConvitesVencidos(atendimentoId, convidadoId, agora.minus(participacoes.validadeConfigurada()));
         ConviteResultado resultado = participacoes.convidar(atendimentoId, convidadoId, agora);
         if (resultado.pedidoId() == null) {
             throw new ConviteAtendimentoInvalidoException("o atendimento nao esta aberto para convites");

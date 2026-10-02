@@ -418,6 +418,8 @@ export function PaginaAtendimentosCliente({
     [atendimentoSelecionadoId, cache, textoTransferido, textoTransferidoPara],
   );
 
+  const cicloAtualRef = useRef(0);
+
   const processarEventoCanonico = useCallback(
     (evento: EventoCanonicoAtendimentoTempoReal) => {
       const selecionado = evento.dados.atendimentoId === atendimentoSelecionadoId;
@@ -425,7 +427,12 @@ export function PaginaAtendimentosCliente({
         reconciliador.registrarSemSnapshot(evento);
         return;
       }
-      const cicloJaSincronizado = sincronizacaoLiberada?.ciclo;
+      // O snapshot REST que responde a este evento pertence ao ciclo de conexão vigente agora.
+      // Usar o ciclo da liberação anterior travava os incrementais quando dois eventos chegavam
+      // em sequência (convite, aceite, mesmo evento por /notificacoes e pela conversa): o segundo
+      // via a liberação já nula, religava com ciclo -1 e toda mensagem seguinte era descartada
+      // até recarregar a página.
+      const cicloDoEvento = cicloAtualRef.current;
       if (reconciliador.deveReconciliar(evento)) setSincronizacaoLiberada(null);
       invalidarParticipacao(evento.dados.atendimentoId);
       void reconciliador.receber(evento)
@@ -433,7 +440,7 @@ export function PaginaAtendimentosCliente({
           if (snapshot?.cartao.atendimentoId === atendimentoSelecionadoId) {
             setSincronizacaoLiberada({
               atendimentoId: snapshot.cartao.atendimentoId,
-              ciclo: cicloJaSincronizado ?? -1,
+              ciclo: cicloDoEvento,
             });
           }
         })
@@ -443,12 +450,7 @@ export function PaginaAtendimentosCliente({
           }
         });
     },
-    [
-      atendimentoSelecionadoId,
-      indisponibilizarAtendimento,
-      reconciliador,
-      sincronizacaoLiberada?.ciclo,
-    ],
+    [atendimentoSelecionadoId, indisponibilizarAtendimento, reconciliador],
   );
 
   const { conexao, estado, ciclo } = useConexaoTempoReal(
@@ -516,6 +518,9 @@ export function PaginaAtendimentosCliente({
       }
     },
   );
+  useLayoutEffect(() => {
+    cicloAtualRef.current = ciclo;
+  }, [ciclo]);
 
   // Governa só a aplicação de frames incrementais (snapshot antes de incremental, a cada ciclo de
   // conexão). Nunca a permissão de envio: essa vem do snapshot REST, que independe do WebSocket.
@@ -954,6 +959,7 @@ export function PaginaAtendimentosCliente({
                 canalTipo={conversa.canalTipo}
                 atendenteId={conversa.atendenteId}
                 atendenteNome={conversa.atendenteNome}
+                participantes={estadoSelecionado?.participantes}
                 reacoesHabilitadas={podeResponder}
                 onResponder={podeResponder
                   ? (mensagem) => setRespostaAlvo({ leadId: conversa.leadId, mensagem })

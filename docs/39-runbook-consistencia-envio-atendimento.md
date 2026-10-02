@@ -8,7 +8,7 @@ desse tipo precisa de decisão operacional explícita.
 
 | Sinal observado | Estado persistido esperado | Ação segura |
 | --- | --- | --- |
-| HTTP `200`, mensagem `PENDENTE` | Uma mensagem e uma outbox; `lead.atendente_responsavel_id` e `atendimento.atendente_id` apontam para o remetente, ambos em estado humano | Aguardar o worker; não reenviar por causa de `PENDENTE` |
+| HTTP `200`, mensagem `PENDENTE` | Uma mensagem e uma outbox; `lead.atendente_responsavel_id` e `atendimento.atendente_id` apontam para o remetente (ou continuam no responsável quando o remetente participa por convite aceito ou pedido aprovado, docs/51), ambos em estado humano | Aguardar o worker; não reenviar por causa de `PENDENTE` |
 | HTTP `409` para clique ancorado | Nenhuma mensagem, outbox ou conversa nova | Atualizar a tela e confirmar o ciclo aberto antes de uma ação nova |
 | HTTP `4xx` de validação, janela ou visibilidade | Nenhuma gravação parcial | Corrigir a condição de negócio; não atribuir a falha ao provedor |
 | `5xx` ou perda de rede após o clique | Resultado inicialmente desconhecido | Consultar o histórico pela mesma `Idempotency-Key`; a UI faz três tentativas e mantém a bolha pendente enquanto isso |

@@ -120,8 +120,10 @@ O upload usa o `{id}` da rota como a mesma âncora e remove o objeto recém-grav
 esse atendimento já não pode receber a mídia.
 Em um envio humano aceito, a RN-CRM-06 é aplicada na mesma transação: `lead.atendente_responsavel_id`
 e `atendimento.atendente_id` passam ao remetente e ambos ficam no estado humano antes de a mensagem
-e a outbox serem gravadas. Participação ativa dá alcance colaborativo, mas não preserva a posse
-quando o participante envia.
+e a outbox serem gravadas. A única exceção é a participação consentida (convite aceito ou pedido
+aprovado, `atendimento_participante.origem`): esse participante responde e a posse continua com o
+responsável; a resposta traz `transferiuOLead=false` (docs/51). Entrada direta de gestor e abertura
+pela Agenda dão alcance, mas não preservam a posse quando o participante envia.
 
 O histórico de mensagens e o evento WebSocket `MENSAGEM` devolvem a mesma chave. Quando o navegador
 perde a resposta, a UI mantém a mensagem otimista pendente e consulta o histórico por essa

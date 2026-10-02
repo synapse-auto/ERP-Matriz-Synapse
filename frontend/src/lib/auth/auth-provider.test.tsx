@@ -109,11 +109,11 @@ describe("AuthProvider", () => {
       }
 
       const token = new Headers(opcoes?.headers).get("Authorization");
-      return Promise.resolve({
-        ok: token === "Bearer token-restaurado",
-        status: token === "Bearer token-restaurado" ? 200 : 401,
-        json: async () => (caminhoDaRequisicao.endsWith("/me") ? { nome: "Admin" } : []),
-      });
+      // Response real: apiFetch lê o corpo como texto para aceitar 200 sem conteúdo.
+      return Promise.resolve(new Response(
+        JSON.stringify(caminhoDaRequisicao.endsWith("/me") ? { nome: "Admin" } : []),
+        { status: token === "Bearer token-restaurado" ? 200 : 401 },
+      ));
     });
     vi.stubGlobal("fetch", fetchMock);
 

@@ -29,6 +29,8 @@ type Props = {
   canalTipo: string | null;
   atendenteId: string | null;
   atendenteNome: string | null;
+  /** Participantes ativos: dão nome às mensagens deles que chegam por tempo real, sem remetenteNome. */
+  participantes?: ReadonlyArray<ParticipanteComNome>;
   leadId?: string;
   atendimentoId?: string;
   janelaTextoLivreAberta?: boolean;
@@ -58,6 +60,7 @@ export function ListaMensagens({
   canalTipo,
   atendenteId,
   atendenteNome,
+  participantes = SEM_PARTICIPANTES,
   leadId,
   atendimentoId,
   janelaTextoLivreAberta = true,
@@ -239,6 +242,7 @@ export function ListaMensagens({
                   atendenteId,
                   atendenteNome,
                   textos.atendimentos.mensagem.ia,
+                  participantes,
                 );
                 return (
                   <div
@@ -316,21 +320,26 @@ export function mudouDeAtendimento(
     && anterior?.atendimentoId !== atual.atendimentoId;
 }
 
-/** O dado persistido prevalece; o responsavel atual e so fallback para eventos em tempo real. */
+type ParticipanteComNome = { usuarioId: string; nome: string };
+const SEM_PARTICIPANTES: ReadonlyArray<ParticipanteComNome> = [];
+
+/**
+ * O dado persistido prevalece. Eventos em tempo real chegam sem nome: o responsável atual e os
+ * participantes ativos são o fallback, para a resposta de um convidado não parecer do responsável.
+ */
 export function nomeDaAutoria(
   mensagem: MensagemResposta,
   atendenteId: string | null,
   atendenteNome: string | null,
   rotuloIa: string | null = null,
+  participantes: ReadonlyArray<ParticipanteComNome> = SEM_PARTICIPANTES,
 ): string | null {
   if (mensagem.remetenteTipo === "IA") return rotuloIa;
   if (mensagem.remetenteTipo !== "ATENDENTE") return null;
-  return (
-    mensagem.remetenteNome ??
-    (mensagem.remetenteId && mensagem.remetenteId === atendenteId
-      ? atendenteNome
-      : null)
-  );
+  if (mensagem.remetenteNome) return mensagem.remetenteNome;
+  if (!mensagem.remetenteId) return null;
+  if (mensagem.remetenteId === atendenteId) return atendenteNome;
+  return participantes.find((participante) => participante.usuarioId === mensagem.remetenteId)?.nome ?? null;
 }
 
 function SeparadorDeData({ enviadoEm }: { enviadoEm: string }) {

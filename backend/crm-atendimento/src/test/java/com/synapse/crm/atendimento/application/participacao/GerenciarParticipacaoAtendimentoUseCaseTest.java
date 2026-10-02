@@ -70,7 +70,7 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
                 participacoes, atendimentos, contexto, eventos, agora, usuarios);
 
         assertThatThrownBy(() -> useCase.aprovar(UUID.randomUUID()))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(PedidoEntradaIndisponivelException.class)
                 .hasMessageContaining("expirado");
         verify(participacoes, never()).aprovar(any(), any(), any());
     }

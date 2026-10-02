@@ -64,6 +64,18 @@ describe("mudouDeAtendimento", () => {
 });
 
 describe("nomeDaAutoria", () => {
+  it("em tempo real, nomeia o participante que respondeu sem herdar o atendimento", () => {
+    expect(
+      nomeDaAutoria(
+        mensagem({ remetenteId: "bruno-id", remetenteNome: null }),
+        "ana-id",
+        "Ana Atendente",
+        null,
+        [{ usuarioId: "bruno-id", nome: "Bruno Atendente" }],
+      ),
+    ).toBe("Bruno Atendente");
+  });
+
   it("preserva o autor historico mesmo quando o responsavel atual e outra pessoa", () => {
     expect(
       nomeDaAutoria(mensagem({}), "ana-id", "Ana Atendente"),
