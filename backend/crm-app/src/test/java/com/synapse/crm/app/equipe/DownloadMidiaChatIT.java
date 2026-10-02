@@ -42,7 +42,9 @@ class DownloadMidiaChatIT extends PostgresIT {
                 org.junit.jupiter.params.provider.Arguments.of(conversa, "IMAGEM", "image/png", "foto.png"),
                 org.junit.jupiter.params.provider.Arguments.of(conversa, "AUDIO", "audio/ogg", "voz.ogg"),
                 org.junit.jupiter.params.provider.Arguments.of(conversa, "VIDEO", "video/mp4", "filme.mp4"),
-                org.junit.jupiter.params.provider.Arguments.of(conversa, "DOCUMENTO", "application/pdf", "orçamento.pdf")));
+                org.junit.jupiter.params.provider.Arguments.of(conversa, "DOCUMENTO", "application/pdf", "orçamento.pdf"),
+                org.junit.jupiter.params.provider.Arguments.of(conversa, "DOCUMENTO",
+                        "application/vnd.ms-excel.sheet.macroEnabled.12", "planilha.xlsm")));
     }
 
     @ParameterizedTest
@@ -60,6 +62,7 @@ class DownloadMidiaChatIT extends PostgresIT {
         assertThat(resposta.getBody()).containsExactly(bytes);
         assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType(mime));
         assertThat(resposta.getHeaders().getContentDisposition().getFilename()).isEqualTo(nome);
+        assertThat(resposta.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
         assertThat(resposta.getHeaders().getCacheControl()).contains("no-store");
         assertThat(chamar(ana, rota(conversa, mensagem), byte[].class).getBody()).containsExactly(bytes);
     }

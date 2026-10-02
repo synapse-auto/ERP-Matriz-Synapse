@@ -3,10 +3,14 @@ package com.synapse.crm.app.equipe;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +44,7 @@ import com.synapse.crm.app.seguranca.ApoioAutenticacao.Tokens;
         "synapse.midia.limites.documento=1000"
 })
 class ChatInternoMidiaIT extends PostgresIT {
+    private static final String XLSM_MIME = "application/vnd.ms-excel.sheet.macroEnabled.12";
 
     @Autowired
     TestRestTemplate rest;
@@ -49,6 +54,74 @@ class ChatInternoMidiaIT extends PostgresIT {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Test
+    @DisplayName("aceita XLSM declarado no pacote, persiste como documento e baixa como anexo")
+    void uploadEDownloadXlsm() throws Exception {
+        var ana = login(rest, EMAIL_ANA, SENHA_ATENDENTE);
+        var bruno = db.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, EMAIL_BRUNO);
+        var conversaResposta = chamadaAutenticada(rest, "/api/v1/chat-interno/conversas/direta", HttpMethod.POST,
+                ana, "{\"usuarioId\":\"" + bruno + "\"}", Map.class);
+        UUID conversaId = UUID.fromString(conversaResposta.getBody().get("id").toString());
+        byte[] planilha = pacoteXlsmSanitizado();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(ana.accessToken());
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Idempotency-Key", "chat-xlsm-upload-1");
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("arquivo", new ByteArrayResource(planilha) {
+            @Override public String getFilename() { return "planilha.xlsm"; }
+        });
+
+        var enviado = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia",
+                HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
+        assertThat(enviado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(enviado.getBody().get("tipo")).isEqualTo("DOCUMENTO");
+        assertThat(mapper.readTree(enviado.getBody().get("midiaMetadados").toString()).get("mimetype").asText())
+                .isEqualTo(XLSM_MIME);
+
+        UUID mensagemId = UUID.fromString(enviado.getBody().get("id").toString());
+        var downloadHeaders = new HttpHeaders();
+        downloadHeaders.setBearerAuth(ana.accessToken());
+        var baixado = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/midias/" + mensagemId + "/arquivo",
+                HttpMethod.GET, new HttpEntity<>(downloadHeaders), byte[].class);
+        assertThat(baixado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(baixado.getBody()).containsExactly(planilha);
+        assertThat(baixado.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType(XLSM_MIME));
+        assertThat(baixado.getHeaders().getContentDisposition().getFilename()).isEqualTo("planilha.xlsm");
+        assertThat(baixado.getHeaders().getContentDisposition().isAttachment()).isTrue();
+        assertThat(baixado.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
+
+        HttpHeaders headersNaoParticipante = new HttpHeaders();
+        headersNaoParticipante.setBearerAuth(login(rest, EMAIL_GESTOR, SENHA_GESTOR).accessToken());
+        headersNaoParticipante.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headersNaoParticipante.set("Idempotency-Key", "chat-xlsm-nao-participante");
+        var negado = rest.exchange("/api/v1/chat-interno/conversas/" + conversaId + "/mensagens/midia",
+                HttpMethod.POST, new HttpEntity<>(body, headersNaoParticipante), Map.class);
+        assertThat(negado.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private static byte[] pacoteXlsmSanitizado() throws IOException {
+        String tipos = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
+                + "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.ms-excel.sheet.macroEnabled.main+xml\"/>"
+                + "</Types>";
+        String workbook = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                + "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"/>";
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            adicionar(zip, "[Content_Types].xml", tipos);
+            adicionar(zip, "xl/workbook.xml", workbook);
+        }
+        return bytes.toByteArray();
+    }
+
+    private static void adicionar(ZipOutputStream zip, String nome, String conteudo) throws IOException {
+        zip.putNextEntry(new ZipEntry(nome));
+        zip.write(conteudo.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
 
     @Test
     @DisplayName("Deve permitir upload de midia valida no chat interno e gerar a url assinada")

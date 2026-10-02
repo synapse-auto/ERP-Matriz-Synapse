@@ -23,6 +23,7 @@ final class DetectorDePacoteOoxml {
 
     private static final String XLSX =
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
+    private static final String XLSM = "application/vnd.ms-excel.sheet.macroenabled.main+xml";
     private static final String DOCX =
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
     private static final String PPTX =
@@ -71,6 +72,9 @@ final class DetectorDePacoteOoxml {
 
     private static Optional<String> tipoDoContentTypes(String xml) {
         String normalizado = xml.toLowerCase(Locale.ROOT);
+        if (normalizado.contains(XLSM)) {
+            return Optional.of("application/vnd.ms-excel.sheet.macroEnabled.12");
+        }
         if (normalizado.contains(XLSX)) {
             return Optional.of("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         }

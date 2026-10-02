@@ -14,4 +14,13 @@ describe("arquivos do chat interno", () => {
     expect(arquivoCompativel(new File([""], "video.3gp", { type: "video/3gpp" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(true);
     expect(arquivoCompativel(new File([""], "video.mov", { type: "video/quicktime" }), TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
   });
+
+  it("aceita XLSM somente no chat interno e continua recusando executáveis", () => {
+    const xlsm = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "planilha.xlsm", {
+      type: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    });
+    expect(arquivoCompativel(xlsm, TIPOS_DE_ANEXO_ACEITOS)).toBe(true);
+    expect(arquivoCompativel(xlsm, TIPOS_BASE)).toBe(false);
+    expect(arquivoCompativel(new File([""], "programa.exe"), TIPOS_DE_ANEXO_ACEITOS)).toBe(false);
+  });
 });

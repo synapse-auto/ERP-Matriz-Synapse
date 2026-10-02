@@ -14,6 +14,7 @@ final class NomeDeArquivoChat {
             Map.entry("application/vnd.ms-powerpoint", "ppt"),
             Map.entry("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
             Map.entry("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
+            Map.entry("application/vnd.ms-excel.sheet.macroEnabled.12", "xlsm"),
             Map.entry("application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx"));
 
     private NomeDeArquivoChat() {}
