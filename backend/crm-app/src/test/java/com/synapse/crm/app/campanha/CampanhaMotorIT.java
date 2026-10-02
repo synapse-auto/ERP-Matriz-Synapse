@@ -340,7 +340,9 @@ class CampanhaMotorIT extends CampanhaITBase {
             UUID mensagemId = mensagemUnica(id);
 
             outbox.publicarPendentes();
-            esperar().untilAsserted(() -> assertThat(consultas.obter(id).campanha().contadores().enviados()).isEqualTo(1));
+            // Awaitility roda em outra thread, sem usuario autenticado: a espera le o contador direto do banco.
+            esperar().untilAsserted(() ->
+                    assertThat(contar("SELECT qtd_enviados FROM campanha_template WHERE id = ?", id)).isEqualTo(1));
 
             entregas.executar(mensagemId, "LIDO", Instant.now());
 
@@ -397,8 +399,9 @@ class CampanhaMotorIT extends CampanhaITBase {
         @Test
         @DisplayName("erro de limite da Meta (131048) pausa na hora, com o codigo no motivo")
         void erroDeLimiteDaMeta_pausaDeImediato() {
-            criarLeadsElegiveis(3);
-            Campanha campanha = criarEIniciar("Natal", 10);
+            // Mais leads que o limite: a campanha segue EM_ANDAMENTO. Campanha ja concluida nao tem o que pausar.
+            criarLeadsElegiveis(4);
+            Campanha campanha = criarEIniciar("Natal", 2);
             rodarCiclo();
 
             falhar(mensagensDe(campanha.id()).get(0), 131048);
