@@ -127,6 +127,7 @@ export const TextosSchema = z.object({
     fixar: z.string(),
     desafixar: z.string(),
     contagemPendentes: z.string(),
+    beta: z.string().default("Beta"),
     mais: z.string(),
     maisTitulo: z.string(),
     fecharMais: z.string(),
