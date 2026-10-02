@@ -89,9 +89,9 @@ export function PaginaDetalheDaCampanha({ id }: { id: string }) {
       {campanha.status === "PAUSADA_AUTOMATICAMENTE" && <AlertaDePausa campanha={campanha} />}
       <Tabs defaultValue="visao-geral">
         <TabsList>
-          <TabsTrigger value="visao-geral">{textos.detalhe.abas.visaoGeral}</TabsTrigger>
-          <TabsTrigger value="destinatarios">{textos.detalhe.abas.destinatarios}</TabsTrigger>
-          <TabsTrigger value="conferencia">
+          <TabsTrigger value="visao-geral" className="text-muted-foreground">{textos.detalhe.abas.visaoGeral}</TabsTrigger>
+          <TabsTrigger value="destinatarios" className="text-muted-foreground">{textos.detalhe.abas.destinatarios}</TabsTrigger>
+          <TabsTrigger value="conferencia" className="text-muted-foreground">
             {textos.detalhe.abas.conferencia}
             {campanha.contadores.conferencia > 0 && ` (${campanha.contadores.conferencia})`}
           </TabsTrigger>

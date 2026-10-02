@@ -13,6 +13,8 @@ import { useExcluidosDoPublico } from "@/lib/campanhas/hooks";
 import type { FiltroDePublico, MotivoDoDestinatario, PreviaDoPublico } from "@/lib/campanhas/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
+import { AvisoDeAtencao } from "./aviso";
+
 export function EsqueletoDoResumo() {
   const rotulo = useTextos().campanhas.passoPublico.carregando;
   return (
@@ -73,9 +75,9 @@ export function ResumoDoPublico({ previa, filtro }: Props) {
         <Contagem icone={UserMinus} rotulo={passo.excluidos} valor={previa.excluidos} />
       </div>
       {previa.elegiveis === 0 && (
-        <p role="alert" className="rounded-lg border border-cor-atencao/40 bg-cor-atencao/10 p-3 text-sm text-cor-atencao">
+        <AvisoDeAtencao destacado papel="alert">
           {passo.publicoVazio}
-        </p>
+        </AvisoDeAtencao>
       )}
       <div className="space-y-2">
         <h3 className="text-sm font-bold">{passo.excluidosPorMotivo}</h3>

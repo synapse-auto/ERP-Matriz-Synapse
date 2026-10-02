@@ -1038,6 +1038,7 @@
       "cancelarConfirmar": "Cancelar campanha",
       "manter": "Manter campanha",
       "pausarAjuda": "O envio para no próximo ciclo. Nada se perde e você pode retomar.",
+      "retomarAjuda": "Volta a enviar de onde parou. Se o motivo da pausa continuar, a campanha pausa de novo.",
       "interruptorLigado": "Envio ligado",
       "interruptorDesligado": "Envio desligado",
       "interruptorAjuda": "Desligar para o envio na hora, sem mudar o status. Religar continua de onde parou."
@@ -1127,6 +1128,7 @@
       "excluidos": "Excluídos",
       "excluidosPorMotivo": "Excluídos por motivo",
       "nenhumExcluido": "Nenhum contato excluído.",
+      "resumoTags": "{quantidade} tag(s)",
       "verExcluidos": "Ver lista",
       "excluidosTitulo": "Excluídos: {motivo}",
       "excluidosDescricao": "Até 200 contatos. Confira antes de iniciar.",
@@ -1288,6 +1290,13 @@
       "alertaPausa": {
         "titulo": "Esta campanha foi pausada automaticamente",
         "motivo": "Motivo: {motivo}",
+        "causas": {
+          "TAXA_DE_FALHA": "A taxa de falha chegou a {detalhe}%, acima do limiar configurado.",
+          "ERRO_DA_META": "A Meta devolveu o código {detalhe}, que exige parar o envio.",
+          "TEMPLATE_INDISPONIVEL": "O template deixou de estar disponível ({detalhe}).",
+          "CANAL_SEM_CAMPANHA": "O canal atual não permite campanhas."
+        },
+        "causaDesconhecida": "Código do motivo: {detalhe}",
         "quando": "Pausada em {data}",
         "oQueFazer": "O que fazer",
         "passo1": "Confira na aba Destinatários os códigos de erro e os motivos das falhas.",

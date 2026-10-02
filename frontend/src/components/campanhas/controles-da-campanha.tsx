@@ -40,6 +40,13 @@ export function ControlesDaCampanha({ campanha }: { campanha: Campanha }) {
   const interruptor = useAlterarInterruptor(campanha.id);
   const [confirmando, setConfirmando] = useState(false);
   const ativa = !campanha.desligada;
+  const ajudaDaAcao = !ehAdministrador
+    ? textos.ajudaSomenteAdministrador
+    : podeRetomar(campanha)
+      ? t.retomarAjuda
+      : podePausar(campanha)
+        ? t.pausarAjuda
+        : null;
   const erro = pausar.isError || retomar.isError || cancelar.isError || interruptor.isError;
 
   return (
@@ -58,8 +65,8 @@ export function ControlesDaCampanha({ campanha }: { campanha: Campanha }) {
           </Button>
         )}
         {podeCancelar(campanha) && (
-          <Button type="button" variant="destructive" disabled={!ehAdministrador || cancelar.isPending} aria-describedby="acoes-ajuda" onClick={() => setConfirmando(true)}>
-            <XCircle aria-hidden />
+          <Button type="button" variant="outline" disabled={!ehAdministrador || cancelar.isPending} aria-describedby="acoes-ajuda" onClick={() => setConfirmando(true)}>
+            <XCircle className="text-destructive" aria-hidden />
             {cancelar.isPending ? t.cancelando : t.cancelar}
           </Button>
         )}
@@ -74,9 +81,11 @@ export function ControlesDaCampanha({ campanha }: { campanha: Campanha }) {
           {ativa ? t.interruptorLigado : t.interruptorDesligado}
         </label>
       )}
-      <p id="acoes-ajuda" className="max-w-72 text-xs text-muted-foreground sm:text-right">
-        {ehAdministrador ? t.pausarAjuda : textos.ajudaSomenteAdministrador}
-      </p>
+      {ajudaDaAcao && (
+        <p id="acoes-ajuda" className="max-w-72 text-xs text-muted-foreground sm:text-right">
+          {ajudaDaAcao}
+        </p>
+      )}
       {erro && (
         <p role="alert" className="text-xs text-destructive">
           {textos.erroAcao}

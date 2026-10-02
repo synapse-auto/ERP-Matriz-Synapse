@@ -55,7 +55,7 @@ export function FunilDaCampanha({ contadores }: { contadores: ContadoresDaCampan
   return (
     <section aria-label={textos.rotulo} className="space-y-3">
       <h2 className="text-sm font-bold">{textos.titulo}</h2>
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <ol className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Etapa icone={Hourglass} rotulo={textos.naFila} valor={etapas.naFila} total={total} />
         <Etapa icone={Send} rotulo={textos.enviadas} valor={etapas.enviadas} total={total} />
         <Etapa icone={CheckCheck} rotulo={textos.entregues} valor={etapas.entregues} total={total} />

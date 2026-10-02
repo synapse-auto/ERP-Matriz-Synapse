@@ -4,6 +4,38 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 02/10/2026 — Campanhas de template em massa com limite diário (E220)
+
+Entregue em duas etapas: backend na `main` (PR #254, V91) e interface (PR #255). Só Meta oficial
+(`gerenciaTemplates`), atrás da flag `campanhas`. **Backend:** campanha em ondas por janela de horário/dias,
+limite diário por campanha dentro de um teto da instância, rampa opcional, uma transação por destinatário
+(reserva proativa E219 + atendimento FINALIZADO sem dono + mensagem + outbox + vaga do dia), contadores
+incrementais (sem `COUNT` na `mensagem`), pausa automática (taxa de falha, códigos da Meta, template),
+conferência manual e opt-out. **Interface (`/campanhas`):** lista com indicadores e limite do dia; assistente de
+4 passos com rascunho salvo no servidor, prévia em bolha de WhatsApp, público com contagem e excluídos por
+motivo, ritmo com mini-calendário de término, revisão com teste, consentimento e número de destinatários
+digitado; detalhe com funil acumulado, gráfico por dia contra o limite, ajuste de limite, alerta de pausa,
+destinatários (filtros e CSV) e conferência; configurações da instância.
+
+**Decisões fora do especificado.** (1) Criar e salvar rascunho são só do administrador (o backend já exigia);
+a tela segue isso em vez de mostrar um assistente que falharia ao salvar. (2) Estado "reservado" não é
+persistido: a reserva E219, a mensagem, a outbox e o destinatário nascem na mesma transação. (3) Cabeçalho com
+variável, mídia e botão com parâmetro: template marcado como não suportado. (4) Funil acumulado: lido conta
+como entregue e enviado; "na fila" = pendentes + enfileirados ainda não enviados. (5) O motivo da pausa
+automática chega como código (`TAXA_DE_FALHA:100`) e a tela o traduz.
+
+**Divergências e achados.** O produto não tem alternância de modo escuro e o `tema.json` do tenant
+(`:root{...}`) sobrepõe a paleta `.dark` de `globals.css`; as capturas escuras emulam o tema sobrescrevendo os
+tokens semânticos. O `PillDeStatus` compartilhado e os tons `cor-atencao`/`cor-info`/`cor-sucesso` como cor de
+texto ficam abaixo de 4,5:1 sobre fundo claro (2,0 / 3,1 / 4,2); as campanhas usam texto na cor do corpo e a cor
+só no ícone (axe-core, WCAG 2.2 AA: 0 violações em 8 telas). O `RadioItem` compartilhado desenhava o círculo
+não marcado quase invisível; ganhou borda `muted-foreground/60`. Em banco dev novo, a V73 pesada exige o
+runner controlado (`--synapse.migrations.run-once`) depois de um boot sem o perfil `dev`.
+
+**Não provado.** Comportamento real da Meta (limite por 24 h, qualidade, códigos de bloqueio) e opt-out
+automático por "SAIR". Capturas (claro/escuro × desktop/celular, 13 telas cada) em
+[`docs/assets/e220-campanhas/`](./assets/e220-campanhas/). Operação em [`18`](./18-runbook-pendencias-operacionais.md).
+
 ### 01/10/2026 — Outbox nunca reenvia um despacho sem resultado (E209)
 
 O prompt do E220 tratava a E209 como implementada, mas `despachado_em` não existia no código (a "E209" dos

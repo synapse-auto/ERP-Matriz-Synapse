@@ -3,7 +3,7 @@
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarDataHora, formatarDia, formatarNumero } from "@/lib/campanhas/formatacao";
 import type { EstadoDoAssistente } from "@/lib/campanhas/estado-do-assistente";
-import { temFiltro } from "@/lib/campanhas/estado-do-assistente";
+import { type FiltroEditavel } from "@/lib/campanhas/estado-do-assistente";
 import type { PreviaDoPublico, ProjecaoDeEnvio } from "@/lib/campanhas/types";
 import { instanteDoAgendamento } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -23,6 +23,18 @@ function Linha({ rotulo, children }: { rotulo: string; children: React.ReactNode
   );
 }
 
+/** Uma frase por filtro aplicado; vazio = Agenda inteira. */
+function frasesDoFiltro(filtro: FiltroEditavel, textos: ReturnType<typeof useTextos>["campanhas"]["passoPublico"]): string[] {
+  const frases: string[] = [];
+  if (filtro.tagIds.length > 0) frases.push(interpolarCatalogo(textos.resumoTags, { quantidade: String(filtro.tagIds.length) }));
+  if (filtro.etapaId) frases.push(textos.etapa);
+  if (filtro.cadastroDesde) frases.push(`${textos.cadastroDesde} ${formatarDia(filtro.cadastroDesde)}`);
+  if (filtro.cadastroAte) frases.push(`${textos.cadastroAte} ${formatarDia(filtro.cadastroAte)}`);
+  if (filtro.nuncaConversou) frases.push(textos.nuncaConversou);
+  if (filtro.busca.trim()) frases.push(`${textos.busca}: ${filtro.busca.trim()}`);
+  return frases;
+}
+
 /** Resumo completo, linha a linha, do que vai acontecer ao iniciar. */
 export function ResumoDaCampanha({ estado, previa, projecao }: Props) {
   const textos = useTextos().campanhas;
@@ -40,7 +52,7 @@ export function ResumoDaCampanha({ estado, previa, projecao }: Props) {
           ? interpolarCatalogo(t.publicoValor, { receberao: formatarNumero(previa.elegiveis), total: formatarNumero(previa.total) })
           : "-"}
       </Linha>
-      <Linha rotulo={t.filtros}>{temFiltro(estado.filtro) ? textos.passoPublico.filtrosOpcionais : t.semFiltros}</Linha>
+      <Linha rotulo={t.filtros}>{frasesDoFiltro(estado.filtro, textos.passoPublico).join(" · ") || t.semFiltros}</Linha>
       <Linha rotulo={t.ritmo}>
         {interpolarCatalogo(t.ritmoValor, {
           limite: formatarNumero(estado.limiteDiario ?? 0),

@@ -26,8 +26,8 @@ function Indicador({ icone: Icone, rotulo, valor }: { icone: LucideIcon; rotulo:
 /** Esqueleto no formato real da tira: um cartão largo (limite) e quatro indicadores. */
 export function EsqueletoDaTira() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" aria-hidden>
-      <Skeleton className="h-24 sm:col-span-2" />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6" aria-hidden>
+      <Skeleton className="col-span-2 h-24" />
       {Array.from({ length: 4 }, (_, indice) => (
         <Skeleton key={indice} className="h-24" />
       ))}
@@ -40,8 +40,8 @@ export function TiraDeIndicadores({ lista }: { lista: ListaDeCampanhas }) {
   const uso = percentual(lista.enfileiradasHoje, lista.tetoDiario);
   const perto = uso >= 90;
   return (
-    <section aria-label={textos.enviadasHoje} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:col-span-2">
+    <section aria-label={textos.enviadasHoje} className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+      <div className="col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Send className="size-4" aria-hidden />
           {textos.enviadasHoje} · {textos.limiteDiario}

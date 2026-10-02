@@ -71,7 +71,7 @@ describe("controles da campanha", () => {
   });
 
   it("campanha pausada automaticamente oferece Retomar e mostra o alerta com motivo e o que fazer", async () => {
-    const pausada = campanhaDeTeste({ status: "PAUSADA_AUTOMATICAMENTE", motivoDePausa: "Taxa de falha acima de 20%", pausadaEm: "2026-10-02T10:00:00Z" });
+    const pausada = campanhaDeTeste({ status: "PAUSADA_AUTOMATICAMENTE", motivoDePausa: "TAXA_DE_FALHA:35", pausadaEm: "2026-10-02T10:00:00Z" });
     api.retomarCampanha.mockResolvedValue(campanhaDeTeste());
     renderizar(
       <>
@@ -80,8 +80,9 @@ describe("controles da campanha", () => {
       </>,
     );
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Taxa de falha acima de 20%");
+    expect(screen.getByRole("alert")).toHaveTextContent("A taxa de falha chegou a 35%");
     expect(screen.getByText(t.detalhe.alertaPausa.oQueFazer)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t.acoes.retomar })).toHaveAccessibleDescription(t.acoes.retomarAjuda);
     fireEvent.click(screen.getByRole("button", { name: t.acoes.retomar }));
     await waitFor(() => expect(api.retomarCampanha).toHaveBeenCalledWith("c1"));
   });

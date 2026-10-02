@@ -11,7 +11,7 @@ interface Props {
 
 const PREENCHIMENTO = {
   primario: "bg-primary",
-  atencao: "bg-cor-atencao",
+  atencao: "bg-cor-erro",
   sucesso: "bg-cor-sucesso",
 } as const;
 

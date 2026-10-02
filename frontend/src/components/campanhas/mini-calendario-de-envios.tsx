@@ -1,12 +1,14 @@
 "use client";
 
-import { CalendarDays, TriangleAlert } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { diaDaSemanaIso, formatarDia, formatarDiaCurto, formatarNumero } from "@/lib/campanhas/formatacao";
 import type { ProjecaoDeEnvio } from "@/lib/campanhas/types";
 import { useTextos } from "@/lib/config/textos-provider";
+
+import { AvisoDeAtencao } from "./aviso";
 
 export function EsqueletoDaProjecao() {
   const rotulo = useTextos().campanhas.passoRitmo.carregando;
@@ -63,10 +65,7 @@ export function MiniCalendarioDeEnvios({ projecao }: { projecao: ProjecaoDeEnvio
         })}
       </ol>
       {!projecao.completa && (
-        <p className="flex items-start gap-2 text-xs text-cor-atencao">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {textos.estimativaIncompleta}
-        </p>
+        <AvisoDeAtencao>{textos.estimativaIncompleta}</AvisoDeAtencao>
       )}
     </section>
   );

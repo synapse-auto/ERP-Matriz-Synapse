@@ -845,6 +845,66 @@ Se não saiu, reenviar pelo botão "Reenviar" da bolha. A decisão é humana; o 
 retentada como antes: o provedor pode ter aceitado a primeira chamada. A E209 cobre morte do processo e falha
 da transação de resultado, não timeouts do provedor.
 
+## Campanhas em massa (E220): ligar, parar, pausa automática e conferência
+
+**Pré-requisitos.** Só funciona com o provedor que administra templates (Meta oficial / `gerenciaTemplates`).
+Sem isso, ou com a flag desligada, toda rota `/api/v1/campanhas/**` responde 404 e o item some do menu.
+Antes de publicar, conferir a numeração das migrations na instância (`V90` = despacho da outbox, `V91` =
+campanhas) com `SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 3`.
+
+**Ligar (por instância, nunca por deploy).**
+
+```sql
+UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'campanhas';
+```
+
+**Quem faz o quê.** Gestor, subgestor e administrador veem lista, detalhe, destinatários, conferência e
+configurações. Criar/salvar rascunho, enviar teste, iniciar, pausar, retomar, cancelar, mudar limite, marcar
+conferido e alterar configurações são **só do administrador** (`PermissoesDeCampanha.ESCRITA`); a tela mostra o
+botão desabilitado com a explicação ao lado.
+
+**Limites sem deploy.** Campanhas > Configurações (administrador) grava em `configuracao_automacao`
+(`campanhas.*`), valendo no ciclo seguinte: teto diário da instância (semente 200), limite padrão (100),
+limite da Meta informado a mão (0 = não informado; o CRM ainda não lê esse valor da Meta), limiar de falha
+(20 %), janela de envios avaliados (50) e mínimo de amostra (20). Opcional: `SYNAPSE_CAMPANHAS_INTERVALO_MS`
+(ciclo do motor, padrão 10000).
+
+**Parar agora.** Três níveis, do mais amplo ao mais estreito: `Envio de campanhas habilitado` desligado em
+Configurações (nenhuma campanha envia); interruptor da campanha (para na hora, sem mudar o status); Pausar
+(para no ciclo seguinte; nada se perde). Cancelar é definitivo: o que está pendente nunca sai.
+
+**Pausa automática.** O motor pausa sozinho e a tela destaca o motivo. O banco guarda `CAUSA[:detalhe]`:
+
+| Código | Significado | O que olhar |
+|---|---|---|
+| `TAXA_DE_FALHA:<pct>` | falhas acima do limiar na janela recente | aba Destinatários, filtro `Falha`: motivo e código de erro |
+| `ERRO_DA_META:<codigo>` | a Meta devolveu um código que exige parar | qualidade do número e limite de mensagens no Business Manager |
+| `TEMPLATE_INDISPONIVEL:<status>` | template pausado, rejeitado ou removido | tela de Templates do WhatsApp |
+| `CANAL_SEM_CAMPANHA` | o canal atual não administra templates | provedor configurado |
+
+Resolvida a causa, **Retomar** (administrador) continua de onde parou. Se a causa persistir, o ciclo seguinte
+pausa de novo; isso é esperado e não perde destinatários.
+
+**Conferência manual (nunca reenvia sozinha).** Entram na aba `Conferência manual` os destinatários
+enfileirados sem confirmação do provedor depois de `campanhas.conferencia_apos_minutos` (30) e os envios com
+despacho ambíguo (ver E209 acima). Conferir no WhatsApp/Business Manager se a mensagem saiu e marcar como
+conferido. Reenviar é decisão humana, fora desta ação.
+
+```sql
+-- Situação de uma campanha (somente leitura)
+SELECT status, motivo, count(*) FROM campanha_template_destinatario WHERE campanha_id = '<id>' GROUP BY 1, 2 ORDER BY 3 DESC;
+-- Contatos que pediram para não receber (respeitado por todas as campanhas)
+SELECT lead_id, desde, origem, motivo FROM contato_optout ORDER BY desde DESC;
+```
+
+**Exportação.** `Exportar CSV` na aba Destinatários baixa o resultado (UTF-8; células iniciadas por `=`, `+`,
+`-` ou `@` são neutralizadas contra injeção de fórmula).
+
+**Limites conhecidos.** Nada disto foi provado contra a Meta real: os testes de ponta a ponta usam o canal
+falso e, nas capturas, um stub local da Graph API. Template com mídia ou variável no cabeçalho e botão com
+parâmetro aparece como "não suportado nesta versão". Opt-out automático por resposta "SAIR" não existe ainda
+(o evento de mensagem recebida não carrega o texto); registre pelo CRM (`PUT /campanhas/optouts/{leadId}`).
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

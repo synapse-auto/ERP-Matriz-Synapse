@@ -205,12 +205,17 @@ export function useEtapasParaFiltro() {
   return useQuery({ queryKey: ["etapas"], queryFn: listarEtapas, staleTime: 5 * 60 * 1000 });
 }
 
-/** Segura o valor por `atrasoMs`: a prévia do público só é consultada quando a digitação para. */
+/**
+ * Segura o valor por `atrasoMs`: a prévia do público e a projeção só são consultadas quando a digitação para.
+ * A comparação é pelo conteúdo (JSON): quem chama costuma montar um objeto novo a cada render, e comparar a
+ * identidade reiniciaria o temporizador sem parar.
+ */
 export function useValorComAtraso<T>(valor: T, atrasoMs = 400): T {
+  const chave = JSON.stringify(valor);
   const [atrasado, setAtrasado] = useState(valor);
   useEffect(() => {
-    const temporizador = setTimeout(() => setAtrasado(valor), atrasoMs);
+    const temporizador = setTimeout(() => setAtrasado(JSON.parse(chave) as T), atrasoMs);
     return () => clearTimeout(temporizador);
-  }, [valor, atrasoMs]);
+  }, [chave, atrasoMs]);
   return atrasado;
 }

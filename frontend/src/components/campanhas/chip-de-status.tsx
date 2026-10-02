@@ -11,13 +11,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { PillDeStatus } from "@/components/ui/pill-de-status";
 import { useTextos } from "@/lib/config/textos-provider";
 import type { StatusDaCampanha } from "@/lib/campanhas/types";
+import { cn } from "@/lib/utils";
 
-type Tom = "sucesso" | "atencao" | "ia" | "info" | "erro" | "neutro";
+type Tom = "sucesso" | "atencao" | "info" | "erro" | "neutro";
 
-/** Cor E ícone: o status nunca depende só da cor (acessibilidade, daltonismo). */
+/** Fundo e borda tingidos; o texto fica na cor do corpo (AA) e o ícone leva a cor do status. */
 const APARENCIA: Record<StatusDaCampanha, { tom: Tom; icone: LucideIcon }> = {
   RASCUNHO: { tom: "neutro", icone: FileText },
   AGENDADA: { tom: "info", icone: CalendarClock },
@@ -28,12 +28,35 @@ const APARENCIA: Record<StatusDaCampanha, { tom: Tom; icone: LucideIcon }> = {
   PAUSADA_AUTOMATICAMENTE: { tom: "erro", icone: ShieldAlert },
 };
 
+const FUNDO: Record<Tom, string> = {
+  sucesso: "border-cor-sucesso/30 bg-cor-sucesso/10",
+  atencao: "border-cor-atencao/40 bg-cor-atencao/10",
+  info: "border-cor-info/30 bg-cor-info/10",
+  erro: "border-cor-erro/30 bg-cor-erro/10",
+  neutro: "border-border bg-muted",
+};
+
+const ICONE: Record<Tom, string> = {
+  sucesso: "text-cor-sucesso",
+  atencao: "text-cor-atencao",
+  info: "text-cor-info",
+  erro: "text-cor-erro",
+  neutro: "text-muted-foreground",
+};
+
+/** Status por cor E ícone E texto: nunca depende só da cor. */
 export function ChipDeStatus({ status }: { status: StatusDaCampanha }) {
   const textos = useTextos().campanhas.status;
   const { tom, icone: Icone } = APARENCIA[status];
   return (
-    <PillDeStatus tom={tom} icone={<Icone className="size-3" aria-hidden />}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold text-foreground",
+        FUNDO[tom],
+      )}
+    >
+      <Icone className={cn("size-3", ICONE[tom])} aria-hidden />
       {textos[status]}
-    </PillDeStatus>
+    </span>
   );
 }

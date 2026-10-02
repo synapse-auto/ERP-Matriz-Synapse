@@ -16,6 +16,7 @@ import {
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { AcaoSoDoAdministrador, CampanhasIndisponiveis, EstadoVazio } from "./estados";
+import { CartaoDeCampanha } from "./cartao-de-campanha";
 import { EsqueletoDaTabela, TabelaDeCampanhas } from "./tabela-de-campanhas";
 import { EsqueletoDaTira, TiraDeIndicadores } from "./tira-de-indicadores";
 
@@ -114,6 +115,11 @@ export function PaginaCampanhas() {
           ) : (
             <>
               <TabelaDeCampanhas campanhas={lista.itens} />
+              <ul className="space-y-3 md:hidden" aria-label={textos.lista.titulo}>
+                {lista.itens.map((campanha) => (
+                  <CartaoDeCampanha key={campanha.id} campanha={campanha} />
+                ))}
+              </ul>
               <Paginacao pagina={pagina} totalDePaginas={totalDePaginas} aoMudar={setPagina} />
             </>
           )}

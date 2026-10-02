@@ -13,7 +13,12 @@ import {
   pedidoDeCampanha,
   type EstadoDoAssistente,
 } from "@/lib/campanhas/estado-do-assistente";
-import { useEhAdministradorDeCampanhas, usePreviaDoPublico, useSalvarRascunho } from "@/lib/campanhas/hooks";
+import {
+  useEhAdministradorDeCampanhas,
+  usePreviaDoPublico,
+  useSalvarRascunho,
+  useValorComAtraso,
+} from "@/lib/campanhas/hooks";
 import { PASSOS, passoValido } from "@/lib/campanhas/passos";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -48,7 +53,7 @@ export function AssistenteDeCampanha({ inicial, tetoDaInstancia, limiteMeta, pas
   const [salvo, setSalvo] = useState(inicial.rascunhoId !== null);
   const [iniciando, setIniciando] = useState(false);
   const [erroAoIniciar, setErroAoIniciar] = useState<string | null>(null);
-  const previa = usePreviaDoPublico(filtroSemVazios(estado.filtro));
+  const previa = usePreviaDoPublico(filtroSemVazios(useValorComAtraso(estado.filtro)));
 
   const mudar = (mudanca: Partial<EstadoDoAssistente>) => {
     setSalvo(false);

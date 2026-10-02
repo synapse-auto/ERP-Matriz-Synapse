@@ -10,6 +10,7 @@ import type { DetalheDaCampanha } from "@/lib/campanhas/types";
 import { validarLimiteDiario } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
 
+import { AvisoDeSucesso } from "./aviso";
 import { CampoDeLimite } from "./campo-de-limite";
 
 /** Ajuste do limite diário com o efeito explicado: vale no próximo ciclo e nunca passa do teto da instância. */
@@ -56,9 +57,7 @@ export function AjusteDeLimite({ detalhe }: { detalhe: DetalheDaCampanha }) {
         </Button>
         {!ehAdministrador && <p className="text-xs text-muted-foreground">{textos.somenteAdministrador}</p>}
         {alterar.isSuccess && !mudou && (
-          <p role="status" className="text-xs text-cor-sucesso">
-            {textos.salvo}
-          </p>
+          <AvisoDeSucesso>{textos.salvo}</AvisoDeSucesso>
         )}
         {alterar.isError && (
           <p role="alert" className="text-xs text-destructive">

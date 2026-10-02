@@ -31,8 +31,8 @@ export function GraficoPorDia({ dias, limiteDoDia }: Props) {
               contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--foreground)" }}
               formatter={(valor) => [valor as number, textos.enfileiradas]}
             />
-            <ReferenceLine y={limiteDoDia} stroke="var(--cor-atencao)" strokeDasharray="6 4" />
-            <Bar dataKey="enfileiradas" fill="var(--primary)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <ReferenceLine y={limiteDoDia} stroke="var(--cor-erro)" strokeDasharray="6 4" />
+            <Bar dataKey="enfileiradas" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={72} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -42,7 +42,7 @@ export function GraficoPorDia({ dias, limiteDoDia }: Props) {
           {textos.enfileiradas}
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-0 w-4 border-t-2 border-dashed border-cor-atencao" aria-hidden />
+          <span className="h-0 w-4 border-t-2 border-dashed border-cor-erro" aria-hidden />
           {textos.limite}: {limiteDoDia}
         </li>
       </ul>

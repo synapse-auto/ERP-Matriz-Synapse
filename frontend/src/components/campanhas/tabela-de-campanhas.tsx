@@ -27,7 +27,7 @@ export function EsqueletoDaTabela() {
   );
 }
 
-function destinoDaCampanha(
+export function destinoDaCampanha(
   campanha: Campanha,
   ehAdministrador: boolean,
 ): { href: string; rotulo: "abrir" | "continuarRascunho" } {
@@ -103,7 +103,7 @@ export function TabelaDeCampanhas({ campanhas }: { campanhas: Campanha[] }) {
   const colunas = textos.colunas;
   const titulos = [colunas.nome, colunas.template, colunas.status, colunas.progresso, colunas.limite, colunas.inicio];
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+    <div className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-sm md:block">
       <table className="w-full min-w-176 text-left text-sm">
         <caption className="sr-only">{textos.titulo}</caption>
         <thead className="border-b border-border bg-muted/50 text-xs text-muted-foreground">

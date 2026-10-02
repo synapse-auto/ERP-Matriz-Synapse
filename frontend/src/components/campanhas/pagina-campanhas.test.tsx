@@ -46,9 +46,10 @@ describe("pagina de campanhas", () => {
     api.listarCampanhas.mockResolvedValue(listaDeTeste([campanhaDeTeste(), campanhaDeTeste({ id: "c2", nome: "Rascunho", status: "PAUSADA_AUTOMATICAMENTE" })]));
     renderizar();
 
-    expect(await screen.findByText("Retorno de orçamentos")).toBeInTheDocument();
-    expect(screen.getByText(textosReais.campanhas.status.EM_ANDAMENTO)).toBeInTheDocument();
-    expect(screen.getByText(textosReais.campanhas.status.PAUSADA_AUTOMATICAMENTE)).toBeInTheDocument();
+    // Tabela (desktop) e cartões (celular) coexistem no DOM; o CSS esconde um deles conforme a largura.
+    expect((await screen.findAllByText("Retorno de orçamentos")).length).toBe(2);
+    expect(screen.getAllByText(textosReais.campanhas.status.EM_ANDAMENTO)).toHaveLength(2);
+    expect(screen.getAllByText(textosReais.campanhas.status.PAUSADA_AUTOMATICAMENTE)).toHaveLength(2);
     expect(screen.getAllByRole("progressbar").length).toBeGreaterThan(1);
     expect(screen.getByText(textosReais.campanhas.indicadores.enviadasHoje, { exact: false })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: textosReais.campanhas.novaCampanha })).toHaveAttribute("href", "/campanhas/nova");
@@ -81,7 +82,7 @@ describe("pagina de campanhas", () => {
     expect(await screen.findByText(textosReais.campanhas.erroCarregar)).toBeInTheDocument();
     api.listarCampanhas.mockResolvedValue(listaDeTeste([campanhaDeTeste()]));
     screen.getByRole("button", { name: textosReais.estados.tentarNovamente }).click();
-    await waitFor(() => expect(screen.getByText("Retorno de orçamentos")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Retorno de orçamentos").length).toBeGreaterThan(0));
   });
 
   it("funcionalidade desligada (404) vira estado de indisponível, não erro", async () => {

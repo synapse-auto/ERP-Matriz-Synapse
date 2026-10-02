@@ -1,7 +1,5 @@
 "use client";
 
-import { TriangleAlert } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +7,8 @@ import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarNumero } from "@/lib/campanhas/formatacao";
 import { atalhosDeLimite, limiteAcimaDaMeta, validarLimiteDiario } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
+
+import { AvisoDeAtencao } from "./aviso";
 
 interface Props {
   id: string;
@@ -63,7 +63,7 @@ export function CampoDeLimite({ id, rotulo, valor, teto, limiteMeta, aoMudar, mo
           max={teto}
           value={Math.min(Math.max(valor ?? 1, 1), teto)}
           onChange={(evento) => aoMudar(Number(evento.target.value))}
-          className="h-2 w-full cursor-pointer accent-primary"
+          className="h-6 w-full cursor-pointer accent-primary"
         />
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label={textos.atalhos}>
           {atalhosDeLimite(teto).map((atalho) => (
@@ -89,10 +89,7 @@ export function CampoDeLimite({ id, rotulo, valor, teto, limiteMeta, aoMudar, mo
         </p>
       )}
       {limiteAcimaDaMeta(valor, limiteMeta) && (
-        <p role="status" className="flex items-start gap-2 text-xs text-cor-atencao">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {interpolarCatalogo(textos.limiteAcimaDaMeta, { meta: formatarNumero(limiteMeta) })}
-        </p>
+        <AvisoDeAtencao>{interpolarCatalogo(textos.limiteAcimaDaMeta, { meta: formatarNumero(limiteMeta) })}</AvisoDeAtencao>
       )}
     </div>
   );

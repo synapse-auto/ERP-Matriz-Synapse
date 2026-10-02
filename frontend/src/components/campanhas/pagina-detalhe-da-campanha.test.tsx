@@ -73,10 +73,10 @@ describe("detalhe da campanha", () => {
 
   it("pausa automática destaca o alerta antes das abas", async () => {
     api.obterCampanha.mockResolvedValue(
-      detalheDeTeste(campanhaDeTeste({ status: "PAUSADA_AUTOMATICAMENTE", motivoDePausa: "Código 131048 da Meta" })),
+      detalheDeTeste(campanhaDeTeste({ status: "PAUSADA_AUTOMATICAMENTE", motivoDePausa: "ERRO_DA_META:131048" })),
     );
     renderizar();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Código 131048 da Meta");
+    expect(await screen.findByRole("alert")).toHaveTextContent("A Meta devolveu o código 131048");
   });
 
   it("filtra destinatários por status e motivo via API", async () => {

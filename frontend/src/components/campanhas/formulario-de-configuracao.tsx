@@ -14,6 +14,7 @@ import {
 } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
 
+import { AvisoDeSucesso } from "./aviso";
 import { CampoNumerico } from "./campo-numerico";
 
 function formularioDe(c: ConfiguracaoDeCampanhas): FormularioDeConfiguracao {
@@ -94,9 +95,7 @@ export function FormularioDeConfiguracaoDeCampanhas({ configuracao }: { configur
         </Button>
         {!ehAdministrador && <p className="text-sm text-muted-foreground">{t.somenteAdministrador}</p>}
         {salvar.isSuccess && (
-          <p role="status" className="text-sm text-cor-sucesso">
-            {t.salvo}
-          </p>
+          <AvisoDeSucesso>{t.salvo}</AvisoDeSucesso>
         )}
         {salvar.isError && (
           <p role="alert" className="text-sm text-destructive">
