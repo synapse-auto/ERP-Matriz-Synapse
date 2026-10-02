@@ -62,6 +62,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       fixar: "Fixar menu aberto",
       desafixar: "Desafixar menu lateral",
       contagemPendentes: "Atendimentos, {quantidade} pendentes",
+      beta: "Beta",
       mais: "Mais",
       maisTitulo: "Mais opções",
       fecharMais: "Fechar menu",
@@ -77,6 +78,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         chatInterno: "Chat interno",
         equipe: "Equipe",
         automacao: "Automação",
+        campanhas: "Campanhas",
         feedbacks: "Feedbacks",
         administracao: "Administração",
       },
@@ -159,6 +161,31 @@ describe("sidebar", () => {
     // dashboard/banco_arquivos vieram habilitados no mock de features; campanhas/horarios/relatorios não.
     expect(await screen.findByText("Agenda de Contatos")).toBeInTheDocument();
     expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+    expect(screen.queryByText("Campanhas")).not.toBeInTheDocument();
+  });
+
+  it("Campanhas aparece para a gestão, com a flag ligada, marcada como Beta", async () => {
+    authMock.papel = "GESTOR";
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(["campanhas"]), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    renderSidebar();
+
+    const item = (await screen.findByText("Campanhas")).closest("a") as HTMLElement;
+    expect(item).toHaveAttribute("href", "/campanhas");
+    expect(within(item).getByText("Beta")).toBeInTheDocument();
+    // Os demais itens não ganham selo.
+    expect(screen.getAllByText("Beta")).toHaveLength(1);
+  });
+
+  it("Campanhas não aparece para o atendente, mesmo com a flag ligada", async () => {
+    authMock.papel = "ATENDENTE";
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(["campanhas"]), { status: 200, headers: { "Content-Type": "application/json" } }),
+    );
+    renderSidebar();
+
+    await screen.findByText("Agenda de Contatos");
     expect(screen.queryByText("Campanhas")).not.toBeInTheDocument();
   });
 

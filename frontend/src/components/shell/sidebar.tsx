@@ -56,6 +56,7 @@ import {
   estiloDoRotuloDaSidebar,
 } from "./expansao-da-sidebar";
 import { NovidadesDialog } from "./novidades-dialog";
+import { SeloBeta } from "./selo-beta";
 
 interface ItemDeMenu extends ItemDeMenuBase {
   icone: React.ComponentType<{ className?: string }>;
@@ -516,6 +517,11 @@ function MenuGrupo({
                 >
                   {rotulo}
                 </span>
+                {item.beta && (
+                  <span style={estiloDoRotuloDaSidebar(retraida)} aria-hidden={retraida} data-slot="rotulo-sidebar">
+                    <SeloBeta />
+                  </span>
+                )}
                 {item.chave === "atendimentos" && contagemPendentes !== undefined && (
                   <Badge
                     className={
