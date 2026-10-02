@@ -132,6 +132,10 @@ abstract class CampanhaITBase extends PostgresIT {
     @AfterEach
     void encerrarCampanhas() {
         ApoioRls.sair();
+        // O CanalFake e um singleton do contexto, compartilhado com outros ITs: sem limpar, o template registrado
+        // aqui apareceria na listagem de templates dos testes que rodam depois.
+        canal.limpar();
+        templates.descartarCache();
         limparCampanhas();
         restaurarConfiguracao();
         jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'campanhas'");
