@@ -31,7 +31,7 @@ function RadioItem({
       {...props}
     >
       <span
-        className="flex size-4 shrink-0 items-center justify-center rounded-full border border-border group-data-checked:border-primary"
+        className="flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/60 group-data-checked:border-primary"
         aria-hidden
       >
         <RadioPrimitive.Indicator className="size-2 rounded-full bg-primary" />

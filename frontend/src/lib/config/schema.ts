@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CampanhasTextosSchema } from "./schema-campanhas";
 import { GestaoTextosSchema } from "./schema-gestao";
 
 /**
@@ -1292,6 +1293,7 @@ export const TextosSchema = z.object({
     }),
   }),
   gestao: GestaoTextosSchema,
+  campanhas: CampanhasTextosSchema,
 });
 
 export type Textos = z.infer<typeof TextosSchema>;
