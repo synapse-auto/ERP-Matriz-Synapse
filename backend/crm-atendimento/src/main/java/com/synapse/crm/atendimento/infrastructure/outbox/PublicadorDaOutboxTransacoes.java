@@ -25,6 +25,9 @@ class PublicadorDaOutboxTransacoes {
 
     private static final Logger log = LoggerFactory.getLogger(PublicadorDaOutboxTransacoes.class);
 
+    /** Mesmo texto de {@code atendimentos.mensagem.envioNaoConfirmado} em textos.json. */
+    static final String MOTIVO_ENVIO_NAO_CONFIRMADO = "Não foi possível confirmar o envio";
+
     private final Outbox outbox;
     private final MensagemRepositorio mensagens;
     private final MensagemIdExternoRepositorio idsExternos;
@@ -50,10 +53,51 @@ class PublicadorDaOutboxTransacoes {
         this.eventos = eventos;
     }
 
+    /**
+     * Desvia para conferencia os despachos sem resultado antes de reservar o proximo lote: assim uma
+     * reserva expirada com a marca de despacho nunca chega a ser selecionada para envio (E209).
+     */
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public List<Outbox.EnvioPendente> reservar(Instant agora) {
+        conciliarDespachosSemResultado(agora);
         return outbox.reservarPendentes(
                 propriedades.lote(), agora, agora.plus(propriedades.reservaExpiracao()));
+    }
+
+    /**
+     * Transacao curta, imediatamente antes de chamar o provedor. Falhar aqui (excecao ou {@code false})
+     * significa que nada foi enviado, entao e seguro nao enviar e deixar o lease expirar.
+     */
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public boolean marcarDespachando(Outbox.EnvioPendente pendente, Instant quando) {
+        return outbox.marcarDespachando(pendente.outboxId(), quando);
+    }
+
+    private void conciliarDespachosSemResultado(Instant agora) {
+        for (Outbox.EnvioPendente ambiguo :
+                outbox.conciliarDespachosSemResultado(propriedades.lote(), agora)) {
+            mensagens.atualizarStatusEntrega(
+                    ambiguo.mensagemId(),
+                    ambiguo.enviadoEm(),
+                    StatusEntrega.FALHOU,
+                    MOTIVO_ENVIO_NAO_CONFIRMADO);
+            eventos.publishEvent(new MudancaDeStatusDeEntrega(
+                    ambiguo.mensagemId(),
+                    ambiguo.atendimentoId(),
+                    ambiguo.leadId(),
+                    StatusEntrega.FALHOU.name(),
+                    agora));
+            log.error(
+                    "{} despacho sem resultado: mensagem {} do lead {} (outbox {}) pode ou nao ter saido "
+                            + "pelo provedor {}. NAO sera reenviada sozinha; confira no WhatsApp antes de "
+                            + "reenviar. Consulta: SELECT id, despachado_em, despacho_ambiguo_em FROM "
+                            + "outbox_evento WHERE despacho_ambiguo_em IS NOT NULL;",
+                    PublicadorDaOutboxOperacoes.MARCADOR_ALARME,
+                    ambiguo.mensagemId(),
+                    ambiguo.leadId(),
+                    ambiguo.outboxId(),
+                    canal.provedor());
+        }
     }
 
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)

@@ -115,9 +115,45 @@ class OutboxRepositorioJdbc implements Outbox {
             "UPDATE outbox_evento SET publicado_em = ?, ultimo_erro = NULL "
                     + "WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
+    /** So grava em linha ainda em jogo; a recusa conhecida a limpa em {@link #SQL_REAGENDAR}. */
+    private static final String SQL_DESPACHANDO =
+            "UPDATE outbox_evento SET despachado_em = ? WHERE id = ? AND tipo = ?"
+                    + " AND publicado_em IS NULL AND esgotado_em IS NULL";
+
+    /**
+     * Despacho sem resultado: marca preenchida, nem publicada nem esgotada e reserva vencida. O mesmo
+     * {@code SKIP LOCKED} da reserva evita disputa entre instancias; {@code esgotado_em} tira a linha de
+     * toda consulta de envio, entao ela nunca mais e reservada.
+     */
+    private static final String SQL_CONCILIAR_DESPACHOS =
+            """
+            WITH candidatos AS (
+                SELECT id
+                  FROM outbox_evento
+                 WHERE tipo = ?
+                   AND publicado_em IS NULL
+                   AND esgotado_em IS NULL
+                   AND despachado_em IS NOT NULL
+                   AND proxima_tentativa_em <= ?
+                 ORDER BY proxima_tentativa_em
+                 LIMIT ?
+                   FOR UPDATE SKIP LOCKED
+            )
+            UPDATE outbox_evento o
+               SET esgotado_em = ?, despacho_ambiguo_em = ?, ultimo_erro = ?
+              FROM candidatos c
+             WHERE o.id = c.id
+            RETURNING o.id, o.payload, o.tentativas
+            """;
+
+    static final String ERRO_DESPACHO_SEM_RESULTADO =
+            "DESPACHO_SEM_RESULTADO: o processo foi interrompido depois de chamar o provedor; "
+                    + "nao se sabe se a mensagem saiu. Nao sera reenviada sozinha.";
+
     private static final String SQL_REAGENDAR =
             "UPDATE outbox_evento SET tentativas = tentativas + 1, proxima_tentativa_em = ?,"
-                    + " ultimo_erro = ? WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
+                    + " ultimo_erro = ?, despachado_em = NULL"
+                    + " WHERE id = ? AND publicado_em IS NULL AND esgotado_em IS NULL";
 
     private static final String SQL_ESGOTAR =
             "UPDATE outbox_evento SET tentativas = tentativas + 1, esgotado_em = ?, ultimo_erro = ?"
@@ -285,6 +321,26 @@ class OutboxRepositorioJdbc implements Outbox {
     public boolean marcarPublicado(UUID outboxId, Instant quando) {
         TransacaoObrigatoria.exigir("marcarPublicado");
         return chat.update(SQL_PUBLICADO, Timestamp.from(quando), outboxId) == 1;
+    }
+
+    @Override
+    public boolean marcarDespachando(UUID outboxId, Instant quando) {
+        TransacaoObrigatoria.exigir("marcarDespachando");
+        return chat.update(SQL_DESPACHANDO, Timestamp.from(quando), outboxId, TIPO_ENVIO) == 1;
+    }
+
+    @Override
+    public List<EnvioPendente> conciliarDespachosSemResultado(int limite, Instant agora) {
+        TransacaoObrigatoria.exigir("conciliarDespachosSemResultado");
+        return chat.query(
+                SQL_CONCILIAR_DESPACHOS,
+                this::desserializar,
+                TIPO_ENVIO,
+                Timestamp.from(agora),
+                limite,
+                Timestamp.from(agora),
+                Timestamp.from(agora),
+                ERRO_DESPACHO_SEM_RESULTADO);
     }
 
     @Override

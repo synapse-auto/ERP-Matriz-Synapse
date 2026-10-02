@@ -92,6 +92,13 @@ public class PublicadorDaOutboxOperacoes {
 
     private void processar(Outbox.EnvioPendente pendente) {
         ContextoDeServico.executarComo("publicador-outbox-envio", () -> {
+            if (!transacoes.marcarDespachando(pendente, Instant.now(relogio))) {
+                log.warn(
+                        "Despacho ignorado: a linha {} da outbox ja foi publicada ou esgotada (mensagem {}).",
+                        pendente.outboxId(),
+                        pendente.mensagemId());
+                return;
+            }
             ResultadoDeEnvio resultado = enviarSemDeixarEscapar(pendente);
             transacoes.registrarResultado(pendente, resultado, Instant.now(relogio));
         });

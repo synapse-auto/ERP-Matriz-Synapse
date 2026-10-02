@@ -4,6 +4,15 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 01/10/2026 — Outbox nunca reenvia um despacho sem resultado (E209)
+
+O prompt do E220 tratava a E209 como implementada, mas `despachado_em` não existia no código (a "E209" dos
+commits era a otimização de CPU do painel). Implementada agora (V87): marca gravada antes da chamada ao
+provedor, conciliação ao fim do lease em vez de reenvio, linha esgotada e `FALHOU` com "Não foi possível
+confirmar o envio". Procedimento de conferência em `docs/18`. Também em 01/10 a `main` ficou sem subir por
+duas migrations V85 (E219 e precificação Meta); a de precificação virou V86 (#250). A V87 é a próxima livre
+depois dela.
+
 ### 01/10/2026 — Mensagens automáticas em excesso e sem origem (E219)
 
 Card "mensagens não identificadas para vários clientes muitas vezes": é volume de proativas (follow-up,

@@ -40,6 +40,7 @@ public class CanalFake implements CanalGateway {
     private final AtomicReference<ResultadoDeEnvio> proximaResposta =
             new AtomicReference<>(new ResultadoDeEnvio.Aceito("fake-id"));
     private final AtomicBoolean janelaAberta = new AtomicBoolean(true);
+    private final AtomicReference<Runnable> aoEnviar = new AtomicReference<>(() -> {});
 
     @Override
     public String provedor() {
@@ -47,6 +48,11 @@ public class CanalFake implements CanalGateway {
     }
 
     // --- controle do teste ----------------------------------------------------
+
+    /** Roda no instante em que o provedor recebe a chamada, antes de responder (E209). */
+    public void aoReceberEnvio(Runnable acao) {
+        aoEnviar.set(acao);
+    }
 
     /** Simula o provedor fora do ar: recusa temporaria, como o breaker aberto produziria. */
     public void derrubar(String motivo) {
@@ -89,6 +95,7 @@ public class CanalFake implements CanalGateway {
         templates.clear();
         midiaIndisponivel.set(null);
         midiaRemovida.set(null);
+        aoEnviar.set(() -> {});
         religar();
         abrirJanela();
     }
@@ -118,6 +125,7 @@ public class CanalFake implements CanalGateway {
 
     @Override
     public ResultadoDeEnvio enviar(Envio envio) {
+        aoEnviar.get().run();
         ResultadoDeEnvio resposta = proximaResposta.get();
         // So conta como enviado o que o provedor de fato aceitou: e assim que o teste
         // distingue "nao chegou ao provedor" de "chegou e foi recusado".

@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -278,6 +279,98 @@ class CanalWhatsAppIT extends PostgresIT {
             });
             rodarPublisher();
             assertThat(canal.enviados()).hasSize(1);
+        }
+
+        /**
+         * E209: o processo morreu depois de chamar o provedor e antes de gravar o resultado. Nao ha
+         * como saber se a mensagem saiu, entao a outbox nao reenvia: vai para conferencia.
+         */
+        @Test
+        @DisplayName("despacho sem resultado: ao fim da reserva nao reenvia, vai para conferencia (E209)")
+        void despachoSemResultado_reservaExpirada_naoReenvia() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemId = enviar.executar(leadDaAna, "processo morreu no meio").mensagem().id();
+            UUID outboxId = outboxIdPendente();
+            jdbc.update(
+                    "UPDATE outbox_evento SET despachado_em = now(), proxima_tentativa_em = ? WHERE id = ?",
+                    Timestamp.from(Instant.now().minusSeconds(1)),
+                    outboxId);
+
+            rodarPublisher();
+            rodarPublisher();
+
+            assertThat(canal.enviados()).isEmpty();
+            assertThat(esgotadasNaOutbox()).isEqualTo(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT despacho_ambiguo_em IS NOT NULL FROM outbox_evento WHERE id = ?",
+                            Boolean.class,
+                            outboxId))
+                    .isTrue();
+            assertThat(statusDaMensagem(mensagemId)).isEqualTo("FALHOU");
+            assertThat(erroDaMensagem(mensagemId, "titulo")).isEqualTo("Não foi possível confirmar o envio");
+            publicador.alertarSobreEsgotadas();
+        }
+
+        /** O mesmo estado de reserva expirada, sem marca de despacho, continua voltando para a fila. */
+        @Test
+        @DisplayName("reserva expirada sem despacho continua reenviando (nada saiu)")
+        void reservaExpiradaSemDespacho_continuaEnviando() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "nunca chegou a ser despachada");
+            jdbc.update(
+                    "UPDATE outbox_evento SET proxima_tentativa_em = ? WHERE tipo = 'canal.mensagem.enviar'",
+                    Timestamp.from(Instant.now().minusSeconds(1)));
+
+            rodarPublisher();
+
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(esgotadasNaOutbox()).isZero();
+        }
+
+        @Test
+        @DisplayName("a marca de despacho e gravada antes da chamada ao provedor e fica depois do aceite")
+        void despachadoEm_gravadoAntesDaChamada_eMantidoAposOAceite() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "marca antes do envio");
+            UUID outboxId = outboxIdPendente();
+            AtomicReference<Boolean> marcadoNaChamada = new AtomicReference<>();
+            canal.aoReceberEnvio(() -> marcadoNaChamada.set(jdbc.queryForObject(
+                    "SELECT despachado_em IS NOT NULL FROM outbox_evento WHERE id = ?",
+                    Boolean.class,
+                    outboxId)));
+
+            rodarPublisher();
+
+            assertThat(marcadoNaChamada.get()).isTrue();
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT publicado_em IS NOT NULL AND despachado_em IS NOT NULL"
+                                    + " FROM outbox_evento WHERE id = ?",
+                            Boolean.class,
+                            outboxId))
+                    .isTrue();
+        }
+
+        /** Recusa conhecida do provedor nao e ambigua: a marca sai e o reenvio normal segue valendo. */
+        @Test
+        @DisplayName("recusa temporaria limpa a marca de despacho e o reenvio segue")
+        void recusaTemporaria_limpaDespachadoEm_eRetenta() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "provedor caiu e voltou");
+            canal.derrubar("provedor fora do ar");
+
+            rodarPublisher();
+
+            assertThat(jdbc.queryForObject(
+                            "SELECT despachado_em IS NULL FROM outbox_evento WHERE id = ?",
+                            Boolean.class,
+                            outboxIdPendente()))
+                    .isTrue();
+            canal.religar();
+            rodarPublisher();
+
+            assertThat(canal.enviados()).hasSize(1);
+            assertThat(esgotadasNaOutbox()).isZero();
         }
 
         /**
@@ -951,6 +1044,13 @@ class CanalWhatsAppIT extends PostgresIT {
                 "SELECT coalesce(jsonb_exists(erro_entrega, 'codigo'), false) FROM mensagem WHERE id = ?",
                 Boolean.class,
                 mensagemId);
+    }
+
+    private UUID outboxIdPendente() {
+        return jdbc.queryForObject(
+                "SELECT id FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
+                        + " AND publicado_em IS NULL AND esgotado_em IS NULL",
+                UUID.class);
     }
 
     private int pendentesNaOutbox() {

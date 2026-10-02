@@ -246,7 +246,10 @@ transação, o resultado entra numa segunda transação curta, e o lote vai em p
 configurável (`OUTBOX_CONCORRENCIA`, padrão 4; `OUTBOX_RESERVA_EXPIRACAO`, padrão 30s contra timeout
 de 10s do provedor).
 
-**Risco residual, ainda aberto:** se o processo morrer ou a transação de resultado falhar **depois**
+**Fechado na E209 (V87, outubro/2026): `despachado_em` + conciliação, ver `docs/18`.** O texto abaixo
+descreve o risco como estava antes.
+
+**Risco residual (antes da E209):** se o processo morrer ou a transação de resultado falhar **depois**
 que a Meta aceitou, nada marca que houve despacho — `tentativas` só é incrementado no caminho da
 recusa. Passados os 30s do lease, a linha volta elegível e a mensagem **sai de novo**. A janela é de
 milissegundos em operação normal, mas todo deploy mata o container, e é aí que ela abre. O conserto é
