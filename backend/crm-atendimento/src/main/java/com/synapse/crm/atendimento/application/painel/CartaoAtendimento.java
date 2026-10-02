@@ -15,6 +15,9 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
  *     e do cliente, entao um atendimento novo reaberto para um lead que escreveu ha minutos precisa
  *     herdar essa janela. Usado pelo frontend para estimar a janela antes de o atendente digitar; a
  *     autoridade real continua sendo a checagem no {@code EnviarMensagemUseCase}.
+ * @param naoLidas mensagens do lead posteriores a leitura do responsavel exibido, para papeis
+ *     de gestao quando houver responsavel; sem responsavel e para atendentes/participantes, usa a
+ *     leitura pessoal. Abrange todos os ciclos do mesmo lead, sempre com o responsavel atual.
  */
 public record CartaoAtendimento(
         UUID atendimentoId,

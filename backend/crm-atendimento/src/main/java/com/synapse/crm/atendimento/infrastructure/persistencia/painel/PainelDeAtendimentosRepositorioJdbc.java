@@ -68,7 +68,10 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                   FROM atendimento atendimento_do_lead
                   LEFT JOIN atendimento_leitura leitura_do_lead
                     ON leitura_do_lead.atendimento_id = atendimento_do_lead.id
-                   AND leitura_do_lead.usuario_id = ?
+                   -- Gestao acompanha a leitura do dono exibido no cartao. Sem dono, a
+                   -- leitura continua pessoal; atendentes/participantes mantem sua propria.
+                   AND leitura_do_lead.usuario_id = COALESCE(
+                       CASE WHEN app_enxerga_todos_os_leads() THEN dono.atendente_id END, ?)
                  WHERE atendimento_do_lead.lead_id = a.lead_id
             ) AS nao_lidas,
             ROW_NUMBER() OVER (
