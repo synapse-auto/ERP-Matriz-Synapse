@@ -15,6 +15,7 @@ import com.synapse.crm.atendimento.application.referencia.MensagemIdExternoRepos
 import com.synapse.crm.atendimento.domain.canal.CanalGateway;
 import com.synapse.crm.atendimento.domain.canal.ResultadoDeEnvio;
 import com.synapse.crm.atendimento.domain.evento.MudancaDeStatusDeEntrega;
+import com.synapse.crm.atendimento.domain.mensagem.MotivosDeFalhaDeEntrega;
 import com.synapse.crm.atendimento.domain.mensagem.StatusEntrega;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
@@ -25,8 +26,7 @@ class PublicadorDaOutboxTransacoes {
 
     private static final Logger log = LoggerFactory.getLogger(PublicadorDaOutboxTransacoes.class);
 
-    /** Mesmo texto de {@code atendimentos.mensagem.envioNaoConfirmado} em textos.json. */
-    static final String MOTIVO_ENVIO_NAO_CONFIRMADO = "Não foi possível confirmar o envio";
+    static final String MOTIVO_ENVIO_NAO_CONFIRMADO = MotivosDeFalhaDeEntrega.ENVIO_NAO_CONFIRMADO;
 
     private final Outbox outbox;
     private final MensagemRepositorio mensagens;

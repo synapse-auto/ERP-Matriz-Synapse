@@ -19,6 +19,8 @@ public enum TipoDeOrigem {
     LEMBRETE(true),
     /** Proativa que nao se encaixa nos tipos acima; a regra deve vir em {@code origemRegraId}. */
     OUTRO(true),
+    /** Disparo de uma campanha de template em massa (E220), enfileirado pelo proprio CRM. Passa pela politica. */
+    CAMPANHA(true),
     /** Mensagem agendada por um atendente e disparada pelo job do CRM. */
     PROGRAMADA(false),
     /** O chamador nao informou a origem (fluxo do n8n ainda nao atualizado). */
@@ -35,14 +37,16 @@ public enum TipoDeOrigem {
         return proativa;
     }
 
-    /** Os tipos que a Automacao pode declarar; PROGRAMADA e NAO_INFORMADA sao do proprio CRM. */
+    /** Os tipos que a Automacao pode declarar; PROGRAMADA, NAO_INFORMADA e CAMPANHA sao do proprio CRM. */
     public static Optional<TipoDeOrigem> declaradoPelaAutomacao(String valor) {
         if (valor == null || valor.isBlank()) {
             return Optional.empty();
         }
         try {
             TipoDeOrigem tipo = valueOf(valor.trim().toUpperCase(Locale.ROOT));
-            return tipo == PROGRAMADA || tipo == NAO_INFORMADA ? Optional.empty() : Optional.of(tipo);
+            return tipo == PROGRAMADA || tipo == NAO_INFORMADA || tipo == CAMPANHA
+                    ? Optional.empty()
+                    : Optional.of(tipo);
         } catch (IllegalArgumentException desconhecido) {
             return Optional.empty();
         }
