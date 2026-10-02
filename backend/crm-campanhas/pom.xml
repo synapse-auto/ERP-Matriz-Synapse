@@ -26,9 +26,31 @@
       <artifactId>crm-shared-kernel</artifactId>
     </dependency>
 
+    <!--
+      E220: a campanha cria mensagens, atendimentos e eventos de outbox (crm-atendimento) a partir de
+      leads (crm-core). A dependencia e de mao unica: nenhum dos dois conhece crm-campanhas, entao nao ha
+      ciclo. crm-equipe chega transitivamente por crm-atendimento (identidade e permissoes).
+    -->
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.synapse.crm</groupId>
+      <artifactId>crm-atendimento</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations-jakarta</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
