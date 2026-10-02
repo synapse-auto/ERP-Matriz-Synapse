@@ -3,6 +3,8 @@ export interface ItemDeMenuBase {
   rota: string;
   /** Ausente = feature central. Presente = só aparece se a flag vier habilitada. */
   flag?: string;
+  /** Funcionalidade ainda em validação: o menu mostra o selo "Beta" ao lado do nome. */
+  beta?: boolean;
 }
 
 export const ITENS_MENU: readonly ItemDeMenuBase[] = [
@@ -20,7 +22,7 @@ export const ITENS_MENU: readonly ItemDeMenuBase[] = [
 
 export const ITENS_GESTAO: readonly ItemDeMenuBase[] = [
   { chave: "gestao", rota: "/gestao" },
-  { chave: "campanhas", rota: "/campanhas", flag: "campanhas" },
+  { chave: "campanhas", rota: "/campanhas", flag: "campanhas", beta: true },
   { chave: "automacao", rota: "/automacao" },
   { chave: "horarios", rota: "/horarios", flag: "horarios" },
   { chave: "relatorios", rota: "/relatorios", flag: "relatorios" },

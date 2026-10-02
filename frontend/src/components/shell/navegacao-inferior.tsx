@@ -55,6 +55,7 @@ import { itemDeMenuVisivel } from "@/lib/navegacao/visibilidade-do-menu";
 import { cn } from "@/lib/utils";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
 import { NovidadesDialog } from "./novidades-dialog";
+import { SeloBeta } from "./selo-beta";
 
 const ICONES: Record<string, React.ComponentType<{ className?: string }>> = {
   atendimentos: Headset,
@@ -263,6 +264,7 @@ export function NavegacaoInferior() {
                   >
                     {Icone && <Icone className="size-[calc(var(--tamanho-icone-interface)*1.25)] shrink-0" aria-hidden />}
                     {rotulo}
+                    {item.beta && <SeloBeta />}
                   </Link>
                 </li>
               );
