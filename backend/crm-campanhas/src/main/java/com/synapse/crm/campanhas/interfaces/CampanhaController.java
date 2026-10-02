@@ -112,7 +112,10 @@ class CampanhaController {
 
     // --- leitura --------------------------------------------------------------------------------------
 
-    @Operation(summary = "Lista campanhas e os indicadores do topo da tela")
+    @Operation(
+            summary = "Lista campanhas e os indicadores do topo da tela",
+            description = "Página de campanhas, da mais recente para a mais antiga, com os indicadores somados "
+                    + "(enviadas, entregues, lidas, respostas, falhas), o que já saiu hoje e o teto diário da instância.")
     @GetMapping
     ListaResposta listar(
             @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "25") int tamanho) {
@@ -128,13 +131,19 @@ class CampanhaController {
         return consultas.templates().stream().map(TemplateResposta::de).toList();
     }
 
-    @Operation(summary = "Detalhe da campanha: funil, serie por dia e limite efetivo de hoje")
+    @Operation(
+            summary = "Detalhe da campanha: funil, serie por dia e limite efetivo de hoje",
+            description = "Funil acumulado (na fila, enviadas, entregues, lidas, responderam), enfileiradas por dia "
+                    + "e o limite que vale hoje, já com a rampa e o teto da instância.")
     @GetMapping("/{id}")
     DetalheResposta detalhe(@PathVariable UUID id) {
         return DetalheResposta.de(consultas.obter(id));
     }
 
-    @Operation(summary = "Destinatarios paginados, com filtro por status e motivo")
+    @Operation(
+            summary = "Destinatarios paginados, com filtro por status e motivo",
+            description = "Um contato por linha, com o status no funil, o motivo (exclusão ou falha), o código de "
+                    + "erro do provedor e os instantes de envio, entrega, leitura e resposta.")
     @GetMapping("/{id}/destinatarios")
     PaginaResposta<DestinatarioResposta> destinatarios(
             @PathVariable UUID id,
@@ -157,7 +166,10 @@ class CampanhaController {
         return PaginaResposta.de(consultas.conferencia(id, pagina, tamanho), DestinatarioResposta::de);
     }
 
-    @Operation(summary = "Resultado da campanha em CSV, uma linha por destinatario")
+    @Operation(
+            summary = "Resultado da campanha em CSV, uma linha por destinatario",
+            description = "Arquivo UTF-8 com nome, telefone, status, motivo, código de erro e instantes. Células "
+                    + "que começam com =, +, - ou @ são neutralizadas contra injeção de fórmula.")
     @GetMapping(value = "/{id}/destinatarios.csv", produces = "text/csv")
     ResponseEntity<byte[]> csv(@PathVariable UUID id) {
         StringBuilder saida = new StringBuilder();
@@ -170,13 +182,18 @@ class CampanhaController {
 
     // --- assistente -----------------------------------------------------------------------------------
 
-    @Operation(summary = "Previa do publico: so contagens, com os excluidos por motivo")
+    @Operation(
+            summary = "Previa do publico: so contagens, com os excluidos por motivo",
+            description = "Total da Agenda no filtro, quantos vão receber e os excluídos por motivo (telefone "
+                    + "inválido, sem nome utilizável, opt-out, atendimento ativo, proativa recente). Não materializa a lista.")
     @PostMapping("/previa")
     PreviaResposta previa(@Valid @RequestBody PreviaRequisicao requisicao) {
         return PreviaResposta.de(preverPublico.executar(requisicao.filtroDominio()));
     }
 
-    @Operation(summary = "Lista (ate 200) os contatos excluidos por um motivo")
+    @Operation(
+            summary = "Lista (ate 200) os contatos excluidos por um motivo",
+            description = "Para conferir, antes de iniciar, quem ficou de fora por um dos motivos de exclusão do público.")
     @PostMapping("/previa/excluidos")
     List<ExcluidoResposta> excluidos(@Valid @RequestBody ExcluidosRequisicao requisicao) {
         MotivoDoDestinatario motivo = motivo(requisicao.motivo());
@@ -184,7 +201,10 @@ class CampanhaController {
         return listarExcluidos.executar(filtro.dominio(), motivo).stream().map(ExcluidoResposta::de).toList();
     }
 
-    @Operation(summary = "Estimativa de termino e mensagens por dia (mini-calendario)")
+    @Operation(
+            summary = "Estimativa de termino e mensagens por dia (mini-calendario)",
+            description = "Projeta, com a janela, os dias da semana, o ritmo, a rampa e o teto da instância, quantas "
+                    + "mensagens saem em cada dia e quando a campanha termina.")
     @PostMapping("/projecao")
     ProjecaoResposta projecao(@Valid @RequestBody ProjecaoRequisicao requisicao) {
         return ProjecaoResposta.de(projetar.executar(requisicao.paraDominio()));
@@ -198,13 +218,18 @@ class CampanhaController {
                 .body(CampanhaResposta.de(campanha));
     }
 
-    @Operation(summary = "Salva o rascunho (so campanha ainda RASCUNHO)")
+    @Operation(
+            summary = "Salva o rascunho (so campanha ainda RASCUNHO)",
+            description = "Reescreve o conteúdo da campanha enquanto ela é rascunho; depois de iniciada, responde 409.")
     @PutMapping("/{id}")
     CampanhaResposta atualizar(@PathVariable UUID id, @Valid @RequestBody CampanhaRequisicao requisicao) {
         return CampanhaResposta.de(atualizarRascunho.executar(id, requisicao.paraDominio()));
     }
 
-    @Operation(summary = "Envia o template a um contato de teste ja cadastrado, sem contar no limite")
+    @Operation(
+            summary = "Envia o template a um contato de teste ja cadastrado, sem contar no limite",
+            description = "Só para um contato já na Agenda e com a confirmação de que o dono do número autorizou o "
+                    + "teste. Não conta no limite diário, não passa pela política proativa e não troca o dono do lead.")
     @PostMapping("/{id}/teste")
     TesteResposta teste(@PathVariable UUID id, @Valid @RequestBody TesteRequisicao requisicao) {
         EnviarTesteDeCampanhaUseCase.Resultado resultado =
@@ -221,37 +246,49 @@ class CampanhaController {
         return CampanhaResposta.de(iniciar.executar(id));
     }
 
-    @Operation(summary = "Pausa a campanha")
+    @Operation(
+            summary = "Pausa a campanha",
+            description = "O envio para no ciclo seguinte; nada se perde e a campanha pode ser retomada.")
     @PostMapping("/{id}/pausar")
     CampanhaResposta pausar(@PathVariable UUID id) {
         return CampanhaResposta.de(controle.pausar(id));
     }
 
-    @Operation(summary = "Retoma a campanha pausada (inclusive a pausada automaticamente)")
+    @Operation(
+            summary = "Retoma a campanha pausada (inclusive a pausada automaticamente)",
+            description = "Volta a enviar de onde parou. Se o motivo da pausa automática persistir, o ciclo pausa de novo.")
     @PostMapping("/{id}/retomar")
     CampanhaResposta retomar(@PathVariable UUID id) {
         return CampanhaResposta.de(controle.retomar(id));
     }
 
-    @Operation(summary = "Cancela a campanha; o que ainda esta pendente nunca sera enviado")
+    @Operation(
+            summary = "Cancela a campanha; o que ainda esta pendente nunca sera enviado",
+            description = "Estado terminal: não volta. O que já foi enfileirado segue o fluxo normal de entrega.")
     @PostMapping("/{id}/cancelar")
     CampanhaResposta cancelar(@PathVariable UUID id) {
         return CampanhaResposta.de(controle.cancelar(id));
     }
 
-    @Operation(summary = "Altera o limite diario (e o ritmo); vale no proximo ciclo")
+    @Operation(
+            summary = "Altera o limite diario (e o ritmo); vale no proximo ciclo",
+            description = "O limite nunca passa do teto diário da instância; acima dele a resposta é 422.")
     @PutMapping("/{id}/limite")
     CampanhaResposta limite(@PathVariable UUID id, @Valid @RequestBody LimiteRequisicao requisicao) {
         return CampanhaResposta.de(controle.alterarLimite(id, requisicao.limiteDiario(), requisicao.ritmoPorMinuto()));
     }
 
-    @Operation(summary = "Interruptor da campanha: para o envio imediatamente, sem mudar o status")
+    @Operation(
+            summary = "Interruptor da campanha: para o envio imediatamente, sem mudar o status",
+            description = "Desligada, a campanha não envia mais nenhum destinatário; religar continua de onde parou.")
     @PutMapping("/{id}/interruptor")
     CampanhaResposta interruptor(@PathVariable UUID id, @RequestBody InterruptorRequisicao requisicao) {
         return CampanhaResposta.de(controle.alterarInterruptor(id, requisicao.desligada()));
     }
 
-    @Operation(summary = "Marca um item da conferencia manual como conferido (nao reenvia)")
+    @Operation(
+            summary = "Marca um item da conferencia manual como conferido (nao reenvia)",
+            description = "A pessoa verificou no provedor o que houve com o envio e o tira da lista. Reenviar é decisão humana, fora desta ação.")
     @PostMapping("/{id}/conferencia/{destinatarioId}/conferido")
     ResponseEntity<Void> conferido(@PathVariable UUID id, @PathVariable UUID destinatarioId) {
         return controle.resolverConferencia(id, destinatarioId)
@@ -261,19 +298,25 @@ class CampanhaController {
 
     // --- configuracao e opt-out -----------------------------------------------------------------------
 
-    @Operation(summary = "Configuracoes de campanhas da instancia")
+    @Operation(
+            summary = "Configuracoes de campanhas da instancia",
+            description = "Interruptor global, teto diário, limite padrão, limite da Meta informado, limiares da pausa automática e prazos.")
     @GetMapping("/configuracao")
     ConfiguracaoResposta configuracao() {
         return ConfiguracaoResposta.de(configuracao.obter());
     }
 
-    @Operation(summary = "Altera teto diario, limiares de pausa automatica e o limite informado da Meta")
+    @Operation(
+            summary = "Altera teto diario, limiares de pausa automatica e o limite informado da Meta",
+            description = "Só os campos enviados mudam, dentro da faixa de cada parâmetro. Vale no próximo ciclo, sem deploy.")
     @PutMapping("/configuracao")
     ConfiguracaoResposta atualizarConfiguracao(@Valid @RequestBody ConfiguracaoRequisicao requisicao) {
         return ConfiguracaoResposta.de(configuracao.atualizar(requisicao.paraDominio()));
     }
 
-    @Operation(summary = "Contatos que pediram para nao receber campanhas")
+    @Operation(
+            summary = "Contatos que pediram para nao receber campanhas",
+            description = "Lista de opt-out, respeitada por todas as campanhas.")
     @GetMapping("/optouts")
     PaginaResposta<OptOutResposta> optOuts(
             @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "25") int tamanho) {
@@ -282,7 +325,9 @@ class CampanhaController {
                 lista.itens().stream().map(OptOutResposta::de).toList(), lista.pagina(), lista.tamanho(), lista.total());
     }
 
-    @Operation(summary = "Registra opt-out de um lead: nenhuma campanha o alcanca mais")
+    @Operation(
+            summary = "Registra opt-out de um lead: nenhuma campanha o alcanca mais",
+            description = "Idempotente. Vale para campanhas em andamento: o destinatário é ignorado no momento do envio.")
     @PutMapping("/optouts/{leadId}")
     ResponseEntity<Void> registrarOptOut(
             @PathVariable UUID leadId, @RequestBody(required = false) OptOutRequisicao requisicao) {
@@ -290,7 +335,9 @@ class CampanhaController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Desfaz o opt-out de um lead (administrador)")
+    @Operation(
+            summary = "Desfaz o opt-out de um lead (administrador)",
+            description = "Só o administrador. Responde 404 se o lead não estava em opt-out.")
     @DeleteMapping("/optouts/{leadId}")
     ResponseEntity<Void> removerOptOut(@PathVariable UUID leadId) {
         return optOuts.remover(leadId) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();

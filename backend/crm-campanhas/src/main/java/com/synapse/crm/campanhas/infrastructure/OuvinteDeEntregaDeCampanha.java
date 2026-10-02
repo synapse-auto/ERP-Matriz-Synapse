@@ -1,7 +1,10 @@
 package com.synapse.crm.campanhas.infrastructure;
 
+import java.util.concurrent.Executor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -24,22 +27,29 @@ class OuvinteDeEntregaDeCampanha {
     private static final Logger log = LoggerFactory.getLogger(OuvinteDeEntregaDeCampanha.class);
 
     private final AplicarEntregaDeCampanhaUseCase aplicar;
+    private final Executor executor;
 
-    OuvinteDeEntregaDeCampanha(AplicarEntregaDeCampanhaUseCase aplicar) {
+    OuvinteDeEntregaDeCampanha(
+            AplicarEntregaDeCampanhaUseCase aplicar,
+            @Qualifier(ExecutorDeCampanhasConfig.NOME) Executor executor) {
         this.aplicar = aplicar;
+        this.executor = executor;
     }
 
+    /** So enfileira: a transacao nova abre depois que a conexao original foi liberada (ver o executor). */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void aoMudarStatusDeEntrega(MudancaDeStatusDeEntrega evento) {
-        try {
-            ContextoDeServico.executarComo(
-                    "campanhas-entrega",
-                    () -> aplicar.executar(evento.mensagemId(), evento.statusEntrega(), evento.ocorridoEm()));
-        } catch (RuntimeException erro) {
-            log.error(
-                    "[ALERTA_CAMPANHA_ENTREGA] nao foi possivel aplicar a entrega da mensagem {} a campanha; a reconciliacao do ciclo corrige.",
-                    evento.mensagemId(),
-                    erro);
-        }
+        executor.execute(() -> {
+            try {
+                ContextoDeServico.executarComo(
+                        "campanhas-entrega",
+                        () -> aplicar.executar(evento.mensagemId(), evento.statusEntrega(), evento.ocorridoEm()));
+            } catch (RuntimeException erro) {
+                log.error(
+                        "[ALERTA_CAMPANHA_ENTREGA] nao foi possivel aplicar a entrega da mensagem {} a campanha; a reconciliacao do ciclo corrige.",
+                        evento.mensagemId(),
+                        erro);
+            }
+        });
     }
 }

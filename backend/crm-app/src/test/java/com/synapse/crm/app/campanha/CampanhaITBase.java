@@ -58,14 +58,9 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
-@TestPropertySource(
-        properties = {
-            "synapse.canal.whatsapp.provedor=fake",
-            "synapse.canal.outbox.intervalo-ms=3600000",
-            "synapse.canal.webhook.intervalo-ms=3600000",
-            "synapse.canal.outbox.backoff-inicial=0s",
-            "synapse.campanhas.intervalo-ms=3600000"
-        })
+// Mesmo conjunto de propriedades de outros ITs (NovoContatoIT, TemplatesWhatsAppIT): compartilha o contexto Spring
+// em cache em vez de abrir mais um, com mais pools de conexao. Os agendadores ja nascem desligados no PostgresIT.
+@TestPropertySource(properties = "synapse.canal.whatsapp.provedor=fake")
 abstract class CampanhaITBase extends PostgresIT {
 
     protected static final String PREFIXO = "E220-";
