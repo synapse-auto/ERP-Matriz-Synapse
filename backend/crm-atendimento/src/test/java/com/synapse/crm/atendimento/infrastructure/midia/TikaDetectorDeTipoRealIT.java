@@ -40,6 +40,8 @@ class TikaDetectorDeTipoRealIT {
 
     private static final String XLSX_MIMETYPE =
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final String XLSM_MIMETYPE = "application/vnd.ms-excel.sheet.macroEnabled.12";
+    private static final String XLSM_CONTENT_TYPE = "application/vnd.ms-excel.sheet.macroEnabled.main+xml";
     private static final String DOCX_MIMETYPE =
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final String PPTX_MIMETYPE =
@@ -52,7 +54,7 @@ class TikaDetectorDeTipoRealIT {
     }
 
     @ParameterizedTest(name = "aceita pacote {0} no caso de uso real")
-    @MethodSource("pacotesOoxml")
+    @MethodSource("pacotesOoxmlPadrao")
     void casoDeUsoAceitaPacoteOoxmlComDetectorReal(String extensao, String mimetype, byte[] pacote) {
         ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
         LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
@@ -85,6 +87,7 @@ class TikaDetectorDeTipoRealIT {
         assertThat(tipo).isNotEqualTo(XLSX_MIMETYPE);
         assertThat(tipo).isNotEqualTo(DOCX_MIMETYPE);
         assertThat(tipo).isNotEqualTo(PPTX_MIMETYPE);
+        assertThat(tipo).isNotEqualTo(XLSM_MIMETYPE);
     }
 
     @Test
@@ -101,12 +104,50 @@ class TikaDetectorDeTipoRealIT {
                 mock(ConversorDeAudio.class));
 
         assertThatThrownBy(() -> useCase.executar(
-                        UUID.randomUUID(), "MZ\u0000\u0001".getBytes(StandardCharsets.US_ASCII), "nota.pdf", null))
+                        UUID.randomUUID(), "MZ\u0000\u0001".getBytes(StandardCharsets.US_ASCII), "nota.xlsm", null))
+                .isInstanceOf(TipoDeMidiaNaoPermitidoException.class);
+        verifyNoInteractions(armazenamento, enviarMensagem);
+    }
+
+    @Test
+    void zipGenericoRenomeadoParaXlsmContinuaRejeitadoNoCasoDeUso() {
+        ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+        LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
+        EnviarMensagemUseCase enviarMensagem = mock(EnviarMensagemUseCase.class);
+        var useCase = new EnviarMidiaUseCase(
+                new TikaDetectorDeTipoReal(), armazenamento, limites, enviarMensagem,
+                new ObjectMapper(), mock(ConversorDeAudio.class));
+
+        assertThatThrownBy(() -> useCase.executar(UUID.randomUUID(), zipArbitrario(), "renomeado.xlsm", null))
+                .isInstanceOf(TipoDeMidiaNaoPermitidoException.class);
+        verifyNoInteractions(armazenamento, enviarMensagem);
+    }
+
+    @Test
+    void pacoteXlsmDetectadoContinuaForaDaAllowlistCompartilhadaDeAtendimentos() {
+        byte[] pacote = pacoteOoxml("xl/workbook.xml", "spreadsheetml", XLSM_CONTENT_TYPE);
+        ArmazenamentoDeMidia armazenamento = mock(ArmazenamentoDeMidia.class);
+        LimiteDeAnexoRepositorio limites = mock(LimiteDeAnexoRepositorio.class);
+        EnviarMensagemUseCase enviarMensagem = mock(EnviarMensagemUseCase.class);
+        var useCase = new EnviarMidiaUseCase(
+                new TikaDetectorDeTipoReal(), armazenamento, limites, enviarMensagem,
+                new ObjectMapper(), mock(ConversorDeAudio.class));
+
+        assertThatThrownBy(() -> useCase.executar(UUID.randomUUID(), pacote, "planilha.xlsm", null))
                 .isInstanceOf(TipoDeMidiaNaoPermitidoException.class);
         verifyNoInteractions(armazenamento, enviarMensagem);
     }
 
     static Stream<Arguments> pacotesOoxml() {
+        return Stream.of(
+                Arguments.of(".xlsx", XLSX_MIMETYPE, pacoteOoxml("xl/workbook.xml", "spreadsheetml")),
+                Arguments.of(".xlsm", XLSM_MIMETYPE,
+                        pacoteOoxml("xl/workbook.xml", "spreadsheetml", XLSM_CONTENT_TYPE)),
+                Arguments.of(".docx", DOCX_MIMETYPE, pacoteOoxml("word/document.xml", "wordprocessingml")),
+                Arguments.of(".pptx", PPTX_MIMETYPE, pacoteOoxml("ppt/presentation.xml", "presentationml")));
+    }
+
+    static Stream<Arguments> pacotesOoxmlPadrao() {
         return Stream.of(
                 Arguments.of(".xlsx", XLSX_MIMETYPE, pacoteOoxml("xl/workbook.xml", "spreadsheetml")),
                 Arguments.of(".docx", DOCX_MIMETYPE, pacoteOoxml("word/document.xml", "wordprocessingml")),
@@ -124,6 +165,10 @@ class TikaDetectorDeTipoRealIT {
             case "presentationml" -> PPTX_MIMETYPE + ".main+xml";
             default -> throw new IllegalArgumentException("namespace OOXML desconhecido");
         };
+        return pacoteOoxml(partePrincipal, namespace, mimetype);
+    }
+
+    private static byte[] pacoteOoxml(String partePrincipal, String namespace, String mimetype) {
         String contentTypes = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                 + "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                 + "<Override PartName=\"/" + partePrincipal + "\" ContentType=\"" + mimetype + "\"/>"

@@ -445,6 +445,26 @@ describe("componentes de apresentação do chat interno", () => {
     expect(enviar).not.toHaveBeenCalled();
   });
 
+  it("permite selecionar e enviar XLSM no chat interno", async () => {
+    const enviarMidia = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QueryClientProvider client={client}>
+        <TextosProvider textos={mockTextosCompletos}>
+          <ComposerChatInterno textos={textos} onEnviar={vi.fn()} onEnviarMidia={enviarMidia} />
+        </TextosProvider>
+      </QueryClientProvider>,
+    );
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.accept).toContain(".xlsm");
+    const arquivo = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "planilha.xlsm", {
+      type: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    });
+    fireEvent.change(input, { target: { files: [arquivo] } });
+    fireEvent.click(screen.getByLabelText(textos.enviar));
+
+    await waitFor(() => expect(enviarMidia).toHaveBeenCalledWith(arquivo, undefined, expect.any(String)));
+  });
+
   it("envia a imagem e a legenda na mesma chamada e mostra a prévia", async () => {
     const enviarMidia = vi.fn().mockResolvedValue(undefined);
     render(
