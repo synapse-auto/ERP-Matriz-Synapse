@@ -115,7 +115,7 @@ class RegistrarMensagemRecebidaUseCaseTest {
         when(atendimentos.abertoDoLead(leadId)).thenReturn(Optional.of(aberto));
         when(participacoes.ativos(aberto.id())).thenReturn(List.of(
                 new com.synapse.crm.atendimento.application.participacao.ParticipanteAtendimento(
-                        participanteId, "Participante", AGORA.minusSeconds(30), null)));
+                        participanteId, "Participante", AGORA.minusSeconds(30), null, "CONVITE")));
 
         useCase.executar(entrada(leadId));
 

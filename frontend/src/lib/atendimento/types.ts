@@ -93,6 +93,7 @@ export interface CartaoAtendimento {
   ultimaMensagemEm: string | null;
   /** Base para a estimativa client-side da janela de 24h — ver janela-24h.ts. */
   ultimaMensagemDoLeadEm: string | null;
+  /** Gestao com dono: leitura do responsavel atual; demais casos: leitura pessoal. */
   naoLidas: number;
 }
 
@@ -242,6 +243,8 @@ export interface ParticipanteAtendimento {
   nome: string;
   entrouEm: string;
   fotoUrl?: string | null;
+  /** CONVITE e PEDIDO_APROVADO respondem sem assumir; ENTRADA_DIRETA (gestor, Agenda) assume ao enviar. */
+  origem?: "ENTRADA_DIRETA" | "CONVITE" | "PEDIDO_APROVADO";
 }
 
 /** Snapshot REST que governa toda a conversa selecionada. */
@@ -403,7 +406,8 @@ export type TipoEventoEstadoAtendimento =
   | "PEDIDO_ENTRADA_APROVADO"
   | "PEDIDO_ENTRADA_RECUSADO"
   | "PARTICIPANTE_ENTROU"
-  | "PARTICIPANTE_SAIU";
+  | "PARTICIPANTE_SAIU"
+  | "LEITURA_DO_RESPONSAVEL";
 
 export interface EstadoAtendimentoTempoReal {
   atendimentoId: string;

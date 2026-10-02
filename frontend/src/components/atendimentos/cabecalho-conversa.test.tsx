@@ -10,7 +10,7 @@ const finalizar = vi.fn();
 const participacao = vi.hoisted(() => ({
   usuarioId: "usuario-1",
   papel: "GESTOR",
-  participantes: [] as Array<{ usuarioId: string; nome: string; fotoUrl?: string | null }>,
+  participantes: [] as Array<{ usuarioId: string; nome: string; fotoUrl?: string | null; origem?: "ENTRADA_DIRETA" | "CONVITE" | "PEDIDO_APROVADO" }>,
   meuPedido: null as { status: "PENDENTE" | "RECUSADO"; solicitanteNome?: string; solicitadoEm?: string } | null,
   pedidosPendentes: [] as Array<{ id: string; solicitanteNome: string; solicitadoEm: string }>,
   recarregar: vi.fn(),
@@ -67,6 +67,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         novoAtendimento: "Reativar atendimento",
         participantes: "Participantes",
         participando: "Você está participando",
+        participanteRespondeSemAssumir: "Você participa: suas mensagens não transferem o atendimento.",
         pedirEntrada: "Pedir para entrar",
         pedidoPendente: "Pedido pendente",
         entrar: "Entrar no atendimento",
@@ -341,6 +342,34 @@ describe("CabecalhoConversa", () => {
     expect(await screen.findByRole("button", { name: "Sair do atendimento" })).toBeInTheDocument();
   });
 
+  it.each([
+    ["CONVITE", true],
+    ["PEDIDO_APROVADO", true],
+    ["ENTRADA_DIRETA", false],
+  ] as const)("participante por %s: aviso de envio coerente com a RN-CRM-06", (origem, preserva) => {
+    participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima", origem }];
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado({ usuarioAtualParticipa: true })}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+
+    const naoTransfere = screen.queryByText("Você participa: suas mensagens não transferem o atendimento.");
+    const assume = screen.queryByText("Ao enviar agora, você assume este atendimento.");
+    if (preserva) {
+      expect(naoTransfere).toBeInTheDocument();
+      expect(assume).not.toBeInTheDocument();
+    } else {
+      expect(naoTransfere).not.toBeInTheDocument();
+      expect(assume).toBeInTheDocument();
+    }
+  });
+
   it.each([403, 404])("mantém o sucesso ao sair mesmo quando a reconciliação perde acesso (%s)", async (status) => {
     participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima" }];
     const reconciliar = vi.fn().mockRejectedValue(new ErroDeApi(status, null, "Atendimento indisponível"));
@@ -423,7 +452,7 @@ describe("CabecalhoConversa", () => {
     expect(screen.getAllByRole("button", { name: "Aceitar pedido" })).toHaveLength(2);
   });
 
-  it("avisa que o envio assume o atendimento somente fora da participação", () => {
+  it("avisa que o envio assume o atendimento, exceto para quem participa por convite", () => {
     const { rerender } = render(
       <CabecalhoConversa
         conversa={conversa}
@@ -436,7 +465,7 @@ describe("CabecalhoConversa", () => {
     );
 
     expect(screen.getByText("Ao enviar agora, você assume este atendimento.")).toBeInTheDocument();
-    participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima" }];
+    participacao.participantes = [{ usuarioId: "usuario-1", nome: "Jardel Lima", origem: "CONVITE" }];
     rerender(
       <CabecalhoConversa
         conversa={conversa}

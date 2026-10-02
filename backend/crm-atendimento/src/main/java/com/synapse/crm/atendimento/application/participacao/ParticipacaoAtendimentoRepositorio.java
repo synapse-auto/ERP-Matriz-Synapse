@@ -14,9 +14,16 @@ public interface ParticipacaoAtendimentoRepositorio {
     Optional<PedidoEntradaAtendimento> pedido(UUID pedidoId);
     Optional<PedidoEntradaAtendimento> pedidoDoSolicitante(UUID atendimentoId, UUID solicitanteId, Instant limite);
     ConviteResultado convidar(UUID atendimentoId, UUID convidadoId, Instant agora);
+    /** Grava EXPIRADO no convite pendente solicitado até {@code limite}, liberando um convite novo. */
+    void expirarConvitesVencidos(UUID atendimentoId, UUID convidadoId, Instant limite);
     List<PedidoEntradaAtendimento> pendentes(UUID atendimentoId, Instant limite);
     boolean eDono(UUID atendimentoId, UUID usuarioId);
     boolean eParticipanteAtivo(UUID atendimentoId, UUID usuarioId);
+    /**
+     * Participacao ativa e consentida (convite aceito ou pedido aprovado): a unica que responde sem
+     * assumir o lead. Entrada direta de gestor e abertura pela Agenda nao contam.
+     */
+    boolean colaboraSemAssumir(UUID atendimentoId, UUID usuarioId);
     void aprovar(UUID pedidoId, UUID donoId, Instant agora);
     void recusar(UUID pedidoId, UUID donoId, Instant agora);
     void entrar(UUID atendimentoId, UUID usuarioId, Instant agora);

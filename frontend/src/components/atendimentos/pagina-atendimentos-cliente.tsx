@@ -120,7 +120,12 @@ export function PaginaAtendimentosCliente({
   const notificacoesProcessadas = useRef(new Set<string>());
   // Enquanto o POST de leitura nao confirma, uma invalidacao ampla pode devolver o contador
   // anterior. O mapa mantem a barreira ate que todas as leituras iniciadas para cada lead terminem.
-  const leiturasEmVoo = useRef(new Map<string, number>());
+  const leiturasEmVoo = useRef(new Map<string, {
+    pendentes: number;
+    contagemAntes: number;
+    confirmada: boolean;
+    zerou: boolean;
+  }>());
   const [reconciliador] = useState(() => new ReconciliadorEstadoAtendimento(cache));
   const [sincronizacaoLiberada, setSincronizacaoLiberada] = useState<{
     atendimentoId: string;
@@ -187,30 +192,39 @@ export function PaginaAtendimentosCliente({
   const [novoContatoInicial, setNovoContatoInicial] = useState<{ nome: string; telefone: string } | null>(null);
   const sessao = useAuthStore.getState();
   const marcarLeituraDaConversa = useCallback(
-    (atendimentoId: string, leadId: string) => {
-      const quantidadeAtual = leiturasEmVoo.current.get(leadId) ?? 0;
-      leiturasEmVoo.current.set(leadId, quantidadeAtual + 1);
+    (atendimentoId: string, leadId: string, responsavelId: string | null, naoLidas: number) => {
+      const leituraPessoal = leituraOperacionalEhPessoal(sessao.papel, sessao.usuarioId, responsavelId);
+      const emVoo = leiturasEmVoo.current.get(leadId) ?? {
+        pendentes: 0, contagemAntes: naoLidas, confirmada: false, zerou: false,
+      };
+      emVoo.pendentes += 1;
+      leiturasEmVoo.current.set(leadId, emVoo);
       // Cancela um GET amplo que possa ter começado antes do clique; seu retorno também pode ser
       // anterior à leitura e sobrescrever o zero otimista.
-      void cache.cancelQueries({ queryKey: ["atendimentos"] });
-      zerarNaoLidasDoLead(cache, leadId);
+      if (leituraPessoal) {
+        void cache.cancelQueries({ queryKey: ["atendimentos"] });
+        zerarNaoLidasDoLead(cache, leadId);
+        emVoo.zerou = true;
+      }
       void marcarAtendimentoComoLido(atendimentoId)
+        .then(() => { emVoo.confirmada = true; })
         .catch(() => {
           // Leitura e auxiliar: falhar nao pode impedir que a conversa seja aberta.
         })
         .finally(() => {
-          const quantidadeRestante = (leiturasEmVoo.current.get(leadId) ?? 1) - 1;
-          if (quantidadeRestante > 0) {
-            leiturasEmVoo.current.set(leadId, quantidadeRestante);
-          } else {
+          emVoo.pendentes -= 1;
+          if (emVoo.pendentes === 0) {
+            if (emVoo.zerou && !emVoo.confirmada) {
+              restaurarNaoLidasDoLead(cache, leadId, emVoo.contagemAntes);
+            }
             leiturasEmVoo.current.delete(leadId);
-          }
-          if (leiturasEmVoo.current.size === 0) {
-            atualizarPainelDeAtendimentos(cache, { atendimentoId });
+            if (leiturasEmVoo.current.size === 0) {
+              atualizarPainelDeAtendimentos(cache, { atendimentoId });
+            }
           }
         });
     },
-    [cache],
+    [cache, sessao.papel, sessao.usuarioId],
   );
 
   const selecionarAtendimento = useCallback(
@@ -232,7 +246,7 @@ export function PaginaAtendimentosCliente({
       setErroDeAbertura(null);
       setAtendimentoSelecionadoId(idParaAbrir);
       setSincronizacaoLiberada(null);
-      marcarLeituraDaConversa(idParaAbrir, cartao.leadId);
+      marcarLeituraDaConversa(idParaAbrir, cartao.leadId, cartao.atendenteId, cartao.naoLidas);
       registrarDiagnosticoDeAbertura({
         origem,
         etapa: "cartao_resolvido",
@@ -418,6 +432,8 @@ export function PaginaAtendimentosCliente({
     [atendimentoSelecionadoId, cache, textoTransferido, textoTransferidoPara],
   );
 
+  const cicloAtualRef = useRef(0);
+
   const processarEventoCanonico = useCallback(
     (evento: EventoCanonicoAtendimentoTempoReal) => {
       const selecionado = evento.dados.atendimentoId === atendimentoSelecionadoId;
@@ -425,7 +441,12 @@ export function PaginaAtendimentosCliente({
         reconciliador.registrarSemSnapshot(evento);
         return;
       }
-      const cicloJaSincronizado = sincronizacaoLiberada?.ciclo;
+      // O snapshot REST que responde a este evento pertence ao ciclo de conexão vigente agora.
+      // Usar o ciclo da liberação anterior travava os incrementais quando dois eventos chegavam
+      // em sequência (convite, aceite, mesmo evento por /notificacoes e pela conversa): o segundo
+      // via a liberação já nula, religava com ciclo -1 e toda mensagem seguinte era descartada
+      // até recarregar a página.
+      const cicloDoEvento = cicloAtualRef.current;
       if (reconciliador.deveReconciliar(evento)) setSincronizacaoLiberada(null);
       invalidarParticipacao(evento.dados.atendimentoId);
       void reconciliador.receber(evento)
@@ -433,7 +454,7 @@ export function PaginaAtendimentosCliente({
           if (snapshot?.cartao.atendimentoId === atendimentoSelecionadoId) {
             setSincronizacaoLiberada({
               atendimentoId: snapshot.cartao.atendimentoId,
-              ciclo: cicloJaSincronizado ?? -1,
+              ciclo: cicloDoEvento,
             });
           }
         })
@@ -443,12 +464,7 @@ export function PaginaAtendimentosCliente({
           }
         });
     },
-    [
-      atendimentoSelecionadoId,
-      indisponibilizarAtendimento,
-      reconciliador,
-      sincronizacaoLiberada?.ciclo,
-    ],
+    [atendimentoSelecionadoId, indisponibilizarAtendimento, reconciliador],
   );
 
   const { conexao, estado, ciclo } = useConexaoTempoReal(
@@ -482,6 +498,9 @@ export function PaginaAtendimentosCliente({
       });
       if (evento.tipo === "ATENDIMENTO_ESTADO") {
         processarEventoCanonico(evento);
+        if (evento.dados.eventoTipo === "LEITURA_DO_RESPONSAVEL" && leiturasEmVoo.current.size === 0) {
+          atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
+        }
         return;
       }
       if (
@@ -516,6 +535,9 @@ export function PaginaAtendimentosCliente({
       }
     },
   );
+  useLayoutEffect(() => {
+    cicloAtualRef.current = ciclo;
+  }, [ciclo]);
 
   // Governa só a aplicação de frames incrementais (snapshot antes de incremental, a cada ciclo de
   // conexão). Nunca a permissão de envio: essa vem do snapshot REST, que independe do WebSocket.
@@ -587,7 +609,7 @@ export function PaginaAtendimentosCliente({
   const atendimentoParaLeitura = conversa?.atendimentoId ?? null;
   const marcarConversaAbertaComoLida = useCallback(() => {
     if (!atendimentoParaLeitura || !conversa) return;
-    marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId);
+    marcarLeituraDaConversa(atendimentoParaLeitura, conversa.leadId, conversa.atendenteId, conversa.naoLidas);
   }, [atendimentoParaLeitura, conversa, marcarLeituraDaConversa]);
   const mensagensQuery = useMensagens(
     conversa?.atendimentoId ?? null,
@@ -954,6 +976,7 @@ export function PaginaAtendimentosCliente({
                 canalTipo={conversa.canalTipo}
                 atendenteId={conversa.atendenteId}
                 atendenteNome={conversa.atendenteNome}
+                participantes={estadoSelecionado?.participantes}
                 reacoesHabilitadas={podeResponder}
                 onResponder={podeResponder
                   ? (mensagem) => setRespostaAlvo({ leadId: conversa.leadId, mensagem })
@@ -1039,13 +1062,26 @@ export function PaginaAtendimentosCliente({
   );
 }
 
+function leituraOperacionalEhPessoal(papel: string | null, usuarioId: string | null, responsavelId: string | null) {
+  return papel === "ATENDENTE" || responsavelId === null || responsavelId === usuarioId;
+}
+
 function zerarNaoLidasDoLead(cache: QueryClient, leadId: string) {
+  definirNaoLidasDoLead(cache, leadId, 0, false);
+}
+
+function restaurarNaoLidasDoLead(cache: QueryClient, leadId: string, quantidade: number) {
+  definirNaoLidasDoLead(cache, leadId, quantidade, true);
+}
+
+function definirNaoLidasDoLead(cache: QueryClient, leadId: string, quantidade: number, apenasZero: boolean) {
   cache.setQueriesData({ queryKey: ["atendimentos"] }, (atual: unknown) => {
     if (!atual || typeof atual !== "object") return atual;
     if (Array.isArray(atual)) {
       return atual.map((item) =>
         item && typeof item === "object" && "leadId" in item && item.leadId === leadId
-          ? { ...item, naoLidas: 0 }
+          && (!apenasZero || ("naoLidas" in item && item.naoLidas === 0))
+          ? { ...item, naoLidas: quantidade }
           : item,
       );
     }
@@ -1057,7 +1093,8 @@ function zerarNaoLidasDoLead(cache: QueryClient, leadId: string) {
           ...pagina,
           itens: (pagina.itens ?? []).map((item) =>
             item.tipo !== "EQUIPE_INTERNA" && item.leadId === leadId
-              ? { ...item, naoLidas: 0 }
+              && (!apenasZero || item.naoLidas === 0)
+              ? { ...item, naoLidas: quantidade }
               : item,
           ),
         })),

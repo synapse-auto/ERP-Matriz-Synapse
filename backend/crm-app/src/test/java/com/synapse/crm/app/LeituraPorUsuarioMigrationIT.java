@@ -88,7 +88,7 @@ class LeituraPorUsuarioMigrationIT {
     }
 
     @Test
-    @DisplayName("RLS deixa cada usuario ler somente sua propria linha")
+    @DisplayName("RLS: atendente so le a propria linha; gestor le ambas sem escrever pelo colega")
     void rls_leituraEPorUsuario() throws Exception {
         UUID ana = UUID.randomUUID();
         UUID bruno = UUID.randomUUID();
@@ -122,6 +122,26 @@ class LeituraPorUsuarioMigrationIT {
                     assertThat(resultado.next()).isTrue();
                     assertThat(resultado.getLong(1)).isEqualTo(1);
                 }
+            }
+            conexao.rollback();
+
+            conexao.setAutoCommit(false);
+            comando.execute("SET LOCAL ROLE synapse_app");
+            comando.execute("SET LOCAL app.usuario_id = '" + ana + "'");
+            comando.execute("SET LOCAL app.papel = 'GESTOR'");
+            try (PreparedStatement consulta = conexao.prepareStatement(
+                            "SELECT count(*) FROM atendimento_leitura")) {
+                try (var resultado = consulta.executeQuery()) {
+                    assertThat(resultado.next()).isTrue();
+                    assertThat(resultado.getLong(1)).isEqualTo(2);
+                }
+            }
+            try (PreparedStatement alteracao = conexao.prepareStatement(
+                            "UPDATE atendimento_leitura SET lido_ate = now()"
+                                    + " WHERE atendimento_id = ? AND usuario_id = ?")) {
+                alteracao.setObject(1, atendimento);
+                alteracao.setObject(2, bruno);
+                assertThat(alteracao.executeUpdate()).isZero();
             }
             conexao.rollback();
         }

@@ -37,7 +37,9 @@ const revalidacoes = vi.hoisted(() => [] as boolean[]);
 const leitura = vi.hoisted(() => ({
   pendente: false,
   resolver: undefined as (() => void) | undefined,
+  rejeitar: undefined as (() => void) | undefined,
 }));
+const sessaoDeTeste = vi.hoisted(() => ({ papel: "ATENDENTE", usuarioId: "ana-id" }));
 
 interface ClienteStompFalso {
   connected: boolean;
@@ -401,8 +403,9 @@ vi.mock("@/lib/atendimento/use-enviar-midia", () => ({
 vi.mock("@/lib/atendimento/api", () => ({
   marcarAtendimentoComoLido: vi.fn(() => {
     if (!leitura.pendente) return Promise.resolve();
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       leitura.resolver = resolve;
+      leitura.rejeitar = () => reject(new Error("leitura indisponivel"));
     });
   }),
   iniciarNovoContato: iniciarNovo,
@@ -430,7 +433,7 @@ vi.mock("@/lib/atendimento/use-mensagens", () => ({
   },
 }));
 vi.mock("@/lib/auth/auth-store", () => ({
-  useAuthStore: { getState: () => ({ accessToken: "token" }) },
+  useAuthStore: { getState: () => ({ accessToken: "token", ...sessaoDeTeste }) },
 }));
 const telaEstreita = vi.hoisted(() => ({ atual: false }));
 
@@ -527,6 +530,9 @@ describe("PaginaAtendimentosCliente", () => {
     stomp.conectarAoAtivar = true;
     leitura.pendente = false;
     leitura.resolver = undefined;
+    leitura.rejeitar = undefined;
+    sessaoDeTeste.papel = "ATENDENTE";
+    sessaoDeTeste.usuarioId = "ana-id";
     revalidacoes.length = 0;
     backendEstado.versao = 1;
     telaEstreita.atual = false;
@@ -587,6 +593,54 @@ describe("PaginaAtendimentosCliente", () => {
 
     act(() => leitura.resolver?.());
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] })));
+  });
+
+  it("gestor abre conversa de colega sem zerar o indicador operacional", async () => {
+    sessaoDeTeste.papel = "GESTOR";
+    sessaoDeTeste.usuarioId = "gestor-id";
+    const pagina = renderPagina();
+    pagina.queryClient.setQueryData<ItemInbox[]>(["atendimentos"], [
+      { ...cartaoInicial, naoLidas: 4 },
+    ]);
+    leitura.pendente = true;
+
+    act(() => callbacks.abrir?.({ ...cartaoInicial, naoLidas: 4 }));
+    expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(4);
+    act(() => leitura.resolver?.());
+  });
+
+  it("falha da leitura restaura o contador otimista do responsavel", async () => {
+    const pagina = renderPagina();
+    pagina.queryClient.setQueryData<ItemInbox[]>(["atendimentos"], [
+      { ...cartaoInicial, naoLidas: 4 },
+    ]);
+    leitura.pendente = true;
+
+    act(() => callbacks.abrir?.({ ...cartaoInicial, naoLidas: 4 }));
+    expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(0);
+    act(() => leitura.rejeitar?.());
+    await waitFor(() => expect(pagina.queryClient.getQueryData<ItemInbox[]>(["atendimentos"])?.[0]?.naoLidas).toBe(4));
+  });
+
+  it("leitura do responsavel recebida pela fila pessoal pede reconciliacao sem F5", () => {
+    sessaoDeTeste.papel = "GESTOR";
+    sessaoDeTeste.usuarioId = "gestor-id";
+    const pagina = renderPagina();
+    const invalidar = vi.spyOn(pagina.queryClient, "invalidateQueries");
+    act(() => emitirNotificacao({
+      tipo: "ATENDIMENTO_ESTADO",
+      contrato: "atendimento.estado.v1",
+      eventoId: "evento-leitura-1",
+      versaoContrato: 1,
+      dados: {
+        atendimentoId: "atendimento-1",
+        leadId: "lead-1",
+        eventoTipo: "LEITURA_DO_RESPONSAVEL",
+        versao: 2,
+        ocorridoEm: "2026-10-01T12:00:00Z",
+      },
+    }));
+    expect(invalidar).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["atendimentos"] }));
   });
 
   it("continua invalidando a lista para mensagem nova de conversa fechada", () => {
