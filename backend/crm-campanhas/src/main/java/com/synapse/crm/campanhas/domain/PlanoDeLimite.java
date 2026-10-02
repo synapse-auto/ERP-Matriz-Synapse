@@ -46,6 +46,19 @@ public final class PlanoDeLimite {
         return (int) Math.min(efetivo, tetoDaInstancia);
     }
 
+    /**
+     * Quantas mensagens um ciclo pode enfileirar: o ritmo por minuto proporcional ao tempo desde o ciclo
+     * anterior, no maximo um minuto de ritmo (um worker parado por uma hora nao descarrega uma hora de uma vez)
+     * e ao menos uma, para o ciclo sempre andar.
+     */
+    public static int orcamentoDoCiclo(int ritmoPorMinuto, java.time.Duration decorrido) {
+        if (decorrido == null || decorrido.compareTo(java.time.Duration.ofMinutes(1)) >= 0) {
+            return ritmoPorMinuto;
+        }
+        double proporcional = Math.ceil(ritmoPorMinuto * Math.max(0, decorrido.toMillis()) / 60_000.0);
+        return (int) Math.max(1, Math.min(ritmoPorMinuto, proporcional));
+    }
+
     /** Teto fisico do dia: o ritmo por minuto multiplicado pelos minutos da janela. */
     public static int capacidadeDoDia(int ritmoPorMinuto, JanelaDeEnvio janela) {
         return (int) Math.min(Integer.MAX_VALUE, (long) ritmoPorMinuto * janela.minutosPorDia());

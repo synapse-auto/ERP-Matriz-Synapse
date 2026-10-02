@@ -125,6 +125,9 @@ CREATE INDEX idx_campanha_destinatario_lead
 -- Conferencia manual: so as poucas linhas sinalizadas.
 CREATE INDEX idx_campanha_destinatario_conferencia
     ON campanha_template_destinatario (campanha_id) WHERE conferencia_em IS NOT NULL;
+-- Reconciliacao e conferencia: so os ENFILEIRADO parados, em qualquer campanha.
+CREATE INDEX idx_campanha_destinatario_enfileirado
+    ON campanha_template_destinatario (enfileirado_em) WHERE status = 'ENFILEIRADO';
 -- Pausa automatica olha os ultimos desfechos da campanha.
 CREATE INDEX idx_campanha_destinatario_desfecho
     ON campanha_template_destinatario (campanha_id, enfileirado_em DESC) WHERE enfileirado_em IS NOT NULL;

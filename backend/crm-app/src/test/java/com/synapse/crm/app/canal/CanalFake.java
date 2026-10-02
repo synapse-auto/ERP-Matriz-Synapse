@@ -41,6 +41,7 @@ public class CanalFake implements CanalGateway {
             new AtomicReference<>(new ResultadoDeEnvio.Aceito("fake-id"));
     private final AtomicBoolean janelaAberta = new AtomicBoolean(true);
     private final AtomicReference<Runnable> aoEnviar = new AtomicReference<>(() -> {});
+    private final AtomicBoolean listagemQuebrada = new AtomicBoolean(false);
 
     @Override
     public String provedor() {
@@ -96,6 +97,7 @@ public class CanalFake implements CanalGateway {
         midiaIndisponivel.set(null);
         midiaRemovida.set(null);
         aoEnviar.set(() -> {});
+        listagemQuebrada.set(false);
         religar();
         abrirJanela();
     }
@@ -185,7 +187,51 @@ public class CanalFake implements CanalGateway {
 
     @Override
     public List<TemplateDoCanal> listarTemplates() {
+        if (listagemQuebrada.get()) {
+            throw new IllegalStateException("provedor de templates fora do ar");
+        }
         return List.copyOf(templates);
+    }
+
+    /** Registra um template como o provedor o devolveria, com qualquer status e recursos (E220). */
+    public void registrarTemplate(TemplateDoCanal template) {
+        templates.removeIf(existente -> existente.nome().equals(template.nome())
+                && existente.idioma().equals(template.idioma()));
+        templates.add(template);
+    }
+
+    /** Muda o status de um template ja registrado (pausado, rejeitado...), como a Meta faria. */
+    public void trocarStatusDoTemplate(String nome, TemplateDoCanal.Status status) {
+        for (int indice = 0; indice < templates.size(); indice++) {
+            TemplateDoCanal atual = templates.get(indice);
+            if (atual.nome().equals(nome)) {
+                templates.set(
+                        indice,
+                        new TemplateDoCanal(
+                                atual.id(),
+                                atual.nome(),
+                                atual.idioma(),
+                                atual.categoria(),
+                                status,
+                                atual.corpo(),
+                                atual.quantidadeDeParametros(),
+                                atual.recursos()));
+            }
+        }
+    }
+
+    /** O provedor deixa de listar o template (excluido na conta). */
+    public void removerTemplate(String nome) {
+        templates.removeIf(template -> template.nome().equals(nome));
+    }
+
+    /** As proximas listagens de templates falham, como um provedor fora do ar. */
+    public void quebrarListagemDeTemplates() {
+        listagemQuebrada.set(true);
+    }
+
+    public void consertarListagemDeTemplates() {
+        listagemQuebrada.set(false);
     }
 
     @Override

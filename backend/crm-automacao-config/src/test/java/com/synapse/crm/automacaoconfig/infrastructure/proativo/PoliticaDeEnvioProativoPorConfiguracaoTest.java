@@ -69,7 +69,8 @@ class PoliticaDeEnvioProativoPorConfiguracaoTest {
                         "automacao_proativa.aniversario.habilitada",
                         "automacao_proativa.avaliacao.habilitada",
                         "automacao_proativa.lembrete.habilitada",
-                        "automacao_proativa.outro.habilitada");
+                        "automacao_proativa.outro.habilitada",
+                        "automacao_proativa.campanha.habilitada");
     }
 
     private void booleano(String chave, String valor) {

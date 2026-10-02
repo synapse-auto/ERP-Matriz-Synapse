@@ -732,7 +732,55 @@ class MetaCloudApiAdapter implements CanalGateway {
                 traduzirCategoria(item.path("category").asText()),
                 traduzirStatus(item.path("status").asText()),
                 corpo,
-                contarParametros(corpo));
+                contarParametros(corpo),
+                recursosAlemDoCorpo(item.path("components")));
+    }
+
+    /**
+     * Cabecalho de midia, cabecalho com variavel e botao com parametro dinamico (URL com {{1}}, copiar
+     * codigo, flow, catalogo...) nao sao preenchiveis por um disparo em massa. Componente desconhecido conta
+     * como nao suportado: errar para o lado de recusar custa uma campanha nao criada, errar para o outro
+     * custa um lote inteiro recusado pela Meta.
+     */
+    private static TemplateDoCanal.RecursosAlemDoCorpo recursosAlemDoCorpo(JsonNode componentes) {
+        if (!componentes.isArray()) {
+            return TemplateDoCanal.RecursosAlemDoCorpo.NENHUM;
+        }
+        boolean cabecalhoDeMidia = false;
+        boolean cabecalhoComVariavel = false;
+        boolean botaoComParametro = false;
+        boolean outroComponente = false;
+        for (JsonNode componente : componentes) {
+            switch (componente.path("type").asText("").toUpperCase(java.util.Locale.ROOT)) {
+                case "BODY", "FOOTER" -> {
+                    // corpo e rodape sao textuais; as variaveis do corpo ja entram em quantidadeDeParametros
+                }
+                case "HEADER" -> {
+                    String formato = componente.path("format").asText("TEXT").toUpperCase(java.util.Locale.ROOT);
+                    if ("TEXT".equals(formato)) {
+                        cabecalhoComVariavel |= componente.path("text").asText("").contains("{{");
+                    } else {
+                        cabecalhoDeMidia = true;
+                    }
+                }
+                case "BUTTONS" -> {
+                    for (JsonNode botao : componente.path("buttons")) {
+                        botaoComParametro |= botaoExigeParametro(botao);
+                    }
+                }
+                default -> outroComponente = true;
+            }
+        }
+        return new TemplateDoCanal.RecursosAlemDoCorpo(
+                cabecalhoDeMidia, cabecalhoComVariavel, botaoComParametro, outroComponente);
+    }
+
+    private static boolean botaoExigeParametro(JsonNode botao) {
+        return switch (botao.path("type").asText("").toUpperCase(java.util.Locale.ROOT)) {
+            case "QUICK_REPLY", "PHONE_NUMBER" -> false;
+            case "URL" -> botao.path("url").asText("").contains("{{");
+            default -> true;
+        };
     }
 
     private static String idiomaDoItem(JsonNode idioma) {
