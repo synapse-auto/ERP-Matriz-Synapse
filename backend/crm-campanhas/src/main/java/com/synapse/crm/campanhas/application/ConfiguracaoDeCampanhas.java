@@ -5,7 +5,7 @@ import java.util.UUID;
 import com.synapse.crm.campanhas.domain.PoliticaDePausa;
 
 /**
- * Parametros de campanhas guardados em {@code configuracao_automacao} (V88). Lidos a cada ciclo: o que o
+ * Parametros de campanhas guardados em {@code configuracao_automacao} (V91). Lidos a cada ciclo: o que o
  * administrador muda vale no ciclo seguinte, sem deploy e sem reiniciar.
  */
 public interface ConfiguracaoDeCampanhas {

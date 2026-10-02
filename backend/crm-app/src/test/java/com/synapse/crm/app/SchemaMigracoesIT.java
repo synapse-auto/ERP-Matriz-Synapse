@@ -66,7 +66,7 @@ class SchemaMigracoesIT extends PostgresIT {
                     "campanha",
                     "campanha_mensagem",
                     "campanha_mensagem_metrica",
-                    // V88 (E220): campanhas de template em massa, contadores diarios e opt-out.
+                    // V91 (E220): campanhas de template em massa, contadores diarios e opt-out.
                     "campanha_envio_dia",
                     "campanha_template",
                     "campanha_template_destinatario",
