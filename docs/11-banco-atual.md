@@ -200,7 +200,7 @@ Partições geridas por função, com janela relativa a `now()` — **não** há
 **`webhook_entrada`** — `id_externo` (PK, idempotência), `provedor`, **`payload` TEXT** (V17 — byte a byte, para reverificar HMAC), `recebido_em`, `processado_em`, `tentativas`, `proxima_tentativa_em` (V67), `ultimo_erro`, `esgotado_em`
 
 **`atendimento_leitura`** (V41) — leitura por usuário, em vez de compartilhar o legado
-`atendimento.lido_ate`. A V86 permite que gestor/subgestor/administrador consultem a linha
+`atendimento.lido_ate`. A V89 permite que gestor/subgestor/administrador consultem a linha
 de leitura do responsável, mas a escrita continua limitada à própria linha. No cartão,
 `naoLidas` soma mensagens do lead de todos os ciclos: para gestão com responsável, usa a
 leitura do responsável exibido (do ciclo ativo, quando existir); para atendente/participante
