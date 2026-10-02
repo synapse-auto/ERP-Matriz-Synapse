@@ -65,6 +65,23 @@ public class ReservarEnvioProativoUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Decisao reservar(UUID leadId, Pedido pedido) {
         TipoDeOrigem tipo = validar(pedido);
+        return decidir(leadId, tipo, pedido);
+    }
+
+    /**
+     * Reserva do disparo de uma campanha do proprio CRM (E220). A regra e a ocorrencia sao o id da
+     * campanha: o mesmo lead nunca e reservado duas vezes para a mesma campanha, qualquer que seja a
+     * chave. O tipo CAMPANHA nao e aceito do n8n ({@link TipoDeOrigem#declaradoPelaAutomacao}).
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Decisao reservarParaCampanha(UUID leadId, UUID campanhaId) {
+        String id = campanhaId.toString();
+        Pedido pedido = new Pedido(TipoDeOrigem.CAMPANHA.name(), id, id, "campanha:" + id + ":" + leadId, null);
+        return decidir(leadId, TipoDeOrigem.CAMPANHA, pedido);
+    }
+
+    private Decisao decidir(UUID leadId, TipoDeOrigem tipo, Pedido pedido) {
         if (!leads.leadExiste(leadId)) {
             throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
         }
