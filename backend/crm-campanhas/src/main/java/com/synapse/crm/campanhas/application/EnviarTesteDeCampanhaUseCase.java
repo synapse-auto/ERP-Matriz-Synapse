@@ -58,7 +58,7 @@ public class EnviarTesteDeCampanhaUseCase {
 
     public record Resultado(UUID leadId, UUID mensagemId, Instant enviadoEm, String corpoRenderizado) {}
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.TESTAR)
     @Auditable(acao = "ENVIAR_TESTE_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     public Resultado executar(UUID campanhaId, String telefone, boolean destinatarioAutorizou) {
         disponibilidade.exigir();

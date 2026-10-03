@@ -63,6 +63,15 @@ Legenda de papéis: A = ATENDENTE, S = SUBGESTOR, G = GESTOR, D = ADMINISTRADOR.
 | `automacao.ver` | Automação | Ver | `GET /automacao/config`, `/config/resumo-ia`, `/follow-ups`, `/fidelizacao`, `/telemetria` | `ListarConfiguracoesAutomacaoAdmin`, `ObterConfiguracaoResumoIa`, `ListarRegras*Admin`, `ObterStatusAutomacaoTelemetria` | S G D | S G D | não | não |
 | `automacao.editar_parametros` | Automação | Gerenciar | `PUT /automacao/config/{chave}`, `PUT /config/resumo-ia` | `AtualizarConfiguracaoAutomacao`, `AtualizarConfiguracaoResumoIa` | S G D | S G D | não | sim |
 | `automacao.regras` | Automação | Gerenciar | `POST/PUT/PATCH/DELETE /automacao/follow-ups*`, `/fidelizacao*` (regras) | `SalvarRegraFollowUp/Fidelizacao` (3+3), `AlternarRegra*` | S G D | S G D | não | não |
+| `campanhas.ver` | Campanhas (flag `campanhas`) | Ver | `GET /campanhas`, `/templates`, `/{id}`, destinatários, conferência, CSV, configuração e opt-outs; `POST /previa`, `/projecao` | consultas, prévia e projeção já existentes | S G D | S G D | não | não |
+| `campanhas.registrar_opt_out` | Campanhas | Editar | `PUT /campanhas/optouts/{leadId}` | `OptOutUseCases.registrar` | S G D | S G D | não | não |
+| `campanhas.criar` | Campanhas | Editar | `POST /campanhas` | `CriarCampanhaUseCase` | D | D | não | não |
+| `campanhas.editar` | Campanhas | Editar | `PUT /campanhas/{id}` | `AtualizarRascunhoUseCase` | D | D | não | não |
+| `campanhas.testar` | Campanhas | Editar | `POST /campanhas/{id}/teste` | `EnviarTesteDeCampanhaUseCase` | D | D | não | não |
+| `campanhas.operar` | Campanhas | Gerenciar | iniciar, pausar, retomar, cancelar, limite e interruptor | `IniciarCampanhaUseCase`, `ControleDaCampanhaUseCases` | D | D | não | sim |
+| `campanhas.conferir` | Campanhas | Gerenciar | `POST /campanhas/{id}/conferencia/{destinatarioId}/conferido` | `ControleDaCampanhaUseCases.resolverConferencia` | D | D | não | não |
+| `campanhas.configurar` | Campanhas | Gerenciar | `PUT /campanhas/configuracao` | `ConfiguracaoDeCampanhasUseCases.atualizar` | D | D | não | sim |
+| `campanhas.opt_out` | Campanhas | Gerenciar | `DELETE /campanhas/optouts/{leadId}` | `OptOutUseCases.remover` | D | D | não | sim |
 | `equipe.ver` | Gestão da equipe | Ver | `GET /usuarios`, `GET /equipe/desempenho`, leitura de `/gestao/permissoes/**` | `ListarUsuariosUseCase`, `ObterDesempenhoDaEquipeUseCase`, `AutorizacaoDeGestao.LER` | S G D | S G D | não | não |
 | `equipe.disponibilidade_ia` | Gestão da equipe | Editar | `PATCH /usuarios/{id}/disponibilidade-ia` | `AtualizarDisponibilidadeParaIaUseCase` | S G D | S G D | não | não |
 | `equipe.criar` | Gestão da equipe | Gerenciar | `POST /usuarios` | `CriarUsuarioUseCase` (S: só ATENDENTE) | G D **+ S delegado** | G D | não | sim |
@@ -81,7 +90,7 @@ e se uma capacidade configurável não tiver nenhum ponto de aplicação.
 | Função existente | Motivo |
 |---|---|
 | Banco de Arquivos | Fora da primeira entrega (flag `banco_arquivos` desligada). Upload de anexo no chat **não** é Banco de Arquivos: está em `atendimentos.responder`. |
-| Campanhas, Relatórios, Horários, sub-abas do Dashboard | Fora de escopo / flags desligadas. Nenhum controle "Em breve". |
+| Relatórios, Horários, sub-abas do Dashboard | Fora de escopo / flags desligadas. Nenhum controle "Em breve". Campanhas entrou no catálogo após E220. |
 | Importação e exportação de leads (`/leads/importacao/**`, `/leads/exportar`) | Excluídas pelo pedido. Continuam com a regra que já tinham. |
 | Visibilidade de leads/contatos/timeline/mídias | Estrutural (RN-CRM-01, Specification, RLS). Exibida como "regra fixa", nunca configurável. |
 | "Assumir conversa de outro atendente" | Não é ação discreta: é consequência de RN-CRM-06 dentro do recorte. ATENDENTE não alcança lead de colega; configurar isso exigiria mudar a Specification. |
@@ -269,7 +278,7 @@ ON CONFLICT (chave) DO UPDATE SET habilitado = TRUE;
 | Modal sem senha, com "Gestor" | senha inicial obrigatória; só Subgestor/Atendente (S delegado: só Atendente) | contrato atual; sem credencial implícita |
 | Ver conversas com Não/Meus/Equipe/Todos | Meus/Todos exibidos como regra fixa | RN-CRM-01; não existe "Equipe" |
 | "Assumir conversa de outro atendente" | ausente | ver 2.2 |
-| Banco de Arquivos, Campanhas, Relatórios no menu | fora | escopo |
+| Banco de Arquivos, Relatórios no menu | fora | escopo; Campanhas entrou no catálogo após E220 |
 | Cópia de gestor para atendente | recusada; cópias sempre recortadas pelo teto com prévia | não transmitir limite superior |
 | Exceção ligando "assumir colega"/"criar template" do atendente | impossível: "assumir" não existe; ações fora do teto são recusadas | teto |
 | Toggle ligado com nível abaixo do mínimo | bloqueado e explicado | coerência |

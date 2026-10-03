@@ -68,11 +68,13 @@ describe("menu de campanhas", () => {
     expect(itemDeMenuVisivel("campanhas", "ADMINISTRADOR", [], "campanhas")).toBe(false);
   });
 
-  it("com permissões efetivas carregadas, o atendente continua sem o item (papel, não capacidade)", () => {
-    const efetivas = (papel: string) =>
-      ({ papel, acessaGestao: papel !== "ATENDENTE", capacidades: {} }) as never;
-    expect(itemDeMenuVisivel("campanhas", "ATENDENTE", ["campanhas"], "campanhas", true, efetivas("ATENDENTE"))).toBe(false);
-    expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, efetivas("GESTOR"))).toBe(true);
+  it("com permissões efetivas, segue a capacidade e nunca ignora a flag", () => {
+    const efetivas = (permitido: boolean) =>
+      ({ capacidades: { "campanhas.ver": { permitido } } }) as never;
+    expect(itemDeMenuVisivel("campanhas", "ATENDENTE", ["campanhas"], "campanhas", true, efetivas(false))).toBe(false);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, efetivas(true))).toBe(true);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, efetivas(false))).toBe(false);
+    expect(itemDeMenuVisivel("campanhas", "GESTOR", [], "campanhas", true, efetivas(true))).toBe(false);
     expect(itemDeMenuVisivel("campanhas", "GESTOR", ["campanhas"], "campanhas", true, null)).toBe(false);
   });
 });

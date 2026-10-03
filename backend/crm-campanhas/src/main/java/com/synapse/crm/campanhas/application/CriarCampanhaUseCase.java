@@ -37,7 +37,7 @@ public class CriarCampanhaUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.CRIAR)
     @Auditable(acao = "CRIAR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     public Campanha executar(PedidoDeCampanha pedido) {
         disponibilidade.exigir();

@@ -110,6 +110,26 @@ public enum Capacidade {
     AUTOMACAO_REGRAS("automacao.regras", Modulo.AUTOMACAO, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
             false, gestao(), nenhum(), false, "automacao.ver"),
 
+    // --- Campanhas -------------------------------------------------------------------------
+    CAMPANHAS_VER("campanhas.ver", Modulo.CAMPANHAS, NivelDeAcesso.VER, Tipo.ACAO,
+            false, gestao(), nenhum(), false),
+    CAMPANHAS_REGISTRAR_OPT_OUT("campanhas.registrar_opt_out", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, gestao(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_CRIAR("campanhas.criar", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_EDITAR("campanhas.editar", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_TESTAR("campanhas.testar", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
+            false, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_OPERAR("campanhas.operar", Modulo.CAMPANHAS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            true, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_CONFERIR("campanhas.conferir", Modulo.CAMPANHAS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            false, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_CONFIGURAR("campanhas.configurar", Modulo.CAMPANHAS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            true, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+    CAMPANHAS_OPT_OUT("campanhas.opt_out", Modulo.CAMPANHAS, NivelDeAcesso.GERENCIAR, Tipo.ACAO,
+            true, superioresCampanhas(), nenhum(), false, "campanhas.ver"),
+
     // --- Gestao da equipe -------------------------------------------------------------------
     EQUIPE_VER("equipe.ver", Modulo.EQUIPE, NivelDeAcesso.VER, Tipo.ACAO, false, gestao(), nenhum(), false),
     EQUIPE_DISPONIBILIDADE_IA("equipe.disponibilidade_ia", Modulo.EQUIPE, NivelDeAcesso.EDITAR, Tipo.ACAO,
@@ -219,7 +239,8 @@ public enum Capacidade {
     }
 
     private static Set<PapelUsuario> todos() {
-        return EnumSet.allOf(PapelUsuario.class);
+        // Teto historico explicito: um papel futuro nao herda capacidades apenas por entrar no enum.
+        return EnumSet.of(ATENDENTE, SUBGESTOR, GESTOR, ADMINISTRADOR);
     }
 
     private static Set<PapelUsuario> gestao() {
@@ -228,6 +249,10 @@ public enum Capacidade {
 
     private static Set<PapelUsuario> superiores() {
         return EnumSet.of(GESTOR, ADMINISTRADOR);
+    }
+
+    private static Set<PapelUsuario> superioresCampanhas() {
+        return EnumSet.of(ADMINISTRADOR);
     }
 
     private static Set<PapelUsuario> nenhum() {

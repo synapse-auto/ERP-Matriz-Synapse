@@ -112,6 +112,35 @@ beforeEach(() => {
 });
 
 describe("Gestão", () => {
+  it("Campanhas aparece no catálogo da Gestão e permite revogar a leitura do subgestor", () => {
+    CATALOGO.modulos.push({
+      id: "campanhas", nivelMinimoPermitido: "SEM_ACESSO", flag: "campanhas",
+      nivelMaximoPorPapel: { ATENDENTE: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelPadraoPorPapel: { ATENDENTE: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
+    });
+    CATALOGO.capacidades.push({
+      id: "campanhas.ver", modulo: "campanhas", nivelMinimo: "VER", tipo: "ACAO", sensivel: false,
+      teto: ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"], delegavel: false, dependencias: [], alcancePorPapel: {},
+    });
+    try {
+      funcionalidades = ["campanhas"];
+      perfis = [perfil("GESTOR", true), perfil("SUBGESTOR"), perfil("ATENDENTE")];
+      render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="SUBGESTOR" onSujoChange={vi.fn()} />);
+      expect(screen.getByText(TEXTOS.modulos.campanhas.rotulo)).toBeInTheDocument();
+      const leitura = screen.getByRole("switch", { name: TEXTOS.capacidades["campanhas.ver"] });
+      expect(leitura).toHaveAttribute("aria-checked", "true");
+      fireEvent.click(leitura);
+      fireEvent.click(screen.getByRole("button", { name: TEXTOS.barra.salvar }));
+      expect(salvarPerfil.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({ papel: "SUBGESTOR", rascunho: expect.objectContaining({ acoes: expect.objectContaining({ "campanhas.ver": false }) }) }),
+        expect.anything(),
+      );
+    } finally {
+      CATALOGO.capacidades.pop();
+      CATALOGO.modulos.pop();
+    }
+  });
+
   it("ATENDENTE não acessa: a página mostra o bloqueio vindo do backend, sem abas", () => {
     minhas = minhasDe("ATENDENTE", false);
     render(<PaginaGestao />);

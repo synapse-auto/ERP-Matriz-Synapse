@@ -14,7 +14,7 @@ import {
   type EstadoDoAssistente,
 } from "@/lib/campanhas/estado-do-assistente";
 import {
-  useEhAdministradorDeCampanhas,
+  usePodeEmCampanhas,
   usePreviaDoPublico,
   useSalvarRascunho,
   useValorComAtraso,
@@ -44,7 +44,7 @@ export function AssistenteDeCampanha({ inicial, tetoDaInstancia, limiteMeta, pas
   const textos = useTextos().campanhas;
   const t = textos.assistente;
   const roteador = useRouter();
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const podeOperar = usePodeEmCampanhas("operar");
   const salvar = useSalvarRascunho();
   const [estado, setEstado] = useState<EstadoDoAssistente>(inicial);
   const [passo, setPasso] = useState(passoInicial);
@@ -132,7 +132,7 @@ export function AssistenteDeCampanha({ inicial, tetoDaInstancia, limiteMeta, pas
         {PASSOS[passo] === "revisao" && (
           <PassoRevisao
             estado={estado}
-            ehAdministrador={ehAdministrador}
+            ehAdministrador={podeOperar}
             iniciando={iniciando}
             erroAoIniciar={erroAoIniciar}
             aoMudar={mudar}

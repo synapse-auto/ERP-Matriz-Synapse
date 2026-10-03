@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { campanhaDeTeste, previaDeTeste, projecaoDeTeste, templateDeTeste } from "@/test/fabricas-de-campanha";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 import { textosReais } from "@/test/textos-reais";
 
 const estado = vi.hoisted(() => ({ papel: "ADMINISTRADOR", rota: vi.fn() }));
@@ -107,6 +108,16 @@ describe("passo 4: revisão e confirmação digitada", () => {
 
     await waitFor(() => expect(api.enviarTeste).toHaveBeenCalledWith("c1", "5511999990000", true));
     expect(await screen.findByText(t.passoRevisao.testeEnviado)).toBeInTheDocument();
+  });
+
+  it("não envia teste quando campanhas.testar foi revogada", async () => {
+    definirCapacidadesDeTeste({ negadas: ["campanhas.testar"] });
+    await prepararRevisao();
+    const enviar = screen.getByRole("button", { name: t.passoRevisao.testeEnviar });
+    fireEvent.change(screen.getByLabelText(t.passoRevisao.testeTelefone), { target: { value: "5511999990000" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: t.passoRevisao.testeAutorizou }));
+    expect(enviar).toBeDisabled();
+    expect(api.enviarTeste).not.toHaveBeenCalled();
   });
 
   it("sem público elegível, Iniciar fica desabilitado e a pendência é dita", async () => {

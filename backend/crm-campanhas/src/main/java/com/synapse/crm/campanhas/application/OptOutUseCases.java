@@ -30,7 +30,7 @@ public class OptOutUseCases {
         this.usuario = usuario;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.REGISTRAR_OPT_OUT)
     @Auditable(acao = "REGISTRAR_OPTOUT_CAMPANHA", entidadeTipo = "LEAD", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public void registrar(UUID leadId, String motivo) {
@@ -38,7 +38,7 @@ public class OptOutUseCases {
         optOuts.registrar(leadId, Origem.MANUAL, motivo, usuario.atual().id());
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPT_OUT)
     @Auditable(acao = "REMOVER_OPTOUT_CAMPANHA", entidadeTipo = "LEAD", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public boolean remover(UUID leadId) {

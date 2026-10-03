@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { campanhaDeTeste, detalheDeTeste } from "@/test/fabricas-de-campanha";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 import { textosReais } from "@/test/textos-reais";
 
 const estado = vi.hoisted(() => ({ papel: "ADMINISTRADOR" }));
@@ -111,6 +112,7 @@ describe("detalhe da campanha", () => {
 
   it("conferência manual: gestor vê o botão desabilitado e a explicação", async () => {
     estado.papel = "GESTOR";
+    definirCapacidadesDeTeste({ negadas: ["campanhas.conferir"] });
     renderizar();
     fireEvent.click(await screen.findByRole("tab", { name: new RegExp(t.detalhe.abas.conferencia) }));
     expect(await screen.findByRole("button", { name: t.detalhe.conferencia.marcar })).toBeDisabled();

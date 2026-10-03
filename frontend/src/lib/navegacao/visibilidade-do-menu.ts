@@ -7,6 +7,7 @@ import type { MinhasPermissoes } from "@/lib/gestao/types";
  */
 const CAPACIDADE_DO_ITEM: Record<string, string> = {
   dashboard: "dashboard.ver",
+  campanhas: "campanhas.ver",
   automacao: "automacao.ver",
   templatesWhatsApp: "templates.ver",
   mensagensRapidas: "mensagens_rapidas.usar",
@@ -44,8 +45,6 @@ export function itemDeMenuVisivel(
 
 function visivelPelasPermissoes(chave: string, permissoes: MinhasPermissoes | null): boolean {
   if (chave === "gestao") return permissoes?.acessaGestao === true;
-  // Campanhas seguem o papel (backend: GESTOR, SUBGESTOR, ADMINISTRADOR), não uma capacidade da Gestão.
-  if (chave === "campanhas") return permissoes !== null && papelDeGestao(permissoes.papel);
   const capacidade = CAPACIDADE_DO_ITEM[chave];
   if (!capacidade) return true;
   return permissoes?.capacidades[capacidade]?.permitido === true;

@@ -6,7 +6,7 @@ import { ArrowRight, PencilLine } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarDataHora, formatarNumero } from "@/lib/campanhas/formatacao";
-import { useEhAdministradorDeCampanhas } from "@/lib/campanhas/hooks";
+import { usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { Campanha } from "@/lib/campanhas/types";
 import { percentual } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -18,7 +18,7 @@ import { destinoDaCampanha } from "./tabela-de-campanhas";
 /** Campanha como cartão: no celular a tabela de 7 colunas não cabe, então cada linha vira um cartão. */
 export function CartaoDeCampanha({ campanha }: { campanha: Campanha }) {
   const textos = useTextos().campanhas.lista;
-  const destino = destinoDaCampanha(campanha, useEhAdministradorDeCampanhas());
+  const destino = destinoDaCampanha(campanha, usePodeEmCampanhas("editar"));
   const Icone = destino.rotulo === "continuarRascunho" ? PencilLine : ArrowRight;
   const { total, enviados } = campanha.contadores;
   const pct = percentual(enviados, total);

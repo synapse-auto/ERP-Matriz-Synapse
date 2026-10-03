@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ErroDeApi } from "@/lib/api/errors";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 import { campanhaDeTeste, listaDeTeste } from "@/test/fabricas-de-campanha";
 import { textosReais } from "@/test/textos-reais";
 
@@ -66,6 +67,7 @@ describe("pagina de campanhas", () => {
 
   it("gestor vê Nova campanha desabilitada e a razão, sem link para o assistente", async () => {
     estado.papel = "GESTOR";
+    definirCapacidadesDeTeste({ negadas: ["campanhas.criar"] });
     api.listarCampanhas.mockResolvedValue(listaDeTeste([]));
     renderizar();
 

@@ -10,7 +10,7 @@ import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import {
   funcionalidadeIndisponivel,
   TAMANHO_DA_PAGINA,
-  useEhAdministradorDeCampanhas,
+  usePodeEmCampanhas,
   useListaDeCampanhas,
 } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -22,7 +22,7 @@ import { EsqueletoDaTira, TiraDeIndicadores } from "./tira-de-indicadores";
 
 function Cabecalho() {
   const textos = useTextos().campanhas;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const podeCriar = usePodeEmCampanhas("criar");
   return (
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -34,7 +34,7 @@ function Cabecalho() {
           <Settings aria-hidden />
           {textos.configuracao}
         </Link>
-        {ehAdministrador ? (
+        {podeCriar ? (
           <Link href="/campanhas/nova" className={buttonVariants()}>
             <Plus aria-hidden />
             {textos.novaCampanha}
@@ -75,7 +75,7 @@ function Paginacao({
 
 export function PaginaCampanhas() {
   const textos = useTextos().campanhas;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const podeCriar = usePodeEmCampanhas("criar");
   const [pagina, setPagina] = useState(0);
   const consulta = useListaDeCampanhas(pagina);
 
@@ -104,7 +104,7 @@ export function PaginaCampanhas() {
               titulo={textos.lista.vazioTitulo}
               descricao={textos.lista.vazioDescricao}
               acao={
-                ehAdministrador ? (
+                podeCriar ? (
                   <Link href="/campanhas/nova" className={buttonVariants()}>
                     <Plus aria-hidden />
                     {textos.lista.vazioAcao}
