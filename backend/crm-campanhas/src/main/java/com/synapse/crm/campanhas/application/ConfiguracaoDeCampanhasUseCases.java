@@ -32,7 +32,7 @@ public class ConfiguracaoDeCampanhasUseCases {
         return configuracao.atuais();
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.CONFIGURAR)
     @Auditable(acao = "ATUALIZAR_CONFIGURACAO_CAMPANHAS", entidadeTipo = "CONFIGURACAO", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Parametros atualizar(Atualizacao atualizacao) {

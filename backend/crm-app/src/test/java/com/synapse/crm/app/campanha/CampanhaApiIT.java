@@ -8,10 +8,12 @@ import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_ATENDENTE;
 import static com.synapse.crm.app.seguranca.ApoioAutenticacao.SENHA_GESTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,6 +84,49 @@ class CampanhaApiIT extends CampanhaITBase {
         assertThat(chamar(tokenGestor, HttpMethod.PUT, BASE + "/configuracao", Map.of("tetoDiarioDaInstancia", 50))
                         .getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("revogacao de campanhas.ver no perfil bloqueia a API real sem alterar o teto do administrador")
+    void campanhasRevogadasNoPerfilBloqueiamEndpoint() {
+        try {
+            jdbc.update("""
+                    INSERT INTO permissao_perfil_item (papel, tipo, alvo, valor)
+                    VALUES ('SUBGESTOR', 'ACAO', 'campanhas.ver', 'NEGAR')
+                    ON CONFLICT (papel, tipo, alvo) DO UPDATE SET valor = EXCLUDED.valor
+                    """);
+            String tokenSubgestor = ApoioAutenticacao.login(http,
+                    ApoioAutenticacao.EMAIL_SUBGESTOR, ApoioAutenticacao.SENHA_SUBGESTOR).accessToken();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(
+                    chamar(tokenSubgestor, HttpMethod.GET, BASE, null).getStatusCode())
+                    .isEqualTo(HttpStatus.FORBIDDEN));
+            assertThat(chamar(tokenAdmin, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        } finally {
+            jdbc.update("DELETE FROM permissao_perfil_item WHERE papel = 'SUBGESTOR' AND alvo = 'campanhas.ver'");
+        }
+    }
+
+    @Test
+    @DisplayName("revogar registro de opt-out bloqueia apenas a escrita e preserva leitura da campanha")
+    void registroDeOptOutRevogadoNoPerfil() {
+        UUID lead = criarLeadsElegiveis(1).get(0);
+        try {
+            jdbc.update("""
+                    INSERT INTO permissao_perfil_item (papel, tipo, alvo, valor)
+                    VALUES ('SUBGESTOR', 'ACAO', 'campanhas.registrar_opt_out', 'NEGAR')
+                    ON CONFLICT (papel, tipo, alvo) DO UPDATE SET valor = EXCLUDED.valor
+                    """);
+            String tokenSubgestor = ApoioAutenticacao.login(http,
+                    ApoioAutenticacao.EMAIL_SUBGESTOR, ApoioAutenticacao.SENHA_SUBGESTOR).accessToken();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(
+                    chamar(tokenSubgestor, HttpMethod.PUT, BASE + "/optouts/" + lead, Map.of("motivo", "pediu"))
+                            .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+            assertThat(chamar(tokenSubgestor, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM contato_optout WHERE lead_id = ?", Integer.class, lead))
+                    .isZero();
+        } finally {
+            jdbc.update("DELETE FROM permissao_perfil_item WHERE papel = 'SUBGESTOR' AND alvo = 'campanhas.registrar_opt_out'");
+        }
     }
 
     @Test

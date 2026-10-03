@@ -21,7 +21,8 @@ public enum PapelUsuario {
      * comissao e disputam leads: errar esta resposta e incidente comercial, nao bug de tela.
      */
     public boolean enxergaTodosOsLeads() {
-        return this != ATENDENTE;
+        // Lista positiva: um papel novo nunca herda acesso a todos por exclusao de ATENDENTE.
+        return this == SUBGESTOR || this == GESTOR || this == ADMINISTRADOR;
     }
 
     /**

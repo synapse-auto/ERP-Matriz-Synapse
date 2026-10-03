@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { textosReais } from "@/test/textos-reais";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 const estado = vi.hoisted(() => ({ papel: "ADMINISTRADOR" }));
 const api = vi.hoisted(() => ({ obterConfiguracaoDeCampanhas: vi.fn(), atualizarConfiguracaoDeCampanhas: vi.fn() }));
@@ -67,6 +68,7 @@ describe("configurações de campanhas da instância", () => {
 
   it("gestor só consulta: campos e botão desabilitados, com a explicação", async () => {
     estado.papel = "GESTOR";
+    definirCapacidadesDeTeste({ negadas: ["campanhas.configurar"] });
     renderizar();
     expect(await screen.findByLabelText(t.teto)).toBeDisabled();
     expect(screen.getByRole("button", { name: t.salvar })).toBeDisabled();

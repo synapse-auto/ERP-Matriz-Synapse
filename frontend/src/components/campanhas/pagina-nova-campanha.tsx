@@ -10,7 +10,7 @@ import {
   funcionalidadeIndisponivel,
   useConfiguracaoDeCampanhas,
   useDetalheDaCampanha,
-  useEhAdministradorDeCampanhas,
+  usePodeEmCampanhas,
 } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -59,10 +59,11 @@ function ReabrirRascunho({ id, teto, limiteMeta }: { id: string; teto: number; l
 export function PaginaNovaCampanha() {
   const textos = useTextos().campanhas;
   const rascunho = useSearchParams().get("rascunho");
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const podeCriar = usePodeEmCampanhas("criar");
+  const podeEditar = usePodeEmCampanhas("editar");
   const configuracao = useConfiguracaoDeCampanhas();
 
-  if (!ehAdministrador) return <SoAdministradorCria />;
+  if (rascunho ? !podeEditar : !podeCriar) return <SoAdministradorCria />;
   if (configuracao.isError && funcionalidadeIndisponivel(configuracao.error)) return <CampanhasIndisponiveis />;
   if (configuracao.isError) {
     return (

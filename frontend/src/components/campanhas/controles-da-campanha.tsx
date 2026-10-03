@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { useAcaoDaCampanha, useAlterarInterruptor, useEhAdministradorDeCampanhas } from "@/lib/campanhas/hooks";
+import { useAcaoDaCampanha, useAlterarInterruptor, usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { Campanha } from "@/lib/campanhas/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -29,11 +29,11 @@ function podeCancelar(campanha: Campanha): boolean {
   return campanha.status !== "CONCLUIDA" && campanha.status !== "CANCELADA";
 }
 
-/** Pausar, retomar, cancelar e o interruptor. Só o administrador age; os demais veem o botão e o porquê. */
+/** Pausar, retomar, cancelar e o interruptor seguem a capacidade efetiva de operação. */
 export function ControlesDaCampanha({ campanha }: { campanha: Campanha }) {
   const textos = useTextos().campanhas;
   const t = textos.acoes;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const ehAdministrador = usePodeEmCampanhas("operar");
   const pausar = useAcaoDaCampanha("pausar");
   const retomar = useAcaoDaCampanha("retomar");
   const cancelar = useAcaoDaCampanha("cancelar");

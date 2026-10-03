@@ -11,8 +11,8 @@ import com.synapse.crm.sharedkernel.permissao.ConsultaDeFuncionalidades;
  * templates ({@code gerenciaTemplates}). A decisao e por capacidade do canal, nunca pelo nome do provedor ou do
  * cliente: um filho com outro provedor oficial ganha o recurso sem tocar no core.
  */
-@Component
-class DisponibilidadeDeCampanhasPorFlag implements DisponibilidadeDeCampanhas {
+@Component("disponibilidadeDeCampanhas")
+public class DisponibilidadeDeCampanhasPorFlag implements DisponibilidadeDeCampanhas {
 
     static final String FUNCIONALIDADE = "campanhas";
 

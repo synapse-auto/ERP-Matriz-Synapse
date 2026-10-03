@@ -32,7 +32,7 @@ public class AtualizarRascunhoUseCase {
         this.transacoes = transacoes;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.EDITAR)
     @Auditable(acao = "ATUALIZAR_RASCUNHO_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     public Campanha executar(UUID id, PedidoDeCampanha pedido) {
         disponibilidade.exigir();

@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarDataHora, formatarNumero } from "@/lib/campanhas/formatacao";
-import { useEhAdministradorDeCampanhas } from "@/lib/campanhas/hooks";
+import { usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { Campanha } from "@/lib/campanhas/types";
 import { percentual } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -29,9 +29,9 @@ export function EsqueletoDaTabela() {
 
 export function destinoDaCampanha(
   campanha: Campanha,
-  ehAdministrador: boolean,
+  podeEditar: boolean,
 ): { href: string; rotulo: "abrir" | "continuarRascunho" } {
-  return campanha.status === "RASCUNHO" && ehAdministrador
+  return campanha.status === "RASCUNHO" && podeEditar
     ? { href: `/campanhas/nova?rascunho=${campanha.id}`, rotulo: "continuarRascunho" }
     : { href: `/campanhas/${campanha.id}`, rotulo: "abrir" };
 }
@@ -66,7 +66,7 @@ function Progresso({ campanha }: { campanha: Campanha }) {
 
 function Linha({ campanha }: { campanha: Campanha }) {
   const textos = useTextos().campanhas.lista;
-  const destino = destinoDaCampanha(campanha, useEhAdministradorDeCampanhas());
+  const destino = destinoDaCampanha(campanha, usePodeEmCampanhas("editar"));
   const Icone = destino.rotulo === "continuarRascunho" ? PencilLine : ArrowRight;
   return (
     <tr className="transition-colors hover:bg-muted/40">

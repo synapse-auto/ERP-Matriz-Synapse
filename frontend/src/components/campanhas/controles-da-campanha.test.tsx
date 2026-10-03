@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { campanhaDeTeste, detalheDeTeste } from "@/test/fabricas-de-campanha";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 import { textosReais } from "@/test/textos-reais";
 
 const estado = vi.hoisted(() => ({ papel: "ADMINISTRADOR" }));
@@ -48,6 +49,7 @@ describe("controles da campanha", () => {
 
   it.each(["GESTOR", "SUBGESTOR"])("%s vê os botões desabilitados e a explicação, e nada chama a API", (papel) => {
     estado.papel = papel;
+    definirCapacidadesDeTeste({ negadas: ["campanhas.operar"] });
     renderizar(<ControlesDaCampanha campanha={campanhaDeTeste()} />);
 
     const pausar = screen.getByRole("button", { name: t.acoes.pausar });
@@ -120,6 +122,7 @@ describe("ajuste do limite diário", () => {
 
   it("gestor não salva: botão desabilitado com a explicação", () => {
     estado.papel = "GESTOR";
+    definirCapacidadesDeTeste({ negadas: ["campanhas.operar"] });
     renderizar(<AjusteDeLimite detalhe={detalheDeTeste(campanhaDeTeste())} />);
     expect(screen.getByRole("button", { name: t.detalhe.limite.salvar })).toBeDisabled();
     expect(screen.getByText(t.detalhe.limite.somenteAdministrador)).toBeInTheDocument();
