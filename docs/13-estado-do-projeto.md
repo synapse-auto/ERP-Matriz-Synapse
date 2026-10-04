@@ -4,6 +4,23 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
+
+Relato: leads da Fêmina sem foto. Investigação: a captura **já está implementada** desde 16/09 (adaptador
+`uzapi-autotic` com `getPicture`, worker pós-commit com bulkhead e circuit breaker, validação e reencode no
+bucket privado, rota autenticada `/leads/{id}/foto`, avatar com iniciais de fallback na lista, no cabeçalho e
+no painel). O Swagger oficial confirma o endpoint e o corpo da chamada, mas **só documenta HTTP 201 sem
+schema** e nenhum webhook traz foto; o formato real da resposta nunca foi visto, e uma resposta fora do
+esperado virava "sem foto" em silêncio (4xx só em `debug`, o resto sem log). Três causas plausíveis, nenhuma
+provada: (1) lead antigo, porque só há consulta quando entra mensagem nova do contato; (2) formato de
+resposta não reconhecido; (3) URL de foto em host diferente de `WHATSAPP_URL_BASE` (recusada por SSRF).
+
+Feito: cada "sem foto" agora grava o motivo (código, status, tipo de conteúdo, tamanho, nomes de campo, host),
+sem telefone, token, valores nem query assinada, com testes que provam que nada sensível vaza. Procedimento de
+teste controlado e tabela de motivos em `docs/18`; contrato em `docs/38` §4.1. **Não alterado:** formato
+aceito, lista de hosts e cache, porque mudar qualquer um sem a resposta real seria chute. Próximo passo
+depende do resultado do teste na Fêmina.
+
 ### 02/10/2026 — Campanhas de template em massa com limite diário (E220)
 
 Entregue em duas etapas: backend na `main` (PR #254, V91) e interface (PR #255). Só Meta oficial
