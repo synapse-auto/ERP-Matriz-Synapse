@@ -2308,6 +2308,10 @@
         "rotulo": "Automação",
         "descricao": "Parâmetros e regras da automação"
       },
+      "campanhas": {
+        "rotulo": "Campanhas",
+        "descricao": "Envios em massa e acompanhamento das campanhas"
+      },
       "equipe": {
         "rotulo": "Gestão da equipe",
         "descricao": "Integrantes, delegações e permissões"
@@ -2346,6 +2350,15 @@
       "automacao.ver": "Ver configurações da automação",
       "automacao.editar_parametros": "Alterar parâmetros da automação",
       "automacao.regras": "Gerenciar regras de follow-up e fidelização",
+      "campanhas.ver": "Ver campanhas e indicadores",
+      "campanhas.registrar_opt_out": "Registrar bloqueio de campanhas de um contato",
+      "campanhas.criar": "Criar campanha",
+      "campanhas.editar": "Editar rascunho de campanha",
+      "campanhas.testar": "Enviar campanha de teste",
+      "campanhas.operar": "Iniciar, pausar, retomar e cancelar campanhas",
+      "campanhas.conferir": "Conferir envios com resultado incerto",
+      "campanhas.configurar": "Alterar configurações de campanhas",
+      "campanhas.opt_out": "Remover bloqueio de campanhas de um contato",
       "equipe.ver": "Ver equipe e acessar Gestão",
       "equipe.disponibilidade_ia": "Ligar e desligar disponibilidade para a IA",
       "equipe.criar": "Criar usuário",

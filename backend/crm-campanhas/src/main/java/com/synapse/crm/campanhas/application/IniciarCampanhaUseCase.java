@@ -36,7 +36,7 @@ public class IniciarCampanhaUseCase {
         this.transacoes = transacoes;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "INICIAR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     public Campanha executar(UUID id) {
         disponibilidade.exigir();

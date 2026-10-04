@@ -18,7 +18,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 class PoliticaDePermissoesTest {
 
-    private static final Set<String> FLAGS = Set.of("dashboard");
+    private static final Set<String> FLAGS = Set.of("dashboard", "campanhas");
     private static final ConfiguracaoDePermissoes VAZIA = ConfiguracaoDePermissoes.vazia();
 
     private static ConfiguracaoDePermissoes acoes(Map<Capacidade, Boolean> acoes) {
@@ -134,6 +134,35 @@ class PoliticaDePermissoesTest {
         PermissoesEfetivas gestor = PoliticaDePermissoes.calcular(PapelUsuario.GESTOR, VAZIA, VAZIA, Set.of());
         assertThat(gestor.permite(Capacidade.DASHBOARD_VER)).isFalse();
         assertThat(gestor.estado(Capacidade.DASHBOARD_VER).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+        assertThat(gestor.permite(Capacidade.CAMPANHAS_VER)).isFalse();
+        assertThat(gestor.estado(Capacidade.CAMPANHAS_VER).motivo()).isEqualTo(Motivo.FLAG_DESLIGADA);
+    }
+
+    @Test
+    @DisplayName("Campanhas preserva leitura da gestao e escrita exclusiva do administrador")
+    void campanhasPreservaTetoAtual() {
+        for (PapelUsuario papel : PapelUsuario.values()) {
+            PermissoesEfetivas efetivas = PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS);
+            assertThat(efetivas.permite(Capacidade.CAMPANHAS_VER))
+                    .as("campanhas.ver para " + papel)
+                    .isEqualTo(papel != PapelUsuario.ATENDENTE);
+            assertThat(efetivas.permite(Capacidade.CAMPANHAS_OPERAR))
+                    .as("campanhas.operar para " + papel)
+                    .isEqualTo(papel == PapelUsuario.ADMINISTRADOR);
+        }
+    }
+
+    @Test
+    @DisplayName("Campanhas revogada no perfil impede leitura e operacao dependente")
+    void campanhasRevogadaImpedeUso() {
+        ConfiguracaoDePermissoes semCampanhas = acoes(Map.of(Capacidade.CAMPANHAS_VER, false));
+        PermissoesEfetivas admin = PoliticaDePermissoes.calcular(
+                PapelUsuario.ADMINISTRADOR, semCampanhas, VAZIA, FLAGS);
+        // Perfil do administrador e fixo: uma configuracao fabricada nao pode revoga-lo.
+        assertThat(admin.permite(Capacidade.CAMPANHAS_VER)).isTrue();
+        PermissoesEfetivas sub = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, semCampanhas, VAZIA, FLAGS);
+        assertThat(sub.permite(Capacidade.CAMPANHAS_VER)).isFalse();
+        assertThat(sub.estado(Capacidade.CAMPANHAS_VER).origem()).isEqualTo(Origem.PERFIL);
     }
 
     @Test

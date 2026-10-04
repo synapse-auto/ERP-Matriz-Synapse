@@ -858,10 +858,15 @@ campanhas) com `SELECT version FROM flyway_schema_history ORDER BY installed_ran
 UPDATE feature_flag SET habilitado = TRUE WHERE chave = 'campanhas';
 ```
 
-**Quem faz o quê.** Gestor, subgestor e administrador veem lista, detalhe, destinatários, conferência e
-configurações. Criar/salvar rascunho, enviar teste, iniciar, pausar, retomar, cancelar, mudar limite, marcar
-conferido e alterar configurações são **só do administrador** (`PermissoesDeCampanha.ESCRITA`); a tela mostra o
-botão desabilitado com a explicação ao lado.
+**Quem faz o quê.** Com a flag ligada, gestor, subgestor e administrador têm `campanhas.ver` por padrão:
+lista, detalhe, destinatários, conferência, configurações, prévia e projeção. Registrar opt-out
+é a capacidade separada `campanhas.registrar_opt_out`, concedida por padrão à gestão atual.
+O perfil configurável do subgestor pode revogar a leitura; a API passa a responder 403 e o item some do menu.
+Criar, editar rascunho, enviar teste, operar o ciclo, marcar conferido, alterar configurações e remover
+opt-out têm capacidades separadas, atualmente limitadas ao administrador pelo teto de papel. A tela
+consulta as capacidades efetivas; a API as valida antes de executar. A flag desligada continua
+independente da permissão e responde 404 em todas as rotas de Campanhas. Não há endpoint específico
+de métricas: os indicadores existentes vêm das consultas de lista/detalhe e pertencem a `campanhas.ver`.
 
 **Limites sem deploy.** Campanhas > Configurações (administrador) grava em `configuracao_automacao`
 (`campanhas.*`), valendo no ciclo seguinte: teto diário da instância (semente 200), limite padrão (100),

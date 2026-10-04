@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useEffect, useState } from "react";
 
 import { ErroDeApi } from "@/lib/api/errors";
-import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { listarEtapas } from "@/lib/lead/api";
 
 import {
@@ -44,9 +44,9 @@ export const TAMANHO_DA_PAGINA = 10;
 
 export const CHAVE_CAMPANHAS = ["campanhas"] as const;
 
-/** Só o administrador inicia, pausa, cancela e altera limites (o backend recusa os demais com 403). */
-export function useEhAdministradorDeCampanhas(): boolean {
-  return useAuthStore((estado) => estado.papel === "ADMINISTRADOR");
+/** A decisão vem do mesmo catálogo efetivo usado pelo backend e pela Gestão. */
+export function usePodeEmCampanhas(acao: "criar" | "editar" | "testar" | "operar" | "conferir" | "configurar" | "opt_out"): boolean {
+  return useCapacidades().pode(`campanhas.${acao}`);
 }
 
 /** Funcionalidade desligada ou canal sem templates: o backend responde 404 em toda rota. */

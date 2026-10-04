@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
-import { useAtualizarConfiguracao, useEhAdministradorDeCampanhas } from "@/lib/campanhas/hooks";
+import { useAtualizarConfiguracao, usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { ConfiguracaoDeCampanhas } from "@/lib/campanhas/types";
 import {
   errosDaConfiguracao,
@@ -31,7 +31,7 @@ function formularioDe(c: ConfiguracaoDeCampanhas): FormularioDeConfiguracao {
 /** Configurações da instância: o administrador edita; os demais consultam. Vale no ciclo seguinte, sem deploy. */
 export function FormularioDeConfiguracaoDeCampanhas({ configuracao }: { configuracao: ConfiguracaoDeCampanhas }) {
   const t = useTextos().campanhas.configuracaoDaInstancia;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const ehAdministrador = usePodeEmCampanhas("configurar");
   const salvar = useAtualizarConfiguracao();
   const [habilitado, setHabilitado] = useState(configuracao.envioHabilitado);
   const [form, setForm] = useState<FormularioDeConfiguracao>(formularioDe(configuracao));

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarNumero } from "@/lib/campanhas/formatacao";
-import { useAlterarLimite, useEhAdministradorDeCampanhas } from "@/lib/campanhas/hooks";
+import { useAlterarLimite, usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { DetalheDaCampanha } from "@/lib/campanhas/types";
 import { validarLimiteDiario } from "@/lib/campanhas/validacao";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -16,7 +16,7 @@ import { CampoDeLimite } from "./campo-de-limite";
 /** Ajuste do limite diário com o efeito explicado: vale no próximo ciclo e nunca passa do teto da instância. */
 export function AjusteDeLimite({ detalhe }: { detalhe: DetalheDaCampanha }) {
   const textos = useTextos().campanhas.detalhe.limite;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const ehAdministrador = usePodeEmCampanhas("operar");
   const { campanha } = detalhe;
   const alterar = useAlterarLimite(campanha.id);
   const [valor, setValor] = useState<number | null>(campanha.limiteDiario);

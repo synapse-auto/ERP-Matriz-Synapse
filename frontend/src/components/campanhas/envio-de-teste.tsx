@@ -8,17 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { enviarTeste } from "@/lib/campanhas/api";
+import { usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
 
 /** Teste ao próprio número (ou de alguém que autorizou): contato já na Agenda, sem contar no limite. */
 export function EnvioDeTeste({ rascunhoId }: { rascunhoId: string | null }) {
   const textos = useTextos().campanhas.passoRevisao;
+  const podeTestar = usePodeEmCampanhas("testar");
   const [telefone, setTelefone] = useState("");
   const [autorizou, setAutorizou] = useState(false);
   const teste = useMutation({
     mutationFn: () => enviarTeste(rascunhoId as string, telefone.trim(), autorizou),
   });
-  const podeEnviar = rascunhoId !== null && telefone.replace(/\D/g, "").length >= 10 && autorizou && !teste.isPending;
+  const podeEnviar = podeTestar && rascunhoId !== null && telefone.replace(/\D/g, "").length >= 10 && autorizou && !teste.isPending;
 
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm" aria-labelledby="envio-de-teste">

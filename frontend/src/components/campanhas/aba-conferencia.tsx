@@ -6,7 +6,7 @@ import { ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useConferencia, useEhAdministradorDeCampanhas, useMarcarComoConferido } from "@/lib/campanhas/hooks";
+import { useConferencia, usePodeEmCampanhas, useMarcarComoConferido } from "@/lib/campanhas/hooks";
 import { useTextos } from "@/lib/config/textos-provider";
 
 import { EstadoVazio } from "./estados";
@@ -16,7 +16,7 @@ import { TabelaDeDestinatarios } from "./tabela-de-destinatarios";
 /** Conferência manual: envios cujo resultado não se sabe. Nunca reenvia; a pessoa confere no provedor. */
 export function AbaConferencia({ campanhaId }: { campanhaId: string }) {
   const t = useTextos().campanhas.detalhe.conferencia;
-  const ehAdministrador = useEhAdministradorDeCampanhas();
+  const ehAdministrador = usePodeEmCampanhas("conferir");
   const [pagina, setPagina] = useState(0);
   const consulta = useConferencia(campanhaId, pagina);
   const marcar = useMarcarComoConferido(campanhaId);

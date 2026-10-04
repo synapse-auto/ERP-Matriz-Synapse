@@ -10,6 +10,7 @@ import {
   FileText,
   Headset,
   Lock,
+  Megaphone,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -52,6 +53,7 @@ export const ICONE_DO_MODULO: Record<string, ComponentType<{ className?: string 
   mensagens_programadas: Clock,
   lembretes: Bell,
   automacao: Bot,
+  campanhas: Megaphone,
   equipe: Users,
 };
 

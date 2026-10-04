@@ -40,21 +40,21 @@ public class ControleDaCampanhaUseCases {
         this.relogio = relogio;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "PAUSAR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Campanha pausar(UUID id) {
         return alterar(id, campanha -> campanha.pausar(agora()));
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "RETOMAR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Campanha retomar(UUID id) {
         return alterar(id, campanha -> campanha.retomar(agora()));
     }
 
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "CANCELAR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Campanha cancelar(UUID id) {
@@ -62,7 +62,7 @@ public class ControleDaCampanhaUseCases {
     }
 
     /** Vale no proximo ciclo de envio; o ritmo, quando informado, tambem. */
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "ALTERAR_LIMITE_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Campanha alterarLimite(UUID id, int limiteDiario, Integer ritmoPorMinuto) {
@@ -74,7 +74,7 @@ public class ControleDaCampanhaUseCases {
     }
 
     /** Interruptor da campanha: para o envio no proximo ciclo (ou o religa), sem mudar o status. */
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.OPERAR)
     @Auditable(acao = "ALTERAR_INTERRUPTOR_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Campanha alterarInterruptor(UUID id, boolean desligada) {
@@ -85,7 +85,7 @@ public class ControleDaCampanhaUseCases {
      * A pessoa conferiu no provedor o que aconteceu com o envio e o tira da lista. Nao reenvia: reenviar e
      * uma decisao humana, fora desta acao.
      */
-    @PreAuthorize(PermissoesDeCampanha.ESCRITA)
+    @PreAuthorize(PermissoesDeCampanha.CONFERIR)
     @Auditable(acao = "RESOLVER_CONFERENCIA_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public boolean resolverConferencia(UUID id, UUID destinatarioId) {
