@@ -21,6 +21,11 @@ teste controlado e tabela de motivos em `docs/18`; contrato em `docs/38` §4.1. 
 aceito, lista de hosts e cache, porque mudar qualquer um sem a resposta real seria chute. Próximo passo
 depende do resultado do teste na Fêmina.
 
+**Resultado (Fêmina, 04/10, log do próprio backend):** `motivo=URL_RECUSADA, host=pps.whatsapp.net`. A UZAPI
+**devolve a foto**, num link do CDN do WhatsApp, e o filtro de SSRF só aceitava o host da UZAPI. Corrigido com
+`CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS` (hosts exatos, padrão `pps.whatsapp.net`). A foto aparecer de fato ainda
+depende de uma mensagem nova de um contato após o deploy; o log passa a dizer `origem=url` ou o novo motivo.
+
 ### 02/10/2026 — Campanhas de template em massa com limite diário (E220)
 
 Entregue em duas etapas: backend na `main` (PR #254, V91) e interface (PR #255). Só Meta oficial

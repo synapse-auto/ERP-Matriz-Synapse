@@ -97,6 +97,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     private final ArmazenamentoDeMidia armazenamento;
     private final ConversorDeAudio conversorDeAudio;
     private final int limiteRespostaFoto;
+    private final java.util.Set<String> hostsDeFotoPermitidos;
 
     /** Construtor usado pelo Spring; o limite acompanha a configuração da captura de fotos. */
     @Autowired
@@ -107,7 +108,8 @@ class UzapiAutoticAdapter implements CanalGateway {
             CircuitBreakerRegistry breakers,
             ArmazenamentoDeMidia armazenamento,
             ConversorDeAudio conversorDeAudio,
-            @Value("${synapse.canal.foto-perfil.limite-bytes:5242880}") int limiteRespostaFoto) {
+            @Value("${synapse.canal.foto-perfil.limite-bytes:5242880}") int limiteRespostaFoto,
+            @Value("${synapse.canal.foto-perfil.hosts-permitidos:pps.whatsapp.net}") java.util.List<String> hostsPermitidos) {
         this.http = builder.baseUrl(propriedades.urlBase()).build();
         this.propriedades = propriedades;
         this.json = json;
@@ -120,6 +122,33 @@ class UzapiAutoticAdapter implements CanalGateway {
             throw new IllegalArgumentException("limite de resposta da foto precisa ser positivo");
         }
         this.limiteRespostaFoto = limiteRespostaFoto;
+        this.hostsDeFotoPermitidos = normalizarHostsDeFoto(hostsPermitidos);
+    }
+
+    /**
+     * Hosts além do da UZAPI de onde a foto pode ser baixada. A UZAPI devolve a URL do CDN do próprio
+     * WhatsApp (`pps.whatsapp.net`), não um link dela. Comparação por host exato: sem curinga, sem
+     * sufixo e sem subdomínio implícito. Entrada que pareça URL, porta, credencial ou curinga derruba o
+     * boot em vez de abrir a lista em silêncio.
+     */
+    private static java.util.Set<String> normalizarHostsDeFoto(java.util.List<String> brutos) {
+        java.util.Set<String> hosts = new java.util.LinkedHashSet<>();
+        if (brutos == null) {
+            return hosts;
+        }
+        for (String bruto : brutos) {
+            String host = bruto == null ? "" : bruto.trim().toLowerCase(Locale.ROOT);
+            if (host.isEmpty()) {
+                continue;
+            }
+            if (host.matches("[0-9.]+")
+                    || !host.matches("[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")) {
+                throw new IllegalArgumentException(
+                        "synapse.canal.foto-perfil.hosts-permitidos aceita só nomes de host exatos, sem esquema, porta, caminho nem curinga");
+            }
+            hosts.add(host);
+        }
+        return java.util.Collections.unmodifiableSet(hosts);
     }
 
     /** Compatibilidade dos testes do módulo de atendimento, que não carregam o app. */
@@ -130,7 +159,7 @@ class UzapiAutoticAdapter implements CanalGateway {
             CircuitBreakerRegistry breakers,
             ArmazenamentoDeMidia armazenamento,
             ConversorDeAudio conversorDeAudio) {
-        this(builder, propriedades, json, breakers, armazenamento, conversorDeAudio, LIMITE_PADRAO_FOTO);
+        this(builder, propriedades, json, breakers, armazenamento, conversorDeAudio, LIMITE_PADRAO_FOTO, java.util.List.of());
     }
 
     @Override
@@ -703,7 +732,7 @@ class UzapiAutoticAdapter implements CanalGateway {
                 || uri.getUserInfo() != null
                 || uri.getFragment() != null
                 || base.getHost() == null
-                || !uri.getHost().equalsIgnoreCase(base.getHost())) {
+                || !hostPermitidoParaFoto(uri.getHost(), base.getHost())) {
             // Só esquema e host: o caminho e a query carregam a assinatura temporária.
             return semFoto(
                     "URL_RECUSADA",
@@ -747,6 +776,10 @@ class UzapiAutoticAdapter implements CanalGateway {
         }
         log.info("UZAPI devolveu foto de perfil; origem=url, bytes={}, mime={}", conteudo.length, tipo);
         return Optional.of(new MidiaRecebida(conteudo, tipo));
+    }
+
+    private boolean hostPermitidoParaFoto(String host, String hostDaUzapi) {
+        return host.equalsIgnoreCase(hostDaUzapi) || hostsDeFotoPermitidos.contains(host.toLowerCase(Locale.ROOT));
     }
 
     private String procurarCampoDeFoto(JsonNode no, int profundidade, int[] orcamento) {

@@ -433,6 +433,7 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `CANAL_FOTO_PERFIL_CACHE_TTL` | `6h` | Janela de cache por lead para evitar consultas repetidas ao provedor. |
 | `CANAL_FOTO_PERFIL_CONCORRENCIA` / `CANAL_FOTO_PERFIL_FILA` | `2` / `100` | Bulkhead da captura assíncrona; não compartilha threads com o chat. |
 | `CANAL_FOTO_PERFIL_LIMITE_BYTES` | `5242880` | Limite de bytes aceito na resposta da foto; o processador de imagens mantém suas validações. |
+| `CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS` | `pps.whatsapp.net` | Hosts exatos (vírgula) de onde a foto pode ser baixada além do host da UZAPI. A UZAPI devolve a URL do CDN de fotos do WhatsApp. Vazio = só o host da UZAPI. Valor com esquema, porta, caminho, IP ou curinga derruba o boot. |
 | `TELEFONE_DDI_PADRAO` | `55` | DDI acrescentado a telefones locais com DDD, sem `+`. |
 | `WEBHOOK_MAX_TENTATIVAS` | `5` | Tentativas reais contra a Meta na fila de entrada. Disjuntor aberto não consome. |
 | `META_PRECIFICACAO_INTERVALO_MS` | `30000` | Intervalo opcional do job de classificação de preço observado em `statuses[].pricing`; não calcula tarifa nem participa do envio. |

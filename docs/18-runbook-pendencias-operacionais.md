@@ -825,7 +825,7 @@ imagem: `UZAPI devolveu foto de perfil; origem=binario|base64|data-uri|url, byte
 | `HTTP_4xx` | a UZAPI recusou (sem permissão, contato sem foto, 404) | conferir token e número; contato sem foto é normal |
 | `CORPO_NAO_E_JSON` | resposta nem imagem nem JSON (`contentType` no log) | formato novo: colar o log e ajustar o ACL |
 | `SEM_CAMPO_DE_FOTO` | JSON sem campo de foto reconhecido; `chaves=` lista os **nomes** de campo | acrescentar o campo real ao ACL |
-| `URL_RECUSADA` | a URL é de outro host (`host=` e `hostPermitido=` no log) | decidir, com o host real, se entra numa lista de hosts |
+| `URL_RECUSADA` | a URL é de um host fora da lista (`host=` e `hostPermitido=` no log) | a UZAPI usa `pps.whatsapp.net` (já é o padrão de `CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS`); outro host só entra com evidência e aprovação |
 | `DOWNLOAD_HTTP_xxx` / `DOWNLOAD_NAO_IMAGEM` | a URL expirou ou não devolveu imagem | normal para link vencido; repetir com mensagem nova |
 | `*_ACIMA_DO_LIMITE` | imagem maior que `CANAL_FOTO_PERFIL_LIMITE_BYTES` | subir o limite só se a foto real for maior |
 
