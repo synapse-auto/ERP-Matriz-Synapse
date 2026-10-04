@@ -110,4 +110,3 @@ CREATE POLICY rls_solicitacao_resumo_ia ON solicitacao_resumo_ia
             )
         )
     );
-
