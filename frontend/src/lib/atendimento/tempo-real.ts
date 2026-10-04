@@ -170,15 +170,18 @@ function idPreferencial(anterior: string, nova: string): string {
 function statusMaisAvancado(
   anterior: MensagemResposta["statusEntrega"],
   novo: MensagemResposta["statusEntrega"],
+  falhaLocal: boolean,
 ): MensagemResposta["statusEntrega"] {
-  if (anterior === "FALHOU") return novo === "PENDENTE" ? anterior : novo;
-  if (novo === "FALHOU") return anterior === "PENDENTE" ? novo : anterior;
+  // Somente uma falha otimista local pode ser reconciliada pelo aceite posterior.
+  // Falha persistida e terminal, como no UPDATE monotono do backend.
+  if (anterior === "FALHOU") return falhaLocal && novo !== "PENDENTE" ? novo : anterior;
+  if (novo === "FALHOU") return anterior === "PENDENTE" || anterior === "ENVIADO" ? novo : anterior;
   const ordem = { PENDENTE: 0, ENVIADO: 1, ENTREGUE: 2, LIDO: 3, FALHOU: 0 } as const;
   return ordem[novo] >= ordem[anterior] ? novo : anterior;
 }
 
 function fundirMensagem(anterior: MensagemResposta, nova: MensagemResposta): MensagemResposta {
-  const statusEntrega = statusMaisAvancado(anterior.statusEntrega, nova.statusEntrega);
+  const statusEntrega = statusMaisAvancado(anterior.statusEntrega, nova.statusEntrega, anterior.id.startsWith("temp-"));
   const manterMidiaAnterior = nova.midiaUrl?.startsWith("blob:") && anterior.midiaUrl != null;
   return {
     ...anterior,

@@ -287,7 +287,14 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
             }
             titulo = texto(primeiro, "title");
         }
-        return new StatusDeEntregaDoCanal(id, estado, codigo, titulo);
+        // A Uzapi pode enviar o ID nativo em id e o wamid do aceite em conversation.id.
+        // Nunca interpretar um ID generico de conversa como ID de mensagem. O caso de uso
+        // exige correspondencia exata no mapa persistido e preserva a prioridade do id.
+        String alternativo = texto(status.path("conversation"), "id");
+        if (id.startsWith("wamid.") || alternativo == null || !alternativo.startsWith("wamid.")) {
+            alternativo = null;
+        }
+        return new StatusDeEntregaDoCanal(id, estado, codigo, titulo, alternativo);
     }
 
     private MensagemRecebidaDoCanal traduzirLocalizacao(

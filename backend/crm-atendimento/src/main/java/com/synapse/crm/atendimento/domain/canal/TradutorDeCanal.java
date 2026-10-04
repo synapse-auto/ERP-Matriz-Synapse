@@ -203,7 +203,13 @@ public interface TradutorDeCanal {
      * @param tituloErro titulo do provedor quando falhou; senao {@code null}
      */
     record StatusDeEntregaDoCanal(
-            String wamid, String statusEntrega, Integer codigoErro, String tituloErro) {
+            String wamid, String statusEntrega, Integer codigoErro, String tituloErro,
+            String idExternoAlternativo) {
+
+        public StatusDeEntregaDoCanal(
+                String wamid, String statusEntrega, Integer codigoErro, String tituloErro) {
+            this(wamid, statusEntrega, codigoErro, tituloErro, null);
+        }
 
         public StatusDeEntregaDoCanal {
             Objects.requireNonNull(wamid, "wamid e obrigatorio");
