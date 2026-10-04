@@ -320,7 +320,8 @@ recebida:
 O envelope é **estruturalmente idêntico ao da Meta** (`entry[].changes[].value.messages[]`), inclusive
 nos nomes de campo (`messaging_product`, `metadata.phone_number_id`, `contacts[].wa_id`). Os eventos
 de status (`/webhook/status/delivered` etc.) usam o mesmo envelope, trocando `messages[]` por
-`statuses[]` com `id`/`status`/`timestamp`/`recipient_id`/`conversation`/`pricing` — também idêntico
+`statuses[]` com `id`/`status`/`timestamp`/`recipient_id`/`conversation`/`pricing` — estruturalmente semelhante,
+mas os identificadores de status podem divergir do aceite de envio (ver diagnóstico abaixo), não idêntico
 ao formato Meta. O tradutor dedicado reaproveita essa navegação estrutural sem compartilhar regras
 específicas do fornecedor com `MetaCloudWebhookTradutor`.
 

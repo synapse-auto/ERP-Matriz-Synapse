@@ -93,6 +93,34 @@ class AplicarStatusDeEntregaDoCanalUseCaseTest {
         verify(eventos).publishEvent(any(MudancaDeStatusDeEntrega.class));
     }
 
+    @Test
+    void idNativoConhecidoNuncaAtualizaOutraMensagemPeloAlternativo() {
+        var mensagens = mockRepo();
+        var ids = mockIds();
+        var eventos = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
+        when(ids.existe("nativo")).thenReturn(true);
+        new AplicarStatusDeEntregaDoCanalUseCase(mensagens, ids, eventos, relogio)
+                .executar(List.of(new StatusDeEntregaDoCanal("nativo", "ENTREGUE", null, null, "wamid.outro")));
+        verify(mensagens).aplicarStatusDoProvedor("nativo", StatusEntrega.ENTREGUE, null, null);
+        verify(mensagens, never()).aplicarStatusDoProvedor(eq("wamid.outro"), any(), any(), any());
+        verify(eventos, never()).publishEvent(any());
+    }
+
+    @Test
+    void idNativoDesconhecidoUsaCorrespondenciaExataDoAlternativo() {
+        var mensagens = mockRepo();
+        var ids = mockIds();
+        var eventos = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
+        UUID mensagemId = UUID.randomUUID();
+        when(mensagens.aplicarStatusDoProvedor("wamid.aceite", StatusEntrega.ENTREGUE, null, null))
+                .thenReturn(Optional.of(new StatusDeEntregaAplicado(mensagemId,
+                        UUID.randomUUID(), UUID.randomUUID(), StatusEntrega.ENTREGUE)));
+        new AplicarStatusDeEntregaDoCanalUseCase(mensagens, ids, eventos, relogio)
+                .executar(List.of(new StatusDeEntregaDoCanal("nativo", "ENTREGUE", null, null, "wamid.aceite")));
+        verify(mensagens).aplicarStatusDoProvedor("wamid.aceite", StatusEntrega.ENTREGUE, null, null);
+        verify(eventos).publishEvent(any(MudancaDeStatusDeEntrega.class));
+    }
+
     private static MensagemRepositorio mockRepo() {
         return org.mockito.Mockito.mock(MensagemRepositorio.class);
     }

@@ -65,10 +65,14 @@ public class AplicarStatusDeEntregaDoCanalUseCase {
             } catch (RuntimeException e) {
                 continue;
             }
+            String idExterno = atualizacao.wamid();
+            if (atualizacao.idExternoAlternativo() != null && !idsExternos.existe(idExterno)) {
+                idExterno = atualizacao.idExternoAlternativo();
+            }
             var aplicado = mensagens.aplicarStatusDoProvedor(
-                    atualizacao.wamid(), novo, atualizacao.codigoErro(), atualizacao.tituloErro());
+                    idExterno, novo, atualizacao.codigoErro(), atualizacao.tituloErro());
             if (aplicado.isEmpty()) {
-                if (!idsExternos.existe(atualizacao.wamid())) {
+                if (!idsExternos.existe(idExterno)) {
                     desconhecidos++;
                 }
                 continue;

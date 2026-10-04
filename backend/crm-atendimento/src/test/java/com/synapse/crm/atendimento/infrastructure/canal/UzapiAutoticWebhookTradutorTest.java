@@ -127,6 +127,24 @@ class UzapiAutoticWebhookTradutorTest {
     }
 
     @Test
+    void somenteWamidDaUzapiPodeSerIdentificadorAlternativo() {
+        var statuses = tradutor.statusDeEntrega("""
+                {"entry":[{"changes":[{"value":{"statuses":[
+                  {"id":"3EB0NATIVO","status":"delivered","conversation":{"id":"wamid.aceite"}},
+                  {"id":"wamid.principal","status":"read","conversation":{"id":"wamid.outro"}},
+                  {"id":"nativo","status":"sent","conversation":{"id":"conversa-generica"}},
+                  {"id":"nativo","status":"played","conversation":{"id":"wamid.aceite"}},
+                  {"id":"nativo","status":"desconhecido","conversation":{"id":"wamid.aceite"}}
+                ]}}]}]}
+                """);
+        assertThat(statuses).hasSize(3);
+        assertThat(statuses.get(0).wamid()).isEqualTo("3EB0NATIVO");
+        assertThat(statuses.get(0).idExternoAlternativo()).isEqualTo("wamid.aceite");
+        assertThat(statuses.get(1).idExternoAlternativo()).isNull();
+        assertThat(statuses.get(2).idExternoAlternativo()).isNull();
+    }
+
+    @Test
     void statusStoryEIgnoradoEIdExternoNaoVazaParaFilaDeMensagens() {
         var mensagens = tradutor.traduzir(payloadComMensagens(
                 "{\"from\":\"status@broadcast\",\"id\":\"story\",\"timestamp\":\"1\",\"type\":\"text\",\"text\":{\"body\":\"status\"}},"

@@ -171,7 +171,7 @@ function eventoMensagem(
   };
 }
 
-function eventoStatus(mensagemId: string, chave: string, statusEntrega: StatusEntrega): EventoTempoReal {
+function eventoStatus(mensagemId: string, chave: string, statusEntrega: StatusEntrega): Extract<EventoTempoReal, { tipo: "STATUS" }> {
   return {
     tipo: "STATUS",
     dados: {
@@ -222,6 +222,29 @@ describe("confirmação do envio de mídia independente da ordem HTTP/WebSocket"
     vi.resetAllMocks();
     vi.mocked(paginaMensagens).mockResolvedValue({ mensagens: [ANTIGA], proximoCursor: null });
     vi.mocked(mensagensDesde).mockResolvedValue([]);
+  });
+
+  it("status do webhook atualiza o hook real sem duplicar nem alterar outra conversa", async () => {
+    const montagem = await prontoParaEnviar();
+    const { http, chave } = await enviarArquivo(montagem);
+    await confirmarHttp(montagem, http, respostaDoBackend("msg-status", chave, "ENVIADO"));
+    const alheio = eventoStatus("msg-status", chave, "LIDO");
+    montagem.transporte.emitir({ ...alheio, dados: { ...alheio.dados, atendimentoId: "at-outro" } });
+    expect(enviadas(montagem.queryClient)[0].statusEntrega).toBe("ENVIADO");
+    for (const status of ["ENTREGUE", "ENTREGUE", "LIDO", "ENVIADO"] as const) {
+      montagem.transporte.emitir(eventoStatus("msg-status", chave, status));
+    }
+    expect(enviadas(montagem.queryClient)).toHaveLength(1);
+    expect(enviadas(montagem.queryClient)[0].statusEntrega).toBe("LIDO");
+  });
+
+  it("falha recebida após aceite permanece visível mesmo com HTTP atrasado", async () => {
+    const montagem = await prontoParaEnviar();
+    const { http, chave } = await enviarArquivo(montagem);
+    await confirmarHttp(montagem, http, respostaDoBackend("msg-falhou", chave, "ENVIADO"));
+    montagem.transporte.emitir(eventoStatus("msg-falhou", chave, "FALHOU"));
+    montagem.transporte.emitir(eventoStatus("msg-falhou", chave, "ENVIADO"));
+    expect(enviadas(montagem.queryClient)[0].statusEntrega).toBe("FALHOU");
   });
 
   it("HTTP antes do WebSocket, ambos com a mesma chave real: a bolha não desaparece", async () => {

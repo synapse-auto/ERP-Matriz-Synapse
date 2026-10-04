@@ -119,6 +119,8 @@ describe("StatusEntregaIcone", () => {
   ] as const)("renderiza o ícone certo para %s", (status, rotulo) => {
     renderComTextos(<StatusEntregaIcone status={status} />);
     expect(screen.getByTitle(rotulo)).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: rotulo })).toBeInTheDocument();
+    expect(screen.getByText(rotulo)).toBeVisible();
   });
 
   it("FALHOU mostra texto de erro e o botão de reenviar, que aciona o callback", async () => {

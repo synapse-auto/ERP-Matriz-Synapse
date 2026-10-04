@@ -81,6 +81,21 @@ function mensagem(
 }
 
 describe("mesclarMensagens", () => {
+  it("aceita falha do provedor após ENVIADO, mantém falha persistida e permite recuperar falha local", () => {
+    const enviado = mensagem("real-1", "2026-01-01T00:00:00Z", "ENVIADO");
+    const falhou = { ...enviado, statusEntrega: "FALHOU" as const, erroEntrega: { codigo: 400, titulo: "recusado" } };
+    const resultado = mesclarMensagens([enviado], [falhou, enviado]);
+    expect(resultado[0]).toMatchObject({ statusEntrega: "FALHOU", erroEntrega: falhou.erroEntrega });
+    const local = { ...falhou, id: "temp-1", idempotencyKey: "chave-1" };
+    expect(mesclarMensagens([local], [{ ...enviado, idempotencyKey: "chave-1" }])[0].statusEntrega).toBe("ENVIADO");
+  });
+
+  it("falha tardia não rebaixa entrega ou leitura comprovadas", () => {
+    for (const estado of ["ENTREGUE", "LIDO"] as const) {
+      const comprovada = mensagem("real-1", "2026-01-01T00:00:00Z", estado);
+      expect(mesclarMensagens([comprovada], [{ ...comprovada, statusEntrega: "FALHOU" }])[0].statusEntrega).toBe(estado);
+    }
+  });
   it("dedupe por id: a versão nova (ex.: mudança de status) substitui a antiga", () => {
     const existentes = [mensagem("1", "2026-01-01T00:00:00Z", "PENDENTE")];
     const novas = [mensagem("1", "2026-01-01T00:00:00Z", "ENVIADO")];
