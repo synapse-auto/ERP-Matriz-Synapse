@@ -389,6 +389,22 @@ o n8n ainda pode enviar uma foto já coletada para `POST /internal/v1/leads/{lea
 alteração de contrato. A solução histórica da Estrutural dependia exclusivamente desse envio
 externo; a consulta `getPicture` é genérica para qualquer filho cujo adaptador ofereça a capacidade.
 
+### Verificação de 04/10/2026 (foto de perfil)
+
+Conferido de novo no Swagger oficial (`https://api.uzapi.com.br/docs/swagger.json`): `getPicture` existe
+("Obter a imagem do perfil do usuario no whatsapp"), o corpo é `contacts.to` (telefone só com dígitos, "ou ID do
+grupo") e a única resposta documentada é **HTTP 201 sem schema**. Nenhum webhook de mensagem recebida traz
+foto, avatar ou URL de imagem: o payload de contato só tem `profile.name` e `wa_id`. Ou seja, a UZAPI
+**oferece** a foto, mas só pela consulta ativa, e **o formato da resposta é desconhecido** até alguém chamar
+na conta real. O adaptador reconhece binário de imagem, data URI, base64 e campos de URL allowlisted
+(`picture`, `pictureUrl`, `profilePicture` e aliases); qualquer outra forma vira "sem foto".
+
+Por isso toda consulta que termina sem imagem agora registra **o motivo** (ver `docs/18`, "Foto de perfil:
+motivos no log"): código, status HTTP, tipo de conteúdo, tamanho, nomes de campo e host da URL; nunca
+telefone, token, valores nem caminho/query da URL. A URL de foto só é baixada se o host for igual ao de
+`WHATSAPP_URL_BASE`; se a UZAPI devolver um link de CDN do WhatsApp (outro host), o log mostra
+`URL_RECUSADA` com o host, e ampliar a lista de hosts é decisão a tomar com essa evidência, não antes.
+
 ## 9. Segredos
 
 Três variáveis já existentes cobrem autenticação (`WHATSAPP_URL_BASE`, `WHATSAPP_NUMERO`,

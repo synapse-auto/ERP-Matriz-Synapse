@@ -815,6 +815,36 @@ uma mensagem nova em homologação.
 
 ---
 
+### Foto de perfil: motivos no log e teste controlado na Fêmina
+
+Cada consulta sem imagem registra, em INFO, `UZAPI sem foto de perfil; motivo=<código>, ...`. Quando há
+imagem: `UZAPI devolveu foto de perfil; origem=binario|base64|data-uri|url, bytes=..., mime=...`.
+
+| Motivo | O que significa | O que fazer |
+|---|---|---|
+| `HTTP_4xx` | a UZAPI recusou (sem permissão, contato sem foto, 404) | conferir token e número; contato sem foto é normal |
+| `CORPO_NAO_E_JSON` | resposta nem imagem nem JSON (`contentType` no log) | formato novo: colar o log e ajustar o ACL |
+| `SEM_CAMPO_DE_FOTO` | JSON sem campo de foto reconhecido; `chaves=` lista os **nomes** de campo | acrescentar o campo real ao ACL |
+| `URL_RECUSADA` | a URL é de outro host (`host=` e `hostPermitido=` no log) | decidir, com o host real, se entra numa lista de hosts |
+| `DOWNLOAD_HTTP_xxx` / `DOWNLOAD_NAO_IMAGEM` | a URL expirou ou não devolveu imagem | normal para link vencido; repetir com mensagem nova |
+| `*_ACIMA_DO_LIMITE` | imagem maior que `CANAL_FOTO_PERFIL_LIMITE_BYTES` | subir o limite só se a foto real for maior |
+
+Só chega consulta quando **entra mensagem nova do contato** (e no máximo uma por lead a cada
+`CANAL_FOTO_PERFIL_CACHE_TTL`, 6 h, em memória). Lead antigo sem mensagem nova continua sem foto.
+
+**Teste controlado (uma chamada, no container do backend da Fêmina, que já tem as variáveis).** Troque só o
+telefone de um contato **com** foto no WhatsApp. O `sed` mascara telefones e a query de qualquer URL antes
+de imprimir; o token nunca aparece.
+
+```bash
+curl -s -m 20 -D /tmp/h.out -o /tmp/b.out -X POST "$WHATSAPP_URL_BASE/$WHATSAPP_VERSAO_API/$WHATSAPP_NUMERO/contacts"   -H "Authorization: Bearer $WHATSAPP_TOKEN" -H "Content-Type: application/json"   -d '{"type":"contacts","action":"getPicture","contacts":{"to":"55DDDNUMERO"}}'
+head -1 /tmp/h.out; grep -i '^content-type' /tmp/h.out; wc -c < /tmp/b.out
+head -c 700 /tmp/b.out | sed -E 's/[0-9]{8,}/#/g; s/?[^"]*"/?…"/g'; echo
+```
+
+Se o container não tiver `curl`, rode do seu computador exportando `WHATSAPP_TOKEN` na sessão (não cole o
+token em chat, ticket nem commit). Repita com um contato **sem** foto e com um número que não está salvo.
+
 ## Despacho sem resultado na outbox de envio (E209)
 
 **O que mudou.** Antes de chamar o provedor, o worker grava `outbox_evento.despachado_em` numa transação

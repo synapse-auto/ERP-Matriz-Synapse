@@ -545,7 +545,7 @@ class UzapiAutoticAdapter implements CanalGateway {
     @Override
     public Optional<MidiaRecebida> buscarFotoDePerfil(String telefone) {
         if (credencialIncompleta() || vazio(telefone)) {
-            return Optional.empty();
+            return semFoto("CREDENCIAL_OU_TELEFONE_AUSENTE", "");
         }
         try {
             return breakerMidia.executeSupplier(() -> {
@@ -556,10 +556,7 @@ class UzapiAutoticAdapter implements CanalGateway {
                     // falha do canal inteiro. Não deixe respostas esperadas abrirem o breaker.
                     int status = resposta.getStatusCode().value();
                     if (status != 429 && status < 500) {
-                        log.debug(
-                                "UZAPI não disponibilizou foto de perfil; statusHttp={}",
-                                status);
-                        return Optional.empty();
+                        return semFoto("HTTP_" + status, "");
                     }
                     throw resposta;
                 }
@@ -622,28 +619,32 @@ class UzapiAutoticAdapter implements CanalGateway {
                     StandardCharsets.UTF_8);
         }
         byte[] body = resposta.getBody() == null ? new byte[0] : resposta.getBody();
-        if (body.length == 0 || body.length > limiteRespostaFoto) {
-            return Optional.empty();
-        }
         String contentType = resposta.getHeaders().getContentType() == null
                 ? ""
                 : resposta.getHeaders().getContentType().toString();
+        if (body.length == 0 || body.length > limiteRespostaFoto) {
+            return semFoto(
+                    "CORPO_VAZIO_OU_ACIMA_DO_LIMITE",
+                    "status=" + resposta.getStatusCode().value() + ", bytes=" + body.length
+                            + ", contentType=" + contentType);
+        }
         if (contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            log.info("UZAPI devolveu foto de perfil; origem=binario, bytes={}, mime={}", body.length, contentType);
             return Optional.of(new MidiaRecebida(body, contentType));
         }
-        return interpretarRespostaDaFoto(body);
+        return interpretarRespostaDaFoto(body, contentType);
     }
 
-    private Optional<MidiaRecebida> interpretarRespostaDaFoto(byte[] body) {
+    private Optional<MidiaRecebida> interpretarRespostaDaFoto(byte[] body, String contentType) {
         JsonNode raiz;
         try {
             raiz = json.readTree(body);
         } catch (IOException | RuntimeException invalido) {
-            return Optional.empty();
+            return semFoto("CORPO_NAO_E_JSON", "contentType=" + contentType + ", bytes=" + body.length);
         }
         String candidato = procurarCampoDeFoto(raiz, 0, new int[] {NOS_MAXIMOS_FOTO});
         if (candidato == null || candidato.isBlank()) {
-            return Optional.empty();
+            return semFoto("SEM_CAMPO_DE_FOTO", "chaves=" + nomesDosCampos(raiz) + ", bytes=" + body.length);
         }
         if (candidato.regionMatches(true, 0, "data:", 0, 5)) {
             return decodificarDataUri(candidato);
@@ -651,11 +652,13 @@ class UzapiAutoticAdapter implements CanalGateway {
         if (pareceBase64(candidato)) {
             try {
                 byte[] bytes = Base64.getMimeDecoder().decode(candidato);
-                return bytes.length == 0 || bytes.length > limiteRespostaFoto
-                        ? Optional.empty()
-                        : Optional.of(new MidiaRecebida(bytes, "image/jpeg"));
+                if (bytes.length == 0 || bytes.length > limiteRespostaFoto) {
+                    return semFoto("BASE64_VAZIO_OU_ACIMA_DO_LIMITE", "bytes=" + bytes.length);
+                }
+                log.info("UZAPI devolveu foto de perfil; origem=base64, bytes={}", bytes.length);
+                return Optional.of(new MidiaRecebida(bytes, "image/jpeg"));
             } catch (IllegalArgumentException ignorado) {
-                return Optional.empty();
+                return semFoto("BASE64_INVALIDO", "");
             }
         }
         return baixarFotoTemporaria(candidato);
@@ -664,19 +667,21 @@ class UzapiAutoticAdapter implements CanalGateway {
     private Optional<MidiaRecebida> decodificarDataUri(String valor) {
         int separador = valor.indexOf(",");
         if (separador <= 5 || !valor.regionMatches(true, separador - 7, ";base64", 0, 7)) {
-            return Optional.empty();
+            return semFoto("DATA_URI_NAO_BASE64", "");
         }
         String mime = valor.substring(5, separador).split(";", 2)[0].trim();
         if (!mime.toLowerCase(Locale.ROOT).startsWith("image/")) {
-            return Optional.empty();
+            return semFoto("DATA_URI_NAO_IMAGEM", "mime=" + mime);
         }
         try {
             byte[] bytes = Base64.getDecoder().decode(valor.substring(separador + 1));
-            return bytes.length == 0 || bytes.length > limiteRespostaFoto
-                    ? Optional.empty()
-                    : Optional.of(new MidiaRecebida(bytes, mime));
+            if (bytes.length == 0 || bytes.length > limiteRespostaFoto) {
+                return semFoto("DATA_URI_VAZIO_OU_ACIMA_DO_LIMITE", "bytes=" + bytes.length);
+            }
+            log.info("UZAPI devolveu foto de perfil; origem=data-uri, bytes={}, mime={}", bytes.length, mime);
+            return Optional.of(new MidiaRecebida(bytes, mime));
         } catch (IllegalArgumentException ignorado) {
-            return Optional.empty();
+            return semFoto("DATA_URI_INVALIDO", "");
         }
     }
 
@@ -685,13 +690,13 @@ class UzapiAutoticAdapter implements CanalGateway {
         try {
             uri = new URI(valor.trim()).normalize();
         } catch (URISyntaxException | RuntimeException invalida) {
-            return Optional.empty();
+            return semFoto("URL_INVALIDA", "");
         }
         URI base;
         try {
             base = new URI(propriedades.urlBase());
         } catch (URISyntaxException | RuntimeException invalida) {
-            return Optional.empty();
+            return semFoto("URL_BASE_INVALIDA", "");
         }
         if (!"https".equalsIgnoreCase(uri.getScheme())
                 || uri.getHost() == null
@@ -699,7 +704,10 @@ class UzapiAutoticAdapter implements CanalGateway {
                 || uri.getFragment() != null
                 || base.getHost() == null
                 || !uri.getHost().equalsIgnoreCase(base.getHost())) {
-            return Optional.empty();
+            // Só esquema e host: o caminho e a query carregam a assinatura temporária.
+            return semFoto(
+                    "URL_RECUSADA",
+                    "esquema=" + uri.getScheme() + ", host=" + uri.getHost() + ", hostPermitido=" + base.getHost());
         }
         ResponseEntity<byte[]> resposta = http.get()
                 .uri(uri)
@@ -724,16 +732,21 @@ class UzapiAutoticAdapter implements CanalGateway {
                     "provedor " + PROVEDOR + " indisponivel ao baixar foto de perfil; HTTP "
                             + resposta.getStatusCode().value());
         }
-        if (!resposta.getStatusCode().is2xxSuccessful()
-                || resposta.getBody() == null
-                || resposta.getBody().length == 0
-                || resposta.getBody().length > limiteRespostaFoto
-                || resposta.getHeaders().getContentType() == null
-                || !resposta.getHeaders().getContentType().toString().toLowerCase(Locale.ROOT).startsWith("image/")) {
-            return Optional.empty();
+        if (!resposta.getStatusCode().is2xxSuccessful()) {
+            return semFoto("DOWNLOAD_HTTP_" + resposta.getStatusCode().value(), "host=" + uri.getHost());
         }
-        return Optional.of(new MidiaRecebida(
-                resposta.getBody(), resposta.getHeaders().getContentType().toString()));
+        byte[] conteudo = resposta.getBody() == null ? new byte[0] : resposta.getBody();
+        String tipo = resposta.getHeaders().getContentType() == null
+                ? ""
+                : resposta.getHeaders().getContentType().toString();
+        if (conteudo.length == 0 || conteudo.length > limiteRespostaFoto) {
+            return semFoto("DOWNLOAD_VAZIO_OU_ACIMA_DO_LIMITE", "bytes=" + conteudo.length + ", contentType=" + tipo);
+        }
+        if (!tipo.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            return semFoto("DOWNLOAD_NAO_IMAGEM", "contentType=" + tipo + ", bytes=" + conteudo.length);
+        }
+        log.info("UZAPI devolveu foto de perfil; origem=url, bytes={}, mime={}", conteudo.length, tipo);
+        return Optional.of(new MidiaRecebida(conteudo, tipo));
     }
 
     private String procurarCampoDeFoto(JsonNode no, int profundidade, int[] orcamento) {
@@ -763,6 +776,43 @@ class UzapiAutoticAdapter implements CanalGateway {
             }
         }
         return null;
+    }
+
+    /**
+     * Registra por que uma consulta de foto terminou sem imagem. A UZAPI não documenta o corpo de
+     * resposta do {@code getPicture}; sem isto, "sem foto" era indistinguível de "formato que o ACL
+     * não reconhece" ou "host recusado". Só entram códigos, status, tipo de conteúdo, tamanho, NOMES
+     * de campo e o host: nunca telefone, token, valor de campo nem caminho/query da URL.
+     */
+    private Optional<MidiaRecebida> semFoto(String motivo, String detalhe) {
+        log.info("UZAPI sem foto de perfil; motivo={}{}", motivo, detalhe.isEmpty() ? "" : ", " + detalhe);
+        return Optional.empty();
+    }
+
+    /** Nomes (não valores) dos campos do JSON, em profundidade limitada, para diagnosticar o formato. */
+    private static String nomesDosCampos(JsonNode raiz) {
+        java.util.List<String> nomes = new java.util.ArrayList<>();
+        coletarNomes(raiz, "", 0, nomes);
+        return nomes.isEmpty() ? "[]" : String.join(",", nomes);
+    }
+
+    private static void coletarNomes(JsonNode no, String prefixo, int profundidade, java.util.List<String> saida) {
+        if (no == null || profundidade > 3 || saida.size() >= 30) {
+            return;
+        }
+        if (no.isObject()) {
+            Iterator<java.util.Map.Entry<String, JsonNode>> campos = no.fields();
+            while (campos.hasNext() && saida.size() < 30) {
+                var campo = campos.next();
+                // Uma chave que seja um telefone/identificador longo não pode vazar no log.
+                String nome = campo.getKey().replaceAll("\\d{8,}", "#");
+                nome = nome.length() > 40 ? nome.substring(0, 40) : nome;
+                saida.add(prefixo + nome);
+                coletarNomes(campo.getValue(), prefixo + nome + ".", profundidade + 1, saida);
+            }
+        } else if (no.isArray() && !no.isEmpty()) {
+            coletarNomes(no.get(0), prefixo + "[].", profundidade + 1, saida);
+        }
     }
 
     private static boolean pareceBase64(String valor) {

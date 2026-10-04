@@ -809,6 +809,94 @@ class UzapiAutoticAdapterTest {
         servidor.verify();
     }
 
+    // --- diagnostico de "sem foto": o motivo vai para o log, sem dado sensivel -----------------------
+
+    private ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> capturarLog() {
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(UzapiAutoticAdapter.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        return appender;
+    }
+
+    private static String mensagens(ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender) {
+        return appender.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .collect(java.util.stream.Collectors.joining(" | "));
+    }
+
+    @Test
+    void formatoDeRespostaDesconhecidoLogaSoOsNomesDosCamposNuncaOsValores() {
+        var log = capturarLog();
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"status\":\"ok\",\"data\":{\"numero\":\"5561999999999\"},\"5561999999999\":{\"x\":1}}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+
+        String saida = mensagens(log);
+        assertThat(saida).contains("motivo=SEM_CAMPO_DE_FOTO").contains("status").contains("data.numero");
+        assertThat(saida).doesNotContain("5561999999999").doesNotContain("token-de-teste");
+        servidor.verify();
+    }
+
+    @Test
+    void urlRecusadaLogaSoOHostNuncaOCaminhoNemAAssinatura() {
+        var log = capturarLog();
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"url\":\"https://pps.whatsapp.net/v/t61/abc.jpg?oh=SEGREDO&oe=123\"}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+
+        String saida = mensagens(log);
+        assertThat(saida).contains("motivo=URL_RECUSADA").contains("host=pps.whatsapp.net");
+        assertThat(saida).doesNotContain("SEGREDO").doesNotContain("abc.jpg").doesNotContain("5561999999999");
+        servidor.verify();
+    }
+
+    @Test
+    void erroHttpDaConsultaEhRegistradoComOStatus() {
+        var log = capturarLog();
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+
+        assertThat(mensagens(log)).contains("motivo=HTTP_403");
+        servidor.verify();
+    }
+
+    @Test
+    void corpoQueNaoEJsonNemImagemEhRegistradoComOTipoDeConteudo() {
+        var log = capturarLog();
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("<html>erro</html>", MediaType.TEXT_HTML));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isEmpty();
+
+        assertThat(mensagens(log)).contains("motivo=CORPO_NAO_E_JSON").contains("text/html");
+        servidor.verify();
+    }
+
+    @Test
+    void fotoRecebidaEmBinarioRegistraOrigemETamanhoSemOConteudo() {
+        var log = capturarLog();
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(new byte[] {9, 8, 7}, MediaType.IMAGE_JPEG));
+
+        assertThat(adapter.buscarFotoDePerfil("5561999999999")).isPresent();
+
+        assertThat(mensagens(log)).contains("origem=binario").contains("bytes=3").contains("image/jpeg");
+        servidor.verify();
+    }
+
     @Test
     void naoSobrescreveListarNemCriarEditarOuExcluirTemplate_usaDefaultsDaInterface() {
         assertThat(adapter.gerenciaTemplates()).isFalse();
