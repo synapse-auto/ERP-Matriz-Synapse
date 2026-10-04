@@ -201,7 +201,7 @@ class OpenApiIT extends PostgresIT {
     }
 
     @Test
-    void destinosDeTransferenciaDocumentamPapelOpcionalSemAmpliarOsPapeisElegiveis() throws Exception {
+    void destinosDeTransferenciaDocumentamPapelOpcionalEOperadorControladoPelaGestao() throws Exception {
         JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
         JsonNode operacao = operacao(openApi, "/api/v1/atendimentos/destinos-de-transferencia", "get");
         JsonNode content = operacao.at("/responses/200/content");
@@ -217,7 +217,17 @@ class OpenApiIT extends PostgresIT {
         JsonNode papel = destino.path("properties").path("papel");
         assertThat(destino.path("required").findValuesAsText("papel")).isEmpty();
         assertThat(papel.path("enum")).extracting(JsonNode::asText)
-                .containsExactlyInAnyOrder("ATENDENTE", "SUBGESTOR");
+                .containsExactlyInAnyOrder("ATENDENTE", "SUBGESTOR", "OPERADOR");
+    }
+
+    @Test
+    void contratoDeCriacaoEPerfilIncluiOperadorSemNovoEndpoint() throws Exception {
+        JsonNode openApi = JSON.readTree(http.getForObject("/v3/api-docs", String.class));
+        JsonNode schema = operacao(openApi, "/api/v1/usuarios", "post").at("/requestBody/content/application~1json/schema");
+        JsonNode corpo = openApi.at(schema.path("$ref").asText().substring(1));
+        assertThat(corpo.at("/properties/papel/enum")).extracting(JsonNode::asText)
+                .containsExactlyInAnyOrder("ATENDENTE", "SUBGESTOR", "OPERADOR");
+        assertThat(operacao(openApi, "/api/v1/gestao/permissoes/perfis/{papel}", "put").at("/security/0/bearerAuth").isArray()).isTrue();
     }
 
     /** Teste negativo: prova que a verificacao acima realmente acusa uma operacao sem documentacao. */

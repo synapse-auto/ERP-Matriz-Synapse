@@ -26,7 +26,7 @@ public class VincularTagAoLeadUseCase {
         this.vinculos = vinculos;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') and @capacidades.permite('tags.aplicar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('tags.aplicar')")
     @Transactional
     public Optional<List<Tag>> executar(UUID leadId, UUID tagId) {
         return leads.porId(leadId).flatMap(lead -> tags.porId(tagId).map(tag -> {

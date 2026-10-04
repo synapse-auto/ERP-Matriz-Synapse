@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { interpolarCatalogo } from "@/lib/atendimento/variaveis-do-template";
 import { formatarDataHora } from "@/lib/campanhas/formatacao";
-import { funcionalidadeIndisponivel, useDetalheDaCampanha } from "@/lib/campanhas/hooks";
+import { funcionalidadeIndisponivel, useDetalheDaCampanha, usePodeEmCampanhas } from "@/lib/campanhas/hooks";
 import type { Campanha } from "@/lib/campanhas/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -47,6 +47,7 @@ function datasDaCampanha(campanha: Campanha, textos: ReturnType<typeof useTextos
 export function PaginaDetalheDaCampanha({ id }: { id: string }) {
   const textos = useTextos().campanhas;
   const consulta = useDetalheDaCampanha(id);
+  const podeVerDestinatarios = usePodeEmCampanhas("ver_destinatarios");
 
   if (consulta.isError && funcionalidadeIndisponivel(consulta.error)) return <CampanhasIndisponiveis />;
   if (consulta.isError && !consulta.data) {
@@ -90,11 +91,13 @@ export function PaginaDetalheDaCampanha({ id }: { id: string }) {
       <Tabs defaultValue="visao-geral">
         <TabsList>
           <TabsTrigger value="visao-geral" className="text-muted-foreground">{textos.detalhe.abas.visaoGeral}</TabsTrigger>
-          <TabsTrigger value="destinatarios" className="text-muted-foreground">{textos.detalhe.abas.destinatarios}</TabsTrigger>
+          {podeVerDestinatarios && <TabsTrigger value="destinatarios" className="text-muted-foreground">{textos.detalhe.abas.destinatarios}</TabsTrigger>}
+          {podeVerDestinatarios && (
           <TabsTrigger value="conferencia" className="text-muted-foreground">
             {textos.detalhe.abas.conferencia}
             {campanha.contadores.conferencia > 0 && ` (${campanha.contadores.conferencia})`}
           </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="visao-geral" className="space-y-5 pt-4">
           <FunilDaCampanha contadores={campanha.contadores} />
@@ -106,12 +109,12 @@ export function PaginaDetalheDaCampanha({ id }: { id: string }) {
             <AjusteDeLimite key={campanha.limiteDiario} detalhe={detalhe} />
           </div>
         </TabsContent>
-        <TabsContent value="destinatarios" className="pt-4">
+        {podeVerDestinatarios && <TabsContent value="destinatarios" className="pt-4">
           <AbaDestinatarios campanhaId={campanha.id} />
-        </TabsContent>
-        <TabsContent value="conferencia" className="pt-4">
+        </TabsContent>}
+        {podeVerDestinatarios && <TabsContent value="conferencia" className="pt-4">
           <AbaConferencia campanhaId={campanha.id} />
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </main>
   );

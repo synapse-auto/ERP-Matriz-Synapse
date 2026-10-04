@@ -112,7 +112,7 @@ export function ListaConversas({
   const textos = catalogo.atendimentos;
   const papel = useAuthStore((estado) => estado.papel);
   const usuarioId = useAuthStore((estado) => estado.usuarioId);
-  const papelAmplo = papel != null && papel !== "ATENDENTE";
+  const papelAmplo = papel === "SUBGESTOR" || papel === "GESTOR" || papel === "ADMINISTRADOR";
   const abas = useMemo<VisaoDeAba[]>(
     () => (papelAmplo ? ABAS_GESTAO : ABAS_ATENDENTE) as VisaoDeAba[],
     [papelAmplo],

@@ -241,6 +241,7 @@
       "desativar": "Desativar",
       "papeis": {
         "ATENDENTE": "Atendente",
+        "OPERADOR": "Operador",
         "SUBGESTOR": "Subgestor",
         "GESTOR": "Gestor",
         "ADMINISTRADOR": "Administrador"
@@ -1406,6 +1407,7 @@
     "papeis": {
       "atendente": "Atendente",
       "subgestor": "Subgestor",
+      "operador": "Operador",
       "gestor": "Gestor"
     },
     "presenca": {
@@ -1433,6 +1435,7 @@
       "papel": "Papel",
       "atendente": "Atendente",
       "subgestor": "Subgestor",
+      "operador": "Operador",
       "salvar": "Salvar",
       "cancelar": "Cancelar",
       "erro": "Não foi possível salvar o usuário."
@@ -2069,12 +2072,14 @@
       "GESTOR": "Gestor",
       "SUBGESTOR": "Subgestor",
       "ATENDENTE": "Atendente",
+      "OPERADOR": "Operador",
       "ADMINISTRADOR": "Administrador"
     },
     "papeisDescricao": {
       "GESTOR": "Acesso total e fixo",
       "SUBGESTOR": "Coordena a equipe e atende",
       "ATENDENTE": "Atende e gerencia seus leads",
+      "OPERADOR": "Atende seus leads, com permissões configuradas pela Gestão",
       "ADMINISTRADOR": "Acesso técnico e fixo"
     },
     "resumoPerfil": {
@@ -2323,6 +2328,11 @@
       "atendimentos.iniciar_conversa": "Iniciar nova conversa",
       "atendimentos.abrir_para_contato": "Abrir atendimento para contato existente",
       "atendimentos.transferir": "Transferir para outro atendente",
+      "atendimentos.receber_de_atendente": "Receber transferências e convites de Atendente",
+      "atendimentos.receber_de_operador": "Receber transferências e convites de Operador",
+      "atendimentos.receber_de_subgestor": "Receber transferências e convites de Subgestor",
+      "atendimentos.receber_de_gestor": "Receber transferências e convites de Gestor",
+      "atendimentos.receber_de_administrador": "Receber transferências e convites de Administrador",
       "atendimentos.devolver_ia": "Devolver conversa para a IA",
       "atendimentos.finalizar": "Finalizar atendimento",
       "atendimentos.colaborar": "Pedir entrada e convidar colegas para a conversa",
@@ -2351,6 +2361,7 @@
       "automacao.editar_parametros": "Alterar parâmetros da automação",
       "automacao.regras": "Gerenciar regras de follow-up e fidelização",
       "campanhas.ver": "Ver campanhas e indicadores",
+      "campanhas.ver_destinatarios": "Ver destinatários, telefones e exportações",
       "campanhas.registrar_opt_out": "Registrar bloqueio de campanhas de um contato",
       "campanhas.criar": "Criar campanha",
       "campanhas.editar": "Editar rascunho de campanha",

@@ -12,7 +12,7 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  * Quem pode conceder o que a quem. Permissao de executar nao e permissao de conceder.
  *
  * <ul>
- *   <li>GESTOR e ADMINISTRADOR editam perfis e excecoes de SUBGESTOR e ATENDENTE. Perfis fixos
+ *   <li>GESTOR e ADMINISTRADOR editam perfis e excecoes de SUBGESTOR, ATENDENTE e OPERADOR. Perfis fixos
  *       (GESTOR/ADMINISTRADOR) nao sao alvo de ninguem — o que tambem impede um GESTOR de receber
  *       operacao exclusiva de ADMINISTRADOR por esta via.
  *   <li>SUBGESTOR so alcanca ATENDENTE, e so com a delegacao concedida por um superior:
@@ -25,7 +25,8 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  */
 public final class PoliticaDeConcessao {
 
-    private static final Set<PapelUsuario> ALVOS_CONFIGURAVEIS = EnumSet.of(PapelUsuario.SUBGESTOR, PapelUsuario.ATENDENTE);
+    private static final Set<PapelUsuario> ALVOS_CONFIGURAVEIS = EnumSet.of(
+            PapelUsuario.SUBGESTOR, PapelUsuario.ATENDENTE, PapelUsuario.OPERADOR);
 
     private PoliticaDeConcessao() {}
 

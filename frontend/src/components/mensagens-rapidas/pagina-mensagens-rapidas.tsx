@@ -31,7 +31,7 @@ import type { MensagemRapida } from "@/lib/suporte/types";
 export function PaginaMensagensRapidas() {
   const t = useTextos().mensagensRapidas;
   // Só apresentação: agrupa por autor para quem enxerga as mensagens de toda a equipe.
-  const gestor = useAuthStore((s) => s.papel) !== "ATENDENTE";
+  const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
   const capacidades = useCapacidades();
   const podeCriar = capacidades.pode("mensagens_rapidas.criar");
   const podeEditarExcluir = capacidades.pode("mensagens_rapidas.editar_excluir");

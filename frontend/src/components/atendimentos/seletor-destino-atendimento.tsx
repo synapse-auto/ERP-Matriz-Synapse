@@ -53,8 +53,9 @@ export function SeletorDestinoAtendimento({
     });
   }, [destinos, excluidos]);
 
-  const principais = unicos.filter((destino) => destino.papel !== "SUBGESTOR");
-  const outros = unicos.filter((destino) => destino.papel === "SUBGESTOR");
+  const adicionais = (destino: DestinoDeTransferencia) => destino.papel === "SUBGESTOR" || destino.papel === "OPERADOR";
+  const principais = unicos.filter((destino) => !adicionais(destino));
+  const outros = unicos.filter(adicionais);
   const botao = (destino: DestinoDeTransferencia) => (
     <BotaoDestino
       key={destino.id}

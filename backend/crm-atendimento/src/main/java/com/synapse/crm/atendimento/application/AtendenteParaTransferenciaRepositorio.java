@@ -11,6 +11,11 @@ public interface AtendenteParaTransferenciaRepositorio {
 
     Optional<Destino> ativoAtendente(UUID atendenteId);
 
+    /** Caminho humano separado: nao amplia destinos do contrato interno da Automacao. */
+    default Optional<Destino> ativoDestinoHumano(UUID atendenteId) {
+        return ativoAtendente(atendenteId);
+    }
+
     /**
      * Destinos exibidos no diálogo de transferência.
      *

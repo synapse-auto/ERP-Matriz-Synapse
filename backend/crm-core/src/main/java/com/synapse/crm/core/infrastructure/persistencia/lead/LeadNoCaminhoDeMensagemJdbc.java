@@ -101,7 +101,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     // usuários inativos não devem receber eventos de trabalho.
     private static final String SQL_DESTINATARIOS_DA_FILA =
             "SELECT id FROM usuario WHERE ativo = TRUE "
-                    + "AND papel IN ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') ORDER BY id";
+                    + "AND papel IN ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR', 'OPERADOR') ORDER BY id";
 
     private static final String SQL_CONTATO =
             "SELECT telefone, COALESCE(telefone_provedor, telefone) AS telefone_destino, "

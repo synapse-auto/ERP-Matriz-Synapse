@@ -19,7 +19,7 @@ public class ListarMensagensRapidasUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_rapidas.usar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_rapidas.usar')")
     @Transactional(readOnly = true)
     public List<MensagemRapida> executar(boolean somenteMinhas) {
         var atual = usuario.atual();

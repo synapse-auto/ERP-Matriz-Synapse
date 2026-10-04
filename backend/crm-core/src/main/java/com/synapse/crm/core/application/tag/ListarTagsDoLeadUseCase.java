@@ -23,7 +23,7 @@ public class ListarTagsDoLeadUseCase {
         this.vinculos = vinculos;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR')")
     @Transactional(readOnly = true)
     public Optional<List<Tag>> executar(UUID leadId) {
         return leads.porId(leadId).map(lead -> vinculos.listar(lead.id()));

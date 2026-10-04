@@ -16,7 +16,7 @@ public class ListarCanaisUseCase {
         this.canais = canais;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR')")
     @Transactional(readOnly = true)
     public List<CanalResumo> executar() {
         return canais.listar();

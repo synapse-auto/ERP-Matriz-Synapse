@@ -910,6 +910,33 @@ falso e, nas capturas, um stub local da Graph API. Template com mídia ou variá
 parâmetro aparece como "não suportado nesta versão". Opt-out automático por resposta "SAIR" não existe ainda
 (o evento de mensagem recebida não carrega o texto); registre pelo CRM (`PUT /campanhas/optouts/{leadId}`).
 
+## Novo perfil Operador: homologação e liberação controlada
+
+1. Validar as migrations novas V92/V93 em homologação e conferir ausência de colisão com a
+   main antes do merge. Não editar migrations aplicadas nem usar `flyway repair`.
+2. Pela Gestão, gestor/administrador cria usuário Operador; concluir a troca da senha inicial.
+   Conferir que não vê carteira alheia, Gestão/automação/global e Campanhas por padrão.
+3. Em Permissões > Operador, conceder apenas as origens de recebimento necessárias; salvar,
+   recarregar e validar seleção em Outros e POST direto com origem permitida/proibida.
+   Conceder `atendimentos.transferir` separadamente apenas se necessário. Revogar e repetir
+   com a sessão já emitida; o backend deve recusar, sem depender de F5.
+4. Se autorizado, habilitar a flag Campanhas existente e conceder somente VER +
+   `campanhas.ver`. Conferir lista/detalhe e ausência de ações administrativas, destinatários,
+   CSV e opt-outs; testar POST/PUT direto negado. Flag desligada permanece 404.
+5. Testar convite/aceite e resposta consentida em atendimento de homologação sem enviar
+   mensagens reais a clientes. As limitações preexistentes da ficha de participante estão
+   em docs/51; não interpretar leitura da conversa como visão global da Agenda.
+
+**Rollback:** revogar concessões, suspender os usuários Operador ou retornar seus papéis
+mediante Gestão antes de voltar a uma versão que desconheça o enum. Suspender sozinho não
+garante que versões antigas consigam listar o enum: planejar a reversão dos papéis primeiro.
+Conservar V92/V93 e schema history; não tentar remover o valor do enum. Usuários atuais,
+tetos da gestão e configuração de rodízio não são alterados automaticamente.
+
+**Ação necessária no Dokploy antes do próximo deploy:** nenhuma variável nova. O rollout
+depende das migrations e das concessões explícitas descritas, não de configuração por cliente.
+Nenhuma mudança operacional/deploy está autorizada por esta entrega.
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

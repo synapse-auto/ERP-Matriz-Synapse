@@ -124,7 +124,7 @@ export function AbaPermissoes({
     if (normalizar(`${r.rotulo} ${r.descricao} ${m.id}`).includes(termo)) return true;
     return cat.capacidades.some((c) => c.modulo === m.id && normalizar(`${rotuloDaCapacidade(textos, c.id)} ${c.id}`).includes(termo));
   });
-  const origensDeCopia: Papel[] = (["SUBGESTOR", "ATENDENTE"] as Papel[]).filter((p) => p !== papel);
+  const origensDeCopia: Papel[] = (["SUBGESTOR", "ATENDENTE", "OPERADOR"] as Papel[]).filter((p) => p !== papel);
 
   /** A troca do rascunho atual por `novo` cabe na alçada de quem edita? (fixo: sempre) */
   function avaliar(novo: Rascunho): ViolacaoDaDelegacao | null {

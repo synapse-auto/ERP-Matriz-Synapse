@@ -41,7 +41,8 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
             """;
     private static final String SQL = "SELECT id, nome FROM usuario WHERE id = ? AND " + ELEGIVEL;
     private static final String SQL_LISTAR =
-            "SELECT id, nome, papel FROM usuario WHERE " + ELEGIVEL_NA_LISTA + " ORDER BY nome, id";
+            "SELECT id, nome, papel FROM usuario WHERE " + ELEGIVEL_NA_LISTA
+                    + " OR (ativo = TRUE AND papel = 'OPERADOR') ORDER BY nome, id";
     private static final String SQL_BUSCAR_POR_NOME =
             "SELECT id, nome FROM usuario WHERE " + ELEGIVEL + " AND nome ILIKE ? ORDER BY nome, id";
     private static final String SQL_MOTIVO = """
@@ -65,6 +66,15 @@ class AtendenteParaTransferenciaRepositorioJdbc implements AtendenteParaTransfer
                         linha.getObject("id", UUID.class), linha.getString("nome")), atendenteId)
                 .stream()
                 .findFirst();
+    }
+
+    @Override
+    public java.util.Optional<Destino> ativoDestinoHumano(UUID atendenteId) {
+        return chat.query("SELECT id, nome, papel FROM usuario WHERE id = ? AND ativo = TRUE"
+                        + " AND papel IN ('ATENDENTE','SUBGESTOR','OPERADOR')",
+                (linha, indice) -> new Destino(linha.getObject("id", UUID.class),
+                        linha.getString("nome"), PapelUsuario.valueOf(linha.getString("papel"))), atendenteId)
+                .stream().findFirst();
     }
 
     @Override

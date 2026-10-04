@@ -30,7 +30,7 @@ const TOM_DO_STATUS: Record<StatusMensagemProgramada, TomDePill> = {
 export function PaginaMensagensProgramadas() {
   const t = useTextos().mensagensProgramadas;
   // Só apresentação: coluna de atendente para quem enxerga as mensagens da equipe.
-  const gestor = useAuthStore((s) => s.papel) !== "ATENDENTE";
+  const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(useAuthStore((s) => s.papel) ?? "");
   const capacidades = useCapacidades();
   const podeCriar = capacidades.pode("mensagens_programadas.criar");
   const podeEditarCancelar = capacidades.pode("mensagens_programadas.editar_cancelar");

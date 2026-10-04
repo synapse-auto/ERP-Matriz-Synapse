@@ -10,8 +10,11 @@ public final class PermissoesDeCampanha {
 
     private static final String INDISPONIVEL = "!@disponibilidadeDeCampanhas.disponivel()";
 
-    public static final String LEITURA = "hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and ("
+    public static final String LEITURA = "hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR', 'OPERADOR') and ("
             + INDISPONIVEL + " or @capacidades.permite('campanhas.ver'))";
+    /** Carteira, telefones e exportacao nao fazem parte da leitura de metricas do Operador. */
+    public static final String LEITURA_DE_DESTINATARIOS = "hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and ("
+            + INDISPONIVEL + " or @capacidades.permite('campanhas.ver_destinatarios'))";
     public static final String REGISTRAR_OPT_OUT = "hasAnyRole('GESTOR', 'SUBGESTOR', 'ADMINISTRADOR') and ("
             + INDISPONIVEL + " or @capacidades.permite('campanhas.registrar_opt_out'))";
     public static final String CRIAR = "hasRole('ADMINISTRADOR') and ("

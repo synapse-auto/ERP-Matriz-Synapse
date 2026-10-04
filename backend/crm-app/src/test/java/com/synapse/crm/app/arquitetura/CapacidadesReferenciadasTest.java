@@ -37,7 +37,13 @@ class CapacidadesReferenciadasTest {
     /** Aplicadas por codigo (VerificadorDeCapacidades), nao por anotacao. */
     private static final Set<String> APLICADAS_PROGRAMATICAMENTE = Set.of(
             "resumo_ia.ver", // LeadController corta resumoIa da ficha (e tambem anotada em SolicitarResumoIaUseCase.estado)
-            "equipe.alterar_papel"); // AtualizarUsuarioUseCase, so quando o papel muda
+            "equipe.alterar_papel", // AtualizarUsuarioUseCase, so quando o papel muda
+            // ConsultaDeRecebimentoHumanoSpring verifica as permissoes do destinatario, nao do ator.
+            "atendimentos.receber_de_atendente",
+            "atendimentos.receber_de_operador",
+            "atendimentos.receber_de_subgestor",
+            "atendimentos.receber_de_gestor",
+            "atendimentos.receber_de_administrador");
 
     private static Set<String> referenciadas;
     private static JavaClasses classes;

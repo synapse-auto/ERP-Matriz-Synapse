@@ -10,6 +10,6 @@ import com.synapse.crm.sharedkernel.identidade.UsuarioContext;
 public class BuscarLeadParaEntradaUseCase {
  private final LeadParaEntradaRepositorio repositorio; private final UsuarioContext usuario;
  public BuscarLeadParaEntradaUseCase(LeadParaEntradaRepositorio r, UsuarioContext u){repositorio=r;usuario=u;}
- @PreAuthorize("hasRole('ATENDENTE')") @Transactional(readOnly=true)
+ @PreAuthorize("hasAnyRole('ATENDENTE','OPERADOR')") @Transactional(readOnly=true)
  public List<LeadParaEntrada> executar(String termo){ if(termo==null||termo.isBlank()||termo.length()<2)return List.of(); return repositorio.buscar(termo.trim(),usuario.atual().id()); }
 }

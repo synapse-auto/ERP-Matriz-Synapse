@@ -62,6 +62,7 @@ export const ICONE_DO_PAPEL: Record<Papel, ComponentType<{ className?: string }>
   ADMINISTRADOR: ShieldCheck,
   SUBGESTOR: UserCog,
   ATENDENTE: Headset,
+  OPERADOR: Headset,
 };
 
 export function rotuloDaCapacidade(t: TextosGestao, id: string): string {

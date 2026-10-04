@@ -25,6 +25,8 @@ de antes. A V83 não semeia valores; o padrão vem do catálogo em código
 ## 2. Inventário de capacidades
 
 Legenda de papéis: A = ATENDENTE, S = SUBGESTOR, G = GESTOR, D = ADMINISTRADOR.
+O = OPERADOR, acrescentado com os tetos e padrões da seção 15; a coluna "Teto (antes)"
+registra os papéis históricos, não concede visão global ao novo papel.
 "Padrão" = efetivo sem nada salvo. Nível = nível mínimo do módulo que libera a ação.
 
 ### 2.1 Incluídas no catálogo
@@ -63,7 +65,8 @@ Legenda de papéis: A = ATENDENTE, S = SUBGESTOR, G = GESTOR, D = ADMINISTRADOR.
 | `automacao.ver` | Automação | Ver | `GET /automacao/config`, `/config/resumo-ia`, `/follow-ups`, `/fidelizacao`, `/telemetria` | `ListarConfiguracoesAutomacaoAdmin`, `ObterConfiguracaoResumoIa`, `ListarRegras*Admin`, `ObterStatusAutomacaoTelemetria` | S G D | S G D | não | não |
 | `automacao.editar_parametros` | Automação | Gerenciar | `PUT /automacao/config/{chave}`, `PUT /config/resumo-ia` | `AtualizarConfiguracaoAutomacao`, `AtualizarConfiguracaoResumoIa` | S G D | S G D | não | sim |
 | `automacao.regras` | Automação | Gerenciar | `POST/PUT/PATCH/DELETE /automacao/follow-ups*`, `/fidelizacao*` (regras) | `SalvarRegraFollowUp/Fidelizacao` (3+3), `AlternarRegra*` | S G D | S G D | não | não |
-| `campanhas.ver` | Campanhas (flag `campanhas`) | Ver | `GET /campanhas`, `/templates`, `/{id}`, destinatários, conferência, CSV, configuração e opt-outs; `POST /previa`, `/projecao` | consultas, prévia e projeção já existentes | S G D | S G D | não | não |
+| `campanhas.ver` | Campanhas (flag `campanhas`) | Ver | `GET /campanhas`, `/templates`, `/{id}`, configuração e métricas agregadas | consultas existentes | O S G D | S G D (O OFF) | não | não |
+| `campanhas.ver_destinatarios` | Campanhas | Ver | destinatários, conferência, CSV, opt-outs, excluídos; `POST /previa`, `/projecao` | consultas de público existentes | S G D | S G D | não | não |
 | `campanhas.registrar_opt_out` | Campanhas | Editar | `PUT /campanhas/optouts/{leadId}` | `OptOutUseCases.registrar` | S G D | S G D | não | não |
 | `campanhas.criar` | Campanhas | Editar | `POST /campanhas` | `CriarCampanhaUseCase` | D | D | não | não |
 | `campanhas.editar` | Campanhas | Editar | `PUT /campanhas/{id}` | `AtualizarRascunhoUseCase` | D | D | não | não |
@@ -130,10 +133,10 @@ Ver seção 13 do relatório e a seção 13 deste documento.
 
 | Ator | Perfis | Exceções | Usuários |
 |---|---|---|---|
-| ADMINISTRADOR, GESTOR | editam SUBGESTOR e ATENDENTE | de SUBGESTOR e ATENDENTE | criar/editar/mudar papel/senha/desativar ATENDENTE e SUBGESTOR |
+| ADMINISTRADOR, GESTOR | editam SUBGESTOR, ATENDENTE e OPERADOR | de SUBGESTOR, ATENDENTE e OPERADOR | criar/editar/mudar papel/senha/desativar ATENDENTE, SUBGESTOR e OPERADOR |
 | SUBGESTOR sem delegação | lê | lê ATENDENTES e as próprias | alterna disponibilidade IA (como antes) |
 | SUBGESTOR delegado | com `equipe.perfis`: só o perfil ATENDENTE, nunca o próprio; mesmas regras das exceções; não copia perfil | só de ATENDENTE; regra de efeito abaixo | só ATENDENTE, nunca a si; nunca cria/promove SUBGESTOR; nunca muda papel |
-| ATENDENTE | — | — | — |
+| ATENDENTE, OPERADOR | — | — | — |
 
 **Regra de efeito do SUBGESTOR delegado** (perfil ATENDENTE e exceções de ATENDENTE,
 `PoliticaDeConcessao.exigirDentroDaDelegacao`, espelhada na tela por `violacaoDaDelegacao`): toda
@@ -412,3 +415,91 @@ Recusas 403/404/409/422 viram textos do catálogo. A diferença entre a lista de
 
 Mudar o terceiro para "esconde o recurso inteiro" é decisão de produto pendente (§13): o relato
 não permitiu saber qual controle foi desligado.
+
+## 15. Perfil Operador (decisões aprovadas em 04/10/2026)
+
+`OPERADOR` é um papel operacional configurável próprio, exibido como **Operador**, não uma
+herança de gestor/administrador. Gestor e administrador criam, editam, desativam e configuram
+esses usuários pela Gestão. A alçada do subgestor continua limitada aos atendentes.
+
+### 15.1 Tetos e padrões
+
+- Atendimentos, contatos, tags, mensagens rápidas/templates, programadas e lembretes seguem os
+  tetos operacionais do ATENDENTE. As ações continuam configuráveis no catálogo existente.
+- `atendimentos.ver` tem alcance **MEUS**: mesmos leads próprios e potenciais da IA, sem visão
+  global. RLS e Specification continuam decidindo; não há filtro de segurança só no frontend.
+- `atendimentos.transferir` e as cinco capacidades de recebimento abaixo começam desligadas.
+  Responder/finalizar/devolver à IA seguem os padrões operacionais já existentes.
+- Não recebe Gestão, administração, dashboard global ou automação por herança. Capacidades
+  fora do teto são recusadas com 422, inclusive após copiar um perfil mais privilegiado.
+- Campanhas tem teto **VER**, padrão **SEM_ACESSO** e `campanhas.ver = false`. Só concessão
+  explícita por Gestão **mais** feature flag `campanhas` habilitada libera lista, detalhe e
+  métricas agregadas existentes. Não cria, edita, inicia, pausa, cancela, envia teste ou altera
+  configurações. A flag desligada mantém 404; permissão ausente/revogada mantém 403.
+- `campanhas.ver_destinatarios` separa destinatários, conferência, CSV, opt-outs, excluídos,
+  prévia de público e projeção. Continua concedida por padrão à gestão atual, fora do teto do
+  Operador: leitura de campanhas não pode expor a carteira de outros atendentes.
+
+O Operador não entra no rodízio da IA: disponibilidade e `/internal/v1/atendentes/disponiveis`
+permanecem exclusivos dos papéis ATENDENTE/SUBGESTOR. Presença e usuário ativo não substituem
+nenhuma capacidade. Os usuários existentes não são convertidos nem recebem permissões novas.
+
+### 15.2 Matriz de origem do destino humano
+
+No perfil Operador ou em suas exceções, as ações configuráveis de Atendimentos são:
+
+| Capacidade do destinatário | Origem permitida |
+|---|---|
+| `atendimentos.receber_de_atendente` | ATENDENTE |
+| `atendimentos.receber_de_operador` | OPERADOR |
+| `atendimentos.receber_de_subgestor` | SUBGESTOR |
+| `atendimentos.receber_de_gestor` | GESTOR |
+| `atendimentos.receber_de_administrador` | ADMINISTRADOR |
+
+Todas começam OFF, exigem nível EDITAR e dependem de `atendimentos.responder`. A política usa
+as permissões **efetivas do destinatário ativo** e o papel autenticado da origem, não dados
+do payload. A mesma verificação filtra destinos e protege transferência/convite direto; a
+permissão de origem não substitui `atendimentos.transferir`/`colaborar` do solicitante.
+ATENDENTE e SUBGESTOR preservam suas regras anteriores. Destinos Operador elegíveis aparecem
+em **Outros**, agrupados exclusivamente pelo campo `papel` da resposta.
+
+Transferência para destino inativo/inexistente retorna 422; origem não concedida, destino
+Operador igual ao ator ou redistribuição de Potencial por papel sem alcance global retorna
+403. A exceção existente de assumir Potencial para si permanece; finalizado permanece 409,
+atendimento inacessível permanece 404. Convite consentido mantém a propriedade do responsável
+e não permite entrada direta do Operador em atendimento alheio.
+
+### 15.3 Contratos existentes estendidos (sem endpoints paralelos)
+
+- `POST /api/v1/usuarios` e `PUT /api/v1/usuarios/{id}` aceitam `papel: OPERADOR`, mantendo
+  payload/retorno e autenticação JWT. Gestor/administrador têm alçada; subgestor não.
+- `GET /api/v1/gestao/permissoes/perfis` inclui o quarto perfil, Operador.
+- `PUT /api/v1/gestao/permissoes/perfis/OPERADOR` salva `niveis`/`acoes` no modelo atual;
+  exceções e cópia usam as mesmas rotas existentes. Tetos/delegação continuam no backend.
+- `GET /api/v1/atendimentos/destinos-de-transferencia` mantém `id`, `nome` e `papel` opcional,
+  agora admitindo OPERADOR quando a origem foi concedida. Nenhuma alteração no contrato n8n.
+- `POST /api/v1/atendimentos/{id}/transferir` e `/convidar` reutilizam os payloads atuais,
+  com a matriz de recebimento adicionada à validação. Erros continuam RFC 7807.
+- OpenAPI publica os enums e os erros de autorização/inelegibilidade sem relaxar acesso.
+
+`V92` adiciona o enum em uma transação separada; `V93` amplia o CHECK/registro do perfil e
+recria políticas de leitura/escrita de leads/atendimentos e leitura de resumo/convites com
+o mesmo recorte do ATENDENTE. Campanhas ganha apenas SELECT sobre campanhas e contadores
+agregados. Não amplia RLS de destinatários/opt-outs nem o acesso global da Agenda.
+
+### 15.4 Limitações preservadas e validação
+
+Participação consentida segue docs/51: permite histórico e resposta autorizada, mas o acesso
+à ficha por `GET /leads/{id}` ainda tem a lacuna preexistente da Specification documentada lá.
+Esta etapa não concede visão global para contorná-la. A Agenda continua sem alcance global
+para Operador. Não houve envio externo, merge ou deploy.
+
+Evidências automatizadas: `PoliticaDePermissoesTest`, `GestaoPermissoesIT` (criação/login,
+isolamento, concessão/revogação, cópia, transferência e convite/aceite), `CampanhaApiIT`
+(read-only, destinatários negados, flag e teto), `OpenApiIT`, testes de Gestão, Campanhas e
+seletor de destinos. A validação headed usa backend e PostgreSQL locais, não respostas
+mockadas no navegador. Procedimento operacional: docs/18.
+
+Screenshots e procedimento headed: [docs/assets/perfil-operador](assets/perfil-operador/README.md).
+A negativa de entrada direta sem alçada agora usa `AccessDeniedException`: mantém o bloqueio
+existente e devolve 403 em vez do 500 preexistente, com teste para ATENDENTE e OPERADOR.

@@ -21,7 +21,7 @@ public class ListarTimelineDoLeadUseCase {
         this.timeline = timeline;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR')")
     @Transactional(readOnly = true)
     public Optional<PaginaTimeline> executar(UUID leadId, int pagina, int tamanho) {
         if (pagina < 0 || tamanho < 1) {

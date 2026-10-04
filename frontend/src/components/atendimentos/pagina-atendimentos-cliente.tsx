@@ -1063,7 +1063,7 @@ export function PaginaAtendimentosCliente({
 }
 
 function leituraOperacionalEhPessoal(papel: string | null, usuarioId: string | null, responsavelId: string | null) {
-  return papel === "ATENDENTE" || responsavelId === null || responsavelId === usuarioId;
+  return (papel === "ATENDENTE" || papel === "OPERADOR") || responsavelId === null || responsavelId === usuarioId;
 }
 
 function zerarNaoLidasDoLead(cache: QueryClient, leadId: string) {

@@ -20,7 +20,7 @@ import com.synapse.crm.equipe.domain.usuario.Usuario;
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 
 /**
- * Perfis exibidos em Gestao: GESTOR (fixo), SUBGESTOR e ATENDENTE, com contagem real de usuarios
+ * Perfis exibidos em Gestao: GESTOR (fixo), SUBGESTOR, ATENDENTE e OPERADOR, com contagem real de usuarios
  * ativos e "N de M" calculado do catalogo — nada de numero fixo.
  *
  * <p>ADMINISTRADOR fica fora de proposito, como ja fica da grade de Equipe: e o acesso tecnico da
@@ -29,7 +29,8 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
 @Service
 public class ListarPerfisDePermissaoUseCase {
 
-    static final List<PapelUsuario> PAPEIS_EXIBIDOS = List.of(PapelUsuario.GESTOR, PapelUsuario.SUBGESTOR, PapelUsuario.ATENDENTE);
+    static final List<PapelUsuario> PAPEIS_EXIBIDOS = List.of(
+            PapelUsuario.GESTOR, PapelUsuario.SUBGESTOR, PapelUsuario.ATENDENTE, PapelUsuario.OPERADOR);
 
     private final PermissaoRepositorio repositorio;
     private final EquipeRepositorio equipe;

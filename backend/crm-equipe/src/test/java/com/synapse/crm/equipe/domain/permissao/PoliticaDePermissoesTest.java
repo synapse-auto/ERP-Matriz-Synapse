@@ -145,7 +145,7 @@ class PoliticaDePermissoesTest {
             PermissoesEfetivas efetivas = PoliticaDePermissoes.calcular(papel, VAZIA, VAZIA, FLAGS);
             assertThat(efetivas.permite(Capacidade.CAMPANHAS_VER))
                     .as("campanhas.ver para " + papel)
-                    .isEqualTo(papel != PapelUsuario.ATENDENTE);
+                    .isEqualTo(Set.of(PapelUsuario.SUBGESTOR, PapelUsuario.GESTOR, PapelUsuario.ADMINISTRADOR).contains(papel));
             assertThat(efetivas.permite(Capacidade.CAMPANHAS_OPERAR))
                     .as("campanhas.operar para " + papel)
                     .isEqualTo(papel == PapelUsuario.ADMINISTRADOR);
@@ -163,6 +163,45 @@ class PoliticaDePermissoesTest {
         PermissoesEfetivas sub = PoliticaDePermissoes.calcular(PapelUsuario.SUBGESTOR, semCampanhas, VAZIA, FLAGS);
         assertThat(sub.permite(Capacidade.CAMPANHAS_VER)).isFalse();
         assertThat(sub.estado(Capacidade.CAMPANHAS_VER).origem()).isEqualTo(Origem.PERFIL);
+    }
+
+    @Test
+    void operadorNaoHerdaGestaoNemCampanhas() {
+        var efetivas = PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, VAZIA, VAZIA, FLAGS);
+        assertThat(Capacidade.ATENDIMENTOS_VER.alcancePara(PapelUsuario.OPERADOR)).isEqualTo(Capacidade.Alcance.MEUS);
+        assertThat(efetivas.permite(Capacidade.ATENDIMENTOS_RESPONDER)).isTrue();
+        assertThat(efetivas.permite(Capacidade.ATENDIMENTOS_TRANSFERIR)).isFalse();
+        assertThat(efetivas.permite(Capacidade.CAMPANHAS_VER)).isFalse();
+        assertThat(efetivas.permite(Capacidade.EQUIPE_PERFIS)).isFalse();
+        var leitura = new ConfiguracaoDePermissoes(Map.of(Modulo.CAMPANHAS, NivelDeAcesso.VER),
+                Map.of(Capacidade.CAMPANHAS_VER, true));
+        PoliticaDePermissoes.validarPerfil(PapelUsuario.OPERADOR, leitura, FLAGS);
+        var concedidas = PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, leitura, VAZIA, FLAGS);
+        assertThat(concedidas.permite(Capacidade.CAMPANHAS_VER)).isTrue();
+        assertThat(concedidas.permite(Capacidade.CAMPANHAS_OPERAR)).isFalse();
+        assertThat(concedidas.permite(Capacidade.CAMPANHAS_VER_DESTINATARIOS)).isFalse();
+        assertThat(PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, leitura, VAZIA, Set.of())
+                .permite(Capacidade.CAMPANHAS_VER)).isFalse();
+        var forjada = acoes(Map.of(Capacidade.CAMPANHAS_OPERAR, true, Capacidade.EQUIPE_PERFIS, true));
+        assertThatThrownBy(() -> PoliticaDePermissoes.validarPerfil(PapelUsuario.OPERADOR, forjada, FLAGS))
+                .isInstanceOf(PermissaoInvalidaException.class);
+        var adulteradas = PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, leitura, forjada, FLAGS);
+        assertThat(adulteradas.permite(Capacidade.CAMPANHAS_OPERAR)).isFalse();
+        assertThat(adulteradas.permite(Capacidade.EQUIPE_PERFIS)).isFalse();
+    }
+
+    @Test
+    void recebimentoDoOperadorExigeConcessaoEDependeDeResponder() {
+        for (Capacidade c : Capacidade.values()) {
+            if (!c.id().startsWith("atendimentos.receber_de_")) continue;
+            assertThat(PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, VAZIA, VAZIA, FLAGS).permite(c)).isFalse();
+            var ligada = acoes(Map.of(c, true));
+            PoliticaDePermissoes.validarPerfil(PapelUsuario.OPERADOR, ligada, FLAGS);
+            assertThat(PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, ligada, VAZIA, FLAGS).permite(c)).isTrue();
+            var bloqueada = acoes(Map.of(c, true, Capacidade.ATENDIMENTOS_RESPONDER, false));
+            assertThat(PoliticaDePermissoes.calcular(PapelUsuario.OPERADOR, bloqueada, VAZIA, FLAGS).permite(c)).isFalse();
+            assertThat(c.noTetoDe(PapelUsuario.ATENDENTE)).isFalse();
+        }
     }
 
     @Test

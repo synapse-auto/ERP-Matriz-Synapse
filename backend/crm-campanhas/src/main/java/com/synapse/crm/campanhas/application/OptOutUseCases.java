@@ -48,7 +48,7 @@ public class OptOutUseCases {
 
     public record Lista(java.util.List<Registro> itens, long total, int pagina, int tamanho) {}
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public Lista listar(int pagina, int tamanho) {
         disponibilidade.exigir();

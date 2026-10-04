@@ -27,13 +27,13 @@ const CATALOGO: Catalogo = {
   modulos: [
     {
       id: "atendimentos", nivelMinimoPermitido: "VER", flag: null,
-      nivelMaximoPorPapel: { ATENDENTE: "GERENCIAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
-      nivelPadraoPorPapel: { ATENDENTE: "GERENCIAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelMaximoPorPapel: { ATENDENTE: "GERENCIAR", OPERADOR: "GERENCIAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelPadraoPorPapel: { ATENDENTE: "GERENCIAR", OPERADOR: "GERENCIAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
     },
     {
       id: "tags", nivelMinimoPermitido: "VER", flag: null,
-      nivelMaximoPorPapel: { ATENDENTE: "EDITAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
-      nivelPadraoPorPapel: { ATENDENTE: "EDITAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelMaximoPorPapel: { ATENDENTE: "EDITAR", OPERADOR: "EDITAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelPadraoPorPapel: { ATENDENTE: "EDITAR", OPERADOR: "EDITAR", SUBGESTOR: "GERENCIAR", GESTOR: "GERENCIAR", ADMINISTRADOR: "GERENCIAR" },
     },
   ],
   capacidades: [
@@ -112,11 +112,32 @@ beforeEach(() => {
 });
 
 describe("Gestão", () => {
+  it("Operador é configurável, sem acesso próprio à Gestão", () => {
+    perfis.push(perfil("OPERADOR"));
+    render(<AbaPermissoes textos={TEXTOS} minhas={minhas} papelInicial="OPERADOR" onSujoChange={vi.fn()} />);
+    expect(screen.getByText(TEXTOS.papeis.OPERADOR)).toBeInTheDocument();
+    const criar = screen.getByRole("switch", { name: TEXTOS.capacidades["tags.criar"] });
+    expect(criar).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("Operador logado não acessa Gestão", () => {
+    minhas = minhasDe("OPERADOR", false);
+    render(<PaginaGestao />);
+    expect(screen.getByRole("alert")).toHaveTextContent(TEXTOS.semAcesso);
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  });
+
+  it("catálogo antigo ganha rótulos das novas capacidades sem apagar textos personalizados", () => {
+    const compativel = GestaoTextosSchema.parse({ capacidades: { "tags.aplicar": "Texto personalizado" } });
+    expect(compativel.capacidades["tags.aplicar"]).toBe("Texto personalizado");
+    expect(compativel.capacidades["atendimentos.receber_de_operador"]).toBeTruthy();
+    expect(compativel.papeis.OPERADOR).toBe("Operador");
+  });
   it("Campanhas aparece no catálogo da Gestão e permite revogar a leitura do subgestor", () => {
     CATALOGO.modulos.push({
       id: "campanhas", nivelMinimoPermitido: "SEM_ACESSO", flag: "campanhas",
-      nivelMaximoPorPapel: { ATENDENTE: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
-      nivelPadraoPorPapel: { ATENDENTE: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelMaximoPorPapel: { ATENDENTE: "SEM_ACESSO", OPERADOR: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
+      nivelPadraoPorPapel: { ATENDENTE: "SEM_ACESSO", OPERADOR: "SEM_ACESSO", SUBGESTOR: "EDITAR", GESTOR: "EDITAR", ADMINISTRADOR: "GERENCIAR" },
     });
     CATALOGO.capacidades.push({
       id: "campanhas.ver", modulo: "campanhas", nivelMinimo: "VER", tipo: "ACAO", sensivel: false,

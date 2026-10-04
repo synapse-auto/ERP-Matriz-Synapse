@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ListarMensagensProgramadasUseCase {
     private final MensagemProgramadaRepositorio mensagens;
     public ListarMensagensProgramadasUseCase(MensagemProgramadaRepositorio mensagens) { this.mensagens = mensagens; }
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_programadas.ver')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_programadas.ver')")
     @Transactional(readOnly = true)
     public PaginaMensagensProgramadas executar(FiltroMensagensProgramadas filtro) { return mensagens.listar(filtro); }
 }

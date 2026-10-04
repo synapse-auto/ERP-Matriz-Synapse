@@ -31,7 +31,7 @@ public class ExportarDestinatariosCsvUseCase {
         this.transacoes = transacoes;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     @Auditable(acao = "EXPORTAR_RESULTADO_CAMPANHA", entidadeTipo = "CAMPANHA", capturarDados = false)
     public void executar(UUID campanhaId, Appendable saida) {
         disponibilidade.exigir();

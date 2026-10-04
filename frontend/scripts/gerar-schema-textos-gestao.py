@@ -43,7 +43,7 @@ const CAPACIDADES_PADRAO: Record<string, string> = {capacidades};
 
 export const GestaoTextosSchema = {corpo}.extend({{
   modulos: z.record(z.string(), z.object({{ rotulo: z.string(), descricao: z.string() }})).default(MODULOS_PADRAO),
-  capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO),
+  capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO).transform(v => ({{ ...CAPACIDADES_PADRAO, ...v }})),
 }}).default({{}});
 ''', encoding="utf-8", newline="\n")
 

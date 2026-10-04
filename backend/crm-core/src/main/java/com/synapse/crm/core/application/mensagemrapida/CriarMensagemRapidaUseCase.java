@@ -17,7 +17,7 @@ public class CriarMensagemRapidaUseCase {
         this.usuario = usuario;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_rapidas.criar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_rapidas.criar')")
     @Transactional
     public MensagemRapida executar(String chave, String conteudo) {
         return repo.criar(

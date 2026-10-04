@@ -19,7 +19,7 @@ public class AtualizarLembreteUseCase {
         this.lembretes = lembretes;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') and @capacidades.permite('lembretes.editar_excluir')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.editar_excluir')")
     @Transactional
     public Optional<Lembrete> executar(UUID id, String texto, Instant dataHora, StatusLembrete status) {
         return lembretes.atualizar(id, texto.trim(), dataHora, status);

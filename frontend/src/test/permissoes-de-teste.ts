@@ -8,7 +8,7 @@ const LEITURAS_DA_GESTAO = ["dashboard.ver", "automacao.ver", "campanhas.ver", "
  * leituras que decidem o menu. Serve para semear o QueryClient de testes do shell.
  */
 export function permissoesEfetivasDeTeste(papel: Papel, negadas: string[] = []): MinhasPermissoes {
-  const gestao = papel !== "ATENDENTE";
+  const gestao = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(papel);
   const ids = gestao ? [...LEITURAS_DE_TODOS, ...LEITURAS_DA_GESTAO] : LEITURAS_DE_TODOS;
   return {
     usuarioId: "usuario-de-teste",
