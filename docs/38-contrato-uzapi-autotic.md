@@ -403,8 +403,17 @@ na conta real. O adaptador reconhece binário de imagem, data URI, base64 e camp
 Por isso toda consulta que termina sem imagem agora registra **o motivo** (ver `docs/18`, "Foto de perfil:
 motivos no log"): código, status HTTP, tipo de conteúdo, tamanho, nomes de campo e host da URL; nunca
 telefone, token, valores nem caminho/query da URL. A URL de foto só é baixada se o host for igual ao de
-`WHATSAPP_URL_BASE`; se a UZAPI devolver um link de CDN do WhatsApp (outro host), o log mostra
-`URL_RECUSADA` com o host, e ampliar a lista de hosts é decisão a tomar com essa evidência, não antes.
+`WHATSAPP_URL_BASE` **ou** estiver em `CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS`.
+
+**Evidência real (Fêmina, 04/10/2026):** a UZAPI respondeu ao `getPicture` com uma URL em
+`pps.whatsapp.net` (CDN de fotos do WhatsApp), host diferente de `api.uzapi.com.br`, e o filtro a recusou
+(`motivo=URL_RECUSADA`). Logo a UZAPI **fornece** a foto, mas como link do CDN. Por isso `pps.whatsapp.net` é o
+padrão da lista. A lista é de hosts **exatos**: sem curinga, sem sufixo, sem subdomínio implícito, só HTTPS,
+sem credencial na URL, sem fragmento e sem enviar o Bearer; valor inválido derruba o boot. Resíduo
+conhecido: o cliente HTTP do Spring segue redirecionamentos, então um redirecionamento do próprio CDN para
+outro host não passaria pelo filtro; a resposta ainda precisa ser imagem dentro do limite de bytes e é
+reencodada, e a requisição não leva credencial. Não foi verificado se o CDN emite redirecionamentos; se
+for preciso fechar isso, o download da foto ganha um cliente próprio sem redirecionamento.
 
 ## 9. Segredos
 

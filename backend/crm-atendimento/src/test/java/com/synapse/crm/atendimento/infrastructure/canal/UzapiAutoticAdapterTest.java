@@ -897,6 +897,93 @@ class UzapiAutoticAdapterTest {
         servidor.verify();
     }
 
+    // --- hosts permitidos para a foto (CDN do WhatsApp) ----------------------------------------------
+
+    private static final String CDN = "pps.whatsapp.net";
+
+    private record ComCdn(UzapiAutoticAdapter adapter, MockRestServiceServer servidor) {}
+
+    private ComCdn adapterComHosts(java.util.List<String> hosts) {
+        RestClient.Builder outro = RestClient.builder();
+        MockRestServiceServer outroServidor = MockRestServiceServer.bindTo(outro).build();
+        return new ComCdn(
+                new UzapiAutoticAdapter(
+                        outro,
+                        propriedades(),
+                        json,
+                        CircuitBreakerRegistry.ofDefaults(),
+                        armazenamento,
+                        conversorDeAudio,
+                        5_242_880,
+                        hosts),
+                outroServidor);
+    }
+
+    private static void respostaComUrlDeFoto(MockRestServiceServer s, String url) {
+        s.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/contacts"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"url\":\"" + url + "\"}", MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void fotoNoCdnDoWhatsappEBaixadaSemEnviarOBearerQuandoOHostEstaNaLista() {
+        var teste = adapterComHosts(java.util.List.of(CDN));
+        respostaComUrlDeFoto(teste.servidor(), "https://" + CDN + "/v/t61/foto.jpg?oh=assinatura");
+        teste.servidor().expect(once(), requestTo("https://" + CDN + "/v/t61/foto.jpg?oh=assinatura"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(r -> assertThat(r.getHeaders().getFirst("Authorization")).isNull())
+                .andRespond(withSuccess(new byte[] {1, 2, 3, 4}, MediaType.IMAGE_JPEG));
+
+        var foto = teste.adapter().buscarFotoDePerfil("5561999999999");
+
+        assertThat(foto).isPresent();
+        assertThat(foto.orElseThrow().conteudo()).containsExactly(1, 2, 3, 4);
+        teste.servidor().verify();
+    }
+
+    @Test
+    void hostForaDaListaContinuaRecusadoMesmoComOCdnConfigurado() {
+        var teste = adapterComHosts(java.util.List.of(CDN));
+        respostaComUrlDeFoto(teste.servidor(), "https://outro-host.example/foto.jpg");
+
+        assertThat(teste.adapter().buscarFotoDePerfil("5561999999999")).isEmpty();
+        teste.servidor().verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "https://" + CDN + ".atacante.example/foto.jpg",
+        "https://atacante-" + CDN + "/foto.jpg",
+        "https://sub." + CDN + "/foto.jpg",
+        "http://" + CDN + "/foto.jpg",
+        "https://usuario@" + CDN + "/foto.jpg",
+        "https://" + CDN + "/foto.jpg#fragmento"
+    })
+    void variacoesDoHostDoCdnNaoPassamNoFiltro(String url) {
+        var teste = adapterComHosts(java.util.List.of(CDN));
+        respostaComUrlDeFoto(teste.servidor(), url);
+
+        assertThat(teste.adapter().buscarFotoDePerfil("5561999999999")).isEmpty();
+        teste.servidor().verify();
+    }
+
+    @Test
+    void listaVaziaMantemSomenteOHostDaUzapi() {
+        var teste = adapterComHosts(java.util.List.of());
+        respostaComUrlDeFoto(teste.servidor(), "https://" + CDN + "/foto.jpg");
+
+        assertThat(teste.adapter().buscarFotoDePerfil("5561999999999")).isEmpty();
+        teste.servidor().verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"*.whatsapp.net", "https://pps.whatsapp.net", "pps.whatsapp.net:443", "pps.whatsapp.net/foto", "localhost", "10.0.0.1"})
+    void configuracaoDeHostInvalidaDerrubaOBootEmVezDeAbrirAListaEmSilencio(String invalido) {
+        assertThatThrownBy(() -> adapterComHosts(java.util.List.of(invalido)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("hosts-permitidos");
+    }
+
     @Test
     void naoSobrescreveListarNemCriarEditarOuExcluirTemplate_usaDefaultsDaInterface() {
         assertThat(adapter.gerenciaTemplates()).isFalse();

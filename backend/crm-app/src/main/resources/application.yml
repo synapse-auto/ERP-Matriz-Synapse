@@ -213,6 +213,9 @@ synapse:
       concorrencia: ${CANAL_FOTO_PERFIL_CONCORRENCIA:2}
       fila: ${CANAL_FOTO_PERFIL_FILA:100}
       limite-bytes: ${CANAL_FOTO_PERFIL_LIMITE_BYTES:5242880}
+      # Hosts (exatos, separados por virgula) de onde a foto pode ser baixada alem do host da UZAPI.
+      # A UZAPI devolve a URL do CDN de fotos do WhatsApp. Vazio = so o host da UZAPI.
+      hosts-permitidos: ${CANAL_FOTO_PERFIL_HOSTS_PERMITIDOS:pps.whatsapp.net}
 
     # Publisher da outbox. O intervalo e o que define a latencia percebida entre
     # o clique do atendente e a mensagem sair.
