@@ -48,8 +48,8 @@ export function cenarioDeCapacidades(): Cenario | "real" {
 
 export function capacidadesDoCenario(atual: Cenario): Capacidades {
   const pronto = atual.estado === "pronto";
-  // Sem alcance declarado, espelha o recorte estrutural do backend: só ATENDENTE fica em "Meus".
-  const alcancaTodos = atual.alcancaTodos ?? papelAtual() !== "ATENDENTE";
+  // Sem auth-store real, preserva o cenário legado "tudo permitido". Negativos declaram alcance.
+  const alcancaTodos = atual.alcancaTodos ?? ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(papelAtual() ?? "GESTOR");
   return {
     estado: atual.estado,
     pode: (capacidade) => pronto && !atual.negadas.has(capacidade),

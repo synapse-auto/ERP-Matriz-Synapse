@@ -55,7 +55,7 @@ public class ProjetarEnvioUseCase {
             int limiteMetaInformado,
             int limiteEfetivoNoPrimeiroDia) {}
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     public Saida executar(Entrada entrada) {
         disponibilidade.exigir();
         ContagemDoPublico contagem = previa.executar(entrada.filtro());

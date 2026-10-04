@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class TransferirAtendimentoUseCase {
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
     private final UsuarioContext usuarios;
+    private final DestinoHumanoAutorizado destinoHumano;
 
     public TransferirAtendimentoUseCase(
             AtendimentoRepositorio atendimentos,
@@ -46,12 +48,22 @@ public class TransferirAtendimentoUseCase {
             ApplicationEventPublisher eventos,
             Clock relogio,
             UsuarioContext usuarios) {
+        this(atendimentos, leads, destinos, eventos, relogio, usuarios,
+                new DestinoHumanoAutorizado(destinos, usuarios, (id, papel) -> false));
+    }
+
+    @Autowired
+    public TransferirAtendimentoUseCase(
+            AtendimentoRepositorio atendimentos, LeadNoCaminhoDeMensagem leads,
+            AtendenteParaTransferenciaRepositorio destinos, ApplicationEventPublisher eventos,
+            Clock relogio, UsuarioContext usuarios, DestinoHumanoAutorizado destinoHumano) {
         this.atendimentos = atendimentos;
         this.leads = leads;
         this.destinos = destinos;
         this.eventos = eventos;
         this.relogio = relogio;
         this.usuarios = usuarios;
+        this.destinoHumano = destinoHumano;
     }
 
     /**
@@ -63,7 +75,7 @@ public class TransferirAtendimentoUseCase {
      * {@code #p1} e {@code paraAtendenteId} (nulo = devolver). A regra de Potenciais (atendente nao
      * escolhe destino) continua valendo abaixo, independente da capacidade.
      */
-    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR') and (#p1 == null ? @capacidades.permite('atendimentos.devolver_ia') : @capacidades.permite('atendimentos.transferir'))")
+    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR','OPERADOR') and (#p1 == null ? @capacidades.permite('atendimentos.devolver_ia') : @capacidades.permite('atendimentos.transferir'))")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
     public Atendimento executar(UUID atendimentoId, UUID paraAtendenteId, UUID quemPediu) {
         return transferir(atendimentoId, paraAtendenteId, quemPediu, OrigemEvento.USUARIO, false, false);
@@ -133,7 +145,12 @@ public class TransferirAtendimentoUseCase {
         recusarDistribuicaoDePotencial(antes, paraAtendenteId, atorId, atorTipo);
 
         if (paraAtendenteId != null) {
-            destinos.exigirAtendenteAtivo(paraAtendenteId);
+            if (atorTipo == OrigemEvento.USUARIO) {
+                destinoHumano.exigir(paraAtendenteId,
+                        antes.status() == StatusAtendimento.EM_IA && paraAtendenteId.equals(atorId));
+            } else {
+                destinos.exigirAtendenteAtivo(paraAtendenteId);
+            }
         }
 
         Atendimento depois =

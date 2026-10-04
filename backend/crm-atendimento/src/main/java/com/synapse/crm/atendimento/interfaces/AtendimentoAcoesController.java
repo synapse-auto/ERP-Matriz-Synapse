@@ -305,9 +305,9 @@ class AtendimentoAcoesController {
             description = "Transfere para o atendente informado; corpo ausente ou paraAtendenteId nulo devolve para a IA. Atendente transfere a conversa que enxerga para um colega ativo; em Potenciais, só assume para si ou devolve.",
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento transferido."),
-                @ApiResponse(responseCode = "403", description = "Atendente tentou escolher o destino de um Potencial."),
+                @ApiResponse(responseCode = "403", description = "Capacidade negada, origem não autorizada pela Gestão a encaminhar para OPERADOR ou tentativa de distribuir Potencial sem alcance global."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
-                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE ou SUBGESTOR."),
+                @ApiResponse(responseCode = "422", description = "Destino inexistente, inativo ou com papel diferente de ATENDENTE, SUBGESTOR ou OPERADOR."),
                 @ApiResponse(responseCode = "409", description = "Atendimento já finalizado.")
             })
     @PostMapping("/{id}/transferir")

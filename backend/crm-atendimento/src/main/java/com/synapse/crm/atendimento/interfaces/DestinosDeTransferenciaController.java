@@ -34,7 +34,7 @@ class DestinosDeTransferenciaController {
 
     @Operation(
             summary = "Listar destinos de transferência",
-            description = "Retorna identificador, nome e papel dos atendentes ativos e dos subgestores online disponíveis para a IA. O papel pode ser omitido por implementações legadas; não inclui e-mail, presença ou métricas.",
+            description = "Retorna identificador, nome e papel dos atendentes ativos, subgestores online disponíveis para a IA e operadores ativos com recebimento autorizado pela Gestão para o papel do solicitante. O papel pode ser omitido por implementações legadas; não inclui e-mail, presença ou métricas. Esta lista não concede acesso ao atendimento nem substitui a validação do comando de convite/transferência.",
             responses = @ApiResponse(responseCode = "200", description = "Atendentes que podem receber a conversa."))
     @GetMapping("/destinos-de-transferencia")
     List<DestinoResposta> listar() {
@@ -46,7 +46,7 @@ class DestinosDeTransferenciaController {
             UUID id,
             String nome,
             @Schema(description = "Papel elegível do destino. Ausente em respostas legadas.", nullable = true,
-                    allowableValues = {"ATENDENTE", "SUBGESTOR"})
+                    allowableValues = {"ATENDENTE", "SUBGESTOR", "OPERADOR"})
             String papel) {
         static DestinoResposta de(Destino destino) {
             return new DestinoResposta(

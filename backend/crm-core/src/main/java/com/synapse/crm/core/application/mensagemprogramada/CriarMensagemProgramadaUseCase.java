@@ -20,7 +20,7 @@ public class CriarMensagemProgramadaUseCase {
     public CriarMensagemProgramadaUseCase(LeadRepositorio leads, MensagemProgramadaRepositorio mensagens,
             UsuarioContext usuario) { this.leads = leads; this.mensagens = mensagens; this.usuario = usuario; }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_programadas.criar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_programadas.criar')")
     @Transactional
     public Optional<MensagemProgramada> executar(UUID leadId, String conteudo, Instant dataEnvio) {
         return leads.porId(leadId).map(lead -> mensagens.criar(lead.id(), usuario.atual().id(), conteudo.trim(), dataEnvio));

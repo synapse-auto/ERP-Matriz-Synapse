@@ -14,7 +14,7 @@ public class RemoverLembreteUseCase {
         this.lembretes = lembretes;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR') and @capacidades.permite('lembretes.editar_excluir')")
+    @PreAuthorize("hasAnyRole('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR','OPERADOR') and @capacidades.permite('lembretes.editar_excluir')")
     @Transactional
     public boolean executar(UUID id) {
         return lembretes.remover(id);

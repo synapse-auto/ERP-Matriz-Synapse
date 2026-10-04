@@ -284,6 +284,52 @@ class CampanhaApiIT extends CampanhaITBase {
 
     // --- apoio ----------------------------------------------------------------------------------------
 
+    @Test
+    void operadorSoLeMetricasDepoisDeConcessaoSemAcessoACarteiraOuDisparo() {
+        String email = "operador-campanha-" + UUID.randomUUID() + "@teste.local";
+        var criada = chamar(tokenGestor, HttpMethod.POST, "/api/v1/usuarios",
+                Map.of("nome", "Operador campanha IT", "email", email, "senha", "senha-campanha-it", "papel", "OPERADOR"));
+        assertThat(criada.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID usuario = UUID.fromString((String) criada.getBody().get("id"));
+        jdbc.update("UPDATE usuario SET senha_alterada_em = now() WHERE id = ?", usuario);
+        String o = ApoioAutenticacao.login(http, email, "senha-campanha-it").accessToken();
+        String perfil = "/api/v1/gestao/permissoes/perfis/OPERADOR";
+        try {
+            assertThat(chamar(o, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            long revisao = jdbc.queryForObject("SELECT revisao FROM permissao_perfil WHERE papel = 'OPERADOR'", Long.class);
+            var concedida = chamar(tokenGestor, HttpMethod.PUT, perfil,
+                    Map.of("revisaoEsperada", revisao, "niveis", Map.of("campanhas", "VER"), "acoes", Map.of("campanhas.ver", true)));
+            assertThat(concedida.getStatusCode()).as(concedida.toString()).isEqualTo(HttpStatus.OK);
+            String id = campanhaCriadaPeloAdmin();
+            assertThat(chamar(o, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(o, HttpMethod.GET, BASE + "/" + id, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+            for (String acao : List.of("iniciar", "pausar", "retomar", "cancelar")) {
+                assertThat(chamar(o, HttpMethod.POST, BASE + "/" + id + "/" + acao, null).getStatusCode())
+                        .as(acao).isEqualTo(HttpStatus.FORBIDDEN);
+            }
+            assertThat(chamar(o, HttpMethod.POST, BASE, corpoDaCampanha("Negada")).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(chamar(o, HttpMethod.PUT, BASE + "/" + id, corpoDaCampanha("Edicao negada")).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(chamar(o, HttpMethod.GET, BASE + "/" + id + "/destinatarios", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(chamar(o, HttpMethod.GET, BASE + "/optouts", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            assertThat(chamar(o, HttpMethod.POST, BASE + "/previa", Map.of("filtro", Map.of())).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            revisao = jdbc.queryForObject("SELECT revisao FROM permissao_perfil WHERE papel = 'OPERADOR'", Long.class);
+            assertThat(chamar(tokenGestor, HttpMethod.PUT, perfil,
+                    Map.of("revisaoEsperada", revisao, "niveis", Map.of("campanhas", "GERENCIAR"), "acoes", Map.of("campanhas.operar", true)))
+                    .getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+            revisao = jdbc.queryForObject("SELECT revisao FROM permissao_perfil WHERE papel = 'OPERADOR'", Long.class);
+            assertThat(chamar(tokenGestor, HttpMethod.PUT, perfil,
+                    Map.of("revisaoEsperada", revisao, "niveis", Map.of("campanhas", "SEM_ACESSO"), "acoes", Map.of("campanhas.ver", false)))
+                    .getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(chamar(o, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+            jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = 'campanhas'");
+            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(
+                    chamar(o, HttpMethod.GET, BASE, null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        } finally {
+            jdbc.update("DELETE FROM permissao_perfil_item WHERE papel = 'OPERADOR'");
+            jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", usuario);
+        }
+    }
+
     private String campanhaCriadaPeloAdmin() {
         ResponseEntity<Map> criada = chamar(tokenAdmin, HttpMethod.POST, BASE, corpoDaCampanha("Natal"));
         assertThat(criada.getStatusCode()).isEqualTo(HttpStatus.CREATED);

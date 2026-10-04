@@ -42,9 +42,9 @@ const COR_PRESENCA: Record<StatusPresenca, string> = {
   OFFLINE: "var(--texto-fraco)",
 };
 
-const ORDEM_DO_PAPEL: Record<Papel, number> = { ADMINISTRADOR: 0, GESTOR: 1, SUBGESTOR: 2, ATENDENTE: 3 };
+const ORDEM_DO_PAPEL: Record<Papel, number> = { ADMINISTRADOR: 0, GESTOR: 1, SUBGESTOR: 2, ATENDENTE: 3, OPERADOR: 4 };
 
-const TOM_DO_PAPEL = { GESTOR: "info", SUBGESTOR: "info", ATENDENTE: "neutro", ADMINISTRADOR: "info" } as const;
+const TOM_DO_PAPEL = { GESTOR: "info", SUBGESTOR: "info", ATENDENTE: "neutro", OPERADOR: "neutro", ADMINISTRADOR: "info" } as const;
 
 /**
  * Equipe: resumos por perfil com números reais, integrantes com presença, disponibilidade da IA,
@@ -95,10 +95,10 @@ export function AbaEquipe({
   const excecoesPorId = new Map((permissoes.data ?? []).map((p) => [p.id, p.excecoes]));
   const visiveisNasExcecoes = new Set((permissoes.data ?? []).map((p) => p.id));
   const avaliacaoPorId = new Map((avaliacoes.data?.porAtendente ?? []).map((a) => [a.atendenteId, a]));
-  const funcoesPermitidas: PapelGerenciavel[] = atorFixo ? ["SUBGESTOR", "ATENDENTE"] : ["ATENDENTE"];
+  const funcoesPermitidas: PapelGerenciavel[] = atorFixo ? ["SUBGESTOR", "OPERADOR", "ATENDENTE"] : ["ATENDENTE"];
 
   function gerenciavel(u: UsuarioEquipe): boolean {
-    if (atorFixo) return u.papel === "ATENDENTE" || u.papel === "SUBGESTOR";
+    if (atorFixo) return u.papel === "ATENDENTE" || u.papel === "SUBGESTOR" || u.papel === "OPERADOR";
     return u.papel === "ATENDENTE" && u.id !== minhas.usuarioId;
   }
 

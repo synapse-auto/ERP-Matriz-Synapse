@@ -274,7 +274,7 @@ export interface DestinoDeTransferencia {
   id: string;
   nome: string;
   /** Campo adicionado após a primeira versão; ausência mantém compatibilidade com respostas antigas. */
-  papel?: "ATENDENTE" | "SUBGESTOR" | null;
+  papel?: "ATENDENTE" | "SUBGESTOR" | "OPERADOR" | null;
 }
 
 /** Espelha UsuarioController.UsuarioResposta — GET /api/v1/usuarios. */
@@ -282,7 +282,7 @@ export interface UsuarioResposta {
   id: string;
   nome: string;
   email: string;
-  papel: "ATENDENTE" | "SUBGESTOR" | "GESTOR" | "ADMINISTRADOR";
+  papel: "ATENDENTE" | "OPERADOR" | "SUBGESTOR" | "GESTOR" | "ADMINISTRADOR";
   ativo: boolean;
   statusPresenca: "ONLINE" | "AUSENTE" | "OFFLINE";
 }

@@ -101,7 +101,7 @@ class GestaoPermissoesController {
                 @ApiResponse(responseCode = "422", description = "Identificador desconhecido, estrutural, fora do teto, fora da flag ou combinação incoerente.")
             })
     @PutMapping("/perfis/{papel}")
-    GravacaoResposta salvarPerfil(@Parameter(description = "SUBGESTOR ou ATENDENTE.") @PathVariable PapelUsuario papel,
+    GravacaoResposta salvarPerfil(@Parameter(description = "SUBGESTOR, ATENDENTE ou OPERADOR. Operador tem alcance MEUS e Campanhas no máximo VER.") @PathVariable PapelUsuario papel,
             @Valid @RequestBody PerfilRequisicao requisicao) {
         return GravacaoResposta.de(salvarPerfil.executar(papel, requisicao.revisaoEsperada(),
                 requisicao.niveis(), requisicao.acoes(), requisicao.copiadoDe()));

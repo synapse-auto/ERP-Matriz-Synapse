@@ -216,9 +216,9 @@ class TransferirAtendimentoUseCaseTest {
         when(leads.nomeParaTempoReal(leadId)).thenReturn(Optional.of("Lead"));
         when(leads.transferirPara(leadId, brunoId)).thenReturn(LeadNoCaminhoDeMensagem.Transferencia.de(anaId));
         when(usuarios.atual()).thenReturn(new UsuarioAutenticado(anaId, PapelUsuario.ATENDENTE, false));
-        doReturn(new AtendenteParaTransferenciaRepositorio.Destino(brunoId, "Bruno"))
+        doReturn(Optional.of(new AtendenteParaTransferenciaRepositorio.Destino(brunoId, "Bruno")))
                 .when(destinos)
-                .exigirAtendenteAtivo(brunoId);
+                .ativoDestinoHumano(brunoId);
 
         TransferirAtendimentoUseCase useCase = new TransferirAtendimentoUseCase(
                 atendimentos,
@@ -231,7 +231,7 @@ class TransferirAtendimentoUseCaseTest {
         Atendimento depois = useCase.executar(atendimentoId, brunoId, anaId);
 
         assertThat(depois.atendenteId()).isEqualTo(brunoId);
-        verify(destinos).exigirAtendenteAtivo(brunoId);
+        verify(destinos).ativoDestinoHumano(brunoId);
         verify(atendimentos).elevarRlsParaEscritaDeNovoDono();
         verify(atendimentos).salvar(depois);
         verify(leads).transferirPara(leadId, brunoId);

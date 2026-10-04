@@ -96,7 +96,7 @@ class GerenciarParticipacaoAtendimentoUseCaseTest {
         when(atendimentos.porId(atendimento)).thenReturn(Optional.of(mock(com.synapse.crm.atendimento.domain.atendimento.Atendimento.class)));
         when(participacoes.eDono(atendimento, dono)).thenReturn(true);
         when(participacoes.eParticipanteAtivo(atendimento, convidado)).thenReturn(false);
-        when(destinos.exigirAtendenteAtivo(convidado)).thenReturn(new AtendenteParaTransferenciaRepositorio.Destino(convidado, "Convidado"));
+        when(destinos.ativoDestinoHumano(convidado)).thenReturn(Optional.of(new AtendenteParaTransferenciaRepositorio.Destino(convidado, "Convidado")));
         when(participacoes.leadId(atendimento)).thenReturn(Optional.of(lead));
         when(atendimentos.avancarVersaoDoEvento(atendimento)).thenReturn(1L);
         when(participacoes.convidar(eq(atendimento), eq(convidado), any()))

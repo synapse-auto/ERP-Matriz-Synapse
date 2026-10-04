@@ -25,7 +25,7 @@ class DestinatariosTempoRealRepositorioJdbc implements DestinatariosTempoRealRep
              WHERE a.id = ?
                AND (
                     u.papel IN ('SUBGESTOR', 'GESTOR', 'ADMINISTRADOR')
-                    OR (u.papel = 'ATENDENTE' AND (
+                    OR (u.papel IN ('ATENDENTE','OPERADOR') AND (
                         a.atendente_id = u.id
                         OR a.status IN ('EM_IA', 'FINALIZADO')
                         OR EXISTS (

@@ -13,7 +13,7 @@ import com.synapse.crm.core.domain.mensagemprogramada.MensagemProgramada;
 public class CancelarMensagemProgramadaUseCase {
     private final MensagemProgramadaRepositorio mensagens;
     public CancelarMensagemProgramadaUseCase(MensagemProgramadaRepositorio mensagens) { this.mensagens = mensagens; }
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('mensagens_programadas.editar_cancelar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('mensagens_programadas.editar_cancelar')")
     @Transactional
     public Optional<MensagemProgramada> executar(UUID id) {
         Optional<MensagemProgramada> cancelada = mensagens.cancelarAgendada(id);

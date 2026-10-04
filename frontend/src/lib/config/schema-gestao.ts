@@ -64,6 +64,11 @@ const CAPACIDADES_PADRAO: Record<string, string> = {
   "atendimentos.iniciar_conversa": "Iniciar nova conversa",
   "atendimentos.abrir_para_contato": "Abrir atendimento para contato existente",
   "atendimentos.transferir": "Transferir para outro atendente",
+  "atendimentos.receber_de_atendente": "Receber transferências e convites de Atendente",
+  "atendimentos.receber_de_operador": "Receber transferências e convites de Operador",
+  "atendimentos.receber_de_subgestor": "Receber transferências e convites de Subgestor",
+  "atendimentos.receber_de_gestor": "Receber transferências e convites de Gestor",
+  "atendimentos.receber_de_administrador": "Receber transferências e convites de Administrador",
   "atendimentos.devolver_ia": "Devolver conversa para a IA",
   "atendimentos.finalizar": "Finalizar atendimento",
   "atendimentos.colaborar": "Pedir entrada e convidar colegas para a conversa",
@@ -92,6 +97,7 @@ const CAPACIDADES_PADRAO: Record<string, string> = {
   "automacao.editar_parametros": "Alterar parâmetros da automação",
   "automacao.regras": "Gerenciar regras de follow-up e fidelização",
   "campanhas.ver": "Ver campanhas e indicadores",
+  "campanhas.ver_destinatarios": "Ver destinatários, telefones e exportações",
   "campanhas.registrar_opt_out": "Registrar bloqueio de campanhas de um contato",
   "campanhas.criar": "Criar campanha",
   "campanhas.editar": "Editar rascunho de campanha",
@@ -146,12 +152,14 @@ export const GestaoTextosSchema = z.object({
       "GESTOR": z.string().default("Gestor"),
       "SUBGESTOR": z.string().default("Subgestor"),
       "ATENDENTE": z.string().default("Atendente"),
+      "OPERADOR": z.string().default("Operador"),
       "ADMINISTRADOR": z.string().default("Administrador"),
     }).default({}),
     "papeisDescricao": z.object({
       "GESTOR": z.string().default("Acesso total e fixo"),
       "SUBGESTOR": z.string().default("Coordena a equipe e atende"),
       "ATENDENTE": z.string().default("Atende e gerencia seus leads"),
+      "OPERADOR": z.string().default("Atende seus leads, com permissões configuradas pela Gestão"),
       "ADMINISTRADOR": z.string().default("Acesso técnico e fixo"),
     }).default({}),
     "resumoPerfil": z.object({
@@ -346,5 +354,5 @@ export const GestaoTextosSchema = z.object({
     }).default({}),
   }).extend({
   modulos: z.record(z.string(), z.object({ rotulo: z.string(), descricao: z.string() })).default(MODULOS_PADRAO),
-  capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO),
+  capacidades: z.record(z.string(), z.string()).default(CAPACIDADES_PADRAO).transform(v => ({ ...CAPACIDADES_PADRAO, ...v })),
 }).default({});

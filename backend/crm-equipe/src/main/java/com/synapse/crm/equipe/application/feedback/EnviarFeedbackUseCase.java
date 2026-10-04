@@ -26,7 +26,7 @@ public class EnviarFeedbackUseCase {
         this.relogio = relogio;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR')")
     @Transactional
     public Feedback executar(TipoFeedback tipo, AreaFeedback area, String descricao) {
         Feedback feedback = new Feedback(UUID.randomUUID(), usuario.atual().id(), tipo, area,

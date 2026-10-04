@@ -156,7 +156,7 @@ function Conteudo({ textos, minhas }: { textos: TextosGestao; minhas: MinhasPerm
             key={perfilDaUrl ?? "padrao"}
             textos={textos}
             minhas={minhas}
-            papelInicial={perfilDaUrl === "ATENDENTE" || perfilDaUrl === "SUBGESTOR" || perfilDaUrl === "GESTOR" ? perfilDaUrl : undefined}
+            papelInicial={perfilDaUrl === "ATENDENTE" || perfilDaUrl === "OPERADOR" || perfilDaUrl === "SUBGESTOR" || perfilDaUrl === "GESTOR" ? perfilDaUrl : undefined}
             onSujoChange={setSujo}
           />
         )}

@@ -54,7 +54,7 @@ export function DialogoTransferir({ atendimentoId, status, responsavelId, aberto
   // Devolver o que já está com a IA e assumir o que já é seu não mudam nada: não aparecem.
   const mostrarDevolver = podeDevolver && !potencial;
   const eu =
-    podeTransferir && recebeAtendimento(papel) && usuarioId && responsavelId !== usuarioId
+    podeTransferir && (recebeAtendimento(papel) || papel === "OPERADOR") && usuarioId && responsavelId !== usuarioId
       ? { id: usuarioId }
       : undefined;
   const destinosExcluidos = new Set([usuarioId, responsavelId].filter((id): id is string => Boolean(id)));

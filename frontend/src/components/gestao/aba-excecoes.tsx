@@ -56,7 +56,7 @@ import {
 import { BarraDeAlteracoes } from "./barra-de-alteracoes";
 import { DialogoDeCopia } from "./dialogo-de-copia";
 
-const ORDEM_DOS_GRUPOS: Papel[] = ["GESTOR", "SUBGESTOR", "ATENDENTE"];
+const ORDEM_DOS_GRUPOS: Papel[] = ["GESTOR", "SUBGESTOR", "ATENDENTE", "OPERADOR"];
 
 interface EstadoDoRascunho {
   usuarioId: string;

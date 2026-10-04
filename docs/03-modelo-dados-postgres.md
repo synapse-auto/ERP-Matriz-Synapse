@@ -60,7 +60,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;    -- busca fuzzy (RF-CRM-07)
 -- =========================================================
 -- Tipos enumerados
 -- =========================================================
-CREATE TYPE papel_usuario        AS ENUM ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR');
+CREATE TYPE papel_usuario        AS ENUM ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR', 'OPERADOR');
 CREATE TYPE status_presenca      AS ENUM ('ONLINE', 'AUSENTE', 'OFFLINE');
 CREATE TYPE status_basico_lead   AS ENUM ('IA', 'EM_ATENDIMENTO', 'FINALIZADO');
 CREATE TYPE status_atendimento   AS ENUM ('EM_IA', 'EM_ATENDIMENTO', 'FINALIZADO');

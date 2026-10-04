@@ -1,5 +1,5 @@
 /** Contrato de /api/v1/gestao/permissoes (docs/47). Ids de módulo e capacidade são estáveis. */
-export type Papel = "ATENDENTE" | "SUBGESTOR" | "GESTOR" | "ADMINISTRADOR";
+export type Papel = "ATENDENTE" | "OPERADOR" | "SUBGESTOR" | "GESTOR" | "ADMINISTRADOR";
 export type Nivel = "SEM_ACESSO" | "VER" | "EDITAR" | "GERENCIAR";
 export type Motivo = "PERMITIDO" | "TETO_DO_PAPEL" | "FLAG_DESLIGADA" | "NIVEL_DO_MODULO" | "DESLIGADO" | "DEPENDENCIA";
 export type Origem = "FIXO" | "ESTRUTURAL" | "PERFIL" | "EXCECAO";

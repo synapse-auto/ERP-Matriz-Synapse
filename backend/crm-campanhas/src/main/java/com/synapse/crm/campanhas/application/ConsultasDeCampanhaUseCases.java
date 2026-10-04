@@ -121,7 +121,7 @@ public class ConsultasDeCampanhaUseCases {
                 parametros.limiteMetaInformado());
     }
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     @Transactional(readOnly = true)
     public Pagina<Linha> destinatarios(
             UUID campanhaId, StatusDoDestinatario status, MotivoDoDestinatario motivo, int pagina, int tamanho) {
@@ -131,7 +131,7 @@ public class ConsultasDeCampanhaUseCases {
     }
 
     /** Aba "Conferencia manual": enfileirados sem confirmacao e falhas cujo resultado nao se sabe. */
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     @Transactional(readOnly = true)
     public Pagina<Linha> conferencia(UUID campanhaId, int pagina, int tamanho) {
         disponibilidade.exigir();

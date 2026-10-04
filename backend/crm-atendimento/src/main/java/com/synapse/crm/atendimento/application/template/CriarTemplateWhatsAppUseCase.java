@@ -27,7 +27,7 @@ public class CriarTemplateWhatsAppUseCase {
         this.canal = canal;
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR') and @capacidades.permite('templates.criar')")
+    @PreAuthorize("hasAnyRole('ATENDENTE','SUBGESTOR','GESTOR','ADMINISTRADOR','OPERADOR') and @capacidades.permite('templates.criar')")
     public TemplateDoCanal executar(
             String nome, String idioma, TemplateDoCanal.Categoria categoria, String corpo) {
         PedidoDeTemplate pedido = validar(nome, idioma, categoria, corpo);

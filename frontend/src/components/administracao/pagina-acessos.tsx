@@ -68,7 +68,7 @@ export function PaginaAcessosAdministracao() {
             </thead>
             <tbody className="divide-y">
               {equipe.data?.map((usuario) => {
-                const gerenciavel = usuario.papel === "ATENDENTE" || usuario.papel === "SUBGESTOR";
+                const gerenciavel = usuario.papel === "ATENDENTE" || usuario.papel === "SUBGESTOR" || usuario.papel === "OPERADOR";
                 return (
                   <tr key={usuario.id} className="transition-colors hover:bg-muted/30">
                     <td className="px-4 py-3">

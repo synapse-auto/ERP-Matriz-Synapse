@@ -2,6 +2,7 @@ package com.synapse.crm.atendimento.application;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +20,25 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 public class ListarDestinosDeTransferenciaUseCase {
 
     private final AtendenteParaTransferenciaRepositorio destinos;
+    private final DestinoHumanoAutorizado autorizacao;
 
     public ListarDestinosDeTransferenciaUseCase(AtendenteParaTransferenciaRepositorio destinos) {
-        this.destinos = destinos;
+        this(destinos, null);
     }
 
-    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR')")
+    @Autowired
+    public ListarDestinosDeTransferenciaUseCase(AtendenteParaTransferenciaRepositorio destinos,
+            DestinoHumanoAutorizado autorizacao) {
+        this.destinos = destinos;
+        this.autorizacao = autorizacao;
+    }
+
+    @PreAuthorize("hasAnyRole('ATENDENTE','GESTOR','SUBGESTOR','ADMINISTRADOR','OPERADOR')")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<AtendenteParaTransferenciaRepositorio.Destino> executar() {
-        return destinos.listarAtivos();
+        return destinos.listarAtivos().stream()
+                .filter(d -> autorizacao != null ? autorizacao.permitido(d)
+                        : d.papel() != com.synapse.crm.sharedkernel.identidade.PapelUsuario.OPERADOR)
+                .toList();
     }
 }

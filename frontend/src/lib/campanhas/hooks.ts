@@ -45,7 +45,7 @@ export const TAMANHO_DA_PAGINA = 10;
 export const CHAVE_CAMPANHAS = ["campanhas"] as const;
 
 /** A decisão vem do mesmo catálogo efetivo usado pelo backend e pela Gestão. */
-export function usePodeEmCampanhas(acao: "criar" | "editar" | "testar" | "operar" | "conferir" | "configurar" | "opt_out"): boolean {
+export function usePodeEmCampanhas(acao: "criar" | "editar" | "testar" | "operar" | "conferir" | "configurar" | "opt_out" | "ver_destinatarios"): boolean {
   return useCapacidades().pode(`campanhas.${acao}`);
 }
 

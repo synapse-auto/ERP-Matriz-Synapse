@@ -147,3 +147,12 @@ Capturas: `evidencias/convite-colaborativo/depois-duas-sessoes-{ana,bruno}.png` 
   considera. B lê e responde a conversa, mas o painel de detalhes do lead fica indisponível.
   Mudar isso altera a RN-CRM-01 da Specification; não foi feito.
 - O cartão da conversa não aparece nas visões Ativos/Pendentes de quem é só participante.
+
+## 7. Operador e matriz de recebimento (04/10/2026)
+
+`OPERADOR` tem o mesmo recorte operacional do ATENDENTE, não a entrada direta da gestão.
+Convites para esse destino exigem `atendimentos.receber_de_<papel da origem>` concedida no
+perfil/exceção efetiva do convidado, ativo e com permissão para responder. A lista e o POST
+direto verificam a mesma política (docs/47 §15). O convite duplicado mantém a idempotência
+existente. Aceitar dá participação `CONVITE` sem alterar responsável/lead; não dá visão global.
+O rodízio e os endpoints internos da automação não incluem o Operador.

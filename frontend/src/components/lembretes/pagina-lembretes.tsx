@@ -24,7 +24,7 @@ export function PaginaLembretes() {
   const textos = useTextos().lembretes;
   const papel = useAuthStore((s) => s.papel);
   // Só apresentação: coluna de atendente para quem enxerga os lembretes da equipe.
-  const gestor = papel !== "ATENDENTE";
+  const gestor = ["SUBGESTOR", "GESTOR", "ADMINISTRADOR"].includes(papel ?? "");
   const capacidades = useCapacidades();
   const podeCriar = capacidades.pode("lembretes.criar");
   const podeEditarExcluir = capacidades.pode("lembretes.editar_excluir");

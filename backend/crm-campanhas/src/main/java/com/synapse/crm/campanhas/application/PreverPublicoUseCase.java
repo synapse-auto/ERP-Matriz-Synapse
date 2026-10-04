@@ -31,7 +31,7 @@ public class PreverPublicoUseCase {
         this.fuso = fuso;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     public ContagemDoPublico executar(FiltroDePublico filtro) {
         disponibilidade.exigir();
         int cooldown = transacoes.noChatSomenteLeitura(() -> configuracao.atuais().cooldownProativoHoras());

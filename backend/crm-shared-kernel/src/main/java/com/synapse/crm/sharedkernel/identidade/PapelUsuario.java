@@ -9,6 +9,7 @@ package com.synapse.crm.sharedkernel.identidade;
  */
 public enum PapelUsuario {
     ATENDENTE,
+    OPERADOR,
     SUBGESTOR,
     GESTOR,
     ADMINISTRADOR;
@@ -26,7 +27,7 @@ public enum PapelUsuario {
     }
 
     /**
-     * Quem pode receber lead: entrar na fila da IA e ser destino de transferencia.
+     * Quem pode receber lead no rodizio da IA. Destino humano Operador usa a politica da Gestao.
      *
      * <p>Separada de enxergaTodosOsLeads() de proposito. Sao duas perguntas diferentes sobre o mesmo
      * papel, e desde que o subgestor passou a atender elas deixaram de ter a mesma resposta: ele

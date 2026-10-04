@@ -5,7 +5,7 @@ import { ErroDeApi } from "@/lib/api/errors";
 import type { StatusAtendimento } from "@/lib/atendimento/types";
 import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
-type DestinoMock = { id: string; nome: string; papel?: "ATENDENTE" | "SUBGESTOR" };
+type DestinoMock = { id: string; nome: string; papel?: "ATENDENTE" | "SUBGESTOR" | "OPERADOR" };
 type AuthEstado = {
   papel: string;
   usuarioId: string;
@@ -149,6 +149,21 @@ describe("DialogoTransferir", () => {
     expect(screen.queryByRole("button", { name: "Assumir para mim" })).not.toBeInTheDocument();
   });
 
+  it("Operador com transferência concedida só assume Potencial para si, sem entrar no rodízio", () => {
+    estado.papel = "OPERADOR";
+    estado.usuarioId = "operador-1";
+    definirCapacidadesDeTeste({ alcancaTodos: false });
+    abrir({ status: "EM_IA", responsavelId: null });
+
+    expect(estado.habilitada).toBe(false);
+    expect(screen.queryByRole("button", { name: "Bruno Atendente" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Assumir para mim" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "operador-1", destinoNome: null },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+  });
+
   it("não oferece o responsável atual como destino", () => {
     abrir({ responsavelId: "ana-1" });
 
@@ -190,6 +205,25 @@ describe("DialogoTransferir", () => {
 
     expect(screen.getByRole("button", { name: "Destino legado" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Outros" })).not.toBeInTheDocument();
+  });
+
+  it("agrupa Operador somente pelo papel e preserva o UUID e atendimento na seleção", () => {
+    estado.destinos.data = [
+      { id: "bruno-1", nome: "Bruno Atendente", papel: "ATENDENTE" },
+      { id: "operador-1", nome: "Usuario operacional", papel: "OPERADOR" },
+    ];
+    abrir();
+    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Usuario operacional" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Outros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    expect(screen.getByRole("button", { name: "Bruno Atendente" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Outros" }));
+    fireEvent.click(screen.getByRole("button", { name: "Usuario operacional" }));
+    expect(estado.transferir).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", paraAtendenteId: "operador-1", destinoNome: "Usuario operacional" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
   });
 
   it("mostra carregamento, erro com nova tentativa e lista vazia dos destinos", () => {

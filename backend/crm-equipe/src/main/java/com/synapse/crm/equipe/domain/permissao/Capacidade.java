@@ -3,6 +3,7 @@ package com.synapse.crm.equipe.domain.permissao;
 import static com.synapse.crm.sharedkernel.identidade.PapelUsuario.ADMINISTRADOR;
 import static com.synapse.crm.sharedkernel.identidade.PapelUsuario.ATENDENTE;
 import static com.synapse.crm.sharedkernel.identidade.PapelUsuario.GESTOR;
+import static com.synapse.crm.sharedkernel.identidade.PapelUsuario.OPERADOR;
 import static com.synapse.crm.sharedkernel.identidade.PapelUsuario.SUBGESTOR;
 
 import java.util.Arrays;
@@ -43,7 +44,22 @@ public enum Capacidade {
     ATENDIMENTOS_ABRIR_PARA_CONTATO("atendimentos.abrir_para_contato", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR,
             Tipo.ACAO, false, todos(), nenhum(), true),
     ATENDIMENTOS_TRANSFERIR("atendimentos.transferir", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
-            false, todos(), nenhum(), true),
+            false, todos(), EnumSet.of(OPERADOR), true),
+    ATENDIMENTOS_RECEBER_DE_ATENDENTE("atendimentos.receber_de_atendente", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.EDITAR, Tipo.ACAO, false, EnumSet.of(OPERADOR), EnumSet.of(OPERADOR), false,
+            "atendimentos.responder"),
+    ATENDIMENTOS_RECEBER_DE_OPERADOR("atendimentos.receber_de_operador", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.EDITAR, Tipo.ACAO, false, EnumSet.of(OPERADOR), EnumSet.of(OPERADOR), false,
+            "atendimentos.responder"),
+    ATENDIMENTOS_RECEBER_DE_SUBGESTOR("atendimentos.receber_de_subgestor", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.EDITAR, Tipo.ACAO, false, EnumSet.of(OPERADOR), EnumSet.of(OPERADOR), false,
+            "atendimentos.responder"),
+    ATENDIMENTOS_RECEBER_DE_GESTOR("atendimentos.receber_de_gestor", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.EDITAR, Tipo.ACAO, false, EnumSet.of(OPERADOR), EnumSet.of(OPERADOR), false,
+            "atendimentos.responder"),
+    ATENDIMENTOS_RECEBER_DE_ADMINISTRADOR("atendimentos.receber_de_administrador", Modulo.ATENDIMENTOS,
+            NivelDeAcesso.EDITAR, Tipo.ACAO, false, EnumSet.of(OPERADOR), EnumSet.of(OPERADOR), false,
+            "atendimentos.responder"),
     ATENDIMENTOS_DEVOLVER_IA("atendimentos.devolver_ia", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
             false, todos(), nenhum(), true),
     ATENDIMENTOS_FINALIZAR("atendimentos.finalizar", Modulo.ATENDIMENTOS, NivelDeAcesso.EDITAR, Tipo.ACAO,
@@ -112,7 +128,9 @@ public enum Capacidade {
 
     // --- Campanhas -------------------------------------------------------------------------
     CAMPANHAS_VER("campanhas.ver", Modulo.CAMPANHAS, NivelDeAcesso.VER, Tipo.ACAO,
-            false, gestao(), nenhum(), false),
+            false, EnumSet.of(OPERADOR, SUBGESTOR, GESTOR, ADMINISTRADOR), EnumSet.of(OPERADOR), false),
+    CAMPANHAS_VER_DESTINATARIOS("campanhas.ver_destinatarios", Modulo.CAMPANHAS, NivelDeAcesso.VER, Tipo.ACAO,
+            false, gestao(), nenhum(), false, "campanhas.ver"),
     CAMPANHAS_REGISTRAR_OPT_OUT("campanhas.registrar_opt_out", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
             false, gestao(), nenhum(), false, "campanhas.ver"),
     CAMPANHAS_CRIAR("campanhas.criar", Modulo.CAMPANHAS, NivelDeAcesso.EDITAR, Tipo.ACAO,
@@ -240,7 +258,7 @@ public enum Capacidade {
 
     private static Set<PapelUsuario> todos() {
         // Teto historico explicito: um papel futuro nao herda capacidades apenas por entrar no enum.
-        return EnumSet.of(ATENDENTE, SUBGESTOR, GESTOR, ADMINISTRADOR);
+        return EnumSet.of(ATENDENTE, OPERADOR, SUBGESTOR, GESTOR, ADMINISTRADOR);
     }
 
     private static Set<PapelUsuario> gestao() {

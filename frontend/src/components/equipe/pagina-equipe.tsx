@@ -305,6 +305,7 @@ function tomDoPapel(papel: string | null | undefined): TomDePill {
 function rotuloDoPapel(textos: TextosEquipe, papel: string | null | undefined): string {
   if (papel === "GESTOR") return textos.papeis.gestor;
   if (papel === "SUBGESTOR") return textos.papeis.subgestor;
+  if (papel === "OPERADOR") return textos.papeis.operador;
   return textos.papeis.atendente;
 }
 

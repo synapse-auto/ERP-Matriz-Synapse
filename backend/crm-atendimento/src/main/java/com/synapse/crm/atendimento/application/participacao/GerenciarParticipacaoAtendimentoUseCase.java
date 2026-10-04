@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.application.AtendenteParaTransferenciaRepositorio;
 import com.synapse.crm.atendimento.application.AtendimentoRepositorio;
+import com.synapse.crm.atendimento.application.DestinoHumanoAutorizado;
 import com.synapse.crm.atendimento.application.EventosCanonicosDeAtendimento;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.participacao.ParticipacaoAtendimentoRepositorio.ConviteResultado;
@@ -32,10 +33,20 @@ public class GerenciarParticipacaoAtendimentoUseCase {
     private final Clock relogio;
     private final UsuarioRepositorio usuariosRepositorio;
     private final AtendenteParaTransferenciaRepositorio destinos;
+    private final DestinoHumanoAutorizado destinoHumano;
+    public GerenciarParticipacaoAtendimentoUseCase(ParticipacaoAtendimentoRepositorio p, AtendimentoRepositorio a,
+            UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur,
+            AtendenteParaTransferenciaRepositorio destinos) {
+        this(p, a, u, e, c, ur, destinos,
+                new DestinoHumanoAutorizado(destinos, u, (id, papel) -> false));
+    }
     @Autowired
     public GerenciarParticipacaoAtendimentoUseCase(ParticipacaoAtendimentoRepositorio p, AtendimentoRepositorio a,
             UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur,
-            AtendenteParaTransferenciaRepositorio destinos) { participacoes=p; atendimentos=a; usuarios=u; eventos=e; relogio=c; usuariosRepositorio=ur; this.destinos=destinos; }
+            AtendenteParaTransferenciaRepositorio destinos, DestinoHumanoAutorizado destinoHumano) {
+        participacoes=p; atendimentos=a; usuarios=u; eventos=e; relogio=c; usuariosRepositorio=ur;
+        this.destinos=destinos; this.destinoHumano=destinoHumano;
+    }
     public GerenciarParticipacaoAtendimentoUseCase(ParticipacaoAtendimentoRepositorio p, AtendimentoRepositorio a,
             UsuarioContext u, ApplicationEventPublisher e, Clock c, UsuarioRepositorio ur) {
         this(p, a, u, e, c, ur, null);
@@ -80,7 +91,7 @@ public class GerenciarParticipacaoAtendimentoUseCase {
     }
 
     @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.colaborar')") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
-    public void entrar(UUID atendimentoId) { if(!usuarios.atual().enxergaTodosOsLeads()) throw new SecurityException("sem alçada para entrar diretamente"); Instant agora=agora(); participacoes.entrar(atendimentoId,usuarios.atual().id(),agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,atendimentoId,usuarios.atual().id(),agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU,atendimentoId,lead,agora); }
+    public void entrar(UUID atendimentoId) { if(!usuarios.atual().enxergaTodosOsLeads()) throw new AccessDeniedException("sem alçada para entrar diretamente"); Instant agora=agora(); participacoes.entrar(atendimentoId,usuarios.atual().id(),agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteEntrou(lead,atendimentoId,usuarios.atual().id(),agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_ENTROU,atendimentoId,lead,agora); }
 
     @PreAuthorize("isAuthenticated()") @Transactional(transactionManager=Pools.CHAT_TRANSACTION_MANAGER)
     public void sair(UUID atendimentoId) { UUID u=usuarios.atual().id(); if(!participacoes.eParticipanteAtivo(atendimentoId,u)) throw new RecursoDeAtendimentoIndisponivelException("participação",atendimentoId); Instant agora=agora(); participacoes.sair(atendimentoId,u,agora); UUID lead=participacoes.leadId(atendimentoId).orElseThrow(); eventos.publishEvent(new EventoDeAtendimento.ParticipanteSaiu(lead,atendimentoId,u,agora)); EventosCanonicosDeAtendimento.publicar(atendimentos,eventos,EventoCanonicoDeAtendimento.Tipo.PARTICIPANTE_SAIU,atendimentoId,lead,agora); }
@@ -100,7 +111,7 @@ public class GerenciarParticipacaoAtendimentoUseCase {
         if (convidadoId.equals(convidador)) {
             throw new ConviteAtendimentoInvalidoException("o usuario atual nao pode ser convidado");
         }
-        destinos.exigirAtendenteAtivo(convidadoId);
+        destinoHumano.exigir(convidadoId);
         if (participacoes.eParticipanteAtivo(atendimentoId, convidadoId)) {
             throw new ConviteAtendimentoInvalidoException("o usuario ja participa deste atendimento");
         }

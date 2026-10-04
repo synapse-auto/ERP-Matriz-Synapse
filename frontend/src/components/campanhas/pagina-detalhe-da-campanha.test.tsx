@@ -60,6 +60,16 @@ beforeEach(() => {
 });
 
 describe("detalhe da campanha", () => {
+  it("Operador com leitura vê métricas, sem consultar destinatários nem conferência", async () => {
+    estado.papel = "OPERADOR";
+    definirCapacidadesDeTeste({ alcancaTodos: false, negadas: ["campanhas.ver_destinatarios", "campanhas.operar", "campanhas.editar", "campanhas.conferir"] });
+    renderizar();
+    expect(await screen.findByRole("region", { name: t.detalhe.funil.rotulo })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: t.detalhe.abas.destinatarios })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument();
+    expect(api.listarDestinatarios).not.toHaveBeenCalled();
+    expect(api.listarConferencia).not.toHaveBeenCalled();
+  });
   it("mostra o funil acumulado: na fila soma pendentes e enfileirados ainda não enviados", async () => {
     renderizar();
     const funil = await screen.findByRole("region", { name: t.detalhe.funil.rotulo });

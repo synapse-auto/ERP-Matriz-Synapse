@@ -102,6 +102,7 @@ class GestaoPermissoesIT extends PostgresIT {
         jdbc.update("UPDATE feature_flag SET habilitado = FALSE WHERE chave = ?", FLAG_EXCECOES);
         jdbc.update("DELETE FROM lead_tag WHERE tag_id = ?", tag);
         jdbc.update("DELETE FROM tag WHERE id = ?", tag);
+        jdbc.update("DELETE FROM atendimento WHERE lead_id IN (SELECT id FROM lead WHERE nome LIKE ?)", PREFIXO + "%");
         jdbc.update("DELETE FROM lead WHERE nome LIKE ?", PREFIXO + "%");
         for (UUID u : criados) {
             jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", u);
@@ -109,6 +110,107 @@ class GestaoPermissoesIT extends PostgresIT {
     }
 
     // --- acesso a Gestao --------------------------------------------------------------------------
+
+    @Test
+    void operadorCriadoPelaApiTemRecorteProprioEConcessaoRevogavel() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        UUID operador = criarUsuario(g, "OPERADOR");
+        String o = token(emailDe(operador), "senha-gestao-it");
+        UUID proprio = criarLead("Operador", operador);
+        UUID potencial = criarLead("Potencial", null);
+        jdbc.update("UPDATE lead SET status_basico = 'IA' WHERE id = ?", potencial);
+        assertThat(chamar(o, HttpMethod.GET, "/api/v1/me", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(o, HttpMethod.GET, BASE + "/perfis", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(o, HttpMethod.GET, "/api/v1/leads/" + proprio, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(o, HttpMethod.GET, "/api/v1/leads/" + potencial, null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(o, HttpMethod.GET, "/api/v1/leads/" + leadDaAna, null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(aplicarTag(o, leadDaAna)).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(aplicarTag(o, proprio)).isEqualTo(HttpStatus.OK);
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("tags.aplicar", false));
+        assertThat(aplicarTag(o, proprio)).isEqualTo(HttpStatus.FORBIDDEN);
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("tags.aplicar", true));
+        assertThat(aplicarTag(o, proprio)).isEqualTo(HttpStatus.OK);
+        assertThat(chamar(g, HttpMethod.PUT, BASE + "/perfis/OPERADOR",
+                corpoPerfil(revisaoPerfil("OPERADOR"), Map.of(), Map.of("equipe.perfis", true))).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        JsonNode previa = ler(chamar(g, HttpMethod.POST, BASE + "/perfis/OPERADOR/copia/previa",
+                Map.of("origem", "SUBGESTOR")));
+        assertThat(previa.path("acoes").has("equipe.ver")).isFalse();
+        assertThat(previa.path("acoes").has("campanhas.operar")).isFalse();
+    }
+
+    @Test
+    void transferenciaParaOperadorExigeConcessaoEImpedeDistribuirPotencial() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String a = token(EMAIL_ANA, SENHA_ATENDENTE);
+        UUID operador = criarUsuario(g, "OPERADOR");
+        UUID atendimento = criarAtendimento(leadDaAna, ana, "EM_ATENDIMENTO");
+        String rota = "/api/v1/atendimentos/" + atendimento + "/transferir";
+        Map<String, String> corpo = Map.of("paraAtendenteId", operador.toString());
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/atendimentos/destinos-de-transferencia", null).getBody())
+                .doesNotContain(operador.toString());
+        assertThat(chamar(a, HttpMethod.POST, rota, corpo).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("atendimentos.receber_de_atendente", true));
+        assertThat(chamar(a, HttpMethod.GET, "/api/v1/atendimentos/destinos-de-transferencia", null).getBody())
+                .contains(operador.toString(), "OPERADOR");
+        assertThat(chamar(a, HttpMethod.POST, rota, corpo).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento))
+                .isEqualTo(operador);
+        assertThat(jdbc.queryForObject("SELECT atendente_responsavel_id FROM lead WHERE id = ?", UUID.class, leadDaAna))
+                .isEqualTo(operador);
+        String o = token(emailDe(operador), "senha-gestao-it");
+        assertThat(chamar(o, HttpMethod.POST, rota, Map.of("paraAtendenteId", ana.toString())).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("atendimentos.transferir", true));
+        assertThat(chamar(o, HttpMethod.POST, rota, corpo).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(o, HttpMethod.POST, rota, Map.of("paraAtendenteId", ana.toString())).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(chamar(a, HttpMethod.POST, rota, corpo).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        UUID potencial = criarLead("Potencial", null);
+        jdbc.update("UPDATE lead SET status_basico = 'IA' WHERE id = ?", potencial);
+        UUID ia = criarAtendimento(potencial, null, "EM_IA");
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("atendimentos.receber_de_atendente", true));
+        assertThat(chamar(a, HttpMethod.POST, "/api/v1/atendimentos/" + ia + "/transferir", corpo).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+        jdbc.update("UPDATE usuario SET ativo = FALSE WHERE id = ?", operador);
+        assertThat(chamar(a, HttpMethod.POST, rota, corpo).getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        UUID outro = criarAtendimento(leadDoBruno, bruno, "EM_ATENDIMENTO");
+        assertThat(chamar(a, HttpMethod.POST, "/api/v1/atendimentos/" + outro + "/transferir", corpo).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private UUID criarAtendimento(UUID lead, UUID responsavel, String status) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO atendimento (id, lead_id, atendente_id, status, iniciado_em) VALUES (?, ?, ?, CAST(? AS status_atendimento), now())",
+                id, lead, responsavel, status);
+        return id;
+    }
+
+    @Test
+    void conviteParaOperadorPreservaDonoEAcessoDependeDeConsentimento() {
+        String g = token(EMAIL_GESTOR, SENHA_GESTOR);
+        String a = token(EMAIL_ANA, SENHA_ATENDENTE);
+        UUID operador = criarUsuario(g, "OPERADOR");
+        String o = token(emailDe(operador), "senha-gestao-it");
+        UUID atendimento = criarAtendimento(leadDaAna, ana, "EM_ATENDIMENTO");
+        String rota = "/api/v1/atendimentos/" + atendimento;
+        Map<String, String> corpo = Map.of("atendenteId", operador.toString());
+        assertThat(chamar(o, HttpMethod.GET, rota + "/participantes", null).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(a, HttpMethod.POST, rota + "/convidar", corpo).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        salvarPerfil(g, "OPERADOR", Map.of(), Map.of("atendimentos.receber_de_atendente", true));
+        var convite = chamar(a, HttpMethod.POST, rota + "/convidar", corpo);
+        assertThat(convite.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String pedido = ler(convite).path("pedidoId").asText();
+        assertThat(ler(chamar(a, HttpMethod.POST, rota + "/convidar", corpo)).path("pedidoId").asText()).isEqualTo(pedido);
+        assertThat(chamar(o, HttpMethod.POST, "/api/v1/atendimentos/pedidos-entrada/" + pedido + "/aprovar", null)
+                .getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(chamar(o, HttpMethod.GET, rota + "/participantes", null).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT atendente_id FROM atendimento WHERE id = ?", UUID.class, atendimento)).isEqualTo(ana);
+        assertThat(jdbc.queryForObject("SELECT origem FROM atendimento_participante WHERE atendimento_id = ? AND usuario_id = ?",
+                String.class, atendimento, operador)).isEqualTo("CONVITE");
+        assertThat(chamar(o, HttpMethod.POST, rota + "/entrar", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chamar(a, HttpMethod.POST, rota + "/entrar", null).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
 
     @Test
     @DisplayName("ATENDENTE nao acessa Gestao: leitura e escrita recusadas (403)")
@@ -130,7 +232,7 @@ class GestaoPermissoesIT extends PostgresIT {
     @DisplayName("GESTOR ve perfis com contagem real e N de M calculado; SUBGESTOR le sem editar")
     void perfisComContagemReal() {
         JsonNode perfis = ler(chamar(token(EMAIL_GESTOR, SENHA_GESTOR), HttpMethod.GET, BASE + "/perfis", null));
-        assertThat(perfis).hasSize(3);
+        assertThat(perfis).hasSize(4);
         Map<String, JsonNode> porPapel = new HashMap<>();
         perfis.forEach(p -> porPapel.put(p.path("papel").asText(), p));
         Integer atendentesAtivos = jdbc.queryForObject(

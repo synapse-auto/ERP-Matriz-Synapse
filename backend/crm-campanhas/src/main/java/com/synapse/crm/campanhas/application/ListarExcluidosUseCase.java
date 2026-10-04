@@ -36,7 +36,7 @@ public class ListarExcluidosUseCase {
         this.fuso = fuso;
     }
 
-    @PreAuthorize(PermissoesDeCampanha.LEITURA)
+    @PreAuthorize(PermissoesDeCampanha.LEITURA_DE_DESTINATARIOS)
     public List<Excluido> executar(FiltroDePublico filtro, MotivoDoDestinatario motivo) {
         disponibilidade.exigir();
         if (motivo == null || !motivo.exclusaoDoPublico()) {

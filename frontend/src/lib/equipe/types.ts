@@ -1,4 +1,4 @@
-export type PapelGerenciavel="ATENDENTE"|"SUBGESTOR";export type StatusPresenca="ONLINE"|"AUSENTE"|"OFFLINE";
+export type PapelGerenciavel="ATENDENTE"|"SUBGESTOR"|"OPERADOR";export type StatusPresenca="ONLINE"|"AUSENTE"|"OFFLINE";
 export interface UsuarioEquipe{id:string;nome:string;email:string;papel:PapelGerenciavel|"GESTOR"|"ADMINISTRADOR";statusPresenca:StatusPresenca;ativo:boolean;disponivelParaIa?:boolean;cargo?:string|null;fotoUrl?:string|null}
 export interface AvaliacoesEquipe{mediaGeral:number;total:number;porAtendente:{atendenteId:string;atendenteNome:string;media:number;total:number}[]}
 export interface DesempenhoEquipe{porAtendente:{atendenteId:string;atendenteNome:string;atendimentos:number;vendas:number}[]}
