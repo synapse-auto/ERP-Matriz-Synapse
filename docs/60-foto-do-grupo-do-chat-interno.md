@@ -1,4 +1,4 @@
-# 59 — Foto do grupo do Chat Interno
+# 60 — Foto do grupo do Chat Interno
 
 Exibir e alterar a foto dos grupos do Chat Interno. Só grupos do Chat Interno: grupos do WhatsApp,
 integrações Meta/UZAPI, foto de lead e foto de contato externo não foram tocados. Conversa direta segue

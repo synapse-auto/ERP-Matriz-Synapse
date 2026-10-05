@@ -4,6 +4,15 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 05/10/2026 — Encaminhar do Chat Interno para o cliente: análise de viabilidade (bloqueada no destino)
+
+A conversa interna não tem vínculo com lead ou atendimento (V8, V54, V95; nenhum código de `crm-equipe`), então
+não há como saber para qual cliente uma mensagem interna deve ir. O transporte já existe e serve: texto e as
+quatro mídias, Meta e UZAPI, outbox, idempotência, janela de 24h, RN-CRM-01/06. Pela regra da tarefa
+("sem vínculo seguro, interromper"), **nada foi implementado**. Destino por vínculo explícito, por escolha manual
+ou chat só da equipe é decisão de produto. Detalhe, lacunas e esboço em
+[`61-encaminhar-chat-interno-para-cliente-viabilidade.md`](./61-encaminhar-chat-interno-para-cliente-viabilidade.md).
+
 ### 05/10/2026 — Foto dos grupos do Chat Interno
 
 Exibição e troca da foto dos grupos do Chat Interno (lista, cabeçalho, painel, inbox unificada), só pelo
@@ -12,7 +21,7 @@ mensagem `GRUPO_CRIADO`) e a foto; storage em prefixo próprio `grupo/` do bucke
 tipo real, dimensões lidas do cabeçalho e reencode; atualização dos demais participantes pela mensagem de
 sistema já existente e recarga na reconexão. O chat não tinha papel de administrador, então a regra "só o
 criador" é decisão nova e está listada em "Decisões pendentes". Detalhe em
-[`59-foto-do-grupo-do-chat-interno.md`](./59-foto-do-grupo-do-chat-interno.md).
+[`60-foto-do-grupo-do-chat-interno.md`](./60-foto-do-grupo-do-chat-interno.md).
 
 ### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
 
