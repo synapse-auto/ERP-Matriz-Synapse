@@ -1,143 +1,141 @@
-# 61 — Encaminhar do Chat Interno para o cliente: análise de viabilidade
+# 61 — Encaminhar do Chat Interno para o cliente
 
-Pedido: permitir encaminhar do Chat Interno para o cliente (texto, imagem, vídeo, áudio, documento) pelo canal
-de WhatsApp do atendimento. A tarefa exigia começar por esta análise e **interromper** se não houvesse vínculo
-seguro entre a mensagem interna e um atendimento externo.
+Permite encaminhar uma mensagem do Chat Interno (texto, imagem, vídeo, áudio, documento) para o cliente de um
+atendimento, pelo canal de WhatsApp daquele atendimento. A tarefa começou por uma análise de viabilidade, que
+parou num bloqueio de produto (abaixo); a decisão de negócio de 05/10/2026 o resolveu, e a feature foi implementada.
 
-**Resultado: implementação bloqueada na etapa de destino. Nenhum código de envio foi escrito.** O transporte
-(texto e as quatro mídias, Meta e UZAPI) já existe e é reaproveitável; o que não existe é um jeito seguro de
-saber *para qual cliente* uma mensagem interna deve ir. A decisão de como definir o destino é de produto e está
-em "O que desbloqueia".
+## Viabilidade e o bloqueio que houve
 
-## Respostas às perguntas da tarefa
+**O Chat Interno não tem vínculo com lead ou atendimento.** `chat_interno_conversa` (V8, V54, V95) guarda tipo, nome,
+criador e foto; `chat_interno_participante` liga a conversa a `usuario`; `chat_interno_mensagem` tem remetente
+(usuário), conteúdo e mídia. Nenhuma referencia `lead` ou `atendimento`, e `crm-equipe` não menciona nenhum dos dois.
+Na tela, a conversa interna e a externa são alternativas exclusivas na página Atendimentos.
 
-**1. Uma mensagem do Chat Interno tem vínculo com lead ou atendimento externo? Não.**
-`chat_interno_conversa` (V8, V54, V95) guarda tipo, nome, criador e foto; `chat_interno_participante` liga a
-conversa a `usuario`; `chat_interno_mensagem` tem `remetente_id` (usuário), conteúdo e mídia. Nenhuma das três
-referencia `lead` ou `atendimento`, nem por coluna nem por tabela auxiliar. No código, `crm-equipe` não
-menciona `lead_id`/`atendimento_id` (`EnviarContatoChatUseCase` até declara que "nunca pesquisa leads por
-telefone"). No frontend, a conversa interna aparece dentro da página Atendimentos (`lista-conversas.tsx`,
-`PainelConversaInterna`), mas sem relação com a conversa externa selecionada: abrir uma substitui a outra.
-A documentação (`docs/45`, `46`, `47`) trata o chat como canal entre equipe.
+Sem vínculo, o destino não pode ser derivado pelo backend; só pode ser **escolhido por quem encaminha**. Isso
+contradiz "o usuário não altera o destino pelo payload", e por isso a análise parou e perguntou. A resposta do
+negócio foi aceitar o destino escolhido, desde que o backend o valide por completo (abaixo).
 
-**2. Qual seria o destino?** Das três opções da tarefa, só a terceira é possível hoje:
-
-| Opção | Existe hoje? |
-|---|---|
-| Cliente associado ao grupo | Não: grupo não tem lead. |
-| Cliente associado ao atendimento selecionado | Não: o atendimento selecionado some quando uma conversa interna é aberta. |
-| Escolhido manualmente pelo usuário | Possível, mas muda o modelo de segurança (ver item 3). |
-
-**3. Como impedir envio ao cliente errado?** Com destino derivado de vínculo, o backend decidiria sozinho e o
-cliente nada escolheria. Com escolha manual, o identificador do atendimento **tem** de vir no payload. A defesa
-passa a ser: validar no backend que o usuário alcança o atendimento (RN-CRM-01, RLS), que está aberto e que é o
-mesmo que a prévia mostrou; telefone, lead, canal e instância sempre lidos pelo backend; confirmação explícita
-com nome, telefone mascarado e atendimento. Isso reduz, mas não elimina, o erro humano de escolher o cliente
-errado, e contradiz o requisito "o usuário não consiga alterar o atendimento de destino pelo payload", que só
-vale com vínculo. Por isso é decisão do produto, não minha.
-
-**4. O usuário precisa de acesso ao atendimento externo? Sim.** `EnviarMensagemUseCase` exige a capacidade
-`atendimentos.responder` e trava o lead por `leads.bloquearParaAtendimento` (RLS = RN-CRM-01). Sem alcance, o
-lead responde como inexistente.
-
-**5. Só mensagens próprias ou qualquer mensagem visível?** Não há regra no código (é decisão nova). Risco:
-qualquer participante de grupo poderia mandar ao cliente a fala de um colega, com o conteúdo interno de quem não
-escreveu para o cliente. Recomendação: começar só com mensagens **do próprio usuário**; ampliar depois, se a
-gestão pedir.
-
-**6. Legenda, nome de arquivo, MIME e tipo.** Dá para preservar, mas **não de graça**: os metadados internos usam
-`nome_original` e `tamanho_bytes` (`EnviarMidiaChatUseCase`), enquanto os adaptadores externos leem `nome` e
-`tamanho` (o `filename` do documento sai de `campoDeMetadados(metadados, "nome")` no `MetaCloudApiAdapter`).
-Encaminhar sem remapear mandaria documento sem nome. A legenda mora em `conteudo` e em `legenda` nos metadados.
-
-**7. O fluxo externo suporta os cinco tipos? Sim.** `ConteudoDeEnvio` (selado: `MensagemLivre`,
-`MensagemTemplate`, `MensagemMidia`) cobre texto e as quatro mídias; `EnviarMensagemUseCase` grava mensagem e
-outbox na mesma transação.
-
-**8. Meta e UZAPI? As duas suportam, com as mesmas regras de legenda.**
+O transporte já existia: o envio externo cobre texto e as quatro mídias na Meta e na UZAPI, com outbox,
+idempotência, janela de 24h e RN-CRM-01/06 (`EnviarMensagemUseCase`).
 
 | Tipo | Meta Cloud API | UZAPI | Legenda | Teto de fallback (Meta) |
 |---|---|---|---|---|
-| Texto | Só dentro de 24h da última mensagem do cliente; fora, só template (`ForaDaJanelaException`) | Sempre | n/a | n/a |
-| Imagem | sim (upload + `id`) | sim | sim | 5 MB |
-| Vídeo | sim (`video/mp4`, `video/3gpp`) | sim (CRM aplica o mesmo recorte) | sim | 16 MB |
-| Áudio | sim; `voice=true` só para OGG/Opus | sim (`LinkMessage`) | **não** (a API rejeita) | 16 MB |
+| Texto | só dentro de 24h da última mensagem do cliente; fora, só template | sempre | n/a | n/a |
+| Imagem | sim | sim | sim | 5 MB |
+| Vídeo | `video/mp4`, `video/3gpp` | mesmo recorte | sim | 16 MB |
+| Áudio | sim (`voice=true` só OGG/Opus) | sim | **não** (a API recusa) | 16 MB |
 | Documento | sim, com `filename` | sim, com `filename` | sim | 100 MB |
 
-A UZAPI não publica MIME nem teto de vídeo; o CRM usa o mesmo recorte da Meta (`docs/38`).
+## Decisões de negócio (05/10/2026)
 
-## O que já pode ser reaproveitado
+1. **Quem pode**: quem participa da conversa interna (vê a mensagem) **e** pode responder no atendimento de
+   destino (`atendimentos.responder` + alcance pela RN-CRM-01). Qualquer mensagem visível pode ser encaminhada,
+   não só as próprias.
+2. **Atendimento sem responsável**: quem encaminha assume o lead (RN-CRM-06), com a transferência auditada.
+3. **Atendimento com responsável**: **nunca transfere**, nem para gestor, subgestor ou participante por entrada
+   direta. O responsável continua e quem encaminhou **recebe um convite** para participar (docs/51), que ele
+   aceita ou recusa. Quem já participa, ou já tem convite pendente, não recebe outro.
+4. Quem encaminha **já sendo o responsável**: só envia.
 
-- **Envio**: `EnviarMensagemUseCase.executarComReferencia(leadId, conteudo, referencia, chaveIdempotencia)`, já
-  usado por `EncaminharMensagemUseCase` (externo → externo). Cobre outbox transacional, idempotência persistente
-  por chave, janela de 24h, RN-CRM-01/06, âncora `atendimentoEsperadoId` (recusa atendimento finalizado ou
-  trocado) e evento em tempo real. A resposta do worker de envio e o status de entrega
-  (`AplicarStatusDeEntregaDoCanalUseCase`) atualizam a mensagem externa sem mudança.
-- **Provedores**: `MetaCloudApiAdapter` e `UzapiAutoticAdapter` já sobem a mídia lendo `armazenamento.baixar`,
-  com circuit breaker e timeout.
-- **Storage**: a porta `ArmazenamentoDeMidia` é a mesma do chat interno e do atendimento. `MinioArmazenamentoDeMidia`
-  ignora o nome recebido e grava `midia/<uuid>.<ext>`, então uma referência interna é legível pelo fluxo externo.
-- **Classificação e limites**: `RegrasDeAnexoBase`, `LimiteDeAnexoRepositorio` e `TiposDeMidiaPermitidos`.
-- **Auditoria**: `@Auditable` (aspecto em `crm-app`).
+Isso é mais estrito que a RN-CRM-06 do envio comum, por isso há um método próprio:
+`EnviarMensagemUseCase#executarEncaminhamentoDoChatInterno`, que reaproveita todo o caminho de envio mas nunca
+chama `transferirPara`; usa `assumirSeSemDono`, que só atribui quando não há dono.
 
-## Lacunas e armadilhas (valem para qualquer opção de destino)
+## Fluxo
 
-1. **Vínculo mensagem interna → mensagem externa**: não existe tabela. Seria nova (V96, próxima livre depois da
-   V95 do PR #266): `chat_interno_encaminhamento_externo` com mensagem interna, usuário, atendimento, lead,
-   mensagem externa (id + `enviada_em`, pela FK composta da tabela particionada), chave de idempotência e
-   criação. `ReferenciaDeMensagem.ENCAMINHAMENTO` não serve: aponta para linha de `mensagem`, e a origem aqui não
-   é uma.
-2. **Fronteira de módulo**: `crm-atendimento` depende de `crm-equipe`, não o contrário. A orquestração tem de
-   morar em `crm-app` (ou numa porta de `crm-equipe` implementada lá).
-3. **Duas transações**: casos de uso do chat interno usam o gerente padrão; o envio externo exige
-   `Pools.CHAT_TRANSACTION_MANAGER`. Gravar o vínculo e a mensagem externa atomicamente exige decidir em qual
-   pool o vínculo mora e testar a atomicidade.
-4. **Cópia da mídia**: apontar a mensagem externa para o mesmo objeto da interna cria dono duplo (hoje a
-   exclusão de mensagem interna não apaga o objeto, mas qualquer limpeza futura quebraria o histórico do
-   cliente). Copiar (`baixar` + `salvar`) resolve, mas é trabalho síncrono proporcional ao arquivo (até 100 MB
-   num documento) no caminho de envio, o que contraria a regra de precedência. Teria de ser assíncrono (job com
-   reserva, status e retry), como a tarefa pede.
-5. **Revalidar pelas regras externas**: o chat interno aceita o que o externo não aceita. O limite interno cai
-   em 100 MB quando não há configuração e a lista interna admite `.xlsm` (macro) que a classificação externa
-   não prevê. Uma imagem de 20 MB passa no chat e a Meta recusa acima de 5 MB. O encaminhamento precisa
-   reclassificar (`TiposDeMidiaPermitidos.classificar`) e conferir o limite externo, com erro claro.
-6. **Janela de 24h**: com Meta, texto fora da janela é recusado. Deve virar erro explicado na prévia, não 500
-   nem falha silenciosa na outbox.
-7. **RN-CRM-06**: todo envio manual **transfere o lead** para quem enviou (só gestor/subgestor alcançam lead de
-   colega; atendente alcança lead próprio ou sem dono). Encaminhar do chat é um envio manual e vai transferir.
-   A prévia precisa avisar isso, e o produto precisa confirmar que é o desejado.
-8. **Conteúdo que não pode sair**: mensagem de sistema (`tipo = SISTEMA`), mensagem excluída, contato
-   compartilhado interno (`CONTATO`, dados de colega) e citações. Filtrar no backend.
-9. **Mensagem do atendimento aberta sem ciclo**: se não há atendimento aberto, `EnviarMensagemUseCase` **abre um
-   novo** (`Atendimento.abrirComIa`). Para "atendimento finalizado" recusar, é preciso passar a âncora
-   `atendimentoEsperadoId`.
+1. Menu da mensagem → **Encaminhar para o cliente** (só aparece para quem tem `atendimentos.responder` e para
+   texto/mídia não apagados; evento de sistema, contato interno e mensagem apagada ficam de fora).
+2. O diálogo busca no **servidor** os atendimentos **abertos que o usuário alcança** (RLS/RN-CRM-01), por nome ou
+   dígitos do telefone, com pausa na digitação, no máximo 20 por busca e telefone mascarado. A listagem completa
+   da aba não serve aqui: não é paginada e não escala para quem enxerga todos os atendimentos.
+3. **Prévia** (`GET .../previa`): cliente, telefone mascarado, responsável, conteúdo e o que o envio fará com a
+   responsabilidade. Não grava nada. Bloqueios vêm do backend: atendimento finalizado, fora da janela de 24h,
+   formato não aceito, arquivo acima do limite.
+4. **Confirmar** (`POST`): obrigatório e explícito; duplo clique é travado de forma síncrona; a chave de
+   idempotência é gerada por tentativa e reaproveitada se o usuário repetir depois de uma falha de rede.
+5. **Acompanhamento** sem F5: o diálogo consulta o estado da mensagem externa (`PENDENTE`, `ENVIADO`, `ENTREGUE`,
+   `LIDO`, `FALHOU`) até um estado final.
 
-## O que desbloqueia
+## API
 
-Decidir como o destino é definido:
+| Rota | Efeito |
+|---|---|
+| `GET /api/v1/atendimentos/encaminhamento-do-chat-interno/destinos?busca=` | Atendimentos abertos que o usuário alcança, mais recentes primeiro, filtrados por nome (qualquer parte, sem caixa) ou dígitos do telefone; curingas digitados valem como texto. `403` sem `atendimentos.responder`. |
+| `GET /api/v1/atendimentos/{atendimentoId}/encaminhamento-do-chat-interno/previa?conversaId=&mensagemId=` | Prévia. `403` não participa da conversa, `404` atendimento fora do alcance, `422` conteúdo não encaminhável. |
+| `POST /api/v1/atendimentos/{atendimentoId}/encaminhamento-do-chat-interno` (corpo `{conversaId, mensagemId}`, header `Idempotency-Key` **obrigatório**) | `202` aceito para entrega. `400` sem chave, `403`, `404`, `409` atendimento finalizado ou chave usada em outra operação, `422` conteúdo/arquivo/janela. |
+| `GET /api/v1/chat-interno/conversas/{conversaId}/mensagens/{mensagemId}/encaminhamentos-ao-cliente` | O que o próprio usuário encaminhou desta mensagem, com o estado atual da entrega. |
 
-- **A. Vínculo explícito** (nova coluna `lead_id`/`atendimento_id` em conversa, ou conversa criada a partir de um
-  atendimento): destino derivado pelo backend, nada no payload. É o modelo que a tarefa assume. Custo: modelo de
-  dados novo, UX para criar/ligar, regras de quem vê (um grupo com colegas vê o telefone do cliente?) e backfill
-  inexistente (nenhuma conversa atual tem vínculo).
-- **B. Escolha manual** (seletor de atendimento no encaminhamento): sem mudança de modelo de conversa, mas com o
-  atendimento no payload e a defesa do item 3. Recomendação, **se** o produto aceitar o risco: busca só entre
-  atendimentos abertos que o usuário alcança, prévia com nome + telefone mascarado + atendimento, aviso de
-  RN-CRM-06 e de janela, só mensagens próprias, confirmação explícita, âncora do atendimento e chave de
-  idempotência por clique.
-- **C. Manter bloqueado**: o chat interno continua canal só da equipe (o que o código e a documentação assumem hoje).
+Erros em RFC 7807; recusas de negócio trazem `motivo` (`FORA_DA_JANELA`, `ATENDIMENTO_FINALIZADO`,
+`TIPO_NAO_SUPORTADO`, `ARQUIVO_ACIMA_DO_LIMITE`, `ARQUIVO_SEM_TAMANHO`), que a tela traduz pelo catálogo de textos.
 
-## Esboço do que seria implementado (opção B)
+## Segurança
 
-Backend: porta em `crm-equipe` (`EncaminharParaClientePorta`) e caso de uso/adaptador em `crm-app`;
-`POST /api/v1/chat-interno/conversas/{id}/mensagens/{mensagemId}/encaminhar-cliente` com `atendimentoId` e
-`Idempotency-Key`; `GET .../pre-visualizacao-cliente` (nome, telefone mascarado, tipo, avisos); tabela V96;
-cópia assíncrona de mídia; `@Auditable`; status do vínculo exposto à tela, com evento STOMP.
-Frontend: ação no menu da mensagem só quando `podeEncaminharParaCliente` (vindo do backend), diálogo de seletor +
-prévia + confirmação, trava de duplo clique, estado de envio/entregue/falhou sem F5, textos no catálogo.
-Testes: os dezenove da tarefa, mais negativos de RN-CRM-01, mutação do destino pelo payload, adaptadores
-Meta e UZAPI com mídia real e o fluxo pelo endpoint (sem `Thread.sleep`).
+- O corpo só diz **qual mensagem** e **qual atendimento** (na URL). Cliente, telefone, lead, canal, instância e
+  conteúdo saem do backend. Campos extras no corpo (`leadId`, `telefone`, `conteudo`) são ignorados (testado).
+- O atendimento é lido sob a RLS de quem pede: fora do alcance responde `404`, sem revelar que existe, e nunca
+  chega a gravar mensagem, outbox, elo ou convite.
+- A mensagem é lida da linha persistida, só se o usuário participa da conversa **e** o par conversa/mensagem bate.
+- O atendimento do clique é a âncora (`atendimentoEsperadoId`): finalizado devolve `409` e **não abre outro**.
+- Tokens dos provedores e o bucket não passam pelo navegador; a mídia vai do storage ao provedor dentro do worker
+  da outbox. O telefone na tela é sempre mascarado (`5561*****1234`).
+- Mensagens de sistema, apagadas e contatos internos não são encaminháveis.
 
-## Estado
+## Mídia: sem cópia
 
-Nada foi implementado nem alterado em código de produção por esta análise; apenas este documento.
+A mensagem externa **aponta para o mesmo objeto** do storage da mensagem interna. O objeto já foi validado pelos
+bytes ao entrar no chat, então o encaminhamento revalida pelas regras do **envio ao cliente** usando o tipo real
+gravado nos metadados: o chat aceita `.xlsm` e, sem configuração, até 100 MB; o envio ao cliente segue
+`TiposDeMidiaPermitidos` e o limite configurado da categoria (ou o teto da Meta). Nenhum byte passa pelo caminho
+de envio, que continua assíncrono: o upload ao provedor acontece no worker da outbox.
+
+Os metadados são remontados na forma que os adaptadores leem (`nome`, `mimetype`, `tamanho`, `legenda`); o chat
+grava `nome_original` e `tamanho_bytes`, e sem esse remapeamento o documento sairia sem nome. O nome é sanitizado
+como no envio de anexo (só `[A-Za-z0-9._-]`; acentos viram `_`).
+
+Risco conhecido: dois registros apontam para o mesmo objeto. Hoje nada apaga objetos de mídia (a exclusão de mensagem
+interna só limpa a referência no banco), mas **uma limpeza futura de storage precisa contar as referências**.
+
+## Persistência, idempotência e auditoria
+
+- **V96** `chat_interno_encaminhamento_cliente`: elo mensagem interna → mensagem externa (FK composta para a tabela
+  particionada), usuário, atendimento, lead, tipo, `transferiu_o_lead`, `convite_criado` e a chave (`UNIQUE`).
+- Tudo no pool do chat, **numa transação só**: envio (mensagem + outbox), elo e convite. Ou saem os três, ou nenhum.
+- Idempotência: a repetição da mesma chave responde antes de qualquer outra leitura e devolve o mesmo encaminhamento
+  (`reutilizado=true`), sem nova mensagem, outbox, convite ou linha de auditoria; mesma chave para outro atendimento
+  ou outra mensagem responde `409`.
+- Auditoria (`@Auditable`, `ENCAMINHAR_CHAT_INTERNO_PARA_CLIENTE`): usuário, conversa, mensagem interna, atendimento,
+  lead, mensagem externa, tipo e os dois efeitos; nunca o texto nem o telefone (allowlist em `SerializadorAuditavel`).
+  A transferência (`ENVIO_COM_TRANSFERENCIA_DE_LEAD`) e o convite (`CONVITE_ATENDIMENTO_CRIADO`) saem dos eventos
+  já existentes do envio e da participação. Tentativa recusada não deixa registro.
+- Retry: o publicador da outbox já faz o retry controlado e o circuit breaker/timeout dos adaptadores vale como
+  para qualquer envio; provedor fora do ar mantém a mensagem `PENDENTE`, e recusa definitiva a marca `FALHOU`.
+
+## Limitações conhecidas
+
+- O texto que o cliente recebe leva a **assinatura do atendente** (`*Nome:*`), como em todo envio manual.
+- Texto livre em provedor oficial exige a janela de 24h; fora dela a prévia bloqueia (não há envio de template aqui).
+- O destino é um atendimento **aberto e alcançável** pelo usuário; para um atendente isso significa os próprios e os
+  potenciais, para gestão e subgestão, os de todos. A busca devolve no máximo 20: o usuário refina digitando.
+- Não há vínculo permanente entre conversa interna e cliente: cada encaminhamento escolhe o destino de novo.
+- O acompanhamento do diálogo é por consulta periódica (2 s) até o estado final, não por WebSocket.
+- Mensagem interna encaminhada duas vezes ao mesmo cliente é permitida (chaves diferentes).
+
+## Testes
+
+- `EncaminhamentoDoChatParaClienteIT` (34 casos, HTTP + Postgres + RLS + outbox, canal fake): texto e as quatro mídias
+  com tipo/MIME/nome/legenda e mesmo objeto de storage; sem responsável (assume), com responsável (mantém e convida),
+  convite aceito (não convida de novo), participante por entrada direta (não transfere), o próprio responsável;
+  prévia sem escrita e com telefone mascarado; não participante da conversa, atendente fora do alcance,
+  sem `atendimentos.responder`, par conversa/mensagem trocado, mesma chave para outro cliente, atendimento
+  finalizado, fora da janela, mensagem de sistema/apagada/contato, `.xlsm`/QuickTime/tipo trocado, acima do limite e
+  sem tamanho, sem chave; idempotência (1 mensagem, 1 elo, 1 evento de envio, 1 auditoria); status
+  `PENDENTE → ENVIADO`; `FALHOU`; provedor fora do ar com retry e envio único; auditoria; e a busca de destinos
+  (atendente × gestão, finalizados e de colegas fora, busca por nome/telefone, curingas como texto, limite de 20,
+  401/403).
+- `EncaminhamentoDoChatNosProvedoresTest`: o conteúdo do chat passando pelos adaptadores Meta e UZAPI (payload,
+  upload, `filename`, legenda, áudio sem legenda) e a tradução de falha 4xx/5xx.
+- `ConsultarMensagemDoChatParaEncaminhamentoUseCaseTest`, `MontadorDeConteudoDoChatParaClienteTest`,
+  `TelefoneMascaradoTest`, `AuditoriaDeAcoesSensiveisTest`.
+- Frontend: diálogo (busca no servidor com pausa, prévia, bloqueio, confirmação, duplo clique, chave reaproveitada, status,
+  erros), menu e elegibilidade da mensagem, e a página (a ação só chega a quem tem a permissão).
+- Cada proteção foi violada de propósito (ver o relatório da tarefa) e o teste correspondente reprovou.

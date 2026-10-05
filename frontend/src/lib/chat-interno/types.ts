@@ -50,3 +50,60 @@ export interface MidiaDoGrupo {
   legenda: string | null;
   enviadoEm: string;
 }
+
+/** Espelha PreviaDoEncaminhamento.java: o que a tela mostra antes de confirmar o encaminhamento ao cliente. */
+export type EfeitoDoEncaminhamento =
+  | "ASSUME_O_LEAD"
+  | "MANTEM_RESPONSAVEL_E_CONVIDA"
+  | "MANTEM_RESPONSAVEL"
+  | "VOCE_E_RESPONSAVEL";
+
+export type MotivoDeBloqueioDoEncaminhamento =
+  | "ATENDIMENTO_FINALIZADO"
+  | "FORA_DA_JANELA"
+  | "TIPO_NAO_SUPORTADO"
+  | "ARQUIVO_ACIMA_DO_LIMITE"
+  | "ARQUIVO_SEM_TAMANHO";
+
+export interface PreviaDoEncaminhamentoAoCliente {
+  atendimentoId: string;
+  clienteNome: string;
+  /** Sempre mascarado pelo backend; o número inteiro nunca chega a esta tela. */
+  telefoneMascarado: string;
+  statusAtendimento: string;
+  responsavelNome: string | null;
+  efeito: EfeitoDoEncaminhamento;
+  tipo: string;
+  texto: string | null;
+  legenda: string | null;
+  nomeArquivo: string | null;
+  mimetype: string | null;
+  tamanhoBytes: number | null;
+  podeEnviar: boolean;
+  bloqueio: MotivoDeBloqueioDoEncaminhamento | null;
+}
+
+export type StatusDaEntregaAoCliente = "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
+
+/** Espelha EncaminhamentoDoChatInternoController.EncaminhamentoResposta. */
+export interface EncaminhamentoAoCliente {
+  id: string;
+  atendimentoId: string;
+  mensagemInternaId: string;
+  mensagemExternaId: string;
+  tipo: string;
+  statusEntrega: StatusDaEntregaAoCliente;
+  erroEntrega: string | null;
+  transferiuOLead: boolean;
+  conviteCriado: boolean;
+  reutilizado: boolean;
+}
+
+/** Espelha DestinoDoEncaminhamento.java: um atendimento aberto que o usuário pode escolher. Telefone sempre mascarado. */
+export interface DestinoDoEncaminhamento {
+  atendimentoId: string;
+  clienteNome: string;
+  telefoneMascarado: string;
+  statusAtendimento: string;
+  responsavelNome: string | null;
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { ChevronDown, Copy, Forward, Pencil, Plus, Reply, Trash2, X } from "lucide-react";
+import { ChevronDown, Copy, Forward, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -38,6 +38,9 @@ type Props = {
   reacoesHabilitadas?: boolean;
   onResponder?: () => void;
   onEncaminhar?: () => void;
+  /** Só no Chat Interno: envia a mensagem ao cliente de um atendimento (docs/61). */
+  onEncaminharCliente?: () => void;
+  rotuloEncaminharCliente?: string;
   onExcluir?: () => void;
   onEditar?: () => void;
   rotuloEditar?: string;
@@ -60,6 +63,8 @@ export function InteracaoMensagem({
   reacoesHabilitadas = true,
   onResponder,
   onEncaminhar,
+  onEncaminharCliente,
+  rotuloEncaminharCliente,
   onExcluir,
   onEditar,
   rotuloEditar,
@@ -240,6 +245,21 @@ export function InteracaoMensagem({
                 >
                   <Forward className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.encaminhar}
+                </Button>
+              )}
+              {onEncaminharCliente && rotuloEncaminharCliente && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  disabled={pendente}
+                  onClick={() => {
+                    setMenuAberto(false);
+                    onEncaminharCliente();
+                  }}
+                >
+                  <SendHorizontal className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                  {rotuloEncaminharCliente}
                 </Button>
               )}
               {onExcluir && (

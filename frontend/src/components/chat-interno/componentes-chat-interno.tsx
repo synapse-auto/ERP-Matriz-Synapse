@@ -147,6 +147,16 @@ export function DialogoEncaminharChatInterno({
 }
 
 
+const TIPOS_QUE_VAO_AO_CLIENTE = ["TEXTO", "IMAGEM", "AUDIO", "VIDEO", "DOCUMENTO"];
+
+/** Conteúdo que faz sentido para um cliente; evento de sistema, contato interno e mensagem apagada ficam de fora. */
+export function encaminhavelAoCliente(mensagem: ChatMensagem): boolean {
+  if (mensagem.removida) return false;
+  const tipo = mensagem.tipo ?? "TEXTO";
+  if (!TIPOS_QUE_VAO_AO_CLIENTE.includes(tipo)) return false;
+  return tipo === "TEXTO" ? Boolean(mensagem.conteudo?.trim()) : Boolean(mensagem.midiaUrl || mensagem.midiaMetadados);
+}
+
 export function CabecalhoChatInterno({
   conversa,
   textos,
@@ -201,6 +211,7 @@ export function ListaMensagensChatInterno({
   onRemoverReacao,
   onResponder,
   onEncaminhar,
+  onEncaminharCliente,
   onExcluir,
   onEditar,
   onBuscarMensagem,
@@ -213,6 +224,8 @@ export function ListaMensagensChatInterno({
   onRemoverReacao: (mensagem: ChatMensagem) => Promise<void>;
   onResponder?: (mensagem: ChatMensagem) => void;
   onEncaminhar?: (mensagem: ChatMensagem) => void;
+  /** Presente só para quem pode responder em atendimentos; o backend confere de novo. */
+  onEncaminharCliente?: (mensagem: ChatMensagem) => void;
   onExcluir?: (mensagem: ChatMensagem) => Promise<void>;
   onEditar?: (mensagem: ChatMensagem) => void;
   onBuscarMensagem?: (mensagemId: string) => Promise<ChatMensagem | null>;
@@ -327,6 +340,10 @@ export function ListaMensagensChatInterno({
               onRemoverReacao={() => onRemoverReacao(mensagem)}
               onResponder={onResponder ? () => onResponder(mensagem) : undefined}
               onEncaminhar={onEncaminhar && !mensagem.removida ? () => onEncaminhar(mensagem) : undefined}
+              onEncaminharCliente={
+                onEncaminharCliente && encaminhavelAoCliente(mensagem) ? () => onEncaminharCliente(mensagem) : undefined
+              }
+              rotuloEncaminharCliente={textos.encaminharCliente.acao}
               onExcluir={onExcluir && propria && !mensagem.removida ? () => void onExcluir(mensagem) : undefined}
               onEditar={onEditar && propria && !mensagem.removida && tipo === "TEXTO" && Boolean(mensagem.conteudo?.trim()) ? () => onEditar(mensagem) : undefined}
               rotuloEditar={textos.editar}

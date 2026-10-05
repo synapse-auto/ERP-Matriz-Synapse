@@ -4,13 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
-### 05/10/2026 — Encaminhar do Chat Interno para o cliente: análise de viabilidade (bloqueada no destino)
+### 05/10/2026 — Encaminhar do Chat Interno para o cliente
 
-A conversa interna não tem vínculo com lead ou atendimento (V8, V54, V95; nenhum código de `crm-equipe`), então
-não há como saber para qual cliente uma mensagem interna deve ir. O transporte já existe e serve: texto e as
-quatro mídias, Meta e UZAPI, outbox, idempotência, janela de 24h, RN-CRM-01/06. Pela regra da tarefa
-("sem vínculo seguro, interromper"), **nada foi implementado**. Destino por vínculo explícito, por escolha manual
-ou chat só da equipe é decisão de produto. Detalhe, lacunas e esboço em
+Texto e mídia (imagem, vídeo, áudio, documento) de uma conversa interna podem ser encaminhados ao cliente de um
+atendimento aberto, pelo fluxo oficial de envio (outbox, idempotência, janela de 24h, adaptadores Meta e UZAPI).
+O Chat Interno **não tem vínculo com lead**, então o destino é escolhido por quem encaminha e validado pelo
+backend (alcance RN-CRM-01 + `atendimentos.responder` + participar da conversa), com prévia de telefone mascarado e
+confirmação explícita. Decisão de negócio: sem responsável, quem encaminha assume o lead (RN-CRM-06); **com
+responsável, nunca transfere** (nem gestor): ele continua e quem encaminhou recebe convite para participar
+(docs/51), sem convite repetido. V96 guarda o elo mensagem interna → externa; a mídia aponta para o mesmo objeto de
+storage (sem cópia). Detalhe, limitações e riscos em
 [`61-encaminhar-chat-interno-para-cliente-viabilidade.md`](./61-encaminhar-chat-interno-para-cliente-viabilidade.md).
 
 ### 05/10/2026 — Foto dos grupos do Chat Interno

@@ -5,9 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ChatConversa } from "@/lib/chat-interno/types";
+import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
+
+const capturas = vi.hoisted(() => ({
+  lista: null as null | { onEncaminharCliente?: (mensagem: unknown) => void },
+  dialogoCliente: null as null | { mensagem: unknown },
+}));
 
 const textos = vi.hoisted(() => ({
   titulo: "Chat interno",
+  encaminharCliente: { acao: "Encaminhar para o cliente", titulo: "Encaminhar para o cliente", statusTitulo: "Acompanhamento do envio", previaTitulo: "Confirme o envio ao cliente", descricao: "Escolha o atendimento.", voltar: "Voltar", cancelar: "Cancelar", fechar: "Fechar", enviando: "Enviando…", confirmar: "Enviar ao cliente" },
   novaConversa: "Nova conversa",
   novoGrupo: "Novo grupo",
   conversas: "Conversas",
@@ -93,8 +100,18 @@ vi.mock("./componentes-chat-interno", () => ({
     </header>
   ),
   ComposerChatInterno: () => null,
-  ListaMensagensChatInterno: () => null,
+  ListaMensagensChatInterno: (props: { onEncaminharCliente?: (mensagem: unknown) => void }) => {
+    capturas.lista = props;
+    return null;
+  },
   DialogoEncaminharChatInterno: () => null,
+}));
+
+vi.mock("./dialogo-encaminhar-ao-cliente", () => ({
+  DialogoEncaminharAoCliente: (props: { mensagem: unknown }) => {
+    capturas.dialogoCliente = props;
+    return null;
+  },
 }));
 
 vi.mock("./avatar-do-grupo", () => ({
@@ -174,6 +191,36 @@ describe("PaginaChatInterno", () => {
     fireEvent.click(screen.getByRole("button", { name: /Grupo 2/ }));
     expect(await screen.findByTestId("painel-lateral-grupo")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Abrir painel" })).not.toBeInTheDocument();
+  });
+
+  describe("encaminhar para o cliente", () => {
+    const mensagem = { id: "m1", conversaId: "g1", remetenteId: "u2", remetenteNome: "Bruno", tipo: "TEXTO", conteudo: "oi", enviadoEm: "2026-10-05T12:00:00Z" };
+
+    beforeEach(() => {
+      capturas.lista = null;
+      capturas.dialogoCliente = null;
+      definirCapacidadesDeTeste({});
+    });
+
+    it("com permissão de responder, a lista recebe a ação e escolher uma mensagem abre o diálogo", async () => {
+      renderizar();
+      fireEvent.click(await screen.findByRole("button", { name: /Grupo 1/ }));
+
+      await waitFor(() => expect(capturas.lista?.onEncaminharCliente).toBeTypeOf("function"));
+      expect(capturas.dialogoCliente?.mensagem).toBeNull();
+      act(() => capturas.lista!.onEncaminharCliente!(mensagem));
+
+      await waitFor(() => expect(capturas.dialogoCliente?.mensagem).toEqual(mensagem));
+    });
+
+    it("sem a permissão atendimentos.responder, a ação não é oferecida (o backend ainda confere)", async () => {
+      definirCapacidadesDeTeste({ negadas: ["atendimentos.responder"] });
+      renderizar();
+      fireEvent.click(await screen.findByRole("button", { name: /Grupo 1/ }));
+
+      await waitFor(() => expect(capturas.lista).not.toBeNull());
+      expect(capturas.lista?.onEncaminharCliente).toBeUndefined();
+    });
   });
 
   describe("foto do grupo", () => {

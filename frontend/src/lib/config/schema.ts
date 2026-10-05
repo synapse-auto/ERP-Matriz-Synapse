@@ -330,6 +330,32 @@ export const TextosSchema = z.object({
     encaminharConfirmar: z.string(),
     encaminharCancelar: z.string(),
     encaminharErro: z.string(),
+    encaminharCliente: z.object({
+      acao: z.string(), titulo: z.string(), descricao: z.string(), buscar: z.string(),
+      carregandoDestinos: z.string(), semDestinos: z.string(), semResultado: z.string(), erroDestinos: z.string(),
+      escolher: z.string(), voltar: z.string(), previaTitulo: z.string(), carregandoPrevia: z.string(),
+      erroPrevia: z.string(), cliente: z.string(), telefone: z.string(), atendimento: z.string(),
+      responsavel: z.string(), semResponsavel: z.string(), conteudo: z.string(), arquivo: z.string(),
+      legenda: z.string(),
+      tipo: z.object({ TEXTO: z.string(), IMAGEM: z.string(), AUDIO: z.string(), VIDEO: z.string(), DOCUMENTO: z.string() }),
+      efeito: z.object({
+        ASSUME_O_LEAD: z.string(), MANTEM_RESPONSAVEL_E_CONVIDA: z.string(),
+        MANTEM_RESPONSAVEL: z.string(), VOCE_E_RESPONSAVEL: z.string(),
+      }),
+      bloqueio: z.object({
+        ATENDIMENTO_FINALIZADO: z.string(), FORA_DA_JANELA: z.string(), TIPO_NAO_SUPORTADO: z.string(),
+        ARQUIVO_ACIMA_DO_LIMITE: z.string(), ARQUIVO_SEM_TAMANHO: z.string(),
+      }),
+      confirmar: z.string(), enviando: z.string(), cancelar: z.string(), fechar: z.string(),
+      statusTitulo: z.string(),
+      status: z.object({
+        PENDENTE: z.string(), ENVIADO: z.string(), ENTREGUE: z.string(), LIDO: z.string(), FALHOU: z.string(),
+      }),
+      falhou: z.string(), conviteCriado: z.string(), assumiu: z.string(), jaEnviado: z.string(),
+      erro: z.object({
+        "403": z.string(), "404": z.string(), "409": z.string(), "422": z.string(), generico: z.string(),
+      }),
+    }),
     naoLidas: z.string(),
     tipoGrupo: z.string(),
     tipoDireta: z.string(),
