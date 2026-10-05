@@ -866,10 +866,11 @@ class EncaminhamentoDoChatParaClienteIT extends PostgresIT {
     }
 
     private ResponseEntity<String> destinos(String email, String busca) {
-        return chamar(email, senhaDe(email), HttpMethod.GET,
-                "/api/v1/atendimentos/encaminhamento-do-chat-interno/destinos?busca="
-                        + java.net.URLEncoder.encode(busca, java.nio.charset.StandardCharsets.UTF_8),
-                null, null);
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token(email, senhaDe(email)));
+        // Variavel de URI: o RestTemplate codifica uma vez so (codificar antes dobraria o %).
+        return http.exchange("/api/v1/atendimentos/encaminhamento-do-chat-interno/destinos?busca={busca}",
+                HttpMethod.GET, new HttpEntity<>(cabecalhos), String.class, busca);
     }
 
     private List<String> idsDosDestinos(ResponseEntity<String> resposta) throws Exception {
