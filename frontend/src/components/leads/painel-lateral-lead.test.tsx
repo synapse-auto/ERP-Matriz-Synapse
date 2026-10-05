@@ -11,7 +11,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
 painelLead: {
       titulo: "Ficha",
       fechar: "Fechar",
-      dados: { nome: "Nome", nomeInvalido: "Informe o nome do cliente.", telefone: "Telefone", email: "Email", cpf: "CPF", empresa: "Empresa", codigo: "Código", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
+      dados: { nome: "Nome", nomeInvalido: "Informe o nome do cliente.", telefone: "Telefone", editarTelefone: "Editar telefone", novoTelefone: "Novo número de telefone", avisoAlteracaoTelefone: "O número será alterado. As próximas mensagens serão enviadas para o novo número.", telefoneInvalido: "Informe um número válido com pelo menos 10 dígitos.", erroAlteracaoTelefone: "Não foi possível alterar o telefone.", confirmarAlteracaoTelefone: "Confirmar alteração", cancelarAlteracaoTelefone: "Cancelar", email: "Email", cpf: "CPF", empresa: "Empresa", codigo: "Código", localizacao: "Local", naoInformado: "Não", canalOrigem: "Canal" },
       acoes: {
         ligar: "Ligar para lead",
         lembrete: "L",
@@ -48,6 +48,10 @@ const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
+const salvarTelefoneState = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
 vi.mock("@/lib/lead/use-painel-lead", () => ({
   useEtapas: () => ({ data: [] }),
   useCamposCustomizados: () => camposState,
@@ -56,6 +60,7 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useTagsDoLead: () => ({ data: [] }),
   useTimelineDoLead: () => ({ data: null }),
   useSalvarFicha: () => salvarFichaState,
+  useSalvarTelefoneLead: () => salvarTelefoneState,
   useVincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useDesvincularTag: () => ({ mutate: vi.fn(), isPending: false }),
   useLead: () => ({ data: mockLeadData, isLoading: false, isError: false }),
@@ -126,6 +131,28 @@ describe("PainelLateralLead telefones", () => {
     renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
     expect(screen.getByText("Código")).toBeInTheDocument();
     expect(screen.getByText("00421")).toBeInTheDocument();
+  });
+
+  it("permite editar o telefone e apresenta o aviso antes de confirmar", () => {
+    salvarTelefoneState.mutate.mockClear();
+    mockLeadData = { id: "1", nome: "Lead 1", telefone: "11999999999" };
+    renderComProvider(<PainelLateralLead leadId="1" contexto="agenda" onFechar={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar telefone" }));
+    expect(screen.getByText(/próximas mensagens serão enviadas para o novo número/i)).toBeInTheDocument();
+    const campo = screen.getByRole("textbox", { name: "Novo número de telefone" });
+    fireEvent.change(campo, { target: { value: "+55 (11) 98888-7777" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar alteração" }));
+
+    expect(salvarTelefoneState.mutate).toHaveBeenCalledWith("+55 (11) 98888-7777", expect.any(Object));
+  });
+
+  it("não exibe a edição de telefone sem a permissão de editar contatos", () => {
+    permissoesState.editar = false;
+    mockLeadData = { id: "1", nome: "Lead 1", telefone: "11999999999" };
+    renderComProvider(<PainelLateralLead leadId="1" onFechar={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Editar telefone" })).not.toBeInTheDocument();
+    permissoesState.editar = true;
   });
 
   it("grava o nome do cliente ao sair do campo no overlay", () => {

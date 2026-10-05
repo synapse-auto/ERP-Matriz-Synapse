@@ -26,6 +26,8 @@ export interface LeadFicha {
 export interface AtualizacaoLead {
   notas?: string;
   dadosCustomizados?: Record<string, unknown>;
+  /** Ausente preserva o telefone; o backend normaliza ao salvar. */
+  telefone?: string;
   /** Somente dígitos; string vazia limpa o campo. Ausente preserva o valor atual. */
   codigo?: string | null;
   /** Ausente preserva. Vazio é recusado no servidor — o nome não se apaga. */

@@ -246,6 +246,49 @@ class LeadFichaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("Agenda permite corrigir telefone de lead colaborativo sem abrir a escrita fora do contexto")
+    void editarTelefone_pelaAgendaRespeitaContextoEInvalidaEnderecoAntigo() {
+        String sufixoUnico = String.format("%06d", Math.floorMod(leadDoBruno.hashCode(), 1_000_000));
+        String telefoneAntigo = "5561998" + sufixoUnico;
+        String telefoneNovo = "5561977" + sufixoUnico;
+        String telefoneOriginal = jdbc.queryForObject(
+                "SELECT telefone FROM lead WHERE id = ?", String.class, leadDoBruno);
+        String enderecoOriginal = jdbc.queryForObject(
+                "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDoBruno);
+        try {
+            jdbc.update(
+                    "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                    telefoneAntigo,
+                    "5561888" + sufixoUnico,
+                    leadDoBruno);
+
+            var foraDoContexto = comoAna(
+                    HttpMethod.PUT,
+                    "/api/v1/leads/" + leadDoBruno + "/telefone",
+                    Map.of("telefone", telefoneNovo));
+            assertThat(foraDoContexto.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+            var pelaAgenda = comoAna(
+                    HttpMethod.PUT,
+                    "/api/v1/leads/" + leadDoBruno + "/agenda/telefone",
+                    Map.of("telefone", telefoneNovo));
+
+            assertThat(pelaAgenda.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id = ?", String.class, leadDoBruno))
+                    .isEqualTo(telefoneNovo);
+            assertThat(jdbc.queryForObject(
+                            "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDoBruno))
+                    .isNull();
+        } finally {
+            jdbc.update(
+                    "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                    telefoneOriginal,
+                    enderecoOriginal,
+                    leadDoBruno);
+        }
+    }
+
+    @Test
     @DisplayName("a edicao nao mexe nos contadores")
     void editar_ficha_naoAlteraContadores() {
         jdbc.update("UPDATE lead SET num_atendimentos = 7, num_mensagens = 42 WHERE id = ?", leadDaAna);
