@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MensagemResposta } from "@/lib/atendimento/types";
 import type { ItemDoVisualizador } from "./visualizador-midia";
 
-const { emitirUrlAssinadaDaMidia, baixarUrlAssinada, apiFetchBlob } = vi.hoisted(() => ({
+const { emitirUrlAssinadaDaMidia, baixarUrlAssinada, apiFetchBlob, apiFetchArquivo, baixarBlobComoArquivo } = vi.hoisted(() => ({
   emitirUrlAssinadaDaMidia: vi.fn(),
   baixarUrlAssinada: vi.fn(),
   apiFetchBlob: vi.fn(),
+  apiFetchArquivo: vi.fn(),
+  baixarBlobComoArquivo: vi.fn(),
 }));
 
 vi.mock("@/lib/config/textos-provider", () => ({
@@ -58,6 +60,11 @@ vi.mock("@/lib/midia/baixar-url-assinada", () => ({
 
 vi.mock("@/lib/api/http-client", () => ({
   apiFetchBlob: (...argumentos: unknown[]) => apiFetchBlob(...argumentos),
+  apiFetchArquivo: (...argumentos: unknown[]) => apiFetchArquivo(...argumentos),
+}));
+
+vi.mock("@/lib/midia/baixar-arquivo", () => ({
+  baixarBlobComoArquivo: (...argumentos: unknown[]) => baixarBlobComoArquivo(...argumentos),
 }));
 
 vi.mock("@/components/mensagens/interacao-mensagem", () => ({
@@ -98,6 +105,8 @@ describe("VisualizadorMidia", () => {
     emitirUrlAssinadaDaMidia.mockReset().mockResolvedValue({ url: URL_FRESCA });
     baixarUrlAssinada.mockReset();
     apiFetchBlob.mockReset();
+    apiFetchArquivo.mockReset().mockResolvedValue({ blob: new Blob(["arquivo"]), nome: "arquivo.pdf" });
+    baixarBlobComoArquivo.mockReset();
     class URLComBlob extends URLOriginal {
       static createObjectURL = vi.fn(() => "blob:foto-visualizador");
       static revokeObjectURL = vi.fn();
@@ -186,8 +195,10 @@ describe("VisualizadorMidia", () => {
     expect(document.querySelector("object")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Baixar" })[0]);
     await waitFor(() => {
-      expect(baixarUrlAssinada).toHaveBeenCalledWith(URL_DOCX);
+      expect(apiFetchArquivo).toHaveBeenCalledWith("/api/v1/leads/lead-1/midias/xlsx-1/download");
     });
+    expect(baixarUrlAssinada).not.toHaveBeenCalled();
+    expect(baixarBlobComoArquivo).toHaveBeenCalledWith(expect.any(Blob), "arquivo.pdf");
   });
 
   it("reusa PlayerAudio para áudio", async () => {

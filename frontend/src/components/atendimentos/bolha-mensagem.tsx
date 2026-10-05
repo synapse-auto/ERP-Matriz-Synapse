@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { FileText, Maximize2, MapPin } from "lucide-react";
+import { useRef, useState } from "react";
+import { Download, FileText, Maximize2, MapPin } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { apiFetchArquivo } from "@/lib/api/http-client";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
 import type { MensagemResposta, OrigemDaCitacao } from "@/lib/atendimento/types";
 import { contatosDaMensagem, textoCopiavelDosContatos } from "@/lib/atendimento/contato-compartilhado";
+import { baixarBlobComoArquivo } from "@/lib/midia/baixar-arquivo";
 
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { TextoComLinks } from "@/components/mensagens/texto-com-links";
@@ -125,10 +128,41 @@ export function BolhaMensagem({
   const catalogo = useTextos().atendimentos;
   const textos = catalogo.media;
   const [visualizadorAberto, setVisualizadorAberto] = useState(false);
+  const [baixando, setBaixando] = useState(false);
+  const [erroDownload, setErroDownload] = useState(false);
+  const downloadEmCurso = useRef(false);
   const doAtendente = mensagem.remetenteTipo !== "LEAD";
   const metadados = metadadosDaMidia(mensagem.midiaMetadados);
   const opcoes = opcoesInterativas(mensagem.opcoes);
   const midiaUrl = urlSegura(mensagem.midiaUrl);
+  const nomeDaMidia = metadados.nome ?? (mensagem.tipo === "AUDIO"
+    ? textos.audio
+    : mensagem.tipo === "VIDEO"
+      ? textos.visualizador.video
+      : mensagem.tipo === "IMAGEM"
+        ? textos.imagem
+        : textos.documento);
+  const podeBaixar = Boolean(
+    leadId && mensagem.midiaUrl && metadados.indisponivel !== true &&
+    ["AUDIO", "DOCUMENTO", "VIDEO"].includes(mensagem.tipo),
+  );
+
+  async function baixarMidia() {
+    if (!leadId || !podeBaixar || downloadEmCurso.current) return;
+    downloadEmCurso.current = true;
+    setBaixando(true);
+    setErroDownload(false);
+    try {
+      const rota = `/api/v1/leads/${encodeURIComponent(leadId)}/midias/${encodeURIComponent(mensagem.id)}/download`;
+      const { blob, nome } = await apiFetchArquivo(rota);
+      baixarBlobComoArquivo(blob, nome ?? nomeDaMidia);
+    } catch {
+      setErroDownload(true);
+    } finally {
+      downloadEmCurso.current = false;
+      setBaixando(false);
+    }
+  }
   const itemDoVisualizador = itemDaBolha(leadId, mensagem, metadados);
   const podeAbrir = Boolean(itemDoVisualizador);
   const data = new Date(mensagem.enviadoEm);
@@ -287,6 +321,27 @@ export function BolhaMensagem({
           <p role="status" className="mt-1.5 text-xs font-medium text-destructive">
             {textos.midiaNaoRecebida}
           </p>
+        )}
+
+        {podeBaixar && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={baixando}
+              aria-busy={baixando}
+              onClick={() => void baixarMidia()}
+            >
+              <Download className="size-4" aria-hidden />
+              {baixando ? textos.visualizador.carregando : textos.baixar}
+            </Button>
+            {erroDownload && (
+              <p role="alert" className="text-xs text-destructive">
+                {textos.visualizador.erroAoCarregar}
+              </p>
+            )}
+          </div>
         )}
 
         {mensagem.tipo === "TEXTO" && (

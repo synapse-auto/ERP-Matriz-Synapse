@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -110,6 +111,20 @@ class MinioArmazenamentoDeMidiaIT {
         assertThat(recuperado).isEqualTo(ogg);
         assertThat(ResumoSeguroDeMidia.de(recuperado))
                 .isEqualTo(ResumoSeguroDeMidia.de(ogg));
+    }
+
+    @Test
+    void abreFluxoDeLeituraSemMaterializarArquivoNaPortaDeStorage() throws Exception {
+        String endpoint = "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000);
+        String bucket = "e230-download-stream-" + UUID.randomUUID();
+        var armazenamento = new MinioArmazenamentoDeMidia(
+                new MidiaProperties(endpoint, endpoint, bucket, ACCESS_KEY, SECRET_KEY, Duration.ofMinutes(1)));
+        byte[] original = "%PDF-1.4\nconteudo de teste\n%%EOF".getBytes(StandardCharsets.US_ASCII);
+
+        String referencia = armazenamento.salvar(original, "documento.pdf", "application/pdf");
+        try (InputStream fluxo = armazenamento.abrirLeitura(referencia)) {
+            assertThat(fluxo.readAllBytes()).isEqualTo(original);
+        }
     }
 
     @Test

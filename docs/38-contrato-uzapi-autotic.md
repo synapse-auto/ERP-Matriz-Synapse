@@ -199,6 +199,13 @@ Mídia recebida chega como referência: `UzapiAutoticAdapter` resolve o `mediaId
 `WHATSAPP_USUARIO_API`.
 Localização não chama o downloader e é persistida em metadados estruturados.
 
+Depois do recebimento, os bytes são persistidos no storage privado do CRM e o histórico guarda
+somente a referência opaca e metadados normalizados. O navegador baixa pelo endpoint JWT
+`GET /api/v1/leads/{leadId}/midias/{mensagemId}/download`; ele não reutiliza nem recebe a URL
+temporária da UZAPI. O endpoint valida a visibilidade do lead, responde como anexo e transmite o
+objeto do storage em fluxo. A mídia da Meta segue a mesma estratégia de persistência, embora o seu
+adaptador resolva o identificador e baixe a URL temporária do provedor em duas requisições próprias.
+
 **Contato compartilhado (PR do contato compartilhado, V81).** O schema `ContactsMessage` de
 `/webhook/message/contacts` traz o cartão em `messages[].contacts[]`, com `name.formatted_name`/
 `first_name` e `phones[].phone`/`type` — sem `wa_id`, diferente da Meta. O tradutor grava uma

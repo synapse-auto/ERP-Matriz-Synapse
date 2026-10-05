@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.interfaces;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.synapse.crm.atendimento.application.midia.ListarMidiasDoLeadUseCase;
 import com.synapse.crm.atendimento.application.midia.MidiaDoLead;
@@ -91,26 +93,45 @@ class MidiasDoLeadController {
     @Operation(
             summary = "Baixar mídia do lead",
             description = "Valida lead, atendimento e mensagem no backend antes de devolver o conteúdo. "
-                    + "Caminho JWT para quem busca com Authorization; a tela não usa este path em src/href.")
+                    + "A resposta é transmitida em fluxo, preserva o MIME e o nome seguro e usa "
+                    + "Content-Disposition attachment. Caminho JWT para quem busca com Authorization.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Arquivo binário transmitido em fluxo."),
+                @ApiResponse(responseCode = "404", description = "Mídia inexistente ou não visível.")
+            })
     @GetMapping("/{mensagemId}/download")
-    ResponseEntity<byte[]> baixar(
+    ResponseEntity<StreamingResponseBody> baixar(
             @Parameter(required = true) @PathVariable UUID leadId, @PathVariable UUID mensagemId) {
         MidiaDoLead midia = listar.executar(leadId, mensagemId);
-        byte[] bytes = armazenamento.baixar(midia.referenciaStorage());
+        StreamingResponseBody fluxo = saida -> {
+            try (InputStream entrada = armazenamento.abrirLeitura(midia.referenciaStorage())) {
+                entrada.transferTo(saida);
+            }
+        };
         MediaType tipo = MediaType.APPLICATION_OCTET_STREAM;
         try {
             tipo = MediaType.parseMediaType(midia.mimetype());
         } catch (Exception ignored) {
         }
-        String nome = midia.nome() == null ? "arquivo" : midia.nome();
+        String nome = nomeSeguro(midia.nome());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(tipo);
-        headers.setContentLength(bytes.length);
-        var disposition = "DOCUMENTO".equals(midia.tipo())
-                ? ContentDisposition.attachment()
-                : ContentDisposition.inline();
-        headers.setContentDisposition(disposition.filename(nome, StandardCharsets.UTF_8).build());
-        return ResponseEntity.ok().headers(headers).body(bytes);
+        if (midia.tamanho() > 0) {
+            headers.setContentLength(midia.tamanho());
+        }
+        headers.setContentDisposition(ContentDisposition.attachment().filename(nome, StandardCharsets.UTF_8).build());
+        headers.set("X-Content-Type-Options", "nosniff");
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).headers(headers).body(fluxo);
+    }
+
+    private static String nomeSeguro(String nome) {
+        if (nome == null || nome.isBlank()) {
+            return "arquivo";
+        }
+        String semDiretorios = nome.replace('\\', '/');
+        semDiretorios = semDiretorios.substring(semDiretorios.lastIndexOf('/') + 1);
+        String seguro = semDiretorios.replaceAll("[\\p{Cntrl}<>:\"|?*]", "_").trim();
+        return seguro.isBlank() ? "arquivo" : seguro;
     }
 
     @ExceptionHandler(MidiaDoLeadNaoEncontradaException.class)
