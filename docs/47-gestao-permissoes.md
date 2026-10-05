@@ -41,7 +41,7 @@ registra os papéis históricos, não concede visão global ao novo papel.
 | `atendimentos.devolver_ia` | Atendimentos | Editar | `POST /atendimentos/{id}/transferir` sem destino | `TransferirAtendimentoUseCase.executar` (`#p1 == null`) | A S G D | todos | sim | não |
 | `atendimentos.finalizar` | Atendimentos | Editar | `POST /atendimentos/{id}/finalizar` | `FinalizarAtendimentoUseCase.executar` | A S G D | todos | sim | não |
 | `atendimentos.colaborar` | Atendimentos | Editar | `pedir-entrada`, `entrar`, `convidar` | `GerenciarParticipacaoAtendimentoUseCase.solicitar/solicitarPorLead/entrar/convidar` | A S G D | todos | sim | não |
-| `atendimentos.finalizar_lote` | Atendimentos | Gerenciar | `GET/POST /atendimentos/finalizar-lote` | `FinalizarAtendimentosVisiveisUseCase` (2) + `FinalizarAtendimentoUseCase.executarEmLote` | A S G D | todos | **não** | sim |
+| `atendimentos.finalizar_lote` | Atendimentos | Gerenciar | `GET/POST /atendimentos/finalizar-lote` (legado, síncrono) e `/atendimentos/finalizacoes-em-massa` (prévia, criação, status, itens, recentes — [docs/59](59-finalizacao-em-massa.md)) | `FinalizarAtendimentosVisiveisUseCase` (2) + `FinalizarAtendimentoUseCase.executarEmLote` e `executarPelaFinalizacaoEmMassa` | A S G D | todos | **não** | sim |
 | `contatos.editar` | Contatos | Editar | `PUT /leads/{id}` | `AtualizarLeadUseCase` | A S G D | todos | sim | não |
 | `tags.aplicar` | Tags | Editar | `PUT/DELETE /leads/{id}/tags/{tag}` | `Vincular/DesvincularTagDoLeadUseCase` | A S G D | todos | sim | não |
 | `tags.criar` | Tags | Gerenciar | `POST /tags` | `GestaoDeTagsUseCases.criar` | S G D | S G D | não | não |
@@ -350,7 +350,7 @@ expõe `pode(id)` e `alcancaTodos` (recorte estrutural de `atendimentos.ver`).
 | `atendimentos.abrir_para_contato` | "Reativar atendimento" (finalizado); "Abrir atendimento" na agenda e na ficha | `POST /atendimentos/leads/{id}/novo` | sem checagem | capacidade |
 | `atendimentos.transferir` / `devolver_ia` | "Transferir"; opções do diálogo (assumir/colegas × devolver) | `POST /atendimentos/{id}/transferir` | sem checagem | capacidade, por opção |
 | `atendimentos.finalizar` | "Finalizar" | `POST /atendimentos/{id}/finalizar` | sem checagem | capacidade |
-| `atendimentos.finalizar_lote` | "Finalizar Todos" (⋯ da lista) e a contagem | `GET`/`POST /atendimentos/finalizar-lote` | sem checagem (a contagem dava 403) | capacidade |
+| `atendimentos.finalizar_lote` | "Finalizar em massa" (⋯ da lista) — janela com filtros por atendente e período; a lista de atendentes vem da contagem | `GET`/`POST /atendimentos/finalizar-lote` (legado) e `/atendimentos/finalizacoes-em-massa/**` | sem checagem (a contagem dava 403) | capacidade |
 | `atendimentos.colaborar` | pedir entrada, entrar, convidar, aceitar/recusar; "pedir entrada" da agenda | `pedir-entrada`, `entrar`, `convidar` | `papel !== "ATENDENTE"` | capacidade; "entrar direto" usa `alcancaTodos` |
 | `dashboard.ver` | menu; rota `/dashboard` | `GET /dashboard/visao-geral` | papel + menu | capacidade |
 | `automacao.ver` | menu; rota `/automacao` | `GET /automacao/**` | papel (dentro da página) | capacidade (rota) |

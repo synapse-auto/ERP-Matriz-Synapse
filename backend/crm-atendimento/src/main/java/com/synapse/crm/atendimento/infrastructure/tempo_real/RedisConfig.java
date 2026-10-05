@@ -26,6 +26,7 @@ class RedisConfig {
             RedisConnectionFactory conexao,
             RedisSubscriberDeAtendimento assinante,
             SubscriberDeAcessoAlterado assinanteDeAcesso,
+            SubscriberDeAvisoDeUsuario assinanteDeAviso,
             TempoRealProperties propriedades) {
 
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
@@ -34,6 +35,7 @@ class RedisConfig {
         container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO));
         container.addMessageListener(assinante, new PatternTopic(CanaisRedis.PADRAO_CHAT));
         container.addMessageListener(assinanteDeAcesso, new ChannelTopic(CanaisRedis.ACESSO));
+        container.addMessageListener(assinanteDeAviso, new ChannelTopic(CanaisRedis.AVISO_USUARIO));
         return container;
     }
 

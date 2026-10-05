@@ -37,6 +37,15 @@ vi.mock("@/lib/config/textos-provider", () => ({
         abrirTransferencia: "Abrir atendimento", abrirConvite: "Abrir convite", fechar: "Fechar aviso",
       },
       media: { imagem: "Imagem", audio: "Áudio", documento: "Documento", localizacao: "Localização", visualizador: { video: "Vídeo" } },
+      finalizacaoEmMassa: {
+        aviso: {
+          titulo: "Finalização em massa concluída",
+          resumoUm: "1 atendimento foi finalizado em uma finalização em massa. Usuário afetado: {usuarios}.",
+          resumoVarios: "{total} atendimentos foram finalizados em uma finalização em massa. Usuários afetados: {usuarios}.",
+          linha: "{nome}: {finalizados} atendimento(s)",
+          parcial: "{ignorados} ignorado(s) e {falhas} com falha.",
+        },
+      },
     },
   }),
 }));
@@ -249,5 +258,109 @@ describe("NotificacoesTempoReal — ACESSO_ALTERADO (Gestão, docs/47)", () => {
 
     expect(httpMock.renovarAccessToken).toHaveBeenCalled();
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["permissoes"] }));
+  });
+});
+
+describe("aviso de finalização em massa", () => {
+  function avisoDeFinalizacao(eventoId = "op-1:usuario-atual") {
+    return {
+      tipo: "FINALIZACAO_EM_MASSA_CONCLUIDA",
+      eventoId,
+      dados: {
+        operacaoId: "op-1",
+        finalizadosDoUsuario: 40,
+        totalFinalizados: 63,
+        ignorados: 0,
+        falhas: 0,
+        parcial: false,
+        afetados: [
+          { nome: "Clayton", finalizados: 40 },
+          { nome: "Nayara", finalizados: 23 },
+        ],
+      },
+    } as unknown as NotificacaoTempoReal;
+  }
+
+  function renderizarComCliente(cliente: QueryClient) {
+    return render(
+      <QueryClientProvider client={cliente}>
+        <NotificacoesTempoReal />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("mostra o total, quem foi afetado e a linha de cada atendente", () => {
+    renderizarComCliente(new QueryClient());
+
+    act(() => mocks.callback?.(avisoDeFinalizacao()));
+
+    const cartao = screen.getByRole("status");
+    expect(cartao).toHaveTextContent(
+      "63 atendimentos foram finalizados em uma finalização em massa. Usuários afetados: Clayton e Nayara.",
+    );
+    expect(cartao).toHaveTextContent("Clayton: 40 atendimento(s)");
+    expect(cartao).toHaveTextContent("Nayara: 23 atendimento(s)");
+    expect(cartao).not.toHaveTextContent("ignorado");
+  });
+
+  it("informa o parcial quando houve ignorados ou falhas", () => {
+    renderizarComCliente(new QueryClient());
+    const base = avisoDeFinalizacao() as unknown as { dados: Record<string, unknown> };
+
+    act(() =>
+      mocks.callback?.({
+        ...base,
+        dados: { ...base.dados, ignorados: 3, falhas: 1, parcial: true },
+      } as unknown as NotificacaoTempoReal),
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("3 ignorado(s) e 1 com falha.");
+  });
+
+  it("reenvio do mesmo evento não vira segundo cartão e atualiza a lista uma vez só", () => {
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarComCliente(cliente);
+
+    act(() => mocks.callback?.(avisoDeFinalizacao()));
+    act(() => mocks.callback?.(avisoDeFinalizacao()));
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(invalidar.mock.calls.filter(([filtro]) => filtro?.queryKey?.[0] === "atendimentos")).toHaveLength(1);
+  });
+
+  it("operações diferentes geram cartões diferentes", () => {
+    renderizarComCliente(new QueryClient());
+
+    act(() => mocks.callback?.(avisoDeFinalizacao("op-1:usuario-atual")));
+    act(() => mocks.callback?.(avisoDeFinalizacao("op-2:usuario-atual")));
+
+    expect(screen.getAllByRole("status")).toHaveLength(2);
+  });
+
+  it("singular quando só um atendimento foi finalizado", () => {
+    renderizarComCliente(new QueryClient());
+    const base = avisoDeFinalizacao() as unknown as { dados: Record<string, unknown> };
+
+    act(() =>
+      mocks.callback?.({
+        ...base,
+        eventoId: "op-3:usuario-atual",
+        dados: { ...base.dados, totalFinalizados: 1, afetados: [{ nome: "Clayton", finalizados: 1 }] },
+      } as unknown as NotificacaoTempoReal),
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "1 atendimento foi finalizado em uma finalização em massa. Usuário afetado: Clayton.",
+    );
+  });
+
+  it("o cartão fecha pelo botão de fechar", () => {
+    renderizarComCliente(new QueryClient());
+    act(() => mocks.callback?.(avisoDeFinalizacao()));
+
+    fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 });

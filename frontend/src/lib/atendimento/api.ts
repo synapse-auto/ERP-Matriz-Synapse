@@ -12,7 +12,6 @@ import type {
   ContagemPorVisao,
   EnvioResposta,
   FinalizacaoEmLotePrevia,
-  FinalizacaoEmLoteResposta,
   MensagemResposta,
   NovoContatoResposta,
   PaginaMensagens,
@@ -365,15 +364,6 @@ export function finalizarAtendimento(atendimentoId: string): Promise<Atendimento
 
 export function contarAtendimentosFinalizaveis(): Promise<FinalizacaoEmLotePrevia> {
   return apiFetch<FinalizacaoEmLotePrevia>("/api/v1/atendimentos/finalizar-lote");
-}
-
-export function finalizarAtendimentosVisiveis(
-  atendenteId?: string | null,
-): Promise<FinalizacaoEmLoteResposta> {
-  return apiFetch<FinalizacaoEmLoteResposta>("/api/v1/atendimentos/finalizar-lote", {
-    method: "POST",
-    body: atendenteId ? JSON.stringify({ atendenteId }) : undefined,
-  });
 }
 
 export function listarParticipantes(atendimentoId: string): Promise<ParticipanteAtendimento[]> {

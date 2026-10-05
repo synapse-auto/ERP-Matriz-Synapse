@@ -36,6 +36,10 @@ O serviço:
 - invalida `atendimentos` para mensagens/transferências e `chat-interno` para eventos internos;
 - coalesce sons dentro de 1,5 segundo para não produzir uma sequência agressiva durante rajadas.
 
+### Aviso de finalização em massa
+
+`FINALIZACAO_EM_MASSA_CONCLUIDA` chega pela mesma fila pessoal, mas **não** passa por `ServicoDeNotificacoesTempoReal`: não tem lead nem conversa. `NotificacoesTempoReal` o trata à parte, como o `ACESSO_ALTERADO`: deduplica por `eventoId` (`operacao:usuario`, igual em todo reenvio da outbox), invalida `atendimentos` e `finalizacao-em-massa` e mostra um cartão com o total, os usuários afetados e, se houve, o parcial. Só recebe quem teve ao menos um atendimento finalizado — quem decide é o servidor (docs/59, §5).
+
 O aviso visual informa origem, contato ou remetente, descrição e uma prévia segura de texto. Mídia não é convertida em preview. Clicar no aviso navega para o atendimento ou conversa interna por identificador, sem depender do filtro visível na tela.
 
 ## Som e acessibilidade

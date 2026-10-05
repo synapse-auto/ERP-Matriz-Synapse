@@ -405,13 +405,102 @@
       "sucesso": "Atendimento finalizado.",
       "erro": "Não foi possível finalizar.",
       "todosMenu": "Mais ações",
-      "todos": "Finalizar Todos",
-      "todosTitulo": "Finalizar atendimentos",
-      "todosDescricao": "Esta ação encerrará {quantidade} atendimento(s) aberto(s) que você pode visualizar. O estado é definitivo.",
-      "todosConfirmar": "Finalizar {quantidade}",
-      "todosCancelar": "Voltar",
-      "todosResultado": "{finalizados} atendimento(s) finalizado(s); {recusados} recusado(s).",
-      "todosErro": "Não foi possível finalizar os atendimentos visíveis."
+      "todos": "Finalizar em massa"
+    },
+    "finalizacaoEmMassa": {
+      "titulo": "Finalizar atendimentos em massa",
+      "descricao": "Escolha quem e qual período. Só são finalizados atendimentos abertos; nenhum lead, mensagem ou histórico é apagado.",
+      "fechar": "Fechar",
+      "atendentes": {
+        "rotulo": "Atendentes",
+        "placeholder": "Selecione os atendentes",
+        "carregando": "Carregando atendentes…",
+        "erro": "Não foi possível carregar os atendentes.",
+        "indisponivel": "Nenhum atendente com atendimento aberto."
+      },
+      "periodo": {
+        "de": "Data inicial",
+        "ate": "Data final",
+        "horaInicio": "Hora inicial (opcional)",
+        "horaFim": "Hora final (opcional)",
+        "selecionarData": "Selecionar data",
+        "dica": "Datas inclusivas. Sem hora, vale o dia inteiro. O período considera a última mensagem de cada atendimento."
+      },
+      "problemas": {
+        "SEM_ATENDENTE": "Selecione ao menos um atendente.",
+        "SEM_PERIODO": "Informe a data inicial e a final.",
+        "PERIODO_INVERTIDO": "O início do período não pode ser depois do fim."
+      },
+      "previa": {
+        "carregando": "Calculando os atendimentos…",
+        "erro": "Não foi possível calcular a prévia.",
+        "tentarNovamente": "Tentar novamente",
+        "total": "{total} atendimento(s) serão finalizados",
+        "nenhum": "Nenhum atendimento encontrado para esses filtros.",
+        "porAtendente": "Por atendente",
+        "excedeLimite": "Há mais atendimentos do que o limite de {limite} por operação. Reduza o período ou os atendentes.",
+        "fuso": "Fuso considerado: {fuso}"
+      },
+      "confirmacao": {
+        "titulo": "Confirmar finalização",
+        "aviso": "Esta ação não pode ser desfeita em massa: os atendimentos finalizados saem da fila dos atendentes.",
+        "resumo": "{total} atendimento(s) de {atendentes}, entre {de} e {ate}.",
+        "revisar": "Revisar",
+        "confirmar": "Finalizar {total}",
+        "voltar": "Voltar",
+        "iniciando": "Iniciando…",
+        "erro": "Não foi possível iniciar a finalização em massa."
+      },
+      "andamento": {
+        "titulo": "Finalizando atendimentos",
+        "aguardando": "Aguardando o início do processamento…",
+        "progresso": "{processados} de {encontrados} processados",
+        "segundoPlano": "O processamento continua em segundo plano. Você pode fechar esta janela e reabrir depois.",
+        "erro": "Não foi possível acompanhar a operação."
+      },
+      "resultado": {
+        "titulo": "Finalização concluída",
+        "tituloParcial": "Finalização concluída com pendências",
+        "encontrados": "{n} encontrado(s)",
+        "finalizados": "{n} finalizado(s)",
+        "ignorados": "{n} ignorado(s)",
+        "falhas": "{n} com falha",
+        "detalhes": "Detalhes",
+        "semItens": "Nenhum item nesta categoria.",
+        "erroItens": "Não foi possível carregar os detalhes.",
+        "nova": "Nova finalização",
+        "leadSemNome": "Sem nome",
+        "abas": {
+          "FINALIZADO": "Finalizados",
+          "IGNORADO": "Ignorados",
+          "FALHA": "Falhas"
+        }
+      },
+      "motivos": {
+        "JA_FINALIZADO": "Já estava finalizado",
+        "TRANSFERIDO": "Foi transferido para outro atendente",
+        "ATIVIDADE_POSTERIOR": "Teve atividade depois do período",
+        "INDISPONIVEL": "Ficou indisponível",
+        "ERRO_INESPERADO": "Erro inesperado ao finalizar"
+      },
+      "recentes": {
+        "titulo": "Operações recentes",
+        "vazio": "Nenhuma operação recente.",
+        "abrir": "Abrir",
+        "linha": "{finalizados} de {encontrados} finalizado(s)",
+        "status": {
+          "PENDENTE": "Na fila",
+          "EM_ANDAMENTO": "Em andamento",
+          "CONCLUIDA": "Concluída"
+        }
+      },
+      "aviso": {
+        "titulo": "Finalização em massa concluída",
+        "resumoUm": "1 atendimento foi finalizado em uma finalização em massa. Usuário afetado: {usuarios}.",
+        "resumoVarios": "{total} atendimentos foram finalizados em uma finalização em massa. Usuários afetados: {usuarios}.",
+        "linha": "{nome}: {finalizados} atendimento(s)",
+        "parcial": "{ignorados} ignorado(s) e {falhas} com falha."
+      }
     },
     "avaliacao": {
       "titulo": "Avaliação do atendimento",

@@ -5,8 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ItemInbox } from "@/lib/atendimento/types";
 
+vi.mock("./finalizacao-em-massa/janela-finalizacao-em-massa", () => ({
+  JanelaFinalizacaoEmMassa: ({ aberta }: { aberta: boolean }) =>
+    aberta ? <div role="dialog" aria-label="Janela de finalização em massa" /> : null,
+}));
+
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
-  useFinalizarAtendimentosVisiveis: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
   useQuantidadeAtendimentosFinalizaveis: () => ({
     data: { quantidade: 0, porAtendente: [] },
     isLoading: false,
@@ -44,13 +48,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       novoContato: { botao: "Novo atendimento" },
       finalizar: {
         todosMenu: "Mais ações",
-        todos: "Finalizar Todos",
-        todosTitulo: "Finalizar atendimentos",
-        todosDescricao: "Encerrar {quantidade}",
-        todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Voltar",
-        todosResultado: "{finalizados} finalizados; {recusados} recusados",
-        todosErro: "Erro",
+        todos: "Finalizar em massa",
       },
     },
     chatInterno: { titulo: "Equipe", novaConversa: "Nova conversa", selecionarPessoa: "Selecionar pessoa" },
