@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   contarAtendimentosFinalizaveis,
   finalizarAtendimento,
-  finalizarAtendimentosVisiveis,
   transferirAtendimento,
 } from "./api";
 import type { AtendimentoResumo } from "./types";
@@ -50,16 +49,6 @@ export function useFinalizarAtendimento(
     onSuccess: (resumo) => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       onAtendimentoFinalizado?.(resumo);
-    },
-  });
-}
-
-export function useFinalizarAtendimentosVisiveis() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (atendenteId?: string | null) => finalizarAtendimentosVisiveis(atendenteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
 }

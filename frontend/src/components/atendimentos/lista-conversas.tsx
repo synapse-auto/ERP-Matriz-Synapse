@@ -6,14 +6,6 @@ import { MoreHorizontal, Search, SlidersHorizontal, UserPlus, UsersRound } from 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,10 +20,7 @@ import {
   useAtendimentos,
   useContagemDeAtendimentos,
 } from "@/lib/atendimento/use-atendimentos";
-import {
-  useFinalizarAtendimentosVisiveis,
-  useQuantidadeAtendimentosFinalizaveis,
-} from "@/lib/atendimento/use-transferir-finalizar";
+import { useQuantidadeAtendimentosFinalizaveis } from "@/lib/atendimento/use-transferir-finalizar";
 import type { ItemInbox, VisaoAtendimento } from "@/lib/atendimento/types";
 import {
   ABAS_ATENDENTE,
@@ -46,9 +35,9 @@ import { cn } from "@/lib/utils";
 import type { ChatContato } from "@/lib/chat-interno/types";
 
 import { CartaoConversa } from "./cartao-conversa";
+import { JanelaFinalizacaoEmMassa } from "./finalizacao-em-massa/janela-finalizacao-em-massa";
 import { DialogoSelecionarPessoa } from "@/components/chat-interno/dialogo-selecionar-pessoa";
 import { DialogoCriarGrupo } from "@/components/chat-interno/dialogo-criar-grupo";
-import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 
 const SELECAO_TODOS = "todos";
 const INTERVALO_ATUALIZACAO_ATRASO_MS = 30_000;
@@ -153,20 +142,9 @@ export function ListaConversas({
   const abriuLeadInicial = useRef(false);
   const [novaInternaAberta, setNovaInternaAberta] = useState(false);
   const [novoGrupoAberto, setNovoGrupoAberto] = useState(false);
-  const [finalizarTodosAberto, setFinalizarTodosAberto] = useState(false);
-  const [selecaoFinalizacao, setSelecaoFinalizacao] = useState(SELECAO_TODOS);
-  const [resultadoFinalizacao, setResultadoFinalizacao] = useState<{
-    finalizados: number;
-    recusados: number;
-  } | null>(null);
-  const finalizarTodos = useFinalizarAtendimentosVisiveis();
+  const [finalizacaoEmMassaAberta, setFinalizacaoEmMassaAberta] = useState(false);
   const podeFinalizarEmLote = useCapacidades().pode("atendimentos.finalizar_lote");
   const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis(podeFinalizarEmLote);
-  const porAtendente = quantidadeFinalizavel.data?.porAtendente ?? [];
-  const quantidadeSelecionada =
-    selecaoFinalizacao === SELECAO_TODOS
-      ? (quantidadeFinalizavel.data?.quantidade ?? 0)
-      : (porAtendente.find((item) => item.atendenteId === selecaoFinalizacao)?.quantidade ?? 0);
 
   const fimDaLista = useRef<HTMLDivElement>(null);
   const paginaComCursor = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
@@ -297,11 +275,7 @@ export function ListaConversas({
                 </DropdownMenuItem>
                 {podeFinalizarEmLote && (
                   <DropdownMenuItem
-                    onClick={() => {
-                      setResultadoFinalizacao(null);
-                      setSelecaoFinalizacao(SELECAO_TODOS);
-                      setFinalizarTodosAberto(true);
-                    }}
+                    onClick={() => setFinalizacaoEmMassaAberta(true)}
                     disabled={
                       quantidadeFinalizavel.isLoading ||
                       quantidadeFinalizavel.data?.quantidade === 0
@@ -502,93 +476,10 @@ export function ListaConversas({
         </>
       )}
 
-      <Dialog
-        open={finalizarTodosAberto && podeFinalizarEmLote}
-        onOpenChange={(novo) => !novo && setFinalizarTodosAberto(false)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{textos.finalizar.todosTitulo}</DialogTitle>
-            <DialogDescription>
-              {textos.finalizar.todosDescricao.replace(
-                "{quantidade}",
-                String(quantidadeSelecionada),
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {!resultadoFinalizacao && (
-            <RadioGroup
-              value={selecaoFinalizacao}
-              onValueChange={(valor) => setSelecaoFinalizacao(valor)}
-              aria-label={textos.finalizar.todosTitulo}
-            >
-              <RadioItem value={SELECAO_TODOS}>
-                <span className="flex items-center justify-between gap-2">
-                  <span>{textos.visoes.todos}</span>
-                  <span className="text-muted-foreground">
-                    {quantidadeFinalizavel.data?.quantidade ?? 0}
-                  </span>
-                </span>
-              </RadioItem>
-              {porAtendente.map((item) => (
-                <RadioItem key={item.atendenteId} value={item.atendenteId}>
-                  <span className="flex items-center justify-between gap-2">
-                    <span>{item.nome}</span>
-                    <span className="text-muted-foreground">{item.quantidade}</span>
-                  </span>
-                </RadioItem>
-              ))}
-            </RadioGroup>
-          )}
-          {resultadoFinalizacao ? (
-            <p role="status" className="text-sm text-foreground">
-              {textos.finalizar.todosResultado
-                .replace("{finalizados}", String(resultadoFinalizacao.finalizados))
-                .replace("{recusados}", String(resultadoFinalizacao.recusados))}
-            </p>
-          ) : finalizarTodos.isError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {textos.finalizar.todosErro}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setFinalizarTodosAberto(false)}
-              disabled={finalizarTodos.isPending}
-            >
-              {textos.finalizar.todosCancelar}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() =>
-                finalizarTodos.mutate(
-                  selecaoFinalizacao === SELECAO_TODOS ? null : selecaoFinalizacao,
-                  {
-                    onSuccess: (resultado) =>
-                      setResultadoFinalizacao({
-                        finalizados: resultado.finalizados,
-                        recusados: resultado.recusados,
-                      }),
-                  },
-                )
-              }
-              disabled={
-                finalizarTodos.isPending ||
-                quantidadeFinalizavel.isLoading ||
-                quantidadeSelecionada === 0
-              }
-            >
-              {textos.finalizar.todosConfirmar.replace(
-                "{quantidade}",
-                String(quantidadeSelecionada),
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <JanelaFinalizacaoEmMassa
+        aberta={finalizacaoEmMassaAberta && podeFinalizarEmLote}
+        onFechar={() => setFinalizacaoEmMassaAberta(false)}
+      />
     </div>
   );
 }

@@ -445,6 +445,34 @@ describe("ConexaoTempoReal", () => {
     expect(ouvinte).toHaveBeenCalledWith(expect.objectContaining({ tipo: "CONVITE_ATENDIMENTO" }));
   });
 
+  it("entrega o aviso de conclusão da finalização em massa e descarta tipo desconhecido", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onNotificacao,
+      criarCliente: () => cliente,
+    });
+    conexao.conectar();
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+
+    callback?.({ body: JSON.stringify({ tipo: "TIPO_QUE_NINGUEM_CONHECE", eventoId: "x", dados: {} }) });
+    expect(onNotificacao).not.toHaveBeenCalled();
+
+    callback?.({
+      body: JSON.stringify({
+        tipo: "FINALIZACAO_EM_MASSA_CONCLUIDA",
+        eventoId: "op-1:usuario-1",
+        dados: { operacaoId: "op-1", totalFinalizados: 3, afetados: [{ nome: "Clayton", finalizados: 3 }] },
+      }),
+    });
+
+    expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "FINALIZACAO_EM_MASSA_CONCLUIDA" }));
+  });
+
   it("encaminha leitura do responsavel como evento canonico pela fila pessoal", () => {
     const { cliente } = clienteStompFalso();
     const onNotificacao = vi.fn();
