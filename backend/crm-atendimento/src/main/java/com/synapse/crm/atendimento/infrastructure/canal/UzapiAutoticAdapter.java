@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -473,9 +474,38 @@ class UzapiAutoticAdapter implements CanalGateway {
                 + (defeitoDoPedido ? "recusou a requisicao" : "indisponivel")
                 + " com HTTP "
                 + status;
+        String mensagem = mensagemDaRespostaDeErro(e.getResponseBodyAsString());
+        if (!mensagem.isBlank()) {
+            detalhe += ": " + mensagem;
+        }
         return defeitoDoPedido
                 ? ResultadoDeEnvio.Recusado.permanente(detalhe)
                 : ResultadoDeEnvio.Recusado.temporario(detalhe);
+    }
+
+    /** Preserva somente o campo documentado {@code message}, sem expor o corpo bruto do provedor. */
+    private String mensagemDaRespostaDeErro(String corpo) {
+        if (corpo == null || corpo.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode mensagem = json.readTree(corpo).path("message");
+            if (mensagem.isTextual()) {
+                return mensagem.asText().trim();
+            }
+            if (mensagem.isArray()) {
+                StringJoiner partes = new StringJoiner("; ");
+                for (JsonNode item : mensagem) {
+                    if (item.isTextual() && !item.asText().isBlank()) {
+                        partes.add(item.asText().trim());
+                    }
+                }
+                return partes.toString();
+            }
+        } catch (JsonProcessingException | RuntimeException ignorada) {
+            // A resposta pode estar vazia ou não ser JSON; o status HTTP ainda é informativo.
+        }
+        return "";
     }
 
     private boolean credencialIncompleta() {

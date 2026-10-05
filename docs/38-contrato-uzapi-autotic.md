@@ -167,6 +167,13 @@ mesmo com HTTP 2xx — é falha, não sucesso. O HTTP 200 do endpoint de mensage
 como "Mensagem colocada na fila de envios com sucesso" — é confirmação de enfileiramento, não de
 entrega; a leitura do corpo continua obrigatória.
 
+Em respostas HTTP de erro, o adaptador preserva apenas `message` quando vier como texto ou lista de
+textos; não expõe nem grava o corpo bruto. Se esse campo faltar ou não for JSON, o motivo fica
+limitado ao status HTTP. Em webhooks `failed`, a ACL preserva `errors[0].code` e escolhe o primeiro
+detalhe textual disponível nesta ordem: `error_data.details`, `message`, `title`. Essa leitura é
+tolerante a formatos compatíveis com Meta e não significa que a Uzapi garanta esses campos. Se o
+webhook não trouxer nenhum deles, o CRM não tem como inferir a causa.
+
 ## 7. Classificação de erro e retry durável da outbox
 
 A referência de produção real (`Clinica-CRM-FMNA`/`UazapClient`) não comprovou uma chave de

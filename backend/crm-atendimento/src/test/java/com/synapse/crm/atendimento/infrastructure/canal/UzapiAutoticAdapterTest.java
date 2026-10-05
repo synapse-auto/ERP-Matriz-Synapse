@@ -472,7 +472,9 @@ class UzapiAutoticAdapterTest {
 
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Recusado.class);
-        assertThat(((ResultadoDeEnvio.Recusado) resultado).permanente()).isTrue();
+        ResultadoDeEnvio.Recusado recusado = (ResultadoDeEnvio.Recusado) resultado;
+        assertThat(recusado.permanente()).isTrue();
+        assertThat(recusado.motivo()).contains("HTTP 400", "numero invalido");
     }
 
     @Test
