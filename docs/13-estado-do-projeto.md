@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 05/10/2026 — Foto dos grupos do Chat Interno
+
+Exibição e troca da foto dos grupos do Chat Interno (lista, cabeçalho, painel, inbox unificada), só pelo
+**criador** do grupo, validado no backend e no próprio `UPDATE`. V94 registra o criador (backfill pela
+mensagem `GRUPO_CRIADO`) e a foto; storage em prefixo próprio `grupo/` do bucket de avatares; validação de
+tipo real, dimensões lidas do cabeçalho e reencode; atualização dos demais participantes pela mensagem de
+sistema já existente e recarga na reconexão. O chat não tinha papel de administrador, então a regra "só o
+criador" é decisão nova e está listada em "Decisões pendentes". Detalhe em
+[`59-foto-do-grupo-do-chat-interno.md`](./59-foto-do-grupo-do-chat-interno.md).
+
 ### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
 
 Relato: leads da Fêmina sem foto. Investigação: a captura **já está implementada** desde 16/09 (adaptador

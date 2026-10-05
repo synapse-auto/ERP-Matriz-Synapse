@@ -52,6 +52,16 @@ const mockTextosCompletos = {
       participanteSaiu: "{alvo} saiu do grupo",
       nomeAlterado: "renomeou o grupo para {nome}",
       eventoDesconhecido: "atualização do grupo",
+      fotoAlterada: "alterou a foto do grupo",
+      fotoRemovida: "removeu a foto do grupo",
+    },
+    fotoGrupo: {
+      titulo: "Foto do grupo", alterar: "Alterar foto", remover: "Remover foto",
+      escolher: "Escolher imagem para a foto do grupo", previa: "Prévia da nova foto do grupo",
+      confirmar: "Salvar foto", enviando: "Enviando…", cancelar: "Cancelar", fotoAlt: "Foto do grupo {nome}",
+      erroTipo: "Escolha uma imagem JPEG, PNG ou WebP.", erroPermissao: "Somente quem criou o grupo pode alterar a foto.",
+      erroTamanho: "A imagem é grande demais.", erroImagem: "Não foi possível usar essa imagem.",
+      erroIndisponivel: "O armazenamento de imagens está indisponível.", erroGenerico: "Não foi possível salvar a foto.",
     },
   },
   atendimentos: {
@@ -146,6 +156,26 @@ describe("componentes de apresentação do chat interno", () => {
     );
     expect(screen.getByText("Ana criou o grupo Ops")).toBeInTheDocument();
     expect(screen.getByText("Ana criou o grupo Ops").closest("[data-slot='mensagem-sistema-chat']")).toBeTruthy();
+  });
+
+  it("renderiza as mensagens de sistema da foto do grupo", () => {
+    const fotos: ChatMensagem[] = ["FOTO_ALTERADA", "FOTO_REMOVIDA"].map((evento, indice) => ({
+      id: `f${indice}`,
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "SISTEMA",
+      conteudo: JSON.stringify({ evento }),
+      enviadoEm: `2026-09-01T12:0${indice}:00Z`,
+    }));
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno mensagens={fotos} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
+      </TextosProvider>,
+    );
+
+    expect(screen.getByText("Ana alterou a foto do grupo")).toBeInTheDocument();
+    expect(screen.getByText("Ana removeu a foto do grupo")).toBeInTheDocument();
   });
 
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {

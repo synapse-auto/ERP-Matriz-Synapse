@@ -347,6 +347,18 @@ synapse:
     # 1 hora e o mesmo valor que o chat interno ja usa, sem incidente.
     expiracao-leitura: ${MIDIA_S3_EXPIRACAO_LEITURA:1h}
 
+  # -------------------------------------------------------------------------
+  # Foto de grupo do chat interno. O limite em bytes nao mora aqui: vem de
+  # configuracao_automacao (anexo.tamanho_maximo_imagem_mb), editavel pela
+  # gestao. Aqui ficam so as dimensoes, que protegem a memoria do backend:
+  # bytes nao limitam pixels, e um PNG pequeno pode declarar um lado enorme.
+  # -------------------------------------------------------------------------
+  chat-interno:
+    foto-grupo:
+      lado-minimo-px: ${CHAT_FOTO_GRUPO_LADO_MINIMO_PX:64}
+      lado-maximo-px: ${CHAT_FOTO_GRUPO_LADO_MAXIMO_PX:8000}
+      pixels-maximos: ${CHAT_FOTO_GRUPO_PIXELS_MAXIMOS:24000000}
+
   alertas:
     webhook-grupo: ${ALERTA_WEBHOOK:}
 

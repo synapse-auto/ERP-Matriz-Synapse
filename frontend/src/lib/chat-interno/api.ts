@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/http-client";
-import type { ChatContato, ChatConversa, ChatMensagem, ChatParticipante, MidiaDoGrupo, PaginaChatMensagens } from "./types";
+import type { ChatContato, ChatConversa, ChatMensagem, ChatParticipante, FotoDoGrupo, MidiaDoGrupo, PaginaChatMensagens } from "./types";
 
 export const listarConversasChat = () => apiFetch<ChatConversa[]>("/api/v1/chat-interno/conversas");
 export const listarContatosChat = () => apiFetch<ChatContato[]>("/api/v1/chat-interno/contatos");
@@ -26,6 +26,13 @@ export const renomearGrupoChat = (conversaId: string, nome: string) =>
     method: "PUT",
     body: JSON.stringify({ nome }),
   });
+export const atualizarFotoDoGrupoChat = (conversaId: string, arquivo: File) => {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  return apiFetch<FotoDoGrupo>(`/api/v1/chat-interno/conversas/${conversaId}/foto`, { method: "POST", body: formData });
+};
+export const removerFotoDoGrupoChat = (conversaId: string) =>
+  apiFetch<FotoDoGrupo>(`/api/v1/chat-interno/conversas/${conversaId}/foto`, { method: "DELETE" });
 export const listarMensagensChat = (id: string, antesDe?: string | null) =>
   apiFetch<PaginaChatMensagens>(`/api/v1/chat-interno/conversas/${id}/mensagens${antesDe ? `?antesDe=${encodeURIComponent(antesDe)}` : ""}`);
 export const obterMensagemChat = (conversaId: string, mensagemId: string) =>

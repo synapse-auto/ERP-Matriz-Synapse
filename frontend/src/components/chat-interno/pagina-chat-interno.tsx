@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 import { ErroDeCarregamento } from "@/components/ui/erro-de-carregamento";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
@@ -61,7 +62,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
-  useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
+  const { ciclo } = useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") {
       atualizar();
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" && evento.dados.conversaId === conversaId) {
@@ -79,6 +80,11 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
       );
     }
   });
+  // Eventos emitidos enquanto o socket estava fora do ar não voltam: o banco é a fonte de verdade e
+  // cada reconexão (a partir da segunda) recarrega a lista, trazendo a foto e o nome atuais.
+  useEffect(() => {
+    if (ciclo > 1) atualizar();
+  }, [ciclo, atualizar]);
   useEffect(() => {
     definirConversaAtiva(conversaId ? { origem: "CHAT_INTERNO", id: conversaId } : null);
     if (conversaId) { void marcarChatComoLido(conversaId); }
@@ -185,9 +191,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
                     onClick={() => selecionarConversa(c.id)}
                   >
                     {c.tipo === "GRUPO" ? (
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
-                        <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.1)]" />
-                      </span>
+                      <AvatarDoGrupo id={c.id} nome={nome} fotoUrl={c.fotoUrl} tamanho="lista" fotoAlt={textos.fotoGrupo.fotoAlt.replace("{nome}", nome)} />
                     ) : (
                       <AvatarIniciais
                         id={c.id}

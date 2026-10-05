@@ -15,6 +15,12 @@ export interface ChatConversa {
   id: string; tipo: "DIRETA" | "GRUPO"; participantes: string;
   ultimaMensagem: string | null; ultimaMensagemEm: string | null; naoLidas: number;
   fotoUrl?: string | null;
+  /** O usuário autenticado criou o grupo e pode trocar ou remover a foto (decidido no backend). */
+  podeAlterarFoto?: boolean;
+}
+export interface FotoDoGrupo {
+  /** URL autenticada e versionada; nula quando o grupo ficou sem foto. */
+  fotoUrl: string | null;
 }
 export interface ChatMensagem {
   id: string; conversaId: string; remetenteId: string; remetenteNome: string;

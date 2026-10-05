@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useState, useRef, useImperativeHandle, type ChangeEvent, type KeyboardEvent, type ClipboardEvent, type Ref } from "react";
-import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, UsersRound, X } from "lucide-react";
+import { Mic, PanelRightOpen, Paperclip, Pencil, Send, Square, Trash2, Users, X } from "lucide-react";
 import { PainelEmojiComposer } from "@/components/mensagens/painel-emoji-composer";
 import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cursor";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ import { parseEventoSistema, textoEventoSistema } from "@/lib/chat-interno/mensa
 import { InteracaoMensagem } from "@/components/mensagens/interacao-mensagem";
 import { CitacaoMensagemVisual } from "@/components/atendimentos/citacao-mensagem";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -162,9 +163,7 @@ export function CabecalhoChatInterno({
   return (
     <header className="flex h-[72px] shrink-0 items-center gap-3 border-b border-border bg-background px-5">
       {grupo ? (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
-          <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.25)]" />
-        </span>
+        <AvatarDoGrupo id={conversa.id} nome={nome} fotoUrl={conversa.fotoUrl} tamanho="cabecalho" fotoAlt={textos.fotoGrupo.fotoAlt.replace("{nome}", nome)} />
       ) : (
         <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
       )}

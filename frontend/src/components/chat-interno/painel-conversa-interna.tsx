@@ -106,7 +106,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
           </ZonaSoltarArquivos>
         </div>
         {painelAberto && conversa && (
-          <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} onRetrair={() => setPainelAberto(false)} />
+          <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} podeAlterarFoto={conversa.podeAlterarFoto} onRetrair={() => setPainelAberto(false)} />
         )}
       </div>
       <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })} />

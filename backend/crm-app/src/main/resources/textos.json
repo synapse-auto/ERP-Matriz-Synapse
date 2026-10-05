@@ -1533,7 +1533,26 @@
       "participanteRemovido": "removeu {alvo}",
       "participanteSaiu": "{alvo} saiu do grupo",
       "nomeAlterado": "renomeou o grupo para {nome}",
-      "eventoDesconhecido": "atualização do grupo"
+      "eventoDesconhecido": "atualização do grupo",
+      "fotoAlterada": "alterou a foto do grupo",
+      "fotoRemovida": "removeu a foto do grupo"
+    },
+    "fotoGrupo": {
+      "titulo": "Foto do grupo",
+      "alterar": "Alterar foto",
+      "remover": "Remover foto",
+      "escolher": "Escolher imagem para a foto do grupo",
+      "previa": "Prévia da nova foto do grupo",
+      "confirmar": "Salvar foto",
+      "enviando": "Enviando…",
+      "cancelar": "Cancelar",
+      "fotoAlt": "Foto do grupo {nome}",
+      "erroTipo": "Escolha uma imagem JPEG, PNG ou WebP.",
+      "erroPermissao": "Somente quem criou o grupo pode alterar a foto.",
+      "erroTamanho": "A imagem é grande demais. Escolha um arquivo menor.",
+      "erroImagem": "Não foi possível usar essa imagem. Verifique o formato e as dimensões.",
+      "erroIndisponivel": "O armazenamento de imagens está indisponível. Tente novamente em instantes.",
+      "erroGenerico": "Não foi possível salvar a foto. Tente novamente."
     }
   },
   "dashboard": {
