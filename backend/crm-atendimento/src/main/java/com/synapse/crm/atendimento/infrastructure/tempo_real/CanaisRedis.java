@@ -25,6 +25,9 @@ public final class CanaisRedis {
     /** Gestao (docs/47): acesso de usuarios mudou. Carrega so ids e revisao, nenhum dado de lead. */
     static final String ACESSO = "synapse:acesso";
 
+    /** Aviso para UM usuario (hoje: conclusao de finalizacao em massa). Carrega so contagens e nomes de atendentes. */
+    static final String AVISO_USUARIO = "synapse:aviso-usuario";
+
     public static String doAtendimento(UUID atendimentoId) {
         return PREFIXO + atendimentoId;
     }
