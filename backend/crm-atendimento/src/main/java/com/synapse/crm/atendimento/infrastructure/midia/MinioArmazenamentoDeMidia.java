@@ -128,6 +128,18 @@ class MinioArmazenamentoDeMidia implements ArmazenamentoDeMidia {
     }
 
     @Override
+    public InputStream abrirLeitura(String referencia) {
+        try {
+            return io.getObject(GetObjectArgs.builder()
+                    .bucket(propriedades.bucket())
+                    .object(referencia)
+                    .build());
+        } catch (MinioException | IOException | java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("falha ao abrir midia no storage: " + referencia, e);
+        }
+    }
+
+    @Override
     public String urlAssinada(String referencia, Duration validade) {
         try {
             return assinador.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()

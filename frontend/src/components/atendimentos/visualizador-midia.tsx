@@ -13,13 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiFetchBlob } from "@/lib/api/http-client";
+import { apiFetchArquivo, apiFetchBlob } from "@/lib/api/http-client";
 import { useTextos } from "@/lib/config/textos-provider";
 import { emitirUrlAssinadaDaMidia } from "@/lib/lead/api";
 import { emitirUrlAssinadaDaMidiaChat } from "@/lib/chat-interno/api";
 import { baixarArquivoChat } from "@/lib/chat-interno/midia";
 import { classificarMidiaVisual } from "@/lib/midia/classificar-midia-visual";
 import { baixarUrlAssinada } from "@/lib/midia/baixar-url-assinada";
+import { baixarBlobComoArquivo } from "@/lib/midia/baixar-arquivo";
 import { classificarOrigemDeRecursoVisual } from "@/lib/midia/origem-de-recurso-visual";
 import { urlSegura } from "@/lib/utils";
 
@@ -68,15 +69,7 @@ function dataLegivel(iso: string): string {
 }
 
 function baixarBlob(blob: Blob, nome: string) {
-  const url = URL.createObjectURL(blob);
-  const ancora = document.createElement("a");
-  ancora.href = url;
-  ancora.download = nome;
-  ancora.rel = "noopener noreferrer";
-  document.body.appendChild(ancora);
-  ancora.click();
-  ancora.remove();
-  URL.revokeObjectURL(url);
+  baixarBlobComoArquivo(blob, nome);
 }
 
 /**
@@ -135,8 +128,9 @@ export function VisualizadorMidia({
       return;
     }
     if (item.origem.tipo === "mensagem") {
-      const { url } = await emitirUrlAssinadaDaMidia(item.origem.leadId, item.origem.mensagemId);
-      baixarUrlAssinada(url);
+      const rota = `/api/v1/leads/${encodeURIComponent(item.origem.leadId)}/midias/${encodeURIComponent(item.origem.mensagemId)}/download`;
+      const { blob, nome } = await apiFetchArquivo(rota);
+      baixarBlobComoArquivo(blob, nome ?? item.nome ?? titulo);
       return;
     }
     const origem = classificarOrigemDeRecursoVisual(item.origem.fotoUrl);
