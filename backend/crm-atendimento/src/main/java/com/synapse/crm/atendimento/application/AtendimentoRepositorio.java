@@ -107,4 +107,7 @@ public interface AtendimentoRepositorio {
 
     /** Insere ou atualiza. Devolve o estado gravado. */
     Atendimento salvar(Atendimento atendimento);
+
+    /** Atualiza somente o resultado comercial, inclusive em atendimento finalizado. */
+    Atendimento atualizarResultadoVenda(Atendimento atendimento);
 }

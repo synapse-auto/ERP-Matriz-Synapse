@@ -501,6 +501,13 @@ export function PaginaAtendimentosCliente({
         if (evento.dados.eventoTipo === "LEITURA_DO_RESPONSAVEL" && leiturasEmVoo.current.size === 0) {
           atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
         }
+        if (evento.dados.eventoTipo === "CLASSIFICACAO_NEGOCIACAO_ALTERADA") {
+          atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
+        }
+        if (evento.dados.eventoTipo === "RESULTADO_VENDA_ATUALIZADO") {
+          atualizarPainelDeAtendimentos(cache, pedidoDaNotificacao(evento));
+          void cache.invalidateQueries({ queryKey: ["dashboard"] });
+        }
         return;
       }
       if (

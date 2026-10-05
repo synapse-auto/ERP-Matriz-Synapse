@@ -38,6 +38,7 @@ import com.synapse.crm.atendimento.application.MensagemAutomacaoInvalidaExceptio
 import com.synapse.crm.atendimento.application.NenhumAtendenteDisponivelException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RespostaAutomacaoInvalidaException;
+import com.synapse.crm.atendimento.application.ResultadoVendaObrigatorioException;
 import com.synapse.crm.atendimento.application.TransferenciaDaAutomacaoInvalidaException;
 import com.synapse.crm.atendimento.application.origem.OrigemDaMensagem;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
@@ -184,6 +185,29 @@ class TransferenciaAutomacaoInternalController {
                 "finalizar-atendimento-automacao", () -> comandos.finalizar(id, chave));
     }
 
+    @Operation(
+            summary = "Classificar atendimento como negociação",
+            description = "Consome a classificação explícita do n8n para este ciclo. O CRM não analisa mensagens nem anexos. Não envie histórico ou dados pessoais; use uma chave idempotente estável para o evento.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Classificação aplicada ou replay idempotente."),
+                @ApiResponse(responseCode = "400", description = "Corpo ou Idempotency-Key inválido."),
+                @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou inacessível."),
+                @ApiResponse(responseCode = "409", description = "Atendimento finalizado ou chave reutilizada com dados diferentes.")
+            })
+    @PostMapping("/{id}/negociacao")
+    com.synapse.crm.atendimento.application.ClassificarNegociacaoDoAtendimentoUseCase.ClassificacaoNegociacaoResposta
+            classificarNegociacao(
+            @Parameter(description = "Identificador do ciclo de atendimento classificado.", required = true)
+                    @PathVariable UUID id,
+            @Parameter(description = "Chave idempotente do evento de classificação.", required = true)
+                    @RequestHeader("Idempotency-Key") String chave,
+            @Valid @RequestBody ClassificarNegociacaoRequisicao requisicao) {
+        return ContextoDeServico.buscarComo(
+                "classificar-negociacao-automacao",
+                () -> comandos.classificarNegociacao(id, chave, requisicao.emNegociacao()));
+    }
+
     @ExceptionHandler({IdempotencyKeyInvalidaException.class, MensagemAutomacaoInvalidaException.class})
     ProblemDetail aoReceberRequisicaoInvalida(RuntimeException erro) {
         return problema(HttpStatus.BAD_REQUEST, "Requisicao invalida", erro.getMessage());
@@ -208,6 +232,11 @@ class TransferenciaAutomacaoInternalController {
     })
     ProblemDetail aoConflitar(RuntimeException erro) {
         return problema(HttpStatus.CONFLICT, "Operacao nao pode ser aplicada", erro.getMessage());
+    }
+
+    @ExceptionHandler(ResultadoVendaObrigatorioException.class)
+    ProblemDetail aoExigirResultadoVenda(ResultadoVendaObrigatorioException erro) {
+        return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Resultado comercial obrigatório", erro.getMessage());
     }
 
     @ExceptionHandler(AtendenteDestinoInvalidoException.class)
@@ -246,4 +275,9 @@ class TransferenciaAutomacaoInternalController {
                     @NotNull UUID atendenteId) {}
 
     record ModoIaRequisicao() {}
+
+    record ClassificarNegociacaoRequisicao(
+            @Schema(description = "Classificação da IA para este atendimento.",
+                    requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull Boolean emNegociacao) {}
 }

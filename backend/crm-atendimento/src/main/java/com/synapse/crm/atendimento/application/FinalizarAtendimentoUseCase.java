@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
@@ -38,28 +39,45 @@ public class FinalizarAtendimentoUseCase {
     private final ApplicationEventPublisher eventos;
     private final Clock relogio;
     private final SolicitacaoDeAvaliacao avaliacao;
+    private final RegistrarResultadoVendaUseCase resultadosVenda;
 
     public FinalizarAtendimentoUseCase(
             AtendimentoRepositorio atendimentos,
             LeadNoCaminhoDeMensagem leads,
             ApplicationEventPublisher eventos,
             Clock relogio,
-            SolicitacaoDeAvaliacao avaliacao) {
+            SolicitacaoDeAvaliacao avaliacao,
+            RegistrarResultadoVendaUseCase resultadosVenda) {
         this.atendimentos = atendimentos;
         this.leads = leads;
         this.eventos = eventos;
         this.relogio = relogio;
         this.avaliacao = avaliacao;
+        this.resultadosVenda = resultadosVenda;
     }
 
     @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar')")
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
-                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
             })
     public Atendimento executar(UUID atendimentoId, UUID quemFinalizou) {
-        return finalizar(atendimentoId, quemFinalizou, Origem.INDIVIDUAL);
+        return executar(atendimentoId, quemFinalizou, null);
+    }
+
+    /** Finalização iniciada pela pessoa usuária; negociação exige resultado explícito no mesmo commit. */
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.finalizar')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
+            })
+    public Atendimento executar(UUID atendimentoId, UUID quemFinalizou, ResultadoVenda resultadoVenda) {
+        Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        return finalizar(aberto, quemFinalizou, Origem.INDIVIDUAL, resultadoVenda);
     }
 
     /** Entrada exclusiva do caso de uso de lote; nao exposta como parametro HTTP. */
@@ -67,7 +85,8 @@ public class FinalizarAtendimentoUseCase {
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
-                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
             })
     public Atendimento executarEmLote(UUID atendimentoId, UUID quemFinalizou) {
         return finalizar(atendimentoId, quemFinalizou, Origem.LOTE);
@@ -81,7 +100,8 @@ public class FinalizarAtendimentoUseCase {
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
-                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
             })
     public Atendimento executarPelaAutomacao(UUID atendimentoId) {
         return finalizar(atendimentoId, null, Origem.AUTOMACAO);
@@ -98,12 +118,16 @@ public class FinalizarAtendimentoUseCase {
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
-                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
             })
     public java.util.Optional<Atendimento> executarPelaAutomacaoSeInativo(
             UUID atendimentoId, Instant corte) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         if (aberto.status() != StatusAtendimento.EM_ATENDIMENTO) {
+            return java.util.Optional.empty();
+        }
+        if (aberto.emNegociacao()) {
             return java.util.Optional.empty();
         }
         Instant ultimaInteracao = atendimentos.ultimaMensagemEm(atendimentoId).orElse(aberto.iniciadoEm());
@@ -124,21 +148,29 @@ public class FinalizarAtendimentoUseCase {
     @Transactional(
             transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
             noRollbackFor = {
-                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class,
+                ResultadoVendaObrigatorioException.class
             })
     public void validarPelaAutomacao(UUID atendimentoId) {
         Atendimento atendimento = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
         if (!atendimento.estaAberto()) {
             throw new AtendimentoJaFinalizadoException(atendimentoId, "finalizacao");
         }
+        exigirResultadoSeNegociacao(atendimento, null);
     }
 
     private Atendimento finalizar(UUID atendimentoId, UUID quemFinalizou, Origem origem) {
         Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
-        return finalizar(aberto, quemFinalizou, origem);
+        return finalizar(aberto, quemFinalizou, origem, null);
     }
 
     private Atendimento finalizar(Atendimento aberto, UUID quemFinalizou, Origem origem) {
+        return finalizar(aberto, quemFinalizou, origem, null);
+    }
+
+    private Atendimento finalizar(
+            Atendimento aberto, UUID quemFinalizou, Origem origem, ResultadoVenda resultadoVenda) {
+        exigirResultadoSeNegociacao(aberto, resultadoVenda);
         Instant agora = Instant.now(relogio);
 
         // Mesma parede da transferencia (E107): UPDATE que tira a linha da visibilidade de quem
@@ -149,7 +181,10 @@ public class FinalizarAtendimentoUseCase {
             atendimentos.elevarRlsParaEscritaDeNovoDono();
         }
 
-        Atendimento finalizado = atendimentos.salvar(aberto.finalizar(agora));
+        Atendimento comResultado = resultadoVenda == null
+                ? aberto
+                : resultadosVenda.registrarNaFinalizacao(aberto, quemFinalizou, resultadoVenda, agora);
+        Atendimento finalizado = atendimentos.salvar(comResultado.finalizar(agora));
         // O lead sai sem responsavel: o retorno do cliente e fila (rodizio) e a reabertura manual
         // e de quem clicou. O dono deste ciclo continua em atendimento.atendente_id, intocado.
         leads.finalizarSemResponsavel(aberto.leadId());
@@ -173,6 +208,15 @@ public class FinalizarAtendimentoUseCase {
                 agora);
 
         return finalizado;
+    }
+
+    private static void exigirResultadoSeNegociacao(Atendimento atendimento, ResultadoVenda resultadoVenda) {
+        if (atendimento.emNegociacao() && resultadoVenda == null && atendimento.resultadoVenda() == null) {
+            throw new ResultadoVendaObrigatorioException(atendimento.id());
+        }
+        if (!atendimento.emNegociacao() && resultadoVenda != null) {
+            throw new ResultadoVendaIncompativelException(atendimento.id());
+        }
     }
 
     private enum Origem { INDIVIDUAL, LOTE, AUTOMACAO }

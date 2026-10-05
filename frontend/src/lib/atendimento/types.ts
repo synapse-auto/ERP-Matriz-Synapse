@@ -17,6 +17,9 @@ export function ehAbaDeAtendimento(visao: VisaoAtendimento): boolean {
 /** Espelha StatusAtendimento.java. */
 export type StatusAtendimento = "EM_IA" | "EM_ATENDIMENTO" | "FINALIZADO";
 
+export type ResultadoVenda = "VENDEU" | "NAO_VENDEU";
+export type OrigemResultadoVenda = "MANUAL" | "FINALIZACAO";
+
 /** Espelha StatusEntrega.java — o ciclo PENDENTE → ENVIADO → ENTREGUE → LIDO, ou PENDENTE → FALHOU. */
 export type StatusEntrega =
   "PENDENTE" | "ENVIADO" | "ENTREGUE" | "LIDO" | "FALHOU";
@@ -95,6 +98,23 @@ export interface CartaoAtendimento {
   ultimaMensagemDoLeadEm: string | null;
   /** Gestao com dono: leitura do responsavel atual; demais casos: leitura pessoal. */
   naoLidas: number;
+  /** Classificação explícita recebida do n8n para este ciclo, sem inferência do CRM. */
+  emNegociacao?: boolean;
+  resultadoVenda?: ResultadoVenda | null;
+  valorVenda?: number | null;
+  vendaRegistradaPorId?: string | null;
+  vendaRegistradaPorNome?: string | null;
+  vendaRegistradaEm?: string | null;
+  origemResultadoVenda?: OrigemResultadoVenda | null;
+}
+
+export interface ResultadoVendaResposta {
+  atendimentoId: string;
+  resultado: ResultadoVenda;
+  valor: number | null;
+  registradoPorId: string;
+  registradoEm: string;
+  origem: OrigemResultadoVenda;
 }
 
 export interface CartaoEquipeInterna {
@@ -407,7 +427,9 @@ export type TipoEventoEstadoAtendimento =
   | "PEDIDO_ENTRADA_RECUSADO"
   | "PARTICIPANTE_ENTROU"
   | "PARTICIPANTE_SAIU"
-  | "LEITURA_DO_RESPONSAVEL";
+  | "LEITURA_DO_RESPONSAVEL"
+  | "CLASSIFICACAO_NEGOCIACAO_ALTERADA"
+  | "RESULTADO_VENDA_ATUALIZADO";
 
 export interface EstadoAtendimentoTempoReal {
   atendimentoId: string;

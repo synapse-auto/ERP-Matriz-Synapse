@@ -28,6 +28,12 @@ vi.mock("@/lib/config/textos-provider", () => ({
         codigo: "Código {codigo}",
         atrasoAtendente: "Sem resposta há mais de 20 minutos",
       },
+      finalizar: {
+        vendeu: "Vendeu",
+        naoVendeu: "Não vendeu",
+        vendaRegistradaPor: "Registrado por {nome}",
+        vendaRegistradaEm: "Registrado em {data}",
+      },
     },
   }),
 }));
@@ -258,5 +264,25 @@ describe("CartaoConversa — RN-CRM-05", () => {
     expect(screen.getByText("Chat interno")).toBeInTheDocument();
     expect(screen.getByText("Vamos revisar a proposta")).toBeInTheDocument();
     expect(screen.queryByText("WhatsApp")).not.toBeInTheDocument();
+  });
+
+  it("identifica o resultado da venda e disponibiliza responsável e data no rótulo acessível", () => {
+    render(
+      <CartaoConversa
+        cartao={{
+          ...cartao,
+          resultadoVenda: "VENDEU",
+          vendaRegistradaPorNome: "Ana Beatriz",
+          vendaRegistradaEm: "2026-10-05T12:00:00Z",
+          valorVenda: null,
+        }}
+        selecionado={false}
+        onAbrirAtendimento={vi.fn()}
+      />,
+    );
+
+    const resultado = screen.getByLabelText(/Vendeu · Registrado por Ana Beatriz · Registrado em/);
+    expect(resultado).toHaveTextContent("Vendeu");
+    expect(resultado).toHaveAttribute("title", expect.stringContaining("Ana Beatriz"));
   });
 });

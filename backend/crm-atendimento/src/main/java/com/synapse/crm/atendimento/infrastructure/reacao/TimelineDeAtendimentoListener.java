@@ -157,6 +157,26 @@ class TimelineDeAtendimentoListener {
             case EventoDeAtendimento.ParticipanteEntrou entrou -> new Anotacao(
                     "PARTICIPANTE_ENTROU", "Participante entrou no atendimento.", "USUARIO",
                     entrou.participanteId(), Map.of());
+
+            case EventoDeAtendimento.ClassificacaoDeNegociacaoAtualizada classificacao -> new Anotacao(
+                    "CLASSIFICACAO_NEGOCIACAO_ATUALIZADA",
+                    classificacao.emNegociacao()
+                            ? "Automacao marcou o atendimento como negociacao."
+                            : "Automacao removeu a classificacao de negociacao.",
+                    "AUTOMACAO", null,
+                    Map.of("emNegociacao", classificacao.emNegociacao(), "ator", "AUTOMACAO"));
+
+            case EventoDeAtendimento.ResultadoVendaAtualizado resultado -> {
+                Map<String, Object> dados = new LinkedHashMap<>();
+                dados.put("resultadoAnterior", resultado.resultadoAnterior() == null
+                        ? null : resultado.resultadoAnterior().name());
+                dados.put("resultadoNovo", resultado.resultadoNovo().name());
+                dados.put("valor", resultado.valor());
+                dados.put("origem", resultado.origem().name());
+                yield new Anotacao("RESULTADO_VENDA_ATUALIZADO",
+                    "Resultado da venda do atendimento registrado por " + nome(resultado.atorId()) + ".",
+                        "USUARIO", resultado.atorId(), dados);
+            }
         };
     }
 

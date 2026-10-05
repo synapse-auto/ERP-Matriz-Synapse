@@ -268,6 +268,40 @@ class ComandosAutomacaoIT extends PostgresIT {
     }
 
     @Test
+    void classificacaoNegociacao_n8nGravaEstadoDoCicloComIdempotencia() {
+        UUID atendimento = criarAtendimento("CLASSIFICAR-NEGOCIACAO", "EM_IA", null, false);
+        String endpoint = url(atendimento, "negociacao");
+
+        ResponseEntity<String> primeira = chamar(
+                HttpMethod.POST, endpoint, TOKEN, "negociacao-evento-1", Map.of("emNegociacao", true));
+        ResponseEntity<String> repetida = chamar(
+                HttpMethod.POST, endpoint, TOKEN, "negociacao-evento-1", Map.of("emNegociacao", true));
+        ResponseEntity<String> chaveReutilizada = chamar(
+                HttpMethod.POST, endpoint, TOKEN, "negociacao-evento-1", Map.of("emNegociacao", false));
+
+        assertThat(primeira.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(primeira.getBody()).contains("\"emNegociacao\":true", "\"alterado\":true");
+        assertThat(repetida.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(repetida.getBody()).isEqualTo(primeira.getBody());
+        assertThat(chaveReutilizada.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject(
+                "SELECT em_negociacao FROM atendimento WHERE id = ?", Boolean.class, atendimento)).isTrue();
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'CLASSIFICACAO_NEGOCIACAO_ATUALIZADA'",
+                Integer.class, atendimento)).isEqualTo(1));
+
+        ResponseEntity<String> semToken = chamar(
+                HttpMethod.POST, endpoint, "invalido", "negociacao-evento-auth", Map.of("emNegociacao", true));
+        assertThat(semToken.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<String> finalizacaoSemResultado = chamar(
+                HttpMethod.POST, url(atendimento, "finalizar"), TOKEN, "finalizar-negociacao-sem-resultado", null);
+        assertThat(finalizacaoSemResultado.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(jdbc.queryForObject(
+                "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimento)).isEqualTo("EM_IA");
+    }
+
+    @Test
     void finalizarComoAutomacao_liberaResponsavelDoLeadEPreservaDonoDoAtendimento() {
         UUID atendente = criarAtendente("FINALIZAR-DONO-ATENDENTE");
         UUID atendimento = criarAtendimento("FINALIZAR-DONO", "EM_ATENDIMENTO", atendente, false);

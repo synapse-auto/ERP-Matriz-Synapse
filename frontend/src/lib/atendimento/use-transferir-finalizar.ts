@@ -6,9 +6,10 @@ import {
   contarAtendimentosFinalizaveis,
   finalizarAtendimento,
   finalizarAtendimentosVisiveis,
+  registrarResultadoVenda,
   transferirAtendimento,
 } from "./api";
-import type { AtendimentoResumo } from "./types";
+import type { AtendimentoResumo, ResultadoVenda } from "./types";
 
 /** Transferência que o próprio usuário acabou de fazer; a perda de acesso que vem dela é esperada. */
 export interface TransferenciaPropria {
@@ -46,10 +47,26 @@ export function useFinalizarAtendimento(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (atendimentoId: string) => finalizarAtendimento(atendimentoId),
+    mutationFn: (entrada: string | { atendimentoId: string; resultadoVenda?: ResultadoVenda }) =>
+      typeof entrada === "string"
+        ? finalizarAtendimento(entrada)
+        : finalizarAtendimento(entrada.atendimentoId, entrada.resultadoVenda),
     onSuccess: (resumo) => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onAtendimentoFinalizado?.(resumo);
+    },
+  });
+}
+
+export function useRegistrarResultadoVenda() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ atendimentoId, resultado }: { atendimentoId: string; resultado: ResultadoVenda }) =>
+      registrarResultadoVenda(atendimentoId, resultado),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
