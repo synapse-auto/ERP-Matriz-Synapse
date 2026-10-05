@@ -10,7 +10,7 @@ O modelo do chat não tinha criador nem administrador de grupo: desde a V54 qual
 remove e renomeia ("sem hierarquia"), e a gestão de permissões (`docs/47`) deixa o chat interno de fora.
 Para a foto, a regra é **somente o criador do grupo**.
 
-- A V94 registra `chat_interno_conversa.criado_por_id` e faz o backfill dos grupos existentes a partir do
+- A V95 registra `chat_interno_conversa.criado_por_id` e faz o backfill dos grupos existentes a partir do
   autor da mensagem `GRUPO_CRIADO` (gravada na criação, com remetente = quem criou).
 - Grupo sem essa mensagem, ou cujo criador foi apagado, fica com `criado_por_id` nulo: **ninguém** altera a
   foto, e a leitura segue valendo.
@@ -102,7 +102,7 @@ todas opcionais (os padrões valem sem configurar nada):
 
 Nenhuma é obrigatória no `dokploy-stack.yml`; não há ação necessária no Dokploy.
 
-## O que mudou no banco (V94)
+## O que mudou no banco (V95)
 
 Colunas novas em `chat_interno_conversa` (tabela pequena e não particionada; `ADD COLUMN` sem default é só
 metadado): `criado_por_id` (FK `ON DELETE SET NULL`, com índice parcial), `foto_referencia`,
@@ -111,7 +111,7 @@ metadado): `criado_por_id` (FK `ON DELETE SET NULL`, com índice parcial), `foto
 
 Cuidado registrado no código da migration: a V65 concedeu `SELECT, UPDATE` em `chat_interno_mensagem` ao
 papel `synapse_chat_rls` em caráter permanente (o trigger de citações é `SECURITY DEFINER` e depende disso).
-O backfill usa esse papel e **não** faz `GRANT`/`REVOKE` nessa tabela: uma primeira versão da V94 revogava o
+O backfill usa esse papel e **não** faz `GRANT`/`REVOKE` nessa tabela: uma primeira versão da V95 revogava o
 `SELECT` no fim, o que quebraria a exclusão de mensagens do chat; `FotoDoGrupoMigrationIT` agora impede.
 
 ## Limites conhecidos
@@ -140,4 +140,4 @@ O backfill usa esse papel e **não** faz `GRANT`/`REVOKE` nessa tabela: uma prim
 - Frontend: `avatar-do-grupo`, `foto-do-grupo`, painel, página (lista, evento, reconexão), mensagens de sistema.
 - Cada proteção foi violada de propósito (criador, participante, ordem de leitura, limite, rollback, commit,
   `FOR UPDATE`, versão da URL, trava de duplo envio, permissão na tela, recarga na reconexão, `REVOKE` da
-  V94) e o teste correspondente reprovou.
+  V95) e o teste correspondente reprovou.

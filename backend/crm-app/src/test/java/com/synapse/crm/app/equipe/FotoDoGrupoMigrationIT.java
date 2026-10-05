@@ -23,7 +23,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import com.synapse.crm.app.PostgresIT;
 
 /**
- * Executa a V94 sobre um banco parado na V93 com grupos reais plantados: e a unica prova de que o
+ * Executa a V95 sobre um banco parado na V94 com grupos reais plantados: e a unica prova de que o
  * backfill do criador acerta quem criou, de que a migration nao tira privilegio que a V65 concedeu
  * (o trigger de citacoes depende dele) e de que as restricoes da foto valem.
  *
@@ -44,7 +44,7 @@ class FotoDoGrupoMigrationIT extends PostgresIT {
         executarNoBancoAdministrativo("CREATE DATABASE " + banco);
         url = url(banco);
         jdbc = new JdbcTemplate(new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword()));
-        flyway("93").migrate();
+        flyway("94").migrate();
         ana = criarUsuario("ana");
         bruno = criarUsuario("bruno");
     }
@@ -69,7 +69,7 @@ class FotoDoGrupoMigrationIT extends PostgresIT {
         UUID grupoSemRastro = criarGrupo("Antigo", ana, bruno);
         UUID direta = criarConversa("DIRETA", null, ana, bruno);
 
-        flyway("94").migrate();
+        flyway("95").migrate();
 
         assertThat(criador(grupoDaAna)).isEqualTo(ana);
         assertThat(criador(grupoDoBruno)).isEqualTo(bruno);
@@ -80,9 +80,9 @@ class FotoDoGrupoMigrationIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("a V94 nao tira de synapse_chat_rls o SELECT/UPDATE que a V65 concedeu: excluir mensagem continua funcionando")
+    @DisplayName("a V95 nao tira de synapse_chat_rls o SELECT/UPDATE que a V65 concedeu: excluir mensagem continua funcionando")
     void privilegiosDaV65Preservados() {
-        flyway("94").migrate();
+        flyway("95").migrate();
 
         for (String privilegio : new String[] {"SELECT", "UPDATE"}) {
             assertThat(jdbc.queryForObject(
@@ -108,7 +108,7 @@ class FotoDoGrupoMigrationIT extends PostgresIT {
     @Test
     @DisplayName("restricoes: foto so em grupo, e referencia e versao andam juntas")
     void restricoesDaFoto() {
-        flyway("94").migrate();
+        flyway("95").migrate();
         UUID grupo = criarGrupo("Fotos", ana, bruno);
         UUID direta = criarConversa("DIRETA", null, ana, bruno);
 
@@ -129,7 +129,7 @@ class FotoDoGrupoMigrationIT extends PostgresIT {
     @Test
     @DisplayName("grupo novo criado pela funcao de bootstrap ja nasce com o criador; usuario apagado deixa o criador nulo")
     void funcaoDeCriacaoRegistraOCriador() throws Exception {
-        flyway("94").migrate();
+        flyway("95").migrate();
 
         UUID grupo;
         try (Connection conexao = DriverManager.getConnection(url, POSTGRES.getUsername(), POSTGRES.getPassword());
