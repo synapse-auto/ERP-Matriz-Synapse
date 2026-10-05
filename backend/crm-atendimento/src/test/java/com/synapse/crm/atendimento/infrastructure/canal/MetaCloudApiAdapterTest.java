@@ -27,6 +27,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -997,6 +999,28 @@ class MetaCloudApiAdapterTest {
         local.servidor.verify();
         assertThat(breakers.circuitBreaker("canal-meta-cloud-midia").getState())
                 .isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @ParameterizedTest(name = "mídia recebida Meta mantém MIME {0}")
+    @CsvSource({"audio/ogg,voz.ogg", "video/mp4,video.mp4", "application/pdf,documento.pdf"})
+    void baixarMidiaMetaParaAudioVideoEDocumento(String mimetype, String nome) {
+        String mediaId = "media-" + nome;
+        String urlTemporaria = "https://cdn.example.test/" + nome;
+        byte[] bytes = {4, 5, 6, 7};
+        servidor.expect(once(), requestTo(URL_BASE + "/" + mediaId))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"url\":\"" + urlTemporaria + "\",\"mime_type\":\"" + mimetype + "\"}",
+                        MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo(urlTemporaria))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(bytes, MediaType.parseMediaType(mimetype)));
+
+        CanalGateway.MidiaRecebida recebida = adapter.baixarMidiaRecebida(mediaId);
+
+        servidor.verify();
+        assertThat(recebida.conteudo()).containsExactly(bytes);
+        assertThat(recebida.mimetype()).isEqualTo(mimetype);
     }
 
     @Test

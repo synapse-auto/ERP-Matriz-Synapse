@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -519,6 +521,63 @@ class AnexoMidiaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("download autenticado transmite audio, video e documento com MIME e nome seguros")
+    void downloadDeMidias_recebeBytesEPreservaCabecalhos() throws Exception {
+        UUID atendimentoId = atendimentoDoLeadOuAbrir(leadDaAna);
+        jdbc.update("UPDATE atendimento SET atendente_id = ?, status = 'EM_ATENDIMENTO' WHERE id = ?", idAna, atendimentoId);
+        jdbc.update("UPDATE lead SET status_basico = 'EM_ATENDIMENTO' WHERE id = ?", leadDaAna);
+        byte[] tokenBytes = "conteudo-validado-da-midia".getBytes(StandardCharsets.UTF_8);
+        var midias = List.of(
+                new Object[] {"AUDIO", "audio/ogg", "voz.ogg"},
+                new Object[] {"VIDEO", "video/mp4", "clip.mp4"},
+                new Object[] {"DOCUMENTO", "application/pdf", "../../orçamento.pdf"});
+        java.util.ArrayList<UUID> ids = new java.util.ArrayList<>();
+        for (Object[] midia : midias) {
+            ids.add(inserirMidiaComMetadados(
+                    atendimentoId, (String) midia[0], tokenBytes, (String) midia[2], (String) midia[1]));
+        }
+
+        for (int indice = 0; indice < midias.size(); indice++) {
+            Object[] midia = midias.get(indice);
+            UUID mensagemId = ids.get(indice);
+            ResponseEntity<byte[]> resposta = autenticadoBytes(
+                    EMAIL_ANA,
+                    HttpMethod.GET,
+                    "/api/v1/leads/" + leadDaAna + "/midias/" + mensagemId + "/download");
+
+            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(resposta.getBody()).isEqualTo(tokenBytes);
+            assertThat(resposta.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType((String) midia[1]));
+            assertThat(resposta.getHeaders().getContentLength()).isEqualTo(tokenBytes.length);
+            assertThat(resposta.getHeaders().getFirst("X-Content-Type-Options")).isEqualTo("nosniff");
+            ContentDisposition disposicao = ContentDisposition.parse(
+                    resposta.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION));
+            assertThat(disposicao.getType()).isEqualTo("attachment");
+            assertThat(disposicao.getFilename()).isEqualTo(indice == 2 ? "orçamento.pdf" : (String) midia[2]);
+        }
+
+        ResponseEntity<byte[]> colega = autenticadoBytes(
+                EMAIL_BRUNO,
+                HttpMethod.GET,
+                "/api/v1/leads/" + leadDaAna + "/midias/" + ids.getFirst() + "/download");
+        assertThat(colega.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(new String(colega.getBody(), StandardCharsets.UTF_8))
+                .doesNotContain(new String(tokenBytes, StandardCharsets.UTF_8));
+
+        ResponseEntity<byte[]> leadDivergente = autenticadoBytes(
+                EMAIL_ANA,
+                HttpMethod.GET,
+                "/api/v1/leads/" + UUID.randomUUID() + "/midias/" + ids.getFirst() + "/download");
+        assertThat(leadDivergente.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        ResponseEntity<byte[]> midiaInexistente = autenticadoBytes(
+                EMAIL_ANA,
+                HttpMethod.GET,
+                "/api/v1/leads/" + leadDaAna + "/midias/" + UUID.randomUUID() + "/download");
+        assertThat(midiaInexistente.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("URL assinada expira e para de entregar o conteudo")
     void urlAssinada_expira_paraDeFuncionar() {
         enviarAnexo(leadDaAna, PNG_VALIDO, "foto.png", null);
@@ -629,6 +688,26 @@ class AnexoMidiaIT extends PostgresIT {
                 INSERT INTO mensagem (id, atendimento_id, remetente_tipo, tipo, midia_url, enviado_em, status_entrega)
                 VALUES (?, ?, 'LEAD', ?::tipo_mensagem, ?, now() - (? * interval '1 second'), 'ENTREGUE')
                 """, id, atendimentoId, tipo, referencia, segundosAtras);
+        return id;
+    }
+
+    private UUID inserirMidiaComMetadados(
+            UUID atendimentoId, String tipo, byte[] bytes, String nome, String mimetype) throws Exception {
+        UUID id = UUID.randomUUID();
+        String referencia = armazenamento.salvar(bytes, nome, mimetype);
+        String metadados = json.writeValueAsString(java.util.Map.of(
+                "nome", nome, "mimetype", mimetype, "tamanho", bytes.length));
+        jdbc.update(
+                """
+                INSERT INTO mensagem (
+                    id, atendimento_id, remetente_tipo, tipo, midia_url, midia_metadados, enviado_em, status_entrega
+                ) VALUES (?, ?, 'LEAD', ?::tipo_mensagem, ?, ?::jsonb, now(), 'ENTREGUE')
+                """,
+                id,
+                atendimentoId,
+                tipo,
+                referencia,
+                metadados);
         return id;
     }
 
@@ -780,6 +859,11 @@ class AnexoMidiaIT extends PostgresIT {
         HttpHeaders cabecalhos = new HttpHeaders();
         cabecalhos.setBearerAuth(token);
         return http.exchange(url, metodo, new HttpEntity<>(cabecalhos), String.class);
+    }
+
+    private ResponseEntity<byte[]> autenticadoBytes(String email, HttpMethod metodo, String url) {
+        String token = ApoioAutenticacao.login(http, email, SENHA_ATENDENTE).accessToken();
+        return ApoioAutenticacao.comToken(http, token, metodo, url, byte[].class);
     }
 
     private UUID mensagemDeMidiaDoLead(UUID leadId) {

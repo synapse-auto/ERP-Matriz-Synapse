@@ -1,5 +1,7 @@
 package com.synapse.crm.sharedkernel.midia;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.Duration;
 
 /**
@@ -15,6 +17,14 @@ public interface ArmazenamentoDeMidia {
 
     /** Os bytes do objeto (utilizados quando e necessario reenviar a midia, ex: Meta). */
     byte[] baixar(String referencia);
+
+    /**
+     * Abre um fluxo de leitura do objeto sem materializar o arquivo inteiro na memoria.
+     * Implementacoes antigas mantem compatibilidade; storages de producao devem sobrescrever.
+     */
+    default InputStream abrirLeitura(String referencia) {
+        return new ByteArrayInputStream(baixar(referencia));
+    }
 
     /** URL assinada, valida por {@code validade}. Nunca cacheada; gerada a cada leitura. */
     String urlAssinada(String referencia, Duration validade);

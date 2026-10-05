@@ -1,9 +1,23 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type { MensagemResposta } from "@/lib/atendimento/types";
+
+const { apiFetchArquivo, baixarBlobComoArquivo } = vi.hoisted(() => ({
+  apiFetchArquivo: vi.fn(),
+  baixarBlobComoArquivo: vi.fn(),
+}));
+
+vi.mock("@/lib/api/http-client", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/api/http-client")>(),
+  apiFetchArquivo: (...argumentos: unknown[]) => apiFetchArquivo(...argumentos),
+}));
+
+vi.mock("@/lib/midia/baixar-arquivo", () => ({
+  baixarBlobComoArquivo: (...argumentos: unknown[]) => baixarBlobComoArquivo(...argumentos),
+}));
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
@@ -91,7 +105,86 @@ function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
   };
 }
 
+function renderizarComQuery(ui: ReactNode) {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={cliente}>{ui}</QueryClientProvider>);
+}
+
 describe("BolhaMensagem", () => {
+  it.each([
+    ["AUDIO", "audio/ogg", "voz.ogg"],
+    ["VIDEO", "video/mp4", "video.mp4"],
+    ["DOCUMENTO", "application/pdf", "orcamento.pdf"],
+  ] as const)("baixa %s pela rota autenticada da mensagem", async (tipo, mimetype, nome) => {
+    const blob = new Blob(["conteúdo do arquivo"], { type: mimetype });
+    apiFetchArquivo.mockReset().mockResolvedValue({ blob, nome });
+    baixarBlobComoArquivo.mockReset();
+
+    renderizarComQuery(
+      <BolhaMensagem
+        mensagem={mensagem({
+          id: "midia-123",
+          tipo,
+          conteudo: null,
+          midiaUrl: "https://storage.example.test/url-assinada",
+          midiaMetadados: JSON.stringify({ nome, mimetype, tamanho: 20 }),
+        })}
+        leadId="lead-456"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Baixar" }));
+    await waitFor(() => {
+      expect(apiFetchArquivo).toHaveBeenCalledWith(
+        "/api/v1/leads/lead-456/midias/midia-123/download",
+      );
+    });
+    expect(baixarBlobComoArquivo).toHaveBeenCalledWith(blob, nome);
+  });
+
+  it("impede clique duplicado durante o download e preserva a mensagem de erro", async () => {
+    let rejeitar!: (erro: Error) => void;
+    apiFetchArquivo.mockReset().mockReturnValue(new Promise((_, reject) => { rejeitar = reject; }));
+    const mensagemComMidia = mensagem({
+      tipo: "AUDIO",
+      conteudo: null,
+      midiaUrl: "https://storage.example.test/audio",
+    });
+    renderizarComQuery(
+      <BolhaMensagem
+        mensagem={mensagemComMidia}
+        leadId="lead-456"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    const botao = screen.getByRole("button", { name: "Baixar" });
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+    expect(botao).toBeDisabled();
+    expect(apiFetchArquivo).toHaveBeenCalledOnce();
+    rejeitar(new Error("storage indisponível"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível carregar a mídia.");
+    expect(screen.getByRole("button", { name: "Baixar" })).toBeEnabled();
+  });
+
+  it("não adiciona botão de download a uma imagem comum", () => {
+    renderizarComQuery(
+      <BolhaMensagem
+        mensagem={mensagem({ tipo: "IMAGEM", conteudo: null, midiaUrl: "https://storage.example.test/foto.jpg" })}
+        leadId="lead-456"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Baixar" })).not.toBeInTheDocument();
+  });
+
   it("exibe data e hora completas para mensagens recebidas", () => {
     render(
       <BolhaMensagem
