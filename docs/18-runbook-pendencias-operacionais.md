@@ -967,6 +967,196 @@ tetos da gestão e configuração de rodízio não são alterados automaticament
 depende das migrations e das concessões explícitas descritas, não de configuração por cliente.
 Nenhuma mudança operacional/deploy está autorizada por esta entrega.
 
+## RabbitMQ: custo do healthcheck (E221)
+
+**Problema medido (05/10/2026, fora do expediente, VPS de 4 vCPU).** Em 754 amostras (~3 h): uso médio da VM
+(us+sy) 27,0% e steal médio 23,0% (máx. 79%). Cada um dos três RabbitMQ gastava ~10,4% a 10,8% de um núcleo,
+quase idêntico apesar de cargas muito diferentes; um RabbitMQ parado gasta perto de 1%. O custo fixo é o
+healthcheck `rabbitmq-diagnostics -q check_running` a cada 15 s: cada execução sobe uma VM Erlang inteira (~1,0
+a 1,2 s de CPU). São 12 execuções por minuto nos três brokers, ~0,32 núcleo, cerca de 30% do uso médio da VPS.
+O custo de o Docker disparar healthchecks é pequeno (dockerd + containerd, ~0,08 núcleo); o que pesa é o que o
+RabbitMQ executa.
+
+### Auditoria (somente leitura do repositório)
+
+O repositório versiona **um único template**, `docker/dokploy-stack.yml`; não há compose por stack. Os três
+stacks (`erp-matriz-hml`, `fmnaprod-uzapi`, `disbrel-dbl`) são aplicações do Dokploy que apontam para esse arquivo
+na `main` (README, "Roteiro no Dokploy", item 2). Mudar o arquivo muda os três no **próximo deploy de cada um**.
+O que cada aplicação tem de fato no painel não é visível pelo repositório.
+
+| Pergunta | Resposta | Onde |
+|---|---|---|
+| Onde o healthcheck está definido | No template, igual para os três stacks. Antes: `interval 15s`, `timeout 10s`, `retries 5`, `start_period 45s` | `docker/dokploy-stack.yml:86-91` (antes da E221) |
+| Imagem referenciada | `rabbitmq:3-management-alpine`, sem digest; o digest em execução (`sha256:606d8c0d…`) vem dos dados da VPS | `docker/dokploy-stack.yml:75` |
+| `bash` e `nc` na imagem | Presentes nos três (dados da VPS); o repositório não permite saber | n/a |
+| Quem depende da saúde do RabbitMQ | **Ninguém.** Não existe `depends_on` nem `condition: service_healthy` em nenhum arquivo de compose, e o backend não recebe nenhuma variável `RABBITMQ_*` no stack. A única consequência da saúde é o Swarm substituir o task do próprio RabbitMQ | `grep depends_on docker/*.yml` (vazio); `RABBIT*` aparece só nas linhas 78-80 e 103, no próprio serviço |
+| Política de restart e atualização | `restart_policy: on-failure` (delay 5 s), uma réplica no manager. **Sem** `update_config`/`rollback_config`: vale o padrão do Swarm (`stop-first`, `failure_action: pause`) | `docker/dokploy-stack.yml:96-106` |
+| Detecção de falha | Antes: 15 s × 5 = 75 s nominais (pior caso 5 × (15 + 10) = 125 s). Agora: 60 s × 3 = 180 s nominais (pior caso 3 × (60 + 10) = 210 s) | cálculo |
+| Broker do tempo real | **Não é o RabbitMQ.** O WebSocket usa o broker simples em memória do Spring (`enableSimpleBroker("/topic", "/queue")`) e o Redis só faz o pub/sub entre instâncias. Nenhum plugin STOMP está habilitado (dados da VPS) | `WebSocketConfig.java:91`; `RedisSubscriberDeAtendimento` |
+| Recriar o RabbitMQ derruba o tempo real? | Não: nada no backend fala com ele. O heartbeat/reconector do front (E193) existe para outro caso (conexão morta) | código acima |
+| Recuperação do backend quando o broker reinicia | Não há o que recuperar: não existe dependência AMQP no `pom.xml`, nem `RabbitTemplate`, `@RabbitListener` ou `spring.rabbitmq` no código de produção (só um `--spring.rabbitmq...auto-startup=false` residual num teste de boot). O envio usa `outbox_evento` + `PublicadorDaOutbox`, no Postgres | `grep -ri amqp\|rabbit backend` |
+| Quem usa o RabbitMQ | **Nenhum código do repositório.** Os docs já diziam: "container RabbitMQ sem consumidor no código" (docs/04, `/health/critical`; docs/15, watchdog) e "não há consumidor RabbitMQ da Automação" (docs/04, Parte E). Os brokers estão sem filas (vhost `/`), sem outros vhosts e sem conexões (dados da VPS) | ver docs citados |
+| Compose de desenvolvimento | `docker/docker-compose.yml:83-88` tem o mesmo healthcheck (15 s, `start_period` 40 s). **Não foi alterado**: é o ambiente local, não a VPS | n/a |
+
+**Conclusão da auditoria.** Hoje o RabbitMQ não participa de nenhum caminho de requisição, de mensagem nem de
+tempo real. O custo de detectar tarde uma falha do broker é, portanto, só o de demorar mais para o Swarm
+substituir um container que ninguém usa.
+
+### Mudança aplicada (obrigatória, risco mínimo)
+
+Só o healthcheck do serviço `rabbitmq`, no template (`docker/dokploy-stack.yml:90-95`). O comando é o mesmo.
+
+| | interval | timeout | retries | start_period | detecção nominal | pior caso |
+|---|---:|---:|---:|---:|---:|---:|
+| antes | 15s | 10s | 5 | 45s | 75 s | 125 s |
+| **depois (aplicado)** | **60s** | 10s | **3** | 45s | **180 s** | **210 s** |
+
+Alternativas calculadas (a escolha final é do responsável; trocar é editar dois valores):
+
+| Combinação | Execuções/min nos 3 brokers | Redução | CPU estimada dos 3 (base 0,32 núcleo) | Detecção nominal / pior caso |
+|---|---:|---:|---:|---|
+| 15s × 5 (antes) | 12 | — | ~0,32 | 75 s / 125 s |
+| 30s × 3 | 6 | 50% | ~0,16 | 90 s / 120 s |
+| **60s × 3 (recomendada)** | 3 | 75% | ~0,08 | 180 s / 210 s |
+| 60s × 5 | 3 | 75% | ~0,08 | 300 s / 350 s (longo demais; não recomendada) |
+
+**Por que 60 s × 3.** Como nada depende do broker, a detecção em ~3 min é aceitável e tira ~0,24 núcleo
+(até ~6 pontos percentuais da VM; o esperado é ~5). Escolha 30 s × 3 se preferir detectar em ~90 s e abrir mão de
+metade do ganho. As estimativas escalam o custo medido (0,32 núcleo a 12 execuções/min): são projeção, não medição.
+
+**Proteção no CI.** `docker/verificacao/validar-politica-rollout.sh` (job "Stack de producao") agora reprova se o
+healthcheck do RabbitMQ voltar a menos de 30 s, mudar de comando, sair de 3 a 5 tentativas ou levar mais de 5 min
+para dar o serviço como doente. Cada regra foi violada de propósito e reprovou.
+
+### Probe mais leve (somente relatório; não aplicado)
+
+| Probe | Custo por execução | O que prova | Trade-off |
+|---|---|---|---|
+| `nc -z 127.0.0.1 5672` (`CMD-SHELL`) | ~milissegundos (um processo BusyBox); corta ~99% do CPU de cada execução e permitiria até manter 15 s sem custo relevante | que o listener AMQP abriu, o que nesta imagem acontece no fim do boot | **Porta aberta não prova nó saudável**: não vê alarme de memória/disco nem um nó Erlang travado com o listener ainda aberto |
+| `GET /api/health/checks/local-alarms` na porta 15672, com as credenciais do próprio container | Roda dentro da VM Erlang que já está de pé: sem novo Erlang | alarmes locais e que o plugin de management responde | Exige `wget` ou `curl` na imagem (**não confirmado**: só `bash` e `nc` estão nos dados) e credencial no comando (variáveis do container, não vão para o compose) |
+| `rabbitmq_prometheus` (`:15692/metrics`) | Devolve a página inteira de métricas a cada execução: mais pesado que o `nc` | que o plugin responde | Não é veredito de saúde; **não recomendado** |
+
+Se quiser avançar, valide primeiro em `erp-matriz-hml` e meça de novo antes de levar aos outros.
+
+### Plano de rollout (documentar; quem executa é o responsável)
+
+**Janela:** madrugada, 00h–05h no fuso do responsável (UTC-4 = 04h–09h UTC), **um stack por vez**, na ordem que ele
+indicar (sugestão: `erp-matriz-hml`, depois `disbrel-dbl`, por fim `fmnaprod-uzapi`).
+
+**Antes de mesclar na `main` (atenção).** O template é lido da `main` por cada aplicação. O runbook já registra que
+o homologação pode ter *auto-deploy do push* (acima, Fase 2). Se algum app tiver Auto Deploy ligado, **mesclar fora
+da janela já reinicia o RabbitMQ daquele stack**. Confira no painel (o repositório não mostra) e, se estiver ligado,
+mescle dentro da janela ou desligue o auto-deploy antes. Não altere `SYNAPSE_IMAGE_TAG` nem outra variável no mesmo
+deploy: o Swarm só recria os serviços cuja especificação mudou, e o objetivo é recriar só o `rabbitmq`.
+
+**Não existe como mudar o healthcheck sem reiniciar:** alterar `interval`/`retries` muda a especificação do serviço
+e o Swarm recria o task (`stop-first`, sem `update_config`): o broker fica fora do ar o tempo do boot (dezenas de
+segundos). Como ninguém o usa, o impacto esperado é nulo, mas confirme os itens abaixo.
+
+**Antes de cada stack** (substitua `<stack>` e a conexão do Postgres da instância):
+
+```bash
+# 1. Healthcheck atual do serviço (esperado antes: 15s / 5)
+docker service inspect <stack>_rabbitmq --format '{{json .Spec.TaskTemplate.ContainerSpec.Healthcheck}}'
+# 2. Outbox de envio pendente: baixa ou zero (o RabbitMQ não participa dela; é só conferência de segurança)
+psql "$DATABASE_URL" -c "SELECT count(*) AS pendentes, min(criado_em) AS mais_antiga FROM outbox_evento WHERE publicado_em IS NULL AND esgotado_em IS NULL"
+# 3. Nenhuma campanha ou envio em massa em andamento
+psql "$DATABASE_URL" -c "SELECT count(*) FROM campanha_template WHERE status IN ('AGENDADA','EM_ANDAMENTO')"
+# 4. Tempo real de pé (o WebSocket é independente do RabbitMQ): componente websocket em UP
+curl -s https://<dominio-do-crm>/health/critical
+```
+
+Se houver pendência na outbox ou campanha em andamento, adie esse stack. O front reconectar o STOMP sozinho
+**não é pré-requisito** aqui, porque o RabbitMQ não é o broker do tempo real; o item 4 só confirma que nada ao
+redor está degradado.
+
+**Aplicar:** no Dokploy, abra a aplicação do stack e faça o *Deploy* (relê o compose da `main`).
+
+**Depois de cada stack:**
+
+```bash
+docker service ps <stack>_rabbitmq                 # task novo Running; o antigo Shutdown
+docker service inspect <stack>_rabbitmq --format '{{json .Spec.TaskTemplate.ContainerSpec.Healthcheck}}'
+#   esperado: Interval 60000000000, Timeout 10000000000, Retries 3, StartPeriod 45000000000
+docker exec $(docker ps -q -f name=<stack>_rabbitmq) rabbitmq-diagnostics -q check_running
+docker service ps <stack>_backend                  # inalterado: nenhum task novo
+curl -s https://<dominio-do-crm>/health/critical   # tudo UP, websocket incluído
+```
+
+Confirme ainda uma mensagem de texto recebida e uma enviada em homologação e a reconexão do tempo real (abrir
+Atendimentos e ver o indicador de conexão). Nada disso deve mudar; se mudar, **a causa não é a E221**: pare e
+investigue antes de seguir para o stack seguinte.
+
+**Volta atrás, por stack.** Duas formas:
+
+1. **Imediata no Swarm** (só esse serviço, só esse stack; o próximo *Deploy* do Dokploy reaplica o valor do arquivo):
+
+   ```bash
+   docker service update --health-interval 15s --health-retries 5 <stack>_rabbitmq
+   ```
+
+2. **Definitiva:** reverter o commit da E221 na `main` (volta `interval: 15s` e `retries: 5`) e fazer o *Deploy*.
+
+### Medição antes e depois (o responsável roda na VPS)
+
+Linha de base (05/10): uso médio us+sy **27,0%**, steal médio **23,0%**, cada RabbitMQ **10,4% a 10,8%** de um núcleo.
+Compare **janelas de mesmo horário, fora do expediente**, com pelo menos ~3 h antes e depois. Na hora da mudança,
+guarde o log antigo e reinicie o coletor com log novo (o script do coletor não está no repositório; use o que o
+iniciou, apontando para um arquivo novo):
+
+```bash
+mv /root/coleta-cpu.log /root/coleta-cpu-antes-<data>.log   # e reinicie o coletor para gravar em /root/coleta-cpu.log
+```
+
+Depois, em cada log (antes e depois):
+
+```bash
+# Uso médio da VM e steal médio
+awk '$1 ~ /^[0-9]+$/ && NF>=17 {n++; u+=$13+$14; s+=$17} END{printf "n=%d uso_medio_us+sy=%.1f st_medio=%.1f\n", n, u/n, s/n}' /root/coleta-cpu.log
+# Consumo médio por container (100% = 1 núcleo; os valores são piso: o coletor guarda só os 4 maiores por amostra)
+awk '$1 ~ /^[0-9]+$/ && NF>=17 {n++} NF==2 && $2 ~ /%$/ {v=$2; gsub("%","",v); s[$1]+=v} END{for(k in s) printf "%.1f%% de 1 núcleo  %s\n", s[k]/n, substr(k,1,50)}' /root/coleta-cpu.log | sort -rn | head -10
+```
+
+**Critério de sucesso:** cada RabbitMQ perto de **2% a 3%** (contra 10,4% a 10,8%) e uso médio us+sy cerca de **5
+pontos percentuais** menor (≤ ~22%). Como o RabbitMQ pode sair do "top 4" do coletor depois da mudança, ausência
+dele na lista também conta como sucesso; para um número direto, rode `docker stats --no-stream` no horário. O
+steal depende do host da Hostinger e pode não cair: avalie pelo uso us+sy e pelo consumo dos brokers.
+
+### Opção para decisão do responsável: remover o RabbitMQ do stack (não aplicada)
+
+Evidências de que nada usa o broker: sem dependência AMQP no backend, sem `RABBITMQ_*` no serviço do backend,
+tempo real em memória + Redis, docs que já afirmam "sem consumidor", e os três brokers sem fila, vhost extra ou
+conexão (dados da VPS). O que **não** se sabe: se algum workflow do n8n (não está no repositório) usa um nó RabbitMQ
+e se algum broker já recebeu conexão desde o boot.
+
+Para fechar as duas dúvidas antes de decidir:
+
+```bash
+# n8n: workflows com nó RabbitMQ (no banco do n8n; a tabela e a coluna são do n8n, confira a versão)
+psql -d "$N8N_DB_NAME" -c "SELECT name FROM workflow_entity WHERE nodes::text ILIKE '%rabbitmq%'"
+# Conexões abertas desde o boot, por broker (0 = nunca usado desde que subiu); o plugin
+# rabbitmq_prometheus está habilitado. Exige wget na imagem (não confirmado): sem ele, consulte a
+# porta 15692 pela rede interna do stack
+docker exec <container-rabbitmq> wget -qO- http://127.0.0.1:15692/metrics | grep '^rabbitmq_connections_opened_total'
+```
+
+O contador zera a cada reinício do broker, então ele só prova uso desde a última subida. **Leia-o antes do rollout**: aplicar a E221 reinicia o broker e apaga essa evidência.
+
+Se a decisão for remover: ganho de pelo menos ~0,32 núcleo e da memória dos três brokers (o limite é 512M cada,
+`RABBITMQ_MEMORY_LIMIT`; o uso real **não foi medido**). Riscos: (a) um workflow do n8n com nó RabbitMQ deixaria de
+funcionar; (b) o template é a Base PAI e a arquitetura (docs/01) prevê RabbitMQ para desacoplar CRM e Automação, então
+tirar do template é decisão de arquitetura, não só de capacidade; (c) `RABBITMQ_USER`/`RABBITMQ_PASSWORD` deixariam
+de ser obrigatórias (o CI e o README também mudam). Como reverter: restaurar o bloco do serviço e do volume
+`rabbitmq-data` pelo histórico do git; o volume nomeado sobrevive à remoção do serviço, e como não há filas não há
+dado a perder. **Esta seção não aplica nada.**
+
+### Fora do escopo desta mudança
+
+Healthchecks de 10 s (frontend, backend, Postgres, MinIO, Redis), os do n8n (15 s), o Traefik (~0,30 núcleo), o
+Postgres do HML (~0,27 núcleo) e o limite de CPU da Hostinger (chamado aberto) não foram tocados.
+
+---
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

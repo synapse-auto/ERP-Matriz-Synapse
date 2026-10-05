@@ -4,6 +4,18 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 05/10/2026 — Custo de CPU dos healthchecks do RabbitMQ na VPS (E221)
+
+Medição em produção (VPS de 4 vCPU, 754 amostras): os três RabbitMQ gastavam ~10,5% de um núcleo cada, quase
+iguais apesar de cargas diferentes; o custo fixo é o `rabbitmq-diagnostics check_running` a cada 15 s, que sobe uma
+VM Erlang por execução (~0,32 núcleo no total, ~30% do uso médio). A auditoria mostrou que **nenhum código usa o
+RabbitMQ** (sem AMQP no backend, sem `RABBITMQ_*` no serviço do backend, tempo real em broker em memória + Redis,
+sem `depends_on`). O healthcheck do template do stack passou de 15 s × 5 para **60 s × 3** (detecção em ~3 min,
+frequência -75%), com o mesmo comando, e o CI passou a barrar regressão. O rollout é feito pelo responsável, um
+stack por vez, na madrugada; a opção de remover o serviço fica registrada para decisão dele. Detalhe, rollout,
+volta atrás e medição em
+[`18-runbook-pendencias-operacionais.md`](./18-runbook-pendencias-operacionais.md#rabbitmq-custo-do-healthcheck-e221).
+
 ### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
 
 Relato: leads da Fêmina sem foto. Investigação: a captura **já está implementada** desde 16/09 (adaptador
