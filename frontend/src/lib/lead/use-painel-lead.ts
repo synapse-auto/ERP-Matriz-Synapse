@@ -8,6 +8,7 @@ import { INTERVALO_REVALIDACAO_CACHE_MS } from "@/lib/query/tempos";
 
 import {
   atualizarLead,
+  atualizarTelefoneLead,
   desvincularTagDoLead,
   listarCanais,
   listarCamposCustomizados,
@@ -114,6 +115,22 @@ export function useMidiasDoLead(leadId: string | null, tipos?: readonly MidiaDoL
     getNextPageParam: (ultima, _paginas, pagina) => ultima.length === 20 ? pagina + 1 : undefined,
     enabled: Boolean(leadId),
   });
+}
+
+export function useSalvarTelefoneLead(leadId: string, contexto: "padrao" | "agenda" = "padrao") {
+  const cache = useQueryClient();
+  const chaveLead = contexto === "agenda" ? ["lead", "agenda", leadId] : ["lead", leadId];
+  const outraChave = contexto === "agenda" ? ["lead", leadId] : ["lead", "agenda", leadId];
+  const mutacaoTelefone = useMutation({
+    mutationFn: (telefone: string) => atualizarTelefoneLead(leadId, telefone, contexto),
+    onSuccess: (salvo) => {
+      cache.setQueryData(chaveLead, salvo);
+      if (cache.getQueryData(outraChave) !== undefined) {
+        cache.setQueryData(outraChave, salvo);
+      }
+    },
+  });
+  return mutacaoTelefone;
 }
 
 export function useSalvarFicha(leadId: string) {

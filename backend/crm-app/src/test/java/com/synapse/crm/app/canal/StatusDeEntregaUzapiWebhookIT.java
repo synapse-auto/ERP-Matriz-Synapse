@@ -167,6 +167,21 @@ class StatusDeEntregaUzapiWebhookIT extends PostgresIT {
     }
 
     @Test
+    void falhaSemTitlePersisteDetalheDoErroNoHistorico() {
+        String corpo = """
+                {"object":"whatsapp_business_account","entry":[{"changes":[{"field":"messages","value":{
+                 "metadata":{"phone_number_id":"%s"},"statuses":[{"id":"%s","status":"failed",
+                 "conversation":{"id":"%s"},"errors":[{"code":499,"message":"Resumo genérico",
+                 "error_data":{"details":"Motivo detalhado"}}]}]}}]}]}
+                """.formatted(DESTINO, "3EB0NATIVO", wamid);
+
+        assertThat(postarPayload(corpo, SEGREDO)).isEqualTo(HttpStatus.OK);
+        assertThat(status(mensagemId)).isEqualTo("FALHOU");
+        String token = ApoioAutenticacao.login(http, "ana@dev.local", ApoioAutenticacao.SENHA_ATENDENTE).accessToken();
+        assertThat(historico(token).get("erroEntrega").toString()).contains("Motivo detalhado");
+    }
+
+    @Test
     void webhookPublicaStatusNoStompDepoisDePersistirESemDuplicar() throws Exception {
         String token = ApoioAutenticacao.login(http, "ana@dev.local", ApoioAutenticacao.SENHA_ATENDENTE).accessToken();
         var stomp = new WebSocketStompClient(new StandardWebSocketClient());
@@ -225,6 +240,10 @@ class StatusDeEntregaUzapiWebhookIT extends PostgresIT {
                  "metadata":{"phone_number_id":"%s"},"statuses":[{"id":"%s","status":"%s",
                  "conversation":{"id":"%s"},"errors":[{"code":400,"title":"Recusada"}]}]}}]}]}
                 """.formatted(destino, id, estado, alternativo);
+        return postarPayload(corpo, segredo);
+    }
+
+    private HttpStatus postarPayload(String corpo, String segredo) {
         var cabecalhos = new HttpHeaders();
         cabecalhos.setContentType(MediaType.APPLICATION_JSON);
         return HttpStatus.valueOf(http.postForEntity("/webhook/canal?secret=" + segredo,

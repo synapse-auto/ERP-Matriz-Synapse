@@ -329,6 +329,21 @@ class MetaCloudWebhookTradutorTest {
     }
 
     @Test
+    void statusDeFalhaUsaDetalheQuandoTitleNaoVemNoWebhook() {
+        var statuses = tradutor.statusDeEntrega("""
+                {"entry":[{"changes":[{"value":{"statuses":[
+                  {"id":"wamid.f","status":"failed","errors":[{"code":499,
+                    "message":"Resumo genérico","error_data":{"details":"Motivo detalhado"}}]}
+                ]}}]}]}
+                """);
+
+        assertThat(statuses).singleElement().satisfies(status -> {
+            assertThat(status.codigoErro()).isEqualTo(499);
+            assertThat(status.tituloErro()).isEqualTo("Motivo detalhado");
+        });
+    }
+
+    @Test
     void payloadSemStatusesDevolveListaVazia() {
         assertThat(tradutor.statusDeEntrega(payloadComMensagens(
                         """

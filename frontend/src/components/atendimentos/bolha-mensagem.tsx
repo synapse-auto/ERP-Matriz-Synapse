@@ -100,9 +100,9 @@ function podeReenviar(
   if (mensagem.tipo !== "TEXTO") return false;
   if (!mensagem.conteudo) return false;
   if (mensagem.conteudo.startsWith("[template ")) return false;
-  // 131026: número não recebe WhatsApp; 131053: mídia rejeitada — reenviar o mesmo conteúdo não resolve.
+  // 131026 é "mensagem não entregue", não prova que o número não tenha WhatsApp; 131053 indica mídia rejeitada.
   const codigo = mensagem.erroEntrega?.codigo;
-  if (codigo === 131026 || codigo === 131053) return false;
+  if (codigo === 131053) return false;
   return janelaTextoLivreAberta;
 }
 

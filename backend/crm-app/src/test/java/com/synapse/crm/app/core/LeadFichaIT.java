@@ -184,6 +184,53 @@ class LeadFichaIT extends PostgresIT {
                 .isNull();
     }
 
+    @Test
+    @DisplayName("corrigir telefone invalida endereco antigo do provedor para os proximos envios")
+    void editar_telefone_invalidaEnderecoDoProvedorAntigo() {
+        String sufixoUnico = String.format("%06d", Math.floorMod(leadDaAna.hashCode(), 1_000_000));
+        String telefoneAntigo = "5561998" + sufixoUnico;
+        String telefoneNovo = "5561977" + sufixoUnico;
+        jdbc.update(
+                "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                telefoneAntigo,
+                "5561888" + sufixoUnico,
+                leadDaAna);
+
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("telefone", telefoneNovo));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo(telefoneNovo);
+        assertThat(jdbc.queryForObject(
+                        "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("editar outro campo preserva endereco conhecido do provedor")
+    void editar_outroCampo_preservaEnderecoDoProvedor() {
+        String sufixoUnico = String.format("%06d", Math.floorMod(leadDaAna.hashCode(), 1_000_000));
+        String telefoneProvedor = "5561888" + sufixoUnico;
+        jdbc.update(
+                "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                "5561998" + sufixoUnico,
+                telefoneProvedor,
+                leadDaAna);
+
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("nome", "Cliente da Ana atualizado"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                        "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo(telefoneProvedor);
+    }
+
     /** 404 e nao 403: 403 confirmaria que o lead existe e esta com um colega. */
     @Test
     @DisplayName("atendente NAO edita lead de colega — 404, nao 403")
@@ -196,6 +243,49 @@ class LeadFichaIT extends PostgresIT {
         String nomeNoBanco =
                 jdbc.queryForObject("SELECT nome FROM lead WHERE id = ?", String.class, leadDoBruno);
         assertThat(nomeNoBanco).isEqualTo("Cliente do Bruno");
+    }
+
+    @Test
+    @DisplayName("Agenda permite corrigir telefone de lead colaborativo sem abrir a escrita fora do contexto")
+    void editarTelefone_pelaAgendaRespeitaContextoEInvalidaEnderecoAntigo() {
+        String sufixoUnico = String.format("%06d", Math.floorMod(leadDoBruno.hashCode(), 1_000_000));
+        String telefoneAntigo = "5561998" + sufixoUnico;
+        String telefoneNovo = "5561977" + sufixoUnico;
+        String telefoneOriginal = jdbc.queryForObject(
+                "SELECT telefone FROM lead WHERE id = ?", String.class, leadDoBruno);
+        String enderecoOriginal = jdbc.queryForObject(
+                "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDoBruno);
+        try {
+            jdbc.update(
+                    "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                    telefoneAntigo,
+                    "5561888" + sufixoUnico,
+                    leadDoBruno);
+
+            var foraDoContexto = comoAna(
+                    HttpMethod.PUT,
+                    "/api/v1/leads/" + leadDoBruno + "/telefone",
+                    Map.of("telefone", telefoneNovo));
+            assertThat(foraDoContexto.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+            var pelaAgenda = comoAna(
+                    HttpMethod.PUT,
+                    "/api/v1/leads/" + leadDoBruno + "/agenda/telefone",
+                    Map.of("telefone", telefoneNovo));
+
+            assertThat(pelaAgenda.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id = ?", String.class, leadDoBruno))
+                    .isEqualTo(telefoneNovo);
+            assertThat(jdbc.queryForObject(
+                            "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDoBruno))
+                    .isNull();
+        } finally {
+            jdbc.update(
+                    "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                    telefoneOriginal,
+                    enderecoOriginal,
+                    leadDoBruno);
+        }
     }
 
     @Test

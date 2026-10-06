@@ -38,9 +38,22 @@ export function emitirUrlAssinadaDaMidia(leadId: string, mensagemId: string): Pr
 }
 
 export function atualizarLead(id: string, dados: AtualizacaoLead): Promise<LeadFicha> {
-  return apiFetch<LeadFicha>(`/api/v1/leads/${id}`, {
+  const rota = `/api/v1/leads/${id}`;
+  return apiFetch<LeadFicha>(rota, {
     method: "PUT",
     body: JSON.stringify(dados),
+  });
+}
+
+export function atualizarTelefoneLead(
+  id: string,
+  telefone: string,
+  contexto: "padrao" | "agenda" = "padrao",
+): Promise<LeadFicha> {
+  const rota = contexto === "agenda" ? `/api/v1/leads/${id}/agenda/telefone` : `/api/v1/leads/${id}/telefone`;
+  return apiFetch<LeadFicha>(rota, {
+    method: "PUT",
+    body: JSON.stringify({ telefone }),
   });
 }
 

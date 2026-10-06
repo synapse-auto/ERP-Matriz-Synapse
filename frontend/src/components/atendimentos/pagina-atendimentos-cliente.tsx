@@ -30,6 +30,7 @@ import {
   definirReacao,
   iniciarNovoContato,
   marcarAtendimentoComoLido,
+  obterCapacidadeDoCanal,
   obterEstadoAtendimento,
   removerReacao,
 } from "@/lib/atendimento/api";
@@ -187,6 +188,12 @@ export function PaginaAtendimentosCliente({
   });
   const [novoContatoAberto, setNovoContatoAberto] = useState(false);
   const capacidades = useCapacidades();
+  const capacidadeDoCanal = useQuery({
+    queryKey: ["config", "canal"],
+    queryFn: obterCapacidadeDoCanal,
+    staleTime: 5 * 60 * 1000,
+  });
+  const exigeJanelaDeTextoLivre = capacidadeDoCanal.data?.exigeTemplateForaDaJanela ?? true;
   const podeResponder = capacidades.pode("atendimentos.responder");
   const podeIniciarConversa = capacidades.pode("atendimentos.iniciar_conversa");
   const [novoContatoInicial, setNovoContatoInicial] = useState<{ nome: string; telefone: string } | null>(null);
@@ -730,7 +737,8 @@ export function PaginaAtendimentosCliente({
         atendimentoId: atendimentoAtivo.atendimentoId,
         leadId: atendimentoAtivo.leadId,
         conteudo: mensagem.conteudo,
-        idempotencyKey: mensagem.idempotencyKey ?? undefined,
+        // Reenvio é uma nova tentativa: reutilizar a chave original só reproduz o envio antigo.
+        idempotencyKey: crypto.randomUUID(),
       },
       { onSuccess: aposMensagemEnviada },
     );
@@ -995,7 +1003,7 @@ export function PaginaAtendimentosCliente({
                 atendimentoId={conversa.atendimentoId}
                 janelaTextoLivreAberta={janelaTextoLivreAberta(
                   conversa.ultimaMensagemDoLeadEm,
-                )}
+                ) || !exigeJanelaDeTextoLivre}
               />
               {atendimentoAtivo && capacidades.estado === "pronto" && !podeResponder ? (
                 <div className="shrink-0 bg-background px-4 pb-4 pt-3">

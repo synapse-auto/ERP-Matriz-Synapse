@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -119,6 +120,40 @@ class LeadController {
                     @PathVariable UUID id) {
         return ContextoDeAgenda.buscarComo(
                 () -> obter.executar(id).map(this::ficha).orElseThrow(LeadController::naoEncontrado));
+    }
+
+    @Operation(
+            summary = "Atualizar telefone do lead",
+            description = "Atualiza somente o telefone do lead visível ao usuário.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Telefone atualizado."),
+                @ApiResponse(responseCode = "400", description = "Telefone inválido."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não visível.")
+            })
+    @PutMapping("/{id}/telefone")
+    FichaDoLead atualizarTelefone(
+            @Parameter(description = "Identificador do lead.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody AtualizacaoTelefoneRequisicao requisicao) {
+        return atualizar.executar(id, requisicao.paraDados()).map(this::ficha).orElseThrow(LeadController::naoEncontrado);
+    }
+
+    @Operation(
+            summary = "Atualizar telefone de lead pela Agenda",
+            description = "Atualiza somente o telefone de um lead que a Agenda colaborativa autorizou.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Telefone atualizado."),
+                @ApiResponse(responseCode = "400", description = "Telefone inválido."),
+                @ApiResponse(responseCode = "404", description = "Lead inexistente ou não acessível pela Agenda.")
+            })
+    @PutMapping("/{id}/agenda/telefone")
+    FichaDoLead atualizarTelefoneNaAgenda(
+            @Parameter(description = "Identificador do lead retornado pela Agenda.", required = true)
+                    @PathVariable UUID id,
+            @Valid @RequestBody AtualizacaoTelefoneRequisicao requisicao) {
+        return ContextoDeAgenda.buscarComo(() -> atualizar
+                .executar(id, requisicao.paraDados())
+                .map(this::ficha)
+                .orElseThrow(LeadController::naoEncontrado));
     }
 
     @Operation(
@@ -271,6 +306,13 @@ class LeadController {
             return new DadosDeAtualizacaoLead(
                     nome, fotoUrl, telefone, email, cpf, empresa, codigo, localizacao, canalOrigemId, status,
                     etapaAtendimentoId, notas, dadosCustomizados);
+        }
+    }
+
+    record AtualizacaoTelefoneRequisicao(@NotBlank @Size(max = 30) String telefone) {
+        DadosDeAtualizacaoLead paraDados() {
+            return new DadosDeAtualizacaoLead(
+                    null, null, telefone, null, null, null, null, null, null, null, null, null, null);
         }
     }
 }
