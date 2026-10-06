@@ -102,7 +102,15 @@ class AuditoriaDeAtendimentoListener {
                 new Registro(saiu.participanteId(), "USUARIO", "PARTICIPANTE_SAIU");
 
             case EventoDeAtendimento.ParticipanteEntrou entrou ->
-                new Registro(entrou.participanteId(), "USUARIO", "PARTICIPANTE_ENTROU");
+                    new Registro(entrou.participanteId(), "USUARIO", "PARTICIPANTE_ENTROU");
+
+            case EventoDeAtendimento.ClassificacaoDeNegociacaoAtualizada ignorada ->
+                    new Registro(null, "AUTOMACAO", "CLASSIFICACAO_NEGOCIACAO_ATUALIZADA");
+
+            case EventoDeAtendimento.ResultadoVendaAtualizado resultado -> new Registro(
+                    resultado.atorId(),
+                    "USUARIO",
+                    "RESULTADO_VENDA_" + resultado.resultadoNovo().name() + "_" + resultado.origem().name());
         };
     }
 

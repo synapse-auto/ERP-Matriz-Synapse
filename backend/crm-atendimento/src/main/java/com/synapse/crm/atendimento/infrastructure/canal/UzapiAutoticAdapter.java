@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -306,7 +307,7 @@ class UzapiAutoticAdapter implements CanalGateway {
                 .body(corpo)
                 .retrieve()
                 .body(String.class);
-        return interpretarAceite(resposta);
+        return interpretarAceite(resposta, corpo.path("to").asText());
     }
 
     private ObjectNode corpoBase(Envio envio, String tipo) {
@@ -422,7 +423,7 @@ class UzapiAutoticAdapter implements CanalGateway {
      * nunca o wamid) e {@code messages[0].id}, que e o id real gerado pelo WhatsApp. So esse ultimo
      * vira {@code idExterno}.
      */
-    private ResultadoDeEnvio interpretarAceite(String resposta) {
+    private ResultadoDeEnvio interpretarAceite(String resposta, String destinoEnviado) {
         JsonNode raiz = lerJson(resposta, "resposta do envio");
         boolean sucesso =
                 "success".equalsIgnoreCase(raiz.path("status").asText()) && !raiz.has("error");
@@ -434,7 +435,28 @@ class UzapiAutoticAdapter implements CanalGateway {
             throw new RespostaInvalidaException(
                     "resposta de sucesso do provedor invalida: id da mensagem ausente");
         }
-        return new ResultadoDeEnvio.Aceito(id);
+        return new ResultadoDeEnvio.Aceito(id, enderecoDoProvedor(raiz, destinoEnviado));
+    }
+
+    /**
+     * Guarda o endereco que a Uzapi associou ao destinatario, se a resposta o trouxer.
+     * {@code contacts[].input} e opcional; quando presente, precisa corresponder ao {@code to} enviado.
+     */
+    private String enderecoDoProvedor(JsonNode raiz, String destinoEnviado) {
+        JsonNode contatos = raiz.path("contacts");
+        if (!contatos.isArray() || contatos.isEmpty()) {
+            return null;
+        }
+        JsonNode contato = contatos.get(0);
+        String endereco = contato.path("wa_id").asText("").trim();
+        if (!endereco.matches("[0-9]{8,15}")) {
+            return null;
+        }
+        String entrada = contato.path("input").asText("").trim();
+        if (!entrada.isEmpty() && !somenteDigitos(entrada).equals(destinoEnviado)) {
+            return null;
+        }
+        return endereco;
     }
 
     private String idDoUpload(String resposta) {
@@ -473,9 +495,38 @@ class UzapiAutoticAdapter implements CanalGateway {
                 + (defeitoDoPedido ? "recusou a requisicao" : "indisponivel")
                 + " com HTTP "
                 + status;
+        String mensagem = mensagemDaRespostaDeErro(e.getResponseBodyAsString());
+        if (!mensagem.isBlank()) {
+            detalhe += ": " + mensagem;
+        }
         return defeitoDoPedido
                 ? ResultadoDeEnvio.Recusado.permanente(detalhe)
                 : ResultadoDeEnvio.Recusado.temporario(detalhe);
+    }
+
+    /** Preserva somente o campo documentado {@code message}, sem expor o corpo bruto do provedor. */
+    private String mensagemDaRespostaDeErro(String corpo) {
+        if (corpo == null || corpo.isBlank()) {
+            return "";
+        }
+        try {
+            JsonNode mensagem = json.readTree(corpo).path("message");
+            if (mensagem.isTextual()) {
+                return mensagem.asText().trim();
+            }
+            if (mensagem.isArray()) {
+                StringJoiner partes = new StringJoiner("; ");
+                for (JsonNode item : mensagem) {
+                    if (item.isTextual() && !item.asText().isBlank()) {
+                        partes.add(item.asText().trim());
+                    }
+                }
+                return partes.toString();
+            }
+        } catch (JsonProcessingException | RuntimeException ignorada) {
+            // A resposta pode estar vazia ou não ser JSON; o status HTTP ainda é informativo.
+        }
+        return "";
     }
 
     private boolean credencialIncompleta() {

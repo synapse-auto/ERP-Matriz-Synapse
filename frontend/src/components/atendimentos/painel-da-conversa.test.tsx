@@ -57,6 +57,10 @@ const salvarFichaState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
+const salvarTelefoneState = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
 const solicitarResumoState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
@@ -131,6 +135,13 @@ vi.mock("@/lib/config/textos-provider", () => ({
         nome: "Nome",
         nomeInvalido: "Informe o nome do cliente.",
         telefone: "Telefone",
+        editarTelefone: "Editar telefone",
+        novoTelefone: "Novo número de telefone",
+        avisoAlteracaoTelefone: "O número será alterado. As próximas mensagens serão enviadas para o novo número.",
+        telefoneInvalido: "Informe um número válido com pelo menos 10 dígitos.",
+        erroAlteracaoTelefone: "Não foi possível alterar o telefone.",
+        confirmarAlteracaoTelefone: "Confirmar alteração",
+        cancelarAlteracaoTelefone: "Cancelar",
         email: "E-mail",
         codigo: "Código",
         codigoPlaceholder: "Somente números",
@@ -168,6 +179,7 @@ vi.mock("@/lib/lead/use-painel-lead", () => ({
   useVincularTag: () => ({ mutate: vi.fn() }),
   useDesvincularTag: () => ({ mutate: vi.fn() }),
   useSalvarFicha: () => salvarFichaState,
+  useSalvarTelefoneLead: () => salvarTelefoneState,
 }));
 
 vi.mock("@/lib/suporte/use-suporte", () => ({
@@ -270,6 +282,15 @@ describe("painel da conversa", () => {
     );
     fireEvent.click(controle);
     expect(onRetrair).toHaveBeenCalledOnce();
+  });
+
+  it("oferece edição do telefone no painel do chat com aviso de mudança do destino", () => {
+    definirCapacidadesDeTeste({});
+    renderizarPainel("lead-1", "Jardel Lima");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar telefone" }));
+    expect(screen.getByText(/próximas mensagens serão enviadas para o novo número/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Novo número de telefone" })).toHaveValue("(61) 99999-0000");
   });
 
   it("seção de mídias com apenas áudio exibe contagem zero e estado vazio", () => {

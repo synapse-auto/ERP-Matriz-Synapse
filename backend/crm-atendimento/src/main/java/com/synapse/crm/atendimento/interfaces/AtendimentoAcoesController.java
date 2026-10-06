@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,6 +45,10 @@ import com.synapse.crm.atendimento.application.IniciarNovoContatoUseCase;
 import com.synapse.crm.atendimento.application.PedidoDeNovoContatoInvalidoException;
 import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelException;
 import com.synapse.crm.atendimento.application.RegistrarAvaliacaoUseCase;
+import com.synapse.crm.atendimento.application.RegistrarResultadoVendaUseCase;
+import com.synapse.crm.atendimento.application.ResultadoVendaIncompativelException;
+import com.synapse.crm.atendimento.application.ResultadoVendaJaRegistradoException;
+import com.synapse.crm.atendimento.application.ResultadoVendaObrigatorioException;
 import com.synapse.crm.atendimento.application.TransferenciaDePotencialProibidaException;
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
 import com.synapse.crm.atendimento.application.midia.AnexoExcedeuLimiteException;
@@ -61,6 +66,8 @@ import com.synapse.crm.atendimento.application.participacao.PedidoEntradaIndispo
 import com.synapse.crm.atendimento.application.referencia.AlvoDeResposta;
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
 import com.synapse.crm.atendimento.domain.atendimento.AtendimentoJaFinalizadoException;
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoAindaAbertoParaAvaliacaoException;
 import com.synapse.crm.atendimento.domain.avaliacao.AtendimentoSemAtendenteParaAvaliacaoException;
 import com.synapse.crm.atendimento.domain.avaliacao.Avaliacao;
@@ -98,6 +105,7 @@ class AtendimentoAcoesController {
     private final FinalizarAtendimentoUseCase finalizar;
     private final FinalizarAtendimentosVisiveisUseCase finalizarLote;
     private final RegistrarAvaliacaoUseCase avaliacoes;
+    private final RegistrarResultadoVendaUseCase resultadosVenda;
     private final IniciarNovoContatoUseCase novoContato;
     private final UsuarioContext usuarioContext;
     private final GerenciarParticipacaoAtendimentoUseCase participacao;
@@ -112,6 +120,7 @@ class AtendimentoAcoesController {
             FinalizarAtendimentoUseCase finalizar,
             FinalizarAtendimentosVisiveisUseCase finalizarLote,
             RegistrarAvaliacaoUseCase avaliacoes,
+            RegistrarResultadoVendaUseCase resultadosVenda,
             IniciarNovoContatoUseCase novoContato,
             UsuarioContext usuarioContext,
             GerenciarParticipacaoAtendimentoUseCase participacao) {
@@ -124,6 +133,7 @@ class AtendimentoAcoesController {
         this.finalizar = finalizar;
         this.finalizarLote = finalizarLote;
         this.avaliacoes = avaliacoes;
+        this.resultadosVenda = resultadosVenda;
         this.novoContato = novoContato;
         this.usuarioContext = usuarioContext;
         this.participacao = participacao;
@@ -326,13 +336,34 @@ class AtendimentoAcoesController {
             responses = {
                 @ApiResponse(responseCode = "200", description = "Atendimento finalizado."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
-                @ApiResponse(responseCode = "409", description = "Atendimento já estava finalizado.")
+                @ApiResponse(responseCode = "409", description = "Atendimento já estava finalizado."),
+                @ApiResponse(responseCode = "422", description = "Atendimento em negociação exige resultado explícito.")
             })
     @PostMapping("/{id}/finalizar")
     AtendimentoResumo finalizar(
-            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id) {
-        Atendimento atualizado = finalizar.executar(id, usuarioContext.atual().id());
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody(required = false) FinalizarAtendimentoRequisicao requisicao) {
+        Atendimento atualizado = finalizar.executar(
+                id, usuarioContext.atual().id(), requisicao == null ? null : requisicao.resultadoVenda());
         return AtendimentoResumo.de(atualizado);
+    }
+
+    @Operation(
+            summary = "Registrar resultado comercial do atendimento",
+            description = "Registra manualmente VENDEU ou NAO_VENDEU no atendimento visível. Um resultado por atendimento; repetir o mesmo resultado é idempotente. Não exige classificação prévia da IA.",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Resultado registrado ou já existente idêntico."),
+                @ApiResponse(responseCode = "400", description = "Resultado ausente ou inválido."),
+                @ApiResponse(responseCode = "403", description = "Usuário sem capacidade de finalizar atendimento."),
+                @ApiResponse(responseCode = "404", description = "Atendimento inexistente ou não visível."),
+                @ApiResponse(responseCode = "409", description = "Já existe outro resultado registrado.")
+            })
+    @PutMapping("/{id}/resultado-venda")
+    ResultadoVendaResposta registrarResultadoVenda(
+            @Parameter(description = "Identificador do atendimento.", required = true) @PathVariable UUID id,
+            @Valid @RequestBody ResultadoVendaRequisicao requisicao) {
+        return ResultadoVendaResposta.de(
+                resultadosVenda.executar(id, usuarioContext.atual().id(), requisicao.resultado()));
     }
 
     @Operation(
@@ -559,6 +590,27 @@ class AtendimentoAcoesController {
         return problema;
     }
 
+    @ExceptionHandler(ResultadoVendaObrigatorioException.class)
+    ProblemDetail aoExigirResultadoVenda(ResultadoVendaObrigatorioException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Resultado comercial obrigatório");
+        return problema;
+    }
+
+    @ExceptionHandler(ResultadoVendaIncompativelException.class)
+    ProblemDetail aoRecusarResultadoIncompativel(ResultadoVendaIncompativelException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
+        problema.setTitle("Resultado comercial incompatível");
+        return problema;
+    }
+
+    @ExceptionHandler(ResultadoVendaJaRegistradoException.class)
+    ProblemDetail aoRecusarDuplicidadeDeResultado(ResultadoVendaJaRegistradoException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problema.setTitle("Resultado comercial já registrado");
+        return problema;
+    }
+
     @ExceptionHandler(AvaliacaoJaRegistradaException.class)
     ProblemDetail aoJaEstarAvaliado(AvaliacaoJaRegistradaException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
@@ -757,6 +809,31 @@ class AtendimentoAcoesController {
     record FinalizacaoEmLotePrevia(int quantidade, List<PorAtendenteFinalizacao> porAtendente) {}
 
     record FinalizacaoEmLoteResposta(int solicitados, int finalizados, int recusados) {}
+
+    record FinalizarAtendimentoRequisicao(
+            @Schema(description = "Obrigatório para atendimento classificado pelo n8n como negociação.",
+                    requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull ResultadoVenda resultadoVenda) {}
+
+    record ResultadoVendaRequisicao(
+            @Schema(description = "Resultado comercial genérico do atendimento.",
+                    requiredMode = Schema.RequiredMode.REQUIRED)
+                    @NotNull ResultadoVenda resultado) {}
+
+    record ResultadoVendaResposta(
+            UUID atendimentoId,
+            ResultadoVenda resultado,
+            java.math.BigDecimal valor,
+            UUID registradoPorId,
+            Instant registradoEm,
+            OrigemResultadoVenda origem) {
+        static ResultadoVendaResposta de(Atendimento atendimento) {
+            return new ResultadoVendaResposta(
+                    atendimento.id(), atendimento.resultadoVenda(), atendimento.valorVenda(),
+                    atendimento.vendaRegistradaPorId(), atendimento.vendaRegistradaEm(),
+                    atendimento.origemResultadoVenda());
+        }
+    }
 
     record AvaliacaoRequisicao(
             @Schema(description = "Nota de 0 a 10.", example = "7", requiredMode = Schema.RequiredMode.REQUIRED)

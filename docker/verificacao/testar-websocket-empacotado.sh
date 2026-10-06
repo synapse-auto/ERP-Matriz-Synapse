@@ -11,12 +11,20 @@ limpar() {
     rm -rf "$DIRETORIO_TEMPORARIO"
   fi
 }
-trap limpar EXIT INT TERM
+finalizar() {
+  codigo_saida=$?
+  if [ "$codigo_saida" -ne 0 ]; then
+    docker compose -f "$COMPOSE" logs --tail=100 backend traefik >&2 || true
+  fi
+  limpar
+  exit "$codigo_saida"
+}
+trap finalizar EXIT INT TERM
 
 limpar
 docker build --file "$RAIZ_REPOSITORIO/backend/Dockerfile" \
   --tag synapse-backend-websocket-test:local "$RAIZ_REPOSITORIO"
-if ! docker compose -f "$COMPOSE" up --detach --wait; then
+if ! SPRING_PROFILES_ACTIVE= docker compose -f "$COMPOSE" up --detach; then
   docker compose -f "$COMPOSE" logs backend traefik
   exit 1
 fi
@@ -33,6 +41,31 @@ done
 [ "$codigo" = "200" ] || {
   docker compose -f "$COMPOSE" logs backend traefik
   echo "backend empacotado nao ficou acessivel pelo Traefik" >&2
+  exit 1
+}
+
+# O boot normal para intencionalmente na V72 quando encontra a V73 pesada pendente.
+# O smoke precisa testar a imagem no schema completo: executar o runner exclusivo
+# documentado e reiniciar o backend aplica V74+ antes dos fluxos de API abaixo.
+docker compose -f "$COMPOSE" exec --no-TTY backend \
+  java -jar application.jar --synapse.migrations.run-once
+docker compose -f "$COMPOSE" stop backend
+SPRING_PROFILES_ACTIVE=dev docker compose -f "$COMPOSE" up --detach --force-recreate --wait backend
+
+# O --wait acima aguarda somente o healthcheck do container. Após recriá-lo,
+# aguarde também a descoberta da nova instância pelo provider Docker do Traefik.
+tentativa=0
+codigo=000
+while [ "$tentativa" -lt 60 ]; do
+  codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --header 'Host: crm.ws.test' http://127.0.0.1:18080/health/liveness || true)
+  [ "$codigo" = "200" ] && break
+  tentativa=$((tentativa + 1))
+  sleep 2
+done
+[ "$codigo" = "200" ] || {
+  docker compose -f "$COMPOSE" logs backend traefik
+  echo "backend empacotado nao voltou a ficar acessivel pelo Traefik apos migrations" >&2
   exit 1
 }
 
@@ -121,12 +154,19 @@ printf '\211PNG\r\n\032\n\000' > "$DIRETORIO_TEMPORARIO/imagem.png"
 testar_upload_midia() {
   arquivo=$1
   gravacao_do_composer=${2:-false}
-  resposta=$(curl --fail-with-body --silent --show-error \
+  resposta=$(curl --silent --show-error --write-out '\n__HTTP_STATUS__%{http_code}' \
     --header 'Host: crm.ws.test' \
     --header "Authorization: Bearer $access_token" \
     --form "arquivo=@$arquivo" \
     --form "gravacaoDoComposer=$gravacao_do_composer" \
     http://127.0.0.1:18080/api/v1/atendimentos/e1720000-0000-4000-8000-000000000002/mensagens/midia)
+  status_http=${resposta##*__HTTP_STATUS__}
+  corpo_resposta=${resposta%__HTTP_STATUS__*}
+  [ "$status_http" = "200" ] || {
+    echo "upload empacotado retornou HTTP $status_http: $corpo_resposta" >&2
+    exit 1
+  }
+  resposta=$corpo_resposta
   printf '%s' "$resposta" | grep --quiet '"statusEntrega":"PENDENTE"' || {
     echo "upload empacotado nao foi persistido: $resposta" >&2
     exit 1
@@ -179,8 +219,12 @@ docker compose -f "$COMPOSE" exec --no-TTY minio mc cat "smoke/e172-smoke-midia/
 # para o usuário não-root do runtime ao inspecioná-lo com ffprobe.
 chmod a+rx "$DIRETORIO_TEMPORARIO"
 chmod a+r "$DIRETORIO_TEMPORARIO/gravacao.ogg"
-ffprobe_audio=$(docker run --rm --entrypoint ffprobe \
-  --volume "$DIRETORIO_TEMPORARIO:/input:ro" synapse-backend-websocket-test:local \
+diretorio_temporario_docker=$DIRETORIO_TEMPORARIO
+if command -v cygpath >/dev/null 2>&1; then
+  diretorio_temporario_docker=$(cygpath -m "$DIRETORIO_TEMPORARIO")
+fi
+ffprobe_audio=$(MSYS_NO_PATHCONV=1 docker run --rm --entrypoint ffprobe \
+  --volume "$diretorio_temporario_docker:/input:ro" synapse-backend-websocket-test:local \
   -v error -select_streams a:0 -show_entries stream=codec_name,channels,sample_rate,duration \
   -of default=noprint_wrappers=1 -i /input/gravacao.ogg)
 printf '%s\n' "$ffprobe_audio" | grep --quiet 'codec_name=opus' || {

@@ -413,6 +413,9 @@ vi.mock("@/lib/atendimento/api", () => ({
   abrirAtendimentoParaLead: abrirExistente,
   obterEstadoAtendimento: (...args: [string]) =>
     Promise.resolve(obterCartao(...args)).then((cartao: CartaoAtendimento) => snapshotDe(cartao)),
+  obterCapacidadeDoCanal: vi.fn(() =>
+    Promise.resolve({ exigeTemplateForaDaJanela: true, gerenciaTemplates: false }),
+  ),
   enviarMensagem: vi.fn(() => Promise.reject(new ErroDeApi(422, null, "falha definitiva"))),
   enviarTemplate: vi.fn(),
 }));

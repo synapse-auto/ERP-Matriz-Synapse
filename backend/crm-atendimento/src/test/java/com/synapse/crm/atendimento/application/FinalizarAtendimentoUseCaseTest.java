@@ -1,6 +1,7 @@
 package com.synapse.crm.atendimento.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -19,6 +20,8 @@ import org.mockito.InOrder;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.synapse.crm.atendimento.domain.atendimento.Atendimento;
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
@@ -27,6 +30,65 @@ class FinalizarAtendimentoUseCaseTest {
 
     private static final Instant AGORA = Instant.parse("2026-09-02T16:00:00Z");
     private static final Clock RELOGIO = Clock.fixed(AGORA, ZoneOffset.UTC);
+
+    @Test
+    void negociacao_exigeEscolhaExplicitaEnaoFinalizaQuandoCanceladaOuAusente() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        var aberto = Atendimento.abrirComIa(
+                        atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(60))
+                .transferirPara(UUID.randomUUID())
+                .comNegociacao(true);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+
+        var caso = new FinalizarAtendimentoUseCase(
+                atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO,
+                mock(SolicitacaoDeAvaliacao.class),
+                new RegistrarResultadoVendaUseCase(
+                        atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO));
+
+        assertThatThrownBy(() -> caso.executar(atendimentoId, UUID.randomUUID()))
+                .isInstanceOf(ResultadoVendaObrigatorioException.class);
+        verify(atendimentos, never()).salvar(any());
+        verify(leads, never()).finalizarSemResponsavel(leadId);
+    }
+
+    @Test
+    void negociacao_registraResultadoEfinalizaNaMesmaTransicao() {
+        UUID atendimentoId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        UUID atorId = UUID.randomUUID();
+        AtendimentoRepositorio atendimentos = mock(AtendimentoRepositorio.class);
+        LeadNoCaminhoDeMensagem leads = mock(LeadNoCaminhoDeMensagem.class);
+        ApplicationEventPublisher eventos = mock(ApplicationEventPublisher.class);
+        var aberto = Atendimento.abrirComIa(
+                        atendimentoId, leadId, UUID.randomUUID(), UUID.randomUUID(), AGORA.minusSeconds(60))
+                .transferirPara(atorId)
+                .comNegociacao(true);
+        when(atendimentos.porId(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(atendimentos.porIdParaAlteracao(atendimentoId)).thenReturn(Optional.of(aberto));
+        when(leads.bloquearParaAtendimento(leadId)).thenReturn(true);
+        when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L, 2L);
+        var caso = new FinalizarAtendimentoUseCase(
+                atendimentos, leads, eventos, RELOGIO, mock(SolicitacaoDeAvaliacao.class),
+                new RegistrarResultadoVendaUseCase(atendimentos, leads, eventos, RELOGIO));
+
+        Atendimento finalizado = caso.executar(atendimentoId, atorId, ResultadoVenda.VENDEU);
+
+        assertThat(finalizado.status()).isEqualTo(StatusAtendimento.FINALIZADO);
+        assertThat(finalizado.resultadoVenda()).isEqualTo(ResultadoVenda.VENDEU);
+        assertThat(finalizado.vendaRegistradaPorId()).isEqualTo(atorId);
+        assertThat(finalizado.vendaRegistradaEm()).isEqualTo(AGORA);
+        assertThat(finalizado.origemResultadoVenda()).isEqualTo(OrigemResultadoVenda.FINALIZACAO);
+        verify(atendimentos).salvar(aberto.comResultadoVenda(
+                ResultadoVenda.VENDEU, null, atorId, AGORA, OrigemResultadoVenda.FINALIZACAO));
+        verify(leads).finalizarSemResponsavel(leadId);
+    }
 
     @Test
     void potencial_elevaRlsAntesDeGravar() {
@@ -46,7 +108,8 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         Atendimento depois = new FinalizarAtendimentoUseCase(
-                        atendimentos, leads, eventos, RELOGIO, avaliacao)
+                        atendimentos, leads, eventos, RELOGIO, avaliacao,
+                        new RegistrarResultadoVendaUseCase(atendimentos, leads, eventos, RELOGIO))
                 .executar(atendimentoId, quem);
 
         assertThat(depois.status()).isEqualTo(StatusAtendimento.FINALIZADO);
@@ -75,7 +138,9 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.salvar(any())).thenAnswer(inv -> inv.getArgument(0));
         when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
-        new FinalizarAtendimentoUseCase(atendimentos, leads, eventos, RELOGIO, avaliacao)
+        new FinalizarAtendimentoUseCase(
+                        atendimentos, leads, eventos, RELOGIO, avaliacao,
+                        new RegistrarResultadoVendaUseCase(atendimentos, leads, eventos, RELOGIO))
                 .executarEmLote(atendimentoId, ana);
 
         verify(atendimentos, never()).elevarRlsParaEscritaDeNovoDono();
@@ -99,7 +164,8 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         Atendimento finalizado = new FinalizarAtendimentoUseCase(
-                        atendimentos, leads, eventos, RELOGIO, avaliacao)
+                        atendimentos, leads, eventos, RELOGIO, avaliacao,
+                        new RegistrarResultadoVendaUseCase(atendimentos, leads, eventos, RELOGIO))
                 .executarPelaAutomacao(atendimentoId);
 
         assertThat(finalizado.status()).isEqualTo(StatusAtendimento.FINALIZADO);
@@ -127,7 +193,8 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.avancarVersaoDoEvento(atendimentoId)).thenReturn(1L);
 
         Atendimento finalizado = new FinalizarAtendimentoUseCase(
-                        atendimentos, leads, eventos, RELOGIO, avaliacao)
+                        atendimentos, leads, eventos, RELOGIO, avaliacao,
+                        new RegistrarResultadoVendaUseCase(atendimentos, leads, eventos, RELOGIO))
                 .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(1800))
                 .orElseThrow();
 
@@ -151,7 +218,9 @@ class FinalizarAtendimentoUseCaseTest {
         when(atendimentos.ultimaMensagemEm(atendimentoId)).thenReturn(Optional.of(AGORA.minusSeconds(10)));
 
         var resultado = new FinalizarAtendimentoUseCase(
-                        atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO, avaliacao)
+                        atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO, avaliacao,
+                        new RegistrarResultadoVendaUseCase(
+                                atendimentos, leads, mock(ApplicationEventPublisher.class), RELOGIO))
                 .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(1800));
 
         assertThat(resultado).isEmpty();
@@ -176,7 +245,8 @@ class FinalizarAtendimentoUseCaseTest {
                         leads,
                         mock(ApplicationEventPublisher.class),
                         RELOGIO,
-                        mock(SolicitacaoDeAvaliacao.class))
+                        mock(SolicitacaoDeAvaliacao.class),
+                        mock(RegistrarResultadoVendaUseCase.class))
                 .executarPelaAutomacaoSeInativo(atendimentoId, AGORA.minusSeconds(3600));
 
         assertThat(resultado).isEmpty();

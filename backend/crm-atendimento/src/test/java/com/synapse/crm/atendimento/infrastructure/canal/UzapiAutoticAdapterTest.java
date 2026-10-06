@@ -144,7 +144,7 @@ class UzapiAutoticAdapterTest {
                         """
                         {"status":"success","message":"Mensagem colocada na fila de envios com sucesso!",
                          "queueId":"fila-interna-nao-usar","messageId":"interno-nao-usar",
-                         "contacts":[{"input":"5561999999999","wa_id":"5561999999999"}],
+                         "contacts":[{"input":"561999999999","wa_id":"561888777777"}],
                          "messages":[{"id":"wamid.real"}]}
                         """,
                         MediaType.APPLICATION_JSON));
@@ -159,11 +159,47 @@ class UzapiAutoticAdapterTest {
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
         assertThat(((ResultadoDeEnvio.Aceito) resultado).idExterno()).isEqualTo("wamid.real");
+        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isEqualTo("561888777777");
         assertThat(capturado[0].path("to").asText()).isEqualTo("561999999999");
         assertThat(capturado[0].path("type").asText()).isEqualTo("text");
         assertThat(capturado[0].path("text").path("body").asText()).isEqualTo("Ola, tudo bem?");
         assertThat(capturado[0].path("context").path("message_id").asText())
                 .isEqualTo("wamid.contexto");
+    }
+
+    @Test
+    void respostaSemEnderecoDoContatoContinuaAceitaSemEnderecoProvedor() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"status\":\"success\",\"messages\":[{\"id\":\"wamid.sem-contato\"}]}",
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(), "5561999999999", new ConteudoDeEnvio.MensagemLivre("Ola"), UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isNull();
+    }
+
+    @Test
+    void ignoraEnderecoDoProvedorQuandoInputNaoCorrespondeAoDestinoEnviado() {
+        servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        """
+                        {"status":"success","contacts":[{"input":"5561999999998","wa_id":"556188887777"}],
+                         "messages":[{"id":"wamid.input-divergente"}]}
+                        """,
+                        MediaType.APPLICATION_JSON));
+
+        ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
+                UUID.randomUUID(), "5561999999999", new ConteudoDeEnvio.MensagemLivre("Ola"), UUID.randomUUID()));
+
+        servidor.verify();
+        assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
+        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isNull();
     }
 
     // --- midia: upload em duas etapas ---------------------------------------
@@ -472,7 +508,9 @@ class UzapiAutoticAdapterTest {
 
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Recusado.class);
-        assertThat(((ResultadoDeEnvio.Recusado) resultado).permanente()).isTrue();
+        ResultadoDeEnvio.Recusado recusado = (ResultadoDeEnvio.Recusado) resultado;
+        assertThat(recusado.permanente()).isTrue();
+        assertThat(recusado.motivo()).contains("HTTP 400", "numero invalido");
     }
 
     @Test

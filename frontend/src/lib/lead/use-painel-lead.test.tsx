@@ -7,6 +7,7 @@ import type { LeadFicha, MidiaDoLead, SolicitacaoResumoIa, TagDoLead } from "./t
 
 vi.mock("./api", () => ({
   atualizarLead: vi.fn(),
+  atualizarTelefoneLead: vi.fn(),
   desvincularTagDoLead: vi.fn(),
   listarCanais: vi.fn(),
   listarCamposCustomizados: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("./api", () => ({
 vi.mock("@/lib/query/tempos", () => ({ INTERVALO_REVALIDACAO_CACHE_MS: 25 }));
 
 import * as api from "./api";
-import { TIPOS_MIDIAS_DA_FICHA, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useVincularTag } from "./use-painel-lead";
+import { TIPOS_MIDIAS_DA_FICHA, useEstadoResumoIa, useLead, useMidiasDoLead, useSalvarFicha, useSalvarTelefoneLead, useVincularTag } from "./use-painel-lead";
 
 function wrapper(cache: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -107,6 +108,28 @@ describe("mutações otimistas da ficha", () => {
     await waitFor(() =>
       expect(cache.getQueryData(["atendimentos"])).toEqual([{ leadId: "lead-1", leadCodigo: "00421" }]),
     );
+  });
+
+  it("salva telefone pela rota da Agenda e reconcilia as duas fichas em cache", async () => {
+    const atualizado = { ...ficha, telefone: "5561999991234" };
+    vi.mocked(api.atualizarTelefoneLead).mockResolvedValue(atualizado);
+    const cache = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    cache.setQueryData(["lead", "agenda", "lead-1"], ficha);
+    cache.setQueryData(["lead", "lead-1"], ficha);
+    const { result } = renderHook(() => useSalvarTelefoneLead("lead-1", "agenda"), { wrapper: wrapper(cache) });
+
+    result.current.mutate("(61) 99999-1234");
+
+    await waitFor(() =>
+      expect(cache.getQueryData<LeadFicha>(["lead", "agenda", "lead-1"])?.telefone)
+        .toBe("5561999991234"),
+    );
+    expect(api.atualizarTelefoneLead).toHaveBeenCalledWith(
+      "lead-1",
+      "(61) 99999-1234",
+      "agenda",
+    );
+    expect(cache.getQueryData<LeadFicha>(["lead", "lead-1"])?.telefone).toBe("5561999991234");
   });
 
   it("aplica nome otimista e espelha no card da inbox", async () => {

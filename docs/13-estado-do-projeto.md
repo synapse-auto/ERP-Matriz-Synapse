@@ -25,6 +25,18 @@ linha em `disponibilidade_atendente_ia` (`FALSE`) e a migration preenche os ativ
 linha, também com `FALSE`: **ninguém entra no rodízio** (antes, quem não tinha linha ficava de fora em silêncio por causa do
 `JOIN`). Comportamento igual ao de hoje; presença automática é o PR B, atrás de chave desligada. Consulta e rotina em
 `docs/18`.
+
+### 05/10/2026 — 409 "nenhum atendente está online e disponível" sem causa visível (E222, parte 1)
+
+Nos testes da Fêmina o n8n recebeu `409` em `transferir-proximo-humano` e o backend não deixava rastro: o
+`409` não era logado. Este PR é só **observabilidade**, sem mudar quem é elegível: cada `409` desse tipo grava
+um WARN `[TRANSFERENCIA_SEM_DESTINO]` com a estratégia, a contagem do funil (ativos → papel permitido →
+marcados para a IA → ONLINE), quantos elegíveis nunca tiveram linha em `disponibilidade_atendente_ia` e se o
+lead tinha responsável, e o corpo ganha o campo aditivo `motivo` (contrato em `docs/21`). Status, título e
+mensagem não mudam. **Não provado:** a causa nas execuções da Fêmina de 05/10 (o estado de presença na hora não
+fica gravado em lugar nenhum); a próxima ocorrência já traz os números. O relatório da auditoria do código vem
+na parte 2.
+
 ### 05/10/2026 — Encaminhar do Chat Interno para o cliente
 
 Texto e mídia (imagem, vídeo, áudio, documento) de uma conversa interna podem ser encaminhados ao cliente de um
@@ -46,6 +58,18 @@ tipo real, dimensões lidas do cabeçalho e reencode; atualização dos demais p
 sistema já existente e recarga na reconexão. O chat não tinha papel de administrador, então a regra "só o
 criador" é decisão nova e está listada em "Decisões pendentes". Detalhe em
 [`60-foto-do-grupo-do-chat-interno.md`](./60-foto-do-grupo-do-chat-interno.md).
+
+### 05/10/2026 — Custo de CPU dos healthchecks do RabbitMQ na VPS (E221)
+
+Medição em produção (VPS de 4 vCPU, 754 amostras): os três RabbitMQ gastavam ~10,5% de um núcleo cada, quase
+iguais apesar de cargas diferentes; o custo fixo é o `rabbitmq-diagnostics check_running` a cada 15 s, que sobe uma
+VM Erlang por execução (~0,32 núcleo no total, ~30% do uso médio). A auditoria mostrou que **nenhum código usa o
+RabbitMQ** (sem AMQP no backend, sem `RABBITMQ_*` no serviço do backend, tempo real em broker em memória + Redis,
+sem `depends_on`). O healthcheck do template do stack passou de 15 s × 5 para **60 s × 3** (detecção em ~3 min,
+frequência -75%), com o mesmo comando, e o CI passou a barrar regressão. O rollout é feito pelo responsável, um
+stack por vez, na madrugada; a opção de remover o serviço fica registrada para decisão dele. Detalhe, rollout,
+volta atrás e medição em
+[`18-runbook-pendencias-operacionais.md`](./18-runbook-pendencias-operacionais.md#rabbitmq-custo-do-healthcheck-e221).
 
 ### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
 

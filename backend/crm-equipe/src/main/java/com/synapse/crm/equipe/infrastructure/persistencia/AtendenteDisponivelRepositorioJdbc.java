@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.equipe.application.disponibilidade.AtendenteDisponivelRepositorio;
 import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
+import com.synapse.crm.equipe.domain.disponibilidade.DiagnosticoDoRodizio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -98,6 +99,30 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
                       u.id
             """;
 
+    /**
+     * Mesmos filtros, na mesma ordem, de {@link #SQL_MENOR_CARGA} e {@link #SQL_SEQUENCIAL}, mas contando em vez de
+     * listar. LEFT JOIN de proposito: a consulta de elegibilidade usa JOIN, entao quem nao tem linha em
+     * {@code disponibilidade_atendente_ia} nunca entra no rodizio, e e isso que a ultima coluna mede.
+     */
+    private static final String SQL_FUNIL =
+            """
+            SELECT count(*) FILTER (WHERE u.ativo = TRUE) AS ativos,
+                   count(*) FILTER (WHERE u.ativo = TRUE
+                                      AND u.papel IN ('ATENDENTE', 'SUBGESTOR')) AS com_papel_permitido,
+                   count(*) FILTER (WHERE u.ativo = TRUE
+                                      AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
+                                      AND d.disponivel_para_ia = TRUE) AS disponiveis_para_ia,
+                   count(*) FILTER (WHERE u.ativo = TRUE
+                                      AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
+                                      AND d.disponivel_para_ia = TRUE
+                                      AND u.status_presenca = 'ONLINE') AS online,
+                   count(*) FILTER (WHERE u.ativo = TRUE
+                                      AND u.papel IN ('ATENDENTE', 'SUBGESTOR')
+                                      AND d.atendente_id IS NULL) AS sem_registro
+              FROM usuario u
+              LEFT JOIN disponibilidade_atendente_ia d ON d.atendente_id = u.id
+            """;
+
     private final JdbcTemplate jdbc;
     private final JdbcTemplate configuracaoJdbc;
 
@@ -113,6 +138,22 @@ class AtendenteDisponivelRepositorioJdbc implements AtendenteDisponivelRepositor
         String sql = distribuicaoSequencialAtiva() ? SQL_SEQUENCIAL : SQL_MENOR_CARGA;
         return jdbc.query(sql, (linha, indice) -> new AtendenteDisponivelParaIa(
                 UUID.fromString(linha.getString("id")), linha.getString("nome"), linha.getString("email")));
+    }
+
+    @Override
+    public DiagnosticoDoRodizio diagnosticar() {
+        String estrategia = distribuicaoSequencialAtiva()
+                ? DiagnosticoDoRodizio.ESTRATEGIA_SEQUENCIAL
+                : DiagnosticoDoRodizio.ESTRATEGIA_MENOR_CARGA;
+        return jdbc.queryForObject(
+                SQL_FUNIL,
+                (linha, indice) -> new DiagnosticoDoRodizio(
+                        estrategia,
+                        linha.getLong("ativos"),
+                        linha.getLong("com_papel_permitido"),
+                        linha.getLong("disponiveis_para_ia"),
+                        linha.getLong("online"),
+                        linha.getLong("sem_registro")));
     }
 
     /**
