@@ -1,23 +1,33 @@
--- E224 / B1 - EXPLAIN da listagem do painel: antes.
--- ANTES do B1: ids escolhidas como  a.id IN (subconsulta com LIMIT)  (texto anterior ao PR).
+-- =====================================================================================================================
+-- E224/E225 (B1) - EXPLAIN da listagem do painel: antes.
+-- ANTES do B1: ids escolhidas como  a.id IN (subconsulta com LIMIT)  (texto anterior ao PR #278).
+-- =====================================================================================================================
+-- VARIAVEIS EXIGIDAS (-v). Sem elas o psql para no primeiro bloco (ON_ERROR_STOP):
+--   papel   ATENDENTE | OPERADOR | GESTOR   (o papel da RLS; a consulta roda como esse papel, nao como superusuario)
+--   usuario <uuid do usuario>               (de preferencia um atendente com muitos atendimentos; ex.: o do Gustavo)
+--   limite  101                             (tamanho da pagina que a inbox pede: 100 + 1)
 --
--- Rode o par de arquivos (antes e depois) na mesma janela, um bloco por vez, fora do pico se possivel:
--- EXPLAIN ANALYZE EXECUTA a consulta (teto de 60 s abaixo). Nada altera dados: cada bloco e BEGIN ... ROLLBACK.
+-- COMANDO EXATO (um arquivo por vez, mesma janela, fora do pico se possivel). <container> = o container do Postgres
+-- (descubra com:  docker ps --format '{{.Names}}' | grep -i postgres ):
 --
--- Uso (psql, superusuario ou dono do banco, no banco matriz_hml; o JIT ja esta desligado, entao a base de comparacao
--- sao os tempos sem JIT):
---   psql -d matriz_hml -v papel=ATENDENTE -v usuario=<uuid do atendente> -v limite=101 -f <este arquivo>
---   psql -d matriz_hml -v papel=GESTOR    -v usuario=<uuid do gestor>    -v limite=101 -f <este arquivo>
+--   docker exec -i <container> psql -X -q -U matriz_app -d matriz_hml \
+--     -v papel=ATENDENTE -v usuario=<uuid-do-atendente> -v limite=101 \
+--     < e224-explain-painel-antes.sql > saida-painel-antes-atendente.txt
 --
--- Cada aba tem DUAS medicoes:
---   N-literal : valores fixos (plano customizado), como nas primeiras execucoes do driver JDBC.
---   N-generico: PREPARE + SET LOCAL plan_cache_mode = force_generic_plan (o plano que o driver pode passar a usar depois
---               de 5 execucoes, porque o pgjdbc usa prepared statement do servidor). Os dois podem diferir.
+--   docker exec -i <container> psql -X -q -U matriz_app -d matriz_hml \
+--     -v papel=GESTOR -v usuario=<uuid-do-gestor> -v limite=101 \
+--     < e224-explain-painel-antes.sql > saida-painel-antes-gestor.txt
 --
--- O contexto reproduz o AplicadorDeContextoRls (SET LOCAL ROLE synapse_app + app.papel + app.usuario_id). Sem ele a
--- consulta rodaria como dona das tabelas, fora da RLS, e o plano nao seria o de producao.
--- O que olhar no plano da fase 2 (cartoes): a juncao externa deve ter ~101 linhas, e as LATERAL "ativo" e "ultima"
--- devem ter loops ~ numero de ids escolhidas (<= 101), nao ~3.900.
+-- Rode o par "antes" e "depois" nas duas formas e cole as saidas. Para extrair so os tempos e os loops da fase 2:
+--   grep -E "^-- |Execution Time|loops=" saida-painel-antes-atendente.txt
+--
+-- O QUE E CADA BLOCO: por aba (01 ATIVOS ... 06 FINALIZADOS) ha duas medicoes: N-literal (valores fixos, plano
+-- customizado) e N-generico (PREPARE + SET LOCAL plan_cache_mode = force_generic_plan, o plano que o driver JDBC pode
+-- passar a usar depois de 5 execucoes). O bloco 07 e a contagem de FINALIZADOS (igual nas duas versoes).
+-- Cada bloco e BEGIN ... ROLLBACK: nada altera dados. EXPLAIN ANALYZE EXECUTA a consulta (teto de 60 s abaixo).
+-- O contexto reproduz o AplicadorDeContextoRls (SET LOCAL ROLE synapse_app + app.papel + app.usuario_id).
+-- O que olhar na fase 2 (cartoes): a juncao externa com ~101 linhas e as LATERAL "ativo" e "ultima" com loops ~ numero
+-- de ids escolhidas (<= 101), nao ~3.915. O JIT ja esta desligado: compare com a linha de base sem JIT.
 \set ON_ERROR_STOP on
 \pset pager off
 
