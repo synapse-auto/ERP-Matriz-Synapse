@@ -1,7 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.persistencia.painel;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -39,18 +38,16 @@ import com.synapse.crm.app.seguranca.ApoioAutenticacao;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
- * E225: {@code GET /api/v1/atendimentos?visao=} deixou de ser ilimitado. Com o teto em 3
- * ({@code synapse.painel.listagem-maxima}), o endpoint devolve os 3 primeiros cartoes <b>na mesma ordem</b> da consulta
- * antiga (ilimitada, recomposta aqui por reflexao com os mesmos blocos de texto), sob a RLS real; e uma visao com no
- * maximo 3 cartoes devolve exatamente o mesmo resultado de antes.
+ * E225: com o teto MAIOR que o total de cartoes, a lista simples devolve exatamente o que devolvia antes do teto (mesmas
+ * linhas, mesma ordem) — comparada com a consulta antiga (sem LIMIT, recomposta por reflexao) sob a RLS real. Complementa
+ * {@link ListaLegadaLimitadaIT}, que prova o corte com teto pequeno.
  */
 @SpringBootTest(classes = SynapseCrmApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dev")
-@TestPropertySource(properties = "synapse.painel.listagem-maxima=3")
-class ListaLegadaLimitadaIT extends PostgresIT {
+@TestPropertySource(properties = "synapse.painel.listagem-maxima=1000")
+class ListaLegadaSemCorteIT extends PostgresIT {
 
-    private static final String PREFIXO = "E225-lista-";
-    private static final int TETO = 3;
+    private static final String PREFIXO = "E225-semcorte-";
 
     @Autowired
     private TestRestTemplate http;
@@ -74,17 +71,14 @@ class ListaLegadaLimitadaIT extends PostgresIT {
         gestor = jdbc.queryForObject("SELECT id FROM usuario WHERE email = ?", UUID.class, "gestor@dev.local");
         base = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(2).atTime(12, 0).toInstant(ZoneOffset.UTC);
 
-        // Seis potenciais (EM_IA), com ultimas mensagens em horarios diferentes e dois sem mensagem: a ordem nao e trivial.
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 4; i++) {
             UUID atendimento = atendimento(lead("potencial-" + i, null, "IA"), null, "EM_IA", -100 - i);
-            if (i % 3 != 2) {
-                mensagem(atendimento, -50 + (i * 7));
+            if (i % 2 == 0) {
+                mensagem(atendimento, -50 + (i * 5));
             }
         }
-        // Dois ativos da Ana (cabem no teto) e um finalizado.
         mensagem(atendimento(lead("ativo-1", ana, "EM_ATENDIMENTO"), ana, "EM_ATENDIMENTO", -40), -30);
         mensagem(atendimento(lead("ativo-2", ana, "EM_ATENDIMENTO"), ana, "EM_ATENDIMENTO", -35), -20);
-        atendimento(lead("finalizado", ana, "FINALIZADO"), ana, "FINALIZADO", -300);
     }
 
     @AfterEach
@@ -99,37 +93,22 @@ class ListaLegadaLimitadaIT extends PostgresIT {
     }
 
     @Test
-    @DisplayName("POTENCIAIS (mais de 3 cartoes): devolve os 3 primeiros, na ordem da consulta antiga")
-    void potenciaisLimitadosSaoOPrefixoDaListaAntiga() throws Exception {
-        // O unico "?" da consulta antiga de POTENCIAIS e o de nao_lidas (o usuario).
-        List<String> antiga = idsDaConsultaAntiga("GESTOR", gestor, "WHERE_POTENCIAIS", gestor);
-        List<String> nova = idsDoEndpoint("gestor@dev.local", "gestor123", "POTENCIAIS");
-
-        assertThat(antiga).as("o cenario precisa ter mais cartoes que o teto").hasSizeGreaterThan(TETO);
-        assertThat(nova).hasSize(TETO).isEqualTo(antiga.subList(0, TETO));
+    @DisplayName("com o teto acima do total: POTENCIAIS, TODOS e PENDENTES (gestao) e ATIVOS (atendente) saem identicos aos de antes")
+    void listaIdenticaAAntigaQuandoOTotalCabeNoTeto() throws Exception {
+        comparar("GESTOR", gestor, "gestor@dev.local", "gestor123", "POTENCIAIS", "WHERE_POTENCIAIS", gestor);
+        comparar("GESTOR", gestor, "gestor@dev.local", "gestor123", "TODOS", "WHERE_TODOS_ATIVOS", gestor);
+        comparar("GESTOR", gestor, "gestor@dev.local", "gestor123", "PENDENTES", "WHERE_PENDENTES_TODOS", gestor);
+        comparar("ATENDENTE", ana, "ana@dev.local", "atendente123", "ATIVOS", "WHERE_ATIVOS", ana, ana);
     }
 
-    @Test
-    @DisplayName("ATIVOS da Ana: os N primeiros da consulta antiga, N = min(teto, total), independente do volume do banco")
-    void ativosSaoOPrefixoDaListaAntigaQualquerQueSejaOVolume() throws Exception {
-        // Dois "?": nao_lidas e o filtro "atendente = usuario". O banco dos ITs e compartilhado: o total de ativos da Ana
-        // varia com o que outros testes deixaram, entao o teste so afirma a relacao com a consulta antiga.
-        List<String> antiga = idsDaConsultaAntiga("ATENDENTE", ana, "WHERE_ATIVOS", ana, ana);
-        List<String> nova = idsDoEndpoint("ana@dev.local", "atendente123", "ATIVOS");
+    private void comparar(
+            String papel, UUID usuario, String email, String senha, String visao, String nomeDoWhere, Object... argumentos)
+            throws Exception {
+        List<String> antiga = idsDaConsultaAntiga(papel, usuario, nomeDoWhere, argumentos);
+        List<String> nova = idsDoEndpoint(email, senha, visao);
 
-        assertThat(antiga).hasSizeGreaterThanOrEqualTo(2);
-        assertThat(nova).isEqualTo(antiga.subList(0, Math.min(TETO, antiga.size())));
-    }
-
-    @Test
-    @DisplayName("o teto invalido e recusado na criacao do repositorio")
-    void tetoInvalidoERecusado() {
-        assertThatThrownBy(() -> {
-                    var construtor = PainelDeAtendimentosRepositorioJdbc.class.getDeclaredConstructors()[0];
-                    construtor.setAccessible(true);
-                    construtor.newInstance(chat, 0);
-                })
-                .hasRootCauseInstanceOf(IllegalArgumentException.class);
+        assertThat(antiga.size()).as("o total precisa caber no teto (%s)", visao).isLessThan(1000);
+        assertThat(nova).as("%s / %s", papel, visao).isEqualTo(antiga);
     }
 
     // --- apoio ----------------------------------------------------------------------------------------------------
@@ -144,7 +123,6 @@ class ListaLegadaLimitadaIT extends PostgresIT {
         return ids;
     }
 
-    /** A consulta ANTERIOR (sem LIMIT): cartoesDe(escolher(WHERE_X)), executada sob a RLS do papel. */
     private List<String> idsDaConsultaAntiga(String papel, UUID usuario, String nomeDoWhere, Object... argumentos)
             throws Exception {
         Method escolher = PainelDeAtendimentosRepositorioJdbc.class.getDeclaredMethod("escolher", String.class);
@@ -156,11 +134,13 @@ class ListaLegadaLimitadaIT extends PostgresIT {
         String sql = (String) cartoesDe.invoke(null, escolher.invoke(null, (String) where.get(null)));
 
         JdbcTemplate consulta = new JdbcTemplate(chat);
+        // PENDENTES de gestao nao tem filtro por usuario: o unico "?" e o de nao_lidas.
+        Object[] parametros = argumentos.length == 0 ? new Object[] {usuario} : argumentos;
         return new TransactionTemplate(new DataSourceTransactionManager(chat)).execute(status -> {
             consulta.execute("SET LOCAL ROLE synapse_app");
             consulta.queryForList("SELECT set_config('app.papel', ?, TRUE)", papel);
             consulta.queryForList("SELECT set_config('app.usuario_id', ?, TRUE)", usuario.toString());
-            return consulta.query(sql, (linha, i) -> linha.getString("atendimento_id"), argumentos);
+            return consulta.query(sql, (linha, i) -> linha.getString("atendimento_id"), parametros);
         });
     }
 
