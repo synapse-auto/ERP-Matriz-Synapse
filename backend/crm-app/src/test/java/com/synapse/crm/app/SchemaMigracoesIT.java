@@ -128,6 +128,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "permissao_usuario_excecao",
                     "permissao_historico",
                     "mensagem_referencia",
+                    // V98 (historico de presenca, E223)
+                    "presenca_historico",
                     // V94 (finalizacao em massa, docs/59)
                     "finalizacao_em_massa",
                     "finalizacao_em_massa_item",
