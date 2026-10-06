@@ -11,6 +11,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -221,17 +222,25 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      */
     private static final String WHERE_FINALIZADOS = WHERE_SEM_ATENDIMENTO_ABERTO;
 
-    private static final String SQL_ATIVOS = cartoesDe(escolher(WHERE_ATIVOS));
+    /**
+     * E225: a lista sem paginacao ({@code GET /api/v1/atendimentos?visao=}) deixou de ser ilimitada. A primeira fase ganha a
+     * mesma ordem e um {@code LIMIT} (o ultimo {@code ?} de cada consulta), entao devolve os {@code N} primeiros cartoes na
+     * mesma ordem de antes; com {@code N} maior que o total o resultado e identico ao de antes. {@code N} e
+     * {@code synapse.painel.listagem-maxima}. Quem precisa de mais usa a inbox paginada.
+     */
+    private static final String ESCOLHA_LIMITADA = ORDEM_ESCOLHA + " LIMIT ?";
 
-    private static final String SQL_PENDENTES_PROPRIOS = cartoesDe(escolher(WHERE_PENDENTES_PROPRIOS));
+    private static final String SQL_ATIVOS = cartoesDe(escolher(WHERE_ATIVOS) + ESCOLHA_LIMITADA);
 
-    private static final String SQL_PENDENTES_TODOS = cartoesDe(escolher(WHERE_PENDENTES_TODOS));
+    private static final String SQL_PENDENTES_PROPRIOS = cartoesDe(escolher(WHERE_PENDENTES_PROPRIOS) + ESCOLHA_LIMITADA);
 
-    private static final String SQL_POTENCIAIS = cartoesDe(escolher(WHERE_POTENCIAIS));
+    private static final String SQL_PENDENTES_TODOS = cartoesDe(escolher(WHERE_PENDENTES_TODOS) + ESCOLHA_LIMITADA);
 
-    private static final String SQL_TODOS = cartoesDe(escolher(WHERE_TODOS_ATIVOS));
+    private static final String SQL_POTENCIAIS = cartoesDe(escolher(WHERE_POTENCIAIS) + ESCOLHA_LIMITADA);
 
-    private static final String SQL_FINALIZADOS = cartoesDe(escolher(WHERE_FINALIZADOS));
+    private static final String SQL_TODOS = cartoesDe(escolher(WHERE_TODOS_ATIVOS) + ESCOLHA_LIMITADA);
+
+    private static final String SQL_FINALIZADOS = cartoesDe(escolher(WHERE_FINALIZADOS) + ESCOLHA_LIMITADA);
 
     private static final String SQL_POR_ATENDIMENTO = agrupar(CAMPOS + ORIGEM + " WHERE a.id = ?");
 
@@ -304,24 +313,33 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private final JdbcTemplate chat;
 
-    PainelDeAtendimentosRepositorioJdbc(@Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource) {
+    private final int listagemMaxima;
+
+    PainelDeAtendimentosRepositorioJdbc(
+            @Qualifier(Pools.CHAT_DATA_SOURCE) DataSource chatDataSource,
+            @Value("${synapse.painel.listagem-maxima}") int listagemMaxima) {
+        if (listagemMaxima < 1) {
+            throw new IllegalArgumentException("synapse.painel.listagem-maxima precisa ser >= 1: " + listagemMaxima);
+        }
         this.chat = new JdbcTemplate(chatDataSource);
+        this.listagemMaxima = listagemMaxima;
     }
 
     @Override
     public List<CartaoAtendimento> listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
         TransacaoObrigatoria.exigir("listar");
+        int limite = listagemMaxima;
         return switch (visao) {
-            case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId, usuarioId);
+            case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId, usuarioId, limite);
             case PENDENTES -> restritoAoProprioAtendente
-                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId, usuarioId)
-                    : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId);
-            case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId);
-            case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId);
+                    ? chat.query(SQL_PENDENTES_PROPRIOS, MAPEADOR, usuarioId, usuarioId, usuarioId, limite)
+                    : chat.query(SQL_PENDENTES_TODOS, MAPEADOR, usuarioId, limite);
+            case POTENCIAIS -> chat.query(SQL_POTENCIAIS, MAPEADOR, usuarioId, limite);
+            case TODOS -> chat.query(SQL_TODOS, MAPEADOR, usuarioId, limite);
             // E145: qualquer atendente pode encontrar e reativar um finalizado. O argumento de
             // restricao continua sendo aplicado nas visoes de andamento; aqui a RLS faz o recorte.
-            case FINALIZADOS -> chat.query(SQL_FINALIZADOS, MAPEADOR, usuarioId);
+            case FINALIZADOS -> chat.query(SQL_FINALIZADOS, MAPEADOR, usuarioId, limite);
         };
     }
 

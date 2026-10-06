@@ -282,6 +282,11 @@ synapse:
       carencia: ${WS_PRESENCA_CARENCIA:180s}
       intervalo-varredura: ${WS_PRESENCA_INTERVALO_VARREDURA:15s}
 
+  # E225: teto da lista sem paginacao (GET /api/v1/atendimentos?visao=): devolve no maximo N cartoes, na mesma ordem de
+  # sempre. Quem precisa de mais usa a inbox paginada. Mudar exige reiniciar o backend.
+  painel:
+    listagem-maxima: ${PAINEL_LISTAGEM_MAXIMA:500}
+
   dashboard:
     cache-ttl: ${DASHBOARD_CACHE_TTL:30s}
     cache-wait: ${DASHBOARD_CACHE_WAIT:1s}

@@ -213,6 +213,8 @@ services:
       WS_RECONEXAO_ATRASO_INICIAL_MS: ${WS_RECONEXAO_ATRASO_INICIAL_MS:-1000}
       WS_RECONEXAO_FATOR: ${WS_RECONEXAO_FATOR:-2}
       WS_RECONEXAO_ATRASO_MAXIMO_MS: ${WS_RECONEXAO_ATRASO_MAXIMO_MS:-30000}
+      # E225: teto de cartoes da lista sem paginacao do painel (GET /api/v1/atendimentos?visao=). Opcional.
+      PAINEL_LISTAGEM_MAXIMA: ${PAINEL_LISTAGEM_MAXIMA:-500}
       WHATSAPP_PROVEDOR: ${WHATSAPP_PROVEDOR:-meta-cloud}
       WHATSAPP_URL_BASE: ${WHATSAPP_URL_BASE:-https://graph.facebook.com/v21.0}
       WHATSAPP_NUMERO: ${WHATSAPP_NUMERO:?obrigatoria}
