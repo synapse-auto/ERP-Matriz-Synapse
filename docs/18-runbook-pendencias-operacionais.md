@@ -1246,6 +1246,61 @@ Postgres do HML (~0,27 núcleo) e o limite de CPU da Hostinger (chamado aberto) 
 
 ---
 
+## JIT do Postgres e pools de conexão no stack (E224)
+
+**Esta seção descreve uma mudança de configuração. Nada foi aplicado em produção.**
+
+### JIT desligado (HML e FMNA em 06/10/2026)
+
+- **O que foi feito na VPS:** o JIT foi desligado no Postgres do HML e do FMNA por `ALTER SYSTEM SET jit = off` (seguido de
+  recarga da configuração). Esse valor mora em `postgresql.auto.conf` dentro do volume de dados do Postgres.
+- **Por quê (medido pelo responsável, não reproduzido pelo agente):** no HML o JIT era ~27% do tempo de consulta; numa
+  listagem de leads, 3,4 s dos 3,4 s eram JIT. As consultas do CRM são curtas e repetidas, então compilar a cada execução
+  custa mais do que economiza. Os tempos de referência para qualquer comparação de consulta passam a ser os **sem JIT**.
+- **O que o stack passa a fazer:** `docker/dokploy-stack.yml` ganhou `command: ["postgres", "-c", "jit=off"]` no serviço
+  `postgres`. Assim o desligamento vale para instância nova e para volume recriado, sem depender do `ALTER SYSTEM`. O `-c`
+  da linha de comando vence o `postgresql.auto.conf`; os dois dizem o mesmo valor.
+- **Efeito do deploy (importante):** mudar o `command` recria o serviço `postgres` no próximo deploy do stack. O serviço tem
+  uma réplica e usa a ordem padrão do Swarm (para o antigo, sobe o novo), então **o banco fica indisponível por alguns
+  segundos** e o backend reconecta sozinho (o Hikari recria as conexões). Faça fora do expediente protegido
+  (08:00–18:30) e confira depois.
+- **Como conferir:**
+  ```sql
+  SHOW jit;
+  SELECT name, setting, source FROM pg_settings WHERE name = 'jit';
+  ```
+  Esperado: `off`; `source` = `command line` depois do deploy do stack (antes dele, nas instâncias já ajustadas,
+  `configuration file`).
+- **Como reverter:** tirar o `command` do serviço `postgres` no stack e, se também quiser religar nas instâncias que usaram
+  `ALTER SYSTEM`, `ALTER SYSTEM RESET jit;` seguido de `SELECT pg_reload_conf();`. O JIT só deve voltar com uma medição que o
+  justifique.
+
+### Pools de conexão (Hikari) agora configuráveis pelo Dokploy
+
+Até agora o `environment:` do backend **não listava** estas variáveis; no Swarm, variável definida no Dokploy só chega ao
+container se o stack a referencia. Passaram a ser declaradas com `${VAR:-padrão}`, com os **mesmos valores de antes**:
+
+| Variável | Padrão | O que controla |
+|---|---|---|
+| `SYNAPSE_DB_POOL_CHAT_MAX` | `8` | conexões simultâneas do pool `synapse-chat` (painel, mensagens: caminho crítico) |
+| `SYNAPSE_DB_POOL_CHAT_MIN` | `4` | conexões mantidas ociosas no `synapse-chat` |
+| `SYNAPSE_DB_POOL_CHAT_TIMEOUT_MS` | `3000` | quanto o pedido espera por uma conexão livre antes de falhar |
+| `SYNAPSE_DB_POOL_GERAL_MAX` | `12` | conexões simultâneas do pool `synapse-geral` (relatórios, gestão e o restante da aplicação: é o pool `@Primary`) |
+| `SYNAPSE_DB_POOL_GERAL_MIN` | `2` | conexões ociosas mantidas no `synapse-geral` |
+| `SYNAPSE_DB_POOL_GERAL_TIMEOUT_MS` | `30000` | espera por conexão no `synapse-geral` |
+
+- Os padrões vêm de `application.yml` (`synapse.datasource.{chat,general}.hikari`); não há mudança de comportamento sem
+  definir a variável.
+- São lidas só na subida do backend: mudar exige **redeploy do backend**. O Hikari ajusta o mínimo ao máximo e recusa espera
+  abaixo de 250 ms.
+- Cuidado ao subir os valores: o Postgres do HML tem `max_connections = 100`, e durante um deploy `start-first` duas
+  instâncias do backend coexistem (hoje 2 × (12 + 8) = 40 conexões). Mais conexões simultâneas numa VM de 4 vCPU
+  compartilhadas podem piorar cada consulta; **não aumente o pool como única correção** sem o EXPLAIN que mostre a causa
+  (E224).
+- Quem ajustar na VPS por `docker service update --env-add` perde o ajuste no próximo deploy: defina a variável no Dokploy.
+
+---
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |
