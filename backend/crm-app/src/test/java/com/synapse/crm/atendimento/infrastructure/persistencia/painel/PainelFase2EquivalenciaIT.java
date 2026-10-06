@@ -57,8 +57,7 @@ class PainelFase2EquivalenciaIT extends PostgresIT {
     private JdbcTemplate jdbc;
 
     @Autowired
-    @Qualifier(Pools.CHAT_DATA_SOURCE)
-    private DataSource chat;
+    @Qualifier(Pools.CHAT_DATA_SOURCE) private DataSource chat;
 
     private UUID ana;
     private UUID bruno;
