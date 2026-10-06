@@ -41,7 +41,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     // E97: a foto entregue pela integracao ganha da URL externa digitada na ficha. Mesmo
     // formato de ChatInternoRepositorioJdbc/FeedbackRepositorioJdbc com o avatar do usuario:
     // caminho relativo autenticado, nunca URL de storage.
-    private static final String CAMPOS =
+    // Visivel ao pacote (como ORIGEM e agrupar) so para o teste de equivalencia da E224 (B1), que recompoe a consulta
+    // antiga e a compara com a nova. Nada fora deste pacote deve usar.
+    static final String CAMPOS =
             """
             a.id AS atendimento_id, a.lead_id, l.nome AS lead_nome,
             CASE WHEN l.foto_referencia IS NOT NULL
@@ -82,9 +84,13 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             ) AS linha_do_lead
             """;
 
-    private static final String ORIGEM =
+    /**
+     * Tudo que o cartao junta a partir de {@code a}. Fica separado do {@code FROM atendimento a} porque a fase 2 da
+     * listagem parte das ids escolhidas (E224, B1) e a busca pontual parte de {@code atendimento}: o texto dos joins e
+     * um so, e as duas formas nao podem divergir.
+     */
+    private static final String JUNCOES_DO_CARTAO =
             """
-            FROM atendimento a
             JOIN lead l ON l.id = a.lead_id
             LEFT JOIN canal c ON c.id = a.canal_id
             LEFT JOIN etapa_atendimento et ON et.id = l.etapa_atendimento_id
@@ -111,6 +117,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
             ) ultima ON true
             """;
+
+    static final String ORIGEM = "FROM atendimento a\n" + JUNCOES_DO_CARTAO;
 
     /**
      * E209 — primeira fase da listagem: so o que decide QUAL atendimento representa o lead e em que
@@ -257,7 +265,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
 
     private static final String SQL_CONTAR_FINALIZADOS = contar(WHERE_FINALIZADOS);
 
-    private static String agrupar(String consultaInterna) {
+    static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
                 + " WHERE linha_do_lead = 1" + ORDEM;
     }
@@ -276,9 +284,20 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * atendimento por lead, o {@code ROW_NUMBER} de {@link #CAMPOS} vale 1 em toda linha; o
      * {@link #agrupar} continua aqui apenas para manter a mesma projecao e a mesma {@link #ORDEM}.
      * Tudo roda no mesmo comando, portanto no mesmo snapshot e sob a mesma RLS das duas fases.
+     *
+     * <p>E224 (B1): as ids escolhidas entram como item do {@code FROM}, com {@code JOIN} explicito a
+     * {@code atendimento}, e nao mais como {@code a.id IN (subconsulta com LIMIT)}. Medido pelo responsavel no EXPLAIN de
+     * 06/10, o {@code IN} era planejado como semi join dirigido pelas ~3.900 linhas de {@code atendimento} ja unidas
+     * (as duas {@code LATERAL}, {@code ativo} e {@code ultima}, rodavam com {@code loops=3915}), e so depois filtrado
+     * pelas 101 ids. Com a subconsulta no {@code FROM}, ela e uma relacao pequena (no maximo {@code LIMIT} linhas) e o
+     * resto do cartao e consultado por id. O resultado e o mesmo: mesmas linhas, mesma ordem, mesmo
+     * {@code linha_do_lead} (a janela continua vendo so os atendimentos escolhidos). A ordem dos {@code ?} no texto
+     * tambem nao muda ({@code nao_lidas} vem antes das ids). Nao altera nenhuma politica de RLS: {@code atendimento}
+     * e {@code lead} continuam sendo lidos pelas mesmas tabelas, sob o mesmo contexto.
      */
-    private static String cartoesDe(String atendimentosEscolhidos) {
-        return agrupar(CAMPOS + ORIGEM + " WHERE a.id IN (" + atendimentosEscolhidos + ")");
+    static String cartoesDe(String atendimentosEscolhidos) {
+        return agrupar(CAMPOS + "FROM (" + atendimentosEscolhidos + ") escolhidos\n"
+                + "JOIN atendimento a ON a.id = escolhidos.atendimento_id\n" + JUNCOES_DO_CARTAO);
     }
 
     /**
@@ -350,6 +369,21 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
             Instant depoisDe, UUID depoisDoId, int limite, UUID filtroAtendenteId) {
         TransacaoObrigatoria.exigir("listarPaginado");
+        Escolha escolha = escolherPagina(visao, usuarioId, restritoAoProprioAtendente, depoisSemAtendimentoAberto,
+                depoisDe, depoisDoId, limite, filtroAtendenteId);
+        return chat.query(cartoesDe(escolha.sql()), MAPEADOR, escolha.parametros().toArray());
+    }
+
+    /** Primeira fase de uma pagina: o texto que escolhe as ids e os parametros, na ordem dos {@code ?} do texto final. */
+    record Escolha(String sql, List<Object> parametros) {}
+
+    /**
+     * Monta a primeira fase de uma pagina (visao, cursor, ordem e LIMIT). E estatico e visivel ao pacote para que o
+     * teste de equivalencia da E224 (B1) use exatamente a mesma escolha na consulta antiga e na nova.
+     */
+    static Escolha escolherPagina(VisaoAtendimento visao, UUID usuarioId,
+            boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,
+            Instant depoisDe, UUID depoisDoId, int limite, UUID filtroAtendenteId) {
         String filtro = switch (visao) {
             case ATIVOS -> WHERE_ATIVOS;
             case PENDENTES -> restritoAoProprioAtendente ? WHERE_PENDENTES_PROPRIOS : WHERE_PENDENTES_TODOS;
@@ -363,7 +397,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         // E209: cursor, ordem e LIMIT ficam na primeira fase; a segunda so monta os cartoes da
         // pagina. A ordem dos parametros continua a do texto: o `?` de nao_lidas (segunda fase)
         // vem antes do filtro da primeira.
-        String escolha = escolher(filtro);
+        String sql = escolher(filtro);
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS) {
@@ -377,24 +411,24 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         }
         if (depoisDoId != null) {
             int grupoDoCursor = depoisSemAtendimentoAberto ? 1 : 0;
-            escolha += " AND (sem_atendimento_aberto > ? OR (sem_atendimento_aberto = ? AND (";
+            sql += " AND (sem_atendimento_aberto > ? OR (sem_atendimento_aberto = ? AND (";
             parametros.add(grupoDoCursor);
             parametros.add(grupoDoCursor);
             if (depoisDe == null) {
-                escolha += "ultima_mensagem_em IS NULL AND atendimento_id < ?";
+                sql += "ultima_mensagem_em IS NULL AND atendimento_id < ?";
                 parametros.add(depoisDoId);
             } else {
-                escolha += "ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
+                sql += "ultima_mensagem_em < ? OR (ultima_mensagem_em = ? AND atendimento_id < ?)"
                         + " OR ultima_mensagem_em IS NULL";
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(Timestamp.from(depoisDe));
                 parametros.add(depoisDoId);
             }
-            escolha += ")))";
+            sql += ")))";
         }
-        escolha += ORDEM_ESCOLHA + " LIMIT ?";
+        sql += ORDEM_ESCOLHA + " LIMIT ?";
         parametros.add(Math.min(101, Math.max(1, limite)));
-        return chat.query(cartoesDe(escolha), MAPEADOR, parametros.toArray());
+        return new Escolha(sql, parametros);
     }
 
     @Override
