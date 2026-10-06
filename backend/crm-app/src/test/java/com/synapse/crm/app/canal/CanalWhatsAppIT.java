@@ -190,6 +190,72 @@ class CanalWhatsAppIT extends PostgresIT {
             });
         }
 
+        @Test
+        @DisplayName("editar, restaurar e enviar usa cada telefone confirmado sem ressuscitar endereco antigo")
+        void envio_edicaoERestauracaoUsaTelefoneCanonicoAtual() {
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagemAntesDaEdicao = enviar.executar(leadDaAna, "destino antes da edicao")
+                    .mensagem()
+                    .id();
+
+            assertThat(destinoDaOutbox(mensagemAntesDaEdicao)).isEqualTo(TELEFONE);
+            assertThat(canal.enviados()).isEmpty();
+
+            assertThat(atualizarTelefone("5561977777777").getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(telefoneProvedor()).isNull();
+            // A resposta de um despacho iniciado antes da edicao chega tarde. O aceite fecha a
+            // tentativa antiga, mas nao pode restaurar um endereco baseado no snapshot obsoleto.
+            canal.aceitarComEnderecoDoProvedor(TELEFONE_PROVEDOR_SEM_NONO);
+            rodarPublisher();
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo(TELEFONE);
+                assertThat(telefoneProvedor()).isNull();
+            });
+
+            canal.limpar();
+            UUID mensagemDepoisDaEdicao = enviar.executar(leadDaAna, "destino editado")
+                    .mensagem()
+                    .id();
+            assertThat(destinoDaOutbox(mensagemDepoisDaEdicao)).isEqualTo("5561977777777");
+            rodarPublisher();
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo("5561977777777");
+            });
+
+            canal.limpar();
+            assertThat(atualizarTelefone(TELEFONE).getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(telefoneProvedor()).isNull();
+            UUID mensagemRestaurada = enviar.executar(leadDaAna, "destino restaurado")
+                    .mensagem()
+                    .id();
+            assertThat(destinoDaOutbox(mensagemRestaurada)).isEqualTo(TELEFONE);
+            rodarPublisher();
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo(TELEFONE);
+            });
+        }
+
+        @Test
+        @DisplayName("editar telefone nao reescreve destino ja capturado por outbox existente")
+        void editarTelefone_naoRedirecionaOutboxExistente() {
+            jdbc.update(
+                    "UPDATE lead SET telefone_provedor = ? WHERE id = ?",
+                    TELEFONE_PROVEDOR_SEM_NONO,
+                    leadDaAna);
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            UUID mensagem = enviar.executar(leadDaAna, "mensagem ja enfileirada").mensagem().id();
+
+            assertThat(destinoDaOutbox(mensagem)).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            assertThat(atualizarTelefone("5561977777777").getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            assertThat(destinoDaOutbox(mensagem)).isEqualTo(TELEFONE_PROVEDOR_SEM_NONO);
+            assertThat(canal.enviados()).isEmpty();
+            assertThat(statusDaMensagem(mensagem)).isEqualTo("PENDENTE");
+        }
+
         /**
          * O cenario que motivou trazer a outbox da E07 para ca: o provedor cai no meio do envio.
          * Nenhuma mensagem se perde — ela espera e sai quando ele volta.
@@ -1094,6 +1160,31 @@ class CanalWhatsAppIT extends PostgresIT {
                 "SELECT count(*) FROM outbox_evento WHERE tipo = 'canal.mensagem.enviar'"
                         + " AND esgotado_em IS NOT NULL",
                 Integer.class);
+    }
+
+    private String destinoDaOutbox(UUID mensagemId) {
+        return jdbc.queryForObject(
+                "SELECT payload->>'telefoneDestino' FROM outbox_evento "
+                        + "WHERE tipo = 'canal.mensagem.enviar' AND payload->>'mensagemId' = ?",
+                String.class,
+                mensagemId.toString());
+    }
+
+    private String telefoneProvedor() {
+        return jdbc.queryForObject(
+                "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna);
+    }
+
+    private ResponseEntity<String> atualizarTelefone(String telefone) {
+        String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+        HttpHeaders cabecalhos = new HttpHeaders();
+        cabecalhos.setBearerAuth(token);
+        cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+        return http.exchange(
+                "/api/v1/leads/" + leadDaAna,
+                HttpMethod.PUT,
+                new HttpEntity<>(java.util.Map.of("telefone", telefone), cabecalhos),
+                String.class);
     }
 
     private int tentativasNaOutbox() {

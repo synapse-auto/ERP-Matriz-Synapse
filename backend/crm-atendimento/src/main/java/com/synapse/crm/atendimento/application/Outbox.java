@@ -56,6 +56,33 @@ public interface Outbox {
             ConteudoDeEnvio conteudo,
             String contextoWamid);
 
+    /**
+     * Enfileira junto do destino os enderecos observados na mesma leitura do lead. Eles permitem
+     * descartar o endereco retornado por uma resposta tardia se o usuario editou o contato antes
+     * do aceite chegar.
+     */
+    default void enfileirarEnvio(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            String contextoWamid,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado) {
+        enfileirarEnvio(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                contextoWamid);
+    }
+
     /** Enfileira envio originado por mensagem programada, preservando a origem no payload. */
     default void enfileirarEnvioProgramado(
             UUID mensagemId,
@@ -67,6 +94,29 @@ public interface Outbox {
             ConteudoDeEnvio conteudo,
             UUID mensagemProgramadaId) {
         enfileirarEnvio(mensagemId, enviadoEm, atendimentoId, leadId, telefoneDestino, credencialId, conteudo);
+    }
+
+    /** Variante de mensagem programada que preserva o snapshot do contato. */
+    default void enfileirarEnvioProgramado(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado) {
+        enfileirarEnvioProgramado(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                mensagemProgramadaId);
     }
 
     /**
@@ -156,7 +206,38 @@ public interface Outbox {
             UUID credencialId,
             ConteudoDeEnvio conteudo,
             int tentativas,
-            String contextoWamid) {
+            String contextoWamid,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado,
+            boolean possuiSnapshotDoContato) {
+
+        /** Compatibilidade com payloads antigos que ainda nao guardam o snapshot do contato. */
+        public EnvioPendente(
+                UUID outboxId,
+                UUID mensagemId,
+                Instant enviadoEm,
+                UUID atendimentoId,
+                UUID leadId,
+                String telefoneDestino,
+                UUID credencialId,
+                ConteudoDeEnvio conteudo,
+                int tentativas,
+                String contextoWamid) {
+            this(
+                    outboxId,
+                    mensagemId,
+                    enviadoEm,
+                    atendimentoId,
+                    leadId,
+                    telefoneDestino,
+                    credencialId,
+                    conteudo,
+                    tentativas,
+                    contextoWamid,
+                    null,
+                    null,
+                    false);
+        }
 
         public EnvioPendente(
                 UUID outboxId,
@@ -178,7 +259,10 @@ public interface Outbox {
                     credencialId,
                     conteudo,
                     tentativas,
-                    null);
+                    null,
+                    null,
+                    null,
+                    false);
         }
     }
 

@@ -20,6 +20,7 @@ import java.sql.Timestamp;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -684,15 +685,41 @@ class WebhookAvaliacaoIT extends PostgresIT {
     void respostaDaAutomacaoConcorrenteComFinalizacao_naoDeadlockNemDuplica() throws Exception {
         UUID id = criar(null, "5561988884103");
         UUID lead = leads.getLast();
-        executarDisputaDeterministica(
-                lead,
-                () -> postInterno("/internal/v1/atendimentos/" + id + "/responder", PREFIXO + "ia-" + id,
-                        Map.of("conteudo", "resposta da IA durante encerramento")),
-                () -> finalizar(id, tokenGestor),
-                (resposta, finalizacao) -> {
-                    assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
-                    assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-                });
+        var respostaPausou = new CountDownLatch(1);
+        var liberarResposta = new CountDownLatch(1);
+        var finalizacaoTentouTravar = new CountDownLatch(1);
+        var chamadasAoLock = new AtomicInteger();
+        doAnswer(inv -> {
+            respostaPausou.countDown();
+            assertThat(liberarResposta.await(8, TimeUnit.SECONDS)).isTrue();
+            return inv.callRealMethod();
+        }).when(leadsPorta).registrarInteracao(eq(lead), any(), anyInt(), anyInt());
+        doAnswer(inv -> {
+            if (chamadasAoLock.incrementAndGet() == 2) {
+                // A resposta da IA já mantém o lock. Sinalizar antes do FOR UPDATE permite
+                // liberar a resposta e comprovar que a finalização serializa sem deadlock.
+                finalizacaoTentouTravar.countDown();
+            }
+            return inv.callRealMethod();
+        }).when(leadsPorta).bloquearParaAtendimento(lead);
+        ResponseEntity<String> resposta;
+        ResponseEntity<String> finalizacao;
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var futuraResposta = executor.submit(() -> postInterno(
+                    "/internal/v1/atendimentos/" + id + "/responder", PREFIXO + "ia-" + id,
+                    Map.of("conteudo", "resposta da IA durante encerramento")));
+            assertThat(respostaPausou.await(8, TimeUnit.SECONDS)).isTrue();
+            var futuraFinalizacao = executor.submit(() -> finalizar(id, tokenGestor));
+            assertThat(finalizacaoTentouTravar.await(8, TimeUnit.SECONDS)).isTrue();
+            liberarResposta.countDown();
+            resposta = futuraResposta.get(10, TimeUnit.SECONDS);
+            finalizacao = futuraFinalizacao.get(10, TimeUnit.SECONDS);
+        } finally {
+            liberarResposta.countDown();
+            reset(leadsPorta);
+        }
+        assertThat(finalizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(status(id)).isEqualTo("FINALIZADO");
         assertThat(total(id)).isZero();
         assertThat(quantidadeDeMensagens(id)).isEqualTo(1);

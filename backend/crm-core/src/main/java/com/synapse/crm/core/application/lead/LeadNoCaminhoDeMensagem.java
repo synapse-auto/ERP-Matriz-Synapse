@@ -60,6 +60,19 @@ public interface LeadNoCaminhoDeMensagem {
     void registrarTelefoneProvedor(UUID leadId, String telefoneProvedor);
 
     /**
+     * Aprende o endereco devolvido por um envio somente se o contato nao mudou desde que a outbox
+     * capturou o destino. Impede que uma resposta tardia repovoe um {@code telefone_provedor}
+     * invalidado por edicao do telefone.
+     */
+    default boolean registrarTelefoneProvedorSeContatoAindaAtual(
+            UUID leadId,
+            String telefoneCanonicoEsperado,
+            String telefoneProvedorEsperado,
+            String telefoneProvedorNovo) {
+        return false;
+    }
+
+    /**
      * RN-CRM-06: o lead passa a ser de quem mandou a mensagem.
      *
      * <p>E a contrapartida do isolamento de agenda — o lead fica com quem trabalhou nele. Como
@@ -179,11 +192,20 @@ public interface LeadNoCaminhoDeMensagem {
      *     janela esta aberta e o adaptador de canal — aqui so se le o instante.
      */
     record ContatoParaEnvio(
-            String telefone, String telefoneDestino, Optional<Instant> ultimaMensagemDoLead) {
+            String telefone,
+            String telefoneProvedor,
+            String telefoneDestino,
+            Optional<Instant> ultimaMensagemDoLead) {
+
+        /** Compatibilidade para consumidores que ainda nao precisam do endereco observado. */
+        public ContatoParaEnvio(
+                String telefone, String telefoneDestino, Optional<Instant> ultimaMensagemDoLead) {
+            this(telefone, null, telefoneDestino, ultimaMensagemDoLead);
+        }
 
         /** Compatibilidade para chamadores que ainda nao precisam distinguir os enderecos. */
         public ContatoParaEnvio(String telefone, Optional<Instant> ultimaMensagemDoLead) {
-            this(telefone, telefone, ultimaMensagemDoLead);
+            this(telefone, null, telefone, ultimaMensagemDoLead);
         }
     }
 

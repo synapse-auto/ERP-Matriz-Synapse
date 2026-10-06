@@ -104,7 +104,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                     + "AND papel IN ('ATENDENTE', 'SUBGESTOR', 'GESTOR', 'ADMINISTRADOR', 'OPERADOR') ORDER BY id";
 
     private static final String SQL_CONTATO =
-            "SELECT telefone, COALESCE(telefone_provedor, telefone) AS telefone_destino, "
+            "SELECT telefone, telefone_provedor, COALESCE(telefone_provedor, telefone) AS telefone_destino, "
                     + "ultima_mensagem_do_lead_em FROM lead WHERE id = ?";
 
     private static final String SQL_NOME = "SELECT nome FROM lead WHERE id = ?";
@@ -120,6 +120,11 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
 
     private static final String SQL_ATUALIZAR_TELEFONE_PROVEDOR =
             "UPDATE lead SET telefone_provedor = ? WHERE id = ?";
+
+    private static final String SQL_ATUALIZAR_TELEFONE_PROVEDOR_SE_CONTATO_ATUAL =
+            "UPDATE lead SET telefone_provedor = ? WHERE id = ? "
+                    + "AND telefone IS NOT DISTINCT FROM ? "
+                    + "AND telefone_provedor IS NOT DISTINCT FROM ?";
 
     private static final String SQL_CRIAR_PARA_ATENDENTE =
             """
@@ -156,6 +161,22 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
     public void registrarTelefoneProvedor(UUID leadId, String telefoneProvedor) {
         TransacaoObrigatoria.exigir("registrarTelefoneProvedor");
         chat.update(SQL_ATUALIZAR_TELEFONE_PROVEDOR, telefoneProvedor, leadId);
+    }
+
+    @Override
+    public boolean registrarTelefoneProvedorSeContatoAindaAtual(
+            UUID leadId,
+            String telefoneCanonicoEsperado,
+            String telefoneProvedorEsperado,
+            String telefoneProvedorNovo) {
+        TransacaoObrigatoria.exigir("registrarTelefoneProvedorSeContatoAindaAtual");
+        return chat.update(
+                        SQL_ATUALIZAR_TELEFONE_PROVEDOR_SE_CONTATO_ATUAL,
+                        telefoneProvedorNovo,
+                        leadId,
+                        telefoneCanonicoEsperado,
+                        telefoneProvedorEsperado)
+                == 1;
     }
 
     @Override
@@ -340,6 +361,7 @@ class LeadNoCaminhoDeMensagemJdbc implements LeadNoCaminhoDeMensagem {
                         SQL_CONTATO,
                         (linha, indice) -> new ContatoParaEnvio(
                                 linha.getString("telefone"),
+                                linha.getString("telefone_provedor"),
                                 linha.getString("telefone_destino"),
                                 Optional.ofNullable(linha.getTimestamp("ultima_mensagem_do_lead_em"))
                                         .map(Timestamp::toInstant)),
