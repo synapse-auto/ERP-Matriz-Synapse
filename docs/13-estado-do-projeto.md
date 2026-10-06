@@ -4,6 +4,17 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 05/10/2026 — 409 "nenhum atendente está online e disponível" sem causa visível (E222, parte 1)
+
+Nos testes da Fêmina o n8n recebeu `409` em `transferir-proximo-humano` e o backend não deixava rastro: o
+`409` não era logado. Este PR é só **observabilidade**, sem mudar quem é elegível: cada `409` desse tipo grava
+um WARN `[TRANSFERENCIA_SEM_DESTINO]` com a estratégia, a contagem do funil (ativos → papel permitido →
+marcados para a IA → ONLINE), quantos elegíveis nunca tiveram linha em `disponibilidade_atendente_ia` e se o
+lead tinha responsável, e o corpo ganha o campo aditivo `motivo` (contrato em `docs/21`). Status, título e
+mensagem não mudam. **Não provado:** a causa nas execuções da Fêmina de 05/10 (o estado de presença na hora não
+fica gravado em lugar nenhum); a próxima ocorrência já traz os números. O relatório da auditoria do código vem
+na parte 2.
+
 ### 05/10/2026 — Encaminhar do Chat Interno para o cliente
 
 Texto e mídia (imagem, vídeo, áudio, documento) de uma conversa interna podem ser encaminhados ao cliente de um

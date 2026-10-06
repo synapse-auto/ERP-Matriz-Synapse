@@ -155,7 +155,7 @@ class TransferenciaAutomacaoInternalController {
                 @ApiResponse(responseCode = "400", description = "Idempotency-Key ausente ou inválido."),
                 @ApiResponse(responseCode = "401", description = "X-Synapse-Token ausente ou inválido."),
                 @ApiResponse(responseCode = "404", description = "Atendimento inexistente."),
-                @ApiResponse(responseCode = "409", description = "Nenhum atendente elegível, atendimento inválido ou chave reutilizada.")
+                @ApiResponse(responseCode = "409", description = "Nenhum atendente elegível, atendimento inválido ou chave reutilizada. Quando não há atendente, o corpo traz o campo aditivo `motivo` (SEM_ATENDENTE_ELEGIVEL, SEM_ATENDENTE_DISPONIVEL_PARA_IA, SEM_ATENDENTE_ONLINE ou NAO_DETERMINADO); status e mensagem não mudam.")
             })
     @PostMapping("/{id}/transferir-proximo-humano")
     ComandosAutomacaoUseCase.TransferenciaResposta transferirProximoHumano(
@@ -225,13 +225,20 @@ class TransferenciaAutomacaoInternalController {
 
     @ExceptionHandler({
         ChaveIdempotenciaReutilizadaException.class,
-        NenhumAtendenteDisponivelException.class,
         TransferenciaDaAutomacaoInvalidaException.class,
         RespostaAutomacaoInvalidaException.class,
         AtendimentoJaFinalizadoException.class
     })
     ProblemDetail aoConflitar(RuntimeException erro) {
         return problema(HttpStatus.CONFLICT, "Operacao nao pode ser aplicada", erro.getMessage());
+    }
+
+    /** Mesmo 409, mesmo titulo e mesma mensagem de sempre; `motivo` e so um campo a mais no corpo. */
+    @ExceptionHandler(NenhumAtendenteDisponivelException.class)
+    ProblemDetail aoNaoHaverAtendente(NenhumAtendenteDisponivelException erro) {
+        ProblemDetail problema = problema(HttpStatus.CONFLICT, "Operacao nao pode ser aplicada", erro.getMessage());
+        problema.setProperty("motivo", erro.motivo().name());
+        return problema;
     }
 
     @ExceptionHandler(ResultadoVendaObrigatorioException.class)
