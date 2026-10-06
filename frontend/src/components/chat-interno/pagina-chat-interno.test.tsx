@@ -10,6 +10,7 @@ import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 const capturas = vi.hoisted(() => ({
   lista: null as null | { onEncaminharCliente?: (mensagem: unknown) => void },
   dialogoCliente: null as null | { mensagem: unknown },
+  painelGrupo: null as null | { fotoUrl?: string | null; podeAlterarFoto?: boolean },
 }));
 
 const textos = vi.hoisted(() => ({
@@ -123,11 +124,14 @@ vi.mock("./avatar-do-grupo", () => ({
 vi.mock("./dialogo-selecionar-pessoa", () => ({ DialogoSelecionarPessoa: () => null }));
 vi.mock("./dialogo-criar-grupo", () => ({ DialogoCriarGrupo: () => null }));
 vi.mock("./painel-lateral-grupo", () => ({
-  PainelLateralGrupo: ({ onRetrair }: { onRetrair: () => void }) => (
-    <aside data-testid="painel-lateral-grupo">
-      <button type="button" onClick={onRetrair}>Retrair painel</button>
-    </aside>
-  ),
+  PainelLateralGrupo: (props: { onRetrair: () => void; fotoUrl?: string | null; podeAlterarFoto?: boolean }) => {
+    capturas.painelGrupo = props;
+    return (
+      <aside data-testid="painel-lateral-grupo" data-foto={props.fotoUrl ?? ""} data-pode-alterar-foto={String(Boolean(props.podeAlterarFoto))}>
+        <button type="button" onClick={props.onRetrair}>Retrair painel</button>
+      </aside>
+    );
+  },
 }));
 
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
@@ -250,6 +254,25 @@ describe("PaginaChatInterno", () => {
       expect(await screen.findByTestId("avatar-grupo-g1")).toHaveAttribute("data-foto", "/api/v1/chat-interno/conversas/g1/foto?v=1");
       expect(screen.getByTestId("avatar-grupo-g2")).toHaveAttribute("data-foto", "");
       expect(screen.queryByTestId("avatar-grupo-d1")).not.toBeInTheDocument();
+    });
+
+    it("o painel de detalhes recebe a foto e a permissão de edição decididas pelo backend", async () => {
+      vi.mocked(listarConversasChat).mockResolvedValue([
+        { ...conversas[0], fotoUrl: "/api/v1/chat-interno/conversas/g1/foto?v=9", podeAlterarFoto: true },
+        ...conversas.slice(1),
+      ]);
+      capturas.painelGrupo = null;
+
+      renderizar();
+      fireEvent.click(await screen.findByRole("button", { name: /Grupo 1/ }));
+
+      const painel = await screen.findByTestId("painel-lateral-grupo");
+      expect(painel).toHaveAttribute("data-foto", "/api/v1/chat-interno/conversas/g1/foto?v=9");
+      expect(painel).toHaveAttribute("data-pode-alterar-foto", "true");
+      expect(capturas.painelGrupo).toMatchObject({
+        fotoUrl: "/api/v1/chat-interno/conversas/g1/foto?v=9",
+        podeAlterarFoto: true,
+      });
     });
 
     it("evento de tempo real do chat recarrega a lista e a foto nova aparece sem F5", async () => {

@@ -290,6 +290,7 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
             onRetrair={() => setPainelGrupoAberto(false)}
             tipo={conversaAtual.tipo}
             fotoUrl={conversaAtual.fotoUrl}
+            podeAlterarFoto={conversaAtual.podeAlterarFoto}
             onSaiu={conversaAtual.tipo === "GRUPO" ? () => setConversaId(null) : undefined}
           />
         )}
