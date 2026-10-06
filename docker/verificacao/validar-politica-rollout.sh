@@ -71,11 +71,26 @@ for nome, monitor_minimo in {"backend": 180, "frontend": 90}.items():
         labels_text = " ".join(str(label) for label in labels)
     assert "/health/readiness" in labels_text, f"Traefik nao usa readiness: {nome}"
 
+# E221: o healthcheck do RabbitMQ sobe uma VM Erlang por execucao (~1 s de CPU). Em 15 s, tres brokers numa
+# VPS de 4 vCPU gastavam ~0,3 nucleo so nisso. O comando continua o mesmo; o que se protege e a frequencia
+# e que a falha ainda seja detectada em tempo razoavel (docs/18, "RabbitMQ: custo do healthcheck (E221)").
+rabbitmq = services.get("rabbitmq")
+assert rabbitmq is not None, "servico ausente: rabbitmq"
+hc_rabbit = rabbitmq.get("healthcheck", {})
+assert "check_running" in texto_healthcheck(hc_rabbit.get("test")), "healthcheck do rabbitmq mudou de comando"
+intervalo_rabbit = segundos(hc_rabbit.get("interval"))
+tentativas_rabbit = int(hc_rabbit.get("retries"))
+assert intervalo_rabbit >= 30, (
+    f"healthcheck do rabbitmq a cada {intervalo_rabbit}s: cada execucao sobe uma VM Erlang (E221)"
+)
+assert 3 <= tentativas_rabbit <= 5, f"retries do rabbitmq fora de 3..5: {tentativas_rabbit}"
+assert intervalo_rabbit * tentativas_rabbit <= 300, "rabbitmq levaria mais de 5 min para ser dado como doente"
+
 # Protege contra a regressao exata do incidente: monitorar menos tempo que a inicializacao
 # permite que o Swarm marque o task como falho antes do readiness real responder.
 assert not monitor_cobre_inicio(90, 60)
 assert monitor_cobre_inicio(90, 180)
 assert not monitor_cobre_inicio(15, 15)
 assert monitor_cobre_inicio(15, 90)
-print("politica de rollout valida: start-first, rollback, readiness no Traefik e monitores suficientes")
+print("politica de rollout valida: start-first, rollback, readiness no Traefik, monitores suficientes e healthcheck leve do rabbitmq")
 PY
