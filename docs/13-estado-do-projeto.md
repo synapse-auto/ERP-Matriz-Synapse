@@ -4,6 +4,17 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 06/10/2026 — JIT desligado no Postgres e pools de conexão declarados no stack (E224, só configuração)
+
+**O HML e o FMNA tiveram o JIT do Postgres desligado em 06/10 por `ALTER SYSTEM SET jit = off`**, feito pelo responsável na
+VPS (esta mudança não aplica nada em produção). Motivo, segundo as medições do responsável no HML: o JIT era ~27% do tempo
+de consulta e, numa listagem de leads, **3,4 s dos 3,4 s** da consulta eram JIT — o custo de compilar maior que o ganho em
+consultas curtas e repetidas. O `docker/dokploy-stack.yml` agora traz `-c jit=off` no Postgres, para o valor ser o padrão
+de instância nova e não depender de um `ALTER SYSTEM` que mora só no volume de dados. No backend, as seis variáveis dos
+pools Hikari (`SYNAPSE_DB_POOL_{GERAL,CHAT}_{MAX,MIN,TIMEOUT_MS}`) passam a ser declaradas no `environment:` — antes a
+variável definida no Dokploy **não chegava ao container** e valia sempre o padrão do código. Os padrões são exatamente os de
+hoje (chat 8/4/3000 ms; geral 12/2/30000 ms): comportamento inalterado. **Sem deploy:** ao fazer, o Postgres reinicia
+(docs/18, "JIT do Postgres e pools de conexão no stack"). Os números de JIT vêm do responsável, não foram reproduzidos aqui.
 
 ### 06/10/2026 — Presença automática atrás de chave desligada (E223, PR B)
 

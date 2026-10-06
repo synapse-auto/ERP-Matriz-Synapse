@@ -4,6 +4,12 @@
 services:
   postgres:
     image: postgres:15-alpine
+    # E224: JIT desligado. Em 06/10/2026 o JIT consumia ~27% do tempo de consulta no HML e, numa listagem de leads,
+    # 3,4 s dos 3,4 s da consulta (docs/18). As consultas do CRM sao curtas e repetidas: o custo de compilar passa a
+    # ser maior que o ganho. HML e FMNA ja foram ajustados por ALTER SYSTEM; isto torna o valor o padrao do stack
+    # (instancia nova ou volume recriado). O `-c` vence o postgresql.auto.conf.
+    # ATENCAO: mudar o `command` recria o servico no proximo deploy, o que reinicia o Postgres (docs/18).
+    command: ["postgres", "-c", "jit=off"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?obrigatoria}
       POSTGRES_USER: ${POSTGRES_USER:?obrigatoria}
@@ -168,6 +174,15 @@ services:
       SYNAPSE_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?obrigatoria}
       SYNAPSE_DB_USER: ${POSTGRES_USER:?obrigatoria}
       SYNAPSE_DB_PASSWORD: ${POSTGRES_PASSWORD:?obrigatoria}
+      # E224: pools Hikari. Os padroes sao exatamente os do application.yml (comportamento inalterado); declarar aqui e
+      # o que faz a variavel definida no Dokploy chegar ao container. Lidos so na subida: mudar exige redeploy do backend.
+      # geral = relatorios/gestao/jobs; chat = caminho critico (painel, mensagens). Soma maxima: 12 + 8 = 20 conexoes.
+      SYNAPSE_DB_POOL_GERAL_MAX: ${SYNAPSE_DB_POOL_GERAL_MAX:-12}
+      SYNAPSE_DB_POOL_GERAL_MIN: ${SYNAPSE_DB_POOL_GERAL_MIN:-2}
+      SYNAPSE_DB_POOL_GERAL_TIMEOUT_MS: ${SYNAPSE_DB_POOL_GERAL_TIMEOUT_MS:-30000}
+      SYNAPSE_DB_POOL_CHAT_MAX: ${SYNAPSE_DB_POOL_CHAT_MAX:-8}
+      SYNAPSE_DB_POOL_CHAT_MIN: ${SYNAPSE_DB_POOL_CHAT_MIN:-4}
+      SYNAPSE_DB_POOL_CHAT_TIMEOUT_MS: ${SYNAPSE_DB_POOL_CHAT_TIMEOUT_MS:-3000}
       SYNAPSE_MIGRATION_LOCK_TIMEOUT: ${SYNAPSE_MIGRATION_LOCK_TIMEOUT:-10s}
       SYNAPSE_MIGRATION_STATEMENT_TIMEOUT: ${SYNAPSE_MIGRATION_STATEMENT_TIMEOUT:-30m}
       SYNAPSE_MIGRATION_TOTAL_TIMEOUT: ${SYNAPSE_MIGRATION_TOTAL_TIMEOUT:-45m}
