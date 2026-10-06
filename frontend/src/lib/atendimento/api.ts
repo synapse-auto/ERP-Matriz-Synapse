@@ -19,6 +19,8 @@ import type {
   ParticipanteAtendimento,
   PedidoEntradaAtendimento,
   ResumoReacao,
+  ResultadoVenda,
+  ResultadoVendaResposta,
   TagResposta,
   TemplateWhatsApp,
   UsuarioResposta,
@@ -356,9 +358,23 @@ export function transferirAtendimento(
   });
 }
 
-export function finalizarAtendimento(atendimentoId: string): Promise<AtendimentoResumo> {
+export function finalizarAtendimento(
+  atendimentoId: string,
+  resultadoVenda?: ResultadoVenda,
+): Promise<AtendimentoResumo> {
   return apiFetch<AtendimentoResumo>(`/api/v1/atendimentos/${atendimentoId}/finalizar`, {
     method: "POST",
+    body: resultadoVenda ? JSON.stringify({ resultadoVenda }) : undefined,
+  });
+}
+
+export function registrarResultadoVenda(
+  atendimentoId: string,
+  resultado: ResultadoVenda,
+): Promise<ResultadoVendaResposta> {
+  return apiFetch<ResultadoVendaResposta>(`/api/v1/atendimentos/${atendimentoId}/resultado-venda`, {
+    method: "PUT",
+    body: JSON.stringify({ resultado }),
   });
 }
 

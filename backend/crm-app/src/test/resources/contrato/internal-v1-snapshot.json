@@ -369,6 +369,52 @@
         }
       }
     },
+    "/internal/v1/atendimentos/{id}/negociacao" : {
+      "post" : {
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClassificarNegociacaoRequisicao"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassificacaoNegociacaoResposta"
+                }
+              }
+            }
+          },
+          "400" : { },
+          "401" : { },
+          "403" : { },
+          "404" : { },
+          "409" : { }
+        }
+      }
+    },
     "/internal/v1/atendimentos/{id}/responder" : {
       "post" : {
         "parameters" : [ {
@@ -1569,6 +1615,30 @@
           "type" : "boolean"
         }
       },
+      "type" : "object"
+    },
+    "ClassificacaoNegociacaoResposta" : {
+      "properties" : {
+        "alterado" : {
+          "type" : "boolean"
+        },
+        "atendimentoId" : {
+          "format" : "uuid",
+          "type" : "string"
+        },
+        "emNegociacao" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "ClassificarNegociacaoRequisicao" : {
+      "properties" : {
+        "emNegociacao" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "emNegociacao" ],
       "type" : "object"
     },
     "CandidatosResposta" : {

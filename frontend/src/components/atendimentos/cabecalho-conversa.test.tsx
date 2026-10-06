@@ -7,6 +7,7 @@ import type { CartaoAtendimento, EstadoAtendimentoSelecionado } from "@/lib/aten
 import { ErroDeApi } from "@/lib/api/errors";
 
 const finalizar = vi.fn();
+const registrarResultadoVenda = vi.fn();
 const participacao = vi.hoisted(() => ({
   usuarioId: "usuario-1",
   papel: "GESTOR",
@@ -44,6 +45,7 @@ vi.mock("@/lib/atendimento/use-participacao", () => ({
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
+  useRegistrarResultadoVenda: () => ({ mutate: registrarResultadoVenda, isPending: false }),
 }));
 
 vi.mock("@/lib/lead/use-painel-lead", () => ({
@@ -98,6 +100,20 @@ vi.mock("@/lib/config/textos-provider", () => ({
         cancelar: "Cancelar",
         sucesso: "Finalizado",
         erro: "Erro",
+        vendeuTitulo: "Vendeu?",
+        vendeuDescricao: "Registre o resultado comercial antes de finalizar este atendimento.",
+        vendeu: "Vendeu",
+        naoVendeu: "Não vendeu",
+        cancelarResultado: "Cancelar",
+        registrarVenda: "Registrar venda",
+        registrarVendaTitulo: "Registrar venda",
+        registrarVendaDescricao: "Confirme que este atendimento resultou em uma venda.",
+        registrarVendaConfirmar: "Confirmar venda",
+        registrando: "Registrando...",
+        registrarVendaSucesso: "Venda registrada no atendimento.",
+        resultadoVendaErro: "Não foi possível registrar o resultado comercial.",
+        vendaRegistradaPor: "Registrado por {nome}",
+        vendaRegistradaEm: "Registrado em {data}",
         todosMenu: "Mais ações",
         todos: "Finalizar Todos",
         todosTitulo: "Finalizar atendimentos",
@@ -181,6 +197,8 @@ function estado(
 
 describe("CabecalhoConversa", () => {
   beforeEach(() => {
+    finalizar.mockReset();
+    registrarResultadoVenda.mockReset();
     participacao.papel = "GESTOR";
     participacao.participantes = [];
     participacao.meuPedido = null;
@@ -223,6 +241,92 @@ describe("CabecalhoConversa", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+  });
+
+  it("finaliza normalmente sem negociação e abre o resultado apenas quando a IA marcou negociação", () => {
+    const { rerender } = render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado()}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    rerender(
+      <CabecalhoConversa
+        conversa={{ ...conversa, emNegociacao: true }}
+        estado={estado()}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    expect(screen.getByRole("dialog", { name: "Vendeu?" })).toBeInTheDocument();
+    expect(finalizar).toHaveBeenCalledTimes(1);
+  });
+
+  it("registra venda junto da finalização e Cancelar não finaliza", () => {
+    const { rerender } = render(
+      <CabecalhoConversa
+        conversa={{ ...conversa, emNegociacao: true }}
+        estado={estado()}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vendeu" }));
+    expect(finalizar).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", resultadoVenda: "VENDEU" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    finalizar.mock.calls[0]?.[1]?.onSuccess();
+
+    rerender(
+      <CabecalhoConversa
+        conversa={{ ...conversa, emNegociacao: true }}
+        estado={estado()}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(finalizar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("permite registrar manualmente o resultado sem finalizar o atendimento", () => {
+    render(
+      <CabecalhoConversa
+        conversa={conversa}
+        estado={estado()}
+        buscaAberta={false}
+        onAlternarBusca={vi.fn()}
+        painelDetalhesAberto
+        onAlternarPainelDetalhes={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Registrar venda" }));
+    expect(screen.getByRole("dialog", { name: "Registrar venda" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar venda" }));
+    expect(registrarResultadoVenda).toHaveBeenCalledWith(
+      { atendimentoId: "atendimento-1", resultado: "VENDEU" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    expect(finalizar).not.toHaveBeenCalled();
   });
 
   it("mantém a ação individual e não oferece o menu global de finalização", () => {
@@ -616,7 +720,7 @@ describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
     abrirMenu();
     await screen.findByRole("menu");
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "Convidar", "Transferir", "Tags", "Telefone: (61) 99999-0000", "Reabrir detalhes do lead",
+      "Convidar", "Transferir", "Registrar venda", "Tags", "Telefone: (61) 99999-0000", "Reabrir detalhes do lead",
     ]);
     expect(screen.getByRole("menuitemcheckbox", { name: "Buscar na conversa" })).toBeInTheDocument();
   });

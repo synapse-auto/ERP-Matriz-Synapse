@@ -1,8 +1,11 @@
 package com.synapse.crm.atendimento.application.painel;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 
 /**
@@ -38,4 +41,25 @@ public record CartaoAtendimento(
         String ultimaMensagemRemetenteTipo,
         Instant ultimaMensagemEm,
         Instant ultimaMensagemDoLeadEm,
-        long naoLidas) {}
+        long naoLidas,
+        boolean emNegociacao,
+        ResultadoVenda resultadoVenda,
+        BigDecimal valorVenda,
+        UUID vendaRegistradaPorId,
+        String vendaRegistradaPorNome,
+        Instant vendaRegistradaEm,
+        OrigemResultadoVenda origemResultadoVenda) {
+
+    /** Compatibilidade para fixtures e consumidores que ainda não projetam os dados comerciais. */
+    public CartaoAtendimento(
+            UUID atendimentoId, UUID leadId, String leadNome, String leadFotoUrl, String leadEmpresa,
+            String leadCodigo, String canalTipo, UUID etapaId, String etapaNome, String etapaCor,
+            StatusAtendimento status, UUID atendenteId, String atendenteNome, UUID atendimentoAtivoId,
+            String ultimaMensagemPreview, String ultimaMensagemRemetenteTipo, Instant ultimaMensagemEm,
+            Instant ultimaMensagemDoLeadEm, long naoLidas) {
+        this(atendimentoId, leadId, leadNome, leadFotoUrl, leadEmpresa, leadCodigo, canalTipo, etapaId,
+                etapaNome, etapaCor, status, atendenteId, atendenteNome, atendimentoAtivoId,
+                ultimaMensagemPreview, ultimaMensagemRemetenteTipo, ultimaMensagemEm,
+                ultimaMensagemDoLeadEm, naoLidas, false, null, null, null, null, null, null);
+    }
+}
