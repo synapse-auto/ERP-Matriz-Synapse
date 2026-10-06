@@ -1,5 +1,16 @@
 import { apiFetch } from "@/lib/api/http-client";
-import type { ChatContato, ChatConversa, ChatMensagem, ChatParticipante, MidiaDoGrupo, PaginaChatMensagens } from "./types";
+import type {
+  ChatContato,
+  ChatConversa,
+  ChatMensagem,
+  ChatParticipante,
+  DestinoDoEncaminhamento,
+  EncaminhamentoAoCliente,
+  FotoDoGrupo,
+  MidiaDoGrupo,
+  PaginaChatMensagens,
+  PreviaDoEncaminhamentoAoCliente,
+} from "./types";
 
 export const listarConversasChat = () => apiFetch<ChatConversa[]>("/api/v1/chat-interno/conversas");
 export const listarContatosChat = () => apiFetch<ChatContato[]>("/api/v1/chat-interno/contatos");
@@ -26,6 +37,13 @@ export const renomearGrupoChat = (conversaId: string, nome: string) =>
     method: "PUT",
     body: JSON.stringify({ nome }),
   });
+export const atualizarFotoDoGrupoChat = (conversaId: string, arquivo: File) => {
+  const formData = new FormData();
+  formData.append("arquivo", arquivo);
+  return apiFetch<FotoDoGrupo>(`/api/v1/chat-interno/conversas/${conversaId}/foto`, { method: "POST", body: formData });
+};
+export const removerFotoDoGrupoChat = (conversaId: string) =>
+  apiFetch<FotoDoGrupo>(`/api/v1/chat-interno/conversas/${conversaId}/foto`, { method: "DELETE" });
 export const listarMensagensChat = (id: string, antesDe?: string | null) =>
   apiFetch<PaginaChatMensagens>(`/api/v1/chat-interno/conversas/${id}/mensagens${antesDe ? `?antesDe=${encodeURIComponent(antesDe)}` : ""}`);
 export const obterMensagemChat = (conversaId: string, mensagemId: string) =>
@@ -82,3 +100,27 @@ export const editarMensagemChat = (conversaId: string, mensagemId: string, conte
     method: "PATCH",
     body: JSON.stringify({ conteudo }),
   });
+
+export const previaDoEncaminhamentoAoCliente = (atendimentoId: string, conversaId: string, mensagemId: string) =>
+  apiFetch<PreviaDoEncaminhamentoAoCliente>(
+    `/api/v1/atendimentos/${atendimentoId}/encaminhamento-do-chat-interno/previa?conversaId=${conversaId}&mensagemId=${mensagemId}`,
+  );
+
+/** A chave é gerada uma vez por tentativa de quem chama: repetir o mesmo clique não reenvia ao cliente. */
+export const encaminharAoCliente = (atendimentoId: string, conversaId: string, mensagemId: string, chave: string) =>
+  apiFetch<EncaminhamentoAoCliente>(`/api/v1/atendimentos/${atendimentoId}/encaminhamento-do-chat-interno`, {
+    method: "POST",
+    headers: { "Idempotency-Key": chave },
+    body: JSON.stringify({ conversaId, mensagemId }),
+  });
+
+export const listarEncaminhamentosAoCliente = (conversaId: string, mensagemId: string) =>
+  apiFetch<EncaminhamentoAoCliente[]>(
+    `/api/v1/chat-interno/conversas/${conversaId}/mensagens/${mensagemId}/encaminhamentos-ao-cliente`,
+  );
+
+/** Busca no servidor, sob o alcance do usuário; no máximo 20 resultados, telefone mascarado. */
+export const buscarDestinosDoEncaminhamento = (busca: string) =>
+  apiFetch<DestinoDoEncaminhamento[]>(
+    `/api/v1/atendimentos/encaminhamento-do-chat-interno/destinos?busca=${encodeURIComponent(busca)}`,
+  );

@@ -18,7 +18,7 @@ vi.mock("next/dynamic", () => ({
 import type { Textos } from "@/lib/config/schema";
 import type { ChatMensagem } from "@/lib/chat-interno/types";
 
-import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno } from "./componentes-chat-interno";
+import { CabecalhoChatInterno, ComposerChatInterno, ListaMensagensChatInterno, encaminhavelAoCliente } from "./componentes-chat-interno";
 import { TextosProvider } from "@/lib/config/textos-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -39,6 +39,7 @@ const mockTextosCompletos = {
     encaminharConfirmar: "Encaminhar",
     encaminharCancelar: "Cancelar",
     encaminharErro: "Não foi possível encaminhar a mensagem.",
+    encaminharCliente: { acao: "Encaminhar para o cliente", titulo: "Encaminhar para o cliente", statusTitulo: "Acompanhamento do envio", previaTitulo: "Confirme o envio ao cliente", descricao: "Escolha o atendimento.", voltar: "Voltar", cancelar: "Cancelar", fechar: "Fechar", enviando: "Enviando…", confirmar: "Enviar ao cliente" },
     tipoGrupo: "Grupo",
     tipoDireta: "Conversa direta",
     midias: { titulo: "Mídias compartilhadas", vazio: "Nenhuma mídia compartilhada.", carregando: "Carregando mídias...", erro: "Não foi possível carregar as mídias.", carregarMais: "Carregar mais", abrir: "Abrir {nome}", baixar: "Baixar {nome}" },
@@ -52,6 +53,16 @@ const mockTextosCompletos = {
       participanteSaiu: "{alvo} saiu do grupo",
       nomeAlterado: "renomeou o grupo para {nome}",
       eventoDesconhecido: "atualização do grupo",
+      fotoAlterada: "alterou a foto do grupo",
+      fotoRemovida: "removeu a foto do grupo",
+    },
+    fotoGrupo: {
+      titulo: "Foto do grupo", alterar: "Alterar foto", remover: "Remover foto",
+      escolher: "Escolher imagem para a foto do grupo", previa: "Prévia da nova foto do grupo",
+      confirmar: "Salvar foto", enviando: "Enviando…", cancelar: "Cancelar", fotoAlt: "Foto do grupo {nome}",
+      erroTipo: "Escolha uma imagem JPEG, PNG ou WebP.", erroPermissao: "Somente quem criou o grupo pode alterar a foto.",
+      erroTamanho: "A imagem é grande demais.", erroImagem: "Não foi possível usar essa imagem.",
+      erroIndisponivel: "O armazenamento de imagens está indisponível.", erroGenerico: "Não foi possível salvar a foto.",
     },
   },
   atendimentos: {
@@ -148,6 +159,26 @@ describe("componentes de apresentação do chat interno", () => {
     expect(screen.getByText("Ana criou o grupo Ops").closest("[data-slot='mensagem-sistema-chat']")).toBeTruthy();
   });
 
+  it("renderiza as mensagens de sistema da foto do grupo", () => {
+    const fotos: ChatMensagem[] = ["FOTO_ALTERADA", "FOTO_REMOVIDA"].map((evento, indice) => ({
+      id: `f${indice}`,
+      conversaId: "c1",
+      remetenteId: "u1",
+      remetenteNome: "Ana",
+      tipo: "SISTEMA",
+      conteudo: JSON.stringify({ evento }),
+      enviadoEm: `2026-09-01T12:0${indice}:00Z`,
+    }));
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno mensagens={fotos} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />
+      </TextosProvider>,
+    );
+
+    expect(screen.getByText("Ana alterou a foto do grupo")).toBeInTheDocument();
+    expect(screen.getByText("Ana removeu a foto do grupo")).toBeInTheDocument();
+  });
+
   it("posiciona a mensagem própria pela id real e identifica o remetente recebido", () => {
     const { container } = render(<TextosProvider textos={mockTextosCompletos}><ListaMensagensChatInterno mensagens={mensagens} usuarioAtual="u1" textos={textos} onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} /></TextosProvider>);
     const linhas = container.querySelectorAll('[data-slot="interacao-mensagem"]');
@@ -202,6 +233,73 @@ describe("componentes de apresentação do chat interno", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Ações da mensagem" })[0]);
     fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
     await waitFor(() => expect(excluir).toHaveBeenCalledWith(mensagens[0]));
+  });
+
+  const base = { conversaId: "c1", remetenteId: "u2", remetenteNome: "Bruno", enviadoEm: "2026-10-05T12:00:00Z" };
+
+  it.each([
+    ["texto", { tipo: "TEXTO", conteudo: "texto" }, true],
+    ["imagem", { tipo: "IMAGEM", conteudo: null, midiaUrl: "midia/a.png", midiaMetadados: { nome_original: "a.png" } }, true],
+    ["mensagem apagada", { tipo: "TEXTO", conteudo: null, removida: true }, false],
+  ])("Encaminhar para o cliente com o callback: %s -> %s", (_nome, parcial, oferece) => {
+    const encaminharCliente = vi.fn();
+    const mensagem = { ...base, id: "m", ...parcial } as unknown as ChatMensagem;
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={[mensagem]}
+          usuarioAtual="u1"
+          textos={textos}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+          onEncaminharCliente={encaminharCliente}
+        />
+      </TextosProvider>,
+    );
+
+    const acoes = screen.queryByRole("button", { name: "Ações da mensagem" });
+    if (acoes) fireEvent.click(acoes);
+    const entrada = screen.queryByRole("button", { name: "Encaminhar para o cliente" });
+
+    expect(Boolean(entrada)).toBe(oferece);
+    if (entrada) {
+      fireEvent.click(entrada);
+      expect(encaminharCliente).toHaveBeenCalledWith(mensagem);
+    }
+  });
+
+  it("sem o callback (quem não pode responder) a ação não aparece, nem para texto", () => {
+    render(
+      <TextosProvider textos={mockTextosCompletos}>
+        <ListaMensagensChatInterno
+          mensagens={[{ ...base, id: "m", tipo: "TEXTO", conteudo: "texto" } as ChatMensagem]}
+          usuarioAtual="u1"
+          textos={textos}
+          onDefinirReacao={vi.fn()}
+          onRemoverReacao={vi.fn()}
+        />
+      </TextosProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+
+    expect(screen.queryByRole("button", { name: "Encaminhar para o cliente" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [{ tipo: "TEXTO", conteudo: "oi" }, true],
+    [{ tipo: "TEXTO", conteudo: "   " }, false],
+    [{ tipo: undefined, conteudo: "sem tipo e com texto" }, true],
+    [{ tipo: "VIDEO", conteudo: null, midiaUrl: "midia/v.mp4" }, true],
+    [{ tipo: "AUDIO", conteudo: null, midiaMetadados: { mimetype: "audio/ogg" } }, true],
+    [{ tipo: "DOCUMENTO", conteudo: null }, false],
+    [{ tipo: "SISTEMA", conteudo: "{}" }, false],
+    [{ tipo: "CONTATO", conteudo: null, midiaMetadados: {} }, false],
+    [{ tipo: "TEXTO", conteudo: "apagada", removida: true }, false],
+  ])("encaminhavelAoCliente(%j) = %s", (parcial, esperado) => {
+    const mensagem = { id: "m", conversaId: "c", remetenteId: "u", remetenteNome: "N", enviadoEm: "2026-10-05T12:00:00Z", ...parcial } as ChatMensagem;
+
+    expect(encaminhavelAoCliente(mensagem)).toBe(esperado);
   });
 
   it("oferece editar somente para texto próprio e marca a mensagem editada", async () => {

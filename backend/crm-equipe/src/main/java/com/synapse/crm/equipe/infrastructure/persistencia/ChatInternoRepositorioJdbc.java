@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
+import com.synapse.crm.equipe.application.chat.UrlDaFotoDoGrupo;
 import com.synapse.crm.equipe.domain.chat.TipoConversaChat;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 
@@ -30,7 +31,9 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
                        WHERE nova.conversa_id = c.id AND nova.remetente_id <> ?
                          AND nova.enviado_em > COALESCE(cp.lido_ate, TIMESTAMPTZ 'epoch')), 0) AS nao_lidas,
                    CASE WHEN c.tipo = 'DIRETA' AND MAX(u.foto_referencia) IS NOT NULL
-                        THEN '/api/v1/me/foto/' || MAX(u.id::text) END AS foto_url
+                        THEN '/api/v1/me/foto/' || MAX(u.id::text) END AS foto_url,
+                   c.foto_atualizada_em AS foto_versao,
+                   (c.tipo = 'GRUPO' AND c.criado_por_id = ?) AS pode_alterar_foto
               FROM chat_interno_conversa c
               JOIN chat_interno_participante cp ON cp.conversa_id = c.id AND cp.usuario_id = ?
               LEFT JOIN chat_interno_participante outros ON outros.conversa_id = c.id
@@ -38,7 +41,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
               LEFT JOIN usuario u ON u.id = outros.usuario_id
               LEFT JOIN LATERAL (SELECT m.conteudo, m.enviado_em, m.removida_em FROM chat_interno_mensagem m
                 WHERE m.conversa_id = c.id ORDER BY m.enviado_em DESC LIMIT 1) ultima ON TRUE
-             GROUP BY c.id, c.tipo, c.nome, ultima.conteudo, ultima.enviado_em, ultima.removida_em, cp.lido_ate
+             GROUP BY c.id, c.tipo, c.nome, c.foto_atualizada_em, c.criado_por_id,
+                      ultima.conteudo, ultima.enviado_em, ultima.removida_em, cp.lido_ate
             """;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
@@ -52,7 +56,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     public List<ConversaResumo> listarConversas(UUID usuarioId) {
         String sql = SQL_LISTAR_CONVERSAS
                 + " ORDER BY COALESCE(ultima.enviado_em, c.criado_em) DESC";
-        return jdbc.query(sql, ChatInternoRepositorioJdbc::mapearConversa, usuarioId, usuarioId, usuarioId);
+        return jdbc.query(sql, ChatInternoRepositorioJdbc::mapearConversa,
+                usuarioId, usuarioId, usuarioId, usuarioId);
     }
 
     @Override
@@ -60,7 +65,7 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
             UUID depoisDoId, int limite) {
         String base = SQL_LISTAR_CONVERSAS;
         String filtro = "";
-        List<Object> parametros = new java.util.ArrayList<>(List.of(usuarioId, usuarioId, usuarioId));
+        List<Object> parametros = new java.util.ArrayList<>(List.of(usuarioId, usuarioId, usuarioId, usuarioId));
         if (depoisDoId != null && depoisDe == null) {
             filtro = " WHERE ultima_mensagem_em IS NULL AND id < ?";
             parametros.add(depoisDoId);
@@ -71,7 +76,8 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
             parametros.add(Timestamp.from(depoisDe));
             parametros.add(depoisDoId);
         }
-        String sql = "SELECT id,tipo,participantes,ultima_mensagem,ultima_mensagem_em,nao_lidas,foto_url FROM ("
+        String sql = "SELECT id,tipo,participantes,ultima_mensagem,ultima_mensagem_em,nao_lidas,foto_url,"
+                + "foto_versao,pode_alterar_foto FROM ("
                 + base + ") itens" + filtro
                 + " ORDER BY ultima_mensagem_em DESC NULLS LAST, id DESC LIMIT ?";
         parametros.add(Math.min(101, Math.max(1, limite)));
@@ -180,6 +186,37 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
     @Override
     public void renomearGrupo(UUID conversaId, String nome) {
         jdbc.update("UPDATE chat_interno_conversa SET nome=? WHERE id=? AND tipo='GRUPO'", nome, conversaId);
+    }
+
+    @Override
+    public Optional<FotoDoGrupo> bloquearFotoDoGrupo(UUID conversaId) {
+        return jdbc.query(
+                "SELECT criado_por_id, foto_referencia FROM chat_interno_conversa"
+                        + " WHERE id = ? AND tipo = 'GRUPO' FOR UPDATE",
+                (r, i) -> new FotoDoGrupo(r.getObject("criado_por_id", UUID.class), r.getString("foto_referencia")),
+                conversaId)
+                .stream().findFirst();
+    }
+
+    @Override
+    public Optional<String> referenciaDaFotoDoGrupo(UUID conversaId) {
+        return jdbc.query(
+                "SELECT foto_referencia FROM chat_interno_conversa"
+                        + " WHERE id = ? AND tipo = 'GRUPO' AND foto_referencia IS NOT NULL",
+                (r, i) -> r.getString(1),
+                conversaId)
+                .stream().findFirst();
+    }
+
+    @Override
+    public boolean definirFotoDoGrupo(UUID conversaId, UUID criadorId, String referencia, Instant versao) {
+        return jdbc.update(
+                "UPDATE chat_interno_conversa SET foto_referencia = ?, foto_atualizada_em = ?"
+                        + " WHERE id = ? AND tipo = 'GRUPO' AND criado_por_id = ?",
+                referencia,
+                versao == null ? null : Timestamp.from(versao),
+                conversaId,
+                criadorId) == 1;
     }
 
     @Override
@@ -363,7 +400,18 @@ class ChatInternoRepositorioJdbc implements ChatInternoRepositorio {
         return new ConversaResumo(
                 r.getObject("id", UUID.class), TipoConversaChat.valueOf(r.getString("tipo")),
                 r.getString("participantes"), r.getString("ultima_mensagem"),
-                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas"), r.getString("foto_url"));
+                instant(r, "ultima_mensagem_em"), r.getLong("nao_lidas"), fotoDaConversa(r),
+                r.getBoolean("pode_alterar_foto"));
+    }
+
+    /** Direta usa a foto do outro usuario; grupo usa a propria, versionada; o resto nao tem foto. */
+    private static String fotoDaConversa(ResultSet r) throws SQLException {
+        String fotoDoOutroUsuario = r.getString("foto_url");
+        if (fotoDoOutroUsuario != null) {
+            return fotoDoOutroUsuario;
+        }
+        Instant versao = instant(r, "foto_versao");
+        return versao == null ? null : UrlDaFotoDoGrupo.de(r.getObject("id", UUID.class), versao);
     }
 
     private static Instant instant(ResultSet r, String coluna) throws SQLException {

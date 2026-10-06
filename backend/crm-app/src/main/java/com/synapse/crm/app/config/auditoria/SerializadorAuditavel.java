@@ -39,7 +39,11 @@ public class SerializadorAuditavel {
             "PERMISSAO", Set.of("papel", "usuarioId", "operacao", "revisaoAnterior", "revisao", "excecoes"),
             // Finalizacao em massa: filtros, escopo e resultado. Sem nome de lead, telefone nem mensagem.
             "FINALIZACAO_EM_MASSA", Set.of("id", "solicitanteId", "atendenteIds", "periodoInicio", "periodoFim", "fuso",
-                    "status", "encontrados", "finalizados", "ignorados", "falhas", "criadaEm", "concluidaEm"));
+                    "status", "encontrados", "finalizados", "ignorados", "falhas", "criadaEm", "concluidaEm"),
+            // Encaminhar do Chat Interno ao cliente (docs/61): so identificadores, tipo e efeito. Nunca o texto
+            // da mensagem, o nome do cliente nem o telefone.
+            "CHAT_INTERNO_ENCAMINHAMENTO_CLIENTE", Set.of("id", "usuarioId", "conversaId", "mensagemInternaId",
+                    "atendimentoId", "leadId", "mensagemExternaId", "tipo", "transferiuOLead", "conviteCriado"));
 
     private final ObjectMapper mapper;
 
