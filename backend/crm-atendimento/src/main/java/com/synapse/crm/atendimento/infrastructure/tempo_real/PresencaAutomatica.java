@@ -167,7 +167,8 @@ public class PresencaAutomatica {
 
     /**
      * Compara o banco com o registro de sessoes e rebaixa quem passou da tolerancia (e da carencia de partida).
-     * Publico porque o agendamento fica desligado nos testes de integracao, que chamam a varredura como o runtime.
+     * USO EM TESTE: a visibilidade publica existe so para os testes de integracao, que chamam a varredura como o
+     * runtime (o agendamento fica desligado neles). Em producao quem a chama e o agendador desta classe.
      */
     public synchronized void varrer() {
         if (encerrando) {
@@ -202,9 +203,9 @@ public class PresencaAutomatica {
     }
 
     /**
-     * Esquece o que se sabe de um usuario (se tem sessao, desde quando nao tem). Para diagnostico e para os testes de
-     * integracao, que reaproveitam o mesmo bean entre cenarios: sem isto, reconectar dentro da tolerancia do cenario
-     * anterior seria (corretamente) tratado como continuacao da sessao.
+     * USO EM TESTE: nada em producao chama este metodo. Esquece o que se sabe de um usuario (se tem sessao, desde
+     * quando nao tem) para os testes de integracao, que reaproveitam o mesmo bean entre cenarios: sem isto,
+     * reconectar dentro da tolerancia do cenario anterior seria (corretamente) tratado como continuacao da sessao.
      */
     public synchronized void limparEstadoDe(UUID usuarioId) {
         comSessao.remove(usuarioId);

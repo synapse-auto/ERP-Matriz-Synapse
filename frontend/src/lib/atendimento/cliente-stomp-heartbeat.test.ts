@@ -2,13 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 
 const construcoes = vi.hoisted(() => [] as Record<string, unknown>[]);
 
-vi.mock("@stomp/stompjs", () => ({
+// TickerStrategy vem do módulo real: o teste confere o valor que o stompjs de fato interpreta.
+vi.mock("@stomp/stompjs", async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import("@stomp/stompjs")>()),
   Client: class {
     constructor(configuracao: Record<string, unknown>) {
       construcoes.push(configuracao);
     }
   },
 }));
+
+import { TickerStrategy } from "@stomp/stompjs";
 
 import { clienteStompPadrao, HEARTBEAT_MS } from "./tempo-real";
 
@@ -29,6 +33,17 @@ describe("clienteStompPadrao", () => {
       heartbeatOutgoing: HEARTBEAT_MS,
     });
     expect(HEARTBEAT_MS).toBe(10_000);
+  });
+
+  it("roda o pulso num Worker, para a aba em segundo plano não parecer desconectada", () => {
+    construcoes.length = 0;
+
+    clienteStompPadrao({ brokerUrl: "ws://localhost:8080/ws", accessToken: "token-123" });
+
+    expect(construcoes[0].heartbeatStrategy).toBe(TickerStrategy.Worker);
+    // O intervalo combinado com o backend não muda com a troca de estratégia.
+    expect(construcoes[0].heartbeatIncoming).toBe(10_000);
+    expect(construcoes[0].heartbeatOutgoing).toBe(10_000);
   });
 
   it("mantém o backoff próprio e o token na URL do broker", () => {
