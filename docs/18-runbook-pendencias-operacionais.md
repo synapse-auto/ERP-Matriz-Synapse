@@ -997,6 +997,59 @@ SELECT u.nome, u.papel, u.ativo, u.status_presenca, d.disponivel_para_ia,
  WHERE u.papel IN ('ATENDENTE','SUBGESTOR') ORDER BY u.nome;
 ```
 
+### Presença automática (E223, PR B): ligar, desligar, conferir e reverter
+
+**O que faz** (só com a chave ligada): ao conectar o WebSocket o usuário passa a ONLINE, mesmo que tenha saído OFFLINE ou
+AUSENTE; durante a sessão a escolha manual (AUSENTE/OFFLINE) vale; sem **nenhuma** sessão por mais que a tolerância vira
+OFFLINE (origem `SISTEMA`, motivo `DESCONEXAO`). Várias abas ou aparelhos contam como uma pessoa. AUSENTE continua só
+manual. O rodízio **não mudou**: continua exigindo ONLINE + marcado para a IA; ONLINE passa a significar "conectado e
+disponível". Reconectar dentro da tolerância (o frontend troca o socket a cada renovação do token) é a mesma sessão: não
+muda nada e não grava histórico.
+
+**Ligar e desligar — sem deploy** (a chave é lida a cada ~15 s):
+
+```sql
+UPDATE configuracao_automacao SET valor = 'true'  WHERE chave = 'presenca.automatica';  -- liga
+UPDATE configuracao_automacao SET valor = 'false' WHERE chave = 'presenca.automatica';  -- desliga (volta ao PR A)
+SELECT chave, valor FROM configuracao_automacao WHERE chave = 'presenca.automatica';
+```
+
+Entrega **desligada** (`false`). Desligada, nada muda presença sozinho; o histórico continua gravando os cliques.
+
+**Tempos** (variáveis de ambiente do backend; **não precisam ser declaradas** no stack, valem os padrões):
+`WS_PRESENCA_TOLERANCIA` (padrão `90s`: sem sessão por mais que isso vira OFFLINE; tem de ser maior que o teto do backoff
+de reconexão de 15–30 s), `WS_PRESENCA_CARENCIA` (padrão `120s`: depois que o backend sobe ninguém é marcado OFFLINE,
+porque o registro de sessões está vazio até os clientes voltarem; sem isso cada deploy esvaziaria o rodízio),
+`WS_PRESENCA_INTERVALO_VARREDURA` (padrão `15s`). O atraso máximo até o OFFLINE é tolerância + intervalo. Os valores são
+ponto de partida, decisão do responsável.
+
+**Antes de ligar:**
+
+1. Confirme **uma réplica** do backend (`BACKEND_REPLICAS`, padrão 1). O registro de sessões é por instância: com mais de
+   uma, "sem sessão" numa réplica não significa desconectado e a presença ficaria errada (`docs/63` §4).
+2. Aba em segundo plano / computador em repouso: a biblioteca do WebSocket usa `setInterval` para o heartbeat e
+   documenta que abas ocultas podem perder conexão (`docs/63` §5). **Não verificado em navegador real.** Teste: com a
+   chave ligada, deixe a aba do CRM oculta por 10 minutos e confira se o histórico mostra `DESCONEXAO`.
+3. Existe a linha em `disponibilidade_atendente_ia` para quem recebe pelo rodízio (a V98 preencheu; criar usuário agora
+   cria). Quem tem `disponivel_para_ia = false` continua fora do rodízio, de propósito.
+
+**Conferir depois de ligar** (Joanna e Debora): abrir e fechar a aba de cada uma e ver o histórico:
+
+```sql
+SELECT h.criado_em AT TIME ZONE 'America/Sao_Paulo' AS quando, u.nome,
+       h.estado_anterior, h.estado_novo, h.origem, h.motivo
+  FROM presenca_historico h JOIN usuario u ON u.id = h.usuario_id
+ WHERE h.criado_em >= now() - interval '1 hour'
+ ORDER BY h.criado_em;
+```
+
+Esperado: abrir a aba → `SISTEMA / CONEXAO` (OFFLINE→ONLINE); fechar tudo → `SISTEMA / DESCONEXAO` (ONLINE→OFFLINE) depois
+da tolerância. Logs: `[PRESENCA_ALTERADA]` (toda mudança) e `[PRESENCA_AUTOMATICA]` (falha ao ler a chave, ao gravar ou
+no banco). Deixe **uma semana** de histórico antes de concluir sobre a causa do 409 de 05/10.
+
+**Reverter:** `UPDATE … valor = 'false'` desliga na hora (não precisa de deploy). Quem ficou ONLINE/OFFLINE por causa da
+automação mantém o estado até a pessoa clicar. Não há migration a desfazer (a chave é só uma linha de configuração).
+
 **Rotina manual até a presença automática existir:** quem recebe pelo rodízio marca ONLINE ao começar e OFFLINE ao sair.
 **Reverter:** a tabela é só registro; não há nada a desfazer. Ninguém entrou no rodízio por causa da V98 (todas as linhas
 criadas são `FALSE`). Diagnóstico do 409 do rodízio: `docs/21` (campo `motivo`) e a auditoria em `docs/62`.

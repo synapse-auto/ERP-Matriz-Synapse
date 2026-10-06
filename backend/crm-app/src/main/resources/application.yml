@@ -274,6 +274,13 @@ synapse:
     reconexao-atraso-inicial-ms: ${WS_RECONEXAO_ATRASO_INICIAL_MS:1000}
     reconexao-fator: ${WS_RECONEXAO_FATOR:2}
     reconexao-atraso-maximo-ms: ${WS_RECONEXAO_ATRASO_MAXIMO_MS:30000}
+    # E223: presenca automatica (so vale com a chave presenca.automatica = true, docs/18). Tolerancia: tempo sem
+    # NENHUMA sessao STOMP antes de virar OFFLINE (maior que o teto do backoff de reconexao). Carencia: depois que o
+    # backend sobe ninguem e marcado OFFLINE (o registro de sessoes esta vazio ate os clientes voltarem).
+    presenca:
+      tolerancia: ${WS_PRESENCA_TOLERANCIA:90s}
+      carencia: ${WS_PRESENCA_CARENCIA:120s}
+      intervalo-varredura: ${WS_PRESENCA_INTERVALO_VARREDURA:15s}
 
   dashboard:
     cache-ttl: ${DASHBOARD_CACHE_TTL:30s}

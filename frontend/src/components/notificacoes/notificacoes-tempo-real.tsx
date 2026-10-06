@@ -26,6 +26,8 @@ import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendi
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 import { renovarAccessToken } from "@/lib/api/http-client";
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
+import { ehAvisoDePresencaAlterada } from "@/lib/equipe/aviso-de-presenca";
+import type { MeuUsuario } from "@/lib/equipe/types";
 import {
   ehAvisoDeFinalizacaoEmMassa,
   type AvisoDeFinalizacaoEmMassa,
@@ -68,6 +70,15 @@ export function NotificacoesTempoReal() {
       setAvisosDeFinalizacao((atuais) => [bruto, ...atuais].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
       return;
     }
+    if (ehAvisoDePresencaAlterada(bruto)) {
+      // E223: o SISTEMA mudou a presença (conexão/desconexão). Sem cartão nem som: o rodapé só reflete o estado novo
+      // e a lista de Equipe é relida. O servidor é a fonte; o cache nunca decide a presença.
+      cache.setQueryData<MeuUsuario>(["me"], (atual) =>
+        atual ? { ...atual, presenca: bruto.dados.status } : atual,
+      );
+      void cache.invalidateQueries({ queryKey: ["equipe"] });
+      return;
+    }
     if (ehAvisoDeAcessoAlterado(bruto)) {
       // Gestão (docs/47): o backend já aplica a mudança; aqui só refletimos sem F5. Sessão
       // invalidada (papel mudou/desativado) renova o token antes de recarregar; se a renovação
@@ -107,7 +118,13 @@ export function NotificacoesTempoReal() {
     }
   }, [cache, chatInternoHabilitado, pathname, somHabilitado, usuarioId, visualHabilitado]);
 
-  useConexaoTempoReal(() => accessToken, undefined, aoReceber);
+  const { ciclo } = useConexaoTempoReal(() => accessToken, undefined, aoReceber);
+
+  // E223: o servidor muda a presença ao CONECTAR, antes de a fila pessoal estar assinada, então o aviso daquele
+  // instante não chega. Reler a presença a cada conexão fecha essa janela (e cobre a reconexão depois de uma queda).
+  useEffect(() => {
+    if (ciclo > 0) void cache.invalidateQueries({ queryKey: ["me"] });
+  }, [ciclo, cache]);
 
   useEffect(() => registrarDesbloqueioDeAudio(), []);
   useEffect(() => {

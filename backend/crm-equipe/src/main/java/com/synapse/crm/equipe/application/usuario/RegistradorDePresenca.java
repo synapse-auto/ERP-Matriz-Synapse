@@ -1,6 +1,7 @@
 package com.synapse.crm.equipe.application.usuario;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -38,7 +39,19 @@ public class RegistradorDePresenca {
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<MudancaDePresenca> registrar(
             UUID usuarioId, StatusPresenca novo, OrigemDaPresenca origem, String motivo) {
-        Optional<MudancaDePresenca> mudanca = equipe.registrarPresenca(usuarioId, novo, origem, motivo);
+        return registrarSe(usuarioId, novo, origem, motivo, null);
+    }
+
+    /** Igual a {@link #registrar}, mas so muda se o estado atual estiver em {@code anterioresPermitidos}. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<MudancaDePresenca> registrarSe(
+            UUID usuarioId,
+            StatusPresenca novo,
+            OrigemDaPresenca origem,
+            String motivo,
+            Set<StatusPresenca> anterioresPermitidos) {
+        Optional<MudancaDePresenca> mudanca =
+                equipe.registrarPresencaSe(usuarioId, novo, origem, motivo, anterioresPermitidos);
         mudanca.filter(MudancaDePresenca::mudou)
                 .ifPresent(m -> log.info(
                         "{} usuarioId={} de={} para={} origem={} motivo={}",

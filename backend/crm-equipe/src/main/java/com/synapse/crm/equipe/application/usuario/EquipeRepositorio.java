@@ -1,6 +1,7 @@
 package com.synapse.crm.equipe.application.usuario;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import com.synapse.crm.equipe.domain.avaliacao.ResumoAvaliacoes;
@@ -19,4 +20,16 @@ public interface EquipeRepositorio{List<Usuario> listar(FiltroEquipe filtro);Opt
      * Muda a presenca de um usuario ativo e, se o estado de fato mudou, grava a linha de historico na mesma
      * transacao. Vazio = usuario inexistente ou inativo. Mesmo estado = devolve a mudanca sem gravar historico.
      */
-    Optional<MudancaDePresenca> registrarPresenca(UUID id, StatusPresenca novo, OrigemDaPresenca origem, String motivo);}
+    Optional<MudancaDePresenca> registrarPresenca(UUID id, StatusPresenca novo, OrigemDaPresenca origem, String motivo);
+
+    /**
+     * Como {@link #registrarPresenca}, mas so grava se o estado atual for um dos {@code anterioresPermitidos}; fora
+     * deles devolve a "mudanca" sem alteracao (mesmo estado nos dois lados). A checagem e a gravacao acontecem sob o
+     * mesmo {@code FOR UPDATE}, entao um clique concorrente do usuario nunca e sobrescrito por uma decisao baseada
+     * em leitura antiga.
+     */
+    Optional<MudancaDePresenca> registrarPresencaSe(
+            UUID id, StatusPresenca novo, OrigemDaPresenca origem, String motivo, Set<StatusPresenca> anterioresPermitidos);
+
+    /** Ids dos usuarios ativos com presenca ONLINE ou AUSENTE: quem a presenca automatica precisa conferir. */
+    List<UUID> idsComPresencaAtiva();}

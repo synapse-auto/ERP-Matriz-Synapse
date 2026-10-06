@@ -5,6 +5,17 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 repositório, o repositório vence.
 
 
+### 06/10/2026 — Presença automática atrás de chave desligada (E223, PR B)
+
+ONLINE ao conectar o WebSocket e OFFLINE depois de uma tolerância sem nenhuma sessão, **só com `presenca.automatica = true`**
+(V99 cria a chave `false`; liga/desliga sem deploy, lida a cada ~15 s). `PresencaAutomatica` (crm-atendimento) lê o
+`SimpUserRegistry`: "primeira sessão" é nenhuma sessão por mais que a tolerância (reconectar dentro dela, como na troca de
+socket a cada renovação do token, não muda nada nem grava histórico); a escolha manual vale durante a sessão; uma varredura
+compara o **banco** com o registro (assim quem sumiu num deploy também sai) e respeita a carência de partida; a instância
+que está encerrando não grava. Mudanças gravam histórico `SISTEMA` (`CONEXAO`/`DESCONEXAO`) e avisam a sidebar
+(`PRESENCA_ALTERADA` na fila pessoal; o frontend também relê a presença a cada conexão). **Só vale com 1 réplica** do backend
+e **não está verificado** o comportamento de aba em segundo plano (docs/63 §4–5). Operação e reversão em `docs/18`.
+
 ### 06/10/2026 — Histórico de presença e linha de disponibilidade para todos (E223, PR A)
 
 Presença só mudava por clique e sem rastro (docs/62). A V98 cria `presenca_historico` (usuário, estado anterior e novo,

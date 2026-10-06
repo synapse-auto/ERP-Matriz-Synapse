@@ -6,6 +6,7 @@ import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
 import { ehAvisoDeFinalizacaoEmMassa } from "@/lib/finalizacao-em-massa/aviso";
+import { ehAvisoDePresencaAlterada } from "@/lib/equipe/aviso-de-presenca";
 
 import type {
   EventoTempoReal,
@@ -412,7 +413,8 @@ export class ConexaoTempoReal {
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA" ||
           notificacao.tipo === "CHAT_INTERNO_REACAO" ||
           ehAvisoDeAcessoAlterado(notificacao) ||
-          ehAvisoDeFinalizacaoEmMassa(notificacao)
+          ehAvisoDeFinalizacaoEmMassa(notificacao) ||
+          ehAvisoDePresencaAlterada(notificacao)
         ) {
           this.opcoes.onNotificacao?.(notificacao);
           for (const ouvinte of this.ouvintesDeNotificacao) {

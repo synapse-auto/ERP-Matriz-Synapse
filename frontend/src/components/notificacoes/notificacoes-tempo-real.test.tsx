@@ -1,18 +1,19 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 
 const mocks = vi.hoisted(() => ({
   callback: undefined as ((notificacao: NotificacaoTempoReal) => void) | undefined,
   push: vi.fn(),
+  ciclo: 0,
 }));
 
 vi.mock("@/lib/atendimento/tempo-real", () => ({
   useConexaoTempoReal: vi.fn((_token: unknown, _revogacao: unknown, callback: (notificacao: NotificacaoTempoReal) => void) => {
     mocks.callback = callback;
-    return { conexao: {}, estado: "conectado" };
+    return { conexao: {}, estado: "conectado", ciclo: mocks.ciclo };
   }),
 }));
 
@@ -362,5 +363,76 @@ describe("aviso de finalização em massa", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+describe("presença alterada pelo sistema (E223)", () => {
+  function renderizarComCliente(cliente: QueryClient) {
+    return render(
+      <QueryClientProvider client={cliente}>
+        <NotificacoesTempoReal />
+      </QueryClientProvider>,
+    );
+  }
+
+  function aviso(status: string): NotificacaoTempoReal {
+    return { tipo: "PRESENCA_ALTERADA", eventoId: "p-1", dados: { status } } as unknown as NotificacaoTempoReal;
+  }
+
+  afterEach(() => {
+    mocks.ciclo = 0;
+  });
+
+  it("atualiza o rodapé sem F5, sem cartão e relê a Equipe", () => {
+    const cliente = new QueryClient();
+    cliente.setQueryData(["me"], { id: "u-1", nome: "Joanna", presenca: "OFFLINE" });
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+    renderizarComCliente(cliente);
+
+    act(() => mocks.callback?.(aviso("ONLINE")));
+
+    expect(cliente.getQueryData<{ presenca: string }>(["me"])?.presenca).toBe("ONLINE");
+    expect(cliente.getQueryData<{ nome: string }>(["me"])?.nome).toBe("Joanna");
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["equipe"] });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("não inventa o usuário quando o cache ainda não tem a consulta", () => {
+    const cliente = new QueryClient();
+    renderizarComCliente(cliente);
+
+    act(() => mocks.callback?.(aviso("ONLINE")));
+
+    expect(cliente.getQueryData(["me"])).toBeUndefined();
+  });
+
+  it("ignora estado que o servidor nunca envia", () => {
+    const cliente = new QueryClient();
+    cliente.setQueryData(["me"], { id: "u-1", presenca: "OFFLINE" });
+    renderizarComCliente(cliente);
+
+    act(() => mocks.callback?.(aviso("VOANDO")));
+
+    expect(cliente.getQueryData<{ presenca: string }>(["me"])?.presenca).toBe("OFFLINE");
+  });
+
+  it("relê a presença a cada conexão, para cobrir o aviso que veio antes de a fila ser assinada", () => {
+    mocks.ciclo = 1;
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+
+    renderizarComCliente(cliente);
+
+    expect(invalidar).toHaveBeenCalledWith({ queryKey: ["me"] });
+  });
+
+  it("sem nenhuma conexão ainda não relê nada", () => {
+    mocks.ciclo = 0;
+    const cliente = new QueryClient();
+    const invalidar = vi.spyOn(cliente, "invalidateQueries");
+
+    renderizarComCliente(cliente);
+
+    expect(invalidar).not.toHaveBeenCalledWith({ queryKey: ["me"] });
   });
 });
