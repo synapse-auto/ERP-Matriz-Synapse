@@ -46,14 +46,66 @@ class PainelDeAtendimentosRepositorioJdbcTest {
             "SQL_FINALIZADOS"
         }) {
             String sql = constante(campo);
-            int inicioDaEscolha = sql.indexOf("WHERE a.id IN (SELECT atendimento_id FROM (SELECT");
+            int inicioDaEscolha = sql.indexOf("FROM (SELECT atendimento_id FROM (SELECT");
+            int fimDaEscolha = sql.indexOf(") escolhidos\nJOIN atendimento a ON a.id = escolhidos.atendimento_id");
             assertThat(inicioDaEscolha).as(campo).isPositive();
-            String escolha = sql.substring(inicioDaEscolha);
+            assertThat(fimDaEscolha).as(campo).isGreaterThan(inicioDaEscolha);
+            String escolha = sql.substring(inicioDaEscolha, fimDaEscolha);
 
             assertThat(escolha)
                     .as(campo)
                     .contains("JOIN lead l ON l.id = a.lead_id", "ROW_NUMBER() OVER", "WHERE linha_do_lead = 1")
                     .doesNotContain("atendimento_leitura", "JOIN usuario", "AS atendimento_ativo_id");
+        }
+    }
+
+    /**
+     * E224 (B1): as ids escolhidas dirigem o join. A forma antiga ({@code a.id IN (subconsulta com LIMIT)}) foi medida
+     * como semi join dirigido pelas ~3.900 linhas ja unidas; a nova poe a subconsulta no {@code FROM}, com {@code JOIN}
+     * explicito a {@code atendimento}. O teste de integracao prova que o resultado e o mesmo.
+     */
+    @Test
+    void asIdsEscolhidasDirigemOJoinEmVezDeUmInComSubconsulta() throws Exception {
+        for (String campo : new String[] {
+            "SQL_ATIVOS", "SQL_PENDENTES_PROPRIOS", "SQL_PENDENTES_TODOS", "SQL_POTENCIAIS", "SQL_TODOS",
+            "SQL_FINALIZADOS"
+        }) {
+            assertThat(constante(campo))
+                    .as(campo)
+                    .contains("JOIN atendimento a ON a.id = escolhidos.atendimento_id")
+                    .doesNotContain("a.id IN (");
+        }
+    }
+
+    @Test
+    void buscasPontuaisContinuamPartindoDeAtendimento() throws Exception {
+        for (String campo : new String[] {"SQL_POR_ATENDIMENTO", "SQL_POR_LEAD"}) {
+            assertThat(constante(campo))
+                    .as(campo)
+                    .contains("FROM atendimento a\nJOIN lead l ON l.id = a.lead_id")
+                    .doesNotContain("escolhidos");
+        }
+    }
+
+    /** A ordem dos {@code ?} e a dos argumentos: o {@code ?} de nao_lidas precede o filtro da primeira fase. */
+    @Test
+    void aEscolhaPaginadaTemUmArgumentoParaCadaInterrogacaoDoTextoFinal() {
+        java.util.UUID usuario = java.util.UUID.randomUUID();
+        java.util.UUID cursor = java.util.UUID.randomUUID();
+        java.time.Instant data = java.time.Instant.parse("2026-10-06T12:00:00Z");
+
+        for (var visao : com.synapse.crm.atendimento.application.painel.VisaoAtendimento.values()) {
+            for (boolean restrito : new boolean[] {true, false}) {
+                for (boolean comCursor : new boolean[] {false, true}) {
+                    var escolha = PainelDeAtendimentosRepositorioJdbc.escolherPagina(
+                            visao, usuario, restrito, false, comCursor ? data : null, comCursor ? cursor : null, 101, null);
+                    String sql = PainelDeAtendimentosRepositorioJdbc.cartoesDe(escolha.sql());
+
+                    assertThat(sql.chars().filter(caractere -> caractere == '?').count())
+                            .as(visao + " restrito=" + restrito + " cursor=" + comCursor)
+                            .isEqualTo((long) escolha.parametros().size());
+                }
+            }
         }
     }
 
