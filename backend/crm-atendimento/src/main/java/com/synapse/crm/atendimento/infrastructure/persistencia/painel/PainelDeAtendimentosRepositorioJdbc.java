@@ -168,11 +168,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * (E17b §Bloco 6) monte {@code SELECT COUNT(*)} sobre exatamente o mesmo {@code WHERE} — nunca uma
      * segunda decisao de "o que e visivel" escrita a parte.
      */
-    private static final String WHERE_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
+    static final String WHERE_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
             + " AND visivel.atendente_id = ?)";
 
-    private static final String WHERE_PENDENTES_PROPRIOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
+    static final String WHERE_PENDENTES_PROPRIOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
             + " WHERE m_visivel.atendimento_id = visivel.id"
             + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
@@ -185,7 +185,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " AND convite.status = 'PENDENTE'"
             + " AND convite.solicitado_em > now() - app_validade_pedido_entrada())) )";
 
-    private static final String WHERE_PENDENTES_TODOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
+    static final String WHERE_PENDENTES_TODOS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem m_visivel"
             + " WHERE m_visivel.atendimento_id = visivel.id"
             + " AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
@@ -193,7 +193,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             + " ON true WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_ATENDIMENTO'"
             + " AND ultima_visivel.remetente_tipo = 'LEAD')";
 
-    private static final String WHERE_POTENCIAIS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
+    static final String WHERE_POTENCIAIS = " WHERE EXISTS (SELECT 1 FROM atendimento visivel"
             + " WHERE visivel.lead_id = a.lead_id AND visivel.status = 'EM_IA')";
 
     /**
@@ -202,7 +202,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * a aba FINALIZADOS, dedicada. Lista e contagem usam esta mesma constante — nao dessincronizar de
      * novo (ver 194eded0/5712722b no historico do git).
      */
-    private static final String WHERE_TODOS_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento aberto"
+    static final String WHERE_TODOS_ATIVOS = " WHERE EXISTS (SELECT 1 FROM atendimento aberto"
             + " WHERE aberto.lead_id = a.lead_id"
             + " AND aberto.status IN ('EM_ATENDIMENTO', 'EM_IA'))";
 
@@ -245,17 +245,46 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     + "resultado_venda, valor_venda, venda_registrada_por_id, venda_registrada_por_nome, "
                     + "venda_registrada_em, origem_resultado_venda, linha_do_lead";
 
-    private static final String SQL_CONTAR_ATIVOS = contar(WHERE_ATIVOS);
+    /**
+     * E225 (B5): as contagens das abas de andamento filtram direto as linhas abertas ({@code a.status IN (...)}) em vez
+     * de, para cada linha de {@code atendimento}, procurar com {@code EXISTS} outro atendimento aberto do mesmo lead.
+     * No HML a contagem de TODOS era 68% do tempo de todas as contagens (1.831 chamadas, 540 ms de media).
+     *
+     * <p><b>Equivalencia (provada pelo teste de integracao, nao so por argumento).</b> A contagem antiga contava os leads
+     * (visiveis pela RLS de {@code lead}) que tinham alguma linha {@code a} visivel e um atendimento aberto
+     * <em>visivel</em> do mesmo lead. O atendimento aberto e, ele proprio, uma linha de {@code atendimento}; filtrar
+     * {@code a} pelo status aberto devolve exatamente os mesmos leads, e {@code COUNT(DISTINCT a.lead_id)} continua contando
+     * cada lead uma vez (inclusive com dois atendimentos abertos no mesmo lead). {@code a} e {@code aberto}/{@code visivel}
+     * sao a mesma tabela sob a mesma RLS: um lead cujo unico atendimento aberto e de um colega (invisivel) fica de fora nas
+     * duas formas. Em PENDENTES, a LATERAL da ultima mensagem sai do {@code EXISTS} e passa a rodar so para as linhas
+     * abertas. FINALIZADOS nao tem forma equivalente (e um {@code NOT EXISTS}) e continua como era.
+     *
+     * <p>A listagem continua com os {@code WHERE_*} por lead, que sao a fonte da fase 1; o teste de equivalencia e o que
+     * impede lista e contagem de se afastarem.
+     */
+    static final String SQL_CONTAR_ATIVOS = contar(" WHERE a.status = 'EM_ATENDIMENTO' AND a.atendente_id = ?");
 
-    private static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(WHERE_PENDENTES_PROPRIOS);
+    static final String SQL_CONTAR_PENDENTES_PROPRIOS = contar(" LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem"
+            + " m_visivel WHERE m_visivel.atendimento_id = a.id AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
+            + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel ON true"
+            + " WHERE a.status = 'EM_ATENDIMENTO'"
+            + " AND ((a.atendente_id = ? AND ultima_visivel.remetente_tipo = 'LEAD')"
+            + " OR EXISTS (SELECT 1 FROM pedido_entrada_atendimento convite"
+            + " WHERE convite.atendimento_id = a.id"
+            + " AND convite.solicitante_id = ? AND convite.tipo = 'CONVITE'"
+            + " AND convite.status = 'PENDENTE'"
+            + " AND convite.solicitado_em > now() - app_validade_pedido_entrada()))");
 
-    private static final String SQL_CONTAR_PENDENTES_TODOS = contar(WHERE_PENDENTES_TODOS);
+    static final String SQL_CONTAR_PENDENTES_TODOS = contar(" LEFT JOIN LATERAL (SELECT remetente_tipo FROM mensagem"
+            + " m_visivel WHERE m_visivel.atendimento_id = a.id AND m_visivel.remetente_tipo IN ('LEAD','ATENDENTE')"
+            + " ORDER BY m_visivel.enviado_em DESC LIMIT 1) ultima_visivel ON true"
+            + " WHERE a.status = 'EM_ATENDIMENTO' AND ultima_visivel.remetente_tipo = 'LEAD'");
 
-    private static final String SQL_CONTAR_POTENCIAIS = contar(WHERE_POTENCIAIS);
+    static final String SQL_CONTAR_POTENCIAIS = contar(" WHERE a.status = 'EM_IA'");
 
-    private static final String SQL_CONTAR_TODOS = contar(WHERE_TODOS_ATIVOS);
+    static final String SQL_CONTAR_TODOS = contar(" WHERE a.status IN ('EM_ATENDIMENTO', 'EM_IA')");
 
-    private static final String SQL_CONTAR_FINALIZADOS = contar(WHERE_FINALIZADOS);
+    static final String SQL_CONTAR_FINALIZADOS = contar(WHERE_FINALIZADOS);
 
     private static String agrupar(String consultaInterna) {
         return "SELECT " + COLUNAS_CARTAO + " FROM (SELECT " + consultaInterna + ") cartoes"
@@ -295,7 +324,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
      * nao tinha esse join e, para atendente, contava em FINALIZADOS leads que um colega esta
      * atendendo (ciclo antigo FINALIZADO visivel, lead invisivel) — numero maior que a lista.
      */
-    private static String contar(String filtro) {
+    static String contar(String filtro) {
         return "SELECT COUNT(DISTINCT a.lead_id) FROM atendimento a JOIN lead l ON l.id = a.lead_id" + filtro;
     }
 
