@@ -36,6 +36,14 @@ public interface AtendimentoRepositorio {
     Optional<Atendimento> porIdParaAlteracao(UUID atendimentoId);
 
     /**
+     * Situacao do atendimento e do lead que explica uma recusa do rodizio, so para diagnostico (log). Sem dados
+     * pessoais: estado e dois booleanos. Vazio quando o atendimento nao existe para o contexto atual.
+     */
+    Optional<SituacaoParaDiagnostico> situacaoParaDiagnostico(UUID atendimentoId);
+
+    record SituacaoParaDiagnostico(String status, boolean comAtendente, boolean leadComResponsavel) {}
+
+    /**
      * Atendimentos em atendimento humano que o contexto RLS do usuario atual alcanca.
      *
      * <p>Nao inclui {@code EM_IA}: o lote de finalizacao nao pode encerrar a fila da IA, e o

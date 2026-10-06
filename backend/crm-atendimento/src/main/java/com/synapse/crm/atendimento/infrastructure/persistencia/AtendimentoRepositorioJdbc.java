@@ -171,6 +171,27 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
     }
 
     @Override
+    public Optional<SituacaoParaDiagnostico> situacaoParaDiagnostico(UUID atendimentoId) {
+        TransacaoObrigatoria.exigir("situacaoParaDiagnostico");
+        return chat.query(
+                """
+                SELECT a.status::text AS status,
+                       a.atendente_id IS NOT NULL AS com_atendente,
+                       l.atendente_responsavel_id IS NOT NULL AS lead_com_responsavel
+                  FROM atendimento a
+                  JOIN lead l ON l.id = a.lead_id
+                 WHERE a.id = ?
+                """,
+                (linha, indice) -> new SituacaoParaDiagnostico(
+                        linha.getString("status"),
+                        linha.getBoolean("com_atendente"),
+                        linha.getBoolean("lead_com_responsavel")),
+                atendimentoId)
+                .stream()
+                .findFirst();
+    }
+
+    @Override
     public List<Atendimento> abertosVisiveis(UUID atendenteIdFiltro) {
         TransacaoObrigatoria.exigir("abertosVisiveis");
         return chat.query(SQL_ABERTOS_VISIVEIS, MAPEADOR, atendenteIdFiltro, atendenteIdFiltro);
