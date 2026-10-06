@@ -144,7 +144,8 @@ Dashboard. É o efeito pretendido, mas precisa constar no relatório.
 | 4. Sem sessão por mais que a tolerância → OFFLINE (SISTEMA) | **Viável** com varredura + carência (§0.2, §4) |
 | 5. AUSENTE só manual | OK |
 | 6. Rodízio inalterado (exige ONLINE) | OK |
-| Tolerância 90 s e carência 120 s | Coerentes: tolerância > teto de backoff (30 s) + reconexão; carência > tempo de os clientes voltarem após deploy |
+| Tolerância 90 s e carência 180 s | Coerentes: tolerância > teto de backoff (30 s) + reconexão; carência > janela de sobreposição do `start-first` (10 s de `delay` + até 60 s de `stop_grace_period` + backoff de 30 s) e o tempo de os clientes voltarem após deploy. Carência de 180 s decidida no E223.1; sem a variante "um ciclo sem sessões de outro". |
+| Encerramento ordenado do Spring | Verificado no bytecode do Spring 6.2.19: `AbstractApplicationContext.doClose` publica `ContextClosedEvent` **antes** de `lifecycleProcessor.onClose()`, e `SubProtocolWebSocketHandler.stop()` fecha **todas** as sessões com `CloseStatus.GOING_AWAY` logo no início da parada (não ficam abertas até o timeout). Por isso o `ContextClosedEvent` já marcou `encerrando` quando chegam os `SessionDisconnectEvent`, e a instância que encerra não grava OFFLINE. |
 
 Riscos a decidir: réplicas > 1 (§4), aba em segundo plano (§5), conexão durante a carência com estado manual
 (AUSENTE/OFFLINE) — nos primeiros segundos pós-deploy o desenho preserva o estado manual de quem já estava conectado

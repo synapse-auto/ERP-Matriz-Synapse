@@ -51,7 +51,8 @@ interface ClienteStompFalso {
 
 const stomp = vi.hoisted(() => ({ clientes: [] as ClienteStompFalso[], conectarAoAtivar: true }));
 
-vi.mock("@stomp/stompjs", () => ({
+vi.mock("@stomp/stompjs", async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import("@stomp/stompjs")>()),
   Client: class implements ClienteStompFalso {
     connected = false;
     onConnect?: () => void;

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
+import { Client, type IMessage, type StompSubscription, TickerStrategy } from "@stomp/stompjs";
 
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
 import { ehAvisoDeFinalizacaoEmMassa } from "@/lib/finalizacao-em-massa/aviso";
+import { ehAvisoDePresencaAlterada } from "@/lib/equipe/aviso-de-presenca";
 
 import type {
   EventoTempoReal,
@@ -120,6 +121,10 @@ export function clienteStompPadrao(opcoes: {
     reconnectDelay: 0,
     heartbeatIncoming: HEARTBEAT_MS,
     heartbeatOutgoing: HEARTBEAT_MS,
+    // O pulso roda num Web Worker: aba em segundo plano estrangula setInterval (>= 1 s, e até 1 min em
+    // aba inativa por muito tempo), o que faria o stompjs achar a conexão morta e a presença automática
+    // marcar o atendente como ausente só por ter trocado de aba. O Worker nasce de um Blob (worker-src blob:).
+    heartbeatStrategy: TickerStrategy.Worker,
   }) as unknown as ClienteStompLike;
 }
 
@@ -412,7 +417,8 @@ export class ConexaoTempoReal {
           notificacao.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA" ||
           notificacao.tipo === "CHAT_INTERNO_REACAO" ||
           ehAvisoDeAcessoAlterado(notificacao) ||
-          ehAvisoDeFinalizacaoEmMassa(notificacao)
+          ehAvisoDeFinalizacaoEmMassa(notificacao) ||
+          ehAvisoDePresencaAlterada(notificacao)
         ) {
           this.opcoes.onNotificacao?.(notificacao);
           for (const ouvinte of this.ouvintesDeNotificacao) {

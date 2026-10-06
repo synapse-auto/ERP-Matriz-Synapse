@@ -473,6 +473,25 @@ describe("ConexaoTempoReal", () => {
     expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "FINALIZACAO_EM_MASSA_CONCLUIDA" }));
   });
 
+  it("entrega o aviso de presença alterada (E223) à tela", () => {
+    const { cliente } = clienteStompFalso();
+    const onNotificacao = vi.fn();
+    const conexao = new ConexaoTempoReal({
+      brokerUrl: "ws://test",
+      obterAccessToken: () => "token",
+      onNotificacao,
+      criarCliente: () => cliente,
+    });
+    conexao.conectar();
+    const callback = (cliente.subscribe as ReturnType<typeof vi.fn>).mock.calls[1]?.[1] as
+      | ((mensagem: { body: string }) => void)
+      | undefined;
+
+    callback?.({ body: JSON.stringify({ tipo: "PRESENCA_ALTERADA", eventoId: "e-1", dados: { status: "ONLINE" } }) });
+
+    expect(onNotificacao).toHaveBeenCalledWith(expect.objectContaining({ tipo: "PRESENCA_ALTERADA" }));
+  });
+
   it("encaminha leitura do responsavel como evento canonico pela fila pessoal", () => {
     const { cliente } = clienteStompFalso();
     const onNotificacao = vi.fn();

@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.dao.DuplicateKeyException;
@@ -33,12 +34,15 @@ import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
  @Override public boolean atualizarFoto(UUID id,String fotoReferencia){return jdbc.update("UPDATE usuario SET foto_referencia=? WHERE id=? AND ativo=TRUE",fotoReferencia,id)==1;}
  @Override public boolean desativar(UUID id){Optional<StatusPresenca> anterior=jdbc.query("SELECT status_presenca::text FROM usuario WHERE id=? AND papel IN ('ATENDENTE','SUBGESTOR','OPERADOR') FOR UPDATE",(r,i)->StatusPresenca.valueOf(r.getString(1)),id).stream().findFirst();int n=jdbc.update("UPDATE usuario SET ativo=FALSE,status_presenca='OFFLINE' WHERE id=? AND papel IN ('ATENDENTE','SUBGESTOR','OPERADOR')",id);if(n==1&&anterior.isPresent()&&anterior.get()!=StatusPresenca.OFFLINE)gravarHistoricoDePresenca(id,anterior.get(),StatusPresenca.OFFLINE,OrigemDaPresenca.SISTEMA,"DESATIVACAO");if(n==1)jdbc.update("INSERT INTO disponibilidade_atendente_ia(atendente_id,disponivel_para_ia) VALUES(?,FALSE) ON CONFLICT(atendente_id) DO UPDATE SET disponivel_para_ia=FALSE,atualizado_em=now()",id);return n==1;}
  @Override public Optional<StatusPresenca> obterPresenca(UUID id){return jdbc.query("SELECT status_presenca::text FROM usuario WHERE id=? AND ativo=TRUE",(r,i)->StatusPresenca.valueOf(r.getString(1)),id).stream().findFirst();}
- @Override public Optional<MudancaDePresenca> registrarPresenca(UUID id,StatusPresenca novo,OrigemDaPresenca origem,String motivo){
+ @Override public Optional<MudancaDePresenca> registrarPresenca(UUID id,StatusPresenca novo,OrigemDaPresenca origem,String motivo){return registrarPresencaSe(id,novo,origem,motivo,null);}
+ @Override public List<UUID> idsComPresencaAtiva(){return jdbc.query("SELECT id FROM usuario WHERE ativo=TRUE AND status_presenca IN ('ONLINE','AUSENTE')",(r,i)->r.getObject(1,UUID.class));}
+ @Override public Optional<MudancaDePresenca> registrarPresencaSe(UUID id,StatusPresenca novo,OrigemDaPresenca origem,String motivo,Set<StatusPresenca> anterioresPermitidos){
   // FOR UPDATE serializa duas mudancas do mesmo usuario (clique e conexao ao mesmo tempo): cada uma le o estado
   // anterior correto e o historico nunca registra uma transicao que nao aconteceu.
   Optional<StatusPresenca> anterior=jdbc.query("SELECT status_presenca::text FROM usuario WHERE id=? AND ativo=TRUE FOR UPDATE",(r,i)->StatusPresenca.valueOf(r.getString(1)),id).stream().findFirst();
   if(anterior.isEmpty())return Optional.empty();
   if(anterior.get()==novo)return Optional.of(new MudancaDePresenca(novo,novo));
+  if(anterioresPermitidos!=null&&!anterioresPermitidos.contains(anterior.get()))return Optional.of(new MudancaDePresenca(anterior.get(),anterior.get()));
   jdbc.update("UPDATE usuario SET status_presenca=CAST(? AS status_presenca) WHERE id=?",novo.name(),id);
   gravarHistoricoDePresenca(id,anterior.get(),novo,origem,motivo);
   return Optional.of(new MudancaDePresenca(anterior.get(),novo));}
