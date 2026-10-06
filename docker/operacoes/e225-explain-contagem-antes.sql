@@ -1,20 +1,32 @@
--- E225 / B5 - EXPLAIN das contagens das abas do painel: antes.
+-- =====================================================================================================================
+-- E225 (B5) - EXPLAIN das contagens das abas do painel: antes.
 -- ANTES do B5: contagem com EXISTS (atendimento aberto do mesmo lead) por linha de atendimento.
+-- =====================================================================================================================
+-- VARIAVEIS EXIGIDAS (-v). Sem elas o psql para no primeiro bloco (ON_ERROR_STOP):
+--   papel   ATENDENTE | OPERADOR | GESTOR   (o papel da RLS; a consulta roda como esse papel, nao como superusuario)
+--   usuario <uuid do usuario>
+--   (este script NAO usa -v limite: as contagens nao tem LIMIT)
 --
--- Nada altera dados: cada bloco e BEGIN ... ROLLBACK. EXPLAIN ANALYZE EXECUTA a consulta (teto de 60 s abaixo).
--- Cada medicao roda 3 vezes em seguida: compare o MENOR "Execution Time" de cada aba (a primeira esquenta o cache e a
--- VPS tem CPU disputada).
+-- COMANDO EXATO (um arquivo por vez, mesma janela). <container> = o container do Postgres
+-- (descubra com:  docker ps --format '{{.Names}}' | grep -i postgres ):
 --
--- Uso (psql, superusuario ou dono do banco, no banco matriz_hml; JIT ja desligado):
---   psql -d matriz_hml -v papel=GESTOR    -v usuario=<uuid do gestor>    -f <este arquivo> > saida-gestor-antes.txt
---   psql -d matriz_hml -v papel=ATENDENTE -v usuario=<uuid do atendente> -f <este arquivo> > saida-atendente-antes.txt
---   psql -d matriz_hml -v papel=OPERADOR  -v usuario=<uuid do operador>  -f <este arquivo> > saida-operador-antes.txt
--- e extraia os tempos:
---   grep -E "^-- |Execution Time" saida-gestor-antes.txt
+--   docker exec -i <container> psql -X -q -U matriz_app -d matriz_hml \
+--     -v papel=GESTOR -v usuario=<uuid-do-gestor> \
+--     < e225-explain-contagem-antes.sql > saida-contagem-antes-gestor.txt
 --
--- Cada aba tem duas medicoes: N-literal (plano customizado) e N-generico (PREPARE + force_generic_plan, o plano que o
--- driver JDBC pode passar a usar depois de 5 execucoes).
+--   docker exec -i <container> psql -X -q -U matriz_app -d matriz_hml \
+--     -v papel=ATENDENTE -v usuario=<uuid-do-atendente> \
+--     < e225-explain-contagem-antes.sql > saida-contagem-antes-atendente.txt
+--
+-- (repita para papel=OPERADOR se houver um operador). Rode "antes" e "depois" e cole as saidas. Para extrair os tempos:
+--   grep -E "^-- |Execution Time" saida-contagem-antes-gestor.txt
+--
+-- O QUE E CADA BLOCO: por aba (01 ATIVOS, 02 PENDENTES atendente, 03 PENDENTES gestao, 04 POTENCIAIS, 05 TODOS) ha duas
+-- medicoes: N-literal e N-generico (PREPARE + force_generic_plan), cada uma com 3 REPETICOES na mesma transacao:
+-- compare o MENOR "Execution Time" (a primeira esquenta o cache e a VPS tem CPU disputada).
+-- Cada bloco e BEGIN ... ROLLBACK: nada altera dados. EXPLAIN ANALYZE EXECUTA a consulta (teto de 60 s abaixo).
 -- O contexto reproduz o AplicadorDeContextoRls (SET LOCAL ROLE synapse_app + app.papel + app.usuario_id).
+-- O JIT ja esta desligado. Papeis diferentes dao contagens diferentes (RLS): compare o mesmo papel antes x depois.
 \set ON_ERROR_STOP on
 \pset pager off
 
