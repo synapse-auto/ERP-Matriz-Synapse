@@ -967,6 +967,40 @@ tetos da gestão e configuração de rodízio não são alterados automaticament
 depende das migrations e das concessões explícitas descritas, não de configuração por cliente.
 Nenhuma mudança operacional/deploy está autorizada por esta entrega.
 
+## Histórico de presença (E223)
+
+Desde a V98, **toda mudança de `usuario.status_presenca`** grava uma linha em `presenca_historico` (usuário, estado
+anterior, estado novo, origem `MANUAL` ou `SISTEMA`, motivo opcional, instante) e um log INFO
+`[PRESENCA_ALTERADA] usuarioId=… de=… para=… origem=… motivo=…` (só ids e estados; nunca nome, e-mail ou telefone).
+Hoje a origem é `MANUAL` (clique no rodapé) ou `SISTEMA` com motivo `DESATIVACAO`. Repetir o mesmo estado não grava nada.
+
+**Ver o histórico de uma pessoa em um intervalo** (horários em UTC-3; só leitura):
+
+```sql
+SELECT h.criado_em AT TIME ZONE 'America/Sao_Paulo' AS quando,
+       h.estado_anterior, h.estado_novo, h.origem, h.motivo
+  FROM presenca_historico h
+  JOIN usuario u ON u.id = h.usuario_id
+ WHERE u.nome = 'Joanna'                                   -- ou: h.usuario_id = '<uuid>'
+   AND h.criado_em >= TIMESTAMPTZ '2026-10-05 08:00-03'
+   AND h.criado_em <  TIMESTAMPTZ '2026-10-05 19:00-03'
+ ORDER BY h.criado_em;
+```
+
+**Quem está no rodízio agora e por quê** (a linha de `disponibilidade_atendente_ia` é o que falta quando alguém
+"nunca entra"; a V98 preencheu os ativos sem linha com `FALSE` e `criar usuário` agora cria a linha):
+
+```sql
+SELECT u.nome, u.papel, u.ativo, u.status_presenca, d.disponivel_para_ia,
+       d.atualizado_em AS marcacao_mudou_em, (d.atendente_id IS NULL) AS sem_linha
+  FROM usuario u LEFT JOIN disponibilidade_atendente_ia d ON d.atendente_id = u.id
+ WHERE u.papel IN ('ATENDENTE','SUBGESTOR') ORDER BY u.nome;
+```
+
+**Rotina manual até a presença automática existir:** quem recebe pelo rodízio marca ONLINE ao começar e OFFLINE ao sair.
+**Reverter:** a tabela é só registro; não há nada a desfazer. Ninguém entrou no rodízio por causa da V98 (todas as linhas
+criadas são `FALSE`). Diagnóstico do 409 do rodízio: `docs/21` (campo `motivo`) e a auditoria em `docs/62`.
+
 ## Ordem resumida
 
 | Fase | Tempo | Bloqueia |

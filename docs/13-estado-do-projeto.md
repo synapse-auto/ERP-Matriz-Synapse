@@ -4,6 +4,16 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+
+### 06/10/2026 — Histórico de presença e linha de disponibilidade para todos (E223, PR A)
+
+Presença só mudava por clique e sem rastro (docs/62). A V98 cria `presenca_historico` (usuário, estado anterior e novo,
+origem `MANUAL`/`SISTEMA`, motivo, instante; só ids) e toda mudança grava uma linha + log INFO
+`[PRESENCA_ALTERADA]`, num único ponto (`RegistradorDePresenca`, transação obrigatória). `criar usuário` passa a criar a
+linha em `disponibilidade_atendente_ia` (`FALSE`) e a migration preenche os ativos (ATENDENTE, SUBGESTOR, OPERADOR) sem
+linha, também com `FALSE`: **ninguém entra no rodízio** (antes, quem não tinha linha ficava de fora em silêncio por causa do
+`JOIN`). Comportamento igual ao de hoje; presença automática é o PR B, atrás de chave desligada. Consulta e rotina em
+`docs/18`.
 ### 05/10/2026 — Encaminhar do Chat Interno para o cliente
 
 Texto e mídia (imagem, vídeo, áudio, documento) de uma conversa interna podem ser encaminhados ao cliente de um

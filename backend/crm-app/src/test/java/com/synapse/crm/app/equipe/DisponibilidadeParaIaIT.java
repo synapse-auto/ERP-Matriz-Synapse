@@ -195,18 +195,18 @@ class DisponibilidadeParaIaIT extends PostgresIT {
         usuarioCriado = usuarioId;
         assertThat(json.readTree(criado.getBody()).path("disponivelParaIa").asBoolean()).isFalse();
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM disponibilidade_atendente_ia WHERE atendente_id=?",
-                        Integer.class,
+                        "SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id=?",
+                        Boolean.class,
                         usuarioId))
-                .isZero();
+                .isFalse(); // E223: a linha existe desde a criacao, desligada
         assertThat(usuarioNaLista(usuarioId).path("disponivelParaIa").asBoolean()).isFalse();
 
         String accessToken = ApoioAutenticacao.login(http, email, senha).accessToken();
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM disponibilidade_atendente_ia WHERE atendente_id=?",
-                        Integer.class,
+                        "SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id=?",
+                        Boolean.class,
                         usuarioId))
-                .isZero();
+                .isFalse(); // E223: a linha existe desde a criacao, desligada
         assertThat(disponiveis()).doesNotContain(usuarioId.toString());
 
         ResponseEntity<String> presenca = chamarComToken(
@@ -247,10 +247,10 @@ class DisponibilidadeParaIaIT extends PostgresIT {
         assertThat(subgestor.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(json.readTree(subgestor.getBody()).path("disponivelParaIa").asBoolean()).isFalse();
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM disponibilidade_atendente_ia WHERE atendente_id=?",
-                        Integer.class,
+                        "SELECT disponivel_para_ia FROM disponibilidade_atendente_ia WHERE atendente_id=?",
+                        Boolean.class,
                         usuarioId))
-                .isZero();
+                .isFalse(); // E223: a linha existe desde a criacao, desligada
         assertThat(disponiveis()).doesNotContain(usuarioId.toString());
 
         ResponseEntity<String> ativado = patchComoGestor(usuarioId, true);
