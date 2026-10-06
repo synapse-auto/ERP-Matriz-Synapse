@@ -287,6 +287,16 @@ synapse:
     cache-wait: ${DASHBOARD_CACHE_WAIT:1s}
     cache-max-bytes: ${DASHBOARD_CACHE_MAX_BYTES:131072}
 
+  # E225 (PR 5): observabilidade do banco, so log (nada muda de comportamento). Os pools Hikari sao logados por
+  # minuto; um pool 100% emprestado por mais que o limiar gera WARN; uma listagem do painel acima do limite gera WARN.
+  observabilidade:
+    pool:
+      intervalo-metricas: ${POOL_METRICAS_INTERVALO:1m}
+      intervalo-amostra: ${POOL_AMOSTRA_INTERVALO:1s}
+      saturado-alerta-apos: ${POOL_SATURADO_ALERTA_APOS:5s}
+    listagem:
+      lenta-acima-de: ${PAINEL_LISTAGEM_LENTA_LIMITE:1s}
+
   automacao:
     # E104: teto do cache de configuracao_automacao. Invalidacao por evento
     # continua sendo o caminho normal; o TTL evita entrada eterna se algo falhar.
