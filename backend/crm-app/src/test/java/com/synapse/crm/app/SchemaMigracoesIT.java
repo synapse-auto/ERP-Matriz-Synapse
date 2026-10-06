@@ -68,6 +68,8 @@ class SchemaMigracoesIT extends PostgresIT {
                     "campanha_mensagem_metrica",
                     // V91 (E220): campanhas de template em massa, contadores diarios e opt-out.
                     "campanha_envio_dia",
+                    // V96: elo entre a mensagem do Chat Interno e a mensagem externa encaminhada ao cliente.
+                    "chat_interno_encaminhamento_cliente",
                     "campanha_template",
                     "campanha_template_destinatario",
                     "campanha_template_dia",
@@ -126,6 +128,10 @@ class SchemaMigracoesIT extends PostgresIT {
                     "permissao_usuario_excecao",
                     "permissao_historico",
                     "mensagem_referencia",
+                    // V94 (finalizacao em massa, docs/59)
+                    "finalizacao_em_massa",
+                    "finalizacao_em_massa_item",
+                    "finalizacao_em_massa_aviso",
                     "outbox_evento",
                     "preferencia_usuario",
                     "regra_fidelizacao",

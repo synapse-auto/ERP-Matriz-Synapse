@@ -10,10 +10,12 @@ import { listarConversasChat, listarMensagensChat, obterMensagemChat, enviarMens
 import { atualizarReacoesDoChatInterno, substituirReacoesDoChatInterno } from "@/lib/atendimento/reacoes-cache";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useAuthStore } from "@/lib/auth/auth-store";
+import { useCapacidades } from "@/lib/gestao/use-capacidades";
 import { useConexaoTempoReal } from "@/lib/atendimento/tempo-real";
 import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tempo-real";
 
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
+import { DialogoEncaminharAoCliente } from "./dialogo-encaminhar-ao-cliente";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
 export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
@@ -23,6 +25,8 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const composerRef = useRef<ComposerChatHandle>(null);
   const [respostaAlvo, setRespostaAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [encaminharAlvo, setEncaminharAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const [encaminharClienteAlvo, setEncaminharClienteAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
+  const podeResponder = useCapacidades().pode("atendimentos.responder");
   const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [painelAberto, setPainelAberto] = useState(false);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
@@ -101,15 +105,16 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
               composerRef.current?.adicionarArquivos([...aceitos, ...rejeitados])
             }
           >
-            {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno conversaId={conversaId} mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} onEditar={setEdicaoAlvo} onBuscarMensagem={(mensagemId) => obterMensagemChat(conversaId, mensagemId)} />}
+            {mensagens.isLoading ? <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">{textos.carregando}</p> : <ListaMensagensChatInterno conversaId={conversaId} mensagens={mensagens.data?.mensagens ?? []} usuarioAtual={usuarioAtual} textos={textos} onDefinirReacao={definirReacaoDaMensagem} onRemoverReacao={removerReacaoDaMensagem} onResponder={setRespostaAlvo} onEncaminhar={setEncaminharAlvo} onEncaminharCliente={podeResponder ? setEncaminharClienteAlvo : undefined} onExcluir={async (mensagem) => { await excluir.mutateAsync(mensagem.id); }} onEditar={setEdicaoAlvo} onBuscarMensagem={(mensagemId) => obterMensagemChat(conversaId, mensagemId)} />}
             <ComposerChatInterno conversaId={conversaId} ref={composerRef} textos={textos} resposta={respostaAlvo} onCancelarResposta={() => setRespostaAlvo(null)} edicao={edicaoAlvo} onSalvarEdicao={(conteudo) => editar.mutateAsync({ mensagemId: edicaoAlvo!.id, conteudo })} onCancelarEdicao={() => setEdicaoAlvo(null)} enviando={enviar.isPending || enviarMidia.isPending || responder.isPending || editar.isPending} erro={enviar.isError || enviarMidia.isError || responder.isError || editar.isError} onEnviar={enviarConteudo} onEnviarMidia={(arquivo, legenda, idempotencyKey) => enviarMidia.mutateAsync({ arquivo, legenda, idempotencyKey })} />
           </ZonaSoltarArquivos>
         </div>
         {painelAberto && conversa && (
-          <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} onRetrair={() => setPainelAberto(false)} />
+          <PainelLateralGrupo conversaId={conversaId} nomeAtual={conversa.participantes} usuarioAtual={usuarioAtual} textos={textos} tipo={conversa.tipo} fotoUrl={conversa.fotoUrl} podeAlterarFoto={conversa.podeAlterarFoto} onRetrair={() => setPainelAberto(false)} />
         )}
       </div>
       <DialogoEncaminharChatInterno aberto={Boolean(encaminharAlvo)} conversaOrigemId={conversaId} conversas={conversas.data ?? []} textos={textos} enviando={encaminhar.isPending} erro={encaminhar.isError} onFechar={() => setEncaminharAlvo(null)} onConfirmar={(destinoId) => encaminhar.mutateAsync({ mensagemId: encaminharAlvo!.id, destinoId })} />
+      <DialogoEncaminharAoCliente mensagem={encaminharClienteAlvo} conversaId={conversaId} textos={textos.encaminharCliente} onFechar={() => setEncaminharClienteAlvo(null)} />
     </Fragment>
   );
 }

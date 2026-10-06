@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   contarAtendimentosFinalizaveis,
   finalizarAtendimento,
-  finalizarAtendimentosVisiveis,
   registrarResultadoVenda,
   transferirAtendimento,
 } from "./api";
@@ -67,16 +66,6 @@ export function useRegistrarResultadoVenda() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-    },
-  });
-}
-
-export function useFinalizarAtendimentosVisiveis() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (atendenteId?: string | null) => finalizarAtendimentosVisiveis(atendenteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["atendimentos"] });
     },
   });
 }

@@ -246,6 +246,30 @@ public class EnviarMensagemUseCase {
     }
 
     /**
+     * Envio ao cliente de conteúdo encaminhado do Chat Interno (docs/61). A decisão de negócio de
+     * 05/10/2026 é mais estrita que a RN-CRM-06 do envio comum: <b>nunca troca um responsável que
+     * já existe</b> — nem de gestor, subgestor ou participante por entrada direta. Sem responsável,
+     * quem encaminha assume o lead (a RN-CRM-06); com responsável, ele continua, e o chamador convida
+     * quem encaminhou. O atendimento é sempre o do clique ({@code atendimentoEsperadoId}): se foi
+     * finalizado, nada é gravado nem se abre outro.
+     */
+    @PreAuthorize("isAuthenticated() and @capacidades.permite('atendimentos.responder')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public Resultado executarEncaminhamentoDoChatInterno(
+            UUID leadId, UUID atendimentoEsperadoId, ConteudoDeEnvio conteudo, String chaveIdempotencia) {
+        return executarInterno(
+                leadId,
+                conteudo,
+                usuarioContext.atual().id(),
+                null,
+                null,
+                null,
+                chaveIdempotencia,
+                atendimentoEsperadoId,
+                false);
+    }
+
+    /**
      * Envio disparado por um job de serviço em nome do responsável da mensagem programada. A
      * autoridade de serviço fica restrita ao escopo transacional pelo {@code ContextoDeServico}; o
      * remetente da mensagem continua sendo o atendente que era dono do agendamento.

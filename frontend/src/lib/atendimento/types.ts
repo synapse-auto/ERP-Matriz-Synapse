@@ -252,12 +252,6 @@ export interface FinalizacaoEmLotePrevia {
   porAtendente: ContagemFinalizacaoPorAtendente[];
 }
 
-export interface FinalizacaoEmLoteResposta {
-  solicitados: number;
-  finalizados: number;
-  recusados: number;
-}
-
 export interface ParticipanteAtendimento {
   usuarioId: string;
   nome: string;

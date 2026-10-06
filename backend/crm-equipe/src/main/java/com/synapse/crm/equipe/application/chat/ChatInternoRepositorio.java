@@ -26,6 +26,19 @@ public interface ChatInternoRepositorio {
     void adicionarParticipante(UUID conversaId, UUID usuarioId);
     void removerParticipante(UUID conversaId, UUID usuarioId);
     void renomearGrupo(UUID conversaId, String nome);
+    /**
+     * Le criador e foto do grupo travando a linha ate o fim da transacao, para que duas trocas
+     * simultaneas nao deixem objeto orfao no storage. Vazio em conversa DIRETA ou inexistente.
+     */
+    Optional<FotoDoGrupo> bloquearFotoDoGrupo(UUID conversaId);
+    /** Referencia da foto sem travar nada; vazio se o grupo nao tem foto. */
+    Optional<String> referenciaDaFotoDoGrupo(UUID conversaId);
+    /**
+     * Grava (ou, com referencia nula, remove) a foto. A condicao {@code criado_por_id = criadorId}
+     * vai no proprio UPDATE: a RLS deixa qualquer participante escrever na conversa, entao e aqui
+     * que a autorizacao vira atomica. Devolve false se nenhuma linha casou.
+     */
+    boolean definirFotoDoGrupo(UUID conversaId, UUID criadorId, String referencia, Instant versao);
     /** Apaga a conversa se nao restou ninguem — evita linha orfa invisivel. */
     boolean apagarSeSemParticipantes(UUID conversaId);
     PaginaMensagens listarMensagens(UUID conversaId, UUID usuarioId, Instant antesDe, int limite);
@@ -42,8 +55,16 @@ public interface ChatInternoRepositorio {
     MensagemResumo removerMensagem(UUID conversaId, UUID mensagemId, UUID remetenteId, Instant removidaEm);
     void marcarComoLida(UUID conversaId, UUID usuarioId, Instant quando);
 
+    /** @param criadorId pode ser nulo: criador apagado ou grupo anterior ao registro de autoria */
+    record FotoDoGrupo(UUID criadorId, String referencia) {}
+    /** @param podeAlterarFoto o usuario consultado e o criador do grupo (calculado no mesmo SELECT) */
     record ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
-            Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {}
+            Instant ultimaMensagemEm, long naoLidas, String fotoUrl, boolean podeAlterarFoto) {
+        public ConversaResumo(UUID id, TipoConversaChat tipo, String participantes, String ultimaMensagem,
+                Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
+            this(id, tipo, participantes, ultimaMensagem, ultimaMensagemEm, naoLidas, fotoUrl, false);
+        }
+    }
     record ContatoResumo(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     record MidiaResumo(UUID mensagemId, String tipo, String nome, String mimetype, long tamanho,
             String legenda, String referenciaStorage, Instant enviadoEm) {}

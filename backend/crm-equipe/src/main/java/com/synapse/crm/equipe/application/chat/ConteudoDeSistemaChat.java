@@ -32,6 +32,14 @@ final class ConteudoDeSistemaChat {
                 + ",\"nome\":" + jsonString(novo) + "}";
     }
 
+    static String fotoAlterada() {
+        return "{\"evento\":\"" + EventoDeSistemaChat.FOTO_ALTERADA.name() + "\"}";
+    }
+
+    static String fotoRemovida() {
+        return "{\"evento\":\"" + EventoDeSistemaChat.FOTO_REMOVIDA.name() + "\"}";
+    }
+
     private static String alvo(EventoDeSistemaChat evento, UUID alvoId, String alvoNome) {
         return "{\"evento\":\"" + evento.name()
                 + "\",\"alvoId\":" + jsonString(alvoId.toString())

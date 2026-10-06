@@ -5,7 +5,6 @@ import { definirCapacidadesDeTeste } from "@/test/capacidades-de-teste";
 
 import type { CartaoAtendimento, ItemInbox } from "@/lib/atendimento/types";
 
-const finalizarTodos = vi.fn();
 const quantidadeFinalizavel = vi.hoisted(() => ({
   valor: 2,
   porAtendente: [
@@ -19,12 +18,16 @@ const atendimentosMock = vi.hoisted(() => ({
   data: [] as ItemInbox[],
 }));
 
+vi.mock("./finalizacao-em-massa/janela-finalizacao-em-massa", () => ({
+  JanelaFinalizacaoEmMassa: ({ aberta }: { aberta: boolean }) =>
+    aberta ? <div role="dialog" aria-label="Janela de finalização em massa" /> : null,
+}));
+
 vi.mock("@/lib/auth/auth-store", () => ({
   useAuthStore: (seletor: (estado: typeof authMock) => unknown) => seletor(authMock),
 }));
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
-  useFinalizarAtendimentosVisiveis: () => ({ mutate: finalizarTodos, isPending: false, isError: false }),
   useQuantidadeAtendimentosFinalizaveis: () => ({
     data: {
       quantidade: quantidadeFinalizavel.valor,
@@ -167,13 +170,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
       filtros: { etapa: "Etapa", atendente: "Atendente" },
       finalizar: {
         todosMenu: "Mais ações",
-        todos: "Finalizar Todos",
-        todosTitulo: "Finalizar atendimentos",
-        todosDescricao: "Encerrar {quantidade}",
-        todosConfirmar: "Finalizar {quantidade}",
-        todosCancelar: "Voltar",
-        todosResultado: "{finalizados} finalizados; {recusados} recusados",
-        todosErro: "Erro",
+        todos: "Finalizar em massa",
       },
       cartao: {
         semAtendente: "Sem atendente",
@@ -206,7 +203,6 @@ describe("ListaConversas", () => {
       { atendenteId: "u-ana", nome: "Ana", quantidade: 1 },
       { atendenteId: "u-bruno", nome: "Bruno", quantidade: 1 },
     ];
-    finalizarTodos.mockClear();
   });
 
   it("mostra as quatro visões e busca por cliente, empresa ou protocolo", () => {
@@ -368,56 +364,38 @@ describe("ListaConversas", () => {
     expect(screen.getByRole("tab", { name: /Pendentes/ })).toHaveAttribute("data-active");
   });
 
-  it("abre a finalização global na barra da lista com a quantidade real", () => {
+  it("o item de menu abre a janela de finalização em massa", () => {
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+    expect(screen.queryByRole("dialog", { name: "Janela de finalização em massa" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar em massa" }));
+
+    expect(screen.getByRole("dialog", { name: "Janela de finalização em massa" })).toBeInTheDocument();
+  });
+
+  it("sem atendimento finalizável o item de menu fica desabilitado", () => {
+    quantidadeFinalizavel.valor = 0;
+    quantidadeFinalizavel.porAtendente = [];
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
 
-    expect(screen.getByText("Encerrar 2")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Finalizar 2" }));
-    expect(finalizarTodos).toHaveBeenCalledWith(null, expect.any(Object));
+    expect(screen.getByRole("menuitem", { name: "Finalizar em massa" })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("trocar o rádio muda o número e envia o atendenteId selecionado", () => {
-    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
-
-    fireEvent.click(screen.getByRole("radio", { name: /Bruno/ }));
-    expect(screen.getByText("Encerrar 1")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Finalizar 1" }));
-    expect(finalizarTodos).toHaveBeenCalledWith("u-bruno", expect.any(Object));
-  });
-
-  it("seleção com zero atendimentos desabilita o botão de confirmar", () => {
-    quantidadeFinalizavel.valor = 1;
-    quantidadeFinalizavel.porAtendente = [
-      { atendenteId: "u-vazio", nome: "Sem fila", quantidade: 0 },
-      { atendenteId: "u-ok", nome: "Com fila", quantidade: 1 },
-    ];
-    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Finalizar Todos" }));
-    fireEvent.click(screen.getByRole("radio", { name: /Sem fila/ }));
-
-    expect(screen.getByRole("button", { name: "Finalizar 0" })).toBeDisabled();
-  });
-
-  it("o item de menu se chama Finalizar Todos", () => {
+  it("o item de menu se chama Finalizar em massa", () => {
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
-    expect(screen.getByRole("menuitem", { name: "Finalizar Todos" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Finalizar em massa" })).toBeInTheDocument();
   });
 
-  it("sem finalizar em lote (sensível), Finalizar Todos some e Finalizados continua", () => {
+  it("sem finalizar em lote (sensível), Finalizar em massa some e Finalizados continua", () => {
     definirCapacidadesDeTeste({ negadas: ["atendimentos.finalizar_lote"] });
     render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Mais ações" }));
 
-    expect(screen.queryByRole("menuitem", { name: "Finalizar Todos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Finalizar em massa" })).not.toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Finalizados" })).toBeInTheDocument();
   });
 

@@ -26,8 +26,14 @@ import { tocarSomDeNotificacao, registrarDesbloqueioDeAudio } from "@/lib/atendi
 import type { NotificacaoTempoReal } from "@/lib/atendimento/types";
 import { renovarAccessToken } from "@/lib/api/http-client";
 import { ehAvisoDeAcessoAlterado } from "@/lib/gestao/aviso-de-acesso";
+import {
+  ehAvisoDeFinalizacaoEmMassa,
+  type AvisoDeFinalizacaoEmMassa,
+} from "@/lib/finalizacao-em-massa/aviso";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
+
+import { AvisoDeFinalizacaoEmMassaCard } from "./aviso-de-finalizacao-em-massa";
 
 const MAXIMO_DE_AVISOS_VISUAIS = 3;
 
@@ -46,10 +52,22 @@ export function NotificacoesTempoReal() {
   const { duracaoSegundos } = usePreferenciaDuracaoDeNotificacao();
   const { posicao } = usePreferenciaPosicaoDeNotificacao();
   const [avisos, setAvisos] = useState<NotificacaoTempoReal[]>([]);
+  const [avisosDeFinalizacao, setAvisosDeFinalizacao] = useState<AvisoDeFinalizacaoEmMassa[]>([]);
+  const finalizacoesJaAvisadas = useRef(new Set<string>());
   const servico = useRef(new ServicoDeNotificacoesTempoReal());
 
   const aoReceber = useCallback((notificacao: NotificacaoTempoReal) => {
     const bruto: unknown = notificacao;
+    if (ehAvisoDeFinalizacaoEmMassa(bruto)) {
+      // O servidor reenvia o aviso se a primeira entrega falhar (at-least-once); o `eventoId` e o mesmo, entao um
+      // reenvio nunca vira segundo cartao. Os atendimentos saem da fila sem F5.
+      if (finalizacoesJaAvisadas.current.has(bruto.eventoId)) return;
+      finalizacoesJaAvisadas.current.add(bruto.eventoId);
+      void cache.invalidateQueries({ queryKey: ["atendimentos"] });
+      void cache.invalidateQueries({ queryKey: ["finalizacao-em-massa"] });
+      setAvisosDeFinalizacao((atuais) => [bruto, ...atuais].slice(0, MAXIMO_DE_AVISOS_VISUAIS));
+      return;
+    }
     if (ehAvisoDeAcessoAlterado(bruto)) {
       // Gestão (docs/47): o backend já aplica a mudança; aqui só refletimos sem F5. Sessão
       // invalidada (papel mudou/desativado) renova o token antes de recarregar; se a renovação
@@ -97,6 +115,11 @@ export function NotificacoesTempoReal() {
     const timer = window.setTimeout(() => setAvisos([]), duracaoSegundos * 1000);
     return () => window.clearTimeout(timer);
   }, [avisos, duracaoSegundos]);
+  useEffect(() => {
+    if (avisosDeFinalizacao.length === 0) return;
+    const timer = window.setTimeout(() => setAvisosDeFinalizacao([]), duracaoSegundos * 1000);
+    return () => window.clearTimeout(timer);
+  }, [avisosDeFinalizacao, duracaoSegundos]);
 
   function abrirAviso(notificacao: NotificacaoTempoReal) {
     if (notificacao.tipo === "NOVA_MENSAGEM") {
@@ -114,8 +137,17 @@ export function NotificacoesTempoReal() {
     setAvisos((atuais) => atuais.filter((atual) => chaveTecnicaDaNotificacao(atual) !== chaveTecnicaDaNotificacao(notificacao)));
   }
 
-  return avisos.length > 0 ? (
+  return avisos.length + avisosDeFinalizacao.length > 0 ? (
     <div className={`pointer-events-none fixed right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 ${posicao === "BAIXO" ? "bottom-4" : "top-4"}`}>
+      {avisosDeFinalizacao.map((aviso) => (
+        <AvisoDeFinalizacaoEmMassaCard
+          key={aviso.eventoId}
+          aviso={aviso}
+          onFechar={() =>
+            setAvisosDeFinalizacao((atuais) => atuais.filter((atual) => atual.eventoId !== aviso.eventoId))
+          }
+        />
+      ))}
       {avisos.map((aviso) => (
         <div
           key={chaveTecnicaDaNotificacao(aviso)}

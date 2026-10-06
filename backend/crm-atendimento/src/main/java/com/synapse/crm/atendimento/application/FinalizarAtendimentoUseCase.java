@@ -15,6 +15,8 @@ import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoCanonicoDeAtendimento;
 import com.synapse.crm.atendimento.domain.evento.EventoDeAtendimento;
+import com.synapse.crm.atendimento.domain.finalizacaomassa.MotivoDoItemDeFinalizacao;
+import com.synapse.crm.atendimento.domain.finalizacaomassa.PeriodoDeFinalizacao;
 import com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
@@ -135,6 +137,49 @@ public class FinalizarAtendimentoUseCase {
             return java.util.Optional.empty();
         }
         return java.util.Optional.of(finalizar(aberto, null, Origem.AUTOMACAO));
+    }
+
+    /**
+     * Finaliza um item da finalizacao em massa. O escopo foi congelado e autorizado no pedido, sob a RLS de
+     * quem pediu; aqui so se confirma, sob lock, que nada mudou desde entao: o atendimento segue aberto, e do
+     * mesmo atendente (quem seria avisado), e a ultima atividade continua dentro do periodo (uma mensagem
+     * nova o tira da janela e ele volta a andar). O ator do evento e quem pediu a operacao.
+     */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(
+            transactionManager = Pools.CHAT_TRANSACTION_MANAGER,
+            noRollbackFor = {
+                AtendimentoJaFinalizadoException.class, RecursoDeAtendimentoIndisponivelException.class
+            })
+    public Desfecho executarPelaFinalizacaoEmMassa(
+            UUID atendimentoId, UUID executorId, UUID atendenteEsperado, PeriodoDeFinalizacao periodo) {
+        Atendimento aberto = AtendimentoParaAlteracao.carregar(atendimentoId, atendimentos, leads);
+        if (aberto.status() == StatusAtendimento.FINALIZADO) {
+            return Desfecho.ignoradoPor(MotivoDoItemDeFinalizacao.JA_FINALIZADO);
+        }
+        if (aberto.status() != StatusAtendimento.EM_ATENDIMENTO || !aberto.pertenceA(atendenteEsperado)) {
+            return Desfecho.ignoradoPor(MotivoDoItemDeFinalizacao.TRANSFERIDO);
+        }
+        Instant ultimaAtividade = atendimentos.ultimaMensagemEm(atendimentoId).orElse(aberto.iniciadoEm());
+        if (!periodo.contem(ultimaAtividade)) {
+            return Desfecho.ignoradoPor(MotivoDoItemDeFinalizacao.ATIVIDADE_POSTERIOR);
+        }
+        finalizar(aberto, executorId, Origem.LOTE);
+        return Desfecho.FINALIZADO;
+    }
+
+    /** Resultado de um item da finalizacao em massa: finalizado, ou ignorado por um motivo. */
+    public record Desfecho(MotivoDoItemDeFinalizacao ignoradoPor) {
+
+        static final Desfecho FINALIZADO = new Desfecho(null);
+
+        static Desfecho ignoradoPor(MotivoDoItemDeFinalizacao motivo) {
+            return new Desfecho(motivo);
+        }
+
+        public boolean finalizado() {
+            return ignoradoPor == null;
+        }
     }
 
     /**

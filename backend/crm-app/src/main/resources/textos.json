@@ -419,13 +419,102 @@
       "vendaRegistradaPor": "Registrado por {nome}",
       "vendaRegistradaEm": "Registrado em {data}",
       "todosMenu": "Mais ações",
-      "todos": "Finalizar Todos",
-      "todosTitulo": "Finalizar atendimentos",
-      "todosDescricao": "Esta ação encerrará {quantidade} atendimento(s) aberto(s) que você pode visualizar. O estado é definitivo.",
-      "todosConfirmar": "Finalizar {quantidade}",
-      "todosCancelar": "Voltar",
-      "todosResultado": "{finalizados} atendimento(s) finalizado(s); {recusados} recusado(s).",
-      "todosErro": "Não foi possível finalizar os atendimentos visíveis."
+      "todos": "Finalizar em massa"
+    },
+    "finalizacaoEmMassa": {
+      "titulo": "Finalizar atendimentos em massa",
+      "descricao": "Escolha quem e qual período. Só são finalizados atendimentos abertos; nenhum lead, mensagem ou histórico é apagado.",
+      "fechar": "Fechar",
+      "atendentes": {
+        "rotulo": "Atendentes",
+        "placeholder": "Selecione os atendentes",
+        "carregando": "Carregando atendentes…",
+        "erro": "Não foi possível carregar os atendentes.",
+        "indisponivel": "Nenhum atendente com atendimento aberto."
+      },
+      "periodo": {
+        "de": "Data inicial",
+        "ate": "Data final",
+        "horaInicio": "Hora inicial (opcional)",
+        "horaFim": "Hora final (opcional)",
+        "selecionarData": "Selecionar data",
+        "dica": "Datas inclusivas. Sem hora, vale o dia inteiro. O período considera a última mensagem de cada atendimento."
+      },
+      "problemas": {
+        "SEM_ATENDENTE": "Selecione ao menos um atendente.",
+        "SEM_PERIODO": "Informe a data inicial e a final.",
+        "PERIODO_INVERTIDO": "O início do período não pode ser depois do fim."
+      },
+      "previa": {
+        "carregando": "Calculando os atendimentos…",
+        "erro": "Não foi possível calcular a prévia.",
+        "tentarNovamente": "Tentar novamente",
+        "total": "{total} atendimento(s) serão finalizados",
+        "nenhum": "Nenhum atendimento encontrado para esses filtros.",
+        "porAtendente": "Por atendente",
+        "excedeLimite": "Há mais atendimentos do que o limite de {limite} por operação. Reduza o período ou os atendentes.",
+        "fuso": "Fuso considerado: {fuso}"
+      },
+      "confirmacao": {
+        "titulo": "Confirmar finalização",
+        "aviso": "Esta ação não pode ser desfeita em massa: os atendimentos finalizados saem da fila dos atendentes.",
+        "resumo": "{total} atendimento(s) de {atendentes}, entre {de} e {ate}.",
+        "revisar": "Revisar",
+        "confirmar": "Finalizar {total}",
+        "voltar": "Voltar",
+        "iniciando": "Iniciando…",
+        "erro": "Não foi possível iniciar a finalização em massa."
+      },
+      "andamento": {
+        "titulo": "Finalizando atendimentos",
+        "aguardando": "Aguardando o início do processamento…",
+        "progresso": "{processados} de {encontrados} processados",
+        "segundoPlano": "O processamento continua em segundo plano. Você pode fechar esta janela e reabrir depois.",
+        "erro": "Não foi possível acompanhar a operação."
+      },
+      "resultado": {
+        "titulo": "Finalização concluída",
+        "tituloParcial": "Finalização concluída com pendências",
+        "encontrados": "{n} encontrado(s)",
+        "finalizados": "{n} finalizado(s)",
+        "ignorados": "{n} ignorado(s)",
+        "falhas": "{n} com falha",
+        "detalhes": "Detalhes",
+        "semItens": "Nenhum item nesta categoria.",
+        "erroItens": "Não foi possível carregar os detalhes.",
+        "nova": "Nova finalização",
+        "leadSemNome": "Sem nome",
+        "abas": {
+          "FINALIZADO": "Finalizados",
+          "IGNORADO": "Ignorados",
+          "FALHA": "Falhas"
+        }
+      },
+      "motivos": {
+        "JA_FINALIZADO": "Já estava finalizado",
+        "TRANSFERIDO": "Foi transferido para outro atendente",
+        "ATIVIDADE_POSTERIOR": "Teve atividade depois do período",
+        "INDISPONIVEL": "Ficou indisponível",
+        "ERRO_INESPERADO": "Erro inesperado ao finalizar"
+      },
+      "recentes": {
+        "titulo": "Operações recentes",
+        "vazio": "Nenhuma operação recente.",
+        "abrir": "Abrir",
+        "linha": "{finalizados} de {encontrados} finalizado(s)",
+        "status": {
+          "PENDENTE": "Na fila",
+          "EM_ANDAMENTO": "Em andamento",
+          "CONCLUIDA": "Concluída"
+        }
+      },
+      "aviso": {
+        "titulo": "Finalização em massa concluída",
+        "resumoUm": "1 atendimento foi finalizado em uma finalização em massa. Usuário afetado: {usuarios}.",
+        "resumoVarios": "{total} atendimentos foram finalizados em uma finalização em massa. Usuários afetados: {usuarios}.",
+        "linha": "{nome}: {finalizados} atendimento(s)",
+        "parcial": "{ignorados} ignorado(s) e {falhas} com falha."
+      }
     },
     "avaliacao": {
       "titulo": "Avaliação do atendimento",
@@ -1529,6 +1618,72 @@
     "encaminharConfirmar": "Encaminhar",
     "encaminharCancelar": "Cancelar",
     "encaminharErro": "Não foi possível encaminhar a mensagem.",
+    "encaminharCliente": {
+      "acao": "Encaminhar para o cliente",
+      "titulo": "Encaminhar para o cliente",
+      "descricao": "Escolha o atendimento que receberá esta mensagem. O envio sai pelo canal de WhatsApp do atendimento.",
+      "buscar": "Buscar cliente",
+      "carregandoDestinos": "Carregando atendimentos…",
+      "semDestinos": "Nenhum atendimento aberto disponível para você.",
+      "semResultado": "Nenhum atendimento encontrado para essa busca.",
+      "erroDestinos": "Não foi possível carregar os atendimentos.",
+      "escolher": "Escolher {cliente}",
+      "voltar": "Voltar",
+      "previaTitulo": "Confirme o envio ao cliente",
+      "carregandoPrevia": "Carregando prévia…",
+      "erroPrevia": "Não foi possível carregar a prévia.",
+      "cliente": "Cliente",
+      "telefone": "Telefone",
+      "atendimento": "Atendimento",
+      "responsavel": "Responsável",
+      "semResponsavel": "Sem responsável",
+      "conteudo": "Conteúdo",
+      "arquivo": "Arquivo",
+      "legenda": "Legenda",
+      "tipo": {
+        "TEXTO": "Texto",
+        "IMAGEM": "Imagem",
+        "AUDIO": "Áudio",
+        "VIDEO": "Vídeo",
+        "DOCUMENTO": "Documento"
+      },
+      "efeito": {
+        "ASSUME_O_LEAD": "Este atendimento não tem responsável. Ao enviar, você passa a ser o responsável pelo lead.",
+        "MANTEM_RESPONSAVEL_E_CONVIDA": "O responsável atual continua o mesmo. Você receberá um convite para participar deste atendimento.",
+        "MANTEM_RESPONSAVEL": "O responsável atual continua o mesmo. Você já participa deste atendimento.",
+        "VOCE_E_RESPONSAVEL": "Você já é o responsável por este atendimento."
+      },
+      "bloqueio": {
+        "ATENDIMENTO_FINALIZADO": "Este atendimento já foi finalizado.",
+        "FORA_DA_JANELA": "Fora da janela de 24 horas: texto livre não pode ser enviado ao cliente neste canal.",
+        "TIPO_NAO_SUPORTADO": "O formato deste arquivo não é aceito no envio ao cliente.",
+        "ARQUIVO_ACIMA_DO_LIMITE": "O arquivo passa do limite permitido para envio ao cliente.",
+        "ARQUIVO_SEM_TAMANHO": "Não foi possível conferir o tamanho do arquivo."
+      },
+      "confirmar": "Enviar ao cliente",
+      "enviando": "Enviando…",
+      "cancelar": "Cancelar",
+      "fechar": "Fechar",
+      "statusTitulo": "Acompanhamento do envio",
+      "status": {
+        "PENDENTE": "Na fila de envio",
+        "ENVIADO": "Enviado",
+        "ENTREGUE": "Entregue",
+        "LIDO": "Lido",
+        "FALHOU": "Falhou"
+      },
+      "falhou": "O provedor não entregou a mensagem. Ela não será reenviada automaticamente.",
+      "conviteCriado": "Você recebeu um convite para participar do atendimento.",
+      "assumiu": "Você agora é o responsável por este lead.",
+      "jaEnviado": "Este envio já tinha sido feito; nada foi reenviado.",
+      "erro": {
+        "403": "Você não tem permissão para encaminhar esta mensagem a este atendimento.",
+        "404": "Este atendimento não está disponível para você.",
+        "409": "Este atendimento foi finalizado ou este envio já foi usado em outra operação.",
+        "422": "Esta mensagem não pode ser enviada ao cliente.",
+        "generico": "Não foi possível encaminhar para o cliente."
+      }
+    },
     "naoLidas": "{quantidade} não lidas",
     "tipoGrupo": "Grupo",
     "tipoDireta": "Conversa direta",
@@ -1547,7 +1702,26 @@
       "participanteRemovido": "removeu {alvo}",
       "participanteSaiu": "{alvo} saiu do grupo",
       "nomeAlterado": "renomeou o grupo para {nome}",
-      "eventoDesconhecido": "atualização do grupo"
+      "eventoDesconhecido": "atualização do grupo",
+      "fotoAlterada": "alterou a foto do grupo",
+      "fotoRemovida": "removeu a foto do grupo"
+    },
+    "fotoGrupo": {
+      "titulo": "Foto do grupo",
+      "alterar": "Alterar foto",
+      "remover": "Remover foto",
+      "escolher": "Escolher imagem para a foto do grupo",
+      "previa": "Prévia da nova foto do grupo",
+      "confirmar": "Salvar foto",
+      "enviando": "Enviando…",
+      "cancelar": "Cancelar",
+      "fotoAlt": "Foto do grupo {nome}",
+      "erroTipo": "Escolha uma imagem JPEG, PNG ou WebP.",
+      "erroPermissao": "Somente quem criou o grupo pode alterar a foto.",
+      "erroTamanho": "A imagem é grande demais. Escolha um arquivo menor.",
+      "erroImagem": "Não foi possível usar essa imagem. Verifique o formato e as dimensões.",
+      "erroIndisponivel": "O armazenamento de imagens está indisponível. Tente novamente em instantes.",
+      "erroGenerico": "Não foi possível salvar a foto. Tente novamente."
     }
   },
   "dashboard": {

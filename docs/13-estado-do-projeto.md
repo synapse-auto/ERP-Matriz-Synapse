@@ -4,6 +4,28 @@ Documento de continuidade. **Estado reconstruído em 16/09/2026 a partir de
 `origin/main` (`e3324f5`), das migrations e do código.** Se este arquivo divergir do
 repositório, o repositório vence.
 
+### 05/10/2026 — Encaminhar do Chat Interno para o cliente
+
+Texto e mídia (imagem, vídeo, áudio, documento) de uma conversa interna podem ser encaminhados ao cliente de um
+atendimento aberto, pelo fluxo oficial de envio (outbox, idempotência, janela de 24h, adaptadores Meta e UZAPI).
+O Chat Interno **não tem vínculo com lead**, então o destino é escolhido por quem encaminha e validado pelo
+backend (alcance RN-CRM-01 + `atendimentos.responder` + participar da conversa), com prévia de telefone mascarado e
+confirmação explícita. Decisão de negócio: sem responsável, quem encaminha assume o lead (RN-CRM-06); **com
+responsável, nunca transfere** (nem gestor): ele continua e quem encaminhou recebe convite para participar
+(docs/51), sem convite repetido. V96 guarda o elo mensagem interna → externa; a mídia aponta para o mesmo objeto de
+storage (sem cópia). Detalhe, limitações e riscos em
+[`61-encaminhar-chat-interno-para-cliente-viabilidade.md`](./61-encaminhar-chat-interno-para-cliente-viabilidade.md).
+
+### 05/10/2026 — Foto dos grupos do Chat Interno
+
+Exibição e troca da foto dos grupos do Chat Interno (lista, cabeçalho, painel, inbox unificada), só pelo
+**criador** do grupo, validado no backend e no próprio `UPDATE`. V95 registra o criador (backfill pela
+mensagem `GRUPO_CRIADO`) e a foto; storage em prefixo próprio `grupo/` do bucket de avatares; validação de
+tipo real, dimensões lidas do cabeçalho e reencode; atualização dos demais participantes pela mensagem de
+sistema já existente e recarga na reconexão. O chat não tinha papel de administrador, então a regra "só o
+criador" é decisão nova e está listada em "Decisões pendentes". Detalhe em
+[`60-foto-do-grupo-do-chat-interno.md`](./60-foto-do-grupo-do-chat-interno.md).
+
 ### 04/10/2026 — Foto de perfil na Fêmina: a captura existe, faltava enxergar por que não aparece
 
 Relato: leads da Fêmina sem foto. Investigação: a captura **já está implementada** desde 16/09 (adaptador
