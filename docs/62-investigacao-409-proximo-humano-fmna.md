@@ -1,4 +1,4 @@
-# 61 — Investigação do 409 "nenhum atendente está online e disponível" (FMNA, E222 parte 2)
+# 62 — Investigação do 409 "nenhum atendente está online e disponível" (FMNA, E222 parte 2)
 
 Auditoria **só de código** (sem acesso à VPS nem ao n8n), feita sobre `origin/main` (`0cb0d49`), antes do PR de
 observabilidade ([#269](https://github.com/synapse-auto/ERP-Matriz-Synapse/pull/269)). Linhas citadas são de
