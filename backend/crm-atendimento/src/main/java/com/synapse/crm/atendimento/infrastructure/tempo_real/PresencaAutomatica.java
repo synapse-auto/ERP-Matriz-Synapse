@@ -123,11 +123,21 @@ public class PresencaAutomatica {
     @EventListener
     synchronized void aoFicarPronto(ApplicationReadyEvent evento) {
         partidaEm = relogio.instant();
+        // Os dois instantes (partida e fim da carencia) permitem conferir, no log de um deploy, quanto durou o intervalo
+        // entre esta instancia ficar pronta e a anterior encerrar.
+        log.info("{} instancia pronta (ApplicationReady): instante={} carenciaAte={} carencia={}",
+                MARCADOR, partidaEm, partidaEm.plus(carencia), carencia);
     }
 
+    /**
+     * O Spring publica este evento antes de parar o ciclo de vida: so depois o SubProtocolWebSocketHandler fecha todas as
+     * sessoes com GOING_AWAY. Marcar aqui, antes dos SessionDisconnectEvent, e o que impede o deploy de gravar OFFLINE.
+     */
     @EventListener
     synchronized void aoEncerrar(ContextClosedEvent evento) {
         encerrando = true;
+        log.info("{} encerramento iniciado: instante={}; as desconexoes a partir daqui nao gravam presenca",
+                MARCADOR, relogio.instant());
     }
 
     /** Ponto de entrada do agendador; os ITs chamam {@link #varrer()} direto (o agendamento fica desligado em teste). */

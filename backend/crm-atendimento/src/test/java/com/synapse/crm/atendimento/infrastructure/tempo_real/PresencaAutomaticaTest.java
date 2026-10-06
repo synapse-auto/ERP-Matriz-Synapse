@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.infrastructure.tempo_real;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
@@ -22,10 +23,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.user.SimpSession;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
@@ -260,6 +265,34 @@ class PresencaAutomaticaTest {
         verifyNoInteractions(presenca, avisos);
     }
 
+    // --- logs de deploy (E223.1) ------------------------------------------------------------------------------------
+
+    @Test
+    void aoFicarProntoRegistraOInstanteDePartidaEOFimDaCarencia() {
+        List<String> mensagens = capturandoOLog(() -> automatica.aoFicarPronto(null));
+
+        assertThat(mensagens).singleElement().satisfies(mensagem -> assertThat(mensagem)
+                .startsWith("[PRESENCA_AUTOMATICA] instancia pronta (ApplicationReady)")
+                .contains("instante=" + relogio.instant())
+                .contains("carenciaAte=" + relogio.instant().plus(CARENCIA)));
+    }
+
+    @Test
+    void aoEncerrarRegistraOInicioDoEncerramentoEPassaAIgnorarDesconexoes() {
+        List<String> mensagens = capturandoOLog(() -> automatica.aoEncerrar(null));
+
+        assertThat(mensagens).singleElement().satisfies(mensagem -> assertThat(mensagem)
+                .startsWith("[PRESENCA_AUTOMATICA] encerramento iniciado")
+                .contains("instante=" + relogio.instant()));
+    }
+
+    @Test
+    void carenciaPadraoEDeCentoEOitentaSegundos() {
+        assertThat(new PresencaAutomaticaProperties(null, null, null).carencia()).isEqualTo(Duration.ofSeconds(180));
+        assertThat(new PresencaAutomaticaProperties(null, Duration.ofSeconds(45), null).carencia())
+                .isEqualTo(Duration.ofSeconds(45));
+    }
+
     @Test
     void falhaNoBancoNaoPropagaENaoAvisaNinguem() {
         when(presenca.executar(any(), any(), any(), any())).thenThrow(new IllegalStateException("banco fora"));
@@ -298,6 +331,19 @@ class PresencaAutomaticaTest {
     }
 
     // --- apoio -------------------------------------------------------------------------------------------------------
+
+    private static List<String> capturandoOLog(Runnable acao) {
+        Logger logger = (Logger) LoggerFactory.getLogger(PresencaAutomatica.class);
+        ListAppender<ILoggingEvent> coletor = new ListAppender<>();
+        coletor.start();
+        logger.addAppender(coletor);
+        try {
+            acao.run();
+        } finally {
+            logger.detachAppender(coletor);
+        }
+        return coletor.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
 
     private PresencaAutomatica nova(Duration carencia) {
         return new PresencaAutomatica(

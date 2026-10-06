@@ -24,7 +24,7 @@ public record PresencaAutomaticaProperties(Duration tolerancia, Duration carenci
 
     public PresencaAutomaticaProperties {
         tolerancia = positivo(tolerancia) ? tolerancia : Duration.ofSeconds(90);
-        carencia = carencia == null || carencia.isNegative() ? Duration.ofSeconds(120) : carencia;
+        carencia = carencia == null || carencia.isNegative() ? Duration.ofSeconds(180) : carencia;
         intervaloVarredura = positivo(intervaloVarredura) ? intervaloVarredura : Duration.ofSeconds(15);
     }
 

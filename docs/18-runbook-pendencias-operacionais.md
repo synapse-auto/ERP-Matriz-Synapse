@@ -1018,8 +1018,10 @@ Entrega **desligada** (`false`). Desligada, nada muda presença sozinho; o hist�
 
 **Tempos** (variáveis de ambiente do backend; **não precisam ser declaradas** no stack, valem os padrões):
 `WS_PRESENCA_TOLERANCIA` (padrão `90s`: sem sessão por mais que isso vira OFFLINE; tem de ser maior que o teto do backoff
-de reconexão de 15–30 s), `WS_PRESENCA_CARENCIA` (padrão `120s`: depois que o backend sobe ninguém é marcado OFFLINE,
-porque o registro de sessões está vazio até os clientes voltarem; sem isso cada deploy esvaziaria o rodízio),
+de reconexão de 15–30 s), `WS_PRESENCA_CARENCIA` (padrão `180s`: depois que o backend sobe ninguém é marcado OFFLINE,
+porque o registro de sessões está vazio até os clientes voltarem; sem isso cada deploy esvaziaria o rodízio. O log
+`[PRESENCA_AUTOMATICA] instancia pronta` registra o instante de ApplicationReady e o fim da carência, e
+`[PRESENCA_AUTOMATICA] encerramento iniciado` o início do encerramento, para medir o intervalo real de um deploy),
 `WS_PRESENCA_INTERVALO_VARREDURA` (padrão `15s`). O atraso máximo até o OFFLINE é tolerância + intervalo. Os valores são
 ponto de partida, decisão do responsável.
 

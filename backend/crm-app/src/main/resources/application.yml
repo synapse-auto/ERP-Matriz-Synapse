@@ -279,7 +279,7 @@ synapse:
     # backend sobe ninguem e marcado OFFLINE (o registro de sessoes esta vazio ate os clientes voltarem).
     presenca:
       tolerancia: ${WS_PRESENCA_TOLERANCIA:90s}
-      carencia: ${WS_PRESENCA_CARENCIA:120s}
+      carencia: ${WS_PRESENCA_CARENCIA:180s}
       intervalo-varredura: ${WS_PRESENCA_INTERVALO_VARREDURA:15s}
 
   dashboard:
