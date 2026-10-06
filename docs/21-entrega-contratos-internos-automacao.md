@@ -211,6 +211,15 @@ Esse ponto estava descrito errado no documento anterior e foi corrigido:
   CRM escolhe: menor quantidade de atendimentos abertos, depois quem está há mais tempo sem receber,
   depois o `id` para desempate determinístico. Quem nunca recebeu vem antes de quem já recebeu. Esse
   rodízio é estrito a atendimentos `EM_IA` e nunca reatribui uma conversa já assumida por humano.
+  **409 sem destino (E222):** quando ninguém é elegível, o corpo continua `409`, título
+  `Operacao nao pode ser aplicada` e detalhe `nenhum atendente esta online e disponivel para receber a
+  conversa`, e ganha o campo aditivo `motivo`: `SEM_ATENDENTE_ELEGIVEL` (nenhum usuário ativo com papel
+  `ATENDENTE`/`SUBGESTOR`), `SEM_ATENDENTE_DISPONIVEL_PARA_IA` (há elegíveis, mas nenhum marcado em
+  `disponibilidade_atendente_ia`, ou sem linha nela), `SEM_ATENDENTE_ONLINE` (há marcados, nenhum com
+  presença `ONLINE`) ou `NAO_DETERMINADO`. Cada 409 deste tipo também grava um WARN
+  `[TRANSFERENCIA_SEM_DESTINO]` no log do backend com as contagens depois de cada filtro, a estratégia e se o
+  lead tinha responsável — sem nome, telefone ou e-mail. Outros `409` do endpoint (atendimento fora de
+  `EM_IA`, finalizado, chave reutilizada) não trazem `motivo`.
 
 Se o workflow não tem um motivo de negócio para apontar a pessoa, use a segunda e deixe o rodízio
 decidir. `GET /internal/v1/atendentes/disponiveis` já devolve a lista **na ordem recomendada** — o

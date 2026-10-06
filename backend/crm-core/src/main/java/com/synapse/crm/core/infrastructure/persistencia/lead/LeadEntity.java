@@ -3,6 +3,7 @@ package com.synapse.crm.core.infrastructure.persistencia.lead;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -59,6 +60,14 @@ class LeadEntity {
 
     @Column(name = "telefone")
     private String telefone;
+
+    /**
+     * Endereco especifico do provedor; nao e editavel na ficha. Ao trocar o telefone canonico,
+     * invalida-se este valor para que os proximos envios usem o telefone corrigido ate o provedor
+     * informar um novo endereco.
+     */
+    @Column(name = "telefone_provedor")
+    private String telefoneProvedor;
 
     @Column(name = "email")
     private String email;
@@ -154,6 +163,9 @@ class LeadEntity {
     void aplicar(Lead lead) {
         this.nome = lead.nome();
         this.fotoUrl = lead.fotoUrl();
+        if (!Objects.equals(this.telefone, lead.telefone())) {
+            this.telefoneProvedor = null;
+        }
         this.telefone = lead.telefone();
         this.email = lead.email();
         this.cpf = lead.cpf();

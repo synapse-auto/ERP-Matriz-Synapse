@@ -522,6 +522,94 @@ class AtendimentoAcoesControllerIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("resultado manual: registra uma única decisão auditada e projeta o card da lista")
+    void resultadoVenda_manualRegistraIdempotenteEAtualizaLista() {
+        UUID lead = criarLead("lead venda manual " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.PUT,
+                "/api/v1/atendimentos/" + atendimentoId + "/resultado-venda", Map.of("resultado", "VENDEU"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resposta.getBody()).contains("\"resultado\":\"VENDEU\"", "\"origem\":\"MANUAL\"");
+        assertThat(jdbc.queryForObject(
+                "SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, atendimentoId)).isEqualTo("VENDEU");
+        assertThat(jdbc.queryForObject(
+                "SELECT venda_registrada_por_id FROM atendimento WHERE id = ?", UUID.class, atendimentoId)).isEqualTo(idAna);
+        assertThat(jdbc.queryForObject(
+                "SELECT valor_venda FROM atendimento WHERE id = ?", java.math.BigDecimal.class, atendimentoId)).isNull();
+
+        ResponseEntity<String> lista = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.GET, "/api/v1/atendimentos?visao=ATIVOS", null);
+        assertThat(lista.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(lista.getBody()).contains("\"emNegociacao\":false", "\"resultadoVenda\":\"VENDEU\"");
+
+        ResponseEntity<String> repetida = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.PUT,
+                "/api/v1/atendimentos/" + atendimentoId + "/resultado-venda", Map.of("resultado", "VENDEU"));
+        ResponseEntity<String> conflitante = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.PUT,
+                "/api/v1/atendimentos/" + atendimentoId + "/resultado-venda", Map.of("resultado", "NAO_VENDEU"));
+        assertThat(repetida.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(conflitante.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jdbc.queryForObject(
+                "SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, atendimentoId)).isEqualTo("VENDEU");
+
+        await().atMost(Duration.ofSeconds(2)).untilAsserted(() -> {
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM evento_timeline WHERE atendimento_id = ? AND tipo = 'RESULTADO_VENDA_ATUALIZADO'",
+                    Long.class, atendimentoId)).isEqualTo(1L);
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM audit_log WHERE entidade_id = ? AND acao = 'RESULTADO_VENDA_VENDEU_MANUAL' AND ator_id = ?",
+                    Long.class, atendimentoId, idAna)).isEqualTo(1L);
+        });
+    }
+
+    @Test
+    @DisplayName("resultado manual: lead fora do recorte RLS não é exposto nem alterado")
+    void resultadoVenda_leadDeOutroAtendenteRetorna404() {
+        UUID lead = criarLead("lead venda inacessivel " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_BRUNO, SENHA_ATENDENTE, HttpMethod.PUT,
+                "/api/v1/atendimentos/" + atendimentoId + "/resultado-venda", Map.of("resultado", "VENDEU"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(jdbc.queryForObject(
+                "SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, atendimentoId)).isNull();
+    }
+
+    @Test
+    @DisplayName("finalização de negociação exige escolha; Não vendeu grava e finaliza junto")
+    void finalizarNegociacao_semResultadoRecusaComResultadoGravaEFinaliza() {
+        UUID lead = criarLead("lead negociacao finalizar " + sufixo(), idAna, Instant.now());
+        UUID atendimentoId = criarAtendimentoViaEnvio(lead);
+        jdbc.update("UPDATE atendimento SET em_negociacao = TRUE WHERE id = ?", atendimentoId);
+
+        ResponseEntity<String> semEscolha = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/finalizar", null);
+        assertThat(semEscolha.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(jdbc.queryForObject(
+                "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId))
+                .isEqualTo("EM_ATENDIMENTO");
+
+        ResponseEntity<String> resposta = chamar(
+                EMAIL_ANA, SENHA_ATENDENTE, HttpMethod.POST,
+                "/api/v1/atendimentos/" + atendimentoId + "/finalizar", Map.of("resultadoVenda", "NAO_VENDEU"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject(
+                "SELECT status::text FROM atendimento WHERE id = ?", String.class, atendimentoId)).isEqualTo("FINALIZADO");
+        assertThat(jdbc.queryForObject(
+                "SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, atendimentoId)).isEqualTo("NAO_VENDEU");
+        assertThat(jdbc.queryForObject(
+                "SELECT origem_resultado_venda FROM atendimento WHERE id = ?", String.class, atendimentoId)).isEqualTo("FINALIZACAO");
+    }
+
+    @Test
     @DisplayName("finalizar: encerra o atendimento")
     void finalizar_sucesso_encerraAtendimento() {
         UUID lead = criarLead("lead finalizar " + sufixo(), idAna, Instant.now());

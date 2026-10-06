@@ -239,10 +239,23 @@ class MetaCloudWebhookTradutor implements TradutorDeCanal {
             if (primeiro.path("code").canConvertToInt()) {
                 codigo = primeiro.path("code").asInt();
             }
-            String lido = primeiro.path("title").asText(null);
-            titulo = (lido == null || lido.isBlank()) ? null : lido;
+            titulo = textoDeErro(primeiro.path("error_data").path("details"));
+            if (titulo == null) {
+                titulo = textoDeErro(primeiro.path("message"));
+            }
+            if (titulo == null) {
+                titulo = textoDeErro(primeiro.path("title"));
+            }
         }
         return new StatusDeEntregaDoCanal(wamid, crm, codigo, titulo);
+    }
+
+    private static String textoDeErro(JsonNode valor) {
+        if (!valor.isTextual()) {
+            return null;
+        }
+        String texto = valor.asText().trim();
+        return texto.isBlank() ? null : texto;
     }
 
     /** {@code type} da Meta -> {@code TipoMensagem} do CRM. {@code null} para tipo desconhecido. */

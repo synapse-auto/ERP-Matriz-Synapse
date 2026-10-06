@@ -161,6 +161,35 @@ class CanalWhatsAppIT extends PostgresIT {
                     .isEqualTo("bom dia");
         }
 
+        @Test
+        @DisplayName("depois de corrigir telefone, o proximo envio usa o destino novo")
+        void envio_telefoneCorrigido_naoUsaEnderecoAntigoDoProvedor() {
+            jdbc.update(
+                    "UPDATE lead SET telefone_provedor = ? WHERE id = ?",
+                    TELEFONE_PROVEDOR_SEM_NONO,
+                    leadDaAna);
+            String token = ApoioAutenticacao.login(http, EMAIL_ANA, SENHA_ATENDENTE).accessToken();
+            HttpHeaders cabecalhos = new HttpHeaders();
+            cabecalhos.setBearerAuth(token);
+            cabecalhos.setContentType(MediaType.APPLICATION_JSON);
+
+            ResponseEntity<String> atualizacao = http.exchange(
+                    "/api/v1/leads/" + leadDaAna,
+                    HttpMethod.PUT,
+                    new HttpEntity<>(java.util.Map.of("telefone", "5561977777777"), cabecalhos),
+                    String.class);
+
+            assertThat(atualizacao.getStatusCode()).isEqualTo(HttpStatus.OK);
+            ApoioRls.entrarComo(idAna, PapelUsuario.ATENDENTE);
+            enviar.executar(leadDaAna, "confirmar destino corrigido");
+            rodarPublisher();
+
+            esperar().untilAsserted(() -> {
+                assertThat(canal.enviados()).hasSize(1);
+                assertThat(canal.enviados().get(0).telefoneDestino()).isEqualTo("5561977777777");
+            });
+        }
+
         /**
          * O cenario que motivou trazer a outbox da E07 para ca: o provedor cai no meio do envio.
          * Nenhuma mensagem se perde — ela espera e sai quando ele volta.

@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   CheckCheck,
+  DollarSign,
   MessageCircleMore,
   MessageCirclePlus,
   PanelRightOpen,
@@ -21,7 +22,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ErroDeApi } from "@/lib/api/errors";
-import { useFinalizarAtendimento } from "@/lib/atendimento/use-transferir-finalizar";
+import { useFinalizarAtendimento, useRegistrarResultadoVenda } from "@/lib/atendimento/use-transferir-finalizar";
 import type {
   AtendimentoResumo,
   CartaoAtendimento,
@@ -45,6 +46,7 @@ import { cn } from "@/lib/utils";
 
 import { DialogoTransferir } from "./dialogo-transferir";
 import { DialogoConvidar } from "./dialogo-convidar";
+import { DialogoResultadoVenda } from "./dialogo-resultado-venda";
 import { AtalhoTags, DialogoTagsDoLead } from "./atalho-tags";
 import { BarraDeAcoesComTransbordo, type AcaoTransbordavel } from "./barra-de-acoes-com-transbordo";
 
@@ -129,8 +131,12 @@ export function CabecalhoConversa({
   const [transferirAberto, setTransferirAberto] = useState(false);
   const [convidarAberto, setConvidarAberto] = useState(false);
   const [tagsAberto, setTagsAberto] = useState(false);
+  const [dialogoResultado, setDialogoResultado] = useState<"finalizacao" | "manual" | null>(null);
+  const [erroResultadoVenda, setErroResultadoVenda] = useState<string | null>(null);
+  const [sucessoResultadoVenda, setSucessoResultadoVenda] = useState<string | null>(null);
   const cabecalhoRef = useRef<HTMLDivElement>(null);
   const finalizar = useFinalizarAtendimento(onAtendimentoFinalizado);
+  const registrarResultadoVenda = useRegistrarResultadoVenda();
   const capacidades = useCapacidades();
   const podeColaborar = capacidades.pode("atendimentos.colaborar");
   const podeTransferirOuDevolver = capacidades.pode("atendimentos.transferir") || capacidades.pode("atendimentos.devolver_ia");
@@ -322,7 +328,15 @@ export function CabecalhoConversa({
           variant="outline"
           size="sm"
           className="border-cor-sucesso/25 bg-cor-sucesso/10 text-cor-sucesso hover:bg-cor-sucesso/15 hover:text-cor-sucesso"
-          onClick={() => finalizar.mutate(conversa.atendimentoId)}
+          onClick={() => {
+            if (conversa.emNegociacao && !conversa.resultadoVenda) {
+              setErroResultadoVenda(null);
+              setSucessoResultadoVenda(null);
+              setDialogoResultado("finalizacao");
+            } else {
+              finalizar.mutate(conversa.atendimentoId);
+            }
+          }}
           disabled={finalizar.isPending}
         >
           <CheckCheck className={iconeDeAcao} aria-hidden />
@@ -330,6 +344,20 @@ export function CabecalhoConversa({
         </Button>
       ),
     });
+  }
+  if (podeFinalizar && !conversa.resultadoVenda) {
+    acoes.push(acaoDeBotao({
+      id: "registrar-venda",
+      prioridade: PRIORIDADE_TAGS + 1,
+      rotulo: catalogo.atendimentos.finalizar.registrarVenda,
+      icone: <DollarSign className={iconeDeAcao} aria-hidden />,
+      aoSelecionar: () => {
+        setErroResultadoVenda(null);
+        setSucessoResultadoVenda(null);
+        setDialogoResultado("manual");
+      },
+      desabilitado: registrarResultadoVenda.isPending,
+    }));
   }
   if (finalizado && onAbrirNovoAtendimento && podeReabrir) {
     acoes.push({
@@ -523,6 +551,39 @@ export function CabecalhoConversa({
         leadId={conversa.leadId}
         aberto={tagsAberto}
         onFechar={() => setTagsAberto(false)}
+      />
+      <DialogoResultadoVenda
+        aberto={dialogoResultado !== null}
+        modo={dialogoResultado ?? "finalizacao"}
+        processando={dialogoResultado === "finalizacao" ? finalizar.isPending : registrarResultadoVenda.isPending}
+        erro={erroResultadoVenda}
+        sucesso={sucessoResultadoVenda}
+        onFechar={() => {
+          if (finalizar.isPending || registrarResultadoVenda.isPending) return;
+          setDialogoResultado(null);
+          setErroResultadoVenda(null);
+          setSucessoResultadoVenda(null);
+        }}
+        onSelecionar={(resultadoVenda) => {
+          setErroResultadoVenda(null);
+          if (dialogoResultado === "finalizacao") {
+            finalizar.mutate(
+              { atendimentoId: conversa.atendimentoId, resultadoVenda },
+              {
+                onError: () => setErroResultadoVenda(catalogo.atendimentos.finalizar.erro),
+                onSuccess: () => setDialogoResultado(null),
+              },
+            );
+            return;
+          }
+          registrarResultadoVenda.mutate(
+            { atendimentoId: conversa.atendimentoId, resultado: resultadoVenda },
+            {
+              onError: () => setErroResultadoVenda(catalogo.atendimentos.finalizar.resultadoVendaErro),
+              onSuccess: () => setSucessoResultadoVenda(catalogo.atendimentos.finalizar.registrarVendaSucesso),
+            },
+          );
+        }}
       />
     </div>
   );

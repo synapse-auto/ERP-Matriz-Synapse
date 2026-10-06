@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormularioLembrete } from "@/components/lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "@/components/mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "@/components/leads/campo-nome-do-lead";
+import { EditorTelefoneDoLead } from "@/components/leads/editor-telefone-do-lead";
 import { ErroDeApi } from "@/lib/api/errors";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
@@ -236,7 +237,19 @@ export function PainelLateralLead({
             <CabecalhoDaFicha lead={lead.data} />
 
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Informacao rotulo={textos.dados.telefone} valor={lead.data.telefone} vazio={textos.dados.naoInformado} />
+              <Informacao
+                rotulo={textos.dados.telefone}
+                valor={lead.data.telefone}
+                vazio={textos.dados.naoInformado}
+                acao={(
+                  <EditorTelefoneDoLead
+                    leadId={leadId}
+                    telefone={lead.data.telefone}
+                    contexto={contexto}
+                    permitido={podeEditarFicha}
+                  />
+                )}
+              />
               <Informacao rotulo={textos.dados.email} valor={lead.data.email} vazio={textos.dados.naoInformado} />
               <Informacao rotulo={textos.dados.cpf} valor={lead.data.cpf} vazio={textos.dados.naoInformado} />
               <Informacao rotulo={textos.dados.empresa} valor={lead.data.empresa} vazio={textos.dados.naoInformado} />
@@ -413,11 +426,14 @@ function CabecalhoDaFicha({ lead }: { lead: LeadFicha }) {
   );
 }
 
-function Informacao({ rotulo, valor, vazio }: { rotulo: string; valor?: string | null; vazio: string }) {
+function Informacao({ rotulo, valor, vazio, acao }: { rotulo: string; valor?: string | null; vazio: string; acao?: React.ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-xs font-medium text-muted-foreground">{rotulo}</dt>
-      <dd className="truncate text-sm text-foreground">{valor || vazio}</dd>
+      <dd className="flex min-w-0 items-center gap-1 text-sm text-foreground">
+        <span className="min-w-0 truncate">{valor || vazio}</span>
+        {acao}
+      </dd>
     </div>
   );
 }

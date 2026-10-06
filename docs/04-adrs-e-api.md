@@ -62,6 +62,14 @@
 
 **Consequências:** todo filho da Base PAI ganha o campo; não é coluna de ramo (obra, convênio, imóvel). Dado específico de um cliente continua em `campo_customizado`. Busca/filtro por código e unicidade ficam de fora até decisão de produto.
 
+### ADR-010 — Resultado comercial pertence ao ciclo do atendimento
+
+**Contexto:** a IA identifica uma negociação fora do CRM e o operador escolhe se ela converteu ao concluir o atendimento. A etapa configurável do lead não identifica necessariamente o ciclo de atendimento corrente e não é prova suficiente de uma venda.
+
+**Decisão:** persistir `em_negociacao` e o resultado (`VENDEU` ou `NAO_VENDEU`) no atendimento, sem valor presumido. Somente o serviço interno da Automação pode classificar o ciclo; o CRM não analisa mensagens nem anexos. Se a classificação estiver ativa, a finalização humana exige um resultado explícito na mesma transação que encerra o atendimento. O registro manual usa a mesma capacidade `atendimentos.finalizar`, mantém um resultado atual por atendimento e é idempotente quando repete a mesma escolha; uma escolha conflitante retorna `409`, em vez de criar uma segunda venda. Classificação, escolha, ator, origem e instante ficam auditados e são publicados como eventos após commit.
+
+**Consequências:** o resultado fica no cartão/lista de atendimentos para leitura e invalidação de dados do dashboard, mas não substitui automaticamente a métrica legada de vendas, que é baseada na transição de etapa `GANHO` (ADR-008). A integração entre esses conceitos e a fórmula visual do dashboard depende de decisão separada; `valor_venda` permanece nulo enquanto não houver fonte explícita.
+
 ---
 
 ## Parte B — Convenções gerais de API
@@ -93,7 +101,8 @@
 | POST | `/api/v1/atendimentos/{id}/mensagens/midia` | Envia áudio, imagem, vídeo ou documento | Atendente | `AtendimentoAcoesController` · `AnexoMidiaIT` |
 | POST | `/api/v1/atendimentos/{id}/transferir` | Transfere para atendente ou devolve à IA conforme a autorização | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
 | POST | `/api/v1/atendimentos/{id}/convidar` | Cria convite idempotente para atendente ativo; preserva o responsável e entrega o cartão em Pendentes ao destinatário | Responsável, participante ativo ou gestor | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
-| POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento | Atendente | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| POST | `/api/v1/atendimentos/{id}/finalizar` | Encerra atendimento. Corpo opcional `{ "resultadoVenda": "VENDEU" | "NAO_VENDEU" }`; obrigatório quando a Automação marcou o ciclo como negociação. Resultado e finalização são atômicos | Capacidade `atendimentos.finalizar` + atendimento visível | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` |
+| PUT | `/api/v1/atendimentos/{id}/resultado-venda` | Registra manualmente `{ "resultado": "VENDEU" | "NAO_VENDEU" }`, sem exigir classificação da IA. Repetição idêntica retorna 200; resultado conflitante retorna 409; não grava valor monetário | Capacidade `atendimentos.finalizar` + atendimento visível | `AtendimentoAcoesController` · `AtendimentoAcoesControllerIT` · `CapacidadesDeAtendimentoIT` |
 | GET | `/api/v1/atendimentos/{id}/avaliacao` | Lê a nota 1–5 da conversa visível | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | POST | `/api/v1/atendimentos/{id}/avaliacao` | Grava uma única nota 1–5 no atendente dono, só após finalizar | Atendente | `AtendimentoAcoesController` · `AvaliacaoAtendimentoIT` |
 | GET | `/api/v1/leads/{id}/timeline` | Linha do tempo de eventos | Atendente | `TimelineDoLeadController` · `LeadFichaIT` |
@@ -174,6 +183,7 @@ real (ou chave idempotente) corresponde ao evento.
 | PATCH | `/internal/v1/atendimentos/{id}/modo-ia` | Devolve atendimento e lead para a IA | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/transferir-proximo-humano` | Escolhe o primeiro atendente disponível por nome e id; somente para atendimento `EM_IA` | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/finalizar` | Finaliza atendimento e lead, com origem `AUTOMACAO`, sem chamar provedor | Serviço de Automação | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
+| POST | `/internal/v1/atendimentos/{id}/negociacao` | Recebe classificação explícita `{ "emNegociacao": true | false }` do n8n para o ciclo aberto identificado pelo `id`. Exige `X-Synapse-Token` e `Idempotency-Key`; chave repetida com payload igual é replay, chave reutilizada com dados diferentes retorna 409. O CRM não analisa conteúdo | Serviço de Automação (`ROLE_SERVICO`) | `TransferenciaAutomacaoInternalController` · `ComandosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/lembretes` | Cria, com `Idempotency-Key`, lembrete para o responsável humano atual | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/resumo` | Sobrescreve o resumo atual da IA, limitado por configuração | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `ContratosInternosAutomacaoIT` |
 | POST | `/internal/v1/atendimentos/{id}/avaliacao` | Grava CSAT 1–5 no atendente dono da conversa já finalizada | Serviço de Automação | `AtendimentosAutomacaoInternalController` · `AvaliacaoAtendimentoIT` |

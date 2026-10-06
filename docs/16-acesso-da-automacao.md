@@ -170,6 +170,70 @@ Repetir a mesma chave para o mesmo atendimento devolve exatamente a resposta ori
 a chave em outro atendimento ou operação, ou tentar finalizar novamente com uma chave nova, responde
 `409`; chave ausente ou vazia responde `400`.
 
+#### Marcar negociação para um ciclo de atendimento
+
+O n8n é responsável por classificar negociação. Para informar o estado de um atendimento aberto,
+use a rota abaixo quando a classificação estiver disponível. O identificador é o `atendimentoId`
+do ciclo — não o `leadId` — e o corpo não deve incluir mensagens, anexos, telefone ou explicação
+textual da classificação. `true` exige uma escolha comercial explícita na finalização humana;
+`false` remove essa exigência. Se a classificação não chegar, a finalização normal continua sem
+modal/resultado obrigatório. A falha desta integração não bloqueia o fluxo de mensagens nem a aba
+Atendimentos.
+
+```text
+POST /internal/v1/atendimentos/{atendimentoId}/negociacao
+X-Synapse-Token: <SYNAPSE_TOKEN_INTERNO>
+Idempotency-Key: <UUID ou identificador estável do evento de classificação>
+Content-Type: application/json
+```
+
+```json
+{ "emNegociacao": true }
+```
+
+O CRM autentica com o mecanismo de serviço interno (`X-Synapse-Token` / `ROLE_SERVICO`), valida o
+atendimento aberto e grava a classificação, timeline, auditoria e evento de atualização após
+commit. A resposta `200` contém `atendimentoId`, `emNegociacao` e `alterado`. Repetir a chave com
+o mesmo atendimento e corpo devolve o resultado idempotente; reutilizá-la com operação ou dados
+diferentes responde `409`. Corpo/chave inválidos respondem `400`, token inválido `401`, atendimento
+inexistente `404`, e ciclo finalizado `409` (RFC 7807). Uma classificação contraditória posterior
+precisa de uma chave nova; a auditoria registra o estado anterior e o novo.
+
+Na finalização feita pela Automação, `POST /internal/v1/atendimentos/{atendimentoId}/finalizar`
+continua sem corpo e exige `Idempotency-Key`. Se `emNegociacao=true` e não houver resultado
+previamente registrado, a rota recusa com `422` (`ProblemDetail`) sem finalizar. A Automação não
+registra o resultado por essa rota.
+
+Para escolha humana, `POST /api/v1/atendimentos/{atendimentoId}/finalizar` aceita corpo opcional:
+
+```json
+{ "resultadoVenda": "VENDEU" }
+```
+
+Os únicos valores válidos são `VENDEU` e `NAO_VENDEU`. Para atendimento marcado como negociação,
+escolha e encerramento são atômicos; falha ao salvar qualquer parte não deixa o atendimento
+parcialmente finalizado. Sem classificação, omitir o corpo preserva o fluxo existente.
+
+Também é possível registrar resultado sem finalizar, pelo endpoint autenticado da UI:
+
+```text
+PUT /api/v1/atendimentos/{atendimentoId}/resultado-venda
+Authorization: Bearer <JWT>
+Content-Type: application/json
+```
+
+```json
+{ "resultado": "VENDEU" }
+```
+
+O usuário precisa da capacidade `atendimentos.finalizar` e da visibilidade normal do atendimento.
+Repetir o mesmo resultado é idempotente (`200`); outra escolha após resultado registrado é
+recusada (`409`), preservando um resultado atual por atendimento. Corpo inválido retorna `400`,
+falta de capacidade `403`, atendimento inexistente ou fora do recorte de visibilidade `404`. A
+resposta inclui resultado, autor, horário, origem (`MANUAL` ou `FINALIZACAO`) e `valorVenda: null`
+quando não existe valor confirmado. O cartão da lista recebe o resultado; timeline e auditoria
+identificam ator, atendimento, escolha e origem. Nenhuma dessas rotas chama o provedor de mensagens.
+
 Depois que o atendimento estiver `FINALIZADO`, a Automação pode gravar o CSAT
 na escala 1–5 (a mesma do `CHECK` de `avaliacao.nota`). Uma nota por conversa;
 segunda tentativa responde `409`. Conversa ainda aberta ou sem atendente

@@ -97,6 +97,13 @@ class CapacidadesDeAtendimentoIT extends PostgresIT {
                         (t, c) -> t.statusDoAtendimento(c),
                         "EM_ATENDIMENTO")),
                 Arguments.of(new Acao(
+                        "atendimentos.finalizar",
+                        (t, c) -> t.chamar(t.tokenAna, HttpMethod.PUT,
+                                "/api/v1/atendimentos/" + c.atendimento() + "/resultado-venda",
+                                Map.of("resultado", "VENDEU")),
+                        (t, c) -> t.resultadoVenda(c),
+                        null)),
+                Arguments.of(new Acao(
                         "resumo_ia.ver",
                         (t, c) -> t.chamar(t.tokenAna, HttpMethod.GET, "/api/v1/atendimentos/" + c.atendimento() + "/resumo-ia", null),
                         (t, c) -> t.resumoNaFicha(c),
@@ -247,6 +254,11 @@ class CapacidadesDeAtendimentoIT extends PostgresIT {
 
     private String statusDoAtendimento(Conversa conversa) {
         return jdbc.queryForObject("SELECT status::text FROM atendimento WHERE id = ?", String.class, conversa.atendimento());
+    }
+
+    private String resultadoVenda(Conversa conversa) {
+        return jdbc.queryForObject(
+                "SELECT resultado_venda FROM atendimento WHERE id = ?", String.class, conversa.atendimento());
     }
 
     private String quem(UUID usuario) {

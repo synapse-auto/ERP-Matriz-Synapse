@@ -180,6 +180,22 @@ export function CartaoConversa({
               {textos.cartao.atendidoPelaIa}
             </span>
           )}
+          {cartao.resultadoVenda && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[0.65rem] font-semibold",
+                cartao.resultadoVenda === "VENDEU"
+                  ? "bg-cor-sucesso/10 text-cor-sucesso"
+                  : "bg-muted text-muted-foreground",
+              )}
+              aria-label={descricaoResultadoVenda(cartao, textos.finalizar)}
+              title={descricaoResultadoVenda(cartao, textos.finalizar)}
+            >
+              {cartao.resultadoVenda === "VENDEU"
+                ? textos.finalizar.vendeu
+                : textos.finalizar.naoVendeu}
+            </span>
+          )}
           {cartao.atendenteNome && (
             <span className="ml-auto truncate text-[0.65rem] text-muted-foreground">
               {cartao.atendenteNome}
@@ -189,6 +205,35 @@ export function CartaoConversa({
       </div>
     </button>
   );
+}
+
+function descricaoResultadoVenda(
+  cartao: Extract<ItemInbox, { tipo?: "CLIENTE" }>,
+  textos: {
+    vendaRegistradaPor: string;
+    vendaRegistradaEm: string;
+    vendeu: string;
+    naoVendeu: string;
+  },
+): string {
+  const resultado = cartao.resultadoVenda === "VENDEU" ? textos.vendeu : textos.naoVendeu;
+  const responsavel = cartao.vendaRegistradaPorNome
+    ? textos.vendaRegistradaPor.replace("{nome}", cartao.vendaRegistradaPorNome)
+    : null;
+  const data = cartao.vendaRegistradaEm
+    ? formatarDataResultado(cartao.vendaRegistradaEm)
+    : null;
+  const quando = data ? textos.vendaRegistradaEm.replace("{data}", data) : null;
+  return [resultado, responsavel, quando].filter(Boolean).join(" · ");
+}
+
+function formatarDataResultado(valor: string): string {
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return valor;
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(data);
 }
 
 function formatarHoraDaLista(valor: string | null, hojeRotulo: string, ontemRotulo: string): string | null {

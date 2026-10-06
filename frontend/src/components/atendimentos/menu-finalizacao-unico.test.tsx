@@ -29,6 +29,7 @@ const conversa = vi.hoisted(
 
 vi.mock("@/lib/atendimento/use-transferir-finalizar", () => ({
   useFinalizarAtendimento: () => ({ mutate: finalizar, isPending: false }),
+  useRegistrarResultadoVenda: () => ({ mutate: vi.fn(), isPending: false }),
   useQuantidadeAtendimentosFinalizaveis: () => ({
     data: { quantidade: 2, porAtendente: [{ atendenteId: "u1", nome: "Ana", quantidade: 2 }] },
     isLoading: false,

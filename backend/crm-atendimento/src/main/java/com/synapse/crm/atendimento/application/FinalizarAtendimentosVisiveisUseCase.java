@@ -56,7 +56,9 @@ public class FinalizarAtendimentosVisiveisUseCase {
             try {
                 finalizar.executarEmLote(atendimento.id(), quemFinalizou);
                 finalizados++;
-            } catch (AtendimentoJaFinalizadoException | RecursoDeAtendimentoIndisponivelException e) {
+            } catch (AtendimentoJaFinalizadoException
+                    | RecursoDeAtendimentoIndisponivelException
+                    | ResultadoVendaObrigatorioException e) {
                 recusados++;
             }
         }

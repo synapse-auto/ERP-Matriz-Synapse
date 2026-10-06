@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.synapse.crm.equipe.domain.disponibilidade.AtendenteDisponivelParaIa;
+import com.synapse.crm.equipe.domain.disponibilidade.DiagnosticoDoRodizio;
 import com.synapse.crm.sharedkernel.persistencia.Pools;
 
 /**
@@ -26,5 +27,12 @@ public class ListarAtendentesDisponiveisUseCase {
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
     public List<AtendenteDisponivelParaIa> executar() {
         return disponibilidade.listarDisponiveisParaIa();
+    }
+
+    /** Funil do rodizio (so contagens), para a Automacao explicar por que ele ficou vazio. */
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
+    public DiagnosticoDoRodizio diagnosticar() {
+        return disponibilidade.diagnosticar();
     }
 }

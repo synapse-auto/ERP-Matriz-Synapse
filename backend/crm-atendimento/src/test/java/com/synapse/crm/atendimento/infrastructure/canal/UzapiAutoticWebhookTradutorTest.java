@@ -127,6 +127,21 @@ class UzapiAutoticWebhookTradutorTest {
     }
 
     @Test
+    void statusDeFalhaPreservaDetalheQuandoTitleNaoVemNoWebhook() {
+        var statuses = tradutor.statusDeEntrega("""
+                {"entry":[{"changes":[{"value":{"statuses":[
+                  {"id":"falha","status":"failed","errors":[{"code":499,
+                    "message":"Resumo genérico","error_data":{"details":"Motivo detalhado"}}]}
+                ]}}]}]}
+                """);
+
+        assertThat(statuses).singleElement().satisfies(status -> {
+            assertThat(status.codigoErro()).isEqualTo(499);
+            assertThat(status.tituloErro()).isEqualTo("Motivo detalhado");
+        });
+    }
+
+    @Test
     void somenteWamidDaUzapiPodeSerIdentificadorAlternativo() {
         var statuses = tradutor.statusDeEntrega("""
                 {"entry":[{"changes":[{"value":{"statuses":[

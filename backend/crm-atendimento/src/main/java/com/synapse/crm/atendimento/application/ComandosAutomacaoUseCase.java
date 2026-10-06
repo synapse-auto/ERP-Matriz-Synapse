@@ -28,6 +28,7 @@ public class ComandosAutomacaoUseCase {
     private final TransferirAtendimentoUseCase transferirAtendimento;
     private final FinalizarAtendimentoUseCase finalizarAtendimento;
     private final CriarLembreteDaAutomacaoUseCase criarLembrete;
+    private final ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao;
     private final IdempotenciaDeComandoAutomacao idempotencia;
     private final ObjectMapper json;
 
@@ -37,6 +38,7 @@ public class ComandosAutomacaoUseCase {
             TransferirAtendimentoUseCase transferirAtendimento,
             FinalizarAtendimentoUseCase finalizarAtendimento,
             CriarLembreteDaAutomacaoUseCase criarLembrete,
+            ClassificarNegociacaoDoAtendimentoUseCase classificarNegociacao,
             IdempotenciaDeComandoAutomacao idempotencia,
             ObjectMapper json) {
         this.responder = responder;
@@ -44,6 +46,7 @@ public class ComandosAutomacaoUseCase {
         this.transferirAtendimento = transferirAtendimento;
         this.finalizarAtendimento = finalizarAtendimento;
         this.criarLembrete = criarLembrete;
+        this.classificarNegociacao = classificarNegociacao;
         this.idempotencia = idempotencia;
         this.json = json;
     }
@@ -118,6 +121,20 @@ public class ComandosAutomacaoUseCase {
                 FinalizacaoResposta.class,
                 () -> finalizarAtendimento.validarPelaAutomacao(atendimentoId),
                 () -> FinalizacaoResposta.de(finalizarAtendimento.executarPelaAutomacao(atendimentoId)));
+    }
+
+    @PreAuthorize("hasRole('SERVICO')")
+    @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER)
+    public ClassificarNegociacaoDoAtendimentoUseCase.ClassificacaoNegociacaoResposta classificarNegociacao(
+            UUID atendimentoId, String chave, boolean emNegociacao) {
+        return executar(
+                chave,
+                "CLASSIFICAR_NEGOCIACAO",
+                atendimentoId,
+                Boolean.toString(emNegociacao),
+                ClassificarNegociacaoDoAtendimentoUseCase.ClassificacaoNegociacaoResposta.class,
+                () -> classificarNegociacao.validar(atendimentoId),
+                () -> classificarNegociacao.executar(atendimentoId, emNegociacao));
     }
 
     @PreAuthorize("hasRole('SERVICO')")
