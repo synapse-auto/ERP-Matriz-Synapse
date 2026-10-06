@@ -445,6 +445,9 @@ backlog e teste real precisam de autorização; 2xx não comprova envio de Whats
 | `ALERTA_WEBHOOK` | vazio | Webhook do canal operacional de alertas. |
 | `MIDIA_S3_BUCKET` | `synapse-crm-midia` | Nome do bucket exclusivo deste filho. |
 | `MIDIA_S3_EXPIRACAO_LEITURA` | `1h` | Validade das URLs assinadas de anexos (bolha do chat e painel). |
+| `CHAT_FOTO_GRUPO_LADO_MINIMO_PX` | `64` | Menor lado aceito na foto de grupo do chat interno. Opcional. |
+| `CHAT_FOTO_GRUPO_LADO_MAXIMO_PX` | `8000` | Maior lado aceito na foto de grupo. Opcional. |
+| `CHAT_FOTO_GRUPO_PIXELS_MAXIMOS` | `24000000` | Largura x altura máxima da foto de grupo; protege a memória na decodificação. Opcional. |
 | `CHAT_INTERNO_DOWNLOAD_CONCORRENCIA` | `2` | Downloads binários simultâneos do chat interno por réplica; excedentes recebem 503 recuperável, sem esperar. |
 | `CHAT_INTERNO_DOWNLOAD_CB_JANELA`, `CHAT_INTERNO_DOWNLOAD_CB_MINIMO`, `CHAT_INTERNO_DOWNLOAD_CB_LIMIAR`, `CHAT_INTERNO_DOWNLOAD_CB_ESPERA` | `10`, `5`, `50`, `30s` | Circuit breaker exclusivo do download interno. Opcionais; sem ação obrigatória no Dokploy. |
 | `FEATURE_CAMPANHAS` | `false` | Só ligar quando a aba de Campanhas entrar no escopo. |

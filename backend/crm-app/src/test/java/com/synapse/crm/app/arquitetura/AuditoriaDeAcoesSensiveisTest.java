@@ -10,6 +10,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.synapse.crm.atendimento.application.TransferirAtendimentoUseCase;
+import com.synapse.crm.atendimento.application.encaminhamentodochat.EnvioDoEncaminhamentoDoChat;
+import com.synapse.crm.atendimento.domain.canal.ConteudoDeEnvio;
 import com.synapse.crm.automacaoconfig.application.AtualizarConfiguracaoAutomacaoUseCase;
 import com.synapse.crm.core.application.tag.GerenciarTagsDaAutomacaoUseCase;
 import com.synapse.crm.core.application.tag.GestaoDeTagsUseCases;
@@ -87,7 +89,12 @@ class AuditoriaDeAcoesSensiveisTest {
             AcaoSensivel.viaAuditable(
                     AlterarSenhaUseCase.class, "executar", UUID.class, String.class, String.class),
             AcaoSensivel.viaAuditable(
-                    DefinirSenhaProvisoriaUseCase.class, "executar", UUID.class));
+                    DefinirSenhaProvisoriaUseCase.class, "executar", UUID.class),
+            AcaoSensivel.viaAuditable(
+                    EnvioDoEncaminhamentoDoChat.class,
+                    "executar",
+                    EnvioDoEncaminhamentoDoChat.Comando.class,
+                    ConteudoDeEnvio.class));
 
     @Test
     @DisplayName("toda acao sensivel marcada como AUDITABLE tem @Auditable no metodo")

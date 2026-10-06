@@ -14,6 +14,8 @@ vi.mock("@/lib/chat-interno/api", () => ({
   renomearGrupoChat: vi.fn(),
   listarMidiasDoGrupoChat: vi.fn(),
   emitirUrlAssinadaDaMidiaChat: vi.fn(),
+  atualizarFotoDoGrupoChat: vi.fn(),
+  removerFotoDoGrupoChat: vi.fn(),
 }));
 
 import {
@@ -40,6 +42,14 @@ const textos = {
   erroParticipantes: "Não foi possível atualizar os participantes.",
   retrair: "Retrair dados do grupo",
   reabrir: "Reabrir dados do grupo",
+  fotoGrupo: {
+    titulo: "Foto do grupo", alterar: "Alterar foto", remover: "Remover foto",
+    escolher: "Escolher imagem para a foto do grupo", previa: "Prévia da nova foto do grupo",
+    confirmar: "Salvar foto", enviando: "Enviando…", cancelar: "Cancelar", fotoAlt: "Foto do grupo {nome}",
+    erroTipo: "Escolha uma imagem JPEG, PNG ou WebP.", erroPermissao: "Somente quem criou o grupo pode alterar a foto.",
+    erroTamanho: "A imagem é grande demais.", erroImagem: "Não foi possível usar essa imagem.",
+    erroIndisponivel: "O armazenamento de imagens está indisponível.", erroGenerico: "Não foi possível salvar a foto.",
+  },
   midias: {
     titulo: "Mídias compartilhadas",
     vazio: "Nenhuma mídia compartilhada.",
@@ -100,6 +110,19 @@ describe("PainelLateralGrupo", () => {
     expect(screen.getByLabelText("Sair do grupo")).toBeInTheDocument();
     expect(screen.getByLabelText("Renomear grupo")).toBeInTheDocument();
     expect(screen.queryByText(/administrador/i)).toBeNull();
+  });
+
+  it("só mostra as ações de foto quando o backend diz que o usuário é o criador", async () => {
+    const { unmount } = renderizar({ podeAlterarFoto: false });
+    await screen.findByText("Bruno");
+    expect(screen.queryByRole("button", { name: "Alterar foto" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Escolher imagem para a foto do grupo")).not.toBeInTheDocument();
+    unmount();
+
+    renderizar({ podeAlterarFoto: true });
+    await screen.findByText("Bruno");
+    expect(screen.getByRole("button", { name: "Alterar foto" })).toBeEnabled();
+    expect(screen.getByLabelText("Escolher imagem para a foto do grupo")).toHaveAttribute("type", "file");
   });
 
   it("em conversa direta mostra apenas o outro participante e mídias autorizadas", async () => {

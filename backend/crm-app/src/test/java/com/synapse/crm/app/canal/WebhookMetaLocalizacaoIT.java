@@ -92,6 +92,10 @@ class WebhookMetaLocalizacaoIT extends PostgresIT {
             jdbc.update("DELETE FROM canal WHERE id = ?", canalId);
         }
         jdbc.update("DELETE FROM webhook_entrada WHERE id_externo LIKE 'wamid.location.%'");
+        // Outras classes usam os mesmos e-mails @teste.local e deixam linhas de auditoria como ator: sem
+        // apagar essas linhas antes, o DELETE abaixo viola audit_log_ator_id_fkey conforme a ordem de
+        // execucao da suite (a ordem de arquivos varia entre maquinas, e a falha aparecia so em algumas).
+        jdbc.update("DELETE FROM audit_log WHERE ator_id IN (SELECT id FROM usuario WHERE email LIKE '%@teste.local')");
         jdbc.update("DELETE FROM usuario WHERE email LIKE '%@teste.local'");
     }
 

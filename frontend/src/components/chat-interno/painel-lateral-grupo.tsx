@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PanelRightClose, UserMinus, UserPlus, UsersRound } from "lucide-react";
+import { PanelRightClose, UserMinus, UserPlus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import type { Textos } from "@/lib/config/schema";
 import { ContadorDoPainel } from "@/components/ui/contador-do-painel";
 import { ListaDeMidiasDoGrupo } from "@/components/chat-interno/secao-de-midias-grupo";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { SecaoFotoDoGrupo } from "@/components/chat-interno/foto-do-grupo";
 
 type TextosChat = Textos["chatInterno"];
 
@@ -29,9 +30,14 @@ type Props = {
   onSaiu?: () => void;
   tipo?: "DIRETA" | "GRUPO";
   fotoUrl?: string | null;
+  /** Só o criador do grupo altera a foto; o backend decide e a tela obedece. */
+  podeAlterarFoto?: boolean;
 };
 
-/** Sem hierarquia: qualquer participante vê as mesmas ações (add/remove/rename/sair). */
+/**
+ * Qualquer participante vê as mesmas ações de participantes e nome (add/remove/rename/sair). A foto
+ * é a exceção: só o criador do grupo a altera.
+ */
 export function PainelLateralGrupo({
   conversaId,
   nomeAtual,
@@ -41,6 +47,7 @@ export function PainelLateralGrupo({
   onSaiu,
   tipo = "GRUPO",
   fotoUrl,
+  podeAlterarFoto = false,
 }: Props) {
   const grupo = tipo === "GRUPO";
   const cache = useQueryClient();
@@ -119,9 +126,13 @@ export function PainelLateralGrupo({
         <div className="flex flex-col items-center gap-3 text-center">
           {grupo ? (
             <>
-              <span className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary" aria-hidden>
-                <UsersRound className="size-[calc(var(--tamanho-icone-interface)*1.75)]" />
-              </span>
+              <SecaoFotoDoGrupo
+                conversaId={conversaId}
+                nome={nomeAtual}
+                fotoUrl={fotoUrl}
+                podeAlterar={podeAlterarFoto}
+                textos={textos.fotoGrupo}
+              />
               <div className="flex w-full items-center gap-2">
                 <Input
                   value={nome}

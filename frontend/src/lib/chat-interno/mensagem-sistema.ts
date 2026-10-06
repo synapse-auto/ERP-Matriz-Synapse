@@ -31,6 +31,10 @@ export function textoEventoSistema(
       return textos.participanteSaiu.replace("{alvo}", alvo || remetenteNome);
     case "NOME_ALTERADO":
       return `${remetenteNome} ${textos.nomeAlterado.replace("{nome}", nome)}`;
+    case "FOTO_ALTERADA":
+      return `${remetenteNome} ${textos.fotoAlterada}`;
+    case "FOTO_REMOVIDA":
+      return `${remetenteNome} ${textos.fotoRemovida}`;
     default:
       return `${remetenteNome} ${textos.eventoDesconhecido}`;
   }
@@ -54,6 +58,10 @@ export function previewUltimaMensagem(
       return textos.participanteSaiu.replace("{alvo}", evento.alvoNome ?? "");
     case "NOME_ALTERADO":
       return textos.nomeAlterado.replace("{nome}", evento.nome ?? "");
+    case "FOTO_ALTERADA":
+      return textos.fotoAlterada;
+    case "FOTO_REMOVIDA":
+      return textos.fotoRemovida;
     default:
       return textos.eventoDesconhecido;
   }

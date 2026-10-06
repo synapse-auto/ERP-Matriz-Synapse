@@ -36,11 +36,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.synapse.crm.equipe.application.chat.AbrirConversaDiretaUseCase;
 import com.synapse.crm.equipe.application.chat.AdicionarParticipanteGrupoChatUseCase;
+import com.synapse.crm.equipe.application.chat.ArmazenamentoDeFotoDeGrupo;
+import com.synapse.crm.equipe.application.chat.ArmazenamentoDeFotoDeGrupoIndisponivelException;
+import com.synapse.crm.equipe.application.chat.ArquivoDeFoto;
+import com.synapse.crm.equipe.application.chat.AtualizarFotoDoGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ChatInternoRepositorio;
 import com.synapse.crm.equipe.application.chat.ChatSemAcessoException;
 import com.synapse.crm.equipe.application.chat.ChaveIdempotenciaMidiaChatInvalidaException;
@@ -52,6 +58,8 @@ import com.synapse.crm.equipe.application.chat.EnviarContatoChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMensagemChatUseCase;
 import com.synapse.crm.equipe.application.chat.EnviarMidiaChatUseCase;
 import com.synapse.crm.equipe.application.chat.ExcluirMensagemChatUseCase;
+import com.synapse.crm.equipe.application.chat.FotoDeGrupoExcedeuLimiteException;
+import com.synapse.crm.equipe.application.chat.FotoDeGrupoInvalidaException;
 import com.synapse.crm.equipe.application.chat.LeitorDeArquivoChat;
 import com.synapse.crm.equipe.application.chat.ListarContatosChatUseCase;
 import com.synapse.crm.equipe.application.chat.ListarConversasChatUseCase;
@@ -61,11 +69,13 @@ import com.synapse.crm.equipe.application.chat.ListarParticipantesChatUseCase;
 import com.synapse.crm.equipe.application.chat.MarcarConversaChatComoLidaUseCase;
 import com.synapse.crm.equipe.application.chat.MensagemChatInternoNaoEncontradaException;
 import com.synapse.crm.equipe.application.chat.MidiaChatInternoNaoEncontradaException;
+import com.synapse.crm.equipe.application.chat.ObterFotoDoGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.OperacaoDeGrupoInvalidaException;
 import com.synapse.crm.equipe.application.chat.RemoverParticipanteGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RemoverReacaoChatUseCase;
 import com.synapse.crm.equipe.application.chat.RenomearGrupoChatUseCase;
 import com.synapse.crm.equipe.application.chat.ResponderMensagemChatUseCase;
+import com.synapse.crm.equipe.application.chat.SemPermissaoParaAlterarFotoDoGrupoException;
 import com.synapse.crm.equipe.domain.usuario.StatusPresenca;
 import com.synapse.crm.sharedkernel.emoji.EmojiInvalidoException;
 import com.synapse.crm.sharedkernel.emoji.ResumoDeReacao;
@@ -98,6 +108,9 @@ public class ChatInternoController {
     private final ArmazenamentoDeMidia armazenamento;
     private final LeitorDeArquivoChat leitorDeArquivo;
     private final EnviarContatoChatUseCase enviarContato;
+    private final AtualizarFotoDoGrupoChatUseCase atualizarFotoDoGrupo;
+    private final ObterFotoDoGrupoChatUseCase obterFotoDoGrupo;
+    private final ArmazenamentoDeFotoDeGrupo armazenamentoDeFotoDeGrupo;
 
     ChatInternoController(
             ListarConversasChatUseCase listar,
@@ -119,7 +132,12 @@ public class ChatInternoController {
             EncaminharMensagemChatUseCase encaminharMensagem,
             ExcluirMensagemChatUseCase excluirMensagem,
             EditarMensagemChatUseCase editarMensagem,
-            ArmazenamentoDeMidia armazenamento, LeitorDeArquivoChat leitorDeArquivo, EnviarContatoChatUseCase enviarContato) {
+            ArmazenamentoDeMidia armazenamento, LeitorDeArquivoChat leitorDeArquivo, EnviarContatoChatUseCase enviarContato,
+            AtualizarFotoDoGrupoChatUseCase atualizarFotoDoGrupo, ObterFotoDoGrupoChatUseCase obterFotoDoGrupo,
+            ArmazenamentoDeFotoDeGrupo armazenamentoDeFotoDeGrupo) {
+        this.atualizarFotoDoGrupo = atualizarFotoDoGrupo;
+        this.obterFotoDoGrupo = obterFotoDoGrupo;
+        this.armazenamentoDeFotoDeGrupo = armazenamentoDeFotoDeGrupo;
         this.enviarContato = enviarContato;
         this.leitorDeArquivo = leitorDeArquivo;
         this.listar = listar;
@@ -225,6 +243,44 @@ public class ChatInternoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void renomear(@PathVariable UUID id, @Valid @RequestBody RenomearGrupoRequisicao requisicao) {
         renomearGrupo.executar(id, requisicao.nome());
+    }
+
+    @Operation(summary = "Alterar a foto do grupo", description = "Somente o criador do grupo. Recebe JPEG, PNG ou WebP (campo multipart `arquivo`), valida o conteúdo real e as dimensões, grava uma versão quadrada reprocessada e avisa os participantes. A resposta traz a URL versionada.", responses = {
+            @ApiResponse(responseCode = "200", description = "Foto atualizada."),
+            @ApiResponse(responseCode = "400", description = "Conversa direta: só grupos têm foto."),
+            @ApiResponse(responseCode = "403", description = "Não participa do grupo, ou participa mas não o criou."),
+            @ApiResponse(responseCode = "413", description = "Arquivo acima do limite configurado."),
+            @ApiResponse(responseCode = "422", description = "Nome, tipo, conteúdo ou dimensões não aceitos."),
+            @ApiResponse(responseCode = "503", description = "Armazenamento indisponível; a foto anterior permanece.")})
+    @PostMapping(value = "/conversas/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    FotoDoGrupoResposta atualizarFoto(@PathVariable UUID id, @RequestPart("arquivo") MultipartFile arquivo) {
+        ArquivoDeFoto enviado = new ArquivoDeFoto(
+                arquivo.getOriginalFilename(), arquivo.getContentType(), arquivo.getSize(), arquivo::getBytes);
+        return new FotoDoGrupoResposta(atualizarFotoDoGrupo.substituir(id, enviado));
+    }
+
+    @Operation(summary = "Remover a foto do grupo", description = "Somente o criador do grupo. Idempotente: grupo sem foto responde 200 sem alterar nada. Volta ao avatar padrão.", responses = {
+            @ApiResponse(responseCode = "200", description = "Foto removida (ou já não existia)."),
+            @ApiResponse(responseCode = "403", description = "Não participa do grupo, ou participa mas não o criou.")})
+    @DeleteMapping("/conversas/{id}/foto")
+    FotoDoGrupoResposta removerFoto(@PathVariable UUID id) {
+        atualizarFotoDoGrupo.remover(id);
+        return new FotoDoGrupoResposta(null);
+    }
+
+    @Operation(summary = "Entregar a foto do grupo", description = "Entrega a imagem processada pelo backend a quem participa do grupo; nunca expõe o bucket. O parâmetro `v` só versiona a URL.", responses = {
+            @ApiResponse(responseCode = "200", description = "Imagem do grupo."),
+            @ApiResponse(responseCode = "403", description = "O usuário não participa da conversa."),
+            @ApiResponse(responseCode = "404", description = "Grupo sem foto.")})
+    @GetMapping("/conversas/{id}/foto")
+    ResponseEntity<byte[]> foto(@PathVariable UUID id) {
+        return obterFotoDoGrupo.referencia(id)
+                .flatMap(armazenamentoDeFotoDeGrupo::buscar)
+                .map(arquivo -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(arquivo.mimetype()))
+                        .cacheControl(CacheControl.noCache().cachePrivate())
+                        .body(arquivo.conteudo()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @Operation(summary = "Listar mensagens", description = "Consulta o histórico paginado da conversa em ordem cronológica; o cursor permite buscar mensagens anteriores sem acessar conversas alheias.", responses = {
@@ -407,6 +463,32 @@ public class ChatInternoController {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
+    @ExceptionHandler(FotoDeGrupoInvalidaException.class)
+    ProblemDetail fotoInvalida(FotoDeGrupoInvalidaException e) {
+        return problema(HttpStatus.UNPROCESSABLE_ENTITY, "Foto invalida", e.getMessage());
+    }
+
+    @ExceptionHandler(FotoDeGrupoExcedeuLimiteException.class)
+    ProblemDetail fotoGrande(FotoDeGrupoExcedeuLimiteException e) {
+        return problema(HttpStatus.PAYLOAD_TOO_LARGE, "Foto excede o limite", e.getMessage());
+    }
+
+    @ExceptionHandler(SemPermissaoParaAlterarFotoDoGrupoException.class)
+    ProblemDetail semPermissaoParaAFoto(SemPermissaoParaAlterarFotoDoGrupoException e) {
+        return problema(HttpStatus.FORBIDDEN, "Sem permissao para alterar a foto", e.getMessage());
+    }
+
+    @ExceptionHandler(ArmazenamentoDeFotoDeGrupoIndisponivelException.class)
+    ProblemDetail armazenamentoIndisponivel(ArmazenamentoDeFotoDeGrupoIndisponivelException e) {
+        return problema(HttpStatus.SERVICE_UNAVAILABLE, "Armazenamento indisponivel", e.getMessage());
+    }
+
+    private static ProblemDetail problema(HttpStatus status, String titulo, String detalhe) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(status, detalhe);
+        problema.setTitle(titulo);
+        return problema;
+    }
+
     @ExceptionHandler(OperacaoDeGrupoInvalidaException.class)
     ProblemDetail grupoInvalido(OperacaoDeGrupoInvalidaException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -444,6 +526,8 @@ public class ChatInternoController {
         }
     }
     record ConversaCriada(UUID id) {}
+    record FotoDoGrupoResposta(
+            @Schema(description = "URL autenticada e versionada da foto; nula quando o grupo ficou sem foto.") String fotoUrl) {}
     public record ContatoResposta(UUID id, String nome, String fotoUrl, StatusPresenca presenca) {}
     public record MidiaResposta(UUID mensagemId, String tipo, String nome, String mimetype,
             long tamanho, String legenda, String enviadoEm) {
@@ -454,10 +538,11 @@ public class ChatInternoController {
     }
     record UrlAssinada(String url) {}
     public record ConversaResposta(UUID id, String tipo, String participantes, String ultimaMensagem,
-            Instant ultimaMensagemEm, long naoLidas, String fotoUrl) {
+            Instant ultimaMensagemEm, long naoLidas, String fotoUrl,
+            @Schema(description = "O usuário autenticado é o criador do grupo e pode trocar ou remover a foto.") boolean podeAlterarFoto) {
         static ConversaResposta de(ChatInternoRepositorio.ConversaResumo r) {
             return new ConversaResposta(r.id(), r.tipo().name(), r.participantes(), r.ultimaMensagem(),
-                    r.ultimaMensagemEm(), r.naoLidas(), r.fotoUrl());
+                    r.ultimaMensagemEm(), r.naoLidas(), r.fotoUrl(), r.podeAlterarFoto());
         }
     }
     public record PaginaResposta(List<MensagemResposta> mensagens, Instant proximoCursor) {
