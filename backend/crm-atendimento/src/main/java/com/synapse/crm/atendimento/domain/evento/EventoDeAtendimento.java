@@ -1,9 +1,12 @@
 package com.synapse.crm.atendimento.domain.evento;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda;
+import com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda;
 import com.synapse.crm.core.domain.timeline.OrigemEvento;
 
 /**
@@ -115,4 +118,21 @@ public sealed interface EventoDeAtendimento {
 
     record ParticipanteEntrou(UUID leadId, UUID atendimentoId, UUID participanteId,
             Instant ocorridoEm) implements EventoDeAtendimento {}
+
+    /** Marcacao explicita enviada pela Automacao; o CRM nao infere negociacao do conteudo. */
+    record ClassificacaoDeNegociacaoAtualizada(
+            UUID leadId, UUID atendimentoId, boolean emNegociacao, Instant ocorridoEm)
+            implements EventoDeAtendimento {}
+
+    /** Registro ou tentativa de registro do resultado comercial, com resultado anterior para auditoria. */
+    record ResultadoVendaAtualizado(
+            UUID leadId,
+            UUID atendimentoId,
+            UUID atorId,
+            ResultadoVenda resultadoAnterior,
+            ResultadoVenda resultadoNovo,
+            BigDecimal valor,
+            OrigemResultadoVenda origem,
+            Instant ocorridoEm)
+            implements EventoDeAtendimento {}
 }

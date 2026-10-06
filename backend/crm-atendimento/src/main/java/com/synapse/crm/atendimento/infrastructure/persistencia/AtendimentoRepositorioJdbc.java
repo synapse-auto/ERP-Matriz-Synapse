@@ -40,7 +40,9 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
 
     private static final String COLUNAS =
-            "id, lead_id, canal_id, canal_credencial_id, atendente_id, status, iniciado_em, finalizado_em";
+            "id, lead_id, canal_id, canal_credencial_id, atendente_id, status, iniciado_em, finalizado_em, "
+                    + "em_negociacao, resultado_venda, valor_venda, venda_registrada_por_id, "
+                    + "venda_registrada_em, origem_resultado_venda";
 
     /**
      * O aberto mais recente. {@code LIMIT 1} e nao "exatamente um": se por qualquer motivo houver
@@ -120,15 +122,33 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
             UPDATE atendimento
                SET atendente_id  = ?,
                    status        = ?::status_atendimento,
-                   finalizado_em = ?
+                   finalizado_em = ?,
+                   em_negociacao = ?,
+                   resultado_venda = ?,
+                   valor_venda = ?,
+                   venda_registrada_por_id = ?,
+                   venda_registrada_em = ?,
+                   origem_resultado_venda = ?
              WHERE id = ? AND status <> 'FINALIZADO'
             """;
 
     private static final String SQL_INSERIR =
             """
             INSERT INTO atendimento (id, lead_id, canal_id, canal_credencial_id, atendente_id,
-                                     status, iniciado_em, finalizado_em)
-                 VALUES (?, ?, ?, ?, ?, ?::status_atendimento, ?, ?)
+                                     status, iniciado_em, finalizado_em, em_negociacao, resultado_venda,
+                                     valor_venda, venda_registrada_por_id, venda_registrada_em, origem_resultado_venda)
+                 VALUES (?, ?, ?, ?, ?, ?::status_atendimento, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+
+    private static final String SQL_ATUALIZAR_RESULTADO_VENDA =
+            """
+            UPDATE atendimento
+               SET resultado_venda = ?,
+                   valor_venda = ?,
+                   venda_registrada_por_id = ?,
+                   venda_registrada_em = ?,
+                   origem_resultado_venda = ?
+             WHERE id = ?
             """;
 
     private static final String SQL_ELEVAR_SERVICO = "SELECT set_config('app.papel', 'SERVICO', TRUE)";
@@ -285,6 +305,12 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                 atendimento.atendenteId(),
                 atendimento.status().name(),
                 finalizadoEm,
+                atendimento.emNegociacao(),
+                atendimento.resultadoVenda() == null ? null : atendimento.resultadoVenda().name(),
+                atendimento.valorVenda(),
+                atendimento.vendaRegistradaPorId(),
+                atendimento.vendaRegistradaEm() == null ? null : Timestamp.from(atendimento.vendaRegistradaEm()),
+                atendimento.origemResultadoVenda() == null ? null : atendimento.origemResultadoVenda().name(),
                 atendimento.id());
         if (alterados > 0) {
             return atendimento;
@@ -299,9 +325,32 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                     atendimento.atendenteId(),
                     atendimento.status().name(),
                     Timestamp.from(atendimento.iniciadoEm()),
-                    finalizadoEm);
+                    finalizadoEm,
+                    atendimento.emNegociacao(),
+                    atendimento.resultadoVenda() == null ? null : atendimento.resultadoVenda().name(),
+                    atendimento.valorVenda(),
+                    atendimento.vendaRegistradaPorId(),
+                    atendimento.vendaRegistradaEm() == null ? null : Timestamp.from(atendimento.vendaRegistradaEm()),
+                    atendimento.origemResultadoVenda() == null ? null : atendimento.origemResultadoVenda().name());
         } catch (DuplicateKeyException e) {
             throw new AtendimentoJaFinalizadoException(atendimento.id(), "atualizacao concorrente");
+        }
+        return atendimento;
+    }
+
+    @Override
+    public Atendimento atualizarResultadoVenda(Atendimento atendimento) {
+        TransacaoObrigatoria.exigir("atualizarResultadoVenda");
+        int alterados = chat.update(
+                SQL_ATUALIZAR_RESULTADO_VENDA,
+                atendimento.resultadoVenda().name(),
+                atendimento.valorVenda(),
+                atendimento.vendaRegistradaPorId(),
+                atendimento.vendaRegistradaEm() == null ? null : Timestamp.from(atendimento.vendaRegistradaEm()),
+                atendimento.origemResultadoVenda().name(),
+                atendimento.id());
+        if (alterados == 0) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimento.id());
         }
         return atendimento;
     }
@@ -319,7 +368,19 @@ class AtendimentoRepositorioJdbc implements AtendimentoRepositorio {
                 linha.getObject("atendente_id", UUID.class),
                 StatusAtendimento.valueOf(linha.getString("status")),
                 instante(linha, "iniciado_em"),
-                instante(linha, "finalizado_em"));
+                instante(linha, "finalizado_em"),
+                linha.getBoolean("em_negociacao"),
+                linha.getString("resultado_venda") == null
+                        ? null
+                        : com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda.valueOf(
+                                linha.getString("resultado_venda")),
+                linha.getBigDecimal("valor_venda"),
+                linha.getObject("venda_registrada_por_id", UUID.class),
+                instante(linha, "venda_registrada_em"),
+                linha.getString("origem_resultado_venda") == null
+                        ? null
+                        : com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda.valueOf(
+                                linha.getString("origem_resultado_venda")));
     }
 
     private static Instant instante(ResultSet linha, String coluna) throws SQLException {

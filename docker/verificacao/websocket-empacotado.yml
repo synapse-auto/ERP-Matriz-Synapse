@@ -39,7 +39,7 @@ services:
   backend:
     image: synapse-backend-websocket-test:local
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE-dev}
       SYNAPSE_DB_URL: jdbc:postgresql://postgres:5432/synapse_ws
       SYNAPSE_DB_USER: synapse_ws
       SYNAPSE_DB_PASSWORD: synapse_ws_teste

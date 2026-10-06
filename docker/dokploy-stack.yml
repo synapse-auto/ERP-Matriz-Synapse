@@ -83,11 +83,15 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - synapse-internal
+    # E221: cada execucao de rabbitmq-diagnostics sobe uma VM Erlang inteira (~1 s de CPU). A 15 s, os tres
+    # brokers de uma VPS somavam ~0,3 nucleo so de healthcheck. A 60 s x 3 tentativas a falha continua
+    # detectada em ~3 min e a frequencia cai 75%. Nenhum servico depende da saude do broker (nao ha
+    # depends_on e o backend nao usa AMQP); ver docs/18, secao "RabbitMQ: custo do healthcheck (E221)".
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 15s
+      interval: 60s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 45s
     deploy:
       replicas: 1

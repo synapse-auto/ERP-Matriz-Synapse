@@ -1,5 +1,6 @@
 package com.synapse.crm.atendimento.domain.atendimento;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -27,7 +28,21 @@ public record Atendimento(
         UUID atendenteId,
         StatusAtendimento status,
         Instant iniciadoEm,
-        Instant finalizadoEm) {
+        Instant finalizadoEm,
+        boolean emNegociacao,
+        ResultadoVenda resultadoVenda,
+        BigDecimal valorVenda,
+        UUID vendaRegistradaPorId,
+        Instant vendaRegistradaEm,
+        OrigemResultadoVenda origemResultadoVenda) {
+
+    /** Compatibilidade para factories e fixtures que ainda nao projetam o estado comercial. */
+    public Atendimento(
+            UUID id, UUID leadId, UUID canalId, UUID canalCredencialId, UUID atendenteId,
+            StatusAtendimento status, Instant iniciadoEm, Instant finalizadoEm) {
+        this(id, leadId, canalId, canalCredencialId, atendenteId, status, iniciadoEm, finalizadoEm,
+                false, null, null, null, null, null);
+    }
 
     public Atendimento {
         Objects.requireNonNull(id, "id do atendimento e obrigatorio");
@@ -60,7 +75,13 @@ public record Atendimento(
                 novoAtendenteId,
                 StatusAtendimento.EM_ATENDIMENTO,
                 iniciadoEm,
-                finalizadoEm);
+                finalizadoEm,
+                emNegociacao,
+                resultadoVenda,
+                valorVenda,
+                vendaRegistradaPorId,
+                vendaRegistradaEm,
+                origemResultadoVenda);
     }
 
     /**
@@ -83,14 +104,21 @@ public record Atendimento(
                 atendenteId,
                 StatusAtendimento.EM_ATENDIMENTO,
                 iniciadoEm,
-                finalizadoEm);
+                finalizadoEm,
+                emNegociacao,
+                resultadoVenda,
+                valorVenda,
+                vendaRegistradaPorId,
+                vendaRegistradaEm,
+                origemResultadoVenda);
     }
 
     /** Devolve para a IA: o atendente sai e a conversa volta para o robo. */
     public Atendimento devolverParaIa() {
         exigirAberto("devolucao para a IA");
         return new Atendimento(
-                id, leadId, canalId, canalCredencialId, null, StatusAtendimento.EM_IA, iniciadoEm, null);
+                id, leadId, canalId, canalCredencialId, null, StatusAtendimento.EM_IA, iniciadoEm, null,
+                emNegociacao, resultadoVenda, valorVenda, vendaRegistradaPorId, vendaRegistradaEm, origemResultadoVenda);
     }
 
     /** Encerra. Estado terminal — finalizar duas vezes e erro, nao no-op. */
@@ -105,7 +133,29 @@ public record Atendimento(
                 atendenteId,
                 StatusAtendimento.FINALIZADO,
                 iniciadoEm,
-                quando);
+                quando,
+                emNegociacao,
+                resultadoVenda,
+                valorVenda,
+                vendaRegistradaPorId,
+                vendaRegistradaEm,
+                origemResultadoVenda);
+    }
+
+    public Atendimento comNegociacao(boolean valor) {
+        exigirAberto("classificacao de negociacao");
+        return new Atendimento(id, leadId, canalId, canalCredencialId, atendenteId, status, iniciadoEm, finalizadoEm,
+                valor, resultadoVenda, valorVenda, vendaRegistradaPorId, vendaRegistradaEm, origemResultadoVenda);
+    }
+
+    public Atendimento comResultadoVenda(
+            ResultadoVenda resultado, BigDecimal valor, UUID atorId, Instant quando, OrigemResultadoVenda origem) {
+        Objects.requireNonNull(resultado, "resultado de venda e obrigatorio");
+        Objects.requireNonNull(atorId, "registro exige usuario");
+        Objects.requireNonNull(quando, "data do resultado e obrigatoria");
+        Objects.requireNonNull(origem, "origem do resultado e obrigatoria");
+        return new Atendimento(id, leadId, canalId, canalCredencialId, atendenteId, status, iniciadoEm, finalizadoEm,
+                emNegociacao, resultado, valor, atorId, quando, origem);
     }
 
     public boolean estaAberto() {

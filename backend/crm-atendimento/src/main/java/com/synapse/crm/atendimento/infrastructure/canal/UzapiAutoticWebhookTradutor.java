@@ -285,7 +285,10 @@ class UzapiAutoticWebhookTradutor implements TradutorDeCanal {
             if (primeiro.path("code").canConvertToInt()) {
                 codigo = primeiro.path("code").asInt();
             }
-            titulo = texto(primeiro, "title");
+            titulo = primeiroTexto(primeiro.path("error_data"), "details");
+            if (titulo == null) {
+                titulo = primeiroTexto(primeiro, "message", "title");
+            }
         }
         // A Uzapi pode enviar o ID nativo em id e o wamid do aceite em conversation.id.
         // Nunca interpretar um ID generico de conversa como ID de mensagem. O caso de uso

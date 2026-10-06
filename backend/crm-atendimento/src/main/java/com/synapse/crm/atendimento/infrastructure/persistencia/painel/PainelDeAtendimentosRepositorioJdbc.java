@@ -50,6 +50,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             l.empresa AS lead_empresa, l.codigo AS lead_codigo, c.tipo AS canal_tipo,
             l.etapa_atendimento_id, et.nome AS etapa_nome,
             et.cor_visual AS etapa_cor, a.status, dono.atendente_id, u.nome AS atendente_nome,
+            a.em_negociacao, a.resultado_venda, a.valor_venda, a.venda_registrada_por_id,
+            venda_usuario.nome AS venda_registrada_por_nome, a.venda_registrada_em, a.origem_resultado_venda,
             a.iniciado_em AS iniciado_em,
             ativo.id AS atendimento_ativo_id,
             ultima.conteudo AS ultima_mensagem_preview,
@@ -103,6 +105,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                            AS atendente_id
             ) dono
             LEFT JOIN usuario u ON u.id = dono.atendente_id
+            LEFT JOIN usuario venda_usuario ON venda_usuario.id = a.venda_registrada_por_id
             LEFT JOIN LATERAL (
                 SELECT conteudo, remetente_tipo, enviado_em FROM mensagem m
                  WHERE m.atendimento_id = a.id ORDER BY m.enviado_em DESC LIMIT 1
@@ -238,7 +241,9 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             "atendimento_id, lead_id, lead_nome, lead_foto_url, lead_empresa, lead_codigo, canal_tipo, "
                     + "etapa_atendimento_id, etapa_nome, etapa_cor, status, atendente_id, atendente_nome, "
                     + "iniciado_em, atendimento_ativo_id, ultima_mensagem_preview, ultima_mensagem_remetente_tipo, "
-                    + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, linha_do_lead";
+                    + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, em_negociacao, "
+                    + "resultado_venda, valor_venda, venda_registrada_por_id, venda_registrada_por_nome, "
+                    + "venda_registrada_em, origem_resultado_venda, linha_do_lead";
 
     private static final String SQL_CONTAR_ATIVOS = contar(WHERE_ATIVOS);
 
@@ -435,7 +440,20 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 linha.getString("ultima_mensagem_remetente_tipo"),
                 instante(linha, "ultima_mensagem_em"),
                 instante(linha, "ultima_mensagem_do_lead_em"),
-                linha.getLong("nao_lidas"));
+                linha.getLong("nao_lidas"),
+                linha.getBoolean("em_negociacao"),
+                linha.getString("resultado_venda") == null
+                        ? null
+                        : com.synapse.crm.atendimento.domain.atendimento.ResultadoVenda.valueOf(
+                                linha.getString("resultado_venda")),
+                linha.getBigDecimal("valor_venda"),
+                linha.getObject("venda_registrada_por_id", UUID.class),
+                linha.getString("venda_registrada_por_nome"),
+                instante(linha, "venda_registrada_em"),
+                linha.getString("origem_resultado_venda") == null
+                        ? null
+                        : com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda.valueOf(
+                                linha.getString("origem_resultado_venda")));
     }
 
     private static Instant instante(ResultSet linha, String coluna) throws SQLException {

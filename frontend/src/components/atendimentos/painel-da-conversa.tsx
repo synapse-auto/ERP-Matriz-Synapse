@@ -67,6 +67,7 @@ import { ListaDeMidiasDoLead } from "./secao-de-midias";
 import { FormularioLembrete } from "../lembretes/formulario-lembrete";
 import { FormularioMensagemProgramada } from "../mensagens-programadas/formulario-mensagem-programada";
 import { CampoNomeDoLead } from "../leads/campo-nome-do-lead";
+import { EditorTelefoneDoLead } from "../leads/editor-telefone-do-lead";
 import { ContadorDoPainel } from "../ui/contador-do-painel";
 import { SomenteAdministrador } from "../administracao/somente-administrador";
 import { cn } from "@/lib/utils";
@@ -173,6 +174,14 @@ export function PainelDaConversa({ leadId, atendimentoId, responsavelNome, onRet
               icone={<Phone className="size-(--tamanho-icone-interface)" aria-hidden />}
               rotulo={textosLead.dados.telefone}
               valor={lead.data.telefone}
+              vazio={textosLead.dados.naoInformado}
+              acao={(
+                <EditorTelefoneDoLead
+                  leadId={leadId}
+                  telefone={lead.data.telefone}
+                  permitido={capacidades.pode("contatos.editar")}
+                />
+              )}
             />
             <InformacaoDoPainel
               icone={<Mail className="size-(--tamanho-icone-interface)" aria-hidden />}
@@ -481,16 +490,23 @@ function InformacaoDoPainel({
   icone,
   rotulo,
   valor,
+  vazio,
+  acao,
 }: {
   icone: React.ReactNode;
   rotulo: string;
   valor: string | null;
+  vazio?: string;
+  acao?: React.ReactNode;
 }) {
-  if (!valor) return null;
+  if (!valor && !acao) return null;
   return (
     <div className="flex items-center gap-2.5 text-primary" title={rotulo}>
       {icone}
-      <p className="text-sm text-foreground">{valor}</p>
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <p className="min-w-0 flex-1 truncate text-sm text-foreground">{valor || vazio}</p>
+        {acao}
+      </div>
     </div>
   );
 }

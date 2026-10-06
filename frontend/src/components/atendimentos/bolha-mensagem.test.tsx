@@ -64,7 +64,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
         },
         reenviar: "Reenviar",
         motivosFalhaEntrega: {
-          "131026": "Número não recebe mensagens no WhatsApp",
+          "131026": "O WhatsApp não conseguiu entregar a mensagem",
           "131047": "Fora da janela de 24 horas — só template aprovado",
           "131053": "Formato de arquivo não suportado",
           "132000": "Template com número de parâmetros diferente do aprovado",
@@ -607,22 +607,23 @@ describe("BolhaMensagem", () => {
     expect(screen.getByText("Mensagem removida")).toBeInTheDocument();
   });
 
-  it("traduz 131026 e não oferece reenviar", () => {
+  it("mostra falha genérica 131026 e permite nova tentativa manual", () => {
     render(
       <BolhaMensagem
         mensagem={mensagem({
           statusEntrega: "FALHOU",
           erroEntrega: { codigo: 131026, titulo: "Message undeliverable" },
         })}
+        janelaTextoLivreAberta
         onReenviar={vi.fn()}
         onDefinirReacao={vi.fn()}
         onRemoverReacao={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("Número não recebe mensagens no WhatsApp")).toBeInTheDocument();
+    expect(screen.getByText("O WhatsApp não conseguiu entregar a mensagem")).toBeInTheDocument();
     expect(screen.getByTitle("131026")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reenviar" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reenviar" })).toBeInTheDocument();
   });
 
   it("mostra o título do provedor desconhecido como texto, sem interpretar HTML", () => {
