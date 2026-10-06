@@ -152,8 +152,8 @@ export function DialogoEncaminharAoCliente({ mensagem, conversaId, textos, onFec
 
   return (
     <Dialog open={aberto} onOpenChange={(valor) => { if (!valor) fechar(); }}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="min-w-0 w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto">
+        <DialogHeader className="min-w-0 pr-8">
           <DialogTitle>{envio ? textos.statusTitulo : destino ? textos.previaTitulo : textos.titulo}</DialogTitle>
           {!destino && !envio && <DialogDescription>{textos.descricao}</DialogDescription>}
         </DialogHeader>
@@ -184,7 +184,7 @@ export function DialogoEncaminharAoCliente({ mensagem, conversaId, textos, onFec
 
         {erro && <p className="text-sm text-destructive" role="alert">{erro}</p>}
 
-        <DialogFooter>
+        <DialogFooter className="min-w-0">
           {envio ? (
             <Button type="button" onClick={fechar}>{textos.fechar}</Button>
           ) : (
@@ -229,12 +229,13 @@ function SeletorDeDestino({
   onEscolher: (destino: DestinoDoEncaminhamento) => void;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 w-full space-y-2">
       <Input
         value={busca}
         onChange={(evento) => onBusca(evento.target.value)}
         placeholder={textos.buscar}
         aria-label={textos.buscar}
+        className="min-w-0 w-full"
       />
       {falhou ? (
         <p className="text-sm text-destructive" role="alert">{textos.erroDestinos}</p>
@@ -243,21 +244,21 @@ function SeletorDeDestino({
       ) : destinos.length === 0 ? (
         <p className="text-sm text-muted-foreground">{temBusca ? textos.semResultado : textos.semDestinos}</p>
       ) : (
-        <ul className="max-h-64 space-y-1 overflow-y-auto" aria-label={textos.titulo}>
+        <ul className="min-w-0 w-full max-h-64 space-y-1 overflow-x-hidden overflow-y-auto" aria-label={textos.titulo}>
           {destinos.map((destino) => (
-            <li key={destino.atendimentoId}>
+            <li key={destino.atendimentoId} className="min-w-0">
               <Button
                 type="button"
                 variant="ghost"
-                className="h-auto w-full justify-between gap-2 py-2 text-left"
+                className="h-auto min-w-0 w-full justify-between gap-2 py-2 text-left"
                 aria-label={textos.escolher.replace("{cliente}", destino.clienteNome)}
                 onClick={() => onEscolher(destino)}
               >
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium" title={destino.clienteNome}>{destino.clienteNome}</span>
                   <span className="block text-xs text-muted-foreground">{destino.telefoneMascarado}</span>
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
+                <span className="min-w-0 max-w-[40%] shrink truncate text-right text-xs text-muted-foreground" title={destino.responsavelNome ?? textos.semResponsavel}>
                   {destino.responsavelNome ?? textos.semResponsavel}
                 </span>
               </Button>
@@ -284,25 +285,25 @@ function PreviaDoEnvio({
   if (carregando || !previa) return <p className="text-sm text-muted-foreground">{textos.carregandoPrevia}</p>;
   const tipo = textos.tipo[previa.tipo as keyof TextosEncaminhar["tipo"]] ?? previa.tipo;
   return (
-    <div className="space-y-3 text-sm">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+    <div className="min-w-0 space-y-3 text-sm">
+      <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
         <dt className="text-muted-foreground">{textos.cliente}</dt>
-        <dd className="font-medium">{previa.clienteNome}</dd>
+        <dd className="min-w-0 break-words font-medium">{previa.clienteNome}</dd>
         <dt className="text-muted-foreground">{textos.telefone}</dt>
-        <dd>{previa.telefoneMascarado}</dd>
+        <dd className="min-w-0 break-words">{previa.telefoneMascarado}</dd>
         <dt className="text-muted-foreground">{textos.responsavel}</dt>
-        <dd>{previa.responsavelNome ?? textos.semResponsavel}</dd>
+        <dd className="min-w-0 break-words">{previa.responsavelNome ?? textos.semResponsavel}</dd>
         <dt className="text-muted-foreground">{textos.conteudo}</dt>
         <dd>{tipo}</dd>
         {previa.nomeArquivo && (
           <>
             <dt className="text-muted-foreground">{textos.arquivo}</dt>
-            <dd className="truncate" title={previa.nomeArquivo}>{previa.nomeArquivo}</dd>
+            <dd className="min-w-0 truncate" title={previa.nomeArquivo}>{previa.nomeArquivo}</dd>
           </>
         )}
       </dl>
       {(previa.texto || previa.legenda) && (
-        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap rounded-md border bg-muted/40 p-2">
+        <p className="max-h-32 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-2">
           {previa.texto ?? previa.legenda}
         </p>
       )}

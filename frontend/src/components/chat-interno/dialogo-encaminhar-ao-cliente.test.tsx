@@ -103,6 +103,20 @@ describe("DialogoEncaminharAoCliente", () => {
     expect(buscarDestinosDoEncaminhamento).toHaveBeenCalledWith("");
   });
 
+  it("mantém responsável longo dentro do item sem perder o nome acessível completo", async () => {
+    const responsavel = "Responsável com nome muito longo que não pode alargar o modal";
+    vi.mocked(buscarDestinosDoEncaminhamento).mockResolvedValue([
+      destino({ clienteNome: "Cliente com nome extenso", responsavelNome: responsavel }),
+    ]);
+
+    renderizar();
+
+    const item = await screen.findByRole("button", { name: textos.escolher.replace("{cliente}", "Cliente com nome extenso") });
+    expect(item).toHaveClass("min-w-0", "w-full");
+    expect(screen.getByText(responsavel)).toHaveAttribute("title", responsavel);
+    expect(screen.getByRole("dialog")).toHaveClass("min-w-0", "overflow-x-hidden", "overflow-y-auto");
+  });
+
   it("a busca vai ao servidor depois de uma pausa na digitação, uma vez só", async () => {
     renderizar();
     await screen.findByRole("button", { name: /Maria Cliente/ });
