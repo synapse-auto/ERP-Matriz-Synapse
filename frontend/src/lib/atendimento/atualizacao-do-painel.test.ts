@@ -1,10 +1,12 @@
-import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
   AgendadorDeAtualizacaoDoPainel,
-  JANELA_DE_COALESCENCIA_MS,
+  JANELA_DA_CONTAGEM_MS,
+  JANELA_DA_LISTA_MS,
   pedidoDaNotificacao,
+  type AmbienteDaAba,
   type Relogio,
 } from "./atualizacao-do-painel";
 import type { NotificacaoTempoReal } from "./types";
@@ -132,7 +134,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(1);
   });
 
-  it("junta uma rajada de 50 eventos em um refetch imediato e um no fim da janela", async () => {
+  it("junta uma rajada de 50 eventos: a lista relê na hora e no fim da janela de 5 s, a contagem na hora e no fim da de 10 s", async () => {
     const { cache, chamadas } = await painel();
     const relogio = new RelogioManual();
     const agendador = new AgendadorDeAtualizacaoDoPainel(cache, relogio);
@@ -141,10 +143,111 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
       agendador.solicitar(pedidoDaNotificacao(novaMensagem(numero)));
       relogio.avancar(20);
     }
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS);
+    relogio.avancar(JANELA_DA_LISTA_MS);
+
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(2);
+    expect(chamadas["atendimentos/contagem"]).toBe(1);
+
+    relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
     expect(chamadas["atendimentos/contagem"]).toBe(2);
     expect(chamadas["atendimentos/inbox/TODOS"]).toBe(2);
+  });
+
+  it("lista e contagem têm janelas próprias: um evento por segundo durante 21 s", async () => {
+    const { cache, chamadas } = await painel();
+    const relogio = new RelogioManual();
+    const agendador = new AgendadorDeAtualizacaoDoPainel(cache, relogio);
+
+    for (let segundo = 0; segundo <= 20; segundo += 1) {
+      agendador.solicitar(pedidoDaNotificacao(novaMensagem(segundo)));
+      relogio.avancar(1000);
+    }
+
+    // Lista: 0, 5, 10, 15 e 20 s. Contagem: 0, 10 e 20 s.
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(5);
+    expect(chamadas["atendimentos/contagem"]).toBe(3);
+
+    relogio.avancar(JANELA_DA_CONTAGEM_MS);
+
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(6);
+    expect(chamadas["atendimentos/contagem"]).toBe(4);
+  });
+
+  it("aba oculta não recarrega: o evento só marca como desatualizado, e ao voltar relê uma vez", async () => {
+    const { cache, chamadas } = await painel();
+    const aba = { oculta: true };
+    const ambiente: AmbienteDaAba = { visivel: () => !aba.oculta };
+    const agendador = new AgendadorDeAtualizacaoDoPainel(
+      cache,
+      new RelogioManual(),
+      { listaMs: JANELA_DA_LISTA_MS, contagemMs: JANELA_DA_CONTAGEM_MS },
+      ambiente,
+    );
+
+    agendador.solicitar(pedidoDaNotificacao(novaMensagem(1)));
+    agendador.solicitar(pedidoDaNotificacao(novaMensagem(2)));
+
+    expect(chamadas["atendimentos/contagem"]).toBe(0);
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(0);
+    expect(cache.getQueryState(["atendimentos", "contagem"])?.isInvalidated).toBe(true);
+    expect(cache.getQueryState(["atendimentos", "inbox", "TODOS"])?.isInvalidated).toBe(true);
+
+    // O foco da janela só é escutado depois de montar o QueryClient (o QueryClientProvider faz isso na aplicação).
+    cache.mount();
+    try {
+      aba.oculta = false;
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+      await new Promise((resolver) => setTimeout(resolver, 0));
+
+      expect(chamadas["atendimentos/contagem"]).toBe(1);
+      expect(chamadas["atendimentos/inbox/TODOS"]).toBe(1);
+    } finally {
+      cache.unmount();
+      focusManager.setFocused(undefined);
+    }
+  });
+
+  it("pedido urgente ignora a regra de aba oculta: relê na hora", async () => {
+    const { cache, chamadas } = await painel();
+    const ambiente: AmbienteDaAba = { visivel: () => false };
+    const agendador = new AgendadorDeAtualizacaoDoPainel(
+      cache,
+      new RelogioManual(),
+      { listaMs: JANELA_DA_LISTA_MS, contagemMs: JANELA_DA_CONTAGEM_MS },
+      ambiente,
+    );
+
+    agendador.solicitar(pedidoDaNotificacao(transferencia("outro")));
+
+    expect(chamadas["atendimentos/contagem"]).toBe(1);
+    expect(chamadas["atendimentos/inbox/TODOS"]).toBe(1);
+  });
+
+  it("as listas dos diálogos (fora do prefixo atendimentos) não são relidas pelos eventos", async () => {
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } });
+    let chamadasDoDialogo = 0;
+    const observador = new QueryObserver(cache, {
+      queryKey: ["dialogos", "atendimentos", "TODOS"],
+      queryFn: () => {
+        chamadasDoDialogo += 1;
+        return Promise.resolve([]);
+      },
+    });
+    const cancelar = observador.subscribe(() => undefined);
+    await new Promise((resolver) => setTimeout(resolver, 0));
+    chamadasDoDialogo = 0;
+    try {
+      const agendador = new AgendadorDeAtualizacaoDoPainel(cache, new RelogioManual());
+
+      agendador.solicitar(pedidoDaNotificacao(novaMensagem(1)));
+      agendador.solicitar(pedidoDaNotificacao(transferencia("x")));
+
+      expect(chamadasDoDialogo).toBe(0);
+    } finally {
+      cancelar();
+    }
   });
 
   it("o mesmo evento recebido pelo ouvinte global e pela tela gera um pedido só", async () => {
@@ -155,7 +258,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
 
     agendador.solicitar(pedidoDaNotificacao(evento));
     agendador.solicitar(pedidoDaNotificacao(evento));
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS * 2);
+    relogio.avancar(JANELA_DA_CONTAGEM_MS * 2);
 
     expect(chamadas["atendimentos/contagem"]).toBe(1);
   });
@@ -172,7 +275,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
 
     expect(chamadas["atendimentos/contagem"]).toBe(2);
     expect(chamadas["atendimentos/estado/outro"]).toBe(1);
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS * 2);
+    relogio.avancar(JANELA_DA_CONTAGEM_MS * 2);
     expect(chamadas["atendimentos/contagem"]).toBe(2);
   });
 
@@ -198,7 +301,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
     expect(chamadas["atendimentos/estado/aberto"]).toBe(0);
     expect(chamadas["atendimentos/estado/outro"]).toBe(1);
 
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS);
+    relogio.avancar(JANELA_DA_LISTA_MS);
     agendador.solicitar(pedidoDaNotificacao(novaMensagem(2, "aberto")));
     expect(chamadas["atendimentos/estado/aberto"]).toBe(1);
   });
@@ -212,7 +315,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
       agendadores.forEach((agendador) => agendador.solicitar(pedidoDaNotificacao(novaMensagem(numero))));
       relogio.avancar(10);
     }
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS);
+    relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
     abas.forEach((aba) => expect(aba.chamadas["atendimentos/contagem"]).toBe(2));
   });
@@ -234,7 +337,7 @@ describe("AgendadorDeAtualizacaoDoPainel", () => {
       agendador.solicitar(pedidoDaNotificacao(evento));
       relogio.avancar(20);
     }
-    relogio.avancar(JANELA_DE_COALESCENCIA_MS);
+    relogio.avancar(JANELA_DA_CONTAGEM_MS);
 
     // Cada invalidate cancela o GET em voo e abre outro: o navegador descarta a resposta, mas o
     // servidor executa todas as consultas.
