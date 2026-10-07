@@ -130,6 +130,10 @@ produto, não tomada aqui.
    dentro do prazo (410 no resolvedor, ou 404/5xx/erro no download por ≥10 min). A extensão em si não
    é causa de nada no código.
 
+   Limite dessa conclusão: ela identifica o caminho que gera o aviso, mas não prova, sozinha,
+   que a referência fornecida ao resolvedor era a referência correta do webhook. A correlação
+   de IDs e o status de cada incidente precisam de evidência operacional, como na seção 8.
+
 **Não é possível concluir sem dados de produção ou resposta da Uzapi**
 
 - Qual dessas falhas ocorreu em cada `.JPG` (o `ultimo_erro` das linhas de `webhook_entrada` e o log
@@ -147,3 +151,91 @@ produto, não tomada aqui.
    reconhece `.pdf`/`.mp4`/`.webm`/`.mov` por extensão. O arquivo chega e abre; só a pré-visualização
    difere. Não é a causa do aviso "não chegou". Pode ser melhorado usando o `mime_type` do webhook como
    fallback — **não implementado**: não foi demonstrado como defeito.
+
+## 8. JPG/PNG enviados como documento — reprodução de 07/10/2026
+
+### Evidência operacional recebida
+
+O operador coletou somente a imagem da especificação do serviço `fmnaprod-uzapi-36acu4_backend`
+e campos técnicos dos logs, entre 15:35 e 16:00 UTC (12:35–13:00 em Brasília). A imagem configurada
+é `ghcr.io/synapse-auto/erp-matriz-synapse-backend:1f1bcf0`, com digest SHA-256 presente; `1f1bcf0`
+é também a base desta investigação. O JSON completo e os IDs do incidente devem permanecer no
+canal privado de suporte, não no repositório público.
+
+| Horário UTC | Horário Brasília | Tipo CRM | Etapa | HTTP |
+|---|---|---|---|---|
+| 07/10/2026 15:41:55.503098 | 12:41:55.503098 | DOCUMENTO | resolvedor | 410 |
+| 07/10/2026 15:42:14.227878 | 12:42:14.227878 | DOCUMENTO | resolvedor | 410 |
+
+**Comprovado:** a chamada ao resolvedor recebeu HTTP 410 nos dois casos. Esse caminho não
+executa o download da URL nem chama o storage; registra a mensagem sem arquivo na mesma tentativa,
+conforme a política E218. Portanto, corrupção de Base64, recusa dos bytes por MIME e falha do MinIO
+não explicam esses dois registros: nenhum byte chegou a essas etapas.
+
+**Correlação confirmada pelo operador em consulta somente leitura:** os dois `document.id`
+coincidem exatamente com os `midiaId` dos respectivos logs. Os aliases `media_id` e `mediaId`
+estão ausentes; o tipo recebido é `document`, com MIME `image/png` e `image/jpeg`, respectivamente.
+O primeiro webhook chegou às 15:41:53.994286 UTC e foi processado às 15:41:54.810928 UTC
+(aproximadamente 0,82 segundo); o segundo chegou às 15:42:13.392091 UTC e foi processado às
+15:42:13.921453 UTC (aproximadamente 0,53 segundo). Ambos registram zero tentativas anteriores.
+Isso exclui troca de referência nesses registros e não indica atraso de fila como causa.
+
+**Pendente do fornecedor:** explicar por que essas referências novas responderam 410.
+Não inferir expiração, remoção ou ausência definitiva dos bytes no sistema interno da Uzapi
+apenas pelo status recebido pelo CRM.
+
+O Swagger oficial foi consultado novamente em 07/10/2026:
+[`GET /{version}/{mediaId}`](https://api.uzapi.com.br/docs/swagger.json) continua documentando
+`Authorization: Bearer`, sem número/username no path, com resposta 200 `{id, url}`. O webhook
+`/webhook/message/document` usa `messages[].document.id`, `filename` e `mime_type`; não há
+conversão Base64 documentada nesse caminho nem uma resposta 410 documentada pelo fornecedor.
+
+### Coleta e correlação sem dados de cliente
+
+- `docs/diagnosticos/coletar-midia-uzapi-20261007.py`: lê somente a imagem do serviço e os logs.
+  Exporta um JSON privado (0600), sem sobrescrever arquivo, com whitelist de etapa, status,
+  tipo, tentativa e IDs. Não grava a linha bruta, telefone, token, URL, payload ou conteúdo.
+  `docker service logs` não tem `--until`; o script aplica o limite superior ao timestamp.
+  O digest ausente na especificação fica `null`, sem resolver uma tag mutável no registry.
+- `docs/diagnosticos/conferir-referencias-uzapi-20261007.sql`: consulta por duas chaves de entrada,
+  dentro de `BEGIN READ ONLY`, com timeout de 5 segundos. Substituir os placeholders pelos IDs
+  privados do incidente. Não imprimir o payload inteiro ou o `ultimo_erro` bruto.
+
+Ausência de logs não prova ausência de chamada: tarefas antigas, retenção ou logging driver
+podem impedir a coleta. O script registra o exit code de `docker service logs` para distinguir
+coleta incompleta de resultado vazio.
+
+### Validação local adicional
+
+`WebhookDocumentoImagemUzapiIT` chama o POST real `/webhook/canal`, o método agendado real
+`ProcessadorDeWebhookEntrada.processarPendentes()`, a persistência PostgreSQL e o adaptador
+MinIO real. Só o provedor/CDN é simulado por HTTP local. As fixtures JPEG e PNG são imagens
+completas de 2×2 pixels, geradas e lidas por ImageIO; o PDF contém uma página em branco e xref.
+
+O teste cobre documento JPG/JPEG/PNG, foto JPEG/PNG, PDF, nome e bytes no storage/download JWT,
+histórico relido, segredo errado, acesso de outro atendente, lead divergente, ausência de JWT,
+deduplicação, 410 antes de download, recuperação após 503 e recusa de download vazio como
+indisponibilidade retentável. Não converte documento em foto nem interpreta o nome como mediaId.
+
+Isso demonstra o comportamento do CRM quando o fornecedor entrega bytes; **não comprova
+recebimento na Uzapi real**. Não houve alteração de código de produção, rota, retry, 410,
+autorização, frontend ou configuração. Não há uma correção segura para tornar bytes disponíveis
+quando o resolvedor os recusa com 410; a integração continua pendente do fechamento com o fornecedor.
+
+### Encaminhamento ao suporte e homologação
+
+Compartilhar por canal seguro: os dois horários, IDs de entrada/mídia correlacionados, versão
+implantada, método/path do resolvedor e HTTP 410. Solicitar confirmação de que `document.id`
+é resolvível por essa rota para JPEG/PNG enviados como Documento e a causa exata do 410 em mídia
+nova. Não enviar token, telefone, arquivo do cliente, URL temporária ou payload completo.
+
+Após confirmação do fornecedor, homologar, em atendimento de teste autorizado: JPG como documento,
+PNG como documento, a mesma imagem como foto e PDF como documento. Correlacionar webhook,
+`mediaId`, resolução, download, storage privado e download JWT; conferir bytes e nome preservados.
+
+Arquivos antigos só podem ser recuperados se o fornecedor comprovar que o mediaId original voltou
+a servir os bytes corretos. Nenhuma recuperação é garantida após 410. O replay de uma entrada já
+processada é deduplicado e não substitui a mensagem sem arquivo: uma recuperação exige procedimento
+específico, IDs aprovados e autorização operacional. Não reprocessar histórico em massa.
+
+**Dokploy:** nenhuma variável nova e nenhuma ação de configuração proposta nesta investigação.
