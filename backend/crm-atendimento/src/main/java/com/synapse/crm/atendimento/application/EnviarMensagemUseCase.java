@@ -342,30 +342,24 @@ public class EnviarMensagemUseCase {
             referencia = resolverResposta(leadId, alvoDeResposta);
         }
 
-        // Alcanca o lead? Telefone e janela vem juntos, numa consulta so. Esta verificacao ocorre
-        // depois do replay idempotente: se a conversa mudou de dono entre o commit e a resposta,
-        // a chave da propria tentativa ainda permite devolver a resposta original sem transformar
-        // uma corrida de estado em uma falsa recusa para o navegador.
+        // Trava o lead antes de ler telefone e janela. Assim a edicao da ficha, que tambem atualiza
+        // a linha do lead, nao pode confirmar um novo numero entre a leitura do destino e a criacao
+        // da outbox. O destino e o snapshot persistido da tentativa; nao e recalculado no retry.
+        // bloquearParaAtendimento e a RN-CRM-01 com trava: a mesma RLS de alcancavel, com o lock que
+        // serializa com finalizar/transferir e com a edicao do contato.
+        if (!leads.bloquearParaAtendimento(leadId)) {
+            throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
+        }
+
+        // Alcanca o lead? Telefone e janela vem juntos, numa consulta so, agora protegida pela trava.
         LeadNoCaminhoDeMensagem.ContatoParaEnvio contato = leads.contatoParaEnvio(leadId)
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("lead", leadId));
 
-        // A janela de 24h e verificada AQUI, antes de gravar e antes de enfileirar.
-        // Deixar a Meta recusar custaria uma chamada de rede, um 400 cru para traduzir,
-        // uma linha de outbox que vai esgotar, e um atendente vendo "erro de envio" sem
-        // entender que precisava de um template. Quem responde e o adaptador do provedor
-        // ativo: um filho com provedor nao oficial responde sempre sim.
+        // A janela de 24h e verificada antes de gravar e antes de enfileirar. O adaptador do provedor
+        // ativo decide a regra; um filho com provedor nao oficial responde sempre sim.
         if (conteudo instanceof ConteudoDeEnvio.MensagemLivre
                 && !canal.aceitaTextoLivre(contato.ultimaMensagemDoLead(), agora)) {
             throw new ForaDaJanelaException(leadId);
-        }
-
-        // Trava o lead visivel antes de olhar a conversa. Sem o FOR UPDATE, o envio lia o
-        // atendimento aberto e so depois tentava a posse — uma finalizacao concorrente
-        // encerrava a linha e o envio tentava transferir atendimento ja morto (409).
-        // bloquearParaAtendimento e a RN-CRM-01 com trava: a mesma RLS de alcancavel, com
-        // o lock que serializa com finalizar/transferir.
-        if (!leads.bloquearParaAtendimento(leadId)) {
-            throw new RecursoDeAtendimentoIndisponivelException("lead", leadId);
         }
 
         Atendimento aberto = atendimentos.abertoDoLead(leadId).orElse(null);
@@ -496,7 +490,9 @@ public class EnviarMensagemUseCase {
                     contato.telefoneDestino(),
                     aberto.canalCredencialId(),
                     conteudo,
-                    contextoWamid);
+                    contextoWamid,
+                    contato.telefone(),
+                    contato.telefoneProvedor());
         } else {
             outbox.enfileirarEnvioProgramado(
                     gravada.id(),
@@ -506,7 +502,9 @@ public class EnviarMensagemUseCase {
                     contato.telefoneDestino(),
                     aberto.canalCredencialId(),
                     conteudo,
-                    mensagemProgramadaId);
+                    mensagemProgramadaId,
+                    contato.telefone(),
+                    contato.telefoneProvedor());
         }
 
         leads.registrarInteracao(leadId, agora, 0, 1);

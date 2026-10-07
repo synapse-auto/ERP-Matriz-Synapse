@@ -158,8 +158,9 @@ class PublicadorDaOutboxTransacoes {
     }
 
     /**
-     * Guarda o endereco que o provedor devolveu na resposta do envio, quando ele difere do
-     * {@code to} que acabamos de usar.
+     * Guarda o endereco que o provedor devolveu somente se o telefone canonico e o endereco do
+     * provedor continuam iguais ao snapshot que gerou esta outbox. Uma resposta atrasada nao pode
+     * repovoar um endereco que uma edicao de telefone ja invalidou.
      *
      * <p>Roda na mesma transacao do aceite — sem {@code REQUIRES_NEW}. Lead apagado so faz o
      * {@code UPDATE} afetar zero linhas (sem excecao); qualquer falha inesperada e engolida para
@@ -175,18 +176,30 @@ class PublicadorDaOutboxTransacoes {
         if (endereco.equals(pendente.telefoneDestino())) {
             return;
         }
-        try {
-            leads.registrarTelefoneProvedor(pendente.leadId(), endereco);
+        if (!pendente.possuiSnapshotDoContato()) {
+            // Payloads anteriores a este snapshot continuam com o destino originalmente capturado,
+            // mas nao podem alterar o contato com uma resposta tardia.
             log.debug(
-                    "Endereco do provedor aprendido para o lead {}: {} (destino enviado era {}).",
+                    "Endereco do provedor ignorado por ausencia de snapshot do contato: lead={}, mensagem={}",
                     pendente.leadId(),
-                    endereco,
-                    pendente.telefoneDestino());
+                    pendente.mensagemId());
+            return;
+        }
+        try {
+            boolean atualizado = leads.registrarTelefoneProvedorSeContatoAindaAtual(
+                    pendente.leadId(),
+                    pendente.telefoneCanonicoObservado(),
+                    pendente.telefoneProvedorObservado(),
+                    endereco);
+            if (!atualizado) {
+                log.debug(
+                        "Endereco do provedor tardio ignorado porque o contato mudou: lead={}, mensagem={}",
+                        pendente.leadId(),
+                        pendente.mensagemId());
+            }
         } catch (RuntimeException e) {
             log.warn(
-                    "Nao foi possivel gravar o endereco do provedor {} para o lead {} apos aceite "
-                            + "da mensagem {}.",
-                    endereco,
+                    "Nao foi possivel atualizar o endereco do provedor apos aceite; lead={}, mensagem={}",
                     pendente.leadId(),
                     pendente.mensagemId(),
                     e);

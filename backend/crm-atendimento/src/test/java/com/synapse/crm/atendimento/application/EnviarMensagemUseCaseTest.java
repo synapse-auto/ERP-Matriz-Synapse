@@ -482,7 +482,8 @@ class EnviarMensagemUseCaseTest {
         assertThat(primeiro.mensagem().id()).isEqualTo(mensagemId);
         assertThat(segundo.mensagem().id()).isEqualTo(mensagemId);
         verify(mensagens, times(1)).registrar(any(Mensagem.class));
-        verify(outbox, times(1)).enfileirarEnvio(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(outbox, times(1))
+                .enfileirarEnvio(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
         verify(idempotencia).concluir(chave, usuarioId, mensagemId, agora, false);
     }
 

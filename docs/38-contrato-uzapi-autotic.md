@@ -164,23 +164,27 @@ corpo real):
 | `contacts[0].wa_id` | Endereço do destinatário reconhecido pelo provedor | Gravado como `telefone_provedor` quando numérico e, se `input` vier, corresponder ao `to` enviado |
 
 O adaptador preserva esse endereço opcional no resultado de aceite. Se estiver ausente ou inválido, o
-envio continua aceito normalmente; se diferir do destino usado, a outbox o grava para que os próximos
-envios usem o endereço informado pelo provedor. Isso não reenvia automaticamente uma mensagem com
-status `failed`. Se o telefone canônico do lead for corrigido na ficha, o endereço anterior do
-provedor é invalidado; até o provedor informar outro, os envios usam o telefone corrigido. Assim, uma
-ficha que mostra o número novo não continua enviando para um endereço antigo em `telefone_provedor`.
+envio continua aceito normalmente; se diferir do destino usado, o CRM só o grava se telefone
+canônico e `telefone_provedor` ainda corresponderem ao snapshot capturado na criação da outbox. Uma
+resposta tardia não repovoa endereço invalidado por edição posterior. Payloads antigos, sem esse
+snapshot, continuam para o destino original e não atualizam `telefone_provedor` ao concluir. Isso não
+reenvia automaticamente uma mensagem com status `failed` nem altera o destino de linhas já
+enfileiradas. Se o telefone canônico do lead for corrigido na ficha, o endereço anterior do provedor
+é invalidado; até o provedor informar outro em envio compatível com o contato atual, os novos envios
+usam o telefone corrigido.
 
 Falha: ausência de `messages[0].id`, `status` diferente de `"success"`, ou campo `error` presente —
 mesmo com HTTP 2xx — é falha, não sucesso. O HTTP 200 do endpoint de mensagens é descrito no Swagger
 como "Mensagem colocada na fila de envios com sucesso" — é confirmação de enfileiramento, não de
 entrega; a leitura do corpo continua obrigatória.
 
-Em respostas HTTP de erro, o adaptador preserva apenas `message` quando vier como texto ou lista de
-textos; não expõe nem grava o corpo bruto. Se esse campo faltar ou não for JSON, o motivo fica
-limitado ao status HTTP. Em webhooks `failed`, a ACL preserva `errors[0].code` e escolhe o primeiro
-detalhe textual disponível nesta ordem: `error_data.details`, `message`, `title`. Essa leitura é
-tolerante a formatos compatíveis com Meta e não significa que a Uzapi garanta esses campos. Se o
-webhook não trouxer nenhum deles, o CRM não tem como inferir a causa.
+Em respostas HTTP de erro, o adaptador ignora o corpo inteiro e persiste/loga somente uma categoria
+genérica e o status HTTP. O texto livre do provedor pode conter número, conteúdo da mensagem, payload
+ou outro dado sensível; ele não é encaminhado ao diagnóstico da outbox. Em webhooks `failed`, a ACL
+preserva `errors[0].code` e escolhe o primeiro detalhe textual disponível nesta ordem:
+`error_data.details`, `message`, `title`. Essa leitura é tolerante a formatos compatíveis com Meta e
+não significa que a Uzapi garanta esses campos. Se o webhook não trouxer nenhum deles, o CRM não tem
+como inferir a causa.
 
 ## 7. Classificação de erro e retry durável da outbox
 

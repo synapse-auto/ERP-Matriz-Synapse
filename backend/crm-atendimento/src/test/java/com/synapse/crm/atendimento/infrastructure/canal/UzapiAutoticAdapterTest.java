@@ -144,14 +144,14 @@ class UzapiAutoticAdapterTest {
                         """
                         {"status":"success","message":"Mensagem colocada na fila de envios com sucesso!",
                          "queueId":"fila-interna-nao-usar","messageId":"interno-nao-usar",
-                         "contacts":[{"input":"561999999999","wa_id":"561888777777"}],
+                         "contacts":[{"input":"5561988887777","wa_id":"556188887777"}],
                          "messages":[{"id":"wamid.real"}]}
                         """,
                         MediaType.APPLICATION_JSON));
 
         ResultadoDeEnvio resultado = adapter.enviar(new CanalGateway.Envio(
                 UUID.randomUUID(),
-                "(56) 1 99999-9999",
+                "+55 (61) 98888-7777",
                 new ConteudoDeEnvio.MensagemLivre("Ola, tudo bem?"),
                 UUID.randomUUID(),
                 "wamid.contexto"));
@@ -159,8 +159,8 @@ class UzapiAutoticAdapterTest {
         servidor.verify();
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Aceito.class);
         assertThat(((ResultadoDeEnvio.Aceito) resultado).idExterno()).isEqualTo("wamid.real");
-        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isEqualTo("561888777777");
-        assertThat(capturado[0].path("to").asText()).isEqualTo("561999999999");
+        assertThat(((ResultadoDeEnvio.Aceito) resultado).enderecoDoProvedor()).isEqualTo("556188887777");
+        assertThat(capturado[0].path("to").asText()).isEqualTo("5561988887777");
         assertThat(capturado[0].path("type").asText()).isEqualTo("text");
         assertThat(capturado[0].path("text").path("body").asText()).isEqualTo("Ola, tudo bem?");
         assertThat(capturado[0].path("context").path("message_id").asText())
@@ -497,11 +497,14 @@ class UzapiAutoticAdapterTest {
     // --- classificacao de erro HTTP ------------------------------------------
 
     @Test
-    void erro4xxERecusaPermanente() {
+    void erro4xxERecusaPermanente_semPersistirDetalheLivreDaResposta() {
+        String detalheSensivel = "5511999888777 payload privado Bearer segredo-de-teste";
         servidor.expect(once(), requestTo(URL_BASE + CAMINHO_BASE + "/messages"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST)
-                        .body("{\"statusCode\":400,\"message\":[\"numero invalido\"],\"error\":\"Bad Request\"}")
+                        .body("{\"statusCode\":400,\"message\":[\""
+                                + detalheSensivel
+                                + "\"],\"error\":\"Bad Request\"}")
                         .contentType(MediaType.APPLICATION_JSON));
 
         ResultadoDeEnvio resultado = enviarTexto();
@@ -510,7 +513,9 @@ class UzapiAutoticAdapterTest {
         assertThat(resultado).isInstanceOf(ResultadoDeEnvio.Recusado.class);
         ResultadoDeEnvio.Recusado recusado = (ResultadoDeEnvio.Recusado) resultado;
         assertThat(recusado.permanente()).isTrue();
-        assertThat(recusado.motivo()).contains("HTTP 400", "numero invalido");
+        assertThat(recusado.motivo()).contains("HTTP 400", "recusou a requisicao");
+        assertThat(recusado.motivo())
+                .doesNotContain("5511999888777", "payload privado", "segredo-de-teste", "Bad Request");
     }
 
     @Test
