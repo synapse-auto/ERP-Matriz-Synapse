@@ -346,9 +346,13 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("menuitem", { name: "Arquivos" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Templates" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Mensagens rápidas" })).toBeInTheDocument();
-    expect(screen.queryByText("Arquivos")).not.toBeInTheDocument();
-    expect(screen.queryByText("Templates")).not.toBeInTheDocument();
-    expect(screen.queryByText("Mensagens rápidas")).not.toBeInTheDocument();
+    // Os itens são só ícone: o nome é acessível (aria-label), não há texto solto duplicado. O conteúdo do tooltip fica de
+    // fora de propósito: ele abre ao focar o item do menu e isso depende de tempo e do estado do teste anterior.
+    const textoSolto = (nome: string) =>
+      screen.queryAllByText(nome).filter((elemento) => !elemento.closest('[data-slot="tooltip-content"]'));
+    expect(textoSolto("Arquivos")).toHaveLength(0);
+    expect(textoSolto("Templates")).toHaveLength(0);
+    expect(textoSolto("Mensagens rápidas")).toHaveLength(0);
     expect(screen.queryByRole("heading", { name: "Enviar template" })).not.toBeInTheDocument();
   });
 

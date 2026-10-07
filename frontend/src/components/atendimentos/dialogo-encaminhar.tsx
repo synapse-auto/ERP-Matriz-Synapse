@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ErroDeApi } from "@/lib/api/errors";
-import { encaminharMensagem, listarAtendimentos } from "@/lib/atendimento/api";
+import { encaminharMensagem } from "@/lib/atendimento/api";
+import { useAtendimentosParaEscolha } from "@/lib/atendimento/use-atendimentos";
 import type { MensagemResposta } from "@/lib/atendimento/types";
 import { useTextos } from "@/lib/config/textos-provider";
 
@@ -36,11 +37,7 @@ export function DialogoEncaminhar({
   const cache = useQueryClient();
   const [busca, setBusca] = useState("");
   const [destinoId, setDestinoId] = useState<string | null>(null);
-  const conversas = useQuery({
-    queryKey: ["atendimentos", "TODOS"],
-    queryFn: () => listarAtendimentos("TODOS"),
-    enabled: aberto,
-  });
+  const conversas = useAtendimentosParaEscolha(aberto);
   const encaminhar = useMutation({
     mutationFn: (variaveis: { destinoAtendimentoId: string; idempotencyKey: string }) =>
       encaminharMensagem(

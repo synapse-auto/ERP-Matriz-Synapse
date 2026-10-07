@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
-import { listarAtendimentos } from "@/lib/atendimento/api";
+import { useAtendimentosParaEscolha } from "@/lib/atendimento/use-atendimentos";
 import { useTextos } from "@/lib/config/textos-provider";
 import { criarMensagemProgramada, editarMensagemProgramada } from "@/lib/suporte/api";
 import type { MensagemProgramada } from "@/lib/suporte/types";
@@ -23,7 +23,7 @@ export function FormularioMensagemProgramada({ aberto, leadId, leadNome, conteud
   const [leadSelecionado, setLeadSelecionado] = useState(leadId ?? existente?.leadId ?? "");
   const [conteudo, setConteudo] = useState(existente?.conteudo ?? conteudoInicial ?? "");
   const [dataEnvio, setDataEnvio] = useState(paraLocal(existente?.dataEnvio));
-  const atendimentos = useQuery({ queryKey: ["atendimentos", "TODOS"], queryFn: () => listarAtendimentos("TODOS"), enabled: aberto && !leadId && !existente });
+  const atendimentos = useAtendimentosParaEscolha(aberto && !leadId && !existente);
   const leads = useMemo(() => [...new Map((atendimentos.data ?? []).map((a) => [a.leadId, a.leadNome])).entries()], [atendimentos.data]);
   const salvar = useMutation({ mutationFn: () => existente
     ? editarMensagemProgramada(existente.id, { conteudo: conteudo.trim(), dataEnvio: new Date(dataEnvio).toISOString() })

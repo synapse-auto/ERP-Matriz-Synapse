@@ -60,3 +60,23 @@ export function useContagemDeAtendimentos() {
     queryFn: () => contarAtendimentosPorVisao(),
   });
 }
+
+/**
+ * Chave FORA do prefixo `["atendimentos"]` de propósito (E225, B4): os diálogos que listam atendimentos para o usuário
+ * escolher (encaminhar, lembrete, mensagem programada) não devem ser relidos a cada evento de tempo real — o prefixo
+ * `["atendimentos"]` é invalidado por toda rajada, e esta lista é a de TODOS inteira, sem paginação.
+ */
+export const CHAVE_ATENDIMENTOS_PARA_ESCOLHA = ["dialogos", "atendimentos", "TODOS"] as const;
+
+/** Mesma validade que o app já usa para dados que mudam pouco (capacidade do canal): 5 minutos. */
+export const STALE_TIME_DOS_DIALOGOS_MS = 5 * 60 * 1000;
+
+/** A lista de atendimentos que um diálogo oferece para escolha; só busca quando o diálogo está aberto. */
+export function useAtendimentosParaEscolha(habilitado: boolean) {
+  return useQuery({
+    queryKey: CHAVE_ATENDIMENTOS_PARA_ESCOLHA,
+    queryFn: () => listarAtendimentos("TODOS"),
+    enabled: habilitado,
+    staleTime: STALE_TIME_DOS_DIALOGOS_MS,
+  });
+}

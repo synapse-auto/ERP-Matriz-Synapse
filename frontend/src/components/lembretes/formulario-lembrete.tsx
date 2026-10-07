@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { dataHoraCompleta, SeletorDataHora } from "@/components/ui/seletor-data-hora";
 import { Seletor } from "@/components/ui/seletor";
 import { Textarea } from "@/components/ui/textarea";
-import { listarAtendimentos } from "@/lib/atendimento/api";
+import { useAtendimentosParaEscolha } from "@/lib/atendimento/use-atendimentos";
 import { useTextos } from "@/lib/config/textos-provider";
 import { criarLembrete, editarLembrete } from "@/lib/suporte/api";
 import type { Lembrete } from "@/lib/suporte/types";
@@ -36,11 +36,7 @@ export function FormularioLembrete({ aberto, leadId, leadNome, existente, onFech
   const [dataHora, setDataHora] = useState(
     existente ? paraLocal(existente.dataHora) : "",
   );
-  const atendimentos = useQuery({
-    queryKey: ["atendimentos", "TODOS"],
-    queryFn: () => listarAtendimentos("TODOS"),
-    enabled: aberto && !leadId,
-  });
+  const atendimentos = useAtendimentosParaEscolha(aberto && !leadId);
   const leads = useMemo(() => {
     const unicos = new Map((atendimentos.data ?? []).map((item) => [item.leadId, item.leadNome]));
     return [...unicos.entries()];
