@@ -172,6 +172,10 @@ executa o download da URL nem chama o storage; registra a mensagem sem arquivo n
 conforme a política E218. Portanto, corrupção de Base64, recusa dos bytes por MIME e falha do MinIO
 não explicam esses dois registros: nenhum byte chegou a essas etapas.
 
+**Etapa sem ambiguidade:** o 410 foi na resolução do `mediaId`, **não** no download de uma URL
+retornada. São etapas diferentes no adaptador: o log `etapa=resolvedor` identifica a primeira;
+`etapa=download` identificaria a segunda. Não houve URL utilizável para baixar nesses registros.
+
 **Correlação confirmada pelo operador em consulta somente leitura:** os dois `document.id`
 coincidem exatamente com os `midiaId` dos respectivos logs. Os aliases `media_id` e `mediaId`
 estão ausentes; o tipo recebido é `document`, com MIME `image/png` e `image/jpeg`, respectivamente.
@@ -183,6 +187,10 @@ Isso exclui troca de referência nesses registros e não indica atraso de fila c
 **Pendente do fornecedor:** explicar por que essas referências novas responderam 410.
 Não inferir expiração, remoção ou ausência definitiva dos bytes no sistema interno da Uzapi
 apenas pelo status recebido pelo CRM.
+
+**Status:** task bloqueada por dependência do fornecedor. Validação local/CI aprovada não
+transforma essa evidência em recebimento corrigido no provedor real. Manter a PR em draft,
+sem fallback especulativo nem reprocessamento de produção.
 
 O Swagger oficial foi consultado novamente em 07/10/2026:
 [`GET /{version}/{mediaId}`](https://api.uzapi.com.br/docs/swagger.json) continua documentando
