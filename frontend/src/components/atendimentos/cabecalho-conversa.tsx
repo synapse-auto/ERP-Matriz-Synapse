@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   CheckCheck,
-  DollarSign,
   MessageCircleMore,
   MessageCirclePlus,
   PanelRightOpen,
@@ -344,20 +343,6 @@ export function CabecalhoConversa({
         </Button>
       ),
     });
-  }
-  if (podeFinalizar && !conversa.resultadoVenda) {
-    acoes.push(acaoDeBotao({
-      id: "registrar-venda",
-      prioridade: PRIORIDADE_TAGS + 1,
-      rotulo: catalogo.atendimentos.finalizar.registrarVenda,
-      icone: <DollarSign className={iconeDeAcao} aria-hidden />,
-      aoSelecionar: () => {
-        setErroResultadoVenda(null);
-        setSucessoResultadoVenda(null);
-        setDialogoResultado("manual");
-      },
-      desabilitado: registrarResultadoVenda.isPending,
-    }));
   }
   if (finalizado && onAbrirNovoAtendimento && podeReabrir) {
     acoes.push({

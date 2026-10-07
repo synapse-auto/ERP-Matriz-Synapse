@@ -308,7 +308,7 @@ describe("CabecalhoConversa", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("permite registrar manualmente o resultado sem finalizar o atendimento", () => {
+  it("oculta o registro manual de venda sem afetar o fluxo da finalização", () => {
     render(
       <CabecalhoConversa
         conversa={conversa}
@@ -319,13 +319,8 @@ describe("CabecalhoConversa", () => {
         onAlternarPainelDetalhes={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Registrar venda" }));
-    expect(screen.getByRole("dialog", { name: "Registrar venda" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar venda" }));
-    expect(registrarResultadoVenda).toHaveBeenCalledWith(
-      { atendimentoId: "atendimento-1", resultado: "VENDEU" },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
+    expect(screen.queryByRole("button", { name: "Registrar venda" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Registrar venda" })).not.toBeInTheDocument();
     expect(finalizar).not.toHaveBeenCalled();
   });
 
@@ -342,6 +337,7 @@ describe("CabecalhoConversa", () => {
     );
 
     expect(screen.queryByRole("button", { name: "Mais ações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Registrar venda" })).not.toBeInTheDocument();
     expect(screen.queryByText("Finalizar Todos")).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finalizar" })).toBeEnabled();
@@ -720,8 +716,9 @@ describe("CabecalhoConversa — transbordo para o ⋯ (E210)", () => {
     abrirMenu();
     await screen.findByRole("menu");
     expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-      "Convidar", "Transferir", "Registrar venda", "Tags", "Telefone: (61) 99999-0000", "Reabrir detalhes do lead",
+      "Convidar", "Transferir", "Tags", "Telefone: (61) 99999-0000", "Reabrir detalhes do lead",
     ]);
+    expect(screen.queryByRole("menuitem", { name: "Registrar venda" })).not.toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: "Buscar na conversa" })).toBeInTheDocument();
   });
 
