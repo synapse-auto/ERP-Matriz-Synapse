@@ -24,7 +24,7 @@ public interface PainelDeAtendimentosRepositorio {
      *     alcancar o que nao e seu; esta flag so escolhe qual subconjunto do que a RLS ja permite a
      *     consulta devolve.
      */
-    List<CartaoAtendimento> listar(
+    ListaDoPainel listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente);
 
     /**

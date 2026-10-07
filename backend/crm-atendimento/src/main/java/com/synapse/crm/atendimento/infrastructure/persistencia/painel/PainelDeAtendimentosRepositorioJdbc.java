@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
+import com.synapse.crm.atendimento.application.painel.ListaDoPainel;
 import com.synapse.crm.atendimento.application.painel.PainelDeAtendimentosRepositorio;
 import com.synapse.crm.atendimento.application.painel.VisaoAtendimento;
 import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
@@ -396,10 +397,17 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     }
 
     @Override
-    public List<CartaoAtendimento> listar(
+    public ListaDoPainel listar(
             VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente) {
         TransacaoObrigatoria.exigir("listar");
-        int limite = listagemMaxima;
+        // Busca UM a mais que o teto: se ele vier, havia mais do que cabe (sem COUNT). O extra e descartado.
+        List<CartaoAtendimento> lidos = lerComTeto(visao, usuarioId, restritoAoProprioAtendente, listagemMaxima + 1);
+        boolean truncada = lidos.size() > listagemMaxima;
+        return new ListaDoPainel(truncada ? lidos.subList(0, listagemMaxima) : lidos, truncada, listagemMaxima);
+    }
+
+    private List<CartaoAtendimento> lerComTeto(
+            VisaoAtendimento visao, UUID usuarioId, boolean restritoAoProprioAtendente, int limite) {
         return switch (visao) {
             case ATIVOS -> chat.query(SQL_ATIVOS, MAPEADOR, usuarioId, usuarioId, limite);
             case PENDENTES -> restritoAoProprioAtendente

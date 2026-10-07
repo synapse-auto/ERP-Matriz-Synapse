@@ -21,8 +21,26 @@ blocos de texto) sob a RLS real: POTENCIAIS com mais de 3 cartões devolve o **p
 da Ana (2 cartões, cabem) devolve **exatamente** a lista antiga; teto inválido é recusado. Validado contra uma mutação deliberada
 da ordem (falhou).
 
+## O corte não é silencioso
+
+A fase 1 busca `teto + 1` linhas: se a `+1` existe, a lista foi cortada. Nesse caso:
+
+- a resposta continua um **array** (o contrato do corpo não muda) e traz os cabeçalhos **`X-Lista-Truncada: true`** e
+  **`X-Lista-Teto: N`** (expostos no CORS; sem corte, os cabeçalhos não aparecem);
+- o backend grava um **WARN** `[LISTAGEM_PAINEL_TRUNCADA] papel=… aba=… teto=…` (sem id nem dado pessoal), para alarme/contagem de
+  logs.
+
+Testes: `ListarAtendimentosVisiveisUseCaseTest` (WARN só quando trunca, sem o id do usuário), `ListaLegadaLimitadaIT` (cabeçalhos
+presentes quando passa do teto) e `ListaLegadaSemCorteIT` (teto folgado: lista idêntica à antiga).
+
+## Quem chama e o que o frontend faz
+
+O único chamador é `frontend/src/lib/atendimento/api.ts` (`GET /api/v1/atendimentos?visao=`): as abas PENDENTES/POTENCIAIS e os
+três diálogos (via `useAtendimentosParaEscolha`). **O frontend ainda não lê os cabeçalhos**: acima do teto, essas listas mostram só os
+N primeiros, sem "carregar mais" nem aviso, e o badge da aba (contagem sem teto) passa a divergir da lista. O sinal existe para o
+próximo PR (faixa de aviso na UI, ou migrar as abas para a inbox paginada e os diálogos para busca no servidor).
+
 ## Decisão do responsável e risco
 
-O valor do teto (500) é ponto de partida: hoje há ~373 atendimentos ativos no HML, então não corta nada, mas o recorte passa a ser
-silencioso se o volume crescer (a lista não avisa que foi cortada). Se isso for um problema para os diálogos (lista de leads para
-escolher), o caminho é trocá-los por busca/paginação no servidor, em outro PR.
+O valor do teto (500) é ponto de partida: hoje há ~373 atendimentos ativos no HML, então não corta nada. Se o volume crescer, o corte
+agora é **visível** (cabeçalho + WARN), mas a UI ainda não o mostra ao usuário.

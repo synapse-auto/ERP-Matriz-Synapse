@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import com.synapse.crm.sharedkernel.persistencia.Pools;
 @Service
 public class ListarAtendimentosVisiveisUseCase {
 
+    static final String MARCADOR_TRUNCADA = "[LISTAGEM_PAINEL_TRUNCADA]";
     static final String MARCADOR_LENTA = "[LISTAGEM_PAINEL_LENTA]";
     private static final Logger log = LoggerFactory.getLogger(ListarAtendimentosVisiveisUseCase.class);
 
@@ -54,13 +56,24 @@ public class ListarAtendimentosVisiveisUseCase {
         this.limiteDeLentidao = limiteDeLentidao;
     }
 
+    /**
+     * A lista simples tem teto ({@code synapse.painel.listagem-maxima}). Passou do teto, o corte nao e silencioso: o
+     * resultado vem marcado como truncado (o controller devolve {@code X-Lista-Truncada}) e grava-se um WARN
+     * {@code [LISTAGEM_PAINEL_TRUNCADA]} com papel, aba e teto — sem dado pessoal.
+     */
     @PreAuthorize("isAuthenticated()")
     @Transactional(transactionManager = Pools.CHAT_TRANSACTION_MANAGER, readOnly = true)
-    public List<CartaoAtendimento> executar(VisaoAtendimento visao) {
+    public ListaDoPainel executar(VisaoAtendimento visao) {
         UsuarioAutenticado atual = usuarioContext.atual();
         visao.exigirAcesso(atual);
         boolean restritoAoProprioAtendente = !atual.enxergaTodosOsLeads();
-        return medir(atual, visao, "lista-simples", () -> painel.listar(visao, atual.id(), restritoAoProprioAtendente));
+        ListaDoPainel lista = medir(atual, visao, "lista-simples",
+                () -> painel.listar(visao, atual.id(), restritoAoProprioAtendente), corte -> corte.cartoes().size());
+        if (lista.truncada()) {
+            log.warn("{} papel={} aba={} teto={} (a lista tem mais cartoes do que o teto; o resto nao foi devolvido)",
+                    MARCADOR_TRUNCADA, atual.papel(), visao, lista.teto());
+        }
+        return lista;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -92,16 +105,25 @@ public class ListarAtendimentosVisiveisUseCase {
                 depoisSemAtendimentoAberto, depoisDe, depoisDoId, limite, filtroAtendenteId));
     }
 
-    /** Executa a consulta e, se passou do limite, deixa o rastro. Falha da consulta passa direto, sem log daqui. */
     private List<CartaoAtendimento> medir(
             UsuarioAutenticado atual, VisaoAtendimento visao, String forma, Supplier<List<CartaoAtendimento>> consulta) {
+        return medir(atual, visao, forma, consulta, List::size);
+    }
+
+    /** Executa a consulta e, se passou do limite, deixa o rastro. Falha da consulta passa direto, sem log daqui. */
+    private <T> T medir(
+            UsuarioAutenticado atual,
+            VisaoAtendimento visao,
+            String forma,
+            Supplier<T> consulta,
+            ToIntFunction<T> quantidadeDeCartoes) {
         Instant inicio = relogio.instant();
-        List<CartaoAtendimento> cartoes = consulta.get();
+        T resultado = consulta.get();
         Duration duracao = Duration.between(inicio, relogio.instant());
         if (duracao.compareTo(limiteDeLentidao) >= 0) {
-            registrarLentidao(atual, visao, forma, duracao, cartoes.size());
+            registrarLentidao(atual, visao, forma, duracao, quantidadeDeCartoes.applyAsInt(resultado));
         }
-        return cartoes;
+        return resultado;
     }
 
     private void registrarLentidao(

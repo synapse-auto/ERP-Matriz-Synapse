@@ -115,9 +115,12 @@ class ListaLegadaSemCorteIT extends PostgresIT {
 
     private List<String> idsDoEndpoint(String email, String senha, String visao) throws Exception {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
-        JsonNode corpo = json.readTree(ApoioAutenticacao.comToken(
-                        http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class)
-                .getBody());
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=" + visao, String.class);
+        // Cabendo no teto, nao ha sinal de truncamento: a resposta e a de sempre.
+        assertThat(resposta.getHeaders().containsKey("X-Lista-Truncada")).as("cabecalho em " + visao).isFalse();
+        assertThat(resposta.getHeaders().containsKey("X-Lista-Teto")).as("cabecalho de teto em " + visao).isFalse();
+        JsonNode corpo = json.readTree(resposta.getBody());
         List<String> ids = new ArrayList<>();
         corpo.forEach(cartao -> ids.add(cartao.path("atendimentoId").asText()));
         return ids;

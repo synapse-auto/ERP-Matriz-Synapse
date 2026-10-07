@@ -77,7 +77,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.SUBGESTOR, false));
-        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(List.of());
+        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(listaVazia());
 
         casoDe(painel, contexto).executar(VisaoAtendimento.TODOS);
 
@@ -119,11 +119,48 @@ class ListarAtendimentosVisiveisUseCaseTest {
         PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
-        when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(List.of());
+        when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(listaVazia());
 
         casoDe(painel, contexto).executar(VisaoAtendimento.FINALIZADOS);
 
         verify(painel).listar(VisaoAtendimento.FINALIZADOS, ana, true);
+    }
+
+    // --- E225: o corte da lista simples nunca e silencioso ---------------------------------------------------------
+
+    @Test
+    void listaTruncadaDevolveOSinalEGravaWarnComPapelAbaETetoSemDadoPessoal() {
+        UUID michele = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
+        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(new ListaDoPainel(List.of(), true, 500));
+
+        List<String> avisos = capturandoWarns(() -> {
+            ListaDoPainel lista = casoDe(painel, contexto).executar(VisaoAtendimento.TODOS);
+
+            assertThat(lista.truncada()).isTrue();
+            assertThat(lista.teto()).isEqualTo(500);
+        });
+
+        assertThat(avisos).singleElement().satisfies(aviso -> assertThat(aviso)
+                .startsWith("[LISTAGEM_PAINEL_TRUNCADA]")
+                .contains("papel=GESTOR", "aba=TODOS", "teto=500")
+                .doesNotContain(michele.toString()));
+    }
+
+    @Test
+    void listaQueCabeNoTetoNaoGravaWarnENaoMarcaTruncamento() {
+        UUID michele = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
+        when(painel.listar(VisaoAtendimento.POTENCIAIS, michele, false)).thenReturn(listaVazia());
+
+        List<String> avisos = capturandoWarns(
+                () -> assertThat(casoDe(painel, contexto).executar(VisaoAtendimento.POTENCIAIS).truncada()).isFalse());
+
+        assertThat(avisos).isEmpty();
     }
 
     // --- E225 (PR 5): rastro de listagem lenta --------------------------------------------------------------------
@@ -161,7 +198,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         RelogioQueAvanca relogio = new RelogioQueAvanca();
         when(painel.listar(VisaoAtendimento.POTENCIAIS, ana, true)).thenAnswer(chamada -> {
             relogio.avancar(Duration.ofMillis(999));
-            return List.of();
+            return listaVazia();
         });
 
         List<String> avisos = capturandoWarns(() -> casoDe(painel, contexto, estadoIndisponivel(), relogio)
@@ -179,7 +216,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         RelogioQueAvanca relogio = new RelogioQueAvanca();
         when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenAnswer(chamada -> {
             relogio.avancar(Duration.ofSeconds(1));
-            return List.of();
+            return listaVazia();
         });
 
         List<String> avisos = capturandoWarns(
@@ -209,6 +246,10 @@ class ListarAtendimentosVisiveisUseCaseTest {
     }
 
     // --- apoio ----------------------------------------------------------------------------------------------------
+
+    private static ListaDoPainel listaVazia() {
+        return new ListaDoPainel(List.of(), false, 500);
+    }
 
     private static ListarAtendimentosVisiveisUseCase casoDe(
             PainelDeAtendimentosRepositorio painel, UsuarioContext contexto) {

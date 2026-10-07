@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import com.synapse.crm.atendimento.application.RecursoDeAtendimentoIndisponivelE
 import com.synapse.crm.atendimento.application.painel.CartaoAtendimento;
 import com.synapse.crm.atendimento.application.painel.ContarAtendimentosPorVisaoUseCase;
 import com.synapse.crm.atendimento.application.painel.EstadoAtendimentoSelecionado;
+import com.synapse.crm.atendimento.application.painel.ListaDoPainel;
 import com.synapse.crm.atendimento.application.painel.ListarAtendimentosVisiveisUseCase;
 import com.synapse.crm.atendimento.application.painel.ObterCartaoAtendimentoPorLeadOuTelefoneUseCase;
 import com.synapse.crm.atendimento.application.painel.ObterCartaoAtendimentoVisivelUseCase;
@@ -57,15 +59,28 @@ class PainelDeAtendimentosController {
         this.obterEstado = obterEstado;
     }
 
+    /** E225: a lista simples tem teto; passou dele, o corpo continua um array e estes cabecalhos avisam o corte. */
+    static final String CABECALHO_LISTA_TRUNCADA = "X-Lista-Truncada";
+
+    static final String CABECALHO_LISTA_TETO = "X-Lista-Teto";
+
     @Operation(
             summary = "Listar atendimentos visíveis",
-            description = "Retorna os cartões da visão solicitada após aplicar a visibilidade do papel autenticado.",
+            description = "Retorna os cartões da visão solicitada após aplicar a visibilidade do papel autenticado, "
+                    + "no máximo o teto configurado (synapse.painel.listagem-maxima). Se havia mais cartões do que o "
+                    + "teto, a resposta traz os cabeçalhos X-Lista-Truncada: true e X-Lista-Teto: N — o corpo continua "
+                    + "sendo um array. Para a lista completa use a inbox paginada.",
             responses = @ApiResponse(responseCode = "200", description = "Cartões da visão solicitada."))
     @GetMapping
-    List<CartaoAtendimento> listar(
+    ResponseEntity<List<CartaoAtendimento>> listar(
             @Parameter(description = "Grupo operacional do painel.", required = true)
                     @RequestParam VisaoAtendimento visao) {
-        return listar.executar(visao);
+        ListaDoPainel lista = listar.executar(visao);
+        ResponseEntity.BodyBuilder resposta = ResponseEntity.ok();
+        if (lista.truncada()) {
+            resposta.header(CABECALHO_LISTA_TRUNCADA, "true").header(CABECALHO_LISTA_TETO, String.valueOf(lista.teto()));
+        }
+        return resposta.body(lista.cartoes());
     }
 
     @Operation(
