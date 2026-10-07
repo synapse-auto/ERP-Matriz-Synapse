@@ -182,6 +182,9 @@ class WebhookDocumentoImagemUzapiIT extends PostgresIT {
 
     @AfterEach
     void limpar() {
+        // O banco é compartilhado entre classes; remover apenas eventos desta fixture.
+        jdbc.update("DELETE FROM outbox_evento WHERE payload->>'leadId'=? OR payload->>'atendimentoId'=?",
+                leadId.toString(), atendimentoId.toString());
         jdbc.queryForList("SELECT midia_url FROM mensagem WHERE atendimento_id=? AND midia_url IS NOT NULL",
                 String.class, atendimentoId).forEach(storage::remover);
         jdbc.update("DELETE FROM mensagem_id_externo WHERE atendimento_id=?", atendimentoId);

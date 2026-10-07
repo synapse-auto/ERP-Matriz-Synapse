@@ -216,6 +216,9 @@ O teste cobre documento JPG/JPEG/PNG, foto JPEG/PNG, PDF, nome e bytes no storag
 histórico relido, segredo errado, acesso de outro atendente, lead divergente, ausência de JWT,
 deduplicação, 410 antes de download, recuperação após 503 e recusa de download vazio como
 indisponibilidade retentável. Não converte documento em foto nem interpreta o nome como mediaId.
+O cleanup remove também os eventos da outbox associados aos UUIDs da própria fixture, sem
+apagar eventos de outras classes do banco compartilhado. Isso evita deixar pendências artificiais
+que contaminem verificações posteriores de saúde.
 
 Isso demonstra o comportamento do CRM quando o fornecedor entrega bytes; **não comprova
 recebimento na Uzapi real**. Não houve alteração de código de produção, rota, retry, 410,
