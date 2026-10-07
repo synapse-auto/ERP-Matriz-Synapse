@@ -15,6 +15,7 @@ const quantidadeFinalizavel = vi.hoisted(() => ({
 const authMock = vi.hoisted(() => ({ papel: "GESTOR" as string | null, usuarioId: "usuario-1" as string | null }));
 const atendimentosMock = vi.hoisted(() => ({
   visao: "TODOS" as string,
+  atendenteId: null as string | null,
   data: [] as ItemInbox[],
 }));
 
@@ -134,8 +135,9 @@ const cartoes: ItemInbox[] = [
 ];
 
 vi.mock("@/lib/atendimento/use-atendimentos", () => ({
-  useAtendimentos: (visao: string) => {
+  useAtendimentos: (visao: string, atendenteId?: string | null) => {
     atendimentosMock.visao = visao;
+    atendimentosMock.atendenteId = atendenteId ?? null;
     return {
       data: atendimentosMock.data,
       isLoading: false,
@@ -197,6 +199,7 @@ describe("ListaConversas", () => {
     authMock.papel = "GESTOR";
     authMock.usuarioId = "usuario-1";
     atendimentosMock.visao = "TODOS";
+    atendimentosMock.atendenteId = null;
     atendimentosMock.data = cartoes;
     quantidadeFinalizavel.valor = 2;
     quantidadeFinalizavel.porAtendente = [
@@ -321,6 +324,46 @@ describe("ListaConversas", () => {
     fireEvent.click(seletor);
     expect(await screen.findByRole("option", { name: "Todos" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Bruno Almeida" })).toBeInTheDocument();
+  });
+
+  it("filtra Todos pela API e mantém as opções para trocar de atendente", async () => {
+    atendimentosMock.data = [
+      ...(cartoes as CartaoAtendimento[]),
+      {
+        ...(cartoes[0] as CartaoAtendimento),
+        atendimentoId: "protocolo-nayara",
+        leadId: "lead-nayara",
+        atendenteId: "usuario-2",
+        atendenteNome: "Nayara",
+      },
+    ];
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtros da lista" }));
+    const seletor = screen.getByRole("combobox", { name: "Atendente" });
+    fireEvent.click(seletor);
+    const nayara = await screen.findByRole("option", { name: "Nayara" });
+    fireEvent.pointerMove(nayara);
+    fireEvent.pointerUp(nayara);
+    fireEvent.keyDown(nayara, { key: "Enter" });
+
+    await waitFor(() => expect(atendimentosMock.atendenteId).toBe("usuario-2"));
+    fireEvent.click(screen.getByRole("combobox", { name: "Atendente" }));
+    expect(await screen.findByRole("option", { name: "Jardel Lima" })).toBeInTheDocument();
+  });
+
+  it("não oferece filtro de atendente em Ativos ou Potenciais", () => {
+    authMock.papel = "GESTOR";
+    render(<ListaConversas selecionadoId={null} onAbrirAtendimento={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Ativos/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Filtros da lista" }));
+    expect(screen.queryByRole("combobox", { name: "Atendente" })).not.toBeInTheDocument();
+    expect(atendimentosMock.atendenteId).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Potenciais/ }));
+    expect(screen.queryByRole("combobox", { name: "Atendente" })).not.toBeInTheDocument();
+    expect(atendimentosMock.atendenteId).toBeNull();
   });
 
   it("aplica o próprio atendente como filtro padrão e não oferece colegas", () => {

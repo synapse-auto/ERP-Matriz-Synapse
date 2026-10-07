@@ -47,9 +47,9 @@ public interface PainelDeAtendimentosRepositorio {
             Instant depoisDe, UUID depoisDoId, int limite);
 
     /**
-     * Leitura paginada com filtro opcional de responsável. O filtro só é aplicado à visão
-     * {@link VisaoAtendimento#FINALIZADOS}; a autorização do papel é decidida no caso de uso antes
-     * de chegar ao adaptador.
+     * Leitura paginada com filtro opcional de responsável. Em visões operacionais, filtra o cartão
+     * representativo atual depois da escolha do ciclo por lead; em {@link VisaoAtendimento#FINALIZADOS},
+     * filtra os ciclos encerrados do responsável. A autorização do papel é decidida no caso de uso.
      */
     default List<CartaoAtendimento> listarPaginado(VisaoAtendimento visao, UUID usuarioId,
             boolean restritoAoProprioAtendente, boolean depoisSemAtendimentoAberto,

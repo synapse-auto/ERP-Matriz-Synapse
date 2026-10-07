@@ -48,7 +48,7 @@ export async function listarInboxUnificada(
 ): Promise<PaginaInbox> {
   const params = new URLSearchParams({ visao, limite: String(limite) });
   if (cursor) params.set("cursor", cursor);
-  if (visao === "FINALIZADOS" && atendenteId) params.set("atendenteId", atendenteId);
+  if (atendenteId) params.set("atendenteId", atendenteId);
   const pagina = await apiFetch<PaginaInbox>(`/api/v1/atendimentos/inbox?${params.toString()}`);
   return {
     ...pagina,
