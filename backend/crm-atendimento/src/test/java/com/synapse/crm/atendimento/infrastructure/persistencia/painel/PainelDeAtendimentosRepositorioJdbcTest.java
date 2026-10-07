@@ -118,6 +118,27 @@ class PainelDeAtendimentosRepositorioJdbcTest {
         }
     }
 
+    /**
+     * E225 (B5): as contagens de andamento filtram direto as linhas abertas, sem procurar com {@code EXISTS}, para cada
+     * linha de atendimento, outro atendimento aberto do mesmo lead. FINALIZADOS e um {@code NOT EXISTS} e nao tem forma
+     * equivalente: continua como era. O teste de integracao prova que o valor e o mesmo.
+     */
+    @Test
+    void contagensDeAndamentoFiltramPeloStatusEFinalizadosContinuaComNotExists() throws Exception {
+        for (String campo : new String[] {
+            "SQL_CONTAR_ATIVOS", "SQL_CONTAR_PENDENTES_PROPRIOS", "SQL_CONTAR_PENDENTES_TODOS", "SQL_CONTAR_POTENCIAIS",
+            "SQL_CONTAR_TODOS"
+        }) {
+            assertThat(constante(campo))
+                    .as(campo)
+                    .contains("WHERE a.status ")
+                    .doesNotContain("EXISTS (SELECT 1 FROM atendimento aberto", "EXISTS (SELECT 1 FROM atendimento visivel");
+        }
+        assertThat(constante("SQL_CONTAR_FINALIZADOS"))
+                .contains("NOT EXISTS (SELECT 1 FROM atendimento aberto")
+                .doesNotContain("WHERE a.status ");
+    }
+
     @Test
     void buscaPorLeadMantemAProjecaoPontualSemPaginacaoExterna() throws Exception {
         String sql = constante("SQL_POR_LEAD");
