@@ -81,10 +81,6 @@ vi.mock("@/lib/lead/api", () => ({
   emitirUrlAssinadaDaMidia: vi.fn().mockResolvedValue({ url: "https://media.example.test/anexo.jpg" }),
 }));
 
-vi.mock("@/components/mensagens/interacao-mensagem", () => ({
-  InteracaoMensagem: ({ children }: { children: ReactNode }) => children,
-}));
-
 import { BolhaMensagem } from "./bolha-mensagem";
 
 function mensagem(parcial: Partial<MensagemResposta>): MensagemResposta {
@@ -115,12 +111,12 @@ describe("BolhaMensagem", () => {
     ["AUDIO", "audio/ogg", "voz.ogg"],
     ["VIDEO", "video/mp4", "video.mp4"],
     ["DOCUMENTO", "application/pdf", "orcamento.pdf"],
-  ] as const)("baixa %s pela rota autenticada da mensagem", async (tipo, mimetype, nome) => {
+  ] as const)("baixa %s enviada e recebida pela rota autenticada", async (tipo, mimetype, nome) => {
     const blob = new Blob(["conteúdo do arquivo"], { type: mimetype });
     apiFetchArquivo.mockReset().mockResolvedValue({ blob, nome });
     baixarBlobComoArquivo.mockReset();
 
-    renderizarComQuery(
+    const tela = renderizarComQuery(
       <BolhaMensagem
         mensagem={mensagem({
           id: "midia-123",
@@ -135,6 +131,10 @@ describe("BolhaMensagem", () => {
       />,
     );
 
+    expect(screen.queryByRole("button", { name: "Baixar" })).not.toBeInTheDocument();
+    expect(apiFetchArquivo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    expect(apiFetchArquivo).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Baixar" }));
     await waitFor(() => {
       expect(apiFetchArquivo).toHaveBeenCalledWith(
@@ -142,6 +142,20 @@ describe("BolhaMensagem", () => {
       );
     });
     expect(baixarBlobComoArquivo).toHaveBeenCalledWith(blob, nome);
+    tela.unmount();
+    renderizarComQuery(
+      <BolhaMensagem
+        mensagem={mensagem({ id: "recebida-123", tipo, remetenteTipo: "LEAD", midiaUrl: "https://storage.example.test/assinada" })}
+        leadId="lead-456"
+        onDefinirReacao={vi.fn()}
+        onRemoverReacao={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    fireEvent.click(screen.getByRole("button", { name: "Baixar" }));
+    await waitFor(() => expect(apiFetchArquivo).toHaveBeenLastCalledWith(
+      "/api/v1/leads/lead-456/midias/recebida-123/download",
+    ));
   });
 
   it("impede clique duplicado durante o download e preserva a mensagem de erro", async () => {
@@ -161,10 +175,13 @@ describe("BolhaMensagem", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
     const botao = screen.getByRole("button", { name: "Baixar" });
     fireEvent.click(botao);
     fireEvent.click(botao);
-    expect(botao).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    expect(screen.getByRole("button", { name: "Carregando mídia..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Carregando mídia..." })).toHaveAttribute("aria-busy", "true");
     expect(apiFetchArquivo).toHaveBeenCalledOnce();
     rejeitar(new Error("storage indisponível"));
 
@@ -182,7 +199,41 @@ describe("BolhaMensagem", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
     expect(screen.queryByRole("button", { name: "Baixar" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    { tipo: "TEXTO", midiaUrl: "https://storage.example.test/objeto" },
+    { tipo: "AUDIO", midiaUrl: null },
+    { tipo: "DOCUMENTO", midiaUrl: "https://storage.example.test/objeto", midiaMetadados: '{"indisponivel":true}' },
+  ] as const)("não oferece download indevido: %j", (parcial) => {
+    apiFetchArquivo.mockReset();
+    renderizarComQuery(<BolhaMensagem mensagem={mensagem(parcial)} leadId="lead-456"
+      onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    expect(screen.queryByRole("button", { name: "Baixar" })).not.toBeInTheDocument();
+    expect(apiFetchArquivo).not.toHaveBeenCalled();
+  });
+
+  it("coloca baixar depois de encaminhar, sem duplicar na bolha e sem disparar as demais ações", async () => {
+    const encaminhar = vi.fn();
+    const responder = vi.fn();
+    apiFetchArquivo.mockReset().mockResolvedValue({ blob: new Blob(["pdf"]), nome: null });
+    baixarBlobComoArquivo.mockReset();
+    renderizarComQuery(<BolhaMensagem
+      mensagem={mensagem({ tipo: "DOCUMENTO", midiaUrl: "https://storage.example.test/objeto", midiaMetadados: '{"nome":"orçamento.pdf"}' })}
+      leadId="lead-456" onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()}
+      onEncaminhar={encaminhar} onResponder={responder} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    const download = screen.getByRole("button", { name: "Baixar" });
+    const anterior = screen.getByRole("button", { name: "Encaminhar" });
+    expect(anterior.compareDocumentPosition(download) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Baixar" })).toHaveLength(1);
+    fireEvent.click(download);
+    await waitFor(() => expect(baixarBlobComoArquivo).toHaveBeenCalledWith(expect.any(Blob), "orçamento.pdf"));
+    expect(encaminhar).not.toHaveBeenCalled();
+    expect(responder).not.toHaveBeenCalled();
   });
 
   it("exibe data e hora completas para mensagens recebidas", () => {

@@ -58,7 +58,7 @@ const textos: Textos["atendimentos"]["mensagem"]["acoes"] = {
   },
 };
 
-const fantasmas = ["Responder", "Encaminhar", "Fixar", "Pergunte à IA", "Favoritar", "Denunciar", "Apagar"];
+const fantasmas = ["Responder", "Encaminhar", "Baixar", "Fixar", "Pergunte à IA", "Favoritar", "Denunciar", "Apagar"];
 
 describe("InteracaoMensagem", () => {
   it("mostra a reação do cliente como informação, separada e sem virar botão da equipe", () => {
