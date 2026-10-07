@@ -218,7 +218,7 @@ class RetornoDoLeadFinalizadoIT extends PostgresIT {
     private List<CartaoAtendimento> cartoesDoGrupoComo(UUID usuarioId, VisaoAtendimento visao) {
         ApoioRls.entrarComo(usuarioId, PapelUsuario.ATENDENTE);
         try {
-            return listarPainel.executar(visao);
+            return listarPainel.executar(visao).cartoes();
         } finally {
             ApoioRls.sair();
         }

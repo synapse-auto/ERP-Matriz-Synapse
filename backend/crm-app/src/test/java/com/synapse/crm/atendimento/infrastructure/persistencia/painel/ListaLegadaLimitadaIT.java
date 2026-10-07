@@ -122,6 +122,21 @@ class ListaLegadaLimitadaIT extends PostgresIT {
     }
 
     @Test
+    @DisplayName("passou do teto: a resposta avisa o corte nos cabecalhos e o corpo continua um array")
+    void listaCortadaTrazOsCabecalhosDeTruncamento() throws Exception {
+        String token = ApoioAutenticacao.login(http, "gestor@dev.local", "gestor123").accessToken();
+
+        var resposta = ApoioAutenticacao.comToken(
+                http, token, HttpMethod.GET, "/api/v1/atendimentos?visao=POTENCIAIS", String.class);
+
+        assertThat(resposta.getHeaders().getFirst("X-Lista-Truncada")).isEqualTo("true");
+        assertThat(resposta.getHeaders().getFirst("X-Lista-Teto")).isEqualTo(String.valueOf(TETO));
+        JsonNode corpo = json.readTree(resposta.getBody());
+        assertThat(corpo.isArray()).isTrue();
+        assertThat(corpo).hasSize(TETO);
+    }
+
+    @Test
     @DisplayName("o teto invalido e recusado na criacao do repositorio")
     void tetoInvalidoERecusado() {
         assertThatThrownBy(() -> {

@@ -10,7 +10,12 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.UUID;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.synapse.crm.sharedkernel.identidade.PapelUsuario;
@@ -66,7 +71,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.SUBGESTOR, false));
-        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(List.of());
+        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(listaVazia());
 
         new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.TODOS);
 
@@ -108,10 +113,68 @@ class ListarAtendimentosVisiveisUseCaseTest {
         PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
-        when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(List.of());
+        when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(listaVazia());
 
         new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.FINALIZADOS);
 
         verify(painel).listar(VisaoAtendimento.FINALIZADOS, ana, true);
+    }
+
+    // --- E225: o corte da lista simples nunca e silencioso ---------------------------------------------------------
+
+    @Test
+    void listaTruncadaDevolveOSinalEGravaWarnComPapelAbaETetoSemDadoPessoal() {
+        UUID michele = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
+        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(new ListaDoPainel(List.of(), true, 500));
+
+        List<String> avisos = capturandoWarns(() -> {
+            ListaDoPainel lista = new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.TODOS);
+
+            assertThat(lista.truncada()).isTrue();
+            assertThat(lista.teto()).isEqualTo(500);
+        });
+
+        assertThat(avisos).singleElement().satisfies(aviso -> assertThat(aviso)
+                .startsWith("[LISTAGEM_PAINEL_TRUNCADA]")
+                .contains("papel=GESTOR", "aba=TODOS", "teto=500")
+                .doesNotContain(michele.toString()));
+    }
+
+    @Test
+    void listaQueCabeNoTetoNaoGravaWarnENaoMarcaTruncamento() {
+        UUID michele = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
+        when(painel.listar(VisaoAtendimento.POTENCIAIS, michele, false)).thenReturn(listaVazia());
+
+        List<String> avisos = capturandoWarns(() -> assertThat(
+                        new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.POTENCIAIS).truncada())
+                .isFalse());
+
+        assertThat(avisos).isEmpty();
+    }
+
+    private static ListaDoPainel listaVazia() {
+        return new ListaDoPainel(List.of(), false, 500);
+    }
+
+    private static List<String> capturandoWarns(Runnable acao) {
+        Logger logger = (Logger) LoggerFactory.getLogger(ListarAtendimentosVisiveisUseCase.class);
+        ListAppender<ILoggingEvent> coletor = new ListAppender<>();
+        coletor.start();
+        logger.addAppender(coletor);
+        try {
+            acao.run();
+        } finally {
+            logger.detachAppender(coletor);
+        }
+        return coletor.list.stream()
+                .filter(evento -> evento.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
     }
 }

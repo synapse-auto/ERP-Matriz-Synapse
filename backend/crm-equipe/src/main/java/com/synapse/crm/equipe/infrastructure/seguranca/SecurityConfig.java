@@ -187,7 +187,7 @@ public class SecurityConfig {
         configuracao.setAllowedOrigins(List.of(propriedades.frontendOrigem()));
         configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
-        configuracao.setExposedHeaders(List.of("Content-Disposition"));
+        configuracao.setExposedHeaders(List.of("Content-Disposition", "X-Lista-Truncada", "X-Lista-Teto"));
 
         UrlBasedCorsConfigurationSource fonte = new UrlBasedCorsConfigurationSource();
         fonte.registerCorsConfiguration("/**", configuracao);
