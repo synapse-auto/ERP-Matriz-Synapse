@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { contarAtendimentosPorVisao, listarInboxUnificada } from "./api";
+import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } from "./api";
 import type { PaginaInbox } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
