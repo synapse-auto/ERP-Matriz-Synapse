@@ -233,6 +233,11 @@ services:
       WEBHOOK_PRAZO_ABSOLUTO: ${WEBHOOK_PRAZO_ABSOLUTO:-2h}
       WEBHOOK_PRAZO_MIDIA: ${WEBHOOK_PRAZO_MIDIA:-10m}
       SAUDE_INTERVALO_MONITORAMENTO: ${SAUDE_INTERVALO_MONITORAMENTO:-30s}
+      # E225 (PR 5): observabilidade do pool e das listagens do painel (so log). Todas opcionais.
+      POOL_METRICAS_INTERVALO: ${POOL_METRICAS_INTERVALO:-1m}
+      POOL_AMOSTRA_INTERVALO: ${POOL_AMOSTRA_INTERVALO:-1s}
+      POOL_SATURADO_ALERTA_APOS: ${POOL_SATURADO_ALERTA_APOS:-5s}
+      PAINEL_LISTAGEM_LENTA_LIMITE: ${PAINEL_LISTAGEM_LENTA_LIMITE:-1s}
       AUTOMACAO_URL: http://synapse-n8n-internal:5678
       AUTOMACAO_TOKEN: ${AUTOMACAO_TOKEN:?obrigatoria}
       # Vazio desliga a geração sob demanda; não pode bloquear o deploy da instância.
