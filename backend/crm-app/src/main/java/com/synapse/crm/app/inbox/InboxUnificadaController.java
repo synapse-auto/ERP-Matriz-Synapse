@@ -31,7 +31,7 @@ class InboxUnificadaController {
                     @RequestParam(defaultValue = "50") int limite,
             @Parameter(description = "Cursor opaco devolvido pela página anterior.")
                     @RequestParam(required = false) String cursor,
-            @Parameter(description = "Responsável dos atendimentos finalizados. Atendentes só podem informar o próprio ID; gestores podem omitir para ver todos.")
+            @Parameter(description = "Filtra os cartões pelo responsável. Em FINALIZADOS, filtra ciclos encerrados; em outras visões, filtra o cartão atual. Atendentes só podem informar o próprio ID nos finalizados.")
                     @RequestParam(required = false) UUID atendenteId) {
         return listar.executar(visao, limite, cursor, atendenteId);
     }

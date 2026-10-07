@@ -125,18 +125,28 @@ export function ListaConversas({
   const [filtroAtendente, setFiltroAtendente] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => new Date());
 
+  const visaoPermiteFiltroAtendente =
+    visao === "TODOS" || visao === "PENDENTES" || visao === "FINALIZADOS";
   const filtroAtendenteDaConsulta =
-    visao === "FINALIZADOS"
+    !visaoPermiteFiltroAtendente
+      ? null
+      : visao === "FINALIZADOS"
       ? papelAmplo
         ? filtroAtendente === SELECAO_TODOS
           ? null
           : filtroAtendente
         : usuarioId
-      : null;
-  const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } = useAtendimentos(
-    visao,
-    filtroAtendenteDaConsulta,
-  );
+      : filtroAtendente === SELECAO_TODOS
+        ? null
+        : filtroAtendente;
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    atendentesConhecidos = [],
+  } = useAtendimentos(visao, filtroAtendenteDaConsulta);
   const cartoes = useMemo(() => (data ?? []).filter((item): item is ItemInbox => item != null), [data]);
   const { data: contagens } = useContagemDeAtendimentos();
   const abriuLeadInicial = useRef(false);
@@ -147,7 +157,6 @@ export function ListaConversas({
   const quantidadeFinalizavel = useQuantidadeAtendimentosFinalizaveis(podeFinalizarEmLote);
 
   const fimDaLista = useRef<HTMLDivElement>(null);
-  const paginaComCursor = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
   useEffect(() => {
     const relogio = window.setInterval(() => setAgora(new Date()), INTERVALO_ATUALIZACAO_ATRASO_MS);
     return () => window.clearInterval(relogio);
@@ -155,7 +164,7 @@ export function ListaConversas({
 
   useEffect(() => {
     const alvo = fimDaLista.current;
-    if (!alvo || !paginaComCursor || !hasNextPage) return;
+    if (!alvo || !hasNextPage) return;
     const observador = new IntersectionObserver(
       (entradas) => {
         if (entradas[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
@@ -164,7 +173,7 @@ export function ListaConversas({
     );
     observador.observe(alvo);
     return () => observador.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, paginaComCursor]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   useEffect(() => {
     onVisaoAlterada?.(visao);
@@ -203,28 +212,32 @@ export function ListaConversas({
   }, [cartoes]);
 
   const atendentes = useMemo(() => {
-    const mapa = new Map<string, string>();
+    const mapa = new Map(atendentesConhecidos);
     for (const cartao of cartoes) {
       if (cartao.tipo !== "EQUIPE_INTERNA" && cartao.atendenteId && cartao.atendenteNome) {
         mapa.set(cartao.atendenteId, cartao.atendenteNome);
       }
     }
     return Array.from(mapa.entries());
-  }, [cartoes]);
+  }, [atendentesConhecidos, cartoes]);
 
   const opcoesDeAtendente = useMemo(() => {
-    if (visao !== "FINALIZADOS") return atendentes;
-    if (papelAmplo) return atendentes;
+    if (visao !== "FINALIZADOS" || papelAmplo) return atendentes;
     const proprio = atendentes.find(([id]) => id === usuarioId);
     return proprio ? [proprio] : usuarioId ? [[usuarioId, textos.filtros.atendente]] : [];
   }, [atendentes, papelAmplo, textos.filtros.atendente, usuarioId, visao]);
 
   const filtroAtendenteVisivel =
-    visao === "FINALIZADOS" && papelAmplo
+    papelAmplo
       ? filtroAtendente ?? SELECAO_TODOS
-      : filtroAtendenteDaConsulta ?? "";
+      : visao === "FINALIZADOS"
+        ? filtroAtendenteDaConsulta ?? ""
+        : filtroAtendente ?? "";
   const temFiltroDeAtendente =
-    visao === "FINALIZADOS" ? papelAmplo || opcoesDeAtendente.length > 0 : atendentes.length > 1;
+    visaoPermiteFiltroAtendente &&
+    (visao === "FINALIZADOS"
+      ? papelAmplo || opcoesDeAtendente.length > 0
+      : papelAmplo || opcoesDeAtendente.length > 1);
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
@@ -394,7 +407,7 @@ export function ListaConversas({
               valor={filtroAtendenteVisivel}
               placeholder={textos.filtros.atendente}
               ariaLabel={textos.filtros.atendente}
-              opcoes={(papelAmplo && visao === "FINALIZADOS"
+              opcoes={(papelAmplo
                 ? [[SELECAO_TODOS, textos.visoes.todos] as [string, string], ...opcoesDeAtendente]
                 : opcoesDeAtendente).map(([id, nome]) => ({
                 valor: id,
@@ -442,7 +455,7 @@ export function ListaConversas({
               </Fragment>
             ))
           )}
-          {paginaComCursor && hasNextPage && (
+          {hasNextPage && (
             <div ref={fimDaLista} className="p-3 text-center text-xs text-muted-foreground" aria-live="polite">
               {isFetchingNextPage ? textos.lista.carregandoMais : textos.lista.carregarMais}
             </div>

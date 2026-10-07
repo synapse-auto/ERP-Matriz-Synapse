@@ -1,24 +1,39 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { contarAtendimentosPorVisao, listarAtendimentos, listarInboxUnificada } from "./api";
+import type { PaginaInbox } from "./api";
 import type { ItemInbox, VisaoAtendimento } from "./types";
 
 export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | null) {
-  const usaInboxPaginada = visao === "TODOS" || visao === "ATIVOS" || visao === "FINALIZADOS";
+  const queryClient = useQueryClient();
+  const inboxSemFiltro = queryClient.getQueryData<InfiniteData<PaginaInbox>>([
+    "atendimentos",
+    "inbox",
+    visao,
+  ]);
+  const atendentesConhecidos = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const pagina of inboxSemFiltro?.pages ?? []) {
+      for (const item of pagina.itens) {
+        if (item && item.tipo !== "EQUIPE_INTERNA" && item.atendenteId && item.atendenteNome) {
+          mapa.set(item.atendenteId, item.atendenteNome);
+        }
+      }
+    }
+    return Array.from(mapa.entries());
+  }, [inboxSemFiltro]);
+
   const inbox = useInfiniteQuery({
     // Query infinita e query comum não podem compartilhar a mesma chave: os formatos de cache
     // (`pages/pageParams` e array) são incompatíveis e se corrompem no refetch por WebSocket.
     queryKey: atendenteId
       ? ["atendimentos", "inbox", visao, atendenteId]
       : ["atendimentos", "inbox", visao],
-    enabled: usaInboxPaginada,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => atendenteId
-      ? listarInboxUnificada(visao, pageParam, 50, atendenteId)
-      : listarInboxUnificada(visao, pageParam),
+    queryFn: ({ pageParam }) => listarInboxUnificada(visao, pageParam, 50, atendenteId ?? null),
     getNextPageParam: (ultima) => ultima.proximoCursor ?? undefined,
   });
   const paginas = inbox.data?.pages;
@@ -26,26 +41,13 @@ export function useAtendimentos(visao: VisaoAtendimento, atendenteId?: string | 
     () => paginas?.flatMap((pagina) => pagina?.itens ?? []).filter(itemPresente),
     [paginas],
   );
-  const legado = useQuery({
-    queryKey: ["atendimentos", "legado", visao],
-    enabled: !usaInboxPaginada,
-    queryFn: () => listarAtendimentos(visao),
-  });
-  if (usaInboxPaginada) {
-    return {
-      ...inbox,
-      data: itensInbox,
-      hasNextPage: inbox.hasNextPage,
-      isFetchingNextPage: inbox.isFetchingNextPage,
-      fetchNextPage: inbox.fetchNextPage,
-    };
-  }
   return {
-    ...legado,
-    data: legado.data as ItemInbox[] | undefined,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    fetchNextPage: async () => undefined,
+    ...inbox,
+    data: itensInbox,
+    hasNextPage: inbox.hasNextPage,
+    isFetchingNextPage: inbox.isFetchingNextPage,
+    fetchNextPage: inbox.fetchNextPage,
+    atendentesConhecidos,
   };
 }
 
