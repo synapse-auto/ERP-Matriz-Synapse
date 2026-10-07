@@ -110,6 +110,26 @@ class PainelDeAtendimentosRepositorioJdbcTest {
     }
 
     @Test
+    void escolhaDaInboxDisponibilizaResponsavelDoCartaoAposElegerOCicloAtual() throws Exception {
+        String campos = constante("CAMPOS_ESCOLHA");
+
+        assertThat(campos)
+                .contains("a.lead_id AS lead_id", "a.atendente_id AS responsavel_atendimento_id", "ROW_NUMBER() OVER");
+    }
+
+    @Test
+    void filtroPorResponsavelUsaODonoDoAtendimentoAbertoDepoisDeElegerOCartao() throws Exception {
+        var metodo = PainelDeAtendimentosRepositorioJdbc.class.getDeclaredMethod("escolherPorResponsavelAtual", String.class);
+        metodo.setAccessible(true);
+        String sql = (String) metodo.invoke(null, " WHERE EXISTS (SELECT 1 FROM atendimento ativo WHERE ativo.lead_id = a.lead_id)");
+
+        assertThat(sql)
+                .contains("WHERE linha_do_lead = 1", "LEFT JOIN LATERAL", "ativo_filtro.atendente_id",
+                        "representante.responsavel_atendimento_id", "CASE WHEN ativo_filtro.id IS NULL")
+                .doesNotContain("OFFSET");
+    }
+
+    @Test
     void contagensTemSomenteOsParametrosDeCadaFiltro() throws Exception {
         for (Map.Entry<String, Integer> entrada : parametrosEsperados().entrySet()) {
             long quantidade = constante(entrada.getKey()).chars().filter(caractere -> caractere == '?').count();

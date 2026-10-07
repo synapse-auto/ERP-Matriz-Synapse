@@ -122,7 +122,10 @@ public class EnfileirarTemplateDeCampanhaUseCase {
                 leadId,
                 contato.get().telefoneDestino(),
                 atendimento.canalCredencialId(),
-                conteudo);
+                conteudo,
+                null,
+                contato.get().telefone(),
+                contato.get().telefoneProvedor());
         String regra = (pedido.teste() ? "teste:" : "") + pedido.campanhaId();
         origens.registrar(
                 "campanha " + regra,

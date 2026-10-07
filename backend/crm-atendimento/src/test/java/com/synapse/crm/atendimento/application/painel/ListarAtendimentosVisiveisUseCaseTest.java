@@ -7,7 +7,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import ch.qos.logback.classic.Level;
@@ -73,7 +79,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.SUBGESTOR, false));
         when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(listaVazia());
 
-        new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.TODOS);
+        casoDe(painel, contexto).executar(VisaoAtendimento.TODOS);
 
         verify(painel).listar(VisaoAtendimento.TODOS, michele, false);
     }
@@ -85,7 +91,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
 
-        assertThatThrownBy(() -> new ListarAtendimentosVisiveisUseCase(painel, contexto)
+        assertThatThrownBy(() -> casoDe(painel, contexto)
                         .executar(VisaoAtendimento.TODOS))
                 .isInstanceOf(AccessDeniedException.class);
 
@@ -99,7 +105,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         UsuarioContext contexto = mock(UsuarioContext.class);
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
 
-        assertThatThrownBy(() -> new ListarAtendimentosVisiveisUseCase(painel, contexto)
+        assertThatThrownBy(() -> casoDe(painel, contexto)
                         .executarPaginado(VisaoAtendimento.TODOS, 50, false, null, null))
                 .isInstanceOf(AccessDeniedException.class);
 
@@ -115,7 +121,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
         when(painel.listar(VisaoAtendimento.FINALIZADOS, ana, true)).thenReturn(listaVazia());
 
-        new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.FINALIZADOS);
+        casoDe(painel, contexto).executar(VisaoAtendimento.FINALIZADOS);
 
         verify(painel).listar(VisaoAtendimento.FINALIZADOS, ana, true);
     }
@@ -131,7 +137,7 @@ class ListarAtendimentosVisiveisUseCaseTest {
         when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenReturn(new ListaDoPainel(List.of(), true, 500));
 
         List<String> avisos = capturandoWarns(() -> {
-            ListaDoPainel lista = new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.TODOS);
+            ListaDoPainel lista = casoDe(painel, contexto).executar(VisaoAtendimento.TODOS);
 
             assertThat(lista.truncada()).isTrue();
             assertThat(lista.teto()).isEqualTo(500);
@@ -151,15 +157,115 @@ class ListarAtendimentosVisiveisUseCaseTest {
         when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
         when(painel.listar(VisaoAtendimento.POTENCIAIS, michele, false)).thenReturn(listaVazia());
 
-        List<String> avisos = capturandoWarns(() -> assertThat(
-                        new ListarAtendimentosVisiveisUseCase(painel, contexto).executar(VisaoAtendimento.POTENCIAIS).truncada())
-                .isFalse());
+        List<String> avisos = capturandoWarns(
+                () -> assertThat(casoDe(painel, contexto).executar(VisaoAtendimento.POTENCIAIS).truncada()).isFalse());
 
         assertThat(avisos).isEmpty();
     }
 
+    // --- E225 (PR 5): rastro de listagem lenta --------------------------------------------------------------------
+
+    @Test
+    void listagemPaginadaAcimaDoLimiteGravaWarnComPapelAbaFormaDuracaoEPool() {
+        UUID ana = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
+        RelogioQueAvanca relogio = new RelogioQueAvanca();
+        when(painel.listarPaginado(VisaoAtendimento.ATIVOS, ana, true, false, null, null, 50)).thenAnswer(chamada -> {
+            relogio.avancar(Duration.ofMillis(1_300));
+            return List.of();
+        });
+        MedidorDoPoolDoChat pool = () -> Optional.of(new EstadoDoPool("synapse-chat", 8, 0, 12, 8, 8));
+
+        List<String> avisos = capturandoWarns(
+                () -> casoDe(painel, contexto, pool, relogio).executarPaginado(VisaoAtendimento.ATIVOS, 50, false, null, null));
+
+        assertThat(avisos).singleElement().satisfies(aviso -> assertThat(aviso)
+                .startsWith("[LISTAGEM_PAINEL_LENTA]")
+                .contains("papel=ATENDENTE", "aba=ATIVOS", "limite=50", "cursor=nao", "duracaoMs=1300", "limiteMs=1000")
+                .contains("poolAtivas=8", "poolEsperando=12", "poolMaximo=8")
+                // Sem dado pessoal: nem o id do usuario aparece.
+                .doesNotContain(ana.toString()));
+    }
+
+    @Test
+    void listagemRapidaNaoGravaNada() {
+        UUID ana = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
+        RelogioQueAvanca relogio = new RelogioQueAvanca();
+        when(painel.listar(VisaoAtendimento.POTENCIAIS, ana, true)).thenAnswer(chamada -> {
+            relogio.avancar(Duration.ofMillis(999));
+            return listaVazia();
+        });
+
+        List<String> avisos = capturandoWarns(() -> casoDe(painel, contexto, estadoIndisponivel(), relogio)
+                .executar(VisaoAtendimento.POTENCIAIS));
+
+        assertThat(avisos).isEmpty();
+    }
+
+    @Test
+    void listaSimplesLentaSemPoolDisponivelAindaGravaOWarn() {
+        UUID michele = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(michele, PapelUsuario.GESTOR, false));
+        RelogioQueAvanca relogio = new RelogioQueAvanca();
+        when(painel.listar(VisaoAtendimento.TODOS, michele, false)).thenAnswer(chamada -> {
+            relogio.avancar(Duration.ofSeconds(1));
+            return listaVazia();
+        });
+
+        List<String> avisos = capturandoWarns(
+                () -> casoDe(painel, contexto, estadoIndisponivel(), relogio).executar(VisaoAtendimento.TODOS));
+
+        assertThat(avisos).singleElement().satisfies(aviso -> assertThat(aviso)
+                .contains("papel=GESTOR", "aba=TODOS", "pagina=lista-simples", "duracaoMs=1000", "pool=indisponivel"));
+    }
+
+    @Test
+    void falhaDaConsultaPassaDiretoSemWarnDeLentidao() {
+        UUID ana = UUID.randomUUID();
+        PainelDeAtendimentosRepositorio painel = mock(PainelDeAtendimentosRepositorio.class);
+        UsuarioContext contexto = mock(UsuarioContext.class);
+        when(contexto.atual()).thenReturn(new UsuarioAutenticado(ana, PapelUsuario.ATENDENTE, false));
+        RelogioQueAvanca relogio = new RelogioQueAvanca();
+        when(painel.listar(VisaoAtendimento.ATIVOS, ana, true)).thenAnswer(chamada -> {
+            relogio.avancar(Duration.ofSeconds(5));
+            throw new IllegalStateException("banco fora");
+        });
+
+        List<String> avisos = capturandoWarns(() -> assertThatThrownBy(() ->
+                        casoDe(painel, contexto, estadoIndisponivel(), relogio).executar(VisaoAtendimento.ATIVOS))
+                .isInstanceOf(IllegalStateException.class));
+
+        assertThat(avisos).isEmpty();
+    }
+
+    // --- apoio ----------------------------------------------------------------------------------------------------
+
     private static ListaDoPainel listaVazia() {
         return new ListaDoPainel(List.of(), false, 500);
+    }
+
+    private static ListarAtendimentosVisiveisUseCase casoDe(
+            PainelDeAtendimentosRepositorio painel, UsuarioContext contexto) {
+        return casoDe(painel, contexto, estadoIndisponivel(), new RelogioQueAvanca());
+    }
+
+    private static ListarAtendimentosVisiveisUseCase casoDe(
+            PainelDeAtendimentosRepositorio painel,
+            UsuarioContext contexto,
+            MedidorDoPoolDoChat pool,
+            RelogioQueAvanca relogio) {
+        return new ListarAtendimentosVisiveisUseCase(painel, contexto, pool, relogio, Duration.ofSeconds(1));
+    }
+
+    private static MedidorDoPoolDoChat estadoIndisponivel() {
+        return Optional::empty;
     }
 
     private static List<String> capturandoWarns(Runnable acao) {
@@ -176,5 +282,29 @@ class ListarAtendimentosVisiveisUseCaseTest {
                 .filter(evento -> evento.getLevel() == Level.WARN)
                 .map(ILoggingEvent::getFormattedMessage)
                 .toList();
+    }
+
+    /** Relogio controlado: so avanca quando a consulta de teste pede. */
+    private static final class RelogioQueAvanca extends Clock {
+        private Instant agora = Instant.parse("2026-10-06T12:00:00Z");
+
+        private void avancar(Duration quanto) {
+            agora = agora.plus(quanto);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zona) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return agora;
+        }
     }
 }

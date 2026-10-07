@@ -46,8 +46,20 @@ describe("listarInboxUnificada — contrato da primeira versão da E63", () => {
     expect(cliente.atendimentoAtivoId).toBe("atendimento-1");
   });
 
-  it("envia atendenteId somente ao consultar finalizados", async () => {
+  it("envia atendenteId em qualquer visão da inbox", async () => {
     vi.mocked(apiFetch).mockResolvedValue({ itens: [], proximoCursor: null });
+
+    await listarInboxUnificada("TODOS", null, 50, "atendente-1");
+
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      "/api/v1/atendimentos/inbox?visao=TODOS&limite=50&atendenteId=atendente-1",
+    );
+
+    await listarInboxUnificada("PENDENTES", null, 50, "atendente-1");
+
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      "/api/v1/atendimentos/inbox?visao=PENDENTES&limite=50&atendenteId=atendente-1",
+    );
 
     await listarInboxUnificada("FINALIZADOS", null, 50, "atendente-1");
 

@@ -231,6 +231,30 @@ class LeadFichaIT extends PostgresIT {
                 .isEqualTo(telefoneProvedor);
     }
 
+    @Test
+    @DisplayName("formatar telefone para o mesmo valor canonico preserva endereco do provedor")
+    void editar_telefoneCanonicoInalterado_preservaEnderecoDoProvedor() {
+        String telefoneCanonico = "5561988887777";
+        String telefoneProvedor = "556188887777";
+        jdbc.update(
+                "UPDATE lead SET telefone = ?, telefone_provedor = ? WHERE id = ?",
+                telefoneCanonico,
+                telefoneProvedor,
+                leadDaAna);
+
+        var resposta = comoAna(
+                HttpMethod.PUT,
+                "/api/v1/leads/" + leadDaAna,
+                Map.of("telefone", "+55 (61) 98888-7777"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(jdbc.queryForObject("SELECT telefone FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo(telefoneCanonico);
+        assertThat(jdbc.queryForObject(
+                        "SELECT telefone_provedor FROM lead WHERE id = ?", String.class, leadDaAna))
+                .isEqualTo(telefoneProvedor);
+    }
+
     /** 404 e nao 403: 403 confirmaria que o lead existe e esta com um colega. */
     @Test
     @DisplayName("atendente NAO edita lead de colega — 404, nao 403")

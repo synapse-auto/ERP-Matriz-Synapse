@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ItemInbox } from "./types";
+import type { CartaoAtendimento } from "./types";
 
 vi.mock("./api", () => ({
   listarInboxUnificada: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("./api", () => ({
 import * as api from "./api";
 import { useAtendimentos } from "./use-atendimentos";
 
-const cliente = (id: string, hora: string): ItemInbox => ({
+const cliente = (id: string, hora: string): CartaoAtendimento => ({
   tipo: "CLIENTE",
   atendimentoId: id,
   leadId: `lead-${id}`,
@@ -57,7 +57,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(2));
 
     expect(result.current.data?.map((item) => item.atendimentoId)).toEqual(["um", "dois"]);
-    expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1");
+    expect(api.listarInboxUnificada).toHaveBeenNthCalledWith(2, "TODOS", "cursor-1", 50, null);
   });
 
   it("usa a inbox paginada também para FINALIZADOS", async () => {
@@ -70,25 +70,43 @@ describe("useAtendimentos — paginação da inbox", () => {
     const { result } = renderHook(() => useAtendimentos("FINALIZADOS"), { wrapper: wrapper(cache) });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null);
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null, 50, null);
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 
-  it("inclui o filtro de atendente na chave e na consulta de finalizados", async () => {
+  it("inclui o filtro de atendente na chave e na consulta em qualquer visão", async () => {
     vi.mocked(api.listarInboxUnificada).mockResolvedValue({
       itens: [cliente("fim-filtrado", "2026-08-26T12:00:00Z")],
       proximoCursor: null,
     });
     const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const { result } = renderHook(() => useAtendimentos("FINALIZADOS", "atendente-1"), {
+    const { result } = renderHook(() => useAtendimentos("PENDENTES", "atendente-1"), {
       wrapper: wrapper(cache),
     });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("FINALIZADOS", null, 50, "atendente-1");
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("PENDENTES", null, 50, "atendente-1");
   });
 
-  it("usa a inbox unificada para ATIVOS, onde o chat interno também participa", async () => {
+  it("preserva no cache os atendentes conhecidos ao aplicar um filtro", async () => {
+    vi.mocked(api.listarInboxUnificada).mockResolvedValue({
+      itens: [{ ...cliente("ana", "2026-08-26T12:00:00Z"), atendenteId: "ana-id", atendenteNome: "Ana" }],
+      proximoCursor: null,
+    });
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result, rerender } = renderHook(
+      ({ atendenteId }: { atendenteId: string | null }) => useAtendimentos("TODOS", atendenteId),
+      { initialProps: { atendenteId: null as string | null }, wrapper: wrapper(cache) },
+    );
+
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    rerender({ atendenteId: "ana-id" });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+
+    expect(result.current.atendentesConhecidos).toEqual([["ana-id", "Ana"]]);
+  });
+
+  it("usa a inbox paginada para ATIVOS, onde o chat interno também participa", async () => {
     vi.mocked(api.listarInboxUnificada).mockResolvedValue({
       itens: [cliente("ativo", "2026-08-26T12:00:00Z")],
       proximoCursor: null,
@@ -98,7 +116,7 @@ describe("useAtendimentos — paginação da inbox", () => {
     const { result } = renderHook(() => useAtendimentos("ATIVOS"), { wrapper: wrapper(cache) });
 
     await waitFor(() => expect(result.current.data).toHaveLength(1));
-    expect(api.listarInboxUnificada).toHaveBeenCalledWith("ATIVOS", null);
+    expect(api.listarInboxUnificada).toHaveBeenCalledWith("ATIVOS", null, 50, null);
     expect(api.listarAtendimentos).not.toHaveBeenCalled();
   });
 

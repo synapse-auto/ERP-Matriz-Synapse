@@ -78,6 +78,9 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
             throw new RespostaAutomacaoInvalidaException("atendimento nao esta sob responsabilidade da IA");
         }
 
+        if (!leads.bloquearParaAtendimento(atendimento.leadId())) {
+            throw new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId);
+        }
         LeadNoCaminhoDeMensagem.ContatoParaEnvio contato = leads.contatoParaEnvio(atendimento.leadId())
                 .orElseThrow(() -> new RecursoDeAtendimentoIndisponivelException("atendimento", atendimentoId));
         Instant agora = Instant.now(relogio);
@@ -105,7 +108,10 @@ public class ResponderAtendimentoDaAutomacaoUseCase {
                 atendimento.leadId(),
                 contato.telefoneDestino(),
                 atendimento.canalCredencialId(),
-                envio);
+                envio,
+                null,
+                contato.telefone(),
+                contato.telefoneProvedor());
         leads.registrarInteracao(atendimento.leadId(), agora, 0, 1);
 
         eventos.publishEvent(new EventoDeAtendimento.MensagemEnviadaPelaAutomacao(

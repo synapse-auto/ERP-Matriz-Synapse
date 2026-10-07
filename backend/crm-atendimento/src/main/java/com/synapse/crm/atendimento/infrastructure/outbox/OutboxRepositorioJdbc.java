@@ -190,7 +190,37 @@ class OutboxRepositorioJdbc implements Outbox {
                 credencialId,
                 conteudo,
                 null,
-                contextoWamid);
+                contextoWamid,
+                null,
+                null,
+                false);
+    }
+
+    @Override
+    public void enfileirarEnvio(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            String contextoWamid,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado) {
+        enfileirarEnvioInterno(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                null,
+                contextoWamid,
+                telefoneCanonicoObservado,
+                telefoneProvedorObservado,
+                true);
     }
 
     @Override
@@ -212,7 +242,37 @@ class OutboxRepositorioJdbc implements Outbox {
                 credencialId,
                 conteudo,
                 mensagemProgramadaId,
-                null);
+                null,
+                null,
+                null,
+                false);
+    }
+
+    @Override
+    public void enfileirarEnvioProgramado(
+            UUID mensagemId,
+            Instant enviadoEm,
+            UUID atendimentoId,
+            UUID leadId,
+            String telefoneDestino,
+            UUID credencialId,
+            ConteudoDeEnvio conteudo,
+            UUID mensagemProgramadaId,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado) {
+        enfileirarEnvioInterno(
+                mensagemId,
+                enviadoEm,
+                atendimentoId,
+                leadId,
+                telefoneDestino,
+                credencialId,
+                conteudo,
+                mensagemProgramadaId,
+                null,
+                telefoneCanonicoObservado,
+                telefoneProvedorObservado,
+                true);
     }
 
     private void enfileirarEnvioInterno(
@@ -224,7 +284,10 @@ class OutboxRepositorioJdbc implements Outbox {
             UUID credencialId,
             ConteudoDeEnvio conteudo,
             UUID mensagemProgramadaId,
-            String contextoWamid) {
+            String contextoWamid,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado,
+            boolean possuiSnapshotDoContato) {
         TransacaoObrigatoria.exigir("enfileirarEnvio");
 
         Instant agora = Instant.now();
@@ -241,7 +304,10 @@ class OutboxRepositorioJdbc implements Outbox {
                         credencialId,
                         conteudo,
                         mensagemProgramadaId,
-                        contextoWamid),
+                        contextoWamid,
+                        telefoneCanonicoObservado,
+                        telefoneProvedorObservado,
+                        possuiSnapshotDoContato),
                 Timestamp.from(agora),
                 Timestamp.from(agora));
     }
@@ -380,7 +446,10 @@ class OutboxRepositorioJdbc implements Outbox {
             UUID credencialId,
             ConteudoDeEnvio conteudo,
             UUID mensagemProgramadaId,
-            String contextoWamid) {
+            String contextoWamid,
+            String telefoneCanonicoObservado,
+            String telefoneProvedorObservado,
+            boolean possuiSnapshotDoContato) {
 
         ObjectNode raiz = json.createObjectNode();
         raiz.put("mensagemId", mensagemId.toString());
@@ -394,6 +463,11 @@ class OutboxRepositorioJdbc implements Outbox {
         }
         if (contextoWamid != null && !contextoWamid.isBlank()) {
             raiz.put("contextoWamid", contextoWamid);
+        }
+        if (possuiSnapshotDoContato) {
+            raiz.put("snapshotContatoVersao", 1);
+            raiz.put("telefoneCanonicoObservado", telefoneCanonicoObservado);
+            raiz.put("telefoneProvedorObservado", telefoneProvedorObservado);
         }
 
         ObjectNode conteudoNo = raiz.putObject("conteudo");
@@ -446,7 +520,14 @@ class OutboxRepositorioJdbc implements Outbox {
                 linha.getInt("tentativas"),
                 contexto == null || contexto.isNull() || contexto.asText().isBlank()
                         ? null
-                        : contexto.asText());
+                        : contexto.asText(),
+                payload.path("telefoneCanonicoObservado").isNull()
+                        ? null
+                        : payload.path("telefoneCanonicoObservado").asText(),
+                payload.path("telefoneProvedorObservado").isNull()
+                        ? null
+                        : payload.path("telefoneProvedorObservado").asText(),
+                payload.path("snapshotContatoVersao").asInt(0) == 1);
     }
 
     private RepasseWebhookPendente desserializarRepasseWebhook(ResultSet linha, int indice)

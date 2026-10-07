@@ -137,6 +137,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     private static final String CAMPOS_ESCOLHA =
             """
             a.id AS atendimento_id,
+            a.lead_id AS lead_id,
+            a.atendente_id AS responsavel_atendimento_id,
             ultima.enviado_em AS ultima_mensagem_em,
             CASE WHEN EXISTS (
                 SELECT 1 FROM atendimento aberto
@@ -319,6 +321,26 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
     }
 
     /**
+     * Variante estreita para quando a inbox filtra pelo responsavel atual do cartao. A lateral so
+     * roda depois de reduzir o historico a um cartao por lead; sem filtro, a listagem normal nao paga
+     * esse custo.
+     */
+    private static String escolherPorResponsavelAtual(String filtro) {
+        String representantes = "SELECT atendimento_id, lead_id, responsavel_atendimento_id, "
+                + "ultima_mensagem_em, sem_atendimento_aberto FROM (SELECT " + CAMPOS_ESCOLHA
+                + ORIGEM_ESCOLHA + filtro + ") escolha WHERE linha_do_lead = 1";
+        return "SELECT representante.atendimento_id FROM (" + representantes + ") representante "
+                + "LEFT JOIN LATERAL (SELECT aberto.id, aberto.atendente_id FROM atendimento aberto "
+                + "WHERE aberto.lead_id = representante.lead_id AND aberto.status <> 'FINALIZADO' "
+                + "ORDER BY COALESCE((SELECT max(m_aberto.enviado_em) FROM mensagem m_aberto "
+                + "WHERE m_aberto.atendimento_id = aberto.id), aberto.iniciado_em) DESC, "
+                + "aberto.iniciado_em DESC, aberto.id DESC LIMIT 1) ativo_filtro ON true "
+                + "WHERE CASE WHEN ativo_filtro.id IS NULL "
+                + "THEN representante.responsavel_atendimento_id "
+                + "ELSE ativo_filtro.atendente_id END = ?";
+    }
+
+    /**
      * Segunda fase (E209): o cartao completo so dos atendimentos escolhidos. Como sobra um
      * atendimento por lead, o {@code ROW_NUMBER} de {@link #CAMPOS} vale 1 em toda linha; o
      * {@link #agrupar} continua aqui apenas para manter a mesma projecao e a mesma {@link #ORDEM}.
@@ -452,7 +474,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
         // E209: cursor, ordem e LIMIT ficam na primeira fase; a segunda so monta os cartoes da
         // pagina. A ordem dos parametros continua a do texto: o `?` de nao_lidas (segunda fase)
         // vem antes do filtro da primeira.
-        String sql = escolher(filtro);
+        boolean filtraResponsavelAtual = filtroAtendenteId != null && visao != VisaoAtendimento.FINALIZADOS;
+        String sql = filtraResponsavelAtual ? escolherPorResponsavelAtual(filtro) : escolher(filtro);
         List<Object> parametros = new java.util.ArrayList<>();
         parametros.add(usuarioId);
         if (visao == VisaoAtendimento.ATIVOS) {
@@ -462,6 +485,11 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             parametros.add(usuarioId);
         }
         if (filtroAtendenteId != null && visao == VisaoAtendimento.FINALIZADOS) {
+            parametros.add(filtroAtendenteId);
+        }
+        if (filtraResponsavelAtual) {
+            // Match the owner shown by the card: an open appointment can own the lead even when
+            // the latest message (and thus representative row) belongs to an older cycle.
             parametros.add(filtroAtendenteId);
         }
         if (depoisDoId != null) {

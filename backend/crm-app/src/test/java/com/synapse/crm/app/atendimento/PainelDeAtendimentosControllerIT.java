@@ -63,6 +63,9 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
     private UUID atendimentoPendenteDaAna;
     private UUID atendimentoPendenteDoBruno;
     private UUID atendimentoPotencial;
+    private UUID leadComResponsavelAtualDoBruno;
+    private UUID atendimentoAntigoDaAna;
+    private UUID atendimentoAtualDoBruno;
 
     private long contarComo(String email, String senha, String visao) {
         String token = ApoioAutenticacao.login(http, email, senha).accessToken();
@@ -93,6 +96,18 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
         UUID leadPotencial = criarLead("Potencial " + sufixo, null, "IA");
         atendimentoPotencial = criarAtendimento(leadPotencial, null, "EM_IA");
+
+        // A filtragem deve respeitar o cartão representativo atual, não um ciclo antigo
+        // pertencente a outro atendente.
+        leadComResponsavelAtualDoBruno = criarLead("Historico Ana atual Bruno " + sufixo, idBruno,
+                "EM_ATENDIMENTO");
+        atendimentoAntigoDaAna = criarAtendimento(leadComResponsavelAtualDoBruno, idAna, "FINALIZADO");
+        atendimentoAtualDoBruno = criarAtendimento(leadComResponsavelAtualDoBruno, idBruno, "EM_ATENDIMENTO");
+        Instant antiga = Instant.now().minusSeconds(30);
+        Instant atual = Instant.now().minusSeconds(60);
+        definirInicio(atendimentoAntigoDaAna, antiga);
+        definirInicio(atendimentoAtualDoBruno, atual);
+        inserirMensagem(atendimentoAntigoDaAna, "ATENDENTE", idAna, "ciclo antigo da Ana", antiga);
     }
 
     @AfterEach
@@ -137,6 +152,33 @@ class PainelDeAtendimentosControllerIT extends PostgresIT {
 
         assertThat(corpo).contains(atendimentoPendenteDaAna.toString());
         assertThat(corpo).contains(atendimentoPendenteDoBruno.toString());
+    }
+
+    @Test
+    @DisplayName("inbox filtra visões paginadas pelo responsável do cartão vigente")
+    void inbox_filtraPeloResponsavelDoCartaoVigente() throws Exception {
+        String token = ApoioAutenticacao.login(http, EMAIL_GESTOR, SENHA_GESTOR).accessToken();
+        String todosAna = json.readTree(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET,
+                        "/api/v1/atendimentos/inbox?visao=TODOS&limite=50&atendenteId=" + idAna,
+                        String.class)
+                .getBody()).toString();
+        String todosBruno = json.readTree(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET,
+                        "/api/v1/atendimentos/inbox?visao=TODOS&limite=50&atendenteId=" + idBruno,
+                        String.class)
+                .getBody()).toString();
+        String pendentesBruno = json.readTree(ApoioAutenticacao.comToken(
+                        http, token, HttpMethod.GET,
+                        "/api/v1/atendimentos/inbox?visao=PENDENTES&limite=50&atendenteId=" + idBruno,
+                        String.class)
+                .getBody()).toString();
+
+        assertThat(todosAna).contains(atendimentoAtivoDaAna.toString());
+        assertThat(todosAna).doesNotContain(leadComResponsavelAtualDoBruno.toString());
+        assertThat(todosBruno).contains(leadComResponsavelAtualDoBruno.toString());
+        assertThat(pendentesBruno).contains(atendimentoPendenteDoBruno.toString());
+        assertThat(pendentesBruno).doesNotContain(atendimentoPendenteDaAna.toString());
     }
 
     @Nested

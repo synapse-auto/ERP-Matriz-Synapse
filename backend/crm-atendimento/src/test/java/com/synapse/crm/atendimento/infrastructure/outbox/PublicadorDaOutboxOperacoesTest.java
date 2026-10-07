@@ -306,9 +306,15 @@ class PublicadorDaOutboxOperacoesTest {
                 canal,
                 propriedades(),
                 mock(ApplicationEventPublisher.class));
-        Outbox.EnvioPendente pendente = pendente();
+        Outbox.EnvioPendente pendente = pendenteComSnapshot();
 
         when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(true);
+        when(leads.registrarTelefoneProvedorSeContatoAindaAtual(
+                        pendente.leadId(),
+                        pendente.telefoneCanonicoObservado(),
+                        pendente.telefoneProvedorObservado(),
+                        "556188887777"))
+                .thenReturn(true);
         transacoes.registrarResultado(
                 pendente, new ResultadoDeEnvio.Aceito("wamid.1", "556188887777"), AGORA);
 
@@ -318,7 +324,8 @@ class PublicadorDaOutboxOperacoesTest {
                 pendente.enviadoEm(),
                 com.synapse.crm.atendimento.domain.mensagem.StatusEntrega.ENVIADO,
                 null);
-        verify(leads).registrarTelefoneProvedor(pendente.leadId(), "556188887777");
+        verify(leads).registrarTelefoneProvedorSeContatoAindaAtual(
+                pendente.leadId(), "5561999999999", null, "556188887777");
     }
 
     @Test
@@ -350,9 +357,9 @@ class PublicadorDaOutboxOperacoesTest {
     void falhaAoGravarEnderecoNaoDesfazAceite() {
         Outbox outbox = mock(Outbox.class);
         var leads = mock(com.synapse.crm.core.application.lead.LeadNoCaminhoDeMensagem.class);
-        org.mockito.Mockito.doThrow(new RuntimeException("lead sumiu"))
+        org.mockito.Mockito.doThrow(new RuntimeException("falha de banco"))
                 .when(leads)
-                .registrarTelefoneProvedor(any(), any());
+                .registrarTelefoneProvedorSeContatoAindaAtual(any(), any(), any(), any());
         CanalGateway canal = mock(CanalGateway.class);
         when(canal.provedor()).thenReturn("teste");
         PublicadorDaOutboxTransacoes transacoes = new PublicadorDaOutboxTransacoes(
@@ -363,7 +370,7 @@ class PublicadorDaOutboxOperacoesTest {
                 canal,
                 propriedades(),
                 mock(ApplicationEventPublisher.class));
-        Outbox.EnvioPendente pendente = pendente();
+        Outbox.EnvioPendente pendente = pendenteComSnapshot();
 
         when(outbox.marcarPublicado(pendente.outboxId(), AGORA)).thenReturn(true);
         transacoes.registrarResultado(
@@ -445,5 +452,22 @@ class PublicadorDaOutboxOperacoesTest {
                 UUID.randomUUID(),
                 new ConteudoDeEnvio.MensagemLivre("ola"),
                 0);
+    }
+
+    private static Outbox.EnvioPendente pendenteComSnapshot() {
+        return new Outbox.EnvioPendente(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                AGORA,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "5561999999999",
+                UUID.randomUUID(),
+                new ConteudoDeEnvio.MensagemLivre("ola"),
+                0,
+                null,
+                "5561999999999",
+                null,
+                true);
     }
 }
