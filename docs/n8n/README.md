@@ -1,5 +1,8 @@
 # Workflows n8n versionados
 
+Histórico de agendamentos: veja [agendamentos.md](agendamentos.md), com o artefato SQL privado
+da integração e a passagem ao n8n da PR #291. Não é migration nem tabela do banco do CRM.
+
 `resumo-ia-sob-demanda.json` é um template de importação do fluxo iniciado pelo CRM.
 Ele não contém credenciais, IDs de Data Table, token ou URL de provedor.
 

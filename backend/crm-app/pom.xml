@@ -142,6 +142,16 @@
   </dependencies>
 
   <build>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+      </testResource>
+      <testResource>
+        <directory>${maven.multiModuleProjectDirectory}/../docs/n8n/sql</directory>
+        <targetPath>n8n-sql</targetPath>
+        <includes><include>001-agendamento-evento.sql</include></includes>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
