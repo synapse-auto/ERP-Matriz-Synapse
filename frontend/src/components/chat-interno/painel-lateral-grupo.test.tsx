@@ -1,10 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 
 import type { ChatContato } from "@/lib/chat-interno/types";
 import type { Textos } from "@/lib/config/schema";
+import { ErroDeApi } from "@/lib/api/errors";
+
+vi.mock("@/lib/api/http-client", () => ({ apiFetchBlob: vi.fn().mockResolvedValue(new Blob(["imagem"])) }));
 
 vi.mock("@/lib/chat-interno/api", () => ({
   listarParticipantesChat: vi.fn(),
@@ -25,6 +28,7 @@ import {
   removerParticipanteChat,
   renomearGrupoChat,
   listarMidiasDoGrupoChat,
+  atualizarFotoDoGrupoChat,
 } from "@/lib/chat-interno/api";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
 
@@ -83,6 +87,7 @@ function renderizar(props: Partial<ComponentProps<typeof PainelLateralGrupo>> = 
 }
 
 describe("PainelLateralGrupo", () => {
+  afterEach(() => vi.unstubAllGlobals());
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(listarParticipantesChat).mockResolvedValue([
@@ -94,6 +99,11 @@ describe("PainelLateralGrupo", () => {
     vi.mocked(removerParticipanteChat).mockResolvedValue(undefined);
     vi.mocked(renomearGrupoChat).mockResolvedValue(undefined);
     vi.mocked(listarMidiasDoGrupoChat).mockResolvedValue([]);
+    class URLComBlob extends URL {
+      static createObjectURL = vi.fn(() => "blob:foto-grupo");
+      static revokeObjectURL = vi.fn();
+    }
+    vi.stubGlobal("URL", URLComBlob);
   });
 
   it("é um painel fixo, sem modal, e mostra contagem e ações sem hierarquia", async () => {
@@ -134,6 +144,50 @@ describe("PainelLateralGrupo", () => {
     expect(screen.queryByLabelText("Renomear grupo")).not.toBeInTheDocument();
     expect(screen.queryByText("Adicionar pessoa")).not.toBeInTheDocument();
     expect(screen.queryByText("Participantes do grupo")).not.toBeInTheDocument();
+  });
+
+  it("seleciona e confirma a foto pela ficha direita, junto ao avatar, sem envio antecipado ou duplicado", async () => {
+    vi.mocked(atualizarFotoDoGrupoChat).mockResolvedValue({ fotoUrl: "/api/v1/chat-interno/conversas/c1/foto?v=2" });
+    renderizar({ podeAlterarFoto: true });
+    const painel = screen.getByRole("complementary", { name: "Participantes do grupo" });
+    const secao = within(painel).getByRole("group", { name: "Foto do grupo" });
+    const entrada = within(secao).getByLabelText(textos.fotoGrupo.escolher);
+    const clicar = vi.spyOn(entrada, "click");
+    fireEvent.click(within(secao).getByRole("button", { name: "Alterar foto" }));
+    expect(clicar).toHaveBeenCalledOnce();
+    const arquivo = new File(["png"], "grupo.png", { type: "image/png" });
+    fireEvent.change(entrada, { target: { files: [arquivo] } });
+    expect(within(secao).getByRole("img", { name: textos.fotoGrupo.previa })).toBeInTheDocument();
+    expect(atualizarFotoDoGrupoChat).not.toHaveBeenCalled();
+    const salvar = within(secao).getByRole("button", { name: "Salvar foto" });
+    fireEvent.click(salvar);
+    fireEvent.click(salvar);
+    await waitFor(() => expect(atualizarFotoDoGrupoChat).toHaveBeenCalledExactlyOnceWith("c1", arquivo));
+    await waitFor(() => expect(within(secao).queryByRole("img", { name: textos.fotoGrupo.previa })).not.toBeInTheDocument());
+  });
+
+  it("falha na ficha preserva a foto confirmada e permite cancelar a prévia", async () => {
+    vi.mocked(atualizarFotoDoGrupoChat).mockRejectedValueOnce(new ErroDeApi(503, null, "falha"));
+    renderizar({ podeAlterarFoto: true, fotoUrl: "/api/v1/chat-interno/conversas/c1/foto?v=1" });
+    const painel = screen.getByRole("complementary");
+    fireEvent.change(within(painel).getByLabelText(textos.fotoGrupo.escolher), { target: { files: [new File(["png"], "grupo.png", { type: "image/png" })] } });
+    fireEvent.click(within(painel).getByRole("button", { name: "Salvar foto" }));
+    expect(await within(painel).findByRole("alert")).toHaveTextContent(textos.fotoGrupo.erroIndisponivel);
+    fireEvent.click(within(painel).getByRole("button", { name: "Cancelar" }));
+    expect(await within(painel).findByRole("img", { name: "Foto do grupo Ops" })).toBeInTheDocument();
+    expect(within(painel).getByRole("button", { name: "Remover foto" })).toBeEnabled();
+  });
+
+  it("trocar de grupo com ficha aberta descarta a prévia, sem enviá-la ao novo grupo", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const props = { nomeAtual: "Ops", usuarioAtual: "u1", textos, onRetrair: vi.fn(), podeAlterarFoto: true };
+    const { rerender } = render(<QueryClientProvider client={client}><PainelLateralGrupo {...props} conversaId="c1" /></QueryClientProvider>);
+    fireEvent.change(screen.getByLabelText(textos.fotoGrupo.escolher), { target: { files: [new File(["png"], "grupo.png", { type: "image/png" })] } });
+    expect(screen.getByRole("img", { name: textos.fotoGrupo.previa })).toBeInTheDocument();
+    rerender(<QueryClientProvider client={client}><PainelLateralGrupo {...props} conversaId="c2" /></QueryClientProvider>);
+    expect(screen.queryByRole("img", { name: textos.fotoGrupo.previa })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alterar foto" })).toBeEnabled();
+    expect(atualizarFotoDoGrupoChat).not.toHaveBeenCalled();
   });
 
   it("renomeia, adiciona e remove participantes", async () => {

@@ -127,6 +127,7 @@ export function PainelLateralGrupo({
           {grupo ? (
             <>
               <SecaoFotoDoGrupo
+                key={conversaId}
                 conversaId={conversaId}
                 nome={nomeAtual}
                 fotoUrl={fotoUrl}

@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const tempoReal = vi.hoisted(() => ({ ciclo: 1 }));
+vi.mock("@/lib/atendimento/tempo-real", () => ({
+  useConexaoTempoReal: () => ({ ciclo: tempoReal.ciclo }),
+}));
+
 vi.mock("@/lib/chat-interno/api", () => ({
   listarConversasChat: vi.fn(),
   listarContatosChat: vi.fn().mockResolvedValue([]),
@@ -36,6 +41,21 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { PainelConversaInterna } from "./painel-conversa-interna";
 
 describe("PainelConversaInterna", () => {
+  it("reconectar a conversa interna aberta pela inbox recupera a lista e a foto do banco", async () => {
+    tempoReal.ciclo = 1;
+    vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 }]);
+    vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(client, "invalidateQueries");
+    const tela = () => <QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>;
+    const { rerender } = render(tela());
+    await screen.findByText("Bruno");
+    expect(invalidar).not.toHaveBeenCalled();
+    tempoReal.ciclo = 2;
+    rerender(tela());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] }));
+    tempoReal.ciclo = 1;
+  });
   it("renderiza autoria real, cabeçalho interno e marca leitura", async () => {
     vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 1 }]);
     vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [

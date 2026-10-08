@@ -60,7 +60,7 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const atualizar = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
   }, [cache]);
-  useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
+  const { ciclo } = useConexaoTempoReal(() => useAuthStore.getState().accessToken, undefined, (evento) => {
     if ((evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA" || evento.tipo === "CHAT_INTERNO_MENSAGEM_REMOVIDA") && evento.dados.conversaId === conversaId) {
       atualizar();
       if (evento.tipo === "CHAT_INTERNO_MENSAGEM" || evento.tipo === "CHAT_INTERNO_MENSAGEM_EDITADA") void marcarChatComoLido(conversaId);
@@ -69,6 +69,10 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
       atualizarReacoesDoChatInterno(cache, conversaId, evento.dados.mensagemId, evento.dados.reacoes, { atorId: evento.dados.atorId, emojiDoAtor: evento.dados.emojiDoAtor }, useAuthStore.getState().usuarioId);
     }
   });
+  // A inbox também pode abrir o chat interno: reconectar deve recuperar fotos alteradas offline.
+  useEffect(() => {
+    if (ciclo > 1) atualizar();
+  }, [ciclo, atualizar]);
   useEffect(() => { void marcarChatComoLido(conversaId).catch(() => undefined); }, [conversaId]);
   useEffect(() => {
     definirConversaAtiva({ origem: "CHAT_INTERNO", id: conversaId });

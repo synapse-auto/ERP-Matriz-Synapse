@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { ErroDeApi } from "@/lib/api/errors";
 import { atualizarFotoDoGrupoChat, removerFotoDoGrupoChat } from "@/lib/chat-interno/api";
 import type { ChatConversa, FotoDoGrupo } from "@/lib/chat-interno/types";
+import type { PaginaInbox } from "@/lib/atendimento/api";
 import type { Textos } from "@/lib/config/schema";
 import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 
@@ -53,17 +54,34 @@ export function SecaoFotoDoGrupo({ conversaId, nome, fotoUrl, podeAlterar, texto
     return () => URL.revokeObjectURL(escolhido.previaUrl);
   }, [escolhido]);
 
-  const aplicar = (resposta: FotoDoGrupo) => {
+  const aplicar = async (resposta: FotoDoGrupo) => {
+    // Um GET iniciado antes do upload não pode restaurar a foto antiga depois da confirmação.
+    await Promise.all([
+      cache.cancelQueries({ queryKey: ["chat-interno", "conversas"] }),
+      cache.cancelQueries({ queryKey: ["atendimentos", "inbox"] }),
+    ]);
     cache.setQueryData<ChatConversa[]>(["chat-interno", "conversas"], (lista) =>
       lista?.map((conversa) => (conversa.id === conversaId ? { ...conversa, fotoUrl: resposta.fotoUrl } : conversa)),
     );
+    cache.setQueriesData<InfiniteData<PaginaInbox>>({ queryKey: ["atendimentos", "inbox"] }, (inbox) =>
+      inbox && {
+        ...inbox,
+        pages: inbox.pages.map((pagina) => ({
+          ...pagina,
+          itens: pagina.itens.map((item) => item?.tipo === "EQUIPE_INTERNA"
+            && item.tipoConversa === "GRUPO" && item.conversaId === conversaId
+            ? { ...item, avatarUrl: resposta.fotoUrl } : item),
+        })),
+      },
+    );
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
+    void cache.invalidateQueries({ queryKey: ["atendimentos", "inbox"] });
   };
   const enviar = useMutation({
     mutationFn: (arquivo: File) => atualizarFotoDoGrupoChat(conversaId, arquivo),
-    onSuccess: (resposta) => {
+    onSuccess: async (resposta) => {
+      await aplicar(resposta);
       setEscolhido(null);
-      aplicar(resposta);
     },
     onSettled: () => {
       operacaoEmCurso.current = false;
@@ -110,7 +128,7 @@ export function SecaoFotoDoGrupo({ conversaId, nome, fotoUrl, podeAlterar, texto
   };
 
   return (
-    <div className="flex flex-col items-center gap-3 text-center">
+    <div role="group" aria-label={textos.titulo} className="flex w-full min-w-0 flex-col items-center gap-3 text-center">
       {escolhido ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={escolhido.previaUrl} alt={textos.previa} className="size-24 rounded-xl object-cover" />
@@ -140,7 +158,7 @@ export function SecaoFotoDoGrupo({ conversaId, nome, fotoUrl, podeAlterar, texto
             }}
           />
           {escolhido ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <Button type="button" size="sm" onClick={confirmar} disabled={enviar.isPending} aria-busy={enviar.isPending}>
                 {enviar.isPending ? textos.enviando : textos.confirmar}
               </Button>
@@ -149,7 +167,7 @@ export function SecaoFotoDoGrupo({ conversaId, nome, fotoUrl, podeAlterar, texto
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <Button type="button" size="sm" variant="outline" onClick={() => entrada.current?.click()} disabled={ocupado}>
                 <Camera className="size-(--tamanho-icone-interface)" aria-hidden />
                 {textos.alterar}
