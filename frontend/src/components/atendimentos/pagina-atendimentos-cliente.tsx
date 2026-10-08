@@ -135,6 +135,7 @@ export function PaginaAtendimentosCliente({
   } | null>(null);
   const aberturaProcessada = useRef<string | null>(null);
   const composerRef = useRef<ComposerHandle>(null);
+  const cicloDaParticipacaoRef = useRef<number | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const gradeRef = useRef<HTMLDivElement>(null);
@@ -518,6 +519,11 @@ export function PaginaAtendimentosCliente({
         }
         return;
       }
+      // Um novo convite pode substituir um pedido já recusado no cache pessoal, mesmo sem
+      // assinatura da conversa. A fila pessoal é o ponto de entrada desse novo estado.
+      if (evento.tipo === "CONVITE_ATENDIMENTO") {
+        invalidarParticipacao(evento.dados.atendimentoId);
+      }
       if (
         evento.tipo === "TRANSFERENCIA_RECEBIDA" ||
         evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
@@ -562,7 +568,10 @@ export function PaginaAtendimentosCliente({
 
   useEffect(() => {
     if (estado !== "conectado" || !atendimentoSelecionadoId) return;
-    invalidarParticipacao(atendimentoSelecionadoId);
+    if (cicloDaParticipacaoRef.current !== null && cicloDaParticipacaoRef.current !== ciclo) {
+      invalidarParticipacao(atendimentoSelecionadoId);
+    }
+    cicloDaParticipacaoRef.current = ciclo;
     let cancelado = false;
     const cicloDaSincronizacao = ciclo;
     void reconciliador.sincronizar(atendimentoSelecionadoId)
@@ -989,7 +998,7 @@ export function PaginaAtendimentosCliente({
               <ListaMensagens
                 mensagens={mensagensQuery.data}
                 carregando={mensagensQuery.isLoading}
-                onReenviar={reenviar}
+                onReenviar={convite.pendente ? undefined : reenviar}
                 onDefinirReacao={definirReacaoDaMensagem}
                 onRemoverReacao={removerReacaoDaMensagem}
                 temMais={mensagensQuery.hasNextPage}

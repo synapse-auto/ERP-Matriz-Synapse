@@ -19,7 +19,7 @@ import { BolhaMensagem } from "./bolha-mensagem";
 type Props = {
   mensagens: MensagemResposta[];
   carregando: boolean;
-  onReenviar: (mensagem: MensagemResposta) => void;
+  onReenviar?: (mensagem: MensagemResposta) => void;
   onDefinirReacao: (mensagem: MensagemResposta, emoji: string) => Promise<void>;
   onRemoverReacao: (mensagem: MensagemResposta) => Promise<void>;
   temMais: boolean;
@@ -284,7 +284,7 @@ export function ListaMensagens({
                       carregandoOrigemDaCitacao={mensagem.citacao?.origemId === origemCarregandoId}
                       onNavegarParaCitacao={mensagem.citacao ? () => void navegarParaCitacao(mensagem.citacao!) : undefined}
                       onReenviar={
-                        mensagem.statusEntrega === "FALHOU"
+                        mensagem.statusEntrega === "FALHOU" && onReenviar
                           ? () => onReenviar(mensagem)
                           : undefined
                       }
