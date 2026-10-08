@@ -19,7 +19,7 @@ vi.mock("@/components/ui/avatar", () => {
 
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
-    chatInterno: { titulo: "Chat interno" },
+    chatInterno: { titulo: "Chat interno", fotoGrupo: { fotoAlt: "Foto do grupo {nome}" } },
     atendimentos: {
       canais: { whatsapp: "WhatsApp" },
       cartao: {
@@ -259,11 +259,15 @@ describe("CartaoConversa — RN-CRM-05", () => {
       participantes: "Ana, Bruno",
       tipoConversa: "GRUPO",
     };
-    render(<CartaoConversa cartao={interno} selecionado onAbrirAtendimento={vi.fn()} />);
+    const { container, rerender } = render(<CartaoConversa cartao={interno} selecionado onAbrirAtendimento={vi.fn()} />);
+    expect(container.querySelector(".lucide-users-round")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Equipe comercial/ })).toHaveAttribute("aria-current", "true");
     expect(screen.getByText("Chat interno")).toBeInTheDocument();
     expect(screen.getByText("Vamos revisar a proposta")).toBeInTheDocument();
     expect(screen.queryByText("WhatsApp")).not.toBeInTheDocument();
+    rerender(<CartaoConversa cartao={{ ...interno, tipoConversa: "DIRETA" }} selecionado onAbrirAtendimento={vi.fn()} />);
+    expect(container.querySelector(".lucide-users-round")).not.toBeInTheDocument();
+    expect(screen.getByText("EC")).toBeInTheDocument();
   });
 
   it("identifica o resultado da venda e disponibiliza responsável e data no rótulo acessível", () => {

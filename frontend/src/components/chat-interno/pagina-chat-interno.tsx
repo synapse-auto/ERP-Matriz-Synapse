@@ -40,6 +40,7 @@ import { DialogoSelecionarPessoa } from "./dialogo-selecionar-pessoa";
 import { DialogoCriarGrupo } from "./dialogo-criar-grupo";
 import { DialogoEncaminharAoCliente } from "./dialogo-encaminhar-ao-cliente";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
+import { sincronizarFotosDosGruposNaInbox } from "@/lib/chat-interno/foto-grupo-cache";
 
 export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicialId?: string | null }) {
   const catalogo = useTextos();
@@ -48,6 +49,9 @@ export function PaginaChatInterno({ conversaInicialId = null }: { conversaInicia
   const cache = useQueryClient();
   const composerRef = useRef<ComposerChatHandle>(null);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
+  useEffect(() => {
+    if (conversas.data) sincronizarFotosDosGruposNaInbox(cache, conversas.data);
+  }, [cache, conversas.data]);
   const contatos = useQuery({ queryKey: ["chat-interno", "contatos"], queryFn: listarContatosChat });
   const [conversaId, setConversaId] = useState<string | null>(conversaInicialId);
   const [dialogoDireta, setDialogoDireta] = useState(false);

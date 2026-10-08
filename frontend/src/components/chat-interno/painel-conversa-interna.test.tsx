@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const tempoReal = vi.hoisted(() => ({ ciclo: 1 }));
+vi.mock("@/lib/atendimento/tempo-real", () => ({
+  useConexaoTempoReal: () => ({ ciclo: tempoReal.ciclo }),
+}));
+
 vi.mock("@/lib/chat-interno/api", () => ({
   listarConversasChat: vi.fn(),
   listarContatosChat: vi.fn().mockResolvedValue([]),
@@ -23,6 +28,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     composer: { anexo: "A", anexoRemover: "A", anexoLegendaPlaceholder: "Legenda", anexoTipoNaoPermitido: "Tipo nao aceito.", anexoSoltar: "Solte os arquivos aqui", anexoEnviandoLote: "Enviando {atual} de {total}", emoji: "Emoji", audioGravando: "A", audioDescartar: "A", audioParar: "A", audioPreview: "A", audioEnviar: "A", audioSemMicrofone: "A", audioPermissaoNegada: "A", audioMicrofoneEmUso: "A", audioErroCaptura: "A", audioExcedeuLimite: "A" },
     mensagem: { acoes: { abrir: "Ações da mensagem", titulo: "Ações", copiar: "Copiar", copiada: "ok", copiarErro: "erro", reagir: "Reagir com {emoji}", reacaoQuantidade: "{emoji}, {quantidade}", reacaoMinha: "{emoji}, {quantidade}, sua reação", maisEmojis: "Mais emojis", seletorTitulo: "Escolher", seletorFechar: "Fechar", reacaoErro: "erro", rapidas: ["👍", "❤️", "😂", "😮", "😢", "🙏"], seletor: { search: "Buscar", searchNoResults: "Nenhum", pick: "Escolha", addCustom: "C", categories: { activity: "A", custom: "C", flags: "F", foods: "Fo", frequent: "R", nature: "N", objects: "O", people: "P", places: "V", search: "B", symbols: "S" }, skins: { choose: "Tom", 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6" } } } },
   }, chatInterno: {
+    fotoGrupo: { fotoAlt: "Foto do grupo {nome}" },
     midias: { abrir: "Abrir {nome}" },
     encaminharCliente: { acao: "Encaminhar para o cliente", titulo: "Encaminhar para o cliente", statusTitulo: "Acompanhamento do envio", previaTitulo: "Confirme o envio ao cliente", descricao: "Escolha o atendimento.", voltar: "Voltar", cancelar: "Cancelar", fechar: "Fechar", enviando: "Enviando…", confirmar: "Enviar ao cliente" },
     titulo: "Chat interno", semMensagens: "Nenhuma mensagem ainda.", placeholder: "Escreva uma mensagem...", enviar: "Enviar", erroEnviar: "Não foi possível enviar a mensagem.", carregando: "Carregando conversas...", erro: "Não foi possível carregar o chat interno.",
@@ -36,6 +42,34 @@ import { useAuthStore } from "@/lib/auth/auth-store";
 import { PainelConversaInterna } from "./painel-conversa-interna";
 
 describe("PainelConversaInterna", () => {
+  it("reconectar a conversa interna aberta pela inbox recupera a lista e a foto do banco", async () => {
+    tempoReal.ciclo = 1;
+    vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0 }]);
+    vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(client, "invalidateQueries");
+    const tela = () => <QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>;
+    const { rerender } = render(tela());
+    await screen.findByText("Bruno");
+    expect(invalidar).not.toHaveBeenCalled();
+    tempoReal.ciclo = 2;
+    rerender(tela());
+    await waitFor(() => expect(invalidar).toHaveBeenCalledWith({ queryKey: ["chat-interno"] }));
+    tempoReal.ciclo = 1;
+  });
+
+  it("o snapshot atualizado por tempo real sincroniza também a foto da inbox do participante", async () => {
+    const grupo = { id: "c1", tipo: "GRUPO" as const, participantes: "Operação", ultimaMensagem: null, ultimaMensagemEm: null, naoLidas: 0, fotoUrl: null };
+    vi.mocked(api.listarConversasChat).mockResolvedValue([grupo]);
+    vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const chave = ["atendimentos", "inbox", "ATIVOS"];
+    const item = { tipo: "EQUIPE_INTERNA", tipoConversa: "GRUPO", conversaId: "c1", avatarUrl: "antiga" };
+    const inbox = { pages: [{ itens: [item], proximoCursor: null }], pageParams: [null] };
+    client.setQueryData(chave, inbox);
+    render(<QueryClientProvider client={client}><PainelConversaInterna conversaId="c1" /></QueryClientProvider>);
+    await waitFor(() => expect(client.getQueryData<typeof inbox>(chave)?.pages[0].itens[0].avatarUrl).toBeNull());
+  });
   it("renderiza autoria real, cabeçalho interno e marca leitura", async () => {
     vi.mocked(api.listarConversasChat).mockResolvedValue([{ id: "c1", tipo: "DIRETA", participantes: "Bruno Almeida", ultimaMensagem: "Oi", ultimaMensagemEm: "2026-08-27T12:00:00Z", naoLidas: 1 }]);
     vi.mocked(api.listarMensagensChat).mockResolvedValue({ proximoCursor: null, mensagens: [

@@ -4,6 +4,7 @@ import { MessageCircleMore, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { AvatarIniciais } from "@/components/ui/avatar-iniciais";
+import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 import type { ItemInbox } from "@/lib/atendimento/types";
 import { atendenteEstaAtrasado } from "@/lib/atendimento/atraso-do-atendente";
 import { useTextos } from "@/lib/config/textos-provider";
@@ -41,12 +42,18 @@ export function CartaoConversa({
           selecionado && "border-primary/20 bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]",
         )}
       >
-        <AvatarIniciais
+        {cartao.tipoConversa === "GRUPO" ? <AvatarDoGrupo
+          id={cartao.conversaId}
+          nome={cartao.nome}
+          fotoUrl={cartao.avatarUrl}
+          tamanho="lista"
+          fotoAlt={catalogo.chatInterno.fotoGrupo?.fotoAlt?.replace("{nome}", cartao.nome)}
+        /> : <AvatarIniciais
           id={cartao.conversaId}
           nome={cartao.nome}
           fotoUrl={cartao.avatarUrl}
           className="flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-        />
+        />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-bold text-foreground">{cartao.nome}</p>

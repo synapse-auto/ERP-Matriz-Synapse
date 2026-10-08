@@ -4,6 +4,33 @@ Exibir e alterar a foto dos grupos do Chat Interno. Só grupos do Chat Interno: 
 integrações Meta/UZAPI, foto de lead e foto de contato externo não foram tocados. Conversa direta segue
 mostrando a foto do outro usuário, como antes.
 
+## Entrada pela ficha lateral direita
+
+A ação **Alterar foto** fica no topo da ficha direita, junto ao avatar, antes da edição do nome e
+da lista de participantes. `podeAlterarFoto`, retornado pelo backend, controla os botões de alterar
+e remover; selecionar a imagem mostra uma prévia, e o upload só ocorre após **Salvar foto**.
+Cancelar descarta a prévia. Falha mantém a referência confirmada e permite tentar novamente.
+Os controles se acomodam em mais de uma linha quando necessário, sem sair da ficha.
+
+Essa integração já existia. O complemento sincroniza também todas as páginas/filtros carregados da
+inbox de Atendimentos, alterando somente o `avatarUrl` do grupo selecionado. Conversas diretas,
+outros grupos, cartões de clientes, cursores e paginação permanecem intactos. Antes de aplicar a
+resposta, consultas antigas de conversas/inbox são canceladas para não restaurar a versão anterior.
+A URL versionada continua sendo a chave do cache autenticado da imagem; não há polling adicional.
+
+Ao trocar de grupo com a ficha aberta, a prévia é descartada e sua URL local revogada, para que um
+arquivo escolhido para um grupo não seja confirmado em outro. A conversa interna aberta pela inbox
+também recupera a lista do banco ao reconectar, como já fazia a página própria do Chat Interno.
+Nenhum endpoint, regra de autorização, migration ou variável de ambiente mudou neste complemento.
+Na inbox, grupos sem foto também reutilizam `AvatarDoGrupo` (ícone de grupo, não iniciais);
+conversas diretas continuam usando o avatar individual existente.
+O avatar autenticado de grupo reutiliza o cliente binário e a chave de cache `avatar` existentes.
+A URL blob é criada e revogada no mesmo efeito: reabrir a ficha com imagem em cache, inclusive no
+remount do StrictMode, não pode deixar a imagem apontando para uma URL já revogada. Falha na leitura
+mantém o ícone de grupo. Essa correção é exclusiva do avatar de grupo; o avatar de pessoa/lead não mudou.
+O snapshot de conversas atualizado por evento/reconexão sincroniza a foto na inbox também para os
+outros participantes. Apenas aplicar a resposta do upload no cache do autor não cobre esse caminho.
+
 ## Quem pode alterar (decisão)
 
 O modelo do chat não tinha criador nem administrador de grupo: desde a V54 qualquer participante adiciona,
@@ -86,8 +113,9 @@ evento do chat, e a lista traz a URL nova.
   reconexão do WebSocket (a partir da segunda), então um evento perdido enquanto o socket estava fora não deixa
   foto velha.
 - Recarregar a página sempre mostra a foto certa (vem do banco).
-- A inbox unificada (`/atendimentos/inbox`) já repassava `fotoUrl` e passou a mostrar a foto do grupo sem
-  mudança própria.
+- A inbox unificada (`/atendimentos/inbox`) já repassava a referência da foto, mas a renderização e o cache
+  precisavam do complemento descrito acima: ícone de grupo no fallback e sincronização após upload,
+  evento e reconexão, inclusive quando outro participante altera/remove a foto.
 
 ## Configuração
 

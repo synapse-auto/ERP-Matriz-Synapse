@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 
 const apiFetchBlob = vi.fn();
 const URLOriginal = URL;
@@ -60,6 +61,17 @@ describe("AvatarDoGrupo", () => {
     expect(apiFetchBlob).toHaveBeenLastCalledWith("/api/v1/chat-interno/conversas/g1/foto?v=2");
   });
 
+  it("reabrir uma foto já em cache no StrictMode mantém a URL exibida válida", async () => {
+    let sequencia = 0;
+    vi.mocked(URL.createObjectURL).mockImplementation(() => `blob:grupo-${++sequencia}`);
+    const cliente = new QueryClient();
+    const caminho = "/api/v1/chat-interno/conversas/g1/foto?v=1";
+    cliente.setQueryData(["avatar", caminho], new Blob(["png"], { type: "image/png" }));
+    render(<StrictMode><QueryClientProvider client={cliente}><AvatarDoGrupo id="g1" nome="Grupo" tamanho="painel" fotoUrl={caminho} fotoAlt="foto" /></QueryClientProvider></StrictMode>);
+    const imagem = await screen.findByRole("img", { name: "foto" });
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(imagem.getAttribute("src"));
+  });
+
   it("grupo sem foto: o ícone de grupo de sempre, sem imagem e sem buscar nada", () => {
     const { container } = render(comProvider(<AvatarDoGrupo id="g1" nome="Operação" tamanho="painel" fotoUrl={null} />));
 
@@ -69,12 +81,13 @@ describe("AvatarDoGrupo", () => {
     expect(apiFetchBlob).not.toHaveBeenCalled();
   });
 
-  it("foto que não carrega cai nas iniciais do grupo, com a cor do design system", async () => {
+  it("foto que não carrega mantém o ícone de grupo, com a cor do design system", async () => {
     apiFetchBlob.mockRejectedValue(new Error("404"));
 
-    render(comProvider(<AvatarDoGrupo id="g1" nome="Operação Vidro" tamanho="lista" fotoUrl="/api/v1/chat-interno/conversas/g1/foto?v=1" />));
+    const { container } = render(comProvider(<AvatarDoGrupo id="g1" nome="Operação Vidro" tamanho="lista" fotoUrl="/api/v1/chat-interno/conversas/g1/foto?v=1" />));
 
-    expect(await screen.findByText("OV")).toBeInTheDocument();
+    await waitFor(() => expect(apiFetchBlob).toHaveBeenCalledOnce());
+    expect(container.querySelector(".lucide-users-round")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 

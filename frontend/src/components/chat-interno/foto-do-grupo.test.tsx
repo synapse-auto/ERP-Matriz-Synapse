@@ -136,6 +136,55 @@ describe("SecaoFotoDoGrupo", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
+    it.each(["alterar", "remover"])("%s atualiza todas as páginas da inbox sem alterar outros grupos, conversas diretas ou leads", async (acao) => {
+      vi.mocked(atualizarFotoDoGrupoChat).mockResolvedValue({ fotoUrl: "/api/v1/chat-interno/conversas/g1/foto?v=2" });
+      vi.mocked(removerFotoDoGrupoChat).mockResolvedValue({ fotoUrl: null });
+      renderizar({ fotoUrl: CONVERSAS[0].fotoUrl });
+      const alvo = { tipo: "EQUIPE_INTERNA", tipoConversa: "GRUPO", conversaId: "g1", avatarUrl: "antiga" };
+      const outro = { ...alvo, conversaId: "g2" };
+      const direta = { ...alvo, tipoConversa: "DIRETA" };
+      const lead = { tipo: "ATENDIMENTO", atendimentoId: "a1", leadFotoUrl: "foto-lead" };
+      const chave = ["atendimentos", "inbox", "TODOS"];
+      const inbox = { pages: [{ itens: [alvo, outro, direta, lead], proximoCursor: "cursor" }, { itens: [alvo], proximoCursor: null }], pageParams: [null, "cursor"] };
+      cliente.setQueryData(chave, inbox);
+      cliente.setQueryData(["atendimentos", "inbox", "PENDENTES"], inbox);
+      if (acao === "alterar") {
+        escolher(png());
+        fireEvent.click(screen.getByRole("button", { name: "Salvar foto" }));
+      } else {
+        fireEvent.click(screen.getByRole("button", { name: "Remover foto" }));
+      }
+      const esperado = acao === "alterar" ? "/api/v1/chat-interno/conversas/g1/foto?v=2" : null;
+      await waitFor(() => {
+        for (const visao of ["TODOS", "PENDENTES"]) {
+          const resultado = cliente.getQueryData<typeof inbox>(["atendimentos", "inbox", visao])!;
+          expect(resultado.pages[0].itens[0]).toEqual({ ...alvo, avatarUrl: esperado });
+          expect(resultado.pages[1].itens[0]).toEqual({ ...alvo, avatarUrl: esperado });
+          expect(resultado.pages[0].itens.slice(1)).toEqual([outro, direta, lead]);
+          expect(resultado.pageParams).toEqual(inbox.pageParams);
+          expect(resultado.pages[0].proximoCursor).toBe("cursor");
+        }
+      });
+    });
+
+    it("um GET de conversas iniciado antes da confirmação não restaura a foto anterior", async () => {
+      vi.mocked(atualizarFotoDoGrupoChat).mockResolvedValue({ fotoUrl: "/api/v1/chat-interno/conversas/g1/foto?v=2" });
+      renderizar();
+      let responder: (lista: ChatConversa[]) => void = () => undefined;
+      const leituraAntiga = cliente.fetchQuery({
+        queryKey: ["chat-interno", "conversas"],
+        queryFn: () => new Promise<ChatConversa[]>((resolver) => { responder = resolver; }),
+      }).catch(() => undefined);
+      escolher(png());
+      fireEvent.click(screen.getByRole("button", { name: "Salvar foto" }));
+      await waitFor(() => expect(cliente.getQueryData<ChatConversa[]>(["chat-interno", "conversas"])?.[0].fotoUrl).toContain("v=2"));
+      await act(async () => {
+        responder(CONVERSAS);
+        await leituraAntiga;
+      });
+      expect(cliente.getQueryData<ChatConversa[]>(["chat-interno", "conversas"])?.[0].fotoUrl).toContain("v=2");
+    });
+
     it("cancelar descarta a prévia sem enviar nada", () => {
       renderizar();
       escolher(png());
