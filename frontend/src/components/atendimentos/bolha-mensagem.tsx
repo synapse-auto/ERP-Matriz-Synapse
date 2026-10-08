@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, FileText, Maximize2, MapPin } from "lucide-react";
+import { FileText, Maximize2, MapPin } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { apiFetchArquivo } from "@/lib/api/http-client";
 import { useTextos } from "@/lib/config/textos-provider";
 import { cn, urlSegura } from "@/lib/utils";
@@ -188,6 +187,9 @@ export function BolhaMensagem({
       reacoesHabilitadas={reacoesHabilitadas}
       onResponder={onResponder}
       onEncaminhar={onEncaminhar}
+      onBaixar={podeBaixar ? () => void baixarMidia() : undefined}
+      rotuloBaixar={baixando ? textos.visualizador.carregando : textos.baixar}
+      baixando={baixando}
     >
       <div
         className={cn(
@@ -323,25 +325,10 @@ export function BolhaMensagem({
           </p>
         )}
 
-        {podeBaixar && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={baixando}
-              aria-busy={baixando}
-              onClick={() => void baixarMidia()}
-            >
-              <Download className="size-4" aria-hidden />
-              {baixando ? textos.visualizador.carregando : textos.baixar}
-            </Button>
-            {erroDownload && (
-              <p role="alert" className="text-xs text-destructive">
-                {textos.visualizador.erroAoCarregar}
-              </p>
-            )}
-          </div>
+        {erroDownload && (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {textos.visualizador.erroAoCarregar}
+          </p>
         )}
 
         {mensagem.tipo === "TEXTO" && (

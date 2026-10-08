@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { ChevronDown, Copy, Forward, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from "lucide-react";
+import { ChevronDown, Copy, Download, Forward, Pencil, Plus, Reply, SendHorizontal, Trash2, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -38,6 +38,10 @@ type Props = {
   reacoesHabilitadas?: boolean;
   onResponder?: () => void;
   onEncaminhar?: () => void;
+  /** Opcional: a bolha fornece o download autenticado; o menu não consulta mídia. */
+  onBaixar?: () => void;
+  rotuloBaixar?: string;
+  baixando?: boolean;
   /** Só no Chat Interno: envia a mensagem ao cliente de um atendimento (docs/61). */
   onEncaminharCliente?: () => void;
   rotuloEncaminharCliente?: string;
@@ -63,6 +67,9 @@ export function InteracaoMensagem({
   reacoesHabilitadas = true,
   onResponder,
   onEncaminhar,
+  onBaixar,
+  rotuloBaixar,
+  baixando = false,
   onEncaminharCliente,
   rotuloEncaminharCliente,
   onExcluir,
@@ -245,6 +252,22 @@ export function InteracaoMensagem({
                 >
                   <Forward className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
                   {textos.encaminhar}
+                </Button>
+              )}
+              {onBaixar && rotuloBaixar && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  disabled={pendente || baixando}
+                  aria-busy={baixando}
+                  onClick={() => {
+                    setMenuAberto(false);
+                    onBaixar();
+                  }}
+                >
+                  <Download className="size-[calc(var(--tamanho-icone-interface)*0.875)]" aria-hidden />
+                  {rotuloBaixar}
                 </Button>
               )}
               {onEncaminharCliente && rotuloEncaminharCliente && (
