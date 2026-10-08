@@ -7,6 +7,8 @@ convite `CONVITE/PENDENTE` vigente destinado ao usuário autenticado, no ciclo a
 representado pelo cartão. A projeção usa `EXISTS` na consulta de cartões já autorizados;
 não lista destinatários de outros usuários nem acrescenta chamada HTTP por cartão.
 O OpenAPI publica o campo em `CartaoAtendimento`. Clientes antigos podem ignorá-lo.
+O item `CLIENTE` de `/api/v1/atendimentos/inbox` preserva o mesmo indicador pessoal;
+itens do Chat Interno omitem o campo. Cursor e ordenação permanecem iguais.
 
 No chat com clientes, a tag **Convidado** usa tokens de destaque. Cabeçalho e composer
 compartilham o controlador de aceitar/recusar, a trava contra clique duplicado e o estado

@@ -57,6 +57,10 @@ class OpenApiIT extends PostgresIT {
         assertThat(nomesDasTags(openApi)).contains("Interno", "Automação", "Resumo por IA");
         assertThat(openApi.at("/components/schemas/CartaoAtendimento/properties/convitePendente/type").asText())
                 .isEqualTo("boolean");
+        String itemInbox = openApi.at("/components/schemas/InboxUnificada/properties/itens/items/$ref").asText();
+        assertThat(itemInbox).startsWith("#/components/schemas/");
+        assertThat(openApi.at(itemInbox.substring(1)).at("/properties/convitePendente/type").asText())
+                .isEqualTo("boolean");
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1{atendimentoId}~1cartao/get/security/0/bearerAuth")
                         .isArray())

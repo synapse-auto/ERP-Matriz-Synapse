@@ -210,6 +210,8 @@ class ConviteColaborativoIT extends PostgresIT {
         String rota = "/api/v1/atendimentos/" + atendimento + "/cartao";
         assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody())
                 .contains("\"convitePendente\":true");
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, "/api/v1/atendimentos/inbox?visao=PENDENTES", null).getBody())
+                .contains("\"convitePendente\":true").contains(atendimento.toString());
         assertThat(chamar(EMAIL_ANA, HttpMethod.GET, rota, null).getBody())
                 .contains("\"convitePendente\":false");
         assertThat(chamar(emailCaio, HttpMethod.GET, rota, null).getStatusCode())

@@ -38,7 +38,8 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
             String atendenteNome,
             UUID atendimentoAtivoId,
             String participantes,
-            String tipoConversa) {
+            String tipoConversa,
+            Boolean convitePendente) {
 
         /** Conversas internas e leads operacionais vêm antes dos leads sem atendimento aberto. */
         int grupoDeOrdenacao() {
@@ -72,7 +73,8 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
                     cartao.atendenteNome(),
                     cartao.atendimentoAtivoId(),
                     null,
-                    null);
+                    null,
+                    cartao.convitePendente());
         }
 
         public static Item equipe(
@@ -109,7 +111,8 @@ public record InboxUnificada(List<Item> itens, String proximoCursor) {
                     null,
                     null,
                     participantes,
-                    tipoConversa);
+                    tipoConversa,
+                    null);
         }
     }
 
