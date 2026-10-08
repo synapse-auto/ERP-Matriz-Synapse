@@ -47,7 +47,7 @@ export function CartaoConversa({
           nome={cartao.nome}
           fotoUrl={cartao.avatarUrl}
           tamanho="lista"
-          fotoAlt={catalogo.chatInterno.fotoGrupo.fotoAlt.replace("{nome}", cartao.nome)}
+          fotoAlt={catalogo.chatInterno.fotoGrupo?.fotoAlt?.replace("{nome}", cartao.nome)}
         /> : <AvatarIniciais
           id={cartao.conversaId}
           nome={cartao.nome}

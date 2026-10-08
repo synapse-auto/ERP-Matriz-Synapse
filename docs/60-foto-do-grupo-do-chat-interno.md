@@ -24,6 +24,10 @@ também recupera a lista do banco ao reconectar, como já fazia a página própr
 Nenhum endpoint, regra de autorização, migration ou variável de ambiente mudou neste complemento.
 Na inbox, grupos sem foto também reutilizam `AvatarDoGrupo` (ícone de grupo, não iniciais);
 conversas diretas continuam usando o avatar individual existente.
+O avatar autenticado de grupo reutiliza o cliente binário e a chave de cache `avatar` existentes.
+A URL blob é criada e revogada no mesmo efeito: reabrir a ficha com imagem em cache, inclusive no
+remount do StrictMode, não pode deixar a imagem apontando para uma URL já revogada. Falha na leitura
+mantém o ícone de grupo. Essa correção é exclusiva do avatar de grupo; o avatar de pessoa/lead não mudou.
 
 ## Quem pode alterar (decisão)
 
