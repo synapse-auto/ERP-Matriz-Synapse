@@ -50,6 +50,16 @@ class SchemaMigracoesIT extends PostgresIT {
     @DisplayName("estrutura criada pelas migrations")
     class Estrutura {
 
+        @Test
+        void historicoDaIntegracaoNaoEntraNoSchemaDoCrm() {
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_namespace WHERE nspname = 'automacao_agendamentos'", Long.class))
+                    .isZero();
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_class WHERE relname = 'agendamento_evento'", Long.class))
+                    .isZero();
+        }
+
         /**
          * Lista explicita, e nao COUNT(*): contar so avisa que o numero mudou, enquanto a lista diz
          * qual tabela sumiu — e falha quando alguem remove uma e acrescenta outra.
