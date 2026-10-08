@@ -59,6 +59,7 @@ import { useConfiguracaoComposer } from "@/lib/atendimento/use-configuracao-comp
 import { useMensagens } from "@/lib/atendimento/use-mensagens";
 import { chaveDaTransferenciaPropria, type TransferenciaPropria } from "@/lib/atendimento/use-transferir-finalizar";
 import { invalidarParticipacao } from "@/lib/atendimento/use-participacao";
+import { useConviteRecebido } from "@/lib/atendimento/use-convite-recebido";
 import { useAuthStore } from "@/lib/auth/auth-store";
 import { useTextos } from "@/lib/config/textos-provider";
 import { useCapacidades } from "@/lib/gestao/use-capacidades";
@@ -134,6 +135,7 @@ export function PaginaAtendimentosCliente({
   } | null>(null);
   const aberturaProcessada = useRef<string | null>(null);
   const composerRef = useRef<ComposerHandle>(null);
+  const cicloDaParticipacaoRef = useRef<number | null>(null);
   const [buscaAberta, setBuscaAberta] = useState(false);
   const [painelDetalhesAberto, setPainelDetalhesAberto] = useState<boolean | null>(null);
   const gradeRef = useRef<HTMLDivElement>(null);
@@ -517,6 +519,11 @@ export function PaginaAtendimentosCliente({
         }
         return;
       }
+      // Um novo convite pode substituir um pedido já recusado no cache pessoal, mesmo sem
+      // assinatura da conversa. A fila pessoal é o ponto de entrada desse novo estado.
+      if (evento.tipo === "CONVITE_ATENDIMENTO") {
+        invalidarParticipacao(evento.dados.atendimentoId);
+      }
       if (
         evento.tipo === "TRANSFERENCIA_RECEBIDA" ||
         evento.tipo === "ATENDIMENTO_DEVOLVIDO_PARA_IA"
@@ -561,6 +568,10 @@ export function PaginaAtendimentosCliente({
 
   useEffect(() => {
     if (estado !== "conectado" || !atendimentoSelecionadoId) return;
+    if (cicloDaParticipacaoRef.current !== null && cicloDaParticipacaoRef.current !== ciclo) {
+      invalidarParticipacao(atendimentoSelecionadoId);
+    }
+    cicloDaParticipacaoRef.current = ciclo;
     let cancelado = false;
     const cicloDaSincronizacao = ciclo;
     void reconciliador.sincronizar(atendimentoSelecionadoId)
@@ -693,11 +704,14 @@ export function PaginaAtendimentosCliente({
     }
   }, [atendimentoSelecionadoId, ciclo, indisponibilizarAtendimento, reconciliador]);
 
+  const convite = useConviteRecebido(estadoSelecionado, revalidarEnvio);
+
   const registrarFalhasDeMidia = useCallback((falhas: FalhaDeEnvioMidia[]) => {
     setFalhasDeMidia((atuais) => [...atuais, ...falhas]);
   }, []);
 
   const reenviarFalhasDeMidia = useCallback(async () => {
+    if (convite.pendente) return;
     if (!await revalidarEnvio()) return;
     const atuais = falhasDeMidia;
     const idsEmReenvio = new Set(atuais.map((falha) => falha.id));
@@ -724,12 +738,13 @@ export function PaginaAtendimentosCliente({
       ...correntes.filter((falha) => !idsEmReenvio.has(falha.id)),
       ...restantes,
     ]);
-  }, [falhasDeMidia, revalidarEnvio, reenviarMidia, textos.composer.anexoErro]);
+  }, [convite.pendente, falhasDeMidia, revalidarEnvio, reenviarMidia, textos.composer.anexoErro]);
   const atualizarAtendimentos = useCallback((cartoes: ItemInbox[]) => {
     setAtendimentos(cartoes);
   }, []);
 
   async function reenviar(mensagem: MensagemResposta) {
+    if (convite.pendente) return;
     if (!atendimentoAtivo || !mensagem.conteudo) return;
     if (!await revalidarEnvio()) return;
     enviar.mutate(
@@ -941,6 +956,7 @@ export function PaginaAtendimentosCliente({
         ) : conversa ? (
           <>
             <CabecalhoConversa
+              convite={convite}
               conversa={conversa}
               estado={estadoSelecionado as EstadoAtendimentoSelecionado}
               onReconciliarEstado={() => revalidarEnvio().then(() => undefined)}
@@ -951,7 +967,7 @@ export function PaginaAtendimentosCliente({
                 setPainelDetalhesAberto(!(painelDetalhesAberto ?? !conversaEmColunaUnica))
               }
               onAbrirNovoAtendimento={
-                atendimentoAtivo
+                conversa.status !== "FINALIZADO"
                   ? undefined
                   : () => abrirNovoAtendimento.mutate(conversa.leadId)
               }
@@ -971,6 +987,7 @@ export function PaginaAtendimentosCliente({
               accept={TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO}
               disabled={
                 !atendimentoAtivo
+                || convite.pendente
                 || !janelaTextoLivreAberta(conversa.ultimaMensagemDoLeadEm)
               }
               rotulo={textos.composer.anexoSoltar}
@@ -981,7 +998,7 @@ export function PaginaAtendimentosCliente({
               <ListaMensagens
                 mensagens={mensagensQuery.data}
                 carregando={mensagensQuery.isLoading}
-                onReenviar={reenviar}
+                onReenviar={convite.pendente ? undefined : reenviar}
                 onDefinirReacao={definirReacaoDaMensagem}
                 onRemoverReacao={removerReacaoDaMensagem}
                 temMais={mensagensQuery.hasNextPage}
@@ -992,11 +1009,11 @@ export function PaginaAtendimentosCliente({
                 atendenteId={conversa.atendenteId}
                 atendenteNome={conversa.atendenteNome}
                 participantes={estadoSelecionado?.participantes}
-                reacoesHabilitadas={podeResponder}
-                onResponder={podeResponder
+                reacoesHabilitadas={podeResponder && !convite.pendente}
+                onResponder={podeResponder && !convite.pendente
                   ? (mensagem) => setRespostaAlvo({ leadId: conversa.leadId, mensagem })
                   : undefined}
-                onEncaminhar={podeResponder
+                onEncaminhar={podeResponder && !convite.pendente
                   ? (mensagem) => setEncaminharAlvo({ leadId: conversa.leadId, mensagem })
                   : undefined}
                 leadId={conversa.leadId}
@@ -1005,16 +1022,17 @@ export function PaginaAtendimentosCliente({
                   conversa.ultimaMensagemDoLeadEm,
                 ) || !exigeJanelaDeTextoLivre}
               />
-              {atendimentoAtivo && capacidades.estado === "pronto" && !podeResponder ? (
+              {atendimentoAtivo && !convite.pendente && capacidades.estado === "pronto" && !podeResponder ? (
                 <div className="shrink-0 bg-background px-4 pb-4 pt-3">
                   <div className="mx-auto max-w-[780px] rounded-xl border border-input bg-card p-3 text-center text-sm text-muted-foreground">
                     {textosGerais.gestao.acesso.responderIndisponivel}
                   </div>
                 </div>
-              ) : atendimentoAtivo ? (
+              ) : conversa.status !== "FINALIZADO" ? (
                 <Composer
                   ref={composerRef}
-                  conversa={atendimentoAtivo}
+                  conversa={conversa}
+                  convite={convite}
                   resposta={respostaDaTela}
                   onCancelarResposta={() => setRespostaAlvo(null)}
                   onMensagemEnviada={aposMensagemEnviada}
@@ -1063,7 +1081,7 @@ export function PaginaAtendimentosCliente({
             : null
         }
       />
-      {conversa && encaminharDaTela && (
+      {conversa && !convite.pendente && encaminharDaTela && (
         <DialogoEncaminhar
           origemAtendimentoId={encaminharDaTela.atendimentoId ?? conversa.atendimentoId}
           origemLeadId={conversa.leadId}

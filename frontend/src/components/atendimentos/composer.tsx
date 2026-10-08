@@ -51,10 +51,13 @@ import { inserirNoCursor, posicionarCursor } from "@/lib/mensagens/inserir-no-cu
 
 import { CitacaoMensagemVisual } from "./citacao-mensagem";
 import { ModalDeTemplates } from "./modal-de-templates";
+import { BloqueioConvite } from "./bloqueio-convite";
+import type { ConviteRecebido } from "@/lib/atendimento/use-convite-recebido";
 import { useGravadorAudio } from "./use-gravador-audio";
 
 type Props = {
   conversa: CartaoAtendimento;
+  convite?: ConviteRecebido;
   resposta?: MensagemResposta | null;
   onCancelarResposta?: () => void;
   onMensagemEnviada?: () => void;
@@ -125,6 +128,7 @@ function AcaoMenuAnexo({
  */
 export function Composer({
   conversa,
+  convite,
   resposta = null,
   onCancelarResposta,
   onMensagemEnviada,
@@ -136,6 +140,8 @@ export function Composer({
   const catalogo = useTextos();
   const textosAtendimentos = catalogo.atendimentos;
   const textos = textosAtendimentos.composer;
+  const convitePendenteRef = useRef(false);
+  useEffect(() => { convitePendenteRef.current = Boolean(convite?.pendente); }, [convite?.pendente]);
   const [texto, setTexto] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [avisoTipo, setAvisoTipo] = useState(false);
@@ -263,6 +269,7 @@ export function Composer({
   }
 
   function adicionarArquivos(novos: File[]) {
+    if (convite?.pendente) return;
     if (!podeEnviar || !janelaAberta || gravador.fase !== "INATIVO" || enviarMidia.isPending) return;
     const { aceitos, rejeitados } = filtrarArquivos(novos, TIPOS_DE_ANEXO_ACEITOS_NO_ATENDIMENTO);
     if (aceitos.length > 0) {
@@ -297,6 +304,8 @@ export function Composer({
     };
   }, [conversa.status, janelaAberta]);
 
+  if (convite?.pendente) return <BloqueioConvite convite={convite} />;
+
   if (conversa.status === "FINALIZADO") {
     return (
       <div className="shrink-0 bg-background px-4 pb-4 pt-3">
@@ -325,12 +334,12 @@ export function Composer({
   }
 
   async function confirmarEnvioPermitido(): Promise<boolean> {
-    if (!podeEnviar) {
+    if (!podeEnviar || convitePendenteRef.current) {
       setEnvioBloqueado(true);
       return false;
     }
     try {
-      const permitido = await onRevalidarEnvio?.() ?? true;
+      const permitido = (await onRevalidarEnvio?.() ?? true) && !convitePendenteRef.current;
       setEnvioBloqueado(!permitido);
       return permitido;
     } catch {

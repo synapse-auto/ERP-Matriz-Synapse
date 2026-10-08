@@ -313,6 +313,7 @@
       "busca": "Buscar na conversa"
     },
     "cartao": {
+      "convidado": "Convidado",
       "semAtendente": "Sem atendente",
       "vazio": "Nenhuma conversa nesta visão.",
       "naoLidas": "{quantidade} mensagens não lidas",
@@ -348,6 +349,9 @@
       "aceitarConvite": "Aceitar convite",
       "recusarConvite": "Recusar convite",
       "conviteRecebidoDescricao": "Você foi convidado para este atendimento.",
+      "conviteComposerTitulo": "Você foi convidado para participar deste atendimento.",
+      "conviteComposerDescricao": "Aceite o convite para enviar mensagens.",
+      "conviteAtualizado": "Esse convite já foi respondido ou expirou.",
       "sucessoConviteAceito": "Convite aceito. Você agora participa do atendimento.",
       "sucessoConviteRecusado": "Convite recusado.",
       "finalizar": "Finalizar",

@@ -167,6 +167,11 @@ export function CartaoConversa({
         )}
 
         <div className="mt-2 flex min-h-5 items-center gap-1.5">
+          {cartao.convitePendente && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
+              {textos.cartao.convidado}
+            </span>
+          )}
           {cartao.etapaNome && (
             <span
               className="max-w-[11rem] truncate rounded-full bg-muted px-2 py-0.5 text-[0.65rem] font-semibold text-muted-foreground"

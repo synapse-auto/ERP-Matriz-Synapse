@@ -29,6 +29,11 @@ const callbacks = vi.hoisted(() => ({
   novoContato: undefined as (() => void) | undefined,
 }));
 const abrirExistente = vi.hoisted(() => vi.fn());
+const invalidarParticipacao = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/atendimento/use-participacao", async (importarOriginal) => ({
+  ...(await importarOriginal<typeof import("@/lib/atendimento/use-participacao")>()),
+  invalidarParticipacao,
+}));
 const iniciarNovo = vi.hoisted(() => vi.fn());
 const reenviarMidia = vi.hoisted(() => vi.fn());
 const obterCartao = vi.hoisted(() => vi.fn());
@@ -1053,6 +1058,21 @@ describe("PaginaAtendimentosCliente", () => {
     expect(
       screen.queryByRole("button", { name: /detalhes do lead/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("invalida o pedido pessoal ao receber novo convite pela fila STOMP", () => {
+    renderPagina();
+    invalidarParticipacao.mockClear();
+    act(() => emitirNotificacao({
+      tipo: "CONVITE_ATENDIMENTO",
+      dados: {
+        atendimentoId: "atendimento-1",
+        leadId: "lead-1",
+        convidadorId: "ana-id",
+        ocorridoEm: "2026-01-01T00:00:00Z",
+      },
+    }));
+    expect(invalidarParticipacao).toHaveBeenCalledWith("atendimento-1");
   });
 
   it("abre a transferência e limpa o aviso", async () => {

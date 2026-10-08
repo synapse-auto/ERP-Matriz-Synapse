@@ -110,6 +110,12 @@ vi.mock("@/components/mensagens/painel-emoji-composer", () => ({
 vi.mock("@/lib/config/textos-provider", () => ({
   useTextos: () => ({
     atendimentos: {
+      cabecalho: {
+        conviteComposerTitulo: "Você foi convidado para participar deste atendimento.",
+        conviteComposerDescricao: "Aceite o convite para enviar mensagens.",
+        aceitarConvite: "Aceitar convite",
+        recusarConvite: "Recusar convite",
+      },
       tempoReal: { conversaEncerrada: "Conversa encerrada" },
       composer: {
         placeholder: "Digite uma mensagem...",
@@ -324,6 +330,37 @@ describe("Composer — anexo", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Programar mensagem" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Digite uma mensagem...")).toBeInTheDocument();
+  });
+
+  it("bloqueia controles e handle de anexos, aceita pelo mesmo handler e preserva rascunho", async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const ref = createRef<ComposerHandle>();
+    const convite = { pendente: false, processando: false, podeResponder: true,
+      aceitar: vi.fn(async () => undefined), recusar: vi.fn(async () => undefined), feedback: null };
+    const elemento = () => <TooltipProvider><QueryClientProvider client={cliente}>
+      <Composer ref={ref} conversa={conversa} convite={convite} />
+    </QueryClientProvider></TooltipProvider>;
+    const { rerender } = render(elemento());
+    fireEvent.change(screen.getByPlaceholderText("Digite uma mensagem..."), { target: { value: "Rascunho preservado" } });
+    convite.pendente = true;
+    rerender(elemento());
+    expect(screen.getByText("Aceite o convite para enviar mensagens.")).toBeVisible();
+    expect(screen.queryByPlaceholderText("Digite uma mensagem...")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agendar mensagem" })).not.toBeInTheDocument();
+    act(() => ref.current?.adicionarArquivos([arquivoFake("arquivo.pdf", "application/pdf")]));
+    fireEvent.keyDown(screen.getByText("Aceite o convite para enviar mensagens."), { key: "Enter" });
+    expect(mutateMidia).not.toHaveBeenCalled();
+    expect(mutateTexto).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar convite" }));
+    expect(convite.aceitar).toHaveBeenCalledOnce();
+    convite.processando = true;
+    rerender(elemento());
+    expect(screen.getByRole("button", { name: "Aceitar convite" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recusar convite" })).toBeDisabled();
+    convite.pendente = false;
+    rerender(elemento());
+    expect(screen.getByPlaceholderText("Digite uma mensagem...")).toHaveValue("Rascunho preservado");
+    expect(screen.queryByText("arquivo.pdf")).not.toBeInTheDocument();
   });
 
   it("mostra o chip de preview com nome e tamanho ao selecionar um arquivo", () => {

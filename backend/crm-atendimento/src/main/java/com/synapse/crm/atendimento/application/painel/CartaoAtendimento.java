@@ -21,6 +21,8 @@ import com.synapse.crm.atendimento.domain.atendimento.StatusAtendimento;
  * @param naoLidas mensagens do lead posteriores a leitura do responsavel exibido, para papeis
  *     de gestao quando houver responsavel; sem responsavel e para atendentes/participantes, usa a
  *     leitura pessoal. Abrange todos os ciclos do mesmo lead, sempre com o responsavel atual.
+ * @param convitePendente convite CONVITE vigente destinado ao usuario autenticado;
+ *     indicador pessoal de apresentacao, nunca autorizacao de envio.
  */
 public record CartaoAtendimento(
         UUID atendimentoId,
@@ -48,7 +50,8 @@ public record CartaoAtendimento(
         UUID vendaRegistradaPorId,
         String vendaRegistradaPorNome,
         Instant vendaRegistradaEm,
-        OrigemResultadoVenda origemResultadoVenda) {
+        OrigemResultadoVenda origemResultadoVenda,
+        boolean convitePendente) {
 
     /** Compatibilidade para fixtures e consumidores que ainda não projetam os dados comerciais. */
     public CartaoAtendimento(
@@ -60,6 +63,6 @@ public record CartaoAtendimento(
         this(atendimentoId, leadId, leadNome, leadFotoUrl, leadEmpresa, leadCodigo, canalTipo, etapaId,
                 etapaNome, etapaCor, status, atendenteId, atendenteNome, atendimentoAtivoId,
                 ultimaMensagemPreview, ultimaMensagemRemetenteTipo, ultimaMensagemEm,
-                ultimaMensagemDoLeadEm, naoLidas, false, null, null, null, null, null, null);
+                ultimaMensagemDoLeadEm, naoLidas, false, null, null, null, null, null, null, false);
     }
 }

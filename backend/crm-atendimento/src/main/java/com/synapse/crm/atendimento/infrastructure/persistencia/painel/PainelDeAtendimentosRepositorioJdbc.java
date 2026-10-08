@@ -58,6 +58,13 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
             venda_usuario.nome AS venda_registrada_por_nome, a.venda_registrada_em, a.origem_resultado_venda,
             a.iniciado_em AS iniciado_em,
             ativo.id AS atendimento_ativo_id,
+            EXISTS (
+                SELECT 1 FROM pedido_entrada_atendimento convite
+                 WHERE convite.atendimento_id = COALESCE(ativo.id, a.id)
+                   AND convite.solicitante_id = app_usuario_id()
+                   AND convite.tipo = 'CONVITE' AND convite.status = 'PENDENTE'
+                   AND convite.solicitado_em > now() - app_validade_pedido_entrada()
+            ) AS convite_pendente,
             ultima.conteudo AS ultima_mensagem_preview,
             ultima.remetente_tipo AS ultima_mensagem_remetente_tipo,
             ultima.enviado_em AS ultima_mensagem_em,
@@ -263,7 +270,7 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                     + "iniciado_em, atendimento_ativo_id, ultima_mensagem_preview, ultima_mensagem_remetente_tipo, "
                     + "ultima_mensagem_em, ultima_mensagem_do_lead_em, nao_lidas, em_negociacao, "
                     + "resultado_venda, valor_venda, venda_registrada_por_id, venda_registrada_por_nome, "
-                    + "venda_registrada_em, origem_resultado_venda, linha_do_lead";
+                    + "venda_registrada_em, origem_resultado_venda, convite_pendente, linha_do_lead";
 
     /**
      * E225 (B5): as contagens das abas de andamento filtram direto as linhas abertas ({@code a.status IN (...)}) em vez
@@ -570,7 +577,8 @@ class PainelDeAtendimentosRepositorioJdbc implements PainelDeAtendimentosReposit
                 linha.getString("origem_resultado_venda") == null
                         ? null
                         : com.synapse.crm.atendimento.domain.atendimento.OrigemResultadoVenda.valueOf(
-                                linha.getString("origem_resultado_venda")));
+                                linha.getString("origem_resultado_venda")),
+                linha.getBoolean("convite_pendente"));
     }
 
     private static Instant instante(ResultSet linha, String coluna) throws SQLException {

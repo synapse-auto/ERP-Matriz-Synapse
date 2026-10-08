@@ -188,7 +188,8 @@ public class ListarInboxUnificadaUseCase {
                     null,
                     null,
                     null,
-                    null);
+                    null,
+                    false);
         }
     }
 }

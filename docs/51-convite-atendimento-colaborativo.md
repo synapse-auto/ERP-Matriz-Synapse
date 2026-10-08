@@ -1,5 +1,34 @@
 # 51. Convite e atendimento colaborativo
 
+## Convite pendente: experiência de recebimento
+
+O cartão REST agora inclui `convitePendente` (boolean aditivo): identifica somente um
+convite `CONVITE/PENDENTE` vigente destinado ao usuário autenticado, no ciclo aberto
+representado pelo cartão. A projeção usa `EXISTS` na consulta de cartões já autorizados;
+não lista destinatários de outros usuários nem acrescenta chamada HTTP por cartão.
+O OpenAPI publica o campo em `CartaoAtendimento`. Clientes antigos podem ignorá-lo.
+O item `CLIENTE` de `/api/v1/atendimentos/inbox` preserva o mesmo indicador pessoal;
+itens do Chat Interno omitem o campo. Cursor e ordenação permanecem iguais.
+
+No chat com clientes, a tag **Convidado** usa tokens de destaque. Cabeçalho e composer
+compartilham o controlador de aceitar/recusar, a trava contra clique duplicado e o estado
+de processamento. O composer pendente mantém os rascunhos em memória, mas substitui os
+controles por instruções e ações de resposta: não permite texto/Enter, anexos, áudio,
+templates, programação, reenvio ou encaminhamento. Histórico continua legível.
+
+Aceite HTTP bem-sucedido não libera envio por otimismo: é necessário o snapshot
+autorizado confirmar `usuarioAtualParticipa`. Falha de reconciliação mantém bloqueio
+até evento/refetch/reconexão, sem repetir automaticamente o aceite. Erros de resposta
+usam mensagens catalogadas sanitizadas; 404/409 invalidam pedido/cartões e reconciliam
+o acesso existente, sem remover acesso legítimo da Gestão. Não há polling. Reconexão
+invalida o cache de participação da conversa selecionada.
+
+O aviso de assumir não aparece para convite pendente. Após aceite consentido, mantém
+o aviso existente de resposta sem transferência. Entrada direta pela Gestão/Agenda
+continua com a regra atual. RLS, Specification e autorização de envio não foram
+relaxadas: chamada direta antes do aceite permanece 404 sem mensagem/outbox de envio.
+Chat Interno não utiliza esse bloqueio. Não há variável nova nem ação no Dokploy.
+
 Diagnóstico e decisão sobre convidar um colega para o mesmo atendimento sem trocar o
 responsável. Reprodução feita com backend e PostgreSQL reais (perfil `dev`, banco descartável),
 dois atendentes da seed (A = Ana, B = Bruno) e um terceiro não convidado (C = Caio), com dados
