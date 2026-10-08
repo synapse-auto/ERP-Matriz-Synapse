@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
-import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { ErroDeApi } from "@/lib/api/errors";
 import { atualizarFotoDoGrupoChat, removerFotoDoGrupoChat } from "@/lib/chat-interno/api";
 import type { ChatConversa, FotoDoGrupo } from "@/lib/chat-interno/types";
-import type { PaginaInbox } from "@/lib/atendimento/api";
+import { sincronizarFotosDosGruposNaInbox } from "@/lib/chat-interno/foto-grupo-cache";
 import type { Textos } from "@/lib/config/schema";
 import { AvatarDoGrupo } from "@/components/chat-interno/avatar-do-grupo";
 
@@ -63,17 +63,7 @@ export function SecaoFotoDoGrupo({ conversaId, nome, fotoUrl, podeAlterar, texto
     cache.setQueryData<ChatConversa[]>(["chat-interno", "conversas"], (lista) =>
       lista?.map((conversa) => (conversa.id === conversaId ? { ...conversa, fotoUrl: resposta.fotoUrl } : conversa)),
     );
-    cache.setQueriesData<InfiniteData<PaginaInbox>>({ queryKey: ["atendimentos", "inbox"] }, (inbox) =>
-      inbox && {
-        ...inbox,
-        pages: inbox.pages.map((pagina) => ({
-          ...pagina,
-          itens: pagina.itens.map((item) => item?.tipo === "EQUIPE_INTERNA"
-            && item.tipoConversa === "GRUPO" && item.conversaId === conversaId
-            ? { ...item, avatarUrl: resposta.fotoUrl } : item),
-        })),
-      },
-    );
+    sincronizarFotosDosGruposNaInbox(cache, [{ id: conversaId, tipo: "GRUPO", fotoUrl: resposta.fotoUrl }]);
     void cache.invalidateQueries({ queryKey: ["chat-interno"] });
     void cache.invalidateQueries({ queryKey: ["atendimentos", "inbox"] });
   };

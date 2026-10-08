@@ -17,6 +17,7 @@ import { definirConversaAtiva } from "@/lib/atendimento/servico-notificacoes-tem
 import { CabecalhoChatInterno, ComposerChatInterno, DialogoEncaminharChatInterno, ListaMensagensChatInterno, type ComposerChatHandle } from "./componentes-chat-interno";
 import { DialogoEncaminharAoCliente } from "./dialogo-encaminhar-ao-cliente";
 import { PainelLateralGrupo } from "./painel-lateral-grupo";
+import { sincronizarFotosDosGruposNaInbox } from "@/lib/chat-interno/foto-grupo-cache";
 
 export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const catalogo = useTextos();
@@ -30,6 +31,9 @@ export function PainelConversaInterna({ conversaId }: { conversaId: string }) {
   const [edicaoAlvo, setEdicaoAlvo] = useState<import("@/lib/chat-interno/types").ChatMensagem | null>(null);
   const [painelAberto, setPainelAberto] = useState(false);
   const conversas = useQuery({ queryKey: ["chat-interno", "conversas"], queryFn: listarConversasChat });
+  useEffect(() => {
+    if (conversas.data) sincronizarFotosDosGruposNaInbox(cache, conversas.data);
+  }, [cache, conversas.data]);
   const mensagens = useQuery({ queryKey: ["chat-interno", "mensagens", conversaId], queryFn: () => listarMensagensChat(conversaId) });
   const usuarioAtual = useAuthStore((estado) => estado.usuarioId);
   const conversa = conversas.data?.find((item) => item.id === conversaId);

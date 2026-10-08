@@ -28,6 +28,8 @@ O avatar autenticado de grupo reutiliza o cliente binário e a chave de cache `a
 A URL blob é criada e revogada no mesmo efeito: reabrir a ficha com imagem em cache, inclusive no
 remount do StrictMode, não pode deixar a imagem apontando para uma URL já revogada. Falha na leitura
 mantém o ícone de grupo. Essa correção é exclusiva do avatar de grupo; o avatar de pessoa/lead não mudou.
+O snapshot de conversas atualizado por evento/reconexão sincroniza a foto na inbox também para os
+outros participantes. Apenas aplicar a resposta do upload no cache do autor não cobre esse caminho.
 
 ## Quem pode alterar (decisão)
 
@@ -111,8 +113,9 @@ evento do chat, e a lista traz a URL nova.
   reconexão do WebSocket (a partir da segunda), então um evento perdido enquanto o socket estava fora não deixa
   foto velha.
 - Recarregar a página sempre mostra a foto certa (vem do banco).
-- A inbox unificada (`/atendimentos/inbox`) já repassava `fotoUrl` e passou a mostrar a foto do grupo sem
-  mudança própria.
+- A inbox unificada (`/atendimentos/inbox`) já repassava a referência da foto, mas a renderização e o cache
+  precisavam do complemento descrito acima: ícone de grupo no fallback e sincronização após upload,
+  evento e reconexão, inclusive quando outro participante altera/remove a foto.
 
 ## Configuração
 
