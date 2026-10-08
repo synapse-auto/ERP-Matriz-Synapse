@@ -22,6 +22,8 @@ Ao trocar de grupo com a ficha aberta, a prévia é descartada e sua URL local r
 arquivo escolhido para um grupo não seja confirmado em outro. A conversa interna aberta pela inbox
 também recupera a lista do banco ao reconectar, como já fazia a página própria do Chat Interno.
 Nenhum endpoint, regra de autorização, migration ou variável de ambiente mudou neste complemento.
+Na inbox, grupos sem foto também reutilizam `AvatarDoGrupo` (ícone de grupo, não iniciais);
+conversas diretas continuam usando o avatar individual existente.
 
 ## Quem pode alterar (decisão)
 
