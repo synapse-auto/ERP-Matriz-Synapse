@@ -24,7 +24,7 @@ não tenta corrigir divergências silenciosamente. Nenhuma migration já aplicad
 | `lead_id`/`atendimento_id` TEXT | UUIDs opcionais, provenientes do CRM; atendimento exige lead correspondente |
 | `darwin_payload` integral | Removido; enviar somente campos permitidos |
 | `atualizado_em` | Removido: eventos não são sobrescritos pela função |
-| Sem chave de deduplicação | `idempotency_key` obrigatória, estável por evento, escopada pelo `clinica_id` |
+| `idempotency_key` única global, sem contrato de replay | Chave preservada, escopada pelo `clinica_id`, com replay validado pela função |
 | View pública | `automacao_agendamentos.vw_cancelamentos_agendamento`, privada |
 
 SQL do nó Postgres, **com parâmetros vinculados**, não interpolação de expressão em SQL:
