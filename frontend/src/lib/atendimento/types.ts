@@ -75,6 +75,8 @@ export type ContagemPorVisao = Partial<Record<VisaoAtendimento, number>>;
 
 /** Espelha PainelDeAtendimentosController.CartaoAtendimento — GET /api/v1/atendimentos?visao=. */
 export interface CartaoAtendimento {
+  /** Convite vigente destinado exclusivamente ao usuário autenticado. */
+  convitePendente?: boolean;
   tipo?: "CLIENTE";
   atendimentoId: string;
   leadId: string;

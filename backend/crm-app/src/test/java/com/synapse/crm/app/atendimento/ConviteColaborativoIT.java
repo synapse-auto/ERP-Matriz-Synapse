@@ -71,6 +71,7 @@ class ConviteColaborativoIT extends PostgresIT {
     @Autowired private TestRestTemplate http;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private SimpUserRegistry usuariosStomp;
+    @Autowired private com.synapse.crm.app.canal.CanalFake canal;
 
     private int porta;
     private WebSocketStompClient stomp;
@@ -182,14 +183,42 @@ class ConviteColaborativoIT extends PostgresIT {
 
     @Test
     @DisplayName("convite pendente so permite ler: B nao envia nem herda o lead antes de aceitar")
-    void convitePendente_naoPermiteEnviar() {
+    void convitePendente_naoPermiteEnviar() throws Exception {
         convidarBruno();
+        Captura eventos = assinar(conectar(EMAIL_BRUNO), "/user/queue/atendimento." + atendimento);
+        Long outboxAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM outbox_evento WHERE payload::text LIKE ?", Long.class,
+                "%" + lead + "%");
+        int enviosAntes = canal.enviados().size();
 
         assertThat(historico(EMAIL_BRUNO).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(enviar(EMAIL_BRUNO, "antes de aceitar").getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
         assertThat(contarMensagens("antes de aceitar")).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM outbox_evento WHERE payload::text LIKE ?", Long.class,
+                "%" + lead + "%")).isEqualTo(outboxAntes);
+        assertThat(eventos.nadaEm(ESPERA_NEGATIVA)).isTrue();
+        assertThat(canal.enviados()).hasSize(enviosAntes);
         assertResponsavelAna();
+    }
+
+    @Test
+    @DisplayName("cartao identifica convite pessoal vigente e remove a marca apos aceite")
+    void cartaoConvitePendente_pessoal() {
+        UUID pedido = convidarBruno();
+        String rota = "/api/v1/atendimentos/" + atendimento + "/cartao";
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody())
+                .contains("\"convitePendente\":true");
+        assertThat(chamar(EMAIL_ANA, HttpMethod.GET, rota, null).getBody())
+                .contains("\"convitePendente\":false");
+        assertThat(chamar(emailCaio, HttpMethod.GET, rota, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.POST,
+                "/api/v1/atendimentos/pedidos-entrada/" + pedido + "/aprovar", null)
+                .getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(chamar(EMAIL_BRUNO, HttpMethod.GET, rota, null).getBody())
+                .contains("\"convitePendente\":false");
     }
 
     @Test

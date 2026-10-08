@@ -23,6 +23,7 @@ vi.mock("@/lib/config/textos-provider", () => ({
     atendimentos: {
       canais: { whatsapp: "WhatsApp" },
       cartao: {
+        convidado: "Convidado",
         semAtendente: "Sem atendente",
         naoLidas: "{quantidade} mensagens não lidas",
         codigo: "Código {codigo}",
@@ -62,6 +63,13 @@ const cartao: CartaoAtendimento = {
 };
 
 describe("CartaoConversa — RN-CRM-05", () => {
+  it("identifica somente o convite pessoal pendente recebido no contrato", () => {
+    const props = { selecionado: false, onAbrirAtendimento: vi.fn() };
+    const { rerender } = render(<CartaoConversa {...props} cartao={{ ...cartao, convitePendente: true }} />);
+    expect(screen.getByText("Convidado")).toBeVisible();
+    rerender(<CartaoConversa {...props} cartao={{ ...cartao, convitePendente: false }} />);
+    expect(screen.queryByText("Convidado")).not.toBeInTheDocument();
+  });
   it("um clique abre a conversa sem exibir overlay da ficha", () => {
     const abrirAtendimento = vi.fn();
     render(

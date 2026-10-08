@@ -12,7 +12,7 @@ const participacao = vi.hoisted(() => ({
   usuarioId: "usuario-1",
   papel: "GESTOR",
   participantes: [] as Array<{ usuarioId: string; nome: string; fotoUrl?: string | null; origem?: "ENTRADA_DIRETA" | "CONVITE" | "PEDIDO_APROVADO" }>,
-  meuPedido: null as { status: "PENDENTE" | "RECUSADO"; solicitanteNome?: string; solicitadoEm?: string } | null,
+  meuPedido: null as { id?: string; tipo?: "CONVITE"; status: "PENDENTE" | "RECUSADO"; solicitanteNome?: string; solicitadoEm?: string } | null,
   pedidosPendentes: [] as Array<{ id: string; solicitanteNome: string; solicitadoEm: string }>,
   recarregar: vi.fn(),
   invalidar: vi.fn(),
@@ -69,6 +69,10 @@ vi.mock("@/lib/config/textos-provider", () => ({
         novoAtendimento: "Reativar atendimento",
         participantes: "Participantes",
         participando: "Você está participando",
+        convitePendente: "Convite pendente",
+        conviteRecebidoDescricao: "Aceite para participar",
+        aceitarConvite: "Aceitar convite",
+        recusarConvite: "Recusar convite",
         participanteRespondeSemAssumir: "Você participa: suas mensagens não transferem o atendimento.",
         pedirEntrada: "Pedir para entrar",
         pedidoPendente: "Pedido pendente",
@@ -241,6 +245,23 @@ describe("CabecalhoConversa", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar" }));
     expect(finalizar).toHaveBeenCalledWith("atendimento-1");
+  });
+
+  it("convite pendente usa handlers compartilhados e não avisa que vai assumir", () => {
+    participacao.meuPedido = { id: "pedido", tipo: "CONVITE", status: "PENDENTE" };
+    const convite = { pendente: true, processando: false, podeResponder: true,
+      aceitar: vi.fn(async () => undefined), recusar: vi.fn(async () => undefined), feedback: null };
+    const props = { conversa, estado: estado({ podeEnviar: false }), buscaAberta: false,
+      onAlternarBusca: vi.fn(), painelDetalhesAberto: true, onAlternarPainelDetalhes: vi.fn() };
+    const { rerender } = render(<CabecalhoConversa {...props} convite={convite} />);
+    expect(screen.queryByText("Ao enviar agora, você assume este atendimento.")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar convite" }));
+    expect(convite.aceitar).toHaveBeenCalledOnce();
+    expect(participacao.aprovar).not.toHaveBeenCalled();
+    convite.processando = true;
+    rerender(<CabecalhoConversa {...props} convite={convite} />);
+    expect(screen.getByRole("button", { name: "Aceitar convite" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Recusar convite" })).toBeDisabled();
   });
 
   it("finaliza normalmente sem negociação e abre o resultado apenas quando a IA marcou negociação", () => {

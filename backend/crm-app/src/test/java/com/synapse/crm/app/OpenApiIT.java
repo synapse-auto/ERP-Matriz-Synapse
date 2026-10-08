@@ -55,6 +55,8 @@ class OpenApiIT extends PostgresIT {
         assertThat(contarOperacoes(openApi)).isGreaterThan(0);
         assertThat(chavesDasOperacoes(openApi)).hasSize((int) contarOperacoes(openApi));
         assertThat(nomesDasTags(openApi)).contains("Interno", "Automação", "Resumo por IA");
+        assertThat(openApi.at("/components/schemas/CartaoAtendimento/properties/convitePendente/type").asText())
+                .isEqualTo("boolean");
         assertThat(openApi
                         .at("/paths/~1api~1v1~1atendimentos~1{atendimentoId}~1cartao/get/security/0/bearerAuth")
                         .isArray())

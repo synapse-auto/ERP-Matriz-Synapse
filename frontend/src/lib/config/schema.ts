@@ -444,6 +444,7 @@ export const TextosSchema = z.object({
       busca: z.string(),
     }),
     cartao: z.object({
+      convidado: z.string().default("Convidado"),
       semAtendente: z.string(),
       vazio: z.string(),
       naoLidas: z.string(),
@@ -485,6 +486,9 @@ export const TextosSchema = z.object({
       aceitarConvite: z.string(),
       recusarConvite: z.string(),
       conviteRecebidoDescricao: z.string(),
+      conviteComposerTitulo: z.string().default("Você foi convidado para participar deste atendimento."),
+      conviteComposerDescricao: z.string().default("Aceite o convite para enviar mensagens."),
+      conviteAtualizado: z.string().default("Esse convite já foi respondido ou expirou."),
       sucessoConviteAceito: z.string(),
       sucessoConviteRecusado: z.string(),
       finalizar: z.string(),

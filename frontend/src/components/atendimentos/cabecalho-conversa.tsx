@@ -98,6 +98,7 @@ function acaoDeBotao({
 }
 
 type Props = {
+  convite?: import("@/lib/atendimento/use-convite-recebido").ConviteRecebido;
   conversa: CartaoAtendimento;
   estado: EstadoAtendimentoSelecionado;
   onReconciliarEstado?: () => Promise<void>;
@@ -113,6 +114,7 @@ type Props = {
 
 /** Identificação da conversa, tags persistidas e ações operacionais. */
 export function CabecalhoConversa({
+  convite,
   conversa,
   estado,
   onReconciliarEstado,
@@ -150,6 +152,7 @@ export function CabecalhoConversa({
   const [estadoLocal, setEstadoLocal] = useState<"SEM_PEDIDO" | "PENDENTE" | "DENTRO" | "RECUSADO">("SEM_PEDIDO");
   const [processandoParticipacao, setProcessandoParticipacao] = useState(false);
   const [feedbackParticipacao, setFeedbackParticipacao] = useState<{ tipo: "erro" | "sucesso"; texto: string } | null>(null);
+  const feedbackDaParticipacao = convite?.feedback ?? feedbackParticipacao;
   const finalizado = conversa.status === "FINALIZADO";
   const telefone = lead.data?.telefone ?? null;
   const nomeDoLead = lead.data?.nome ?? conversa.leadNome;
@@ -228,7 +231,7 @@ export function CabecalhoConversa({
   const hrefTelefone = telefone ? `tel:${telefone.replace(/[^+\d]/g, "")}` : "";
   const mostrarParticipacao = podeColaborar && ((!finalizado && !ehResponsavel)
     || (!finalizado && ehResponsavel && pedidosPendentes.length > 0)
-    || feedbackParticipacao !== null);
+    || feedbackDaParticipacao !== null);
 
   // Ordem visual preservada. Fixos nunca saem; os demais saem para o "⋯" do menor para o maior
   // `prioridade` quando o espaço real não comporta (E210). Botão e item de menu nascem da mesma
@@ -261,8 +264,8 @@ export function CabecalhoConversa({
                 <span className="truncate">{textos.convitePendente}</span>
                 <span>{textos.conviteRecebidoDescricao}</span>
                 <span className="flex gap-1">
-                  <Button type="button" variant="outline" size="sm" onClick={() => executarParticipacao(() => aprovarPedido(meuPedido.id), "DENTRO", textos.sucessoConviteAceito)} disabled={processandoParticipacao}>{textos.aceitarConvite}</Button>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => executarParticipacao(() => recusarPedido(meuPedido.id), "SEM_PEDIDO", textos.sucessoConviteRecusado)} disabled={processandoParticipacao}>{textos.recusarConvite}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={convite?.aceitar ?? (() => executarParticipacao(() => aprovarPedido(meuPedido.id), "DENTRO", textos.sucessoConviteAceito))} disabled={processandoParticipacao || convite?.processando || (convite && !convite.podeResponder)}>{textos.aceitarConvite}</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={convite?.recusar ?? (() => executarParticipacao(() => recusarPedido(meuPedido.id), "SEM_PEDIDO", textos.sucessoConviteRecusado))} disabled={processandoParticipacao || convite?.processando || (convite && !convite.podeResponder)}>{textos.recusarConvite}</Button>
                 </span>
               </span>
             ) : (
@@ -288,9 +291,9 @@ export function CabecalhoConversa({
               <Button type="button" variant="ghost" size="sm" onClick={() => executarParticipacao(() => recusarPedido(pedido.id), "SEM_PEDIDO", textos.sucessoRecusado.replace("{nome}", pedido.solicitanteNome))} disabled={processandoParticipacao}>{textos.recusarEntrada}</Button>
             </span>
           ))}
-          {feedbackParticipacao && (
-            <p role={feedbackParticipacao.tipo === "erro" ? "alert" : "status"} aria-live="polite" className={cn("max-w-64 text-xs", feedbackParticipacao.tipo === "erro" ? "text-destructive" : "text-cor-sucesso")}>
-              {feedbackParticipacao.texto}
+          {feedbackDaParticipacao && (
+            <p role={feedbackDaParticipacao.tipo === "erro" ? "alert" : "status"} aria-live="polite" className={cn("max-w-64 text-xs", feedbackDaParticipacao.tipo === "erro" ? "text-destructive" : "text-cor-sucesso")}>
+              {feedbackDaParticipacao.texto}
             </p>
           )}
         </div>
@@ -503,7 +506,7 @@ export function CabecalhoConversa({
               {colaboraSemAssumir ? textos.participanteRespondeSemAssumir : textos.participando}
             </span>
           )}
-          {!colaboraSemAssumir && !ehResponsavel && !finalizado && (
+          {!colaboraSemAssumir && !ehResponsavel && !finalizado && !convite?.pendente && !(meuPedido?.tipo === "CONVITE" && meuPedido.status === "PENDENTE") && (
             <p className="mt-1 truncate text-[0.65rem] text-muted-foreground">{textos.avisoEnviarAssume}</p>
           )}
         </div>
