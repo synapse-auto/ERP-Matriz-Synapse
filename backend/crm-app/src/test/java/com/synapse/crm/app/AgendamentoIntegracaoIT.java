@@ -94,6 +94,9 @@ class AgendamentoIntegracaoIT {
 
     @Test
     void concorrenciaMantemUmEvento() throws Exception {
+        // Sequences nao sao transacionais: um INSERT perdedor pode consumir o primeiro ID.
+        // Consumir uma posicao prova que o teste nao depende de IDs contiguos ou iniciados em 1.
+        executar("SELECT nextval(pg_get_serial_sequence('automacao_agendamentos.agendamento_evento', 'id'))");
         var barreira = new CyclicBarrier(2);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var tarefa = (java.util.concurrent.Callable<String>) () -> {
@@ -102,8 +105,10 @@ class AgendamentoIntegracaoIT {
             };
             var primeira = executor.submit(tarefa);
             var segunda = executor.submit(tarefa);
-            assertThat(java.util.List.of(primeira.get(15, TimeUnit.SECONDS), segunda.get(15, TimeUnit.SECONDS)))
-                    .containsExactlyInAnyOrder("1:false", "1:true");
+            var respostas = java.util.List.of(primeira.get(15, TimeUnit.SECONDS), segunda.get(15, TimeUnit.SECONDS));
+            var idPersistido = consultar("SELECT id::text FROM automacao_agendamentos.agendamento_evento");
+            assertThat(respostas).containsExactlyInAnyOrder(idPersistido + ":false", idPersistido + ":true");
+            assertThat(consultar("SELECT count(*) FROM automacao_agendamentos.agendamento_evento")).isEqualTo("1");
         }
     }
 
