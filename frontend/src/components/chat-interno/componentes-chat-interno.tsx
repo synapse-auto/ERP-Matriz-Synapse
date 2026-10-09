@@ -178,7 +178,7 @@ export function CabecalhoChatInterno({
         <AvatarIniciais id={conversa?.id ?? "chat-interno"} nome={nome} fotoUrl={conversa?.fotoUrl} className="flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white" />
       )}
       <div className="min-w-0 flex-1">
-        <h2 className="flex items-center gap-2 truncate font-semibold text-foreground">
+        <h2 className="flex items-center gap-2 truncate font-semibold text-chat-texto-forte">
           <Users className="size-(--tamanho-icone-interface) shrink-0 text-muted-foreground" aria-hidden />
           <span className="truncate">{nome}</span>
         </h2>
@@ -355,7 +355,7 @@ export function ListaMensagensChatInterno({
                   mensagemDestacadaId === mensagem.id && "ring-2 ring-primary/50 transition-shadow",
                   propria
                     ? "rounded-tr-md bg-primary text-primary-foreground"
-                    : "rounded-tl-md border border-border bg-background text-foreground",
+                    : "rounded-tl-md border border-border bg-background text-chat-texto-forte",
                 )}
               >
               {!propria && <p className="mb-1 text-xs font-semibold text-muted-foreground">{mensagem.remetenteNome}</p>}
@@ -382,7 +382,7 @@ export function ListaMensagensChatInterno({
                 </>
               )}
 
-              <time className={cn("mt-1 block text-[10px]", propria ? "text-primary-foreground/70" : "text-muted-foreground")} dateTime={mensagem.enviadoEm}>
+              <time className={cn("mt-1 block text-[10px]", propria ? "text-primary-foreground" : "text-muted-foreground")} dateTime={mensagem.enviadoEm}>
                 {new Date(mensagem.enviadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                 {mensagem.editadoEm && <span className="ml-1">· {textos.mensagemEditada}</span>}
               </time>

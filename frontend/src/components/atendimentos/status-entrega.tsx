@@ -74,8 +74,7 @@ export function StatusEntregaIcone({ status, erroEntrega = null, onReenviar }: P
   };
 
   const { icone, rotulo } = mapa[status];
-  // Sem cor própria: herda text-primary-foreground/70 do rodapé do balão (bolha-mensagem.tsx).
-  // PENDENTE/ENVIADO/ENTREGUE ficam nessa opacidade reduzida; LIDO se destaca por cima (acima).
+  // Herda a cor opaca do rodapé; LIDO mantém o ícone semântico distinto.
   return (
     <span className="inline-flex items-center gap-1" title={rotulo} role="status" aria-label={rotulo}>
       {icone}

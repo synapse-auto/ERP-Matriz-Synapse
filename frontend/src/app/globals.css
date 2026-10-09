@@ -37,6 +37,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-chat-texto-forte: var(--chat-texto-forte);
 
   /* E10: tokens Synapse (design/TOKENS.md), consumidos direto por classes Tailwind
      arbitrárias (ex.: bg-[--color-cor-erro-suave]) em componentes fora do shadcn. */
@@ -119,6 +120,8 @@
  * existir — build estático sem backend no ar, por exemplo (já mordeu esse caminho antes).
  */
 :root {
+  /* Somente identidade e corpo de mensagens do chat; não altera foreground global. */
+  --chat-texto-forte: var(--texto-forte, var(--foreground));
   --fonte-base: "Inter", sans-serif;
   --fonte-mono: "JetBrains Mono", ui-monospace, monospace;
   --background: var(--fundo-app, #F4F7FB);
@@ -175,6 +178,7 @@
 }
 
 .dark {
+  --chat-texto-forte: var(--foreground);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

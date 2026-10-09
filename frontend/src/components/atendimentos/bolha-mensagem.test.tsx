@@ -107,6 +107,16 @@ function renderizarComQuery(ui: ReactNode) {
 }
 
 describe("BolhaMensagem", () => {
+  it.each(["LEAD", "ATENDENTE"] as const)("preserva corpo normal e contraste opaco para %s", (remetenteTipo) => {
+    renderizarComQuery(<BolhaMensagem mensagem={mensagem({ remetenteTipo, conteudo: "Texto sintético 🙂\nhttps://example.com" })} nomeDoRemetente="Equipe de teste" onDefinirReacao={vi.fn()} onRemoverReacao={vi.fn()} />);
+    const corpo = screen.getByText(/Texto sintético/).closest(".rounded-2xl")!;
+    expect(corpo).toHaveClass("font-normal", remetenteTipo === "LEAD" ? "text-chat-texto-forte" : "text-primary-foreground");
+    expect(screen.getByRole("link")).toHaveAttribute("rel", "noopener noreferrer");
+    if (remetenteTipo === "ATENDENTE") {
+      expect(screen.getByText("Equipe de teste")).toHaveClass("text-primary-foreground");
+      expect(screen.getByText("Lido").closest(".mt-1")).toHaveClass("text-primary-foreground");
+    }
+  });
   it.each([
     ["AUDIO", "audio/ogg", "voz.ogg"],
     ["VIDEO", "video/mp4", "video.mp4"],
